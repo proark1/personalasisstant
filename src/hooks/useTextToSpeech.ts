@@ -1,15 +1,25 @@
 import { useState, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import type { AssistantPersonality } from '@/types/flux';
+import { personalityConfigs } from '@/types/flux';
+
+type Voice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
 
 interface UseTextToSpeechOptions {
-  voice?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+  defaultVoice?: Voice;
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: string) => void;
 }
 
+// Map personality to voice
+const getVoiceForPersonality = (personality?: AssistantPersonality): Voice => {
+  if (!personality) return 'alloy';
+  const config = personalityConfigs.find(p => p.id === personality);
+  return (config?.voice as Voice) || 'alloy';
+};
+
 export function useTextToSpeech({
-  voice = 'alloy',
+  defaultVoice = 'alloy',
   onStart,
   onEnd,
   onError,
@@ -27,12 +37,14 @@ export function useTextToSpeech({
     setIsSpeaking(false);
   }, []);
 
-  const speak = useCallback(async (text: string) => {
+  const speak = useCallback(async (text: string, personality?: AssistantPersonality) => {
     if (!text.trim()) return;
 
     // Stop any existing playback
     stop();
     setIsLoading(true);
+
+    const voice = personality ? getVoiceForPersonality(personality) : defaultVoice;
 
     try {
       const response = await fetch(
@@ -87,7 +99,7 @@ export function useTextToSpeech({
     } finally {
       setIsLoading(false);
     }
-  }, [voice, stop, onStart, onEnd, onError]);
+  }, [defaultVoice, stop, onStart, onEnd, onError]);
 
   return {
     speak,

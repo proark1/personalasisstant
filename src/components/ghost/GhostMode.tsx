@@ -3,7 +3,10 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AudioVisualizer } from './AudioVisualizer';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
+import { useGeminiLive } from '@/hooks/useGeminiLive';
+import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useToast } from '@/hooks/use-toast';
+import type { AssistantPersonality } from '@/types/flux';
 import { 
   Mic, 
   MicOff, 
@@ -12,24 +15,57 @@ import {
   WifiOff,
   Volume2,
   VolumeX,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 
 interface GhostModeProps {
   onClose: () => void;
   onCommand: (command: string) => void;
+  personality?: AssistantPersonality;
 }
 
-type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'processing' | 'speaking' | 'error';
 
-export function GhostMode({ onClose, onCommand }: GhostModeProps) {
+export function GhostMode({ onClose, onCommand, personality = 'balanced' }: GhostModeProps) {
   const { toast } = useToast();
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [displayTranscript, setDisplayTranscript] = useState('');
-  const [pendingCommand, setPendingCommand] = useState('');
+  const [aiResponse, setAiResponse] = useState('');
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastProcessedRef = useRef<string>('');
+
+  // TTS hook for AI voice output
+  const { speak, stop: stopSpeaking, isLoading: isTTSLoading } = useTextToSpeech();
+
+  // Gemini Live hook for AI responses
+  const { isProcessing, sendText } = useGeminiLive({
+    personality,
+    onResponse: async (text) => {
+      setAiResponse(text);
+      setConnectionStatus('speaking');
+      
+      // Speak the response if not muted
+      if (!isMuted) {
+        await speak(text, personality);
+      }
+      
+      // Also send to parent for any task/event processing
+      onCommand(text);
+      
+      setConnectionStatus('connected');
+    },
+    onError: (error) => {
+      setConnectionStatus('error');
+      toast({
+        variant: 'destructive',
+        title: 'AI Error',
+        description: error,
+      });
+      setConnectionStatus('connected');
+    },
+  });
 
   const handleTranscript = useCallback((transcript: string, isFinal: boolean) => {
     setDisplayTranscript(transcript);
@@ -39,19 +75,23 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
       clearTimeout(silenceTimeoutRef.current);
     }
 
-    if (isFinal && transcript.trim()) {
-      setPendingCommand(transcript.trim());
+    if (isFinal && transcript.trim() && transcript.trim() !== lastProcessedRef.current) {
+      lastProcessedRef.current = transcript.trim();
+      setConnectionStatus('processing');
+      sendText(transcript.trim());
     } else if (transcript.trim()) {
-      // Set a timeout to send the command after silence
+      // Set a timeout to send after silence
       silenceTimeoutRef.current = setTimeout(() => {
-        if (transcript.trim()) {
-          setPendingCommand(transcript.trim());
+        if (transcript.trim() && transcript.trim() !== lastProcessedRef.current) {
+          lastProcessedRef.current = transcript.trim();
+          setConnectionStatus('processing');
+          sendText(transcript.trim());
         }
-      }, 1500);
+      }, 2000);
     }
-  }, []);
+  }, [sendText]);
 
-  const handleError = useCallback((error: string) => {
+  const handleVoiceError = useCallback((error: string) => {
     setConnectionStatus('error');
     toast({
       variant: 'destructive',
@@ -67,34 +107,18 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
     stopListening,
   } = useVoiceRecognition({
     onTranscript: handleTranscript,
-    onError: handleError,
+    onError: handleVoiceError,
     continuous: true,
   });
 
-  // Process pending commands
+  // Update connection status based on state
   useEffect(() => {
-    if (pendingCommand) {
-      setIsSpeaking(true);
-      onCommand(pendingCommand);
-      
-      // Simulate AI "speaking" response time
-      const speakDuration = Math.min(3000, pendingCommand.length * 50);
-      setTimeout(() => {
-        setIsSpeaking(false);
-        setDisplayTranscript('');
-        setPendingCommand('');
-      }, speakDuration);
-    }
-  }, [pendingCommand, onCommand]);
-
-  // Update connection status based on listening state
-  useEffect(() => {
-    if (isListening) {
+    if (isProcessing) {
+      setConnectionStatus('processing');
+    } else if (isListening && connectionStatus !== 'speaking') {
       setConnectionStatus('connected');
-    } else if (connectionStatus === 'connected') {
-      setConnectionStatus('disconnected');
     }
-  }, [isListening, connectionStatus]);
+  }, [isListening, isProcessing, connectionStatus]);
 
   const handleStartListening = useCallback(() => {
     if (!isSupported) {
@@ -107,19 +131,36 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
     }
 
     setConnectionStatus('connecting');
+    setDisplayTranscript('');
+    setAiResponse('');
+    lastProcessedRef.current = '';
+    
     setTimeout(() => {
       startListening();
+      setConnectionStatus('connected');
     }, 500);
   }, [isSupported, startListening, toast]);
 
   const handleStopListening = useCallback(() => {
     stopListening();
+    stopSpeaking();
     setConnectionStatus('disconnected');
     setDisplayTranscript('');
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current);
     }
-  }, [stopListening]);
+  }, [stopListening, stopSpeaking]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -128,22 +169,23 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
         clearTimeout(silenceTimeoutRef.current);
       }
       stopListening();
+      stopSpeaking();
     };
-  }, [stopListening]);
+  }, [stopListening, stopSpeaking]);
 
-  const statusColors = {
-    connecting: 'text-warning',
-    connected: 'text-success',
-    disconnected: 'text-muted-foreground',
-    error: 'text-destructive',
+  const statusConfig = {
+    connecting: { color: 'text-warning', icon: Wifi, label: 'Connecting...', animate: true },
+    connected: { color: 'text-success', icon: Wifi, label: 'Listening', animate: false },
+    processing: { color: 'text-ghost-primary', icon: Loader2, label: 'Thinking...', animate: true },
+    speaking: { color: 'text-purple-400', icon: Volume2, label: 'Speaking', animate: true },
+    disconnected: { color: 'text-muted-foreground', icon: WifiOff, label: 'Disconnected', animate: false },
+    error: { color: 'text-destructive', icon: AlertCircle, label: 'Error', animate: false },
   };
 
-  const statusLabels = {
-    connecting: 'Connecting...',
-    connected: 'Listening',
-    disconnected: 'Disconnected',
-    error: 'Error',
-  };
+  const currentStatus = statusConfig[connectionStatus];
+  const StatusIcon = currentStatus.icon;
+
+  const isSpeaking = connectionStatus === 'speaking' || isTTSLoading;
 
   return (
     <div className="fixed inset-0 ghost-gradient z-50 flex flex-col animate-fade-in">
@@ -152,18 +194,10 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
         <div className="flex items-center gap-3">
           <div className={cn(
             "flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel text-sm",
-            statusColors[connectionStatus]
+            currentStatus.color
           )}>
-            {connectionStatus === 'connected' ? (
-              <Wifi className="w-4 h-4" />
-            ) : connectionStatus === 'connecting' ? (
-              <Wifi className="w-4 h-4 animate-pulse" />
-            ) : connectionStatus === 'error' ? (
-              <AlertCircle className="w-4 h-4" />
-            ) : (
-              <WifiOff className="w-4 h-4" />
-            )}
-            <span className="font-mono text-xs">{statusLabels[connectionStatus]}</span>
+            <StatusIcon className={cn("w-4 h-4", currentStatus.animate && "animate-pulse")} />
+            <span className="font-mono text-xs">{currentStatus.label}</span>
           </div>
           
           {!isSupported && (
@@ -189,22 +223,29 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
         {/* Visualizer */}
         <div className="w-80 h-80 mb-8">
           <AudioVisualizer 
-            isActive={isListening || isSpeaking}
+            isActive={isListening || isProcessing || isSpeaking}
             isSpeaking={isSpeaking}
-            isListening={isListening}
+            isListening={isListening && !isProcessing && !isSpeaking}
           />
         </div>
 
-        {/* Transcript */}
-        <div className="h-24 flex items-center justify-center">
-          {displayTranscript ? (
-            <p className="text-2xl md:text-3xl font-light text-center max-w-2xl text-foreground/90 animate-fade-in">
+        {/* Transcript / Response */}
+        <div className="h-32 flex flex-col items-center justify-center gap-2 max-w-2xl">
+          {displayTranscript && connectionStatus !== 'speaking' ? (
+            <p className="text-2xl md:text-3xl font-light text-center text-foreground/90 animate-fade-in">
               "{displayTranscript}"
             </p>
-          ) : isSpeaking ? (
-            <p className="text-lg text-ghost-primary animate-pulse">
-              Flux is responding...
+          ) : aiResponse && (connectionStatus === 'speaking' || connectionStatus === 'connected') ? (
+            <p className="text-xl md:text-2xl font-light text-center text-purple-300 animate-fade-in">
+              {aiResponse}
             </p>
+          ) : isProcessing ? (
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-6 h-6 animate-spin text-ghost-primary" />
+              <p className="text-lg text-ghost-primary">
+                Processing...
+              </p>
+            </div>
           ) : isListening ? (
             <p className="text-lg text-muted-foreground">
               Listening... say something
@@ -221,10 +262,13 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
       <footer className="absolute bottom-0 left-0 right-0 p-8 flex items-center justify-center gap-4">
         <Button
           variant="ghost"
-          size="iconLg"
-          onClick={() => setIsMuted(!isMuted)}
+          size="icon"
+          onClick={() => {
+            setIsMuted(!isMuted);
+            if (!isMuted) stopSpeaking();
+          }}
           className={cn(
-            "rounded-full",
+            "rounded-full w-12 h-12",
             isMuted ? "text-destructive" : "text-muted-foreground"
           )}
         >
@@ -232,13 +276,14 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
         </Button>
 
         <Button
-          variant={isListening ? "ghost_mode" : "glow"}
-          size="xl"
+          variant={isListening ? "ghost" : "default"}
+          size="icon"
           onClick={isListening ? handleStopListening : handleStartListening}
-          disabled={!isSupported && !isListening}
+          disabled={(!isSupported && !isListening) || isProcessing}
           className={cn(
-            "rounded-full w-20 h-20",
-            isListening && "animate-pulse-glow"
+            "rounded-full w-20 h-20 transition-all",
+            isListening && "bg-ghost-primary/20 border-2 border-ghost-primary animate-pulse",
+            !isListening && "bg-ghost-primary hover:bg-ghost-primary/90"
           )}
         >
           {isListening ? (
