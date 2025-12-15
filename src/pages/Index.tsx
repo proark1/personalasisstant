@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDatabase } from '@/hooks/useDatabase';
 import { useSettings } from '@/hooks/useSettings';
@@ -40,6 +40,8 @@ const Index = () => {
     title: string;
   } | null>(null);
 
+  const sendLockRef = useRef(false);
+
   // Handle escape key to exit ghost mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -64,14 +66,42 @@ const Index = () => {
 
   // Handle AI chat with real streaming
   const handleSendMessage = useCallback(async (content: string) => {
-    addMessage({ role: 'user', content });
+    const userText = content.trim();
+    if (!userText) return;
+
+    // Prevent accidental multi-submit (e.g. key-repeat / double click)
+    if (sendLockRef.current) return;
+    sendLockRef.current = true;
+
+    addMessage({ role: 'user', content: userText });
     setIsProcessing(true);
 
     let assistantContent = '';
 
+    // Keep prompts small and avoid runaway token usage
+    const conversationMessages = (() => {
+      const recent = messages
+        .slice(-20)
+        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+      const deduped: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+      for (const m of recent) {
+        const last = deduped[deduped.length - 1];
+        if (last && last.role === m.role && last.content === m.content) continue;
+        deduped.push(m);
+      }
+
+      const last = deduped[deduped.length - 1];
+      if (!last || last.role !== 'user' || last.content !== userText) {
+        deduped.push({ role: 'user', content: userText });
+      }
+
+      return deduped;
+    })();
+
     try {
       await streamChat({
-        messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user' as const, content }],
+        messages: conversationMessages,
         tasks,
         events,
         onDelta: (delta) => {
@@ -129,7 +159,7 @@ const Index = () => {
         .replace(/<tool>[\s\S]*?<\/task>/g, '')
         .replace(/<tool>[\s\S]*?<\/event>/g, '')
         .trim();
-      
+
       if (cleanContent) {
         addMessage({ role: 'assistant', content: cleanContent });
       }
@@ -141,11 +171,13 @@ const Index = () => {
         title: 'Chat Error',
         description: errorMessage,
       });
-      addMessage({ 
-        role: 'assistant', 
-        content: "I'm sorry, I encountered an error. Please try again." 
+      addMessage({
+        role: 'assistant',
+        content: "I'm sorry, I encountered an error. Please try again.",
       });
       setIsProcessing(false);
+    } finally {
+      sendLockRef.current = false;
     }
   }, [addMessage, addTask, addEvent, deleteTask, toggleTaskComplete, events, messages, settings, streamChat, tasks, toast]);
 
