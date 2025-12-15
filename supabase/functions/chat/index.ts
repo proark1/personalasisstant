@@ -1,0 +1,114 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface Message {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+interface ChatRequest {
+  messages: Message[];
+  tasks?: { id: string; title: string; completed: boolean; category: string; priority: string }[];
+  events?: { id: string; title: string; startTime: string; endTime: string }[];
+}
+
+const systemPrompt = `You are Flux, an intelligent AI productivity assistant. You help users manage tasks, schedule events, and stay organized.
+
+You have access to the following tools to manipulate the user's productivity state:
+
+TOOL: manage_task
+Use this to add, update, or delete tasks.
+Format: <tool>manage_task</tool><action>add|update|delete|complete</action><task>{"title": "...", "category": "business|personal", "priority": "high|medium|low", "id": "..." (for update/delete/complete)}</task>
+
+TOOL: schedule_event
+Use this to schedule calendar events.
+Format: <tool>schedule_event</tool><event>{"title": "...", "startTime": "ISO date string", "endTime": "ISO date string", "location": "..." (optional), "attendees": [...] (optional)}</event>
+
+When the user asks you to add a task, schedule a meeting, or manage their productivity, use the appropriate tool by including it in your response.
+
+Guidelines:
+- Be concise and helpful
+- When adding tasks, infer the category (business/personal) and priority (high/medium/low) from context
+- When scheduling events, calculate appropriate times if not specified (default to next available business hour)
+- Always confirm what you've done after using a tool
+- If you need to search for information, just answer based on your knowledge
+
+Current date and time: ${new Date().toISOString()}`;
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { messages, tasks, events }: ChatRequest = await req.json();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Build context about current state
+    let contextMessage = "";
+    if (tasks && tasks.length > 0) {
+      const pendingTasks = tasks.filter(t => !t.completed);
+      contextMessage += `\nCurrent tasks (${pendingTasks.length} pending):\n${pendingTasks.map(t => `- ${t.title} (${t.category}, ${t.priority} priority)`).join('\n')}`;
+    }
+    if (events && events.length > 0) {
+      contextMessage += `\nUpcoming events:\n${events.map(e => `- ${e.title} at ${e.startTime}`).join('\n')}`;
+    }
+
+    const fullSystemPrompt = systemPrompt + contextMessage;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: fullSystemPrompt },
+          ...messages,
+        ],
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Usage limit reached. Please add credits to continue." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
+      return new Response(JSON.stringify({ error: "AI service error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(response.body, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    });
+  } catch (error) {
+    console.error("Chat function error:", error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

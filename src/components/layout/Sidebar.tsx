@@ -10,7 +10,8 @@ import {
   Ghost,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Settings
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 
@@ -18,9 +19,10 @@ interface SidebarProps {
   activeFilter: TaskCategory | 'all';
   onFilterChange: (filter: TaskCategory | 'all') => void;
   onGhostMode: () => void;
+  onOpenSettings: () => void;
 }
 
-export function Sidebar({ activeFilter, onFilterChange, onGhostMode }: SidebarProps) {
+export function Sidebar({ activeFilter, onFilterChange, onGhostMode, onOpenSettings }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
@@ -75,8 +77,20 @@ export function Sidebar({ activeFilter, onFilterChange, onGhostMode }: SidebarPr
         ))}
       </nav>
 
-      {/* Ghost Mode Button */}
-      <div className="p-3 border-t border-sidebar-border">
+      {/* Bottom Actions */}
+      <div className="p-3 border-t border-sidebar-border space-y-1">
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full gap-3",
+            collapsed && "justify-center px-0"
+          )}
+          onClick={onOpenSettings}
+        >
+          <Settings className="w-5 h-5 shrink-0" />
+          {!collapsed && <span>Settings</span>}
+        </Button>
+        
         <Button
           variant="ghost_mode"
           className={cn(

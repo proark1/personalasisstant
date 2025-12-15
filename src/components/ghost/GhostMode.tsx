@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AudioVisualizer } from './AudioVisualizer';
+import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Mic, 
   MicOff, 
@@ -9,7 +11,8 @@ import {
   Wifi, 
   WifiOff,
   Volume2,
-  VolumeX
+  VolumeX,
+  AlertCircle
 } from 'lucide-react';
 
 interface GhostModeProps {
@@ -20,64 +23,113 @@ interface GhostModeProps {
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 export function GhostMode({ onClose, onCommand }: GhostModeProps) {
-  const [isListening, setIsListening] = useState(false);
+  const { toast } = useToast();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [transcript, setTranscript] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
+  const [displayTranscript, setDisplayTranscript] = useState('');
+  const [pendingCommand, setPendingCommand] = useState('');
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Simulate connection and voice interaction
-  const startListening = useCallback(() => {
-    setConnectionStatus('connecting');
+  const handleTranscript = useCallback((transcript: string, isFinal: boolean) => {
+    setDisplayTranscript(transcript);
     
-    // Simulate connection delay
-    setTimeout(() => {
-      setConnectionStatus('connected');
-      setIsListening(true);
-    }, 1000);
+    // Clear any existing silence timeout
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+    }
+
+    if (isFinal && transcript.trim()) {
+      setPendingCommand(transcript.trim());
+    } else if (transcript.trim()) {
+      // Set a timeout to send the command after silence
+      silenceTimeoutRef.current = setTimeout(() => {
+        if (transcript.trim()) {
+          setPendingCommand(transcript.trim());
+        }
+      }, 1500);
+    }
   }, []);
 
-  const stopListening = useCallback(() => {
-    setIsListening(false);
-    setConnectionStatus('disconnected');
-    setTranscript('');
-  }, []);
+  const handleError = useCallback((error: string) => {
+    setConnectionStatus('error');
+    toast({
+      variant: 'destructive',
+      title: 'Voice Recognition Error',
+      description: error,
+    });
+  }, [toast]);
 
-  // Simulate voice activity for demo
+  const {
+    isListening,
+    isSupported,
+    startListening,
+    stopListening,
+  } = useVoiceRecognition({
+    onTranscript: handleTranscript,
+    onError: handleError,
+    continuous: true,
+  });
+
+  // Process pending commands
   useEffect(() => {
-    if (!isListening) return;
+    if (pendingCommand) {
+      setIsSpeaking(true);
+      onCommand(pendingCommand);
+      
+      // Simulate AI "speaking" response time
+      const speakDuration = Math.min(3000, pendingCommand.length * 50);
+      setTimeout(() => {
+        setIsSpeaking(false);
+        setDisplayTranscript('');
+        setPendingCommand('');
+      }, speakDuration);
+    }
+  }, [pendingCommand, onCommand]);
 
-    const phrases = [
-      "Add a task to review the quarterly report...",
-      "Schedule a meeting with the design team for next Tuesday at 2 PM...",
-      "What's on my agenda for today?",
-      "Remind me to call Alex tomorrow morning...",
-    ];
+  // Update connection status based on listening state
+  useEffect(() => {
+    if (isListening) {
+      setConnectionStatus('connected');
+    } else if (connectionStatus === 'connected') {
+      setConnectionStatus('disconnected');
+    }
+  }, [isListening, connectionStatus]);
 
-    let currentPhrase = 0;
-    let charIndex = 0;
+  const handleStartListening = useCallback(() => {
+    if (!isSupported) {
+      toast({
+        variant: 'destructive',
+        title: 'Not Supported',
+        description: 'Voice recognition is not supported in this browser. Try Chrome or Edge.',
+      });
+      return;
+    }
 
-    const typeInterval = setInterval(() => {
-      if (charIndex < phrases[currentPhrase].length) {
-        setTranscript(phrases[currentPhrase].substring(0, charIndex + 1));
-        charIndex++;
-      } else {
-        // Simulate AI response
-        setIsListening(false);
-        setIsSpeaking(true);
-        
-        setTimeout(() => {
-          setIsSpeaking(false);
-          setIsListening(true);
-          currentPhrase = (currentPhrase + 1) % phrases.length;
-          charIndex = 0;
-          setTranscript('');
-        }, 3000);
+    setConnectionStatus('connecting');
+    setTimeout(() => {
+      startListening();
+    }, 500);
+  }, [isSupported, startListening, toast]);
+
+  const handleStopListening = useCallback(() => {
+    stopListening();
+    setConnectionStatus('disconnected');
+    setDisplayTranscript('');
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+    }
+  }, [stopListening]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
       }
-    }, 80);
-
-    return () => clearInterval(typeInterval);
-  }, [isListening]);
+      stopListening();
+    };
+  }, [stopListening]);
 
   const statusColors = {
     connecting: 'text-warning',
@@ -88,9 +140,9 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
 
   const statusLabels = {
     connecting: 'Connecting...',
-    connected: 'Connected',
+    connected: 'Listening',
     disconnected: 'Disconnected',
-    error: 'Connection Error',
+    error: 'Error',
   };
 
   return (
@@ -106,11 +158,20 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
               <Wifi className="w-4 h-4" />
             ) : connectionStatus === 'connecting' ? (
               <Wifi className="w-4 h-4 animate-pulse" />
+            ) : connectionStatus === 'error' ? (
+              <AlertCircle className="w-4 h-4" />
             ) : (
               <WifiOff className="w-4 h-4" />
             )}
             <span className="font-mono text-xs">{statusLabels[connectionStatus]}</span>
           </div>
+          
+          {!isSupported && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel text-warning text-sm">
+              <AlertCircle className="w-4 h-4" />
+              <span className="font-mono text-xs">Use Chrome/Edge</span>
+            </div>
+          )}
         </div>
         
         <Button
@@ -136,17 +197,17 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
 
         {/* Transcript */}
         <div className="h-24 flex items-center justify-center">
-          {transcript ? (
+          {displayTranscript ? (
             <p className="text-2xl md:text-3xl font-light text-center max-w-2xl text-foreground/90 animate-fade-in">
-              "{transcript}"
+              "{displayTranscript}"
             </p>
           ) : isSpeaking ? (
             <p className="text-lg text-ghost-primary animate-pulse">
-              Flux is speaking...
+              Flux is responding...
             </p>
           ) : isListening ? (
             <p className="text-lg text-muted-foreground">
-              Listening...
+              Listening... say something
             </p>
           ) : (
             <p className="text-lg text-muted-foreground">
@@ -173,7 +234,8 @@ export function GhostMode({ onClose, onCommand }: GhostModeProps) {
         <Button
           variant={isListening ? "ghost_mode" : "glow"}
           size="xl"
-          onClick={isListening ? stopListening : startListening}
+          onClick={isListening ? handleStopListening : handleStartListening}
+          disabled={!isSupported && !isListening}
           className={cn(
             "rounded-full w-20 h-20",
             isListening && "animate-pulse-glow"
