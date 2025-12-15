@@ -14,8 +14,10 @@ interface StandardModeProps {
   onToggleTaskComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
+  onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
   onGhostMode: () => void;
+  onOpenSettings: () => void;
 }
 
 export function StandardMode({
@@ -27,8 +29,10 @@ export function StandardMode({
   onToggleTaskComplete,
   onDeleteTask,
   onAddEvent,
+  onImportEvents,
   onSendMessage,
   onGhostMode,
+  onOpenSettings,
 }: StandardModeProps) {
   const [filter, setFilter] = useState<TaskCategory | 'all'>('all');
 
@@ -38,6 +42,7 @@ export function StandardMode({
         activeFilter={filter} 
         onFilterChange={setFilter}
         onGhostMode={onGhostMode}
+        onOpenSettings={onOpenSettings}
       />
       
       <main className="flex-1 flex overflow-hidden">
@@ -68,6 +73,7 @@ export function StandardMode({
             <CalendarPanel
               events={events}
               onAddEvent={onAddEvent}
+              onImportEvents={onImportEvents}
             />
           </div>
         </div>
