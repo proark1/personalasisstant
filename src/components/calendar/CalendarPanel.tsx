@@ -13,7 +13,8 @@ import {
   Plus,
   ChevronRight,
   Upload,
-  FileUp
+  FileUp,
+  Share2
 } from 'lucide-react';
 import { format, isToday, isTomorrow, startOfDay } from 'date-fns';
 
@@ -21,6 +22,7 @@ interface CalendarPanelProps {
   events: CalendarEvent[];
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
+  onShareEvent?: (id: string, title: string) => void;
 }
 
 interface GroupedEvents {
@@ -29,7 +31,7 @@ interface GroupedEvents {
   events: CalendarEvent[];
 }
 
-export function CalendarPanel({ events, onAddEvent, onImportEvents }: CalendarPanelProps) {
+export function CalendarPanel({ events, onAddEvent, onImportEvents, onShareEvent }: CalendarPanelProps) {
   const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -133,7 +135,17 @@ export function CalendarPanel({ events, onAddEvent, onImportEvents }: CalendarPa
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <h4 className="font-medium text-sm truncate">{event.title}</h4>
-          <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onShareEvent && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onShareEvent(event.id, event.title); }}
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+          </div>
         </div>
         
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
