@@ -1,12 +1,19 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useFluxState } from '@/hooks/useFluxState';
+import { useSettings } from '@/hooks/useSettings';
+import { useAIChat } from '@/hooks/useAIChat';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
+import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { Task, CalendarEvent } from '@/types/flux';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const { toast } = useToast();
+  const { settings, updateSettings, updateNotifications } = useSettings();
+  const { streamChat, isStreaming } = useAIChat();
+  const [showSettings, setShowSettings] = useState(false);
+  
   const {
     mode,
     setMode,
@@ -34,73 +41,111 @@ const Index = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mode, setMode]);
 
-  // Simulate AI response for chat
+  // Handle AI chat with real streaming
   const handleSendMessage = useCallback(async (content: string) => {
     addMessage({ role: 'user', content });
     setIsProcessing(true);
 
-    // Simulate AI processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    let assistantContent = '';
+    const assistantMessageId = addMessage({ role: 'assistant', content: '' });
 
-    // Generate contextual response
-    let response = '';
-    const lowerContent = content.toLowerCase();
+    try {
+      await streamChat({
+        messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user' as const, content }],
+        tasks,
+        events,
+        onDelta: (delta) => {
+          assistantContent += delta;
+          // Update the assistant message with streamed content
+          // We'll update the last message in state
+        },
+        onToolCall: (toolCall) => {
+          if (toolCall.tool === 'manage_task' && toolCall.task) {
+            if (toolCall.action === 'add') {
+              const newTask = addTask({
+                title: toolCall.task.title || 'New Task',
+                category: toolCall.task.category || settings.defaultTaskCategory,
+                priority: toolCall.task.priority || settings.defaultTaskPriority,
+                completed: false,
+              });
+              toast({
+                title: 'Task Added',
+                description: newTask.title,
+              });
+            } else if (toolCall.action === 'complete' && toolCall.task.id) {
+              toggleTaskComplete(toolCall.task.id);
+              toast({
+                title: 'Task Completed',
+                description: toolCall.task.title,
+              });
+            } else if (toolCall.action === 'delete' && toolCall.task.id) {
+              deleteTask(toolCall.task.id);
+              toast({
+                title: 'Task Deleted',
+                description: toolCall.task.title,
+              });
+            }
+          } else if (toolCall.tool === 'schedule_event' && toolCall.event) {
+            const newEvent = addEvent({
+              title: toolCall.event.title || 'New Event',
+              startTime: toolCall.event.startTime || new Date(),
+              endTime: toolCall.event.endTime || new Date(Date.now() + 60 * 60 * 1000),
+              location: toolCall.event.location,
+              attendees: toolCall.event.attendees,
+            });
+            toast({
+              title: 'Event Scheduled',
+              description: newEvent.title,
+            });
+          }
+        },
+        onDone: () => {
+          setIsProcessing(false);
+        },
+      });
 
-    if (lowerContent.includes('add') && lowerContent.includes('task')) {
-      const taskTitle = content.replace(/add (a )?task( to)?/i, '').trim() || 'New Task';
-      addTask({
-        title: taskTitle,
-        category: lowerContent.includes('business') ? 'business' : 'personal',
-        priority: lowerContent.includes('high') ? 'high' : lowerContent.includes('low') ? 'low' : 'medium',
-        completed: false,
-      });
-      response = `I've added "${taskTitle}" to your task list. Is there anything else you'd like me to help with?`;
-      toast({
-        title: "Task Added",
-        description: taskTitle,
-      });
-    } else if (lowerContent.includes('schedule') || lowerContent.includes('meeting')) {
-      const title = 'New Meeting';
-      const startTime = new Date();
-      startTime.setHours(startTime.getHours() + 2);
-      const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+      // Update the assistant message with final content
+      // Remove tool call markup for cleaner display
+      const cleanContent = assistantContent
+        .replace(/<tool>[\s\S]*?<\/task>/g, '')
+        .replace(/<tool>[\s\S]*?<\/event>/g, '')
+        .trim();
       
-      addEvent({
-        title,
-        startTime,
-        endTime,
-      });
-      response = `I've scheduled "${title}" for ${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Would you like to add any details or attendees?`;
-      toast({
-        title: "Event Scheduled",
-        description: title,
-      });
-    } else if (lowerContent.includes('agenda') || lowerContent.includes('today')) {
-      const todayEvents = events.filter(e => {
-        const today = new Date();
-        return e.startTime.toDateString() === today.toDateString();
-      });
-      
-      if (todayEvents.length === 0) {
-        response = "Your schedule is clear today. Would you like me to help you plan something?";
-      } else {
-        response = `Today you have ${todayEvents.length} event${todayEvents.length > 1 ? 's' : ''}: ${todayEvents.map(e => e.title).join(', ')}. Need me to add anything else?`;
+      if (cleanContent) {
+        addMessage({ role: 'assistant', content: cleanContent });
       }
-    } else {
-      response = "I can help you manage tasks, schedule events, and stay organized. Try asking me to 'add a task' or 'schedule a meeting', or ask 'what's on my agenda today?'";
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get AI response';
+      toast({
+        variant: 'destructive',
+        title: 'Chat Error',
+        description: errorMessage,
+      });
+      addMessage({ 
+        role: 'assistant', 
+        content: "I'm sorry, I encountered an error. Please try again." 
+      });
+      setIsProcessing(false);
     }
-
-    addMessage({ 
-      role: 'assistant', 
-      content: response,
-    });
-    setIsProcessing(false);
-  }, [addMessage, addTask, addEvent, events, setIsProcessing, toast]);
+  }, [addMessage, addTask, addEvent, deleteTask, toggleTaskComplete, events, messages, settings, setIsProcessing, streamChat, tasks, toast]);
 
   const handleGhostCommand = useCallback((command: string) => {
-    // Process voice commands
     handleSendMessage(command);
   }, [handleSendMessage]);
+
+  const handleImportEvents = useCallback((importedEvents: CalendarEvent[]) => {
+    importedEvents.forEach(event => {
+      addEvent({
+        title: event.title,
+        description: event.description,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        location: event.location,
+        attendees: event.attendees,
+      });
+    });
+  }, [addEvent]);
 
   return (
     <>
@@ -109,18 +154,29 @@ const Index = () => {
           tasks={tasks}
           events={events}
           messages={messages}
-          isProcessing={isProcessing}
+          isProcessing={isProcessing || isStreaming}
           onAddTask={addTask}
           onToggleTaskComplete={toggleTaskComplete}
           onDeleteTask={deleteTask}
           onAddEvent={addEvent}
+          onImportEvents={handleImportEvents}
           onSendMessage={handleSendMessage}
           onGhostMode={() => setMode('ghost')}
+          onOpenSettings={() => setShowSettings(true)}
         />
       ) : (
         <GhostMode 
           onClose={() => setMode('standard')}
           onCommand={handleGhostCommand}
+        />
+      )}
+
+      {showSettings && (
+        <SettingsPanel
+          settings={settings}
+          onUpdateSettings={updateSettings}
+          onUpdateNotifications={updateNotifications}
+          onClose={() => setShowSettings(false)}
         />
       )}
     </>

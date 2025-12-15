@@ -6,6 +6,61 @@
 
 @layer base {
   :root {
+    /* Light theme */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 98%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 187 94% 43%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 270 60% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 187 94% 43%;
+
+    --radius: 0.75rem;
+
+    --glass: 220 14% 96%;
+    --glass-border: 220 13% 85%;
+    --glow-primary: 187 94% 43%;
+    --glow-accent: 270 60% 50%;
+    
+    --ghost-bg: 250 45% 5%;
+    --ghost-primary: 270 80% 60%;
+    --ghost-secondary: 187 94% 50%;
+
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 187 94% 43%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 187 94% 43%;
+  }
+
+  .dark {
     /* Deep space dark theme */
     --background: 222 47% 6%;
     --foreground: 210 40% 98%;
@@ -16,43 +71,34 @@
     --popover: 222 47% 8%;
     --popover-foreground: 210 40% 98%;
 
-    /* Electric cyan primary */
     --primary: 187 94% 43%;
     --primary-foreground: 222 47% 6%;
 
-    /* Muted violet secondary */
     --secondary: 250 45% 20%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 222 47% 12%;
     --muted-foreground: 215 20% 55%;
 
-    /* Accent for highlights */
     --accent: 270 60% 50%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
-    /* Glass border */
     --border: 222 30% 18%;
     --input: 222 30% 15%;
     --ring: 187 94% 43%;
 
-    --radius: 0.75rem;
-
-    /* Custom colors */
     --glass: 222 47% 10%;
     --glass-border: 222 30% 20%;
     --glow-primary: 187 94% 43%;
     --glow-accent: 270 60% 50%;
     
-    /* Ghost mode specific */
     --ghost-bg: 250 45% 5%;
     --ghost-primary: 270 80% 60%;
     --ghost-secondary: 187 94% 50%;
 
-    /* Status colors */
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
     --info: 199 89% 48%;

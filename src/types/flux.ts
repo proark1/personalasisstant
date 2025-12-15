@@ -1,5 +1,7 @@
 export type TaskCategory = 'business' | 'personal';
 export type TaskPriority = 'high' | 'medium' | 'low';
+export type ThemeMode = 'dark' | 'light';
+export type ColorScheme = 'cyan' | 'purple' | 'green' | 'orange' | 'pink';
 
 export interface Task {
   id: string;
@@ -40,3 +42,27 @@ export interface FluxState {
   isListening: boolean;
   isProcessing: boolean;
 }
+
+export interface UserSettings {
+  theme: ThemeMode;
+  colorScheme: ColorScheme;
+  defaultTaskCategory: TaskCategory;
+  defaultTaskPriority: TaskPriority;
+  notifications: {
+    taskReminders: boolean;
+    calendarAlerts: boolean;
+    reminderMinutesBefore: number;
+  };
+}
+
+export const defaultSettings: UserSettings = {
+  theme: 'dark',
+  colorScheme: 'cyan',
+  defaultTaskCategory: 'personal',
+  defaultTaskPriority: 'medium',
+  notifications: {
+    taskReminders: true,
+    calendarAlerts: true,
+    reminderMinutesBefore: 15,
+  },
+};

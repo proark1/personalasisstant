@@ -1,21 +1,26 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CalendarEvent } from '@/types/flux';
+import { parseICS, validateICSFile } from '@/lib/icsParser';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Calendar, 
   Clock, 
   MapPin, 
   Users, 
   Plus,
-  ChevronRight
+  ChevronRight,
+  Upload,
+  FileUp
 } from 'lucide-react';
-import { format, isToday, isTomorrow, startOfDay, addDays } from 'date-fns';
+import { format, isToday, isTomorrow, startOfDay } from 'date-fns';
 
 interface CalendarPanelProps {
   events: CalendarEvent[];
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
+  onImportEvents?: (events: CalendarEvent[]) => void;
 }
 
 interface GroupedEvents {
@@ -24,8 +29,11 @@ interface GroupedEvents {
   events: CalendarEvent[];
 }
 
-export function CalendarPanel({ events, onAddEvent }: CalendarPanelProps) {
+export function CalendarPanel({ events, onAddEvent, onImportEvents }: CalendarPanelProps) {
+  const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Group events by date
   const groupedEvents: GroupedEvents[] = [];
@@ -55,6 +63,69 @@ export function CalendarPanel({ events, onAddEvent }: CalendarPanelProps) {
       ),
     });
   });
+
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!validateICSFile(file)) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid File',
+        description: 'Please upload a valid .ics calendar file.',
+      });
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const content = await file.text();
+      const importedEvents = parseICS(content);
+      
+      if (importedEvents.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'No Events Found',
+          description: 'The file does not contain any valid events.',
+        });
+        return;
+      }
+
+      // Add events through callback or directly
+      if (onImportEvents) {
+        onImportEvents(importedEvents);
+      } else {
+        importedEvents.forEach(event => {
+          onAddEvent({
+            title: event.title,
+            description: event.description,
+            startTime: event.startTime,
+            endTime: event.endTime,
+            location: event.location,
+            attendees: event.attendees,
+          });
+        });
+      }
+
+      toast({
+        title: 'Import Successful',
+        description: `Imported ${importedEvents.length} event${importedEvents.length > 1 ? 's' : ''}.`,
+      });
+    } catch (error) {
+      console.error('ICS import error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Import Failed',
+        description: 'Failed to parse the calendar file. Please check the format.',
+      });
+    } finally {
+      setIsImporting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const EventCard = ({ event }: { event: CalendarEvent }) => (
     <div className="flex gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group cursor-pointer">
@@ -96,15 +167,34 @@ export function CalendarPanel({ events, onAddEvent }: CalendarPanelProps) {
           <Calendar className="w-5 h-5 text-primary" />
           <h2 className="font-semibold">Agenda</h2>
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="gap-1"
-          onClick={() => setShowAddModal(true)}
-        >
-          <Plus className="w-4 h-4" />
-          Add
-        </Button>
+        <div className="flex items-center gap-1">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".ics,text/calendar"
+            onChange={handleFileImport}
+            className="hidden"
+          />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="gap-1"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+          >
+            <Upload className="w-4 h-4" />
+            <span className="hidden sm:inline">Import</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="gap-1"
+            onClick={() => setShowAddModal(true)}
+          >
+            <Plus className="w-4 h-4" />
+            Add
+          </Button>
+        </div>
       </div>
 
       {/* Events List */}
@@ -113,14 +203,25 @@ export function CalendarPanel({ events, onAddEvent }: CalendarPanelProps) {
           <div className="flex flex-col items-center justify-center h-40 text-center">
             <Calendar className="w-10 h-10 text-muted-foreground/30 mb-2" />
             <p className="text-sm text-muted-foreground">No upcoming events</p>
-            <Button 
-              variant="link" 
-              size="sm" 
-              className="text-primary"
-              onClick={() => setShowAddModal(true)}
-            >
-              Schedule something
-            </Button>
+            <div className="flex gap-2 mt-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs gap-1"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <FileUp className="w-3 h-3" />
+                Import .ics
+              </Button>
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="text-primary text-xs"
+                onClick={() => setShowAddModal(true)}
+              >
+                Schedule something
+              </Button>
+            </div>
           </div>
         ) : (
           groupedEvents.map((group) => (
