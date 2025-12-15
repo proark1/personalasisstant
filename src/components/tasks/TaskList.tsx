@@ -9,9 +9,9 @@ import {
   Plus, 
   Trash2, 
   Calendar,
-  Flag,
   Briefcase,
-  User
+  User,
+  Share2
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -21,6 +21,7 @@ interface TaskListProps {
   onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+  onShareTask?: (id: string, title: string) => void;
 }
 
 const priorityColors: Record<TaskPriority, string> = {
@@ -35,7 +36,7 @@ const priorityBg: Record<TaskPriority, string> = {
   low: 'bg-muted',
 };
 
-export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onAddTask }: TaskListProps) {
+export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onAddTask, onShareTask }: TaskListProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
@@ -118,14 +119,26 @@ export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onAddT
         </div>
       </div>
 
-      <Button
-        variant="ghost"
-        size="iconSm"
-        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-        onClick={() => onDeleteTask(task.id)}
-      >
-        <Trash2 className="w-4 h-4" />
-      </Button>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onShareTask && (
+          <Button
+            variant="ghost"
+            size="iconSm"
+            className="text-muted-foreground hover:text-primary"
+            onClick={() => onShareTask(task.id, task.title)}
+          >
+            <Share2 className="w-4 h-4" />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="iconSm"
+          className="text-muted-foreground hover:text-destructive"
+          onClick={() => onDeleteTask(task.id)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
     </div>
   );
 

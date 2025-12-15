@@ -3,15 +3,14 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { 
   LayoutDashboard, 
-  CheckSquare, 
-  Calendar, 
   Briefcase, 
   User, 
   Ghost,
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Settings
+  Settings,
+  LogOut
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 
@@ -20,9 +19,10 @@ interface SidebarProps {
   onFilterChange: (filter: TaskCategory | 'all') => void;
   onGhostMode: () => void;
   onOpenSettings: () => void;
+  onSignOut?: () => void;
 }
 
-export function Sidebar({ activeFilter, onFilterChange, onGhostMode, onOpenSettings }: SidebarProps) {
+export function Sidebar({ activeFilter, onFilterChange, onGhostMode, onOpenSettings, onSignOut }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
@@ -102,6 +102,20 @@ export function Sidebar({ activeFilter, onFilterChange, onGhostMode, onOpenSetti
           <Ghost className="w-5 h-5 shrink-0" />
           {!collapsed && <span>Ghost Mode</span>}
         </Button>
+
+        {onSignOut && (
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full gap-3 text-muted-foreground hover:text-destructive",
+              collapsed && "justify-center px-0"
+            )}
+            onClick={onSignOut}
+          >
+            <LogOut className="w-5 h-5 shrink-0" />
+            {!collapsed && <span>Sign Out</span>}
+          </Button>
+        )}
       </div>
     </aside>
   );

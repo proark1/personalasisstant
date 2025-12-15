@@ -18,6 +18,9 @@ interface StandardModeProps {
   onSendMessage: (content: string) => void;
   onGhostMode: () => void;
   onOpenSettings: () => void;
+  onShareTask?: (id: string, title: string) => void;
+  onShareEvent?: (id: string, title: string) => void;
+  onSignOut?: () => void;
 }
 
 export function StandardMode({
@@ -33,6 +36,9 @@ export function StandardMode({
   onSendMessage,
   onGhostMode,
   onOpenSettings,
+  onShareTask,
+  onShareEvent,
+  onSignOut,
 }: StandardModeProps) {
   const [filter, setFilter] = useState<TaskCategory | 'all'>('all');
 
@@ -43,6 +49,7 @@ export function StandardMode({
         onFilterChange={setFilter}
         onGhostMode={onGhostMode}
         onOpenSettings={onOpenSettings}
+        onSignOut={onSignOut}
       />
       
       <main className="flex-1 flex overflow-hidden">
@@ -65,6 +72,7 @@ export function StandardMode({
               onToggleComplete={onToggleTaskComplete}
               onDeleteTask={onDeleteTask}
               onAddTask={onAddTask}
+              onShareTask={onShareTask}
             />
           </div>
 
@@ -74,6 +82,7 @@ export function StandardMode({
               events={events}
               onAddEvent={onAddEvent}
               onImportEvents={onImportEvents}
+              onShareEvent={onShareEvent}
             />
           </div>
         </div>
