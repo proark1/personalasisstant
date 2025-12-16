@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Task, TaskCategory, TaskPriority } from '@/types/flux';
 import { 
   CheckCircle2, 
@@ -11,7 +12,8 @@ import {
   Calendar,
   Briefcase,
   User,
-  Share2
+  Share2,
+  X
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -20,6 +22,7 @@ interface TaskListProps {
   filter: TaskCategory | 'all';
   onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  onDeleteTasks?: (ids: string[]) => void;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onShareTask?: (id: string, title: string) => void;
 }
@@ -36,9 +39,11 @@ const priorityBg: Record<TaskPriority, string> = {
   low: 'bg-muted',
 };
 
-export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onAddTask, onShareTask }: TaskListProps) {
+export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onDeleteTasks, onAddTask, onShareTask }: TaskListProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
 
   const filteredTasks = filter === 'all' 
     ? tasks 
@@ -60,25 +65,70 @@ export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onAddT
     }
   };
 
+  const toggleSelectTask = (id: string) => {
+    setSelectedTasks(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const allIds = filteredTasks.map(t => t.id);
+    setSelectedTasks(new Set(allIds));
+  };
+
+  const clearSelection = () => {
+    setSelectedTasks(new Set());
+    setIsSelectMode(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTasks.size === 0) return;
+    
+    if (onDeleteTasks) {
+      await onDeleteTasks(Array.from(selectedTasks));
+    } else {
+      // Fallback to individual deletes
+      for (const id of selectedTasks) {
+        await onDeleteTask(id);
+      }
+    }
+    clearSelection();
+  };
+
   const TaskItem = ({ task }: { task: Task }) => (
     <div 
       className={cn(
         "group flex items-start gap-3 p-3 rounded-lg transition-all duration-200 hover:bg-muted/50",
-        task.completed && "opacity-60"
+        task.completed && "opacity-60",
+        selectedTasks.has(task.id) && "bg-primary/10 border border-primary/20"
       )}
     >
-      <button
-        onClick={() => onToggleComplete(task.id)}
-        className="mt-0.5 shrink-0"
-      >
-        {task.completed ? (
-          <CheckCircle2 className="w-5 h-5 text-primary" />
-        ) : (
-          <Circle className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
-        )}
-      </button>
+      {isSelectMode ? (
+        <Checkbox
+          checked={selectedTasks.has(task.id)}
+          onCheckedChange={() => toggleSelectTask(task.id)}
+          className="mt-0.5"
+        />
+      ) : (
+        <button
+          onClick={() => onToggleComplete(task.id)}
+          className="mt-0.5 shrink-0"
+        >
+          {task.completed ? (
+            <CheckCircle2 className="w-5 h-5 text-primary" />
+          ) : (
+            <Circle className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
+          )}
+        </button>
+      )}
       
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0" onClick={() => isSelectMode && toggleSelectTask(task.id)}>
         <div className="flex items-center gap-2">
           <span className={cn(
             "text-sm font-medium truncate",
@@ -119,26 +169,28 @@ export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onAddT
         </div>
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {onShareTask && (
+      {!isSelectMode && (
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onShareTask && (
+            <Button
+              variant="ghost"
+              size="iconSm"
+              className="text-muted-foreground hover:text-primary"
+              onClick={() => onShareTask(task.id, task.title)}
+            >
+              <Share2 className="w-4 h-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="iconSm"
-            className="text-muted-foreground hover:text-primary"
-            onClick={() => onShareTask(task.id, task.title)}
+            className="text-muted-foreground hover:text-destructive"
+            onClick={() => onDeleteTask(task.id)}
           >
-            <Share2 className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" />
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="iconSm"
-          className="text-muted-foreground hover:text-destructive"
-          onClick={() => onDeleteTask(task.id)}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   );
 
@@ -152,15 +204,57 @@ export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onAddT
             {incompleteTasks.length} remaining
           </span>
         </h2>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="gap-1"
-          onClick={() => setIsAdding(true)}
-        >
-          <Plus className="w-4 h-4" />
-          Add
-        </Button>
+        <div className="flex items-center gap-2">
+          {isSelectMode ? (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {selectedTasks.size} selected
+              </span>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={selectAllVisible}
+              >
+                Select All
+              </Button>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={selectedTasks.size === 0}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Delete ({selectedTasks.size})
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={clearSelection}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsSelectMode(true)}
+              >
+                Select
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="gap-1"
+                onClick={() => setIsAdding(true)}
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Task List */}

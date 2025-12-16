@@ -23,6 +23,7 @@ const Index = () => {
     addTask,
     updateTask,
     deleteTask,
+    deleteTasks,
     toggleTaskComplete,
     addEvent,
     shareItem,
@@ -77,6 +78,12 @@ const Index = () => {
     setIsProcessing(true);
 
     let assistantContent = '';
+    
+    // Rate limit task/event creation per message to prevent runaway loops
+    const MAX_TASKS_PER_MESSAGE = 10;
+    const MAX_EVENTS_PER_MESSAGE = 10;
+    let tasksCreatedThisMessage = 0;
+    let eventsCreatedThisMessage = 0;
 
     // Keep prompts small and avoid runaway token usage
     const conversationMessages = (() => {
@@ -110,6 +117,13 @@ const Index = () => {
         onToolCall: async (toolCall) => {
           if (toolCall.tool === 'manage_task' && toolCall.task) {
             if (toolCall.action === 'add') {
+              // Rate limit: prevent creating too many tasks in one message
+              if (tasksCreatedThisMessage >= MAX_TASKS_PER_MESSAGE) {
+                console.warn('Task creation rate limit reached for this message');
+                return;
+              }
+              tasksCreatedThisMessage++;
+              
               const newTask = await addTask({
                 title: toolCall.task.title || 'New Task',
                 category: toolCall.task.category || settings.defaultTaskCategory,
@@ -134,6 +148,13 @@ const Index = () => {
               });
             }
           } else if (toolCall.tool === 'schedule_event' && toolCall.event) {
+            // Rate limit: prevent creating too many events in one message
+            if (eventsCreatedThisMessage >= MAX_EVENTS_PER_MESSAGE) {
+              console.warn('Event creation rate limit reached for this message');
+              return;
+            }
+            eventsCreatedThisMessage++;
+            
             const newEvent = await addEvent({
               title: toolCall.event.title || 'New Event',
               startTime: toolCall.event.startTime || new Date(),
@@ -231,6 +252,7 @@ const Index = () => {
           onAddTask={handleAddTask}
           onToggleTaskComplete={toggleTaskComplete}
           onDeleteTask={deleteTask}
+          onDeleteTasks={deleteTasks}
           onAddEvent={handleAddEvent}
           onImportEvents={handleImportEvents}
           onSendMessage={handleSendMessage}

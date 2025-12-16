@@ -13,6 +13,7 @@ interface StandardModeProps {
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onToggleTaskComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  onDeleteTasks?: (ids: string[]) => void;
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
@@ -31,6 +32,7 @@ export function StandardMode({
   onAddTask,
   onToggleTaskComplete,
   onDeleteTask,
+  onDeleteTasks,
   onAddEvent,
   onImportEvents,
   onSendMessage,
@@ -71,6 +73,7 @@ export function StandardMode({
               filter={filter}
               onToggleComplete={onToggleTaskComplete}
               onDeleteTask={onDeleteTask}
+              onDeleteTasks={onDeleteTasks}
               onAddTask={onAddTask}
               onShareTask={onShareTask}
             />
