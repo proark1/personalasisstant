@@ -229,6 +229,23 @@ const Index = () => {
     return result as any;
   }, [addEvent]);
 
+  const handleDeleteTasks = useCallback(async (ids: string[]) => {
+    const result = await deleteTasks(ids);
+    if (result.error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: result.error,
+      });
+    } else {
+      toast({
+        title: 'Tasks Deleted',
+        description: `${ids.length} task${ids.length > 1 ? 's' : ''} removed`,
+      });
+    }
+    return result;
+  }, [deleteTasks, toast]);
+
   const handleSignOut = useCallback(async () => {
     await signOut();
   }, [signOut]);
@@ -252,7 +269,7 @@ const Index = () => {
           onAddTask={handleAddTask}
           onToggleTaskComplete={toggleTaskComplete}
           onDeleteTask={deleteTask}
-          onDeleteTasks={deleteTasks}
+          onDeleteTasks={handleDeleteTasks}
           onAddEvent={handleAddEvent}
           onImportEvents={handleImportEvents}
           onSendMessage={handleSendMessage}

@@ -159,17 +159,34 @@ export function useDatabase(userId: string | undefined) {
     }
   }, []);
 
-  const deleteTasks = useCallback(async (ids: string[]) => {
-    if (ids.length === 0) return;
+  const deleteTasks = useCallback(async (ids: string[]): Promise<{ error: string | null }> => {
+    if (ids.length === 0) return { error: null };
     
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .in('id', ids);
-
-    if (!error) {
-      setTasks(prev => prev.filter(t => !ids.includes(t.id)));
+    // Supabase has limits on IN queries, batch delete in chunks of 100
+    const BATCH_SIZE = 100;
+    const batches: string[][] = [];
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      batches.push(ids.slice(i, i + BATCH_SIZE));
     }
+
+    let hasError = false;
+    for (const batch of batches) {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .in('id', batch);
+      
+      if (error) {
+        console.error('Error deleting tasks batch:', error);
+        hasError = true;
+      }
+    }
+
+    if (!hasError) {
+      setTasks(prev => prev.filter(t => !ids.includes(t.id)));
+      return { error: null };
+    }
+    return { error: 'Failed to delete some tasks' };
   }, []);
 
   const toggleTaskComplete = useCallback(async (id: string) => {

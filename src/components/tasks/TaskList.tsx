@@ -22,7 +22,7 @@ interface TaskListProps {
   filter: TaskCategory | 'all';
   onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
-  onDeleteTasks?: (ids: string[]) => void;
+  onDeleteTasks?: (ids: string[]) => Promise<{ error: string | null }> | void;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onShareTask?: (id: string, title: string) => void;
 }
@@ -90,11 +90,15 @@ export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onDele
   const handleBulkDelete = async () => {
     if (selectedTasks.size === 0) return;
     
+    const idsToDelete = Array.from(selectedTasks);
+    console.log('Deleting tasks:', idsToDelete.length);
+    
     if (onDeleteTasks) {
-      await onDeleteTasks(Array.from(selectedTasks));
+      const result = await onDeleteTasks(idsToDelete);
+      console.log('Delete result:', result);
     } else {
       // Fallback to individual deletes
-      for (const id of selectedTasks) {
+      for (const id of idsToDelete) {
         await onDeleteTask(id);
       }
     }

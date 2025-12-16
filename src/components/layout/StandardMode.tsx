@@ -13,7 +13,7 @@ interface StandardModeProps {
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onToggleTaskComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
-  onDeleteTasks?: (ids: string[]) => void;
+  onDeleteTasks?: (ids: string[]) => Promise<{ error: string | null }> | void;
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
