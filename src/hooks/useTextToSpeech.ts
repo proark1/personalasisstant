@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
 import type { AssistantPersonality } from '@/types/flux';
-import { personalityConfigs } from '@/types/flux';
 
 interface UseTextToSpeechOptions {
   onStart?: () => void;

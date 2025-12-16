@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AudioVisualizer } from './AudioVisualizer';
+import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { useGeminiLive } from '@/hooks/useGeminiLive';
+import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useToast } from '@/hooks/use-toast';
 import type { AssistantPersonality } from '@/types/flux';
 import { 
@@ -29,21 +31,33 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const { toast } = useToast();
   const [isMuted, setIsMuted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
+  const [displayTranscript, setDisplayTranscript] = useState('');
   const [aiResponse, setAiResponse] = useState('');
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastProcessedRef = useRef<string>('');
 
-  // Gemini Live hook for native voice AI
-  const { 
-    isConnected, 
-    isProcessing,
-    connect, 
-    disconnect, 
-    startAudioCapture, 
-    stopAudioCapture,
-  } = useGeminiLive({
+  // TTS hook for AI voice output
+  const { speak, stop: stopSpeaking, isSpeaking, isLoading: isTTSLoading } = useTextToSpeech({
+    onEnd: () => {
+      setConnectionStatus('connected');
+    }
+  });
+
+  // Gemini Live hook for AI responses
+  const { isProcessing, sendText } = useGeminiLive({
     personality,
-    onResponse: (text) => {
+    onResponse: async (text) => {
       setAiResponse(text);
-      // Send to parent for any task/event processing
+      setConnectionStatus('speaking');
+      
+      // Speak the response if not muted
+      if (!isMuted) {
+        await speak(text, personality);
+      } else {
+        setConnectionStatus('connected');
+      }
+      
+      // Also send to parent for any task/event processing
       onCommand(text);
     },
     onError: (error) => {
@@ -53,57 +67,95 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         title: 'AI Error',
         description: error,
       });
-    },
-    onSpeakingChange: (speaking) => {
-      if (speaking) {
-        setConnectionStatus('speaking');
-      } else if (isConnected) {
-        setConnectionStatus('connected');
-      }
-    },
-    onConnectionChange: (connected) => {
-      if (connected) {
-        setConnectionStatus('connected');
-      } else {
-        setConnectionStatus('disconnected');
-      }
+      setTimeout(() => setConnectionStatus('connected'), 2000);
     },
   });
 
-  // Update status based on processing state
+  const handleTranscript = useCallback((transcript: string, isFinal: boolean) => {
+    setDisplayTranscript(transcript);
+    
+    // Clear any existing silence timeout
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+    }
+
+    if (isFinal && transcript.trim() && transcript.trim() !== lastProcessedRef.current) {
+      lastProcessedRef.current = transcript.trim();
+      setConnectionStatus('processing');
+      sendText(transcript.trim());
+    } else if (transcript.trim()) {
+      // Set a timeout to send after silence
+      silenceTimeoutRef.current = setTimeout(() => {
+        if (transcript.trim() && transcript.trim() !== lastProcessedRef.current) {
+          lastProcessedRef.current = transcript.trim();
+          setConnectionStatus('processing');
+          sendText(transcript.trim());
+        }
+      }, 2000);
+    }
+  }, [sendText]);
+
+  const handleVoiceError = useCallback((error: string) => {
+    setConnectionStatus('error');
+    toast({
+      variant: 'destructive',
+      title: 'Voice Recognition Error',
+      description: error,
+    });
+  }, [toast]);
+
+  const {
+    isListening,
+    isSupported,
+    startListening,
+    stopListening,
+  } = useVoiceRecognition({
+    onTranscript: handleTranscript,
+    onError: handleVoiceError,
+    continuous: true,
+  });
+
+  // Update connection status based on state
   useEffect(() => {
     if (isProcessing) {
       setConnectionStatus('processing');
+    } else if (isSpeaking || isTTSLoading) {
+      setConnectionStatus('speaking');
+    } else if (isListening) {
+      setConnectionStatus('connected');
     }
-  }, [isProcessing]);
+  }, [isListening, isProcessing, isSpeaking, isTTSLoading]);
 
-  const handleStartListening = useCallback(async () => {
-    setConnectionStatus('connecting');
-    setAiResponse('');
-    
-    try {
-      // Connect to Gemini Live
-      connect();
-      
-      // Start capturing audio
-      await startAudioCapture();
-    } catch (error) {
-      console.error('Error starting:', error);
-      setConnectionStatus('error');
+  const handleStartListening = useCallback(() => {
+    if (!isSupported) {
       toast({
         variant: 'destructive',
-        title: 'Connection Error',
-        description: 'Failed to start voice connection. Please try again.',
+        title: 'Not Supported',
+        description: 'Voice recognition is not supported in this browser. Try Chrome or Edge.',
       });
+      return;
     }
-  }, [connect, startAudioCapture, toast]);
+
+    setConnectionStatus('connecting');
+    setDisplayTranscript('');
+    setAiResponse('');
+    lastProcessedRef.current = '';
+    
+    setTimeout(() => {
+      startListening();
+      setConnectionStatus('connected');
+    }, 500);
+  }, [isSupported, startListening, toast]);
 
   const handleStopListening = useCallback(() => {
-    stopAudioCapture();
-    disconnect();
+    stopListening();
+    stopSpeaking();
     setConnectionStatus('disconnected');
-    setAiResponse('');
-  }, [stopAudioCapture, disconnect]);
+    setDisplayTranscript('');
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+    }
+  }, [stopListening, stopSpeaking]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -119,14 +171,17 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      stopAudioCapture();
-      disconnect();
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+      }
+      stopListening();
+      stopSpeaking();
     };
-  }, [stopAudioCapture, disconnect]);
+  }, [stopListening, stopSpeaking]);
 
   const statusConfig = {
-    connecting: { color: 'text-warning', icon: Wifi, label: 'Connecting to Gemini...', animate: true },
-    connected: { color: 'text-success', icon: Wifi, label: 'Listening (Native Voice)', animate: false },
+    connecting: { color: 'text-warning', icon: Wifi, label: 'Connecting...', animate: true },
+    connected: { color: 'text-success', icon: Wifi, label: 'Listening', animate: false },
     processing: { color: 'text-ghost-primary', icon: Loader2, label: 'Thinking...', animate: true },
     speaking: { color: 'text-purple-400', icon: Volume2, label: 'Speaking', animate: true },
     disconnected: { color: 'text-muted-foreground', icon: WifiOff, label: 'Disconnected', animate: false },
@@ -135,8 +190,8 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
 
   const currentStatus = statusConfig[connectionStatus];
   const StatusIcon = currentStatus.icon;
-  const isActive = connectionStatus !== 'disconnected' && connectionStatus !== 'error';
-  const isSpeaking = connectionStatus === 'speaking';
+
+  const isCurrentlySpeaking = connectionStatus === 'speaking' || isTTSLoading || isSpeaking;
 
   return (
     <div className="fixed inset-0 ghost-gradient z-50 flex flex-col animate-fade-in">
@@ -150,6 +205,13 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             <StatusIcon className={cn("w-4 h-4", currentStatus.animate && "animate-pulse")} />
             <span className="font-mono text-xs">{currentStatus.label}</span>
           </div>
+          
+          {!isSupported && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel text-warning text-sm">
+              <AlertCircle className="w-4 h-4" />
+              <span className="font-mono text-xs">Use Chrome/Edge</span>
+            </div>
+          )}
         </div>
         
         <Button
@@ -167,15 +229,19 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         {/* Visualizer */}
         <div className="w-80 h-80 mb-8">
           <AudioVisualizer 
-            isActive={isActive}
-            isSpeaking={isSpeaking}
-            isListening={isConnected && !isProcessing && !isSpeaking}
+            isActive={isListening || isProcessing || isCurrentlySpeaking}
+            isSpeaking={isCurrentlySpeaking}
+            isListening={isListening && !isProcessing && !isCurrentlySpeaking}
           />
         </div>
 
-        {/* Response Display */}
+        {/* Transcript / Response */}
         <div className="h-32 flex flex-col items-center justify-center gap-2 max-w-2xl">
-          {aiResponse && (connectionStatus === 'speaking' || connectionStatus === 'connected') ? (
+          {displayTranscript && connectionStatus !== 'speaking' ? (
+            <p className="text-2xl md:text-3xl font-light text-center text-foreground/90 animate-fade-in">
+              "{displayTranscript}"
+            </p>
+          ) : aiResponse && (connectionStatus === 'speaking' || connectionStatus === 'connected') ? (
             <p className="text-xl md:text-2xl font-light text-center text-purple-300 animate-fade-in">
               {aiResponse}
             </p>
@@ -183,16 +249,16 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             <div className="flex items-center gap-3">
               <Loader2 className="w-6 h-6 animate-spin text-ghost-primary" />
               <p className="text-lg text-ghost-primary">
-                Processing...
+                Processing with Gemini...
               </p>
             </div>
-          ) : isConnected ? (
+          ) : isListening ? (
             <p className="text-lg text-muted-foreground">
-              Speak naturally... Gemini is listening
+              Listening... say something
             </p>
           ) : (
             <p className="text-lg text-muted-foreground">
-              Tap the microphone to start native voice chat
+              Tap the microphone to start
             </p>
           )}
         </div>
@@ -203,7 +269,10 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setIsMuted(!isMuted)}
+          onClick={() => {
+            setIsMuted(!isMuted);
+            if (!isMuted) stopSpeaking();
+          }}
           className={cn(
             "rounded-full w-12 h-12",
             isMuted ? "text-destructive" : "text-muted-foreground"
@@ -213,19 +282,17 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         </Button>
 
         <Button
-          variant={isActive ? "ghost" : "default"}
+          variant={isListening ? "ghost" : "default"}
           size="icon"
-          onClick={isActive ? handleStopListening : handleStartListening}
-          disabled={connectionStatus === 'connecting'}
+          onClick={isListening ? handleStopListening : handleStartListening}
+          disabled={(!isSupported && !isListening) || isProcessing}
           className={cn(
             "rounded-full w-20 h-20 transition-all",
-            isActive && "bg-ghost-primary/20 border-2 border-ghost-primary animate-pulse",
-            !isActive && "bg-ghost-primary hover:bg-ghost-primary/90"
+            isListening && "bg-ghost-primary/20 border-2 border-ghost-primary animate-pulse",
+            !isListening && "bg-ghost-primary hover:bg-ghost-primary/90"
           )}
         >
-          {connectionStatus === 'connecting' ? (
-            <Loader2 className="w-8 h-8 animate-spin" />
-          ) : isActive ? (
+          {isListening ? (
             <MicOff className="w-8 h-8" />
           ) : (
             <Mic className="w-8 h-8" />
