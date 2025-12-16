@@ -232,9 +232,11 @@ export function MobileLayout({
         )}>
           <CalendarPanel
             events={events}
+            tasks={tasks}
             onAddEvent={onAddEvent}
             onImportEvents={onImportEvents}
             onShareEvent={onShareEvent}
+            onToggleTaskComplete={onToggleTaskComplete}
           />
         </div>
       </main>

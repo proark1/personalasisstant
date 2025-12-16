@@ -253,9 +253,24 @@ const Index = () => {
   }, [addTask]);
 
   const handleAddEvent = useCallback(async (event: Parameters<typeof addEvent>[0]) => {
+    // Add the event
     const result = await addEvent(event);
+    
+    // Also create a corresponding task for better sync
+    if (result) {
+      await addTask({
+        title: event.title,
+        category: settings.defaultTaskCategory,
+        priority: 'medium',
+        completed: false,
+        dueDate: event.startTime,
+        recurrenceRule: event.recurrenceRule,
+        recurrenceEnd: event.recurrenceEnd,
+      });
+    }
+    
     return result as any;
-  }, [addEvent]);
+  }, [addEvent, addTask, settings.defaultTaskCategory]);
 
   const handleDeleteTasks = useCallback(async (ids: string[]) => {
     const result = await deleteTasks(ids);

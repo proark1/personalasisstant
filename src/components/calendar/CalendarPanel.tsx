@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CalendarEvent } from '@/types/flux';
+import { CalendarEvent, Task } from '@/types/flux';
 import { parseICS, validateICSFile } from '@/lib/icsParser';
 import { useToast } from '@/hooks/use-toast';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
@@ -17,57 +17,119 @@ import {
   Upload,
   FileUp,
   Share2,
-  Repeat
+  Repeat,
+  CheckSquare,
+  AlertCircle
 } from 'lucide-react';
-import { format, isToday, isTomorrow, startOfDay } from 'date-fns';
+import { format, isToday, isTomorrow, startOfDay, isPast } from 'date-fns';
 
 interface CalendarPanelProps {
   events: CalendarEvent[];
+  tasks?: Task[];
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onShareEvent?: (id: string, title: string) => void;
+  onToggleTaskComplete?: (id: string) => void;
 }
 
-interface GroupedEvents {
+interface CalendarItem {
+  id: string;
+  type: 'event' | 'task';
+  title: string;
+  date: Date;
+  endTime?: Date;
+  location?: string;
+  attendees?: string[];
+  recurrenceRule?: string;
+  priority?: string;
+  completed?: boolean;
+  isOverdue?: boolean;
+}
+
+interface GroupedItems {
   label: string;
   date: Date;
-  events: CalendarEvent[];
+  items: CalendarItem[];
 }
 
-export function CalendarPanel({ events, onAddEvent, onImportEvents, onShareEvent }: CalendarPanelProps) {
+export function CalendarPanel({ 
+  events, 
+  tasks = [], 
+  onAddEvent, 
+  onImportEvents, 
+  onShareEvent,
+  onToggleTaskComplete 
+}: CalendarPanelProps) {
   const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Group events by date
-  const groupedEvents: GroupedEvents[] = [];
-  const eventsByDate = new Map<string, CalendarEvent[]>();
+  // Combine events and tasks with due dates into calendar items
+  const calendarItems = useMemo(() => {
+    const items: CalendarItem[] = [];
 
-  events.forEach(event => {
-    const dateKey = startOfDay(event.startTime).toISOString();
-    if (!eventsByDate.has(dateKey)) {
-      eventsByDate.set(dateKey, []);
-    }
-    eventsByDate.get(dateKey)!.push(event);
-  });
-
-  // Sort and create groups
-  const sortedDates = Array.from(eventsByDate.keys()).sort();
-  sortedDates.forEach(dateKey => {
-    const date = new Date(dateKey);
-    let label = format(date, 'EEEE, MMMM d');
-    if (isToday(date)) label = 'Today';
-    else if (isTomorrow(date)) label = 'Tomorrow';
-
-    groupedEvents.push({
-      label,
-      date,
-      events: eventsByDate.get(dateKey)!.sort((a, b) => 
-        a.startTime.getTime() - b.startTime.getTime()
-      ),
+    // Add events
+    events.forEach(event => {
+      items.push({
+        id: event.id,
+        type: 'event',
+        title: event.title,
+        date: event.startTime,
+        endTime: event.endTime,
+        location: event.location,
+        attendees: event.attendees,
+        recurrenceRule: event.recurrenceRule,
+      });
     });
-  });
+
+    // Add tasks with due dates
+    tasks.filter(task => task.dueDate && !task.parentId).forEach(task => {
+      const isOverdue = task.dueDate && !task.completed && isPast(task.dueDate) && !isToday(task.dueDate);
+      items.push({
+        id: task.id,
+        type: 'task',
+        title: task.title,
+        date: task.dueDate!,
+        priority: task.priority,
+        completed: task.completed,
+        recurrenceRule: task.recurrenceRule,
+        isOverdue,
+      });
+    });
+
+    return items;
+  }, [events, tasks]);
+
+  // Group items by date
+  const groupedItems: GroupedItems[] = useMemo(() => {
+    const itemsByDate = new Map<string, CalendarItem[]>();
+
+    calendarItems.forEach(item => {
+      const dateKey = startOfDay(item.date).toISOString();
+      if (!itemsByDate.has(dateKey)) {
+        itemsByDate.set(dateKey, []);
+      }
+      itemsByDate.get(dateKey)!.push(item);
+    });
+
+    // Sort and create groups
+    const sortedDates = Array.from(itemsByDate.keys()).sort();
+    return sortedDates.map(dateKey => {
+      const date = new Date(dateKey);
+      let label = format(date, 'EEEE, MMMM d');
+      if (isToday(date)) label = 'Today';
+      else if (isTomorrow(date)) label = 'Tomorrow';
+
+      return {
+        label,
+        date,
+        items: itemsByDate.get(dateKey)!.sort((a, b) => 
+          a.date.getTime() - b.date.getTime()
+        ),
+      };
+    });
+  }, [calendarItems]);
 
   const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -132,49 +194,103 @@ export function CalendarPanel({ events, onAddEvent, onImportEvents, onShareEvent
     }
   };
 
-  const EventCard = ({ event }: { event: CalendarEvent }) => (
-    <div className="flex gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group cursor-pointer">
-      <div className="w-1 rounded-full bg-primary shrink-0" />
+  const priorityColors: Record<string, string> = {
+    high: 'text-destructive',
+    medium: 'text-warning',
+    low: 'text-muted-foreground',
+  };
+
+  const ItemCard = ({ item }: { item: CalendarItem }) => (
+    <div className={cn(
+      "flex gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group cursor-pointer",
+      item.completed && "opacity-60",
+      item.isOverdue && "border-l-2 border-l-destructive"
+    )}>
+      <div className={cn(
+        "w-1 rounded-full shrink-0",
+        item.type === 'event' ? "bg-primary" : "bg-accent"
+      )} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <h4 className="font-medium text-sm truncate">{event.title}</h4>
+          <div className="flex items-center gap-2 min-w-0">
+            {item.type === 'task' && (
+              <CheckSquare className={cn(
+                "w-4 h-4 shrink-0",
+                item.completed ? "text-primary" : "text-muted-foreground"
+              )} />
+            )}
+            <h4 className={cn(
+              "font-medium text-sm truncate",
+              item.completed && "line-through text-muted-foreground"
+            )}>
+              {item.title}
+            </h4>
+            {item.type === 'task' && item.priority && (
+              <span className={cn(
+                "text-[10px] font-medium uppercase",
+                priorityColors[item.priority]
+              )}>
+                {item.priority}
+              </span>
+            )}
+            {item.isOverdue && (
+              <AlertCircle className="w-3 h-3 text-destructive shrink-0" />
+            )}
+          </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {onShareEvent && (
+            {item.type === 'event' && onShareEvent && (
               <button
-                onClick={(e) => { e.stopPropagation(); onShareEvent(event.id, event.title); }}
+                onClick={(e) => { e.stopPropagation(); onShareEvent(item.id, item.title); }}
                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
               >
                 <Share2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {item.type === 'task' && onToggleTaskComplete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleTaskComplete(item.id); }}
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
+              >
+                <CheckSquare className="w-3.5 h-3.5" />
               </button>
             )}
             <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
           </div>
         </div>
         
-        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            {format(event.startTime, 'h:mm a')} - {format(event.endTime, 'h:mm a')}
+            {item.type === 'event' && item.endTime 
+              ? `${format(item.date, 'h:mm a')} - ${format(item.endTime, 'h:mm a')}`
+              : format(item.date, 'h:mm a')
+            }
           </span>
-          {event.location && (
+          {item.location && (
             <span className="flex items-center gap-1 truncate">
               <MapPin className="w-3 h-3 shrink-0" />
-              <span className="truncate">{event.location}</span>
+              <span className="truncate">{item.location}</span>
             </span>
           )}
+          <span className={cn(
+            "px-1.5 py-0.5 rounded text-[10px] font-medium",
+            item.type === 'event' ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent-foreground"
+          )}>
+            {item.type === 'event' ? 'Event' : 'Task'}
+          </span>
         </div>
 
-        {event.attendees && event.attendees.length > 0 && (
+        {item.attendees && item.attendees.length > 0 && (
           <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
             <Users className="w-3 h-3" />
-            <span>{event.attendees.join(', ')}</span>
+            <span>{item.attendees.join(', ')}</span>
           </div>
         )}
 
-        {event.recurrenceRule && (
+        {item.recurrenceRule && (
           <div className="flex items-center gap-1 mt-1 text-xs text-primary">
             <Repeat className="w-3 h-3" />
-            <span>{getRecurrenceDescription(event.recurrenceRule)}</span>
+            <span>{getRecurrenceDescription(item.recurrenceRule)}</span>
           </div>
         )}
       </div>
@@ -188,6 +304,9 @@ export function CalendarPanel({ events, onAddEvent, onImportEvents, onShareEvent
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
           <h2 className="font-semibold">Agenda</h2>
+          <span className="text-xs text-muted-foreground">
+            ({calendarItems.length} items)
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <input
@@ -219,12 +338,15 @@ export function CalendarPanel({ events, onAddEvent, onImportEvents, onShareEvent
         </div>
       </div>
 
-      {/* Events List */}
+      {/* Items List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {groupedEvents.length === 0 ? (
+        {groupedItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-center">
             <Calendar className="w-10 h-10 text-muted-foreground/30 mb-2" />
-            <p className="text-sm text-muted-foreground">No upcoming events</p>
+            <p className="text-sm text-muted-foreground">No upcoming events or tasks</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Tasks with due dates will appear here automatically
+            </p>
             <div className="flex gap-2 mt-3">
               <Button 
                 variant="outline" 
@@ -246,7 +368,7 @@ export function CalendarPanel({ events, onAddEvent, onImportEvents, onShareEvent
             </div>
           </div>
         ) : (
-          groupedEvents.map((group) => (
+          groupedItems.map((group) => (
             <div key={group.date.toISOString()}>
               <div className="flex items-center gap-2 mb-3">
                 <h3 className={cn(
@@ -260,10 +382,13 @@ export function CalendarPanel({ events, onAddEvent, onImportEvents, onShareEvent
                     NOW
                   </span>
                 )}
+                <span className="text-xs text-muted-foreground">
+                  ({group.items.length})
+                </span>
               </div>
               <div className="space-y-2">
-                {group.events.map(event => (
-                  <EventCard key={event.id} event={event} />
+                {group.items.map(item => (
+                  <ItemCard key={`${item.type}-${item.id}`} item={item} />
                 ))}
               </div>
             </div>
@@ -313,7 +438,7 @@ function QuickAddEvent({
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="glass-panel-solid w-full max-w-md p-6 animate-scale-in">
+      <div className="glass-panel-solid w-full max-w-md p-6 animate-scale-in rounded-xl">
         <h3 className="text-lg font-semibold mb-4">Add Event</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
