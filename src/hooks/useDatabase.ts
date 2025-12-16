@@ -11,6 +11,8 @@ interface DbTask {
   priority: string;
   completed: boolean;
   due_date: string | null;
+  recurrence_rule: string | null;
+  recurrence_end: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +26,8 @@ interface DbEvent {
   end_time: string;
   location: string | null;
   attendees: string[] | null;
+  recurrence_rule: string | null;
+  recurrence_end: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -52,6 +56,8 @@ export function useDatabase(userId: string | undefined) {
     completed: dbTask.completed,
     createdAt: new Date(dbTask.created_at),
     dueDate: dbTask.due_date ? new Date(dbTask.due_date) : undefined,
+    recurrenceRule: dbTask.recurrence_rule || undefined,
+    recurrenceEnd: dbTask.recurrence_end ? new Date(dbTask.recurrence_end) : undefined,
   });
 
   // Convert DB event to app CalendarEvent
@@ -63,6 +69,8 @@ export function useDatabase(userId: string | undefined) {
     endTime: new Date(dbEvent.end_time),
     location: dbEvent.location || undefined,
     attendees: dbEvent.attendees || undefined,
+    recurrenceRule: dbEvent.recurrence_rule || undefined,
+    recurrenceEnd: dbEvent.recurrence_end ? new Date(dbEvent.recurrence_end) : undefined,
   });
 
   // Fetch all data
@@ -117,6 +125,8 @@ export function useDatabase(userId: string | undefined) {
         priority: task.priority,
         completed: task.completed,
         due_date: task.dueDate?.toISOString(),
+        recurrence_rule: task.recurrenceRule,
+        recurrence_end: task.recurrenceEnd?.toISOString(),
       })
       .select()
       .single();
@@ -137,6 +147,8 @@ export function useDatabase(userId: string | undefined) {
     if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
     if (updates.completed !== undefined) dbUpdates.completed = updates.completed;
     if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate?.toISOString();
+    if (updates.recurrenceRule !== undefined) dbUpdates.recurrence_rule = updates.recurrenceRule;
+    if (updates.recurrenceEnd !== undefined) dbUpdates.recurrence_end = updates.recurrenceEnd?.toISOString();
 
     const { error } = await supabase
       .from('tasks')
@@ -210,6 +222,8 @@ export function useDatabase(userId: string | undefined) {
         end_time: event.endTime.toISOString(),
         location: event.location,
         attendees: event.attendees,
+        recurrence_rule: event.recurrenceRule,
+        recurrence_end: event.recurrenceEnd?.toISOString(),
       })
       .select()
       .single();
@@ -232,6 +246,8 @@ export function useDatabase(userId: string | undefined) {
     if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime.toISOString();
     if (updates.location !== undefined) dbUpdates.location = updates.location;
     if (updates.attendees !== undefined) dbUpdates.attendees = updates.attendees;
+    if (updates.recurrenceRule !== undefined) dbUpdates.recurrence_rule = updates.recurrenceRule;
+    if (updates.recurrenceEnd !== undefined) dbUpdates.recurrence_end = updates.recurrenceEnd?.toISOString();
 
     const { error } = await supabase
       .from('events')

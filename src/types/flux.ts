@@ -12,6 +12,15 @@ export interface PersonalityConfig {
   systemPromptAddition: string;
 }
 
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface RecurrenceRule {
+  frequency: RecurrenceFrequency;
+  interval: number; // e.g., every 2 weeks
+  daysOfWeek?: number[]; // 0=Sun, 1=Mon, etc. for weekly
+  endDate?: Date;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -21,6 +30,8 @@ export interface Task {
   completed: boolean;
   createdAt: Date;
   dueDate?: Date;
+  recurrenceRule?: string; // RRULE format
+  recurrenceEnd?: Date;
 }
 
 export interface CalendarEvent {
@@ -31,6 +42,8 @@ export interface CalendarEvent {
   endTime: Date;
   location?: string;
   attendees?: string[];
+  recurrenceRule?: string; // RRULE format
+  recurrenceEnd?: Date;
 }
 
 export interface ChatMessage {

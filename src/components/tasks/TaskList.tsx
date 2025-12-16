@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Task, TaskCategory, TaskPriority } from '@/types/flux';
+import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
+import { getRecurrenceDescription } from '@/lib/recurrence';
 import { 
   CheckCircle2, 
   Circle, 
@@ -13,7 +15,8 @@ import {
   Briefcase,
   User,
   Share2,
-  X
+  X,
+  Repeat
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -42,6 +45,7 @@ const priorityBg: Record<TaskPriority, string> = {
 export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onDeleteTasks, onAddTask, onShareTask }: TaskListProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskRecurrence, setNewTaskRecurrence] = useState<string | undefined>();
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
 
@@ -59,8 +63,10 @@ export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onDele
         category: filter === 'all' ? 'personal' : filter,
         priority: 'medium',
         completed: false,
+        recurrenceRule: newTaskRecurrence,
       });
       setNewTaskTitle('');
+      setNewTaskRecurrence(undefined);
       setIsAdding(false);
     }
   };
@@ -168,6 +174,12 @@ export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onDele
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <Calendar className="w-3 h-3" />
               {format(task.dueDate, 'MMM d')}
+            </span>
+          )}
+          {task.recurrenceRule && (
+            <span className="flex items-center gap-1 text-xs text-primary">
+              <Repeat className="w-3 h-3" />
+              {getRecurrenceDescription(task.recurrenceRule)}
             </span>
           )}
         </div>
@@ -278,7 +290,14 @@ export function TaskList({ tasks, filter, onToggleComplete, onDeleteTask, onDele
               }}
             />
             <div className="flex gap-2 justify-end">
-              <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>
+              <RecurrenceSelector
+                value={newTaskRecurrence}
+                onChange={setNewTaskRecurrence}
+              />
+              <Button variant="ghost" size="sm" onClick={() => {
+                setIsAdding(false);
+                setNewTaskRecurrence(undefined);
+              }}>
                 Cancel
               </Button>
               <Button size="sm" onClick={handleAddTask}>

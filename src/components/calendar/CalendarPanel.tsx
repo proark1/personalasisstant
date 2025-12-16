@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { CalendarEvent } from '@/types/flux';
 import { parseICS, validateICSFile } from '@/lib/icsParser';
 import { useToast } from '@/hooks/use-toast';
+import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
+import { getRecurrenceDescription } from '@/lib/recurrence';
 import { 
   Calendar, 
   Clock, 
@@ -14,7 +16,8 @@ import {
   ChevronRight,
   Upload,
   FileUp,
-  Share2
+  Share2,
+  Repeat
 } from 'lucide-react';
 import { format, isToday, isTomorrow, startOfDay } from 'date-fns';
 
@@ -167,6 +170,13 @@ export function CalendarPanel({ events, onAddEvent, onImportEvents, onShareEvent
             <span>{event.attendees.join(', ')}</span>
           </div>
         )}
+
+        {event.recurrenceRule && (
+          <div className="flex items-center gap-1 mt-1 text-xs text-primary">
+            <Repeat className="w-3 h-3" />
+            <span>{getRecurrenceDescription(event.recurrenceRule)}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -283,6 +293,7 @@ function QuickAddEvent({
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [time, setTime] = useState('09:00');
   const [duration, setDuration] = useState('60');
+  const [recurrence, setRecurrence] = useState<string | undefined>();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -295,6 +306,7 @@ function QuickAddEvent({
       title: title.trim(),
       startTime,
       endTime,
+      recurrenceRule: recurrence,
     });
     onClose();
   };
@@ -340,6 +352,16 @@ function QuickAddEvent({
               min="15"
               step="15"
             />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground">Recurrence</label>
+            <div className="mt-1">
+              <RecurrenceSelector
+                value={recurrence}
+                onChange={setRecurrence}
+                className="w-full justify-start"
+              />
+            </div>
           </div>
           <div className="flex gap-2 justify-end pt-2">
             <Button type="button" variant="ghost" onClick={onClose}>

@@ -22,6 +22,8 @@ export type Database = {
           end_time: string
           id: string
           location: string | null
+          recurrence_end: string | null
+          recurrence_rule: string | null
           start_time: string
           title: string
           updated_at: string
@@ -34,6 +36,8 @@ export type Database = {
           end_time: string
           id?: string
           location?: string | null
+          recurrence_end?: string | null
+          recurrence_rule?: string | null
           start_time: string
           title: string
           updated_at?: string
@@ -46,6 +50,8 @@ export type Database = {
           end_time?: string
           id?: string
           location?: string | null
+          recurrence_end?: string | null
+          recurrence_rule?: string | null
           start_time?: string
           title?: string
           updated_at?: string
@@ -122,6 +128,8 @@ export type Database = {
           due_date: string | null
           id: string
           priority: string
+          recurrence_end: string | null
+          recurrence_rule: string | null
           title: string
           updated_at: string
           user_id: string
@@ -134,6 +142,8 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: string
+          recurrence_end?: string | null
+          recurrence_rule?: string | null
           title: string
           updated_at?: string
           user_id: string
@@ -146,6 +156,8 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: string
+          recurrence_end?: string | null
+          recurrence_rule?: string | null
           title?: string
           updated_at?: string
           user_id?: string
