@@ -2,104 +2,103 @@ import { useState, useCallback, useRef } from 'react';
 import type { AssistantPersonality } from '@/types/flux';
 import { personalityConfigs } from '@/types/flux';
 
-type Voice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
-
 interface UseTextToSpeechOptions {
-  defaultVoice?: Voice;
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: string) => void;
 }
 
-// Map personality to voice
-const getVoiceForPersonality = (personality?: AssistantPersonality): Voice => {
-  if (!personality) return 'alloy';
-  const config = personalityConfigs.find(p => p.id === personality);
-  return (config?.voice as Voice) || 'alloy';
+// Map personality to Web Speech API voice characteristics
+const getVoiceSettings = (personality?: AssistantPersonality): { rate: number; pitch: number } => {
+  switch (personality) {
+    case 'strict':
+      return { rate: 1.1, pitch: 0.9 };
+    case 'supportive':
+      return { rate: 0.95, pitch: 1.1 };
+    case 'creative':
+      return { rate: 1.0, pitch: 1.05 };
+    default:
+      return { rate: 1.0, pitch: 1.0 };
+  }
 };
 
 export function useTextToSpeech({
-  defaultVoice = 'alloy',
   onStart,
   onEnd,
   onError,
 }: UseTextToSpeechOptions = {}) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const stop = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
     }
+    utteranceRef.current = null;
     setIsSpeaking(false);
   }, []);
 
   const speak = useCallback(async (text: string, personality?: AssistantPersonality) => {
     if (!text.trim()) return;
 
+    // Check for Web Speech API support
+    if (!window.speechSynthesis) {
+      onError?.('Speech synthesis not supported in this browser');
+      return;
+    }
+
     // Stop any existing playback
     stop();
     setIsLoading(true);
 
-    const voice = personality ? getVoiceForPersonality(personality) : defaultVoice;
-
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ text, voice }),
-        }
-      );
+      const utterance = new SpeechSynthesisUtterance(text);
+      utteranceRef.current = utterance;
 
-      if (!response.ok) {
-        throw new Error('Failed to generate speech');
+      const settings = getVoiceSettings(personality);
+      utterance.rate = settings.rate;
+      utterance.pitch = settings.pitch;
+      utterance.volume = 1.0;
+
+      // Try to get a good English voice
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(v => 
+        v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha'))
+      ) || voices.find(v => v.lang.startsWith('en'));
+      
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
       }
 
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      // Create audio from base64
-      const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.onplay = () => {
+      utterance.onstart = () => {
+        setIsLoading(false);
         setIsSpeaking(true);
         onStart?.();
       };
 
-      audio.onended = () => {
+      utterance.onend = () => {
         setIsSpeaking(false);
-        audioRef.current = null;
+        utteranceRef.current = null;
         onEnd?.();
       };
 
-      audio.onerror = () => {
+      utterance.onerror = (event) => {
         setIsSpeaking(false);
-        audioRef.current = null;
-        onError?.('Failed to play audio');
+        setIsLoading(false);
+        utteranceRef.current = null;
+        if (event.error !== 'interrupted') {
+          onError?.(`Speech error: ${event.error}`);
+        }
       };
 
-      await audio.play();
+      window.speechSynthesis.speak(utterance);
     } catch (error) {
       console.error('TTS error:', error);
-      onError?.(error instanceof Error ? error.message : 'TTS failed');
-    } finally {
       setIsLoading(false);
+      onError?.(error instanceof Error ? error.message : 'TTS failed');
     }
-  }, [defaultVoice, stop, onStart, onEnd, onError]);
+  }, [stop, onStart, onEnd, onError]);
 
   return {
     speak,

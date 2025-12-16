@@ -7,11 +7,9 @@ const corsHeaders = {
 };
 
 interface LiveSessionRequest {
-  action: 'create_session' | 'send_audio' | 'send_text';
+  action: 'send_text';
   personality?: string;
-  audio?: string; // base64 encoded audio
   text?: string;
-  sessionId?: string;
 }
 
 const personalityPrompts: Record<string, string> = {
@@ -27,12 +25,12 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const { action, personality = 'balanced', audio, text } = await req.json() as LiveSessionRequest;
+    const { action, personality = 'balanced', text } = await req.json() as LiveSessionRequest;
 
     const systemPrompt = `${personalityPrompts[personality] || personalityPrompts.balanced}
 
@@ -47,84 +45,43 @@ You can help with:
 When the user asks to create a task or schedule an event, confirm what you'll do and provide brief confirmation.`;
 
     if (action === 'send_text') {
-      // Text-based interaction using standard Gemini API
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: `${systemPrompt}\n\nUser says: ${text}` }]
-              }
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 256,
-            }
-          })
-        }
-      );
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: text }
+          ],
+        }),
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Gemini API error:', response.status, errorText);
-        throw new Error(`Gemini API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't process that. Please try again.";
-
-      return new Response(
-        JSON.stringify({ text: responseText }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (action === 'send_audio') {
-      // For audio input, we use Gemini's multimodal capabilities
-      if (!audio) {
-        throw new Error('Audio data is required for send_audio action');
-      }
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  { text: systemPrompt },
-                  {
-                    inlineData: {
-                      mimeType: 'audio/wav',
-                      data: audio
-                    }
-                  }
-                ]
-              }
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 256,
-            }
-          })
+        console.error('Lovable AI error:', response.status, errorText);
+        
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Gemini audio API error:', response.status, errorText);
-        throw new Error(`Gemini API error: ${response.status}`);
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        throw new Error(`Lovable AI error: ${response.status}`);
       }
 
       const data = await response.json();
-      const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't understand that. Please try again.";
+      const responseText = data.choices?.[0]?.message?.content || "I couldn't process that. Please try again.";
 
       return new Response(
         JSON.stringify({ text: responseText }),
