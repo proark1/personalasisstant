@@ -122,9 +122,11 @@ export function StandardMode({
           <div className="h-80 glass-panel-solid rounded-xl overflow-hidden">
             <CalendarPanel
               events={events}
+              tasks={tasks}
               onAddEvent={onAddEvent}
               onImportEvents={onImportEvents}
               onShareEvent={onShareEvent}
+              onToggleTaskComplete={onToggleTaskComplete}
             />
           </div>
         </div>
