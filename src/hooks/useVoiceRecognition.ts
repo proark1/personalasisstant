@@ -46,8 +46,10 @@ export function useVoiceRecognition({
 }: UseVoiceRecognitionOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const shouldRestartRef = useRef(false);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -60,6 +62,9 @@ export function useVoiceRecognition({
       recognition.lang = lang;
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
+        // Don't process results if paused (AI is speaking)
+        if (isPaused) return;
+
         let interimTranscript = '';
         let finalTranscript = '';
 
@@ -86,14 +91,14 @@ export function useVoiceRecognition({
       };
 
       recognition.onend = () => {
-        // Restart if continuous and still supposed to be listening
-        if (continuous && isListening) {
+        // Restart if continuous and still supposed to be listening (and not paused)
+        if (continuous && shouldRestartRef.current && !isPaused) {
           try {
             recognition.start();
           } catch (e) {
             setIsListening(false);
           }
-        } else {
+        } else if (!shouldRestartRef.current) {
           setIsListening(false);
         }
       };
@@ -106,7 +111,7 @@ export function useVoiceRecognition({
         recognitionRef.current.abort();
       }
     };
-  }, [continuous, lang]);
+  }, [continuous, lang, isPaused]);
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current) {
@@ -115,9 +120,11 @@ export function useVoiceRecognition({
     }
 
     setTranscript('');
+    shouldRestartRef.current = true;
     try {
       recognitionRef.current.start();
       setIsListening(true);
+      setIsPaused(false);
     } catch (e) {
       console.error('Failed to start recognition:', e);
       onError?.('Failed to start voice recognition');
@@ -125,17 +132,46 @@ export function useVoiceRecognition({
   }, [onError]);
 
   const stopListening = useCallback(() => {
+    shouldRestartRef.current = false;
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
     setIsListening(false);
+    setIsPaused(false);
+  }, []);
+
+  // Pause recognition (e.g., when AI is speaking to prevent echo)
+  const pauseListening = useCallback(() => {
+    if (recognitionRef.current && isListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore
+      }
+    }
+    setIsPaused(true);
+  }, [isListening]);
+
+  // Resume recognition after pause
+  const resumeListening = useCallback(() => {
+    setIsPaused(false);
+    if (recognitionRef.current && shouldRestartRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.error('Failed to resume recognition:', e);
+      }
+    }
   }, []);
 
   return {
     isListening,
     isSupported,
+    isPaused,
     transcript,
     startListening,
     stopListening,
+    pauseListening,
+    resumeListening,
   };
 }

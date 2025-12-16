@@ -19,6 +19,7 @@ interface StandardModeProps {
   onSendMessage: (content: string) => void;
   onGhostMode: () => void;
   onOpenSettings: () => void;
+  onEditProfile?: () => void;
   onShareTask?: (id: string, title: string) => void;
   onShareEvent?: (id: string, title: string) => void;
   onSignOut?: () => void;
@@ -38,6 +39,7 @@ export function StandardMode({
   onSendMessage,
   onGhostMode,
   onOpenSettings,
+  onEditProfile,
   onShareTask,
   onShareEvent,
   onSignOut,
@@ -51,6 +53,7 @@ export function StandardMode({
         onFilterChange={setFilter}
         onGhostMode={onGhostMode}
         onOpenSettings={onOpenSettings}
+        onEditProfile={onEditProfile}
         onSignOut={onSignOut}
       />
       

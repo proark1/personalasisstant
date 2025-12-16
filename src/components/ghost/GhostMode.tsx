@@ -36,10 +36,33 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedRef = useRef<string>('');
 
-  // TTS hook for AI voice output
+  // Voice recognition with pause/resume capability
+  const {
+    isListening,
+    isSupported,
+    isPaused,
+    startListening,
+    stopListening,
+    pauseListening,
+    resumeListening,
+  } = useVoiceRecognition({
+    onTranscript: handleTranscript,
+    onError: handleVoiceError,
+    continuous: true,
+  });
+
+  // TTS hook - pause recognition when speaking to prevent echo
   const { speak, stop: stopSpeaking, isSpeaking, isLoading: isTTSLoading } = useTextToSpeech({
+    onStart: () => {
+      // Pause recognition when AI starts speaking to prevent echo
+      pauseListening();
+    },
     onEnd: () => {
       setConnectionStatus('connected');
+      // Resume recognition after AI finishes speaking
+      setTimeout(() => {
+        resumeListening();
+      }, 300); // Small delay to avoid catching tail end of speech
     }
   });
 
@@ -71,7 +94,10 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     },
   });
 
-  const handleTranscript = useCallback((transcript: string, isFinal: boolean) => {
+  function handleTranscript(transcript: string, isFinal: boolean) {
+    // Don't process if paused (AI is speaking)
+    if (isPaused) return;
+    
     setDisplayTranscript(transcript);
     
     // Clear any existing silence timeout
@@ -93,27 +119,16 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         }
       }, 2000);
     }
-  }, [sendText]);
+  }
 
-  const handleVoiceError = useCallback((error: string) => {
+  function handleVoiceError(error: string) {
     setConnectionStatus('error');
     toast({
       variant: 'destructive',
       title: 'Voice Recognition Error',
       description: error,
     });
-  }, [toast]);
-
-  const {
-    isListening,
-    isSupported,
-    startListening,
-    stopListening,
-  } = useVoiceRecognition({
-    onTranscript: handleTranscript,
-    onError: handleVoiceError,
-    continuous: true,
-  });
+  }
 
   // Update connection status based on state
   useEffect(() => {
@@ -121,10 +136,10 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       setConnectionStatus('processing');
     } else if (isSpeaking || isTTSLoading) {
       setConnectionStatus('speaking');
-    } else if (isListening) {
+    } else if (isListening && !isPaused) {
       setConnectionStatus('connected');
     }
-  }, [isListening, isProcessing, isSpeaking, isTTSLoading]);
+  }, [isListening, isProcessing, isSpeaking, isTTSLoading, isPaused]);
 
   const handleStartListening = useCallback(() => {
     if (!isSupported) {
@@ -183,7 +198,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     connecting: { color: 'text-warning', icon: Wifi, label: 'Connecting...', animate: true },
     connected: { color: 'text-success', icon: Wifi, label: 'Listening', animate: false },
     processing: { color: 'text-ghost-primary', icon: Loader2, label: 'Thinking...', animate: true },
-    speaking: { color: 'text-purple-400', icon: Volume2, label: 'Speaking', animate: true },
+    speaking: { color: 'text-purple-400', icon: Volume2, label: 'Speaking (mic paused)', animate: true },
     disconnected: { color: 'text-muted-foreground', icon: WifiOff, label: 'Disconnected', animate: false },
     error: { color: 'text-destructive', icon: AlertCircle, label: 'Error', animate: false },
   };
@@ -231,7 +246,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
           <AudioVisualizer 
             isActive={isListening || isProcessing || isCurrentlySpeaking}
             isSpeaking={isCurrentlySpeaking}
-            isListening={isListening && !isProcessing && !isCurrentlySpeaking}
+            isListening={isListening && !isProcessing && !isCurrentlySpeaking && !isPaused}
           />
         </div>
 
@@ -252,9 +267,13 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
                 Processing with Gemini...
               </p>
             </div>
-          ) : isListening ? (
+          ) : isListening && !isPaused ? (
             <p className="text-lg text-muted-foreground">
               Listening... say something
+            </p>
+          ) : isPaused ? (
+            <p className="text-lg text-purple-300">
+              AI is speaking...
             </p>
           ) : (
             <p className="text-lg text-muted-foreground">

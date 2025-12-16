@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Sparkles,
   Settings,
-  LogOut
+  LogOut,
+  UserCircle
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 
@@ -19,10 +20,11 @@ interface SidebarProps {
   onFilterChange: (filter: TaskCategory | 'all') => void;
   onGhostMode: () => void;
   onOpenSettings: () => void;
+  onEditProfile?: () => void;
   onSignOut?: () => void;
 }
 
-export function Sidebar({ activeFilter, onFilterChange, onGhostMode, onOpenSettings, onSignOut }: SidebarProps) {
+export function Sidebar({ activeFilter, onFilterChange, onGhostMode, onOpenSettings, onEditProfile, onSignOut }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
@@ -79,6 +81,20 @@ export function Sidebar({ activeFilter, onFilterChange, onGhostMode, onOpenSetti
 
       {/* Bottom Actions */}
       <div className="p-3 border-t border-sidebar-border space-y-1">
+        {onEditProfile && (
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full gap-3",
+              collapsed && "justify-center px-0"
+            )}
+            onClick={onEditProfile}
+          >
+            <UserCircle className="w-5 h-5 shrink-0" />
+            {!collapsed && <span>Edit Profile</span>}
+          </Button>
+        )}
+        
         <Button
           variant="ghost"
           className={cn(

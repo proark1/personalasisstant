@@ -6,6 +6,7 @@ import { useAIChat } from '@/hooks/useAIChat';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
+import { EditProfileDialog } from '@/components/settings/EditProfileDialog';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { CalendarEvent, ChatMessage, AppMode } from '@/types/flux';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +36,7 @@ const Index = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [shareDialog, setShareDialog] = useState<{
     type: 'task' | 'event';
     id: string;
@@ -275,6 +277,7 @@ const Index = () => {
           onSendMessage={handleSendMessage}
           onGhostMode={() => setMode('ghost')}
           onOpenSettings={() => setShowSettings(true)}
+          onEditProfile={() => setShowEditProfile(true)}
           onShareTask={(id, title) => setShareDialog({ type: 'task', id, title })}
           onShareEvent={(id, title) => setShareDialog({ type: 'event', id, title })}
           onSignOut={handleSignOut}
@@ -294,6 +297,11 @@ const Index = () => {
           onClose={() => setShowSettings(false)}
         />
       )}
+
+      <EditProfileDialog
+        isOpen={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+      />
 
       {shareDialog && (
         <ShareDialog
