@@ -14,6 +14,8 @@ interface StandardModeProps {
   onToggleTaskComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onDeleteTasks?: (ids: string[]) => Promise<{ error: string | null }> | void;
+  onUpdateTask?: (id: string, updates: Partial<Task>) => void;
+  onReorderTasks?: (taskOrders: { id: string; sortOrder: number }[]) => void;
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
@@ -34,6 +36,8 @@ export function StandardMode({
   onToggleTaskComplete,
   onDeleteTask,
   onDeleteTasks,
+  onUpdateTask,
+  onReorderTasks,
   onAddEvent,
   onImportEvents,
   onSendMessage,
@@ -78,6 +82,8 @@ export function StandardMode({
               onDeleteTask={onDeleteTask}
               onDeleteTasks={onDeleteTasks}
               onAddTask={onAddTask}
+              onUpdateTask={onUpdateTask}
+              onReorderTasks={onReorderTasks}
               onShareTask={onShareTask}
             />
           </div>

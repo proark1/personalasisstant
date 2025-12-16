@@ -32,6 +32,8 @@ export interface Task {
   dueDate?: Date;
   recurrenceRule?: string; // RRULE format
   recurrenceEnd?: Date;
+  parentId?: string; // For subtasks
+  sortOrder?: number; // For drag-and-drop ordering
 }
 
 export interface CalendarEvent {
