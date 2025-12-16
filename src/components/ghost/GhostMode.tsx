@@ -80,8 +80,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         setConnectionStatus('connected');
       }
       
-      // Also send to parent for any task/event processing
-      onCommand(text);
+      // NOTE: We intentionally do NOT call onCommand here
+      // The AI response should not be sent back to chat as a user message
+      // That would create an infinite loop where AI responds to itself
     },
     onError: (error) => {
       setConnectionStatus('error');

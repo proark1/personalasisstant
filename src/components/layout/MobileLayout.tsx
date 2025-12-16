@@ -33,6 +33,8 @@ interface MobileLayoutProps {
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onReorderTasks?: (taskOrders: { id: string; sortOrder: number }[]) => void;
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
+  onUpdateEvent?: (id: string, updates: Partial<CalendarEvent>) => void;
+  onDeleteEvent?: (id: string) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
   onGhostMode: () => void;
@@ -57,6 +59,8 @@ export function MobileLayout({
   onUpdateTask,
   onReorderTasks,
   onAddEvent,
+  onUpdateEvent,
+  onDeleteEvent,
   onImportEvents,
   onSendMessage,
   onGhostMode,
@@ -234,9 +238,13 @@ export function MobileLayout({
             events={events}
             tasks={tasks}
             onAddEvent={onAddEvent}
+            onUpdateEvent={onUpdateEvent}
+            onDeleteEvent={onDeleteEvent}
             onImportEvents={onImportEvents}
             onShareEvent={onShareEvent}
             onToggleTaskComplete={onToggleTaskComplete}
+            onUpdateTask={onUpdateTask}
+            onDeleteTask={onDeleteTask}
           />
         </div>
       </main>

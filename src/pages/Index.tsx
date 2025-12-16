@@ -29,6 +29,8 @@ const Index = () => {
     toggleTaskComplete,
     reorderTasks,
     addEvent,
+    updateEvent,
+    deleteEvent,
     shareItem,
     getSharedWith,
     removeShare,
@@ -316,6 +318,8 @@ const Index = () => {
           onUpdateTask={updateTask}
           onReorderTasks={reorderTasks}
           onAddEvent={handleAddEvent}
+          onUpdateEvent={updateEvent}
+          onDeleteEvent={deleteEvent}
           onImportEvents={handleImportEvents}
           onSendMessage={handleSendMessage}
           onGhostMode={() => setMode('ghost')}

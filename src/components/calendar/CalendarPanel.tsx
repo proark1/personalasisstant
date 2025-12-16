@@ -2,7 +2,8 @@ import { useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CalendarEvent, Task } from '@/types/flux';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CalendarEvent, Task, TaskPriority } from '@/types/flux';
 import { parseICS, validateICSFile } from '@/lib/icsParser';
 import { useToast } from '@/hooks/use-toast';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
@@ -19,7 +20,10 @@ import {
   Share2,
   Repeat,
   CheckSquare,
-  AlertCircle
+  AlertCircle,
+  X,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { format, isToday, isTomorrow, startOfDay, isPast } from 'date-fns';
 
@@ -30,6 +34,10 @@ interface CalendarPanelProps {
   onImportEvents?: (events: CalendarEvent[]) => void;
   onShareEvent?: (id: string, title: string) => void;
   onToggleTaskComplete?: (id: string) => void;
+  onUpdateTask?: (id: string, updates: Partial<Task>) => void;
+  onUpdateEvent?: (id: string, updates: Partial<CalendarEvent>) => void;
+  onDeleteTask?: (id: string) => void;
+  onDeleteEvent?: (id: string) => void;
 }
 
 interface CalendarItem {
@@ -44,6 +52,7 @@ interface CalendarItem {
   priority?: string;
   completed?: boolean;
   isOverdue?: boolean;
+  description?: string;
 }
 
 interface GroupedItems {
@@ -58,10 +67,15 @@ export function CalendarPanel({
   onAddEvent, 
   onImportEvents, 
   onShareEvent,
-  onToggleTaskComplete 
+  onToggleTaskComplete,
+  onUpdateTask,
+  onUpdateEvent,
+  onDeleteTask,
+  onDeleteEvent,
 }: CalendarPanelProps) {
   const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<CalendarItem | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +94,7 @@ export function CalendarPanel({
         location: event.location,
         attendees: event.attendees,
         recurrenceRule: event.recurrenceRule,
+        description: event.description,
       });
     });
 
@@ -95,6 +110,7 @@ export function CalendarPanel({
         completed: task.completed,
         recurrenceRule: task.recurrenceRule,
         isOverdue,
+        description: task.description,
       });
     });
 
@@ -158,7 +174,6 @@ export function CalendarPanel({
         return;
       }
 
-      // Add events through callback or directly
       if (onImportEvents) {
         onImportEvents(importedEvents);
       } else {
@@ -187,11 +202,53 @@ export function CalendarPanel({
       });
     } finally {
       setIsImporting(false);
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
+  };
+
+  const handleEditItem = (item: CalendarItem) => {
+    setEditingItem(item);
+  };
+
+  const handleSaveEdit = (updates: { title?: string; date?: Date; priority?: string; location?: string }) => {
+    if (!editingItem) return;
+
+    if (editingItem.type === 'task' && onUpdateTask) {
+      onUpdateTask(editingItem.id, {
+        title: updates.title,
+        dueDate: updates.date,
+        priority: updates.priority as TaskPriority,
+      });
+    } else if (editingItem.type === 'event' && onUpdateEvent) {
+      const event = events.find(e => e.id === editingItem.id);
+      if (event && updates.date) {
+        const timeDiff = event.endTime.getTime() - event.startTime.getTime();
+        onUpdateEvent(editingItem.id, {
+          title: updates.title,
+          startTime: updates.date,
+          endTime: new Date(updates.date.getTime() + timeDiff),
+          location: updates.location,
+        });
+      }
+    }
+
+    setEditingItem(null);
+    toast({ title: 'Updated successfully' });
+  };
+
+  const handleDeleteItem = () => {
+    if (!editingItem) return;
+
+    if (editingItem.type === 'task' && onDeleteTask) {
+      onDeleteTask(editingItem.id);
+    } else if (editingItem.type === 'event' && onDeleteEvent) {
+      onDeleteEvent(editingItem.id);
+    }
+
+    setEditingItem(null);
+    toast({ title: 'Deleted successfully' });
   };
 
   const priorityColors: Record<string, string> = {
@@ -201,11 +258,14 @@ export function CalendarPanel({
   };
 
   const ItemCard = ({ item }: { item: CalendarItem }) => (
-    <div className={cn(
-      "flex gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group cursor-pointer",
-      item.completed && "opacity-60",
-      item.isOverdue && "border-l-2 border-l-destructive"
-    )}>
+    <div 
+      onClick={() => handleEditItem(item)}
+      className={cn(
+        "flex gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group cursor-pointer",
+        item.completed && "opacity-60",
+        item.isOverdue && "border-l-2 border-l-destructive"
+      )}
+    >
       <div className={cn(
         "w-1 rounded-full shrink-0",
         item.type === 'event' ? "bg-primary" : "bg-accent"
@@ -214,10 +274,18 @@ export function CalendarPanel({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             {item.type === 'task' && (
-              <CheckSquare className={cn(
-                "w-4 h-4 shrink-0",
-                item.completed ? "text-primary" : "text-muted-foreground"
-              )} />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleTaskComplete?.(item.id);
+                }}
+                className="shrink-0"
+              >
+                <CheckSquare className={cn(
+                  "w-4 h-4",
+                  item.completed ? "text-primary" : "text-muted-foreground hover:text-primary"
+                )} />
+              </button>
             )}
             <h4 className={cn(
               "font-medium text-sm truncate",
@@ -238,20 +306,18 @@ export function CalendarPanel({
             )}
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleEditItem(item); }}
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
             {item.type === 'event' && onShareEvent && (
               <button
                 onClick={(e) => { e.stopPropagation(); onShareEvent(item.id, item.title); }}
                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
               >
                 <Share2 className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {item.type === 'task' && onToggleTaskComplete && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onToggleTaskComplete(item.id); }}
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
-              >
-                <CheckSquare className="w-3.5 h-3.5" />
               </button>
             )}
             <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -300,12 +366,12 @@ export function CalendarPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="h-14 px-4 flex items-center justify-between border-b border-border">
+      <div className="h-14 px-4 flex items-center justify-between border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
           <h2 className="font-semibold">Agenda</h2>
           <span className="text-xs text-muted-foreground">
-            ({calendarItems.length} items)
+            ({calendarItems.length})
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -345,7 +411,7 @@ export function CalendarPanel({
             <Calendar className="w-10 h-10 text-muted-foreground/30 mb-2" />
             <p className="text-sm text-muted-foreground">No upcoming events or tasks</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Tasks with due dates will appear here automatically
+              Tasks with due dates will appear here
             </p>
             <div className="flex gap-2 mt-3">
               <Button 
@@ -401,6 +467,16 @@ export function CalendarPanel({
         <QuickAddEvent 
           onClose={() => setShowAddModal(false)}
           onAdd={onAddEvent}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {editingItem && (
+        <EditItemModal
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+          onSave={handleSaveEdit}
+          onDelete={handleDeleteItem}
         />
       )}
     </div>
@@ -495,6 +571,135 @@ function QuickAddEvent({
             <Button type="submit">
               Add Event
             </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditItemModal({
+  item,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  item: CalendarItem;
+  onClose: () => void;
+  onSave: (updates: { title?: string; date?: Date; priority?: string; location?: string }) => void;
+  onDelete: () => void;
+}) {
+  const [title, setTitle] = useState(item.title);
+  const [date, setDate] = useState(format(item.date, 'yyyy-MM-dd'));
+  const [time, setTime] = useState(format(item.date, 'HH:mm'));
+  const [priority, setPriority] = useState(item.priority || 'medium');
+  const [location, setLocation] = useState(item.location || '');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newDate = new Date(`${date}T${time}`);
+    onSave({
+      title: title.trim(),
+      date: newDate,
+      priority,
+      location: location.trim() || undefined,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="glass-panel-solid w-full max-w-md p-6 animate-scale-in rounded-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">
+            Edit {item.type === 'task' ? 'Task' : 'Event'}
+          </h3>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm text-muted-foreground">Title</label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Title"
+              autoFocus
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm text-muted-foreground">Date</label>
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">Time</label>
+              <Input
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {item.type === 'task' && (
+            <div>
+              <label className="text-sm text-muted-foreground">Priority</label>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {item.type === 'event' && (
+            <div>
+              <label className="text-sm text-muted-foreground">Location</label>
+              <Input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Location (optional)"
+              />
+            </div>
+          )}
+
+          {item.recurrenceRule && (
+            <div className="flex items-center gap-2 p-2 rounded bg-muted/50 text-sm">
+              <Repeat className="w-4 h-4 text-primary" />
+              <span>{getRecurrenceDescription(item.recurrenceRule)}</span>
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-between pt-2">
+            <Button 
+              type="button" 
+              variant="destructive" 
+              size="sm"
+              onClick={onDelete}
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Delete
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Save Changes
+              </Button>
+            </div>
           </div>
         </form>
       </div>
