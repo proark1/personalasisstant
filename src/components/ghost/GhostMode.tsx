@@ -2,9 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AudioVisualizer } from './AudioVisualizer';
-import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { useGeminiLive } from '@/hooks/useGeminiLive';
-import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useToast } from '@/hooks/use-toast';
 import type { AssistantPersonality } from '@/types/flux';
 import { 
@@ -31,30 +29,22 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const { toast } = useToast();
   const [isMuted, setIsMuted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
-  const [displayTranscript, setDisplayTranscript] = useState('');
   const [aiResponse, setAiResponse] = useState('');
-  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastProcessedRef = useRef<string>('');
 
-  // TTS hook for AI voice output
-  const { speak, stop: stopSpeaking, isLoading: isTTSLoading } = useTextToSpeech();
-
-  // Gemini Live hook for AI responses
-  const { isProcessing, sendText } = useGeminiLive({
+  // Gemini Live hook for native voice AI
+  const { 
+    isConnected, 
+    isProcessing,
+    connect, 
+    disconnect, 
+    startAudioCapture, 
+    stopAudioCapture,
+  } = useGeminiLive({
     personality,
-    onResponse: async (text) => {
+    onResponse: (text) => {
       setAiResponse(text);
-      setConnectionStatus('speaking');
-      
-      // Speak the response if not muted
-      if (!isMuted) {
-        await speak(text, personality);
-      }
-      
-      // Also send to parent for any task/event processing
+      // Send to parent for any task/event processing
       onCommand(text);
-      
-      setConnectionStatus('connected');
     },
     onError: (error) => {
       setConnectionStatus('error');
@@ -63,93 +53,57 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         title: 'AI Error',
         description: error,
       });
-      setConnectionStatus('connected');
+    },
+    onSpeakingChange: (speaking) => {
+      if (speaking) {
+        setConnectionStatus('speaking');
+      } else if (isConnected) {
+        setConnectionStatus('connected');
+      }
+    },
+    onConnectionChange: (connected) => {
+      if (connected) {
+        setConnectionStatus('connected');
+      } else {
+        setConnectionStatus('disconnected');
+      }
     },
   });
 
-  const handleTranscript = useCallback((transcript: string, isFinal: boolean) => {
-    setDisplayTranscript(transcript);
-    
-    // Clear any existing silence timeout
-    if (silenceTimeoutRef.current) {
-      clearTimeout(silenceTimeoutRef.current);
-    }
-
-    if (isFinal && transcript.trim() && transcript.trim() !== lastProcessedRef.current) {
-      lastProcessedRef.current = transcript.trim();
-      setConnectionStatus('processing');
-      sendText(transcript.trim());
-    } else if (transcript.trim()) {
-      // Set a timeout to send after silence
-      silenceTimeoutRef.current = setTimeout(() => {
-        if (transcript.trim() && transcript.trim() !== lastProcessedRef.current) {
-          lastProcessedRef.current = transcript.trim();
-          setConnectionStatus('processing');
-          sendText(transcript.trim());
-        }
-      }, 2000);
-    }
-  }, [sendText]);
-
-  const handleVoiceError = useCallback((error: string) => {
-    setConnectionStatus('error');
-    toast({
-      variant: 'destructive',
-      title: 'Voice Recognition Error',
-      description: error,
-    });
-  }, [toast]);
-
-  const {
-    isListening,
-    isSupported,
-    startListening,
-    stopListening,
-  } = useVoiceRecognition({
-    onTranscript: handleTranscript,
-    onError: handleVoiceError,
-    continuous: true,
-  });
-
-  // Update connection status based on state
+  // Update status based on processing state
   useEffect(() => {
     if (isProcessing) {
       setConnectionStatus('processing');
-    } else if (isListening && connectionStatus !== 'speaking') {
-      setConnectionStatus('connected');
     }
-  }, [isListening, isProcessing, connectionStatus]);
+  }, [isProcessing]);
 
-  const handleStartListening = useCallback(() => {
-    if (!isSupported) {
+  const handleStartListening = useCallback(async () => {
+    setConnectionStatus('connecting');
+    setAiResponse('');
+    
+    try {
+      // Connect to Gemini Live
+      connect();
+      
+      // Start capturing audio
+      await startAudioCapture();
+    } catch (error) {
+      console.error('Error starting:', error);
+      setConnectionStatus('error');
       toast({
         variant: 'destructive',
-        title: 'Not Supported',
-        description: 'Voice recognition is not supported in this browser. Try Chrome or Edge.',
+        title: 'Connection Error',
+        description: 'Failed to start voice connection. Please try again.',
       });
-      return;
     }
-
-    setConnectionStatus('connecting');
-    setDisplayTranscript('');
-    setAiResponse('');
-    lastProcessedRef.current = '';
-    
-    setTimeout(() => {
-      startListening();
-      setConnectionStatus('connected');
-    }, 500);
-  }, [isSupported, startListening, toast]);
+  }, [connect, startAudioCapture, toast]);
 
   const handleStopListening = useCallback(() => {
-    stopListening();
-    stopSpeaking();
+    stopAudioCapture();
+    disconnect();
     setConnectionStatus('disconnected');
-    setDisplayTranscript('');
-    if (silenceTimeoutRef.current) {
-      clearTimeout(silenceTimeoutRef.current);
-    }
-  }, [stopListening, stopSpeaking]);
+    setAiResponse('');
+  }, [stopAudioCapture, disconnect]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -165,17 +119,14 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-      }
-      stopListening();
-      stopSpeaking();
+      stopAudioCapture();
+      disconnect();
     };
-  }, [stopListening, stopSpeaking]);
+  }, [stopAudioCapture, disconnect]);
 
   const statusConfig = {
-    connecting: { color: 'text-warning', icon: Wifi, label: 'Connecting...', animate: true },
-    connected: { color: 'text-success', icon: Wifi, label: 'Listening', animate: false },
+    connecting: { color: 'text-warning', icon: Wifi, label: 'Connecting to Gemini...', animate: true },
+    connected: { color: 'text-success', icon: Wifi, label: 'Listening (Native Voice)', animate: false },
     processing: { color: 'text-ghost-primary', icon: Loader2, label: 'Thinking...', animate: true },
     speaking: { color: 'text-purple-400', icon: Volume2, label: 'Speaking', animate: true },
     disconnected: { color: 'text-muted-foreground', icon: WifiOff, label: 'Disconnected', animate: false },
@@ -184,8 +135,8 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
 
   const currentStatus = statusConfig[connectionStatus];
   const StatusIcon = currentStatus.icon;
-
-  const isSpeaking = connectionStatus === 'speaking' || isTTSLoading;
+  const isActive = connectionStatus !== 'disconnected' && connectionStatus !== 'error';
+  const isSpeaking = connectionStatus === 'speaking';
 
   return (
     <div className="fixed inset-0 ghost-gradient z-50 flex flex-col animate-fade-in">
@@ -199,13 +150,6 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             <StatusIcon className={cn("w-4 h-4", currentStatus.animate && "animate-pulse")} />
             <span className="font-mono text-xs">{currentStatus.label}</span>
           </div>
-          
-          {!isSupported && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel text-warning text-sm">
-              <AlertCircle className="w-4 h-4" />
-              <span className="font-mono text-xs">Use Chrome/Edge</span>
-            </div>
-          )}
         </div>
         
         <Button
@@ -223,19 +167,15 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         {/* Visualizer */}
         <div className="w-80 h-80 mb-8">
           <AudioVisualizer 
-            isActive={isListening || isProcessing || isSpeaking}
+            isActive={isActive}
             isSpeaking={isSpeaking}
-            isListening={isListening && !isProcessing && !isSpeaking}
+            isListening={isConnected && !isProcessing && !isSpeaking}
           />
         </div>
 
-        {/* Transcript / Response */}
+        {/* Response Display */}
         <div className="h-32 flex flex-col items-center justify-center gap-2 max-w-2xl">
-          {displayTranscript && connectionStatus !== 'speaking' ? (
-            <p className="text-2xl md:text-3xl font-light text-center text-foreground/90 animate-fade-in">
-              "{displayTranscript}"
-            </p>
-          ) : aiResponse && (connectionStatus === 'speaking' || connectionStatus === 'connected') ? (
+          {aiResponse && (connectionStatus === 'speaking' || connectionStatus === 'connected') ? (
             <p className="text-xl md:text-2xl font-light text-center text-purple-300 animate-fade-in">
               {aiResponse}
             </p>
@@ -246,13 +186,13 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
                 Processing...
               </p>
             </div>
-          ) : isListening ? (
+          ) : isConnected ? (
             <p className="text-lg text-muted-foreground">
-              Listening... say something
+              Speak naturally... Gemini is listening
             </p>
           ) : (
             <p className="text-lg text-muted-foreground">
-              Tap the microphone to start
+              Tap the microphone to start native voice chat
             </p>
           )}
         </div>
@@ -263,10 +203,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => {
-            setIsMuted(!isMuted);
-            if (!isMuted) stopSpeaking();
-          }}
+          onClick={() => setIsMuted(!isMuted)}
           className={cn(
             "rounded-full w-12 h-12",
             isMuted ? "text-destructive" : "text-muted-foreground"
@@ -276,17 +213,19 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         </Button>
 
         <Button
-          variant={isListening ? "ghost" : "default"}
+          variant={isActive ? "ghost" : "default"}
           size="icon"
-          onClick={isListening ? handleStopListening : handleStartListening}
-          disabled={(!isSupported && !isListening) || isProcessing}
+          onClick={isActive ? handleStopListening : handleStartListening}
+          disabled={connectionStatus === 'connecting'}
           className={cn(
             "rounded-full w-20 h-20 transition-all",
-            isListening && "bg-ghost-primary/20 border-2 border-ghost-primary animate-pulse",
-            !isListening && "bg-ghost-primary hover:bg-ghost-primary/90"
+            isActive && "bg-ghost-primary/20 border-2 border-ghost-primary animate-pulse",
+            !isActive && "bg-ghost-primary hover:bg-ghost-primary/90"
           )}
         >
-          {isListening ? (
+          {connectionStatus === 'connecting' ? (
+            <Loader2 className="w-8 h-8 animate-spin" />
+          ) : isActive ? (
             <MicOff className="w-8 h-8" />
           ) : (
             <Mic className="w-8 h-8" />
