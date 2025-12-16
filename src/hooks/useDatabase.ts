@@ -159,6 +159,19 @@ export function useDatabase(userId: string | undefined) {
     }
   }, []);
 
+  const deleteTasks = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return;
+    
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .in('id', ids);
+
+    if (!error) {
+      setTasks(prev => prev.filter(t => !ids.includes(t.id)));
+    }
+  }, []);
+
   const toggleTaskComplete = useCallback(async (id: string) => {
     const task = tasks.find(t => t.id === id);
     if (task) {
@@ -290,6 +303,7 @@ export function useDatabase(userId: string | undefined) {
     addTask,
     updateTask,
     deleteTask,
+    deleteTasks,
     toggleTaskComplete,
     addEvent,
     updateEvent,
