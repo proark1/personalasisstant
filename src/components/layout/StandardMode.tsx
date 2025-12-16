@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Sidebar } from './Sidebar';
+import { MobileLayout } from './MobileLayout';
 import { ChatPanel } from '../chat/ChatPanel';
 import { TaskList } from '../tasks/TaskList';
 import { CalendarPanel } from '../calendar/CalendarPanel';
 import { TaskCategory, Task, CalendarEvent, ChatMessage } from '@/types/flux';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface StandardModeProps {
   tasks: Task[];
@@ -49,6 +51,34 @@ export function StandardMode({
   onSignOut,
 }: StandardModeProps) {
   const [filter, setFilter] = useState<TaskCategory | 'all'>('all');
+  const isMobile = useIsMobile();
+
+  // Use mobile layout on small screens
+  if (isMobile) {
+    return (
+      <MobileLayout
+        tasks={tasks}
+        events={events}
+        messages={messages}
+        isProcessing={isProcessing}
+        onAddTask={onAddTask}
+        onToggleTaskComplete={onToggleTaskComplete}
+        onDeleteTask={onDeleteTask}
+        onDeleteTasks={onDeleteTasks}
+        onUpdateTask={onUpdateTask}
+        onReorderTasks={onReorderTasks}
+        onAddEvent={onAddEvent}
+        onImportEvents={onImportEvents}
+        onSendMessage={onSendMessage}
+        onGhostMode={onGhostMode}
+        onOpenSettings={onOpenSettings}
+        onEditProfile={onEditProfile}
+        onShareTask={onShareTask}
+        onShareEvent={onShareEvent}
+        onSignOut={onSignOut}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-background">
