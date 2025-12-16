@@ -13,6 +13,8 @@ interface DbTask {
   due_date: string | null;
   recurrence_rule: string | null;
   recurrence_end: string | null;
+  parent_id: string | null;
+  sort_order: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +60,8 @@ export function useDatabase(userId: string | undefined) {
     dueDate: dbTask.due_date ? new Date(dbTask.due_date) : undefined,
     recurrenceRule: dbTask.recurrence_rule || undefined,
     recurrenceEnd: dbTask.recurrence_end ? new Date(dbTask.recurrence_end) : undefined,
+    parentId: dbTask.parent_id || undefined,
+    sortOrder: dbTask.sort_order ?? 0,
   });
 
   // Convert DB event to app CalendarEvent
@@ -88,6 +92,7 @@ export function useDatabase(userId: string | undefined) {
     const { data: tasksData } = await supabase
       .from('tasks')
       .select('*')
+      .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
     
     if (tasksData) {
@@ -127,6 +132,8 @@ export function useDatabase(userId: string | undefined) {
         due_date: task.dueDate?.toISOString(),
         recurrence_rule: task.recurrenceRule,
         recurrence_end: task.recurrenceEnd?.toISOString(),
+        parent_id: task.parentId,
+        sort_order: task.sortOrder ?? 0,
       })
       .select()
       .single();
@@ -149,6 +156,8 @@ export function useDatabase(userId: string | undefined) {
     if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate?.toISOString();
     if (updates.recurrenceRule !== undefined) dbUpdates.recurrence_rule = updates.recurrenceRule;
     if (updates.recurrenceEnd !== undefined) dbUpdates.recurrence_end = updates.recurrenceEnd?.toISOString();
+    if (updates.parentId !== undefined) dbUpdates.parent_id = updates.parentId;
+    if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
 
     const { error } = await supabase
       .from('tasks')
@@ -207,6 +216,23 @@ export function useDatabase(userId: string | undefined) {
       await updateTask(id, { completed: !task.completed });
     }
   }, [tasks, updateTask]);
+
+  const reorderTasks = useCallback(async (taskOrders: { id: string; sortOrder: number }[]) => {
+    // Update local state immediately for optimistic UI
+    setTasks(prev => {
+      const newTasks = [...prev];
+      taskOrders.forEach(({ id, sortOrder }) => {
+        const task = newTasks.find(t => t.id === id);
+        if (task) task.sortOrder = sortOrder;
+      });
+      return newTasks.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    });
+
+    // Update in database
+    for (const { id, sortOrder } of taskOrders) {
+      await supabase.from('tasks').update({ sort_order: sortOrder }).eq('id', id);
+    }
+  }, []);
 
   // Event operations
   const addEvent = useCallback(async (event: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent | null> => {
@@ -338,6 +364,7 @@ export function useDatabase(userId: string | undefined) {
     deleteTask,
     deleteTasks,
     toggleTaskComplete,
+    reorderTasks,
     addEvent,
     updateEvent,
     deleteEvent,

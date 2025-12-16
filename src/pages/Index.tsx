@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDatabase } from '@/hooks/useDatabase';
 import { useSettings } from '@/hooks/useSettings';
 import { useAIChat } from '@/hooks/useAIChat';
+import { useTaskNotifications } from '@/hooks/useTaskNotifications';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
@@ -26,11 +27,19 @@ const Index = () => {
     deleteTask,
     deleteTasks,
     toggleTaskComplete,
+    reorderTasks,
     addEvent,
     shareItem,
     getSharedWith,
     removeShare,
   } = useDatabase(user?.id);
+
+  // Task notifications
+  useTaskNotifications({
+    tasks,
+    reminderMinutesBefore: settings.notifications.reminderMinutesBefore,
+    enabled: settings.notifications.taskReminders,
+  });
 
   const [mode, setMode] = useState<AppMode>('standard');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -289,6 +298,8 @@ const Index = () => {
           onToggleTaskComplete={toggleTaskComplete}
           onDeleteTask={deleteTask}
           onDeleteTasks={handleDeleteTasks}
+          onUpdateTask={updateTask}
+          onReorderTasks={reorderTasks}
           onAddEvent={handleAddEvent}
           onImportEvents={handleImportEvents}
           onSendMessage={handleSendMessage}
