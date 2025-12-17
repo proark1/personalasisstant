@@ -13,12 +13,14 @@ import { useContacts } from '@/hooks/useContacts';
 import { useContactReminders } from '@/hooks/useContactReminders';
 import { useActivityFeed } from '@/hooks/useActivityFeed';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
+import { useContracts } from '@/hooks/useContracts';
+import { useContractReminders } from '@/hooks/useContractReminders';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { ShareProjectDialog } from '@/components/projects/ShareProjectDialog';
-import { MorningDigest } from '@/components/notifications/MorningDigest';
+import { MorningBriefing } from '@/components/notifications/MorningBriefing';
 import { WeeklyReviewDialog } from '@/components/review/WeeklyReviewDialog';
 import { CalendarEvent, ChatMessage, AppMode, Task } from '@/types/flux';
 import { useToast } from '@/hooks/use-toast';
@@ -107,7 +109,19 @@ const Index = () => {
   } = useWeeklyReview(user?.id);
 
   // Contacts for task assignment
-  const { contacts } = useContacts(user?.id);
+  const { contacts, markContacted } = useContacts(user?.id);
+
+  // Contracts management
+  const { contracts } = useContracts(user?.id);
+
+  // Contract reminders - creates tasks for contracts ending within 3 months
+  useContractReminders({
+    contracts,
+    tasks,
+    onAddTask: addTask,
+    onShowToast: (title, description) => toast({ title, description }),
+    enabled: settings.notifications.contractReminders,
+  });
 
   // Contact reminders - creates tasks when contacts are due for follow-up
   useContactReminders({
@@ -462,13 +476,17 @@ const Index = () => {
 
   return (
     <>
-      {/* Morning Digest */}
+      {/* Morning Briefing */}
       {showMorningDigest && (
-        <MorningDigest
+        <MorningBriefing
           tasks={tasks}
           events={events}
+          contacts={contacts}
+          contracts={contracts}
+          projects={projects}
           streak={productivityStreak}
           onDismiss={() => setShowMorningDigest(false)}
+          onMarkContactContacted={markContacted}
         />
       )}
 

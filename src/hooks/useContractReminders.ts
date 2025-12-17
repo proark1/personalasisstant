@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Contract } from './useContracts';
 import { Task } from '@/types/flux';
-import { isPast, differenceInDays } from 'date-fns';
+import { isPast, differenceInDays, format } from 'date-fns';
 
 interface UseContractRemindersProps {
   contracts: Contract[];
@@ -62,12 +62,12 @@ export function useContractReminders({
         }
       }
 
-      // Create renewal reminder (if within 7 days)
-      if (daysUntilRenewal >= 0 && daysUntilRenewal <= 7) {
-        const renewalTaskTitle = `📋 Contract: ${contract.name} - Renewal`;
+      // Create task for contracts ending within 3 months (90 days)
+      if (daysUntilRenewal >= 0 && daysUntilRenewal <= 90) {
+        const renewalTaskTitle = `📋 Contract: ${contract.name} - Ends ${format(contract.renewalDate, 'MMM d')}`;
         const existingRenewalTask = tasks.find(t =>
           t.title.includes(contract.name) &&
-          t.title.includes('Renewal') &&
+          (t.title.includes('Ends') || t.title.includes('Renewal')) &&
           !t.completed
         );
 
@@ -76,15 +76,20 @@ export function useContractReminders({
             ? ` Cost: €${contract.costAmount} (${contract.costFrequency})`
             : '';
           
+          // Set priority based on urgency
+          let priority: 'low' | 'medium' | 'high' = 'low';
+          if (daysUntilRenewal <= 7) priority = 'high';
+          else if (daysUntilRenewal <= 30) priority = 'medium';
+          
           onAddTask({
             title: renewalTaskTitle,
-            description: `Contract renewal date.${costInfo} Provider: ${contract.provider || 'N/A'}`,
+            description: `Contract ends/renews on this date.${costInfo} Provider: ${contract.provider || 'N/A'}`,
             category: 'personal',
-            priority: 'medium',
+            priority,
             completed: false,
             dueDate: contract.renewalDate,
           });
-          createdReminders.push(`${contract.name} (renewal)`);
+          createdReminders.push(`${contract.name} (ending)`);
         }
       }
     }
