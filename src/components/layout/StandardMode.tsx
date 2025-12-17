@@ -22,13 +22,7 @@ import { Button } from '@/components/ui/button';
 import { List, Grid3X3, X, Mic } from 'lucide-react';
 import type { ActivityItem } from '@/hooks/useActivityFeed';
 import type { SearchResult, SearchFilters } from '@/hooks/useGlobalSearch';
-
-interface Contact {
-  id: string;
-  userId: string;
-  email: string;
-  displayName?: string;
-}
+import type { Contact } from '@/hooks/useContacts';
 
 interface StandardModeProps {
   tasks: Task[];

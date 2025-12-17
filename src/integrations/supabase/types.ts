@@ -514,24 +514,63 @@ export type Database = {
       }
       user_contacts: {
         Row: {
-          contact_user_id: string
+          business_level: string | null
+          company: string | null
+          contact_frequency_days: number | null
+          contact_type: string
+          contact_user_id: string | null
           created_at: string
+          email: string | null
           id: string
-          nickname: string | null
+          last_contacted_at: string | null
+          name: string
+          next_contact_due: string | null
+          notes: string | null
+          personal_tier: string | null
+          phone: string | null
+          role: string | null
+          tags: string[] | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          contact_user_id: string
+          business_level?: string | null
+          company?: string | null
+          contact_frequency_days?: number | null
+          contact_type?: string
+          contact_user_id?: string | null
           created_at?: string
+          email?: string | null
           id?: string
-          nickname?: string | null
+          last_contacted_at?: string | null
+          name: string
+          next_contact_due?: string | null
+          notes?: string | null
+          personal_tier?: string | null
+          phone?: string | null
+          role?: string | null
+          tags?: string[] | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          contact_user_id?: string
+          business_level?: string | null
+          company?: string | null
+          contact_frequency_days?: number | null
+          contact_type?: string
+          contact_user_id?: string | null
           created_at?: string
+          email?: string | null
           id?: string
-          nickname?: string | null
+          last_contacted_at?: string | null
+          name?: string
+          next_contact_due?: string | null
+          notes?: string | null
+          personal_tier?: string | null
+          phone?: string | null
+          role?: string | null
+          tags?: string[] | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

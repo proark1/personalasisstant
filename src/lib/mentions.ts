@@ -20,10 +20,10 @@ export function parseMentions(text: string, contacts: Contact[]): ParsedMention[
   
   while ((match = emailRegex.exec(text)) !== null) {
     const email = match[1];
-    const contact = contacts.find(c => c.email.toLowerCase() === email.toLowerCase());
+    const contact = contacts.find(c => c.email?.toLowerCase() === email.toLowerCase());
     mentions.push({
       email,
-      displayName: contact?.displayName,
+      displayName: contact?.name,
       start: match.index,
       end: match.index + match[0].length,
     });
@@ -59,7 +59,7 @@ export function extractMentionedUsers(text: string, contacts: Contact[]): string
   const mentionedIds: string[] = [];
   
   mentions.forEach(mention => {
-    const contact = contacts.find(c => c.email.toLowerCase() === mention.email.toLowerCase());
+    const contact = contacts.find(c => c.email?.toLowerCase() === mention.email.toLowerCase());
     if (contact) {
       mentionedIds.push(contact.userId);
     }
@@ -89,8 +89,8 @@ export function getMentionSuggestions(
   const searchTerm = textAfterAt.toLowerCase();
   
   const suggestions = contacts.filter(contact => {
-    const email = contact.email.toLowerCase();
-    const name = (contact.displayName || '').toLowerCase();
+    const email = (contact.email || '').toLowerCase();
+    const name = contact.name.toLowerCase();
     return email.includes(searchTerm) || name.includes(searchTerm);
   }).slice(0, 5);
   

@@ -8,19 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Task, TaskPriority, TaskCategory, Project, ChecklistItem } from '@/types/flux';
+import type { Contact } from '@/hooks/useContacts';
 import { recurrencePresets, toRRuleString, getRecurrenceDescription } from '@/lib/recurrence';
 import { X, Calendar as CalendarIcon, Trash2, Repeat, Bell, Clock, User, Users, FolderOpen, Plus, Check, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { RecurrenceFrequency } from '@/types/flux';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TaskBreakdownDialog } from '@/components/ai/TaskBreakdownDialog';
-
-interface Contact {
-  id: string;
-  userId: string;
-  email: string;
-  displayName?: string;
-}
 
 interface EditTaskModalProps {
   task: Task;
@@ -145,7 +139,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   const getContactDisplay = (contactId: string | undefined) => {
     if (!contactId) return 'Not assigned';
     const contact = contacts.find(c => c.userId === contactId);
-    return contact?.displayName || contact?.email || 'Unknown';
+    return contact?.name || contact?.email || 'Unknown';
   };
 
   return (
@@ -226,7 +220,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                   <SelectItem value="_none">Not assigned</SelectItem>
                   {contacts.map(contact => (
                     <SelectItem key={contact.userId} value={contact.userId}>
-                      {contact.displayName || contact.email}
+                      {contact.name || contact.email}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -245,7 +239,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                   <SelectItem value="_none">Not assigned</SelectItem>
                   {contacts.map(contact => (
                     <SelectItem key={contact.userId} value={contact.userId}>
-                      {contact.displayName || contact.email}
+                      {contact.name || contact.email}
                     </SelectItem>
                   ))}
                 </SelectContent>

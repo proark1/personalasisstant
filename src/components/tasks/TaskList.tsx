@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Progress } from '@/components/ui/progress';
 import { Task, TaskCategory, TaskPriority, Project } from '@/types/flux';
+import type { Contact } from '@/hooks/useContacts';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
 import { getRecurrenceDescription } from '@/lib/recurrence';
 import { EditTaskModal } from './EditTaskModal';
@@ -54,13 +55,6 @@ interface Tag {
   id: string;
   name: string;
   color: string;
-}
-
-interface Contact {
-  id: string;
-  userId: string;
-  email: string;
-  displayName?: string;
 }
 
 interface TaskListProps {
