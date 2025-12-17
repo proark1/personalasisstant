@@ -1,16 +1,19 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDatabase } from '@/hooks/useDatabase';
 import { useSettings } from '@/hooks/useSettings';
 import { useAIChat } from '@/hooks/useAIChat';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
 import { useSharedItemsRealtime } from '@/hooks/useSharedItemsRealtime';
+import { useTags } from '@/hooks/useTags';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
+import { MorningDigest } from '@/components/notifications/MorningDigest';
 import { CalendarEvent, ChatMessage, AppMode, Task } from '@/types/flux';
 import { useToast } from '@/hooks/use-toast';
+import { differenceInCalendarDays, startOfDay, subDays } from 'date-fns';
 
 const Index = () => {
   const { toast } = useToast();
@@ -65,6 +68,34 @@ const Index = () => {
     enabled: settings.notifications.taskReminders,
   });
 
+  // Tags system
+  const tagsHook = useTags(user?.id);
+
+  // Calculate productivity streak
+  const productivityStreak = useMemo(() => {
+    const completedTaskDates = tasks
+      .filter(t => t.completed && t.dueDate)
+      .map(t => startOfDay(t.dueDate!).getTime());
+    
+    const uniqueDates = [...new Set(completedTaskDates)].sort((a, b) => b - a);
+    if (uniqueDates.length === 0) return 0;
+    
+    let streak = 0;
+    const today = startOfDay(new Date()).getTime();
+    
+    for (let i = 0; i <= 30; i++) {
+      const checkDate = subDays(new Date(), i).getTime();
+      if (uniqueDates.includes(startOfDay(new Date(checkDate)).getTime())) {
+        streak++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    
+    return streak;
+  }, [tasks]);
+
+  const [showMorningDigest, setShowMorningDigest] = useState(true);
   const [mode, setMode] = useState<AppMode>('standard');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -363,6 +394,16 @@ const Index = () => {
 
   return (
     <>
+      {/* Morning Digest */}
+      {showMorningDigest && (
+        <MorningDigest
+          tasks={tasks}
+          events={events}
+          streak={productivityStreak}
+          onDismiss={() => setShowMorningDigest(false)}
+        />
+      )}
+
       {mode === 'standard' ? (
         <StandardMode
           tasks={tasks}
