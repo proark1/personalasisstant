@@ -23,30 +23,36 @@ export function useAIChat() {
     const toolCalls: ToolCall[] = [];
     let cleanContent = content;
 
-    // Parse manage_task tool calls
-    const taskMatches = content.matchAll(/<tool>manage_task<\/tool><action>(\w+)<\/action><task>({[^}]+})<\/task>/g);
+    // Parse manage_task tool calls - use a more flexible regex for nested JSON
+    const taskMatches = content.matchAll(/<tool>manage_task<\/tool><action>(\w+)<\/action><task>(\{[\s\S]*?\})<\/task>/g);
     for (const match of taskMatches) {
       try {
         const action = match[1] as 'add' | 'update' | 'delete' | 'complete';
-        const task = JSON.parse(match[2]);
+        const taskData = JSON.parse(match[2]);
+        // Convert dueDate string to Date object if present
+        const task: Partial<Task> = {
+          ...taskData,
+          dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
+          recurrenceRule: taskData.recurrenceRule,
+        };
         toolCalls.push({ tool: 'manage_task', action, task });
         cleanContent = cleanContent.replace(match[0], '');
       } catch (e) {
         console.error('Failed to parse task tool call:', e);
       }
     }
-
-    // Parse schedule_event tool calls
-    const eventMatches = content.matchAll(/<tool>schedule_event<\/tool><event>({[^}]+})<\/event>/g);
+    // Parse schedule_event tool calls - use a more flexible regex for nested JSON
+    const eventMatches = content.matchAll(/<tool>schedule_event<\/tool><event>(\{[\s\S]*?\})<\/event>/g);
     for (const match of eventMatches) {
       try {
-        const eventData = JSON.parse(match[2]);
+        const eventData = JSON.parse(match[1]);
         const event: Partial<CalendarEvent> = {
           title: eventData.title,
           startTime: new Date(eventData.startTime),
           endTime: new Date(eventData.endTime),
           location: eventData.location,
           attendees: eventData.attendees,
+          recurrenceRule: eventData.recurrenceRule,
         };
         toolCalls.push({ tool: 'schedule_event', event });
         cleanContent = cleanContent.replace(match[0], '');
