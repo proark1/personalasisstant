@@ -129,6 +129,7 @@ export interface UserSettings {
     calendarAlerts: boolean;
     reminderMinutesBefore: number;
     adhdMode: boolean; // Multiple gentle reminders for ADHD support
+    contactReminders: boolean; // Auto-create tasks for contact follow-ups
   };
 }
 
@@ -174,5 +175,6 @@ export const defaultSettings: UserSettings = {
     calendarAlerts: true,
     reminderMinutesBefore: 15,
     adhdMode: false,
+    contactReminders: true,
   },
 };

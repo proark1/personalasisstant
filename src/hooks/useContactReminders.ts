@@ -1,12 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Contact } from './useContacts';
 import { Task } from '@/types/flux';
-import { isPast, isToday, isTomorrow, format } from 'date-fns';
+import { isPast, isToday, isTomorrow } from 'date-fns';
 
 interface UseContactRemindersProps {
   contacts: Contact[];
   tasks: Task[];
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+  onShowToast?: (title: string, description?: string) => void;
   enabled?: boolean;
 }
 
@@ -30,6 +31,7 @@ export function useContactReminders({
   contacts,
   tasks,
   onAddTask,
+  onShowToast,
   enabled = true,
 }: UseContactRemindersProps) {
   const hasCheckedRef = useRef(false);
@@ -95,8 +97,18 @@ export function useContactReminders({
       createdReminders.push(contact.name);
     }
 
+    // Show toast if reminders were created
+    if (createdReminders.length > 0 && onShowToast) {
+      const names = createdReminders.slice(0, 3).join(', ');
+      const extra = createdReminders.length > 3 ? ` and ${createdReminders.length - 3} more` : '';
+      onShowToast(
+        'Contact Reminders Created',
+        `Time to reach out to ${names}${extra}`
+      );
+    }
+
     return createdReminders;
-  }, [contacts, tasks, onAddTask, enabled]);
+  }, [contacts, tasks, onAddTask, onShowToast, enabled]);
 
   // Run once on mount (after contacts and tasks are loaded)
   useEffect(() => {

@@ -114,8 +114,11 @@ const Index = () => {
     contacts,
     tasks,
     onAddTask: addTask,
-    enabled: settings.notifications.taskReminders,
+    onShowToast: (title, description) => toast({ title, description }),
+    enabled: settings.notifications.contactReminders,
   });
+
+  // Activity feed
   const { activities, loading: activityLoading, logActivity } = useActivityFeed(user?.id);
 
   // Global search

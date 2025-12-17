@@ -375,6 +375,20 @@ export function ProfileSettingsDialog({
                   onCheckedChange={(checked) => onUpdateNotifications({ adhdMode: checked })}
                 />
               </div>
+
+              {/* Contact Reminders */}
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <div>
+                  <p className="font-medium text-sm">Contact Reminders</p>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-create tasks when it's time to reach out to contacts
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.notifications.contactReminders}
+                  onCheckedChange={(checked) => onUpdateNotifications({ contactReminders: checked })}
+                />
+              </div>
             </>
           )}
 
