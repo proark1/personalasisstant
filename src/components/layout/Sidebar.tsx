@@ -17,7 +17,9 @@ import {
   BarChart3,
   Target,
   CalendarCheck,
-  FolderKanban
+  FolderKanban,
+  Activity,
+  Search
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 
@@ -33,6 +35,8 @@ interface SidebarProps {
   onOpenFocusTimer?: () => void;
   onOpenWeeklyReview?: () => void;
   onToggleProjects?: () => void;
+  onOpenActivityFeed?: () => void;
+  onOpenGlobalSearch?: () => void;
 }
 
 export function Sidebar({ 
@@ -45,6 +49,8 @@ export function Sidebar({
   onOpenFocusTimer,
   onOpenWeeklyReview,
   onToggleProjects,
+  onOpenActivityFeed,
+  onOpenGlobalSearch,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
@@ -119,6 +125,34 @@ export function Sidebar({
 
       {/* Bottom Actions */}
       <div className="p-3 border-t border-sidebar-border space-y-1">
+        {onOpenGlobalSearch && (
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full gap-3",
+              collapsed && "justify-center px-0"
+            )}
+            onClick={onOpenGlobalSearch}
+          >
+            <Search className="w-5 h-5 shrink-0" />
+            {!collapsed && <span>Search (⌘K)</span>}
+          </Button>
+        )}
+
+        {onOpenActivityFeed && (
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full gap-3",
+              collapsed && "justify-center px-0"
+            )}
+            onClick={onOpenActivityFeed}
+          >
+            <Activity className="w-5 h-5 shrink-0" />
+            {!collapsed && <span>Activity</span>}
+          </Button>
+        )}
+
         {onToggleProjects && (
           <Button
             variant="ghost"

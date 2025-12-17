@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar, SidebarFilter } from './Sidebar';
 import { MobileLayout } from './MobileLayout';
 import { ChatPanel } from '../chat/ChatPanel';
@@ -7,10 +7,14 @@ import { CalendarPanel } from '../calendar/CalendarPanel';
 import { CalendarView } from '../calendar/CalendarView';
 import { FocusTimer } from '../focus/FocusTimer';
 import { ProjectManager } from '../projects/ProjectManager';
+import { ActivityPanel } from '../activity/ActivityPanel';
+import { GlobalSearch } from '../search/GlobalSearch';
 import { Task, CalendarEvent, ChatMessage, Project } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { List, Grid3X3, X, FolderOpen } from 'lucide-react';
+import { List, Grid3X3, X } from 'lucide-react';
+import type { ActivityItem } from '@/hooks/useActivityFeed';
+import type { SearchResult, SearchFilters } from '@/hooks/useGlobalSearch';
 
 interface Contact {
   id: string;
@@ -28,6 +32,22 @@ interface StandardModeProps {
   isProcessing: boolean;
   projects?: Project[];
   contacts?: Contact[];
+  activities?: ActivityItem[];
+  activityLoading?: boolean;
+  searchResults?: SearchResult[];
+  recentSearches?: { id: string; query: string; createdAt: Date }[];
+  searchLoading?: boolean;
+  onSearch?: (query: string, filters?: SearchFilters) => void;
+  onClearSearchResults?: () => void;
+  onClearRecentSearches?: () => void;
+  onLogActivity?: (
+    action: ActivityItem['action'],
+    itemType: 'task' | 'event',
+    itemId: string,
+    itemTitle?: string,
+    targetUserId?: string,
+    details?: Record<string, any>
+  ) => void;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onToggleTaskComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
@@ -63,6 +83,15 @@ export function StandardMode({
   isProcessing,
   projects = [],
   contacts = [],
+  activities = [],
+  activityLoading = false,
+  searchResults = [],
+  recentSearches = [],
+  searchLoading = false,
+  onSearch,
+  onClearSearchResults,
+  onClearRecentSearches,
+  onLogActivity,
   onAddTask,
   onToggleTaskComplete,
   onDeleteTask,
@@ -91,8 +120,35 @@ export function StandardMode({
   const [fullscreenPanel, setFullscreenPanel] = useState<FullscreenPanel>(null);
   const [showFocusTimer, setShowFocusTimer] = useState(false);
   const [showProjectPanel, setShowProjectPanel] = useState(false);
+  const [showActivityPanel, setShowActivityPanel] = useState(false);
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
   const isMobile = useIsMobile();
+
+  // Keyboard shortcut for global search (Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowGlobalSearch(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Handle search result selection
+  const handleSelectSearchResult = (result: SearchResult) => {
+    setShowGlobalSearch(false);
+    // Navigate to the result based on type
+    if (result.type === 'task') {
+      setFilter('all');
+      // Could scroll to the task or open edit modal
+    } else if (result.type === 'event') {
+      // Could navigate to calendar
+    }
+  };
 
   // Get tasks based on current filter
   const displayTasks = filter === 'shared' 
@@ -213,6 +269,8 @@ export function StandardMode({
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenWeeklyReview={onOpenWeeklyReview}
         onToggleProjects={() => setShowProjectPanel(!showProjectPanel)}
+        onOpenActivityFeed={() => setShowActivityPanel(true)}
+        onOpenGlobalSearch={() => setShowGlobalSearch(true)}
       />
       
       <main className="flex-1 flex overflow-hidden">
@@ -319,6 +377,29 @@ export function StandardMode({
         isOpen={showFocusTimer}
         onClose={() => setShowFocusTimer(false)}
       />
+
+      {/* Activity Panel */}
+      <ActivityPanel
+        open={showActivityPanel}
+        onOpenChange={setShowActivityPanel}
+        activities={activities}
+        loading={activityLoading}
+      />
+
+      {/* Global Search */}
+      {onSearch && onClearSearchResults && onClearRecentSearches && (
+        <GlobalSearch
+          open={showGlobalSearch}
+          onOpenChange={setShowGlobalSearch}
+          results={searchResults}
+          recentSearches={recentSearches}
+          loading={searchLoading}
+          onSearch={onSearch}
+          onClearResults={onClearSearchResults}
+          onClearRecent={onClearRecentSearches}
+          onSelectResult={handleSelectSearchResult}
+        />
+      )}
     </div>
   );
 }

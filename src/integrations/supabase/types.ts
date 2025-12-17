@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_feed: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          item_id: string
+          item_title: string | null
+          item_type: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          item_id: string
+          item_title?: string | null
+          item_type: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          item_id?: string
+          item_title?: string | null
+          item_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -183,6 +219,30 @@ export type Database = {
           is_archived?: boolean
           name?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      search_history: {
+        Row: {
+          created_at: string
+          filters: Json | null
+          id: string
+          query: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          query: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          query?: string
           user_id?: string
         }
         Relationships: []

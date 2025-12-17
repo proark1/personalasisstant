@@ -9,6 +9,8 @@ import { useTags } from '@/hooks/useTags';
 import { useProjects } from '@/hooks/useProjects';
 import { useWeeklyReview } from '@/hooks/useWeeklyReview';
 import { useContacts } from '@/hooks/useContacts';
+import { useActivityFeed } from '@/hooks/useActivityFeed';
+import { useGlobalSearch } from '@/hooks/useGlobalSearch';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
@@ -93,6 +95,19 @@ const Index = () => {
 
   // Contacts for task assignment
   const { contacts } = useContacts(user?.id);
+
+  // Activity feed
+  const { activities, loading: activityLoading, logActivity } = useActivityFeed(user?.id);
+
+  // Global search
+  const { 
+    results: searchResults, 
+    recentSearches, 
+    loading: searchLoading, 
+    search, 
+    clearResults, 
+    clearRecentSearches 
+  } = useGlobalSearch(user?.id);
 
   // Calculate productivity streak
   const productivityStreak = useMemo(() => {
@@ -441,6 +456,15 @@ const Index = () => {
           isProcessing={isProcessing || isStreaming}
           projects={projects}
           contacts={contacts}
+          activities={activities}
+          activityLoading={activityLoading}
+          searchResults={searchResults}
+          recentSearches={recentSearches}
+          searchLoading={searchLoading}
+          onSearch={search}
+          onClearSearchResults={clearResults}
+          onClearRecentSearches={clearRecentSearches}
+          onLogActivity={logActivity}
           onAddTask={handleAddTask}
           onToggleTaskComplete={toggleTaskComplete}
           onDeleteTask={deleteTask}
