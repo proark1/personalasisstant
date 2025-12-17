@@ -9,10 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Task, TaskPriority, TaskCategory, Project, ChecklistItem } from '@/types/flux';
 import { recurrencePresets, toRRuleString, getRecurrenceDescription } from '@/lib/recurrence';
-import { X, Calendar as CalendarIcon, Trash2, Repeat, Bell, Clock, User, Users, FolderOpen, Plus, Check } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Trash2, Repeat, Bell, Clock, User, Users, FolderOpen, Plus, Check, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { RecurrenceFrequency } from '@/types/flux';
 import { Checkbox } from '@/components/ui/checkbox';
+import { TaskBreakdownDialog } from '@/components/ai/TaskBreakdownDialog';
 
 interface Contact {
   id: string;
@@ -26,6 +27,7 @@ interface EditTaskModalProps {
   onClose: () => void;
   onSave: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
+  onAddSubtasks?: (parentId: string, subtasks: { title: string; priority: 'high' | 'medium' | 'low' }[]) => void;
   projects?: Project[];
   contacts?: Contact[];
 }
@@ -51,7 +53,7 @@ const WEEKDAYS = [
   { value: 0, label: 'Sun' },
 ];
 
-export function EditTaskModal({ task, onClose, onSave, onDelete, projects = [], contacts = [] }: EditTaskModalProps) {
+export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, projects = [], contacts = [] }: EditTaskModalProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
@@ -66,6 +68,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, projects = [], 
   const [secondaryResponsibleId, setSecondaryResponsibleId] = useState<string | undefined>(task.secondaryResponsibleId);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(task.checklist || []);
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  const [showBreakdown, setShowBreakdown] = useState(false);
   
   // Custom recurrence state
   const [customFrequency, setCustomFrequency] = useState<RecurrenceFrequency>('weekly');
@@ -496,16 +499,37 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, projects = [], 
 
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t border-border shrink-0">
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+            {onAddSubtasks && !task.parentId && (
+              <Button variant="outline" size="sm" onClick={() => setShowBreakdown(true)}>
+                <Sparkles className="w-4 h-4 mr-2 text-primary" />
+                AI Breakdown
+              </Button>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave}>Save Changes</Button>
           </div>
         </div>
       </div>
+
+      {/* AI Breakdown Dialog */}
+      {onAddSubtasks && (
+        <TaskBreakdownDialog
+          task={task}
+          open={showBreakdown}
+          onOpenChange={setShowBreakdown}
+          onAddSubtasks={(subtasks) => {
+            onAddSubtasks(task.id, subtasks);
+            setShowBreakdown(false);
+          }}
+        />
+      )}
     </div>
   );
 }
