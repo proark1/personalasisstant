@@ -35,6 +35,7 @@ export interface Task {
   parentId?: string; // For subtasks
   sortOrder?: number; // For drag-and-drop ordering
   reminderBefore?: number; // Minutes before due date to notify
+  sharedBy?: { displayName?: string; email?: string }; // Who shared this item
 }
 
 export interface CalendarEvent {
@@ -47,6 +48,7 @@ export interface CalendarEvent {
   attendees?: string[];
   recurrenceRule?: string; // RRULE format
   recurrenceEnd?: Date;
+  sharedBy?: { displayName?: string; email?: string }; // Who shared this item
 }
 
 export interface ChatMessage {

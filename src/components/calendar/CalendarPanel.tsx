@@ -23,7 +23,8 @@ import {
   AlertCircle,
   Maximize2,
   Minimize2,
-  Pencil
+  Pencil,
+  UserCircle
 } from 'lucide-react';
 import { format, isToday, isTomorrow, startOfDay, isPast } from 'date-fns';
 
@@ -59,6 +60,7 @@ interface CalendarItem {
   description?: string;
   category?: string;
   reminderBefore?: number;
+  sharedBy?: { displayName?: string; email?: string };
 }
 
 interface GroupedItems {
@@ -105,6 +107,7 @@ export function CalendarPanel({
         recurrenceRule: event.recurrenceRule,
         recurrenceEnd: event.recurrenceEnd,
         description: event.description,
+        sharedBy: event.sharedBy,
       });
     });
 
@@ -124,6 +127,7 @@ export function CalendarPanel({
         description: task.description,
         category: task.category,
         reminderBefore: task.reminderBefore,
+        sharedBy: task.sharedBy,
       });
     });
 
@@ -390,6 +394,13 @@ export function CalendarPanel({
           <div className="flex items-center gap-1 mt-1 text-xs text-primary">
             <Repeat className="w-3 h-3" />
             <span>{getRecurrenceDescription(item.recurrenceRule)}</span>
+          </div>
+        )}
+
+        {item.sharedBy && (
+          <div className="flex items-center gap-1 mt-1.5 text-xs text-accent-foreground bg-accent/30 px-1.5 py-0.5 rounded w-fit">
+            <UserCircle className="w-3 h-3" />
+            <span>Shared by {item.sharedBy.displayName || item.sharedBy.email || 'someone'}</span>
           </div>
         )}
       </div>
