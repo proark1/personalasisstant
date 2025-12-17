@@ -22,6 +22,9 @@ export interface Contact {
   nextContactDue?: Date;
   notes?: string;
   tags: string[];
+  linkedinUrl?: string;
+  twitterUrl?: string;
+  websiteUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +41,9 @@ export interface ContactInput {
   contactFrequencyDays?: number;
   notes?: string;
   tags?: string[];
+  linkedinUrl?: string;
+  twitterUrl?: string;
+  websiteUrl?: string;
 }
 
 // Default contact frequencies based on relationship
@@ -73,6 +79,9 @@ export function useContacts(userId: string | undefined) {
     nextContactDue: row.next_contact_due ? new Date(row.next_contact_due) : undefined,
     notes: row.notes || undefined,
     tags: row.tags || [],
+    linkedinUrl: row.linkedin_url || undefined,
+    twitterUrl: row.twitter_url || undefined,
+    websiteUrl: row.website_url || undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   });
@@ -128,6 +137,9 @@ export function useContacts(userId: string | undefined) {
         next_contact_due: nextContactDue.toISOString(),
         notes: input.notes || null,
         tags: input.tags || [],
+        linkedin_url: input.linkedinUrl || null,
+        twitter_url: input.twitterUrl || null,
+        website_url: input.websiteUrl || null,
       })
       .select()
       .single();
@@ -157,6 +169,9 @@ export function useContacts(userId: string | undefined) {
     if (updates.contactFrequencyDays !== undefined) dbUpdates.contact_frequency_days = updates.contactFrequencyDays;
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
     if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+    if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl || null;
+    if (updates.twitterUrl !== undefined) dbUpdates.twitter_url = updates.twitterUrl || null;
+    if (updates.websiteUrl !== undefined) dbUpdates.website_url = updates.websiteUrl || null;
 
     const { error } = await supabase
       .from('user_contacts')

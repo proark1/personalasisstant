@@ -270,6 +270,7 @@ export function StandardMode({
               isProcessing={isProcessing}
               isFullscreen={true}
               onToggleFullscreen={() => setFullscreenPanel(null)}
+              contacts={contacts}
             />
           )}
           {fullscreenPanel === 'tasks' && (
@@ -386,6 +387,7 @@ export function StandardMode({
               onSendMessage={onSendMessage}
               isProcessing={isProcessing}
               onToggleFullscreen={() => setFullscreenPanel('chat')}
+              contacts={contacts}
             />
           </div>
 

@@ -1,10 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { ChatMessage } from '@/types/flux';
+import { Contact } from '@/hooks/useContacts';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
-import { Send, Sparkles, User, Bot, Search, Mic, MicOff, Maximize2, Minimize2 } from 'lucide-react';
+import { findRelevantContacts, ContactSuggestion } from '@/lib/contactSuggestions';
+import { Send, Sparkles, User, Bot, Search, Mic, MicOff, Maximize2, Minimize2, Users, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ChatPanelProps {
@@ -13,10 +16,13 @@ interface ChatPanelProps {
   isProcessing: boolean;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  contacts?: Contact[];
 }
 
-export function ChatPanel({ messages, onSendMessage, isProcessing, isFullscreen = false, onToggleFullscreen }: ChatPanelProps) {
+export function ChatPanel({ messages, onSendMessage, isProcessing, isFullscreen = false, onToggleFullscreen, contacts = [] }: ChatPanelProps) {
   const [input, setInput] = useState('');
+  const [contactSuggestions, setContactSuggestions] = useState<ContactSuggestion[]>([]);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Voice recognition for text input
@@ -45,8 +51,20 @@ export function ChatPanel({ messages, onSendMessage, isProcessing, isFullscreen 
     if (input.trim() && !isProcessing) {
       onSendMessage(input.trim());
       setInput('');
+      setContactSuggestions([]);
+      setDismissedSuggestions(false);
     }
   };
+
+  // Check for contact suggestions when input changes
+  useEffect(() => {
+    if (input.length > 5 && contacts.length > 0 && !dismissedSuggestions) {
+      const suggestions = findRelevantContacts(input, contacts);
+      setContactSuggestions(suggestions);
+    } else {
+      setContactSuggestions([]);
+    }
+  }, [input, contacts, dismissedSuggestions]);
 
   const toggleVoiceInput = () => {
     if (isListening) {
@@ -175,6 +193,44 @@ export function ChatPanel({ messages, onSendMessage, isProcessing, isFullscreen 
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Contact Suggestions */}
+      {contactSuggestions.length > 0 && (
+        <div className="px-4 py-2 border-t border-border bg-muted/50">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Users className="w-3 h-3" />
+              <span>Relevant contacts</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-5 w-5"
+              onClick={() => {
+                setContactSuggestions([]);
+                setDismissedSuggestions(true);
+              }}
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {contactSuggestions.map((suggestion) => (
+              <div 
+                key={suggestion.contact.id}
+                className="flex items-center gap-2 px-2 py-1 rounded-md bg-background border text-xs"
+              >
+                <span className="font-medium">{suggestion.contact.name}</span>
+                {suggestion.contact.role && (
+                  <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                    {suggestion.contact.role}
+                  </Badge>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Voice transcript indicator */}
       {isListening && transcript && (

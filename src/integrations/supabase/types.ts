@@ -523,6 +523,7 @@ export type Database = {
           email: string | null
           id: string
           last_contacted_at: string | null
+          linkedin_url: string | null
           name: string
           next_contact_due: string | null
           notes: string | null
@@ -530,8 +531,10 @@ export type Database = {
           phone: string | null
           role: string | null
           tags: string[] | null
+          twitter_url: string | null
           updated_at: string
           user_id: string
+          website_url: string | null
         }
         Insert: {
           business_level?: string | null
@@ -543,6 +546,7 @@ export type Database = {
           email?: string | null
           id?: string
           last_contacted_at?: string | null
+          linkedin_url?: string | null
           name: string
           next_contact_due?: string | null
           notes?: string | null
@@ -550,8 +554,10 @@ export type Database = {
           phone?: string | null
           role?: string | null
           tags?: string[] | null
+          twitter_url?: string | null
           updated_at?: string
           user_id: string
+          website_url?: string | null
         }
         Update: {
           business_level?: string | null
@@ -563,6 +569,7 @@ export type Database = {
           email?: string | null
           id?: string
           last_contacted_at?: string | null
+          linkedin_url?: string | null
           name?: string
           next_contact_due?: string | null
           notes?: string | null
@@ -570,8 +577,10 @@ export type Database = {
           phone?: string | null
           role?: string | null
           tags?: string[] | null
+          twitter_url?: string | null
           updated_at?: string
           user_id?: string
+          website_url?: string | null
         }
         Relationships: []
       }

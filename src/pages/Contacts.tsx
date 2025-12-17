@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   ArrowLeft, UserPlus, Trash2, Search, Users, Briefcase, Heart, 
   Phone, Mail, Building, Clock, Bell, MessageSquare, Check, Pencil,
-  AlertCircle
+  AlertCircle, Linkedin, Twitter, Globe
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, isPast } from 'date-fns';
@@ -47,6 +47,9 @@ interface ContactFormData {
   contactFrequencyDays: number;
   notes: string;
   tags: string;
+  linkedinUrl: string;
+  twitterUrl: string;
+  websiteUrl: string;
 }
 
 const defaultFormData: ContactFormData = {
@@ -61,6 +64,9 @@ const defaultFormData: ContactFormData = {
   contactFrequencyDays: 30,
   notes: '',
   tags: '',
+  linkedinUrl: '',
+  twitterUrl: '',
+  websiteUrl: '',
 };
 
 export default function Contacts() {
@@ -105,6 +111,9 @@ export default function Contacts() {
       contactFrequencyDays: contact.contactFrequencyDays,
       notes: contact.notes || '',
       tags: contact.tags.join(', '),
+      linkedinUrl: contact.linkedinUrl || '',
+      twitterUrl: contact.twitterUrl || '',
+      websiteUrl: contact.websiteUrl || '',
     });
     setShowAddDialog(true);
   };
@@ -130,6 +139,9 @@ export default function Contacts() {
         contactFrequencyDays: formData.contactFrequencyDays,
         notes: formData.notes || undefined,
         tags,
+        linkedinUrl: formData.linkedinUrl || undefined,
+        twitterUrl: formData.twitterUrl || undefined,
+        websiteUrl: formData.websiteUrl || undefined,
       });
       if (success) {
         toast({ title: 'Contact updated' });
@@ -149,6 +161,9 @@ export default function Contacts() {
         contactFrequencyDays: formData.contactFrequencyDays,
         notes: formData.notes || undefined,
         tags,
+        linkedinUrl: formData.linkedinUrl || undefined,
+        twitterUrl: formData.twitterUrl || undefined,
+        websiteUrl: formData.websiteUrl || undefined,
       });
       if (result) {
         toast({ title: 'Contact added' });
@@ -245,6 +260,30 @@ export default function Contacts() {
                     </p>
                   )}
                 </div>
+
+                {/* Social Links */}
+                {(contact.linkedinUrl || contact.twitterUrl || contact.websiteUrl) && (
+                  <div className="flex items-center gap-2 mt-2">
+                    {contact.linkedinUrl && (
+                      <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" 
+                         className="text-muted-foreground hover:text-primary transition-colors">
+                        <Linkedin className="w-4 h-4" />
+                      </a>
+                    )}
+                    {contact.twitterUrl && (
+                      <a href={contact.twitterUrl} target="_blank" rel="noopener noreferrer"
+                         className="text-muted-foreground hover:text-primary transition-colors">
+                        <Twitter className="w-4 h-4" />
+                      </a>
+                    )}
+                    {contact.websiteUrl && (
+                      <a href={contact.websiteUrl} target="_blank" rel="noopener noreferrer"
+                         className="text-muted-foreground hover:text-primary transition-colors">
+                        <Globe className="w-4 h-4" />
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 {contact.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
@@ -512,6 +551,37 @@ export default function Contacts() {
                   <p className="text-xs text-muted-foreground">
                     AI will use these notes to suggest this contact when relevant
                   </p>
+                </div>
+
+                {/* Social Links Section */}
+                <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+                  <Label className="text-sm font-medium">Social Links</Label>
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="flex items-center gap-2">
+                      <Linkedin className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <Input
+                        value={formData.linkedinUrl}
+                        onChange={(e) => setFormData(p => ({ ...p, linkedinUrl: e.target.value }))}
+                        placeholder="https://linkedin.com/in/..."
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Twitter className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <Input
+                        value={formData.twitterUrl}
+                        onChange={(e) => setFormData(p => ({ ...p, twitterUrl: e.target.value }))}
+                        placeholder="https://twitter.com/..."
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <Input
+                        value={formData.websiteUrl}
+                        onChange={(e) => setFormData(p => ({ ...p, websiteUrl: e.target.value }))}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <Button onClick={handleSubmit} className="w-full">
