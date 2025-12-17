@@ -122,8 +122,30 @@ export function StandardMode({
   const [showProjectPanel, setShowProjectPanel] = useState(false);
   const [showActivityPanel, setShowActivityPanel] = useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
   const isMobile = useIsMobile();
+
+  // Sort tasks by due date (closest first), then by priority
+  const sortTasksByDueDate = (tasksToSort: Task[]) => {
+    return [...tasksToSort].sort((a, b) => {
+      // Completed tasks go to the bottom
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      
+      // Tasks with due dates come before tasks without
+      if (a.dueDate && !b.dueDate) return -1;
+      if (!a.dueDate && b.dueDate) return 1;
+      
+      // Sort by due date (closest first)
+      if (a.dueDate && b.dueDate) {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      
+      // Then by priority
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+  };
 
   // Keyboard shortcut for global search (Cmd+K)
   useEffect(() => {
@@ -150,12 +172,13 @@ export function StandardMode({
     }
   };
 
-  // Get tasks based on current filter
-  const displayTasks = filter === 'shared' 
+  // Get tasks based on current filter and sort by due date
+  const filteredTasks = filter === 'shared' 
     ? sharedTasks 
     : selectedProjectId 
       ? tasks.filter(t => t.projectId === selectedProjectId)
       : tasks;
+  const displayTasks = sortTasksByDueDate(filteredTasks);
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
   // Use mobile layout on small screens
@@ -264,13 +287,14 @@ export function StandardMode({
         onFilterChange={setFilter}
         onVoiceMode={onVoiceMode}
         onOpenSettings={onOpenSettings}
-        onEditProfile={onEditProfile}
         onSignOut={onSignOut}
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenWeeklyReview={onOpenWeeklyReview}
         onToggleProjects={() => setShowProjectPanel(!showProjectPanel)}
         onOpenActivityFeed={() => setShowActivityPanel(true)}
         onOpenGlobalSearch={() => setShowGlobalSearch(true)}
+        onToggleCalendar={() => setShowCalendar(!showCalendar)}
+        showCalendar={showCalendar}
       />
       
       <main className="flex-1 flex overflow-hidden">
@@ -302,7 +326,7 @@ export function StandardMode({
 
         {/* Right Side - Tasks & Calendar */}
         <div className="flex-1 flex flex-col p-2 pl-1 gap-2">
-          {/* Tasks */}
+          {/* Tasks - takes full height when calendar hidden */}
           <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
             <TaskList
               tasks={displayTasks}
@@ -320,54 +344,56 @@ export function StandardMode({
             />
           </div>
 
-          {/* Calendar */}
-          <div className="h-80 glass-panel-solid rounded-xl overflow-hidden">
-            <div className="h-10 px-4 flex items-center justify-end border-b border-border gap-1">
-              <Button
-                variant={calendarMode === 'agenda' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-7 px-2"
-                onClick={() => setCalendarMode('agenda')}
-              >
-                <List className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={calendarMode === 'grid' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-7 px-2"
-                onClick={() => setCalendarMode('grid')}
-              >
-                <Grid3X3 className="w-4 h-4" />
-              </Button>
+          {/* Calendar - only shown when toggled */}
+          {showCalendar && (
+            <div className="h-80 glass-panel-solid rounded-xl overflow-hidden">
+              <div className="h-10 px-4 flex items-center justify-end border-b border-border gap-1">
+                <Button
+                  variant={calendarMode === 'agenda' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => setCalendarMode('agenda')}
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={calendarMode === 'grid' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => setCalendarMode('grid')}
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="h-[calc(100%-2.5rem)]">
+                {calendarMode === 'agenda' ? (
+                  <CalendarPanel
+                    events={displayEvents}
+                    tasks={displayTasks}
+                    onAddEvent={onAddEvent}
+                    onUpdateEvent={onUpdateEvent}
+                    onDeleteEvent={onDeleteEvent}
+                    onImportEvents={onImportEvents}
+                    onShareEvent={onShareEvent}
+                    onShareTask={onShareTask}
+                    onToggleTaskComplete={onToggleTaskComplete}
+                    onUpdateTask={onUpdateTask}
+                    onDeleteTask={onDeleteTask}
+                    onToggleFullscreen={() => setFullscreenPanel('calendar')}
+                  />
+                ) : (
+                  <CalendarView
+                    events={displayEvents}
+                    tasks={displayTasks}
+                    onToggleTaskComplete={onToggleTaskComplete}
+                    onUpdateTask={onUpdateTask}
+                    onDeleteTask={onDeleteTask}
+                    onToggleFullscreen={() => setFullscreenPanel('calendar')}
+                  />
+                )}
+              </div>
             </div>
-            <div className="h-[calc(100%-2.5rem)]">
-              {calendarMode === 'agenda' ? (
-                <CalendarPanel
-                  events={displayEvents}
-                  tasks={displayTasks}
-                  onAddEvent={onAddEvent}
-                  onUpdateEvent={onUpdateEvent}
-                  onDeleteEvent={onDeleteEvent}
-                  onImportEvents={onImportEvents}
-                  onShareEvent={onShareEvent}
-                  onShareTask={onShareTask}
-                  onToggleTaskComplete={onToggleTaskComplete}
-                  onUpdateTask={onUpdateTask}
-                  onDeleteTask={onDeleteTask}
-                  onToggleFullscreen={() => setFullscreenPanel('calendar')}
-                />
-              ) : (
-                <CalendarView
-                  events={displayEvents}
-                  tasks={displayTasks}
-                  onToggleTaskComplete={onToggleTaskComplete}
-                  onUpdateTask={onUpdateTask}
-                  onDeleteTask={onDeleteTask}
-                  onToggleFullscreen={() => setFullscreenPanel('calendar')}
-                />
-              )}
-            </div>
-          </div>
+          )}
         </div>
       </main>
 

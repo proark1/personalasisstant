@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -11,15 +12,16 @@ import {
   ChevronRight,
   Sparkles,
   LogOut,
-  UserCircle,
   Users,
   BookUser,
-  BarChart3,
   Target,
   CalendarCheck,
   FolderKanban,
   Activity,
-  Search
+  Search,
+  Calendar,
+  Settings,
+  CheckSquare
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 
@@ -37,6 +39,8 @@ interface SidebarProps {
   onToggleProjects?: () => void;
   onOpenActivityFeed?: () => void;
   onOpenGlobalSearch?: () => void;
+  onToggleCalendar?: () => void;
+  showCalendar?: boolean;
 }
 
 export function Sidebar({ 
@@ -44,204 +48,246 @@ export function Sidebar({
   onFilterChange, 
   onVoiceMode, 
   onOpenSettings, 
-  onEditProfile, 
   onSignOut, 
   onOpenFocusTimer,
   onOpenWeeklyReview,
   onToggleProjects,
   onOpenActivityFeed,
   onOpenGlobalSearch,
+  onToggleCalendar,
+  showCalendar,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const navItems: { icon: typeof LayoutDashboard; label: string; filter: SidebarFilter }[] = [
-    { icon: LayoutDashboard, label: 'All Tasks', filter: 'all' },
+  const taskFilters: { icon: typeof LayoutDashboard; label: string; filter: SidebarFilter }[] = [
+    { icon: CheckSquare, label: 'All Tasks', filter: 'all' },
     { icon: Briefcase, label: 'Business', filter: 'business' },
     { icon: User, label: 'Personal', filter: 'personal' },
-    { icon: Users, label: 'Shared with me', filter: 'shared' },
+    { icon: Users, label: 'Shared', filter: 'shared' },
   ];
 
   return (
     <aside 
       className={cn(
         "h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300",
-        collapsed ? "w-16" : "w-64"
+        collapsed ? "w-16" : "w-56"
       )}
     >
-      {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
+      {/* Header with Logo */}
+      <div className="h-14 flex items-center justify-between px-3 border-b border-sidebar-border">
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
+              <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-lg text-foreground">Flux</span>
+            <span className="font-semibold text-foreground">Flux</span>
           </div>
         )}
         <Button 
           variant="ghost" 
-          size="iconSm"
+          size="icon"
+          className={cn("h-8 w-8 text-muted-foreground hover:text-foreground", collapsed && "mx-auto")}
           onClick={() => setCollapsed(!collapsed)}
-          className="text-muted-foreground hover:text-foreground"
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </Button>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1">
-        {/* Dashboard Link */}
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full justify-start gap-3 mb-2",
-            collapsed && "justify-center px-0"
-          )}
-          onClick={() => navigate('/dashboard')}
-        >
-          <BarChart3 className="w-5 h-5 shrink-0 text-primary" />
-          {!collapsed && <span>Dashboard</span>}
-        </Button>
-
-        <div className="border-b border-sidebar-border mb-2" />
-
-        {navItems.map((item) => (
-          <Button
-            key={item.filter}
-            variant={activeFilter === item.filter ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full justify-start gap-3",
-              collapsed && "justify-center px-0",
-              activeFilter === item.filter && "bg-sidebar-accent text-sidebar-primary"
-            )}
-            onClick={() => onFilterChange(item.filter)}
-          >
-            <item.icon className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
-          </Button>
-        ))}
-      </nav>
-
-      {/* Bottom Actions */}
-      <div className="p-3 border-t border-sidebar-border space-y-1">
+      {/* Main Navigation */}
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+        {/* Search */}
         {onOpenGlobalSearch && (
           <Button
             variant="ghost"
             className={cn(
-              "w-full gap-3",
-              collapsed && "justify-center px-0"
+              "w-full h-9 gap-3 text-muted-foreground hover:text-foreground",
+              collapsed ? "justify-center px-0" : "justify-start"
             )}
             onClick={onOpenGlobalSearch}
           >
-            <Search className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Search (⌘K)</span>}
+            <Search className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">Search</span>}
+            {!collapsed && <span className="ml-auto text-xs text-muted-foreground/60">⌘K</span>}
           </Button>
         )}
 
-        {onOpenActivityFeed && (
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full gap-3",
-              collapsed && "justify-center px-0"
-            )}
-            onClick={onOpenActivityFeed}
-          >
-            <Activity className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Activity</span>}
-          </Button>
-        )}
+        <Separator className="my-2" />
 
-        {onToggleProjects && (
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full gap-3",
-              collapsed && "justify-center px-0"
-            )}
-            onClick={onToggleProjects}
-          >
-            <FolderKanban className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Projects</span>}
-          </Button>
-        )}
-
-        {onOpenWeeklyReview && (
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full gap-3",
-              collapsed && "justify-center px-0"
-            )}
-            onClick={onOpenWeeklyReview}
-          >
-            <CalendarCheck className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Weekly Review</span>}
-          </Button>
-        )}
-
-        {onOpenFocusTimer && (
-          <Button
-            variant="outline"
-            className={cn(
-              "w-full gap-3 border-primary/50 text-primary hover:bg-primary/10",
-              collapsed && "justify-center px-0"
-            )}
-            onClick={onOpenFocusTimer}
-          >
-            <Target className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Focus Mode</span>}
-          </Button>
-        )}
-
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full gap-3",
-            collapsed && "justify-center px-0"
+        {/* Task Filters */}
+        <div className={cn("space-y-0.5", !collapsed && "mb-2")}>
+          {!collapsed && (
+            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Tasks</span>
           )}
-          onClick={() => navigate('/contacts')}
-        >
-          <BookUser className="w-5 h-5 shrink-0" />
-          {!collapsed && <span>Contacts</span>}
-        </Button>
+          {taskFilters.map((item) => (
+            <Button
+              key={item.filter}
+              variant={activeFilter === item.filter ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full h-9 gap-3",
+                collapsed ? "justify-center px-0" : "justify-start",
+                activeFilter === item.filter && "bg-sidebar-accent text-sidebar-primary font-medium"
+              )}
+              onClick={() => onFilterChange(item.filter)}
+            >
+              <item.icon className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">{item.label}</span>}
+            </Button>
+          ))}
+        </div>
 
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full gap-3",
-            collapsed && "justify-center px-0"
+        <Separator className="my-2" />
+
+        {/* Views & Tools */}
+        <div className={cn("space-y-0.5", !collapsed && "mb-2")}>
+          {!collapsed && (
+            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Views</span>
           )}
-          onClick={onOpenSettings}
-        >
-          <UserCircle className="w-5 h-5 shrink-0" />
-          {!collapsed && <span>Profile & Settings</span>}
-        </Button>
-        
+          
+          {onToggleCalendar && (
+            <Button
+              variant={showCalendar ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full h-9 gap-3",
+                collapsed ? "justify-center px-0" : "justify-start",
+                showCalendar && "bg-sidebar-accent text-sidebar-primary font-medium"
+              )}
+              onClick={onToggleCalendar}
+            >
+              <Calendar className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">Calendar</span>}
+            </Button>
+          )}
+
+          {onToggleProjects && (
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full h-9 gap-3",
+                collapsed ? "justify-center px-0" : "justify-start"
+              )}
+              onClick={onToggleProjects}
+            >
+              <FolderKanban className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">Projects</span>}
+            </Button>
+          )}
+
+          <Button
+            variant={location.pathname === '/dashboard' ? 'secondary' : 'ghost'}
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start"
+            )}
+            onClick={() => navigate('/dashboard')}
+          >
+            <LayoutDashboard className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">Dashboard</span>}
+          </Button>
+
+          {onOpenActivityFeed && (
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full h-9 gap-3",
+                collapsed ? "justify-center px-0" : "justify-start"
+              )}
+              onClick={onOpenActivityFeed}
+            >
+              <Activity className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">Activity</span>}
+            </Button>
+          )}
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* Productivity */}
+        <div className={cn("space-y-0.5")}>
+          {!collapsed && (
+            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Productivity</span>
+          )}
+
+          {onOpenFocusTimer && (
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full h-9 gap-3",
+                collapsed ? "justify-center px-0" : "justify-start"
+              )}
+              onClick={onOpenFocusTimer}
+            >
+              <Target className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">Focus Mode</span>}
+            </Button>
+          )}
+
+          {onOpenWeeklyReview && (
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full h-9 gap-3",
+                collapsed ? "justify-center px-0" : "justify-start"
+              )}
+              onClick={onOpenWeeklyReview}
+            >
+              <CalendarCheck className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">Weekly Review</span>}
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start"
+            )}
+            onClick={() => navigate('/contacts')}
+          >
+            <BookUser className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">Contacts</span>}
+          </Button>
+        </div>
+      </nav>
+
+      {/* Footer Actions */}
+      <div className="p-2 border-t border-sidebar-border space-y-0.5">
         <Button
           variant="voice_mode"
           className={cn(
-            "w-full gap-3",
-            collapsed && "justify-center px-0"
+            "w-full h-9 gap-3",
+            collapsed ? "justify-center px-0" : "justify-start"
           )}
           onClick={onVoiceMode}
         >
-          <Mic className="w-5 h-5 shrink-0" />
-          {!collapsed && <span>Voice Mode</span>}
+          <Mic className="w-4 h-4 shrink-0" />
+          {!collapsed && <span className="text-sm">Voice Mode</span>}
+        </Button>
+
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full h-9 gap-3",
+            collapsed ? "justify-center px-0" : "justify-start"
+          )}
+          onClick={onOpenSettings}
+        >
+          <Settings className="w-4 h-4 shrink-0" />
+          {!collapsed && <span className="text-sm">Settings</span>}
         </Button>
 
         {onSignOut && (
           <Button
             variant="ghost"
             className={cn(
-              "w-full gap-3 text-muted-foreground hover:text-destructive",
-              collapsed && "justify-center px-0"
+              "w-full h-9 gap-3 text-muted-foreground hover:text-destructive",
+              collapsed ? "justify-center px-0" : "justify-start"
             )}
             onClick={onSignOut}
           >
-            <LogOut className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Sign Out</span>}
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">Sign Out</span>}
           </Button>
         )}
       </div>
