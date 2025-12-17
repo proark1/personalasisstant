@@ -6,7 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Contacts from "./pages/Contacts";
+import ContactsPage from "./pages/ContactsPage";
+import ContractsPage from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
@@ -75,7 +76,15 @@ const App = () => (
             path="/contacts" 
             element={
               <ProtectedRoute>
-                <Contacts />
+                <ContactsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/contracts" 
+            element={
+              <ProtectedRoute>
+                <ContractsPage />
               </ProtectedRoute>
             } 
           />

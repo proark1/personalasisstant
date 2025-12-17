@@ -77,6 +77,69 @@ export type Database = {
         }
         Relationships: []
       }
+      contracts: {
+        Row: {
+          auto_renews: boolean | null
+          cancellation_notice_days: number | null
+          category: string
+          contract_number: string | null
+          cost_amount: number | null
+          cost_frequency: string | null
+          created_at: string | null
+          document_url: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          provider: string | null
+          renewal_date: string | null
+          start_date: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auto_renews?: boolean | null
+          cancellation_notice_days?: number | null
+          category?: string
+          contract_number?: string | null
+          cost_amount?: number | null
+          cost_frequency?: string | null
+          created_at?: string | null
+          document_url?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          provider?: string | null
+          renewal_date?: string | null
+          start_date?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auto_renews?: boolean | null
+          cancellation_notice_days?: number | null
+          category?: string
+          contract_number?: string | null
+          cost_amount?: number | null
+          cost_frequency?: string | null
+          created_at?: string | null
+          document_url?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          provider?: string | null
+          renewal_date?: string | null
+          start_date?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           attendees: string[] | null

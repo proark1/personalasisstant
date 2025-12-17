@@ -389,6 +389,20 @@ export function ProfileSettingsDialog({
                   onCheckedChange={(checked) => onUpdateNotifications({ contactReminders: checked })}
                 />
               </div>
+
+              {/* Contract Reminders */}
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <div>
+                  <p className="font-medium text-sm">Contract Reminders</p>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-create tasks for contract renewals and cancellation deadlines
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.notifications.contractReminders}
+                  onCheckedChange={(checked) => onUpdateNotifications({ contractReminders: checked })}
+                />
+              </div>
             </>
           )}
 

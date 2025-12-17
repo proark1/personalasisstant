@@ -22,7 +22,8 @@ import {
   Calendar,
   Settings,
   CheckSquare,
-  Zap
+  Zap,
+  FileText
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 
@@ -263,7 +264,7 @@ export function Sidebar({
           )}
 
           <Button
-            variant="ghost"
+            variant={location.pathname === '/contacts' ? 'secondary' : 'ghost'}
             className={cn(
               "w-full h-9 gap-3",
               collapsed ? "justify-center px-0" : "justify-start"
@@ -272,6 +273,18 @@ export function Sidebar({
           >
             <BookUser className="w-4 h-4 shrink-0" />
             {!collapsed && <span className="text-sm">Contacts</span>}
+          </Button>
+
+          <Button
+            variant={location.pathname === '/contracts' ? 'secondary' : 'ghost'}
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start"
+            )}
+            onClick={() => navigate('/contracts')}
+          >
+            <FileText className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">Contracts</span>}
           </Button>
         </div>
       </nav>

@@ -130,6 +130,7 @@ export interface UserSettings {
     reminderMinutesBefore: number;
     adhdMode: boolean; // Multiple gentle reminders for ADHD support
     contactReminders: boolean; // Auto-create tasks for contact follow-ups
+    contractReminders: boolean; // Auto-create tasks for contract deadlines
   };
 }
 
@@ -176,5 +177,6 @@ export const defaultSettings: UserSettings = {
     reminderMinutesBefore: 15,
     adhdMode: false,
     contactReminders: true,
+    contractReminders: true,
   },
 };
