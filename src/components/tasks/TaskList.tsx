@@ -6,7 +6,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Progress } from '@/components/ui/progress';
-import { Task, TaskCategory, TaskPriority, Project } from '@/types/flux';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Task, TaskCategory, TaskPriority, Project, TimeFilter } from '@/types/flux';
 import type { Contact } from '@/hooks/useContacts';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
 import { getRecurrenceDescription } from '@/lib/recurrence';
@@ -45,9 +46,10 @@ import {
   ChevronDown,
   AlertCircle,
   Pencil,
-  UserCircle
+  UserCircle,
+  Filter
 } from 'lucide-react';
-import { format, isPast, isToday, isTomorrow } from 'date-fns';
+import { format, isPast, isToday, isTomorrow, isThisWeek, isThisMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
 import { SidebarFilter } from '@/components/layout/Sidebar';
 
@@ -405,6 +407,7 @@ export function TaskList({
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter | 'all'>('all');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -415,9 +418,33 @@ export function TaskList({
     })
   );
 
-  const filteredTasks = filter === 'all' || filter === 'shared'
+  // Apply category filter first
+  const categoryFilteredTasks = filter === 'all' || filter === 'shared'
     ? tasks 
     : tasks.filter(task => task.category === filter);
+
+  // Apply time filter
+  const filteredTasks = useMemo(() => {
+    if (timeFilter === 'all') return categoryFilteredTasks;
+    
+    const now = new Date();
+    return categoryFilteredTasks.filter(task => {
+      if (timeFilter === 'noDate') return !task.dueDate;
+      if (!task.dueDate) return false;
+      
+      const dueDate = new Date(task.dueDate);
+      switch (timeFilter) {
+        case 'today':
+          return isToday(dueDate);
+        case 'week':
+          return isWithinInterval(dueDate, { start: startOfWeek(now), end: endOfWeek(now) });
+        case 'month':
+          return isWithinInterval(dueDate, { start: startOfMonth(now), end: endOfMonth(now) });
+        default:
+          return true;
+      }
+    });
+  }, [categoryFilteredTasks, timeFilter]);
 
   // Organize tasks into parent-child hierarchy
   const { parentTasks, subtasksByParent } = useMemo(() => {
@@ -589,12 +616,28 @@ export function TaskList({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-border">
-        <h2 className="font-semibold">
-          Tasks
-          <span className="ml-2 text-sm text-muted-foreground font-normal">
-            {incompleteTasks.length} remaining
-          </span>
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-semibold">
+            Tasks
+            <span className="ml-2 text-sm text-muted-foreground font-normal">
+              {incompleteTasks.length} remaining
+            </span>
+          </h2>
+          {/* Due Date Filter */}
+          <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter | 'all')}>
+            <SelectTrigger className="h-8 w-[130px] text-xs">
+              <Filter className="w-3 h-3 mr-1" />
+              <SelectValue placeholder="Due date" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All dates</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="noDate">No Date</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex items-center gap-2">
           {isSelectMode ? (
             <>

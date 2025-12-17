@@ -24,20 +24,15 @@ import {
   CheckSquare,
   Zap,
   FileText,
-  Home,
-  CalendarDays,
-  CalendarRange,
-  CircleSlash
+  Home
 } from 'lucide-react';
-import { TaskCategory, TimeFilter } from '@/types/flux';
+import { TaskCategory } from '@/types/flux';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
 
 interface SidebarProps {
   activeFilter: SidebarFilter;
-  activeTimeFilter?: TimeFilter | null;
   onFilterChange: (filter: SidebarFilter) => void;
-  onTimeFilterChange?: (filter: TimeFilter | null) => void;
   onVoiceMode: () => void;
   onOpenSettings: () => void;
   onEditProfile?: () => void;
@@ -55,9 +50,7 @@ interface SidebarProps {
 
 export function Sidebar({ 
   activeFilter, 
-  activeTimeFilter,
   onFilterChange, 
-  onTimeFilterChange,
   onVoiceMode, 
   onOpenSettings, 
   onSignOut, 
@@ -82,20 +75,6 @@ export function Sidebar({
     { icon: Home, label: 'Family', filter: 'family' },
     { icon: Users, label: 'Shared', filter: 'shared' },
   ];
-
-  const timeFilters: { icon: typeof Calendar; label: string; filter: TimeFilter }[] = [
-    { icon: Zap, label: 'Today', filter: 'today' },
-    { icon: CalendarDays, label: 'This Week', filter: 'week' },
-    { icon: CalendarRange, label: 'This Month', filter: 'month' },
-    { icon: CircleSlash, label: 'No Date', filter: 'noDate' },
-  ];
-
-  const handleTimeFilterClick = (filter: TimeFilter) => {
-    if (onTimeFilterChange) {
-      // Toggle off if clicking same filter
-      onTimeFilterChange(activeTimeFilter === filter ? null : filter);
-    }
-  };
 
   return (
     <aside 
@@ -167,53 +146,24 @@ export function Sidebar({
         {/* Category Filters */}
         <div className={cn("space-y-0.5", !collapsed && "mb-2")}>
           {!collapsed && (
-            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Category</span>
+            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Tasks</span>
           )}
           {categoryFilters.map((item) => (
             <Button
               key={item.filter}
-              variant={activeFilter === item.filter && !activeTimeFilter ? 'secondary' : 'ghost'}
+              variant={activeFilter === item.filter ? 'secondary' : 'ghost'}
               className={cn(
                 "w-full h-9 gap-3",
                 collapsed ? "justify-center px-0" : "justify-start",
-                activeFilter === item.filter && !activeTimeFilter && "bg-sidebar-accent text-sidebar-primary font-medium"
+                activeFilter === item.filter && "bg-sidebar-accent text-sidebar-primary font-medium"
               )}
-              onClick={() => {
-                onFilterChange(item.filter);
-                if (onTimeFilterChange) onTimeFilterChange(null);
-              }}
+              onClick={() => onFilterChange(item.filter)}
             >
               <item.icon className="w-4 h-4 shrink-0" />
               {!collapsed && <span className="text-sm">{item.label}</span>}
             </Button>
           ))}
         </div>
-
-        <Separator className="my-2" />
-
-        {/* Time-Based Filters */}
-        {onTimeFilterChange && (
-          <div className={cn("space-y-0.5", !collapsed && "mb-2")}>
-            {!collapsed && (
-              <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Due Date</span>
-            )}
-            {timeFilters.map((item) => (
-              <Button
-                key={item.filter}
-                variant={activeTimeFilter === item.filter ? 'secondary' : 'ghost'}
-                className={cn(
-                  "w-full h-9 gap-3",
-                  collapsed ? "justify-center px-0" : "justify-start",
-                  activeTimeFilter === item.filter && "bg-sidebar-accent text-sidebar-primary font-medium"
-                )}
-                onClick={() => handleTimeFilterClick(item.filter)}
-              >
-                <item.icon className="w-4 h-4 shrink-0" />
-                {!collapsed && <span className="text-sm">{item.label}</span>}
-              </Button>
-            ))}
-          </div>
-        )}
 
         <Separator className="my-2" />
 

@@ -15,8 +15,7 @@ import { AICommandPanel } from '../ai/AICommandPanel';
 import { WorkspaceTabs } from '../workspace/WorkspaceTabs';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Task, CalendarEvent, ChatMessage, Project, TimeFilter } from '@/types/flux';
-import { isToday, isThisWeek, isThisMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { Task, CalendarEvent, ChatMessage, Project } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
@@ -122,7 +121,6 @@ export function StandardMode({
   onShareProjectWithEmail,
 }: StandardModeProps) {
   const [filter, setFilter] = useState<SidebarFilter>('all');
-  const [timeFilter, setTimeFilter] = useState<TimeFilter | null>(null);
   const [calendarMode, setCalendarMode] = useState<'agenda' | 'grid'>('agenda');
   const [fullscreenPanel, setFullscreenPanel] = useState<FullscreenPanel>(null);
   const [showFocusTimer, setShowFocusTimer] = useState(false);
@@ -215,47 +213,14 @@ export function StandardMode({
     }
   };
 
-  // Apply time filter
-  const applyTimeFilter = (tasksToFilter: Task[]) => {
-    if (!timeFilter) return tasksToFilter;
-    
-    const now = new Date();
-    return tasksToFilter.filter(task => {
-      if (timeFilter === 'noDate') return !task.dueDate;
-      if (!task.dueDate) return false;
-      
-      const dueDate = new Date(task.dueDate);
-      switch (timeFilter) {
-        case 'today':
-          return isToday(dueDate);
-        case 'week':
-          return isWithinInterval(dueDate, { start: startOfWeek(now), end: endOfWeek(now) });
-        case 'month':
-          return isWithinInterval(dueDate, { start: startOfMonth(now), end: endOfMonth(now) });
-        default:
-          return true;
-      }
-    });
-  };
-
   // Get tasks based on current filter and sort by due date
-  const getFilteredTasks = () => {
-    let result: Task[];
-    
-    if (filter === 'shared') {
-      result = sharedTasks;
-    } else if (selectedProjectId) {
-      result = tasks.filter(t => t.projectId === selectedProjectId);
-    } else if (filter !== 'all') {
-      result = tasks.filter(t => t.category === filter);
-    } else {
-      result = tasks;
-    }
-    
-    return applyTimeFilter(result);
-  };
-  
-  const filteredTasks = getFilteredTasks();
+  const filteredTasks = filter === 'shared' 
+    ? sharedTasks 
+    : selectedProjectId 
+      ? tasks.filter(t => t.projectId === selectedProjectId)
+      : filter !== 'all'
+        ? tasks.filter(t => t.category === filter)
+        : tasks;
   const displayTasks = sortTasksByDueDate(filteredTasks);
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
@@ -363,9 +328,7 @@ export function StandardMode({
     <div className="flex h-screen w-full bg-background">
       <Sidebar 
         activeFilter={filter}
-        activeTimeFilter={timeFilter}
         onFilterChange={setFilter}
-        onTimeFilterChange={setTimeFilter}
         onVoiceMode={onVoiceMode}
         onOpenSettings={onOpenSettings}
         onSignOut={onSignOut}
