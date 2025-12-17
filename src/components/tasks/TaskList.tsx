@@ -42,7 +42,8 @@ import {
   ChevronRight,
   ChevronDown,
   AlertCircle,
-  Pencil
+  Pencil,
+  UserCircle
 } from 'lucide-react';
 import { format, isPast, isToday, isTomorrow } from 'date-fns';
 
@@ -278,6 +279,13 @@ function SortableTaskItem({
               <span className="flex items-center gap-1 text-xs text-primary">
                 <Repeat className="w-3 h-3" />
                 {getRecurrenceDescription(task.recurrenceRule)}
+              </span>
+            )}
+
+            {task.sharedBy && (
+              <span className="flex items-center gap-1 text-xs text-accent-foreground bg-accent/30 px-1.5 py-0.5 rounded">
+                <UserCircle className="w-3 h-3" />
+                Shared by {task.sharedBy.displayName || task.sharedBy.email || 'someone'}
               </span>
             )}
           </div>

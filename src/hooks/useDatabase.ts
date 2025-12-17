@@ -373,6 +373,28 @@ export function useDatabase(userId: string | undefined) {
       return { sharedTasks: [], sharedEvents: [] };
     }
 
+    // Get unique owner IDs and fetch their profiles
+    const ownerIds = [...new Set(sharedItems.map(item => item.owner_id))];
+    const { data: ownerProfiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, email')
+      .in('user_id', ownerIds);
+
+    // Create a map of owner_id -> profile info
+    const profileMap = new Map<string, { displayName?: string; email?: string }>();
+    ownerProfiles?.forEach(profile => {
+      profileMap.set(profile.user_id, {
+        displayName: profile.display_name || undefined,
+        email: profile.email || undefined,
+      });
+    });
+
+    // Create a map of item_id -> owner info
+    const ownerMap = new Map<string, { displayName?: string; email?: string }>();
+    sharedItems.forEach(item => {
+      ownerMap.set(item.item_id, profileMap.get(item.owner_id) || {});
+    });
+
     const taskIds = sharedItems.filter(s => s.item_type === 'task').map(s => s.item_id);
     const eventIds = sharedItems.filter(s => s.item_type === 'event').map(s => s.item_id);
 
@@ -386,7 +408,10 @@ export function useDatabase(userId: string | undefined) {
         .in('id', taskIds);
       
       if (tasksData) {
-        sharedTasks = tasksData.map(dbTaskToTask);
+        sharedTasks = tasksData.map(t => ({
+          ...dbTaskToTask(t),
+          sharedBy: ownerMap.get(t.id),
+        }));
       }
     }
 
@@ -397,7 +422,10 @@ export function useDatabase(userId: string | undefined) {
         .in('id', eventIds);
       
       if (eventsData) {
-        sharedEvents = eventsData.map(dbEventToEvent);
+        sharedEvents = eventsData.map(e => ({
+          ...dbEventToEvent(e),
+          sharedBy: ownerMap.get(e.id),
+        }));
       }
     }
 
