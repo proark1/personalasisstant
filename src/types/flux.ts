@@ -1,4 +1,6 @@
-export type TaskCategory = 'business' | 'personal';
+export type TaskCategory = 'business' | 'personal' | 'family';
+export type EventCategory = 'business' | 'personal' | 'family';
+export type TimeFilter = 'today' | 'week' | 'month' | 'noDate';
 export type TaskPriority = 'high' | 'medium' | 'low';
 export type ThemeMode = 'dark' | 'light';
 export type ColorScheme = 'cyan' | 'purple' | 'green' | 'orange' | 'pink';
@@ -97,6 +99,7 @@ export interface CalendarEvent {
   recurrenceRule?: string; // RRULE format
   recurrenceEnd?: Date;
   sharedBy?: { displayName?: string; email?: string }; // Who shared this item
+  category?: EventCategory; // For color-coding: business/personal/family
 }
 
 export interface ChatMessage {

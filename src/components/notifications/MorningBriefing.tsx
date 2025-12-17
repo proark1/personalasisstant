@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Sun, Calendar, CheckCircle2, Flame, Clock, Users, FileText, Zap, FolderKanban, Battery, BatteryLow, BatteryFull } from 'lucide-react';
+import { X, Sun, Calendar, CheckCircle2, Flame, Clock, Users, FileText, Zap, FolderKanban, Battery, BatteryLow, BatteryFull, AlertTriangle, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Task, CalendarEvent, Project } from '@/types/flux';
 import { Contact } from '@/hooks/useContacts';
 import { Contract } from '@/hooks/useContracts';
-import { isToday, isTomorrow, isPast, differenceInDays, startOfDay, format } from 'date-fns';
+import { isToday, isTomorrow, isPast, differenceInDays, startOfDay, format, addDays, isWithinInterval, endOfDay, getHours } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 type EnergyLevel = 'low' | 'medium' | 'high' | null;
@@ -147,6 +147,41 @@ export function MorningBriefing({
     
     return alerts.sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 3);
   }, [contracts]);
+
+  // Week Ahead - next 7 days overview with evening highlights
+  const weekAhead = useMemo(() => {
+    const today = startOfDay(new Date());
+    const days: { 
+      date: Date; 
+      dayName: string; 
+      events: CalendarEvent[]; 
+      hasEveningCommitment: boolean;
+      eveningEvents: CalendarEvent[];
+    }[] = [];
+
+    for (let i = 1; i <= 7; i++) {
+      const date = addDays(today, i);
+      const dayStart = startOfDay(date);
+      const dayEnd = endOfDay(date);
+
+      const dayEvents = events.filter(e => 
+        isWithinInterval(e.startTime, { start: dayStart, end: dayEnd })
+      ).sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+      const eveningEvents = dayEvents.filter(e => getHours(e.startTime) >= 17);
+      const hasEveningCommitment = eveningEvents.length > 0;
+
+      days.push({
+        date,
+        dayName: i === 1 ? 'Tomorrow' : format(date, 'EEE'),
+        events: dayEvents,
+        hasEveningCommitment,
+        eveningEvents,
+      });
+    }
+
+    return days;
+  }, [events]);
 
   // Time blocks - find free time for deep work
   const timeBlocks = useMemo(() => {
@@ -382,6 +417,46 @@ export function MorningBriefing({
                     >
                       {alert.type === 'cancellation' ? 'Cancel by' : 'Renewal'} {format(alert.date, 'MMM d')}
                     </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Week Ahead - Evening commitments highlighted */}
+          {weekAhead.some(d => d.hasEveningCommitment || d.events.length > 0) && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Moon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Week Ahead</span>
+                {weekAhead.filter(d => d.hasEveningCommitment).length > 0 && (
+                  <Badge variant="outline" className="text-xs text-amber-500 border-amber-500/30 ml-auto">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    {weekAhead.filter(d => d.hasEveningCommitment).length} evening{weekAhead.filter(d => d.hasEveningCommitment).length > 1 ? 's' : ''} busy
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-1">
+                {weekAhead.slice(0, 5).map((day) => (
+                  <div 
+                    key={day.date.toISOString()} 
+                    className={cn(
+                      "flex items-center justify-between text-sm p-2 rounded",
+                      day.hasEveningCommitment && "bg-amber-500/10 border border-amber-500/20"
+                    )}
+                  >
+                    <span className="font-medium text-muted-foreground w-16">{day.dayName}</span>
+                    <span className="flex-1 truncate text-right">
+                      {day.events.length === 0 ? (
+                        <span className="text-muted-foreground/60">Free</span>
+                      ) : day.hasEveningCommitment ? (
+                        <span className="text-amber-600">
+                          ⚠️ {day.eveningEvents[0]?.title} ({format(day.eveningEvents[0]?.startTime, 'HH:mm')})
+                        </span>
+                      ) : (
+                        <span>{day.events[0]?.title}</span>
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>

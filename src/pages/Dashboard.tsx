@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, isSameDay, subDays, addDays, startOfDay } from 'date-fns';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
-import { Task } from '@/types/flux';
+import { Task, TaskCategory } from '@/types/flux';
 
 interface DbTask {
   id: string;
@@ -54,7 +54,7 @@ export default function Dashboard() {
           id: t.id,
           title: t.title,
           description: t.description || undefined,
-          category: t.category as 'business' | 'personal',
+          category: t.category as TaskCategory,
           priority: t.priority as 'high' | 'medium' | 'low',
           completed: t.completed,
           createdAt: new Date(t.created_at),
@@ -91,6 +91,7 @@ export default function Dashboard() {
     // Category breakdown
     const businessTasks = tasks.filter(t => t.category === 'business').length;
     const personalTasks = tasks.filter(t => t.category === 'personal').length;
+    const familyTasks = tasks.filter(t => t.category === 'family').length;
 
     // Productivity streak (consecutive days with completed tasks)
     let streak = 0;
@@ -145,6 +146,7 @@ export default function Dashboard() {
       completedThisMonth,
       businessTasks,
       personalTasks,
+      familyTasks,
       streak,
       peakHourLabel,
       hourlyData,
@@ -157,6 +159,7 @@ export default function Dashboard() {
   const categoryData = [
     { name: 'Business', value: stats.businessTasks, color: 'hsl(var(--primary))' },
     { name: 'Personal', value: stats.personalTasks, color: 'hsl(var(--accent))' },
+    { name: 'Family', value: stats.familyTasks, color: 'hsl(var(--warning))' },
   ].filter(d => d.value > 0);
 
   const completionRate = stats.totalTasks > 0 
