@@ -242,6 +242,7 @@ export function MobileLayout({
             onDeleteEvent={onDeleteEvent}
             onImportEvents={onImportEvents}
             onShareEvent={onShareEvent}
+            onShareTask={onShareTask}
             onToggleTaskComplete={onToggleTaskComplete}
             onUpdateTask={onUpdateTask}
             onDeleteTask={onDeleteTask}

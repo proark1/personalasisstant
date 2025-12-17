@@ -33,6 +33,7 @@ interface CalendarPanelProps {
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onShareEvent?: (id: string, title: string) => void;
+  onShareTask?: (id: string, title: string) => void;
   onToggleTaskComplete?: (id: string) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onUpdateEvent?: (id: string, updates: Partial<CalendarEvent>) => void;
@@ -72,6 +73,7 @@ export function CalendarPanel({
   onAddEvent, 
   onImportEvents, 
   onShareEvent,
+  onShareTask,
   onToggleTaskComplete,
   onUpdateTask,
   onUpdateEvent,
@@ -338,6 +340,14 @@ export function CalendarPanel({
             {item.type === 'event' && onShareEvent && (
               <button
                 onClick={(e) => { e.stopPropagation(); onShareEvent(item.id, item.title); }}
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {item.type === 'task' && onShareTask && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onShareTask(item.id, item.title); }}
                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
               >
                 <Share2 className="w-3.5 h-3.5" />

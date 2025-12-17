@@ -138,6 +138,7 @@ export function StandardMode({
                 onDeleteEvent={onDeleteEvent}
                 onImportEvents={onImportEvents}
                 onShareEvent={onShareEvent}
+                onShareTask={onShareTask}
                 onToggleTaskComplete={onToggleTaskComplete}
                 onUpdateTask={onUpdateTask}
                 onDeleteTask={onDeleteTask}
@@ -231,6 +232,7 @@ export function StandardMode({
                   onDeleteEvent={onDeleteEvent}
                   onImportEvents={onImportEvents}
                   onShareEvent={onShareEvent}
+                  onShareTask={onShareTask}
                   onToggleTaskComplete={onToggleTaskComplete}
                   onUpdateTask={onUpdateTask}
                   onDeleteTask={onDeleteTask}
