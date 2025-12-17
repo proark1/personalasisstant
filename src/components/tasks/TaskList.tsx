@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Task, TaskCategory, TaskPriority } from '@/types/flux';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
 import { getRecurrenceDescription } from '@/lib/recurrence';
+import { EditTaskModal } from './EditTaskModal';
 import { 
   DndContext, 
   closestCenter, 
@@ -40,7 +41,8 @@ import {
   GripVertical,
   ChevronRight,
   ChevronDown,
-  AlertCircle
+  AlertCircle,
+  Pencil
 } from 'lucide-react';
 import { format, isPast, isToday, isTomorrow } from 'date-fns';
 
@@ -78,6 +80,7 @@ interface SortableTaskItemProps {
   onDeleteTask: (id: string) => void;
   onShareTask?: (id: string, title: string) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
+  onEditTask?: (task: Task) => void;
   onAddSubtask: (parentId: string) => void;
   level?: number;
 }
@@ -92,6 +95,7 @@ function SortableTaskItem({
   onDeleteTask,
   onShareTask,
   onUpdateTask,
+  onEditTask,
   onAddSubtask,
   level = 0
 }: SortableTaskItemProps) {
@@ -277,6 +281,17 @@ function SortableTaskItem({
 
         {!isSelectMode && (
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onEditTask && (
+              <Button
+                variant="ghost"
+                size="iconSm"
+                className="text-muted-foreground hover:text-primary"
+                onClick={() => onEditTask(task)}
+                title="Edit task"
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+            )}
             {!task.parentId && (
               <Button
                 variant="ghost"
@@ -325,6 +340,7 @@ function SortableTaskItem({
               onDeleteTask={onDeleteTask}
               onShareTask={onShareTask}
               onUpdateTask={onUpdateTask}
+              onEditTask={onEditTask}
               onAddSubtask={onAddSubtask}
               level={level + 1}
             />
@@ -354,6 +370,7 @@ export function TaskList({
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -625,6 +642,7 @@ export function TaskList({
                     onDeleteTask={onDeleteTask}
                     onShareTask={onShareTask}
                     onUpdateTask={onUpdateTask}
+                    onEditTask={setEditingTask}
                     onAddSubtask={handleAddSubtask}
                   />
                   {addingSubtaskFor === task.id && <AddTaskForm parentId={task.id} />}
@@ -653,6 +671,7 @@ export function TaskList({
                   onDeleteTask={onDeleteTask}
                   onShareTask={onShareTask}
                   onUpdateTask={onUpdateTask}
+                  onEditTask={setEditingTask}
                   onAddSubtask={handleAddSubtask}
                 />
               ))}
@@ -675,6 +694,16 @@ export function TaskList({
           </div>
         )}
       </div>
+
+      {/* Edit Task Modal */}
+      {editingTask && onUpdateTask && (
+        <EditTaskModal
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onSave={onUpdateTask}
+          onDelete={onDeleteTask}
+        />
+      )}
     </div>
   );
 }

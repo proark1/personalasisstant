@@ -4,8 +4,11 @@ import { MobileLayout } from './MobileLayout';
 import { ChatPanel } from '../chat/ChatPanel';
 import { TaskList } from '../tasks/TaskList';
 import { CalendarPanel } from '../calendar/CalendarPanel';
+import { CalendarView } from '../calendar/CalendarView';
 import { TaskCategory, Task, CalendarEvent, ChatMessage } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Button } from '@/components/ui/button';
+import { List, Grid3X3 } from 'lucide-react';
 
 interface StandardModeProps {
   tasks: Task[];
@@ -55,6 +58,7 @@ export function StandardMode({
   onSignOut,
 }: StandardModeProps) {
   const [filter, setFilter] = useState<TaskCategory | 'all'>('all');
+  const [calendarMode, setCalendarMode] = useState<'agenda' | 'grid'>('agenda');
   const isMobile = useIsMobile();
 
   // Use mobile layout on small screens
@@ -126,18 +130,46 @@ export function StandardMode({
 
           {/* Calendar */}
           <div className="h-80 glass-panel-solid rounded-xl overflow-hidden">
-            <CalendarPanel
-              events={events}
-              tasks={tasks}
-              onAddEvent={onAddEvent}
-              onUpdateEvent={onUpdateEvent}
-              onDeleteEvent={onDeleteEvent}
-              onImportEvents={onImportEvents}
-              onShareEvent={onShareEvent}
-              onToggleTaskComplete={onToggleTaskComplete}
-              onUpdateTask={onUpdateTask}
-              onDeleteTask={onDeleteTask}
-            />
+            <div className="h-10 px-4 flex items-center justify-end border-b border-border gap-1">
+              <Button
+                variant={calendarMode === 'agenda' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setCalendarMode('agenda')}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={calendarMode === 'grid' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setCalendarMode('grid')}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="h-[calc(100%-2.5rem)]">
+              {calendarMode === 'agenda' ? (
+                <CalendarPanel
+                  events={events}
+                  tasks={tasks}
+                  onAddEvent={onAddEvent}
+                  onUpdateEvent={onUpdateEvent}
+                  onDeleteEvent={onDeleteEvent}
+                  onImportEvents={onImportEvents}
+                  onShareEvent={onShareEvent}
+                  onToggleTaskComplete={onToggleTaskComplete}
+                  onUpdateTask={onUpdateTask}
+                  onDeleteTask={onDeleteTask}
+                />
+              ) : (
+                <CalendarView
+                  events={events}
+                  tasks={tasks}
+                  onToggleTaskComplete={onToggleTaskComplete}
+                />
+              )}
+            </div>
           </div>
         </div>
       </main>
