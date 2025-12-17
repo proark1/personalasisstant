@@ -11,7 +11,8 @@ import {
   List,
   Grid3X3,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Plus
 } from 'lucide-react';
 import { 
   format, 
@@ -38,6 +39,7 @@ interface CalendarViewProps {
   onToggleTaskComplete?: (id: string) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onDeleteTask?: (id: string) => void;
+  onAddTask?: (task: Partial<Task>) => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
 }
@@ -61,12 +63,15 @@ export function CalendarView({
   onToggleTaskComplete,
   onUpdateTask,
   onDeleteTask,
+  onAddTask,
   isFullscreen = false,
   onToggleFullscreen,
 }: CalendarViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [newTaskDate, setNewTaskDate] = useState<Date | null>(null);
 
   // Calculate date range based on view mode
   const { rangeStart, rangeEnd, days } = useMemo(() => {
@@ -201,6 +206,22 @@ export function CalendarView({
     setEditingTask(null);
   };
 
+  const handleAddTaskFromCalendar = (date?: Date) => {
+    setNewTaskDate(date || new Date());
+    setIsAddingTask(true);
+  };
+
+  const handleSaveNewTask = (id: string, updates: Partial<Task>) => {
+    if (onAddTask) {
+      onAddTask({
+        ...updates,
+        dueDate: newTaskDate || new Date(),
+      });
+    }
+    setIsAddingTask(false);
+    setNewTaskDate(null);
+  };
+
   const priorityColors: Record<string, string> = {
     high: 'bg-destructive/20 text-destructive border-destructive/30',
     medium: 'bg-warning/20 text-warning border-warning/30',
@@ -216,19 +237,30 @@ export function CalendarView({
     return (
       <div 
         className={cn(
-          "min-h-[100px] border-r border-b border-border p-1",
+          "min-h-[100px] border-r border-b border-border p-1 group relative",
           !isCurrentMonth && viewMode === 'month' && "bg-muted/30",
           isCurrentDay && "bg-primary/5"
         )}
       >
-        <div className={cn(
-          "text-xs font-medium mb-1 flex items-center justify-center w-6 h-6 rounded-full",
-          isCurrentDay && "bg-primary text-primary-foreground",
-          !isCurrentMonth && viewMode === 'month' && "text-muted-foreground"
-        )}>
-          {format(day, 'd')}
+        <div className="flex items-center justify-between">
+          <div className={cn(
+            "text-xs font-medium flex items-center justify-center w-6 h-6 rounded-full",
+            isCurrentDay && "bg-primary text-primary-foreground",
+            !isCurrentMonth && viewMode === 'month' && "text-muted-foreground"
+          )}>
+            {format(day, 'd')}
+          </div>
+          {onAddTask && (
+            <button
+              onClick={() => handleAddTaskFromCalendar(day)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 flex items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary"
+              title="Add task"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          )}
         </div>
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 mt-1">
           {dayItems.slice(0, viewMode === 'week' ? 10 : 3).map((item) => (
             <button
               key={`${item.type}-${item.id}-${item.date.getTime()}`}
@@ -273,6 +305,12 @@ export function CalendarView({
           </h2>
         </div>
         <div className="flex items-center gap-2">
+          {onAddTask && (
+            <Button size="sm" onClick={() => handleAddTaskFromCalendar()} className="gap-1">
+              <Plus className="w-4 h-4" />
+              Add Task
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={goToToday}>
             Today
           </Button>
@@ -344,6 +382,30 @@ export function CalendarView({
           onClose={() => setEditingTask(null)}
           onSave={handleSaveTask}
           onDelete={handleDeleteTask}
+        />
+      )}
+
+      {/* Add Task Modal */}
+      {isAddingTask && newTaskDate && (
+        <EditTaskModal
+          task={{
+            id: 'new',
+            title: '',
+            completed: false,
+            priority: 'medium',
+            category: 'personal',
+            createdAt: new Date(),
+            dueDate: newTaskDate,
+          }}
+          onClose={() => {
+            setIsAddingTask(false);
+            setNewTaskDate(null);
+          }}
+          onSave={handleSaveNewTask}
+          onDelete={() => {
+            setIsAddingTask(false);
+            setNewTaskDate(null);
+          }}
         />
       )}
     </div>

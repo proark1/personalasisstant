@@ -314,6 +314,7 @@ export function StandardMode({
                 onToggleTaskComplete={onToggleTaskComplete}
                 onUpdateTask={onUpdateTask}
                 onDeleteTask={onDeleteTask}
+                onAddTask={(task) => onAddTask({ ...task, completed: false, priority: task.priority || 'medium', category: task.category || 'personal' } as Omit<Task, 'id' | 'createdAt'>)}
                 isFullscreen={true}
                 onToggleFullscreen={() => setFullscreenPanel(null)}
               />
@@ -470,6 +471,7 @@ export function StandardMode({
                     onToggleTaskComplete={onToggleTaskComplete}
                     onUpdateTask={onUpdateTask}
                     onDeleteTask={onDeleteTask}
+                    onAddTask={(task) => onAddTask({ ...task, completed: false, priority: task.priority || 'medium', category: task.category || 'personal' } as Omit<Task, 'id' | 'createdAt'>)}
                     onToggleFullscreen={() => setFullscreenPanel('calendar')}
                   />
                 )}
