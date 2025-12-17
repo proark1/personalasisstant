@@ -6,10 +6,18 @@ import { TaskList } from '../tasks/TaskList';
 import { CalendarPanel } from '../calendar/CalendarPanel';
 import { CalendarView } from '../calendar/CalendarView';
 import { FocusTimer } from '../focus/FocusTimer';
-import { Task, CalendarEvent, ChatMessage } from '@/types/flux';
+import { ProjectManager } from '../projects/ProjectManager';
+import { Task, CalendarEvent, ChatMessage, Project } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { List, Grid3X3, X } from 'lucide-react';
+import { List, Grid3X3, X, FolderOpen } from 'lucide-react';
+
+interface Contact {
+  id: string;
+  userId: string;
+  email: string;
+  displayName?: string;
+}
 
 interface StandardModeProps {
   tasks: Task[];
@@ -18,6 +26,8 @@ interface StandardModeProps {
   sharedEvents?: CalendarEvent[];
   messages: ChatMessage[];
   isProcessing: boolean;
+  projects?: Project[];
+  contacts?: Contact[];
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onToggleTaskComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
@@ -35,6 +45,11 @@ interface StandardModeProps {
   onShareTask?: (id: string, title: string) => void;
   onShareEvent?: (id: string, title: string) => void;
   onSignOut?: () => void;
+  onOpenWeeklyReview?: () => void;
+  onAddProject?: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Project | null>;
+  onUpdateProject?: (id: string, updates: Partial<Project>) => void;
+  onDeleteProject?: (id: string) => void;
+  getProjectProgress?: (projectId: string, tasks: { projectId?: string; completed: boolean }[]) => number;
 }
 
 type FullscreenPanel = 'chat' | 'tasks' | 'calendar' | null;
@@ -46,6 +61,8 @@ export function StandardMode({
   sharedEvents = [],
   messages,
   isProcessing,
+  projects = [],
+  contacts = [],
   onAddTask,
   onToggleTaskComplete,
   onDeleteTask,
@@ -63,15 +80,26 @@ export function StandardMode({
   onShareTask,
   onShareEvent,
   onSignOut,
+  onOpenWeeklyReview,
+  onAddProject,
+  onUpdateProject,
+  onDeleteProject,
+  getProjectProgress,
 }: StandardModeProps) {
   const [filter, setFilter] = useState<SidebarFilter>('all');
   const [calendarMode, setCalendarMode] = useState<'agenda' | 'grid'>('agenda');
   const [fullscreenPanel, setFullscreenPanel] = useState<FullscreenPanel>(null);
   const [showFocusTimer, setShowFocusTimer] = useState(false);
+  const [showProjectPanel, setShowProjectPanel] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
   const isMobile = useIsMobile();
 
   // Get tasks based on current filter
-  const displayTasks = filter === 'shared' ? sharedTasks : tasks;
+  const displayTasks = filter === 'shared' 
+    ? sharedTasks 
+    : selectedProjectId 
+      ? tasks.filter(t => t.projectId === selectedProjectId)
+      : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
   // Use mobile layout on small screens
@@ -183,9 +211,27 @@ export function StandardMode({
         onEditProfile={onEditProfile}
         onSignOut={onSignOut}
         onOpenFocusTimer={() => setShowFocusTimer(true)}
+        onOpenWeeklyReview={onOpenWeeklyReview}
+        onToggleProjects={() => setShowProjectPanel(!showProjectPanel)}
       />
       
       <main className="flex-1 flex overflow-hidden">
+        {/* Project Panel */}
+        {showProjectPanel && onAddProject && onUpdateProject && onDeleteProject && getProjectProgress && (
+          <div className="w-64 border-r border-border p-3 overflow-y-auto">
+            <ProjectManager
+              projects={projects}
+              tasks={tasks}
+              onAddProject={onAddProject}
+              onUpdateProject={onUpdateProject}
+              onDeleteProject={onDeleteProject}
+              getProjectProgress={getProjectProgress}
+              selectedProjectId={selectedProjectId}
+              onSelectProject={setSelectedProjectId}
+            />
+          </div>
+        )}
+
         {/* Chat Panel */}
         <div className="w-[400px] border-r border-border flex flex-col glass-panel-solid m-2 mr-1 rounded-xl overflow-hidden">
           <ChatPanel 
@@ -210,6 +256,8 @@ export function StandardMode({
               onUpdateTask={onUpdateTask}
               onReorderTasks={onReorderTasks}
               onShareTask={onShareTask}
+              projects={projects}
+              contacts={contacts}
               onToggleFullscreen={() => setFullscreenPanel('tasks')}
             />
           </div>

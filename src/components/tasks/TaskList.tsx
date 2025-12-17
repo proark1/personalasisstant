@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Progress } from '@/components/ui/progress';
-import { Task, TaskCategory, TaskPriority } from '@/types/flux';
+import { Task, TaskCategory, TaskPriority, Project } from '@/types/flux';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
 import { getRecurrenceDescription } from '@/lib/recurrence';
 import { EditTaskModal } from './EditTaskModal';
@@ -49,6 +49,13 @@ import { format, isPast, isToday, isTomorrow } from 'date-fns';
 
 import { SidebarFilter } from '@/components/layout/Sidebar';
 
+interface Contact {
+  id: string;
+  userId: string;
+  email: string;
+  displayName?: string;
+}
+
 interface TaskListProps {
   tasks: Task[];
   filter: SidebarFilter;
@@ -61,6 +68,8 @@ interface TaskListProps {
   onShareTask?: (id: string, title: string) => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  projects?: Project[];
+  contacts?: Contact[];
 }
 
 const priorityColors: Record<TaskPriority, string> = {
@@ -372,7 +381,9 @@ export function TaskList({
   onAddTask, 
   onUpdateTask,
   onReorderTasks,
-  onShareTask 
+  onShareTask,
+  projects = [],
+  contacts = [],
 }: TaskListProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [addingSubtaskFor, setAddingSubtaskFor] = useState<string | null>(null);
@@ -714,6 +725,8 @@ export function TaskList({
           onClose={() => setEditingTask(null)}
           onSave={onUpdateTask}
           onDelete={onDeleteTask}
+          projects={projects}
+          contacts={contacts}
         />
       )}
     </div>

@@ -6,11 +6,15 @@ import { useAIChat } from '@/hooks/useAIChat';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
 import { useSharedItemsRealtime } from '@/hooks/useSharedItemsRealtime';
 import { useTags } from '@/hooks/useTags';
+import { useProjects } from '@/hooks/useProjects';
+import { useWeeklyReview } from '@/hooks/useWeeklyReview';
+import { useContacts } from '@/hooks/useContacts';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { MorningDigest } from '@/components/notifications/MorningDigest';
+import { WeeklyReviewDialog } from '@/components/review/WeeklyReviewDialog';
 import { CalendarEvent, ChatMessage, AppMode, Task } from '@/types/flux';
 import { useToast } from '@/hooks/use-toast';
 import { differenceInCalendarDays, startOfDay, subDays } from 'date-fns';
@@ -71,6 +75,25 @@ const Index = () => {
   // Tags system
   const tagsHook = useTags(user?.id);
 
+  // Projects system
+  const {
+    projects,
+    addProject,
+    updateProject,
+    deleteProject,
+    getProjectProgress,
+  } = useProjects(user?.id);
+
+  // Weekly review
+  const {
+    currentReview,
+    createOrUpdateReview,
+    getWeeklyStats,
+  } = useWeeklyReview(user?.id);
+
+  // Contacts for task assignment
+  const { contacts } = useContacts(user?.id);
+
   // Calculate productivity streak
   const productivityStreak = useMemo(() => {
     const completedTaskDates = tasks
@@ -96,6 +119,7 @@ const Index = () => {
   }, [tasks]);
 
   const [showMorningDigest, setShowMorningDigest] = useState(true);
+  const [showWeeklyReview, setShowWeeklyReview] = useState(false);
   const [mode, setMode] = useState<AppMode>('standard');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -105,6 +129,9 @@ const Index = () => {
     id: string;
     title: string;
   } | null>(null);
+
+  // Weekly stats for review dialog
+  const weeklyStats = useMemo(() => getWeeklyStats(tasks), [getWeeklyStats, tasks]);
 
   const sendLockRef = useRef(false);
 
@@ -412,6 +439,8 @@ const Index = () => {
           sharedEvents={sharedEvents}
           messages={messages}
           isProcessing={isProcessing || isStreaming}
+          projects={projects}
+          contacts={contacts}
           onAddTask={handleAddTask}
           onToggleTaskComplete={toggleTaskComplete}
           onDeleteTask={deleteTask}
@@ -429,6 +458,11 @@ const Index = () => {
           onShareTask={(id, title) => setShareDialog({ type: 'task', id, title })}
           onShareEvent={(id, title) => setShareDialog({ type: 'event', id, title })}
           onSignOut={handleSignOut}
+          onOpenWeeklyReview={() => setShowWeeklyReview(true)}
+          onAddProject={addProject}
+          onUpdateProject={updateProject}
+          onDeleteProject={deleteProject}
+          getProjectProgress={getProjectProgress}
         />
       ) : (
         <GhostMode 
@@ -457,6 +491,15 @@ const Index = () => {
           onClose={() => setShareDialog(null)}
         />
       )}
+
+      <WeeklyReviewDialog
+        open={showWeeklyReview}
+        onOpenChange={setShowWeeklyReview}
+        currentReview={currentReview}
+        tasks={tasks}
+        onSaveReview={createOrUpdateReview}
+        weeklyStats={weeklyStats}
+      />
     </>
   );
 };

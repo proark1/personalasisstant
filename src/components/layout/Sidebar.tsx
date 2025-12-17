@@ -15,7 +15,9 @@ import {
   Users,
   BookUser,
   BarChart3,
-  Target
+  Target,
+  CalendarCheck,
+  FolderKanban
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 
@@ -29,9 +31,21 @@ interface SidebarProps {
   onEditProfile?: () => void;
   onSignOut?: () => void;
   onOpenFocusTimer?: () => void;
+  onOpenWeeklyReview?: () => void;
+  onToggleProjects?: () => void;
 }
 
-export function Sidebar({ activeFilter, onFilterChange, onVoiceMode, onOpenSettings, onEditProfile, onSignOut, onOpenFocusTimer }: SidebarProps) {
+export function Sidebar({ 
+  activeFilter, 
+  onFilterChange, 
+  onVoiceMode, 
+  onOpenSettings, 
+  onEditProfile, 
+  onSignOut, 
+  onOpenFocusTimer,
+  onOpenWeeklyReview,
+  onToggleProjects,
+}: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 
@@ -105,6 +119,34 @@ export function Sidebar({ activeFilter, onFilterChange, onVoiceMode, onOpenSetti
 
       {/* Bottom Actions */}
       <div className="p-3 border-t border-sidebar-border space-y-1">
+        {onToggleProjects && (
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full gap-3",
+              collapsed && "justify-center px-0"
+            )}
+            onClick={onToggleProjects}
+          >
+            <FolderKanban className="w-5 h-5 shrink-0" />
+            {!collapsed && <span>Projects</span>}
+          </Button>
+        )}
+
+        {onOpenWeeklyReview && (
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full gap-3",
+              collapsed && "justify-center px-0"
+            )}
+            onClick={onOpenWeeklyReview}
+          >
+            <CalendarCheck className="w-5 h-5 shrink-0" />
+            {!collapsed && <span>Weekly Review</span>}
+          </Button>
+        )}
+
         {onOpenFocusTimer && (
           <Button
             variant="outline"
