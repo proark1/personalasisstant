@@ -131,6 +131,7 @@ export type Database = {
           priority: string
           recurrence_end: string | null
           recurrence_rule: string | null
+          reminder_before: number | null
           sort_order: number | null
           title: string
           updated_at: string
@@ -147,6 +148,7 @@ export type Database = {
           priority?: string
           recurrence_end?: string | null
           recurrence_rule?: string | null
+          reminder_before?: number | null
           sort_order?: number | null
           title: string
           updated_at?: string
@@ -163,6 +165,7 @@ export type Database = {
           priority?: string
           recurrence_end?: string | null
           recurrence_rule?: string | null
+          reminder_before?: number | null
           sort_order?: number | null
           title?: string
           updated_at?: string

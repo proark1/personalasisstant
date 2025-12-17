@@ -15,6 +15,7 @@ interface DbTask {
   recurrence_end: string | null;
   parent_id: string | null;
   sort_order: number | null;
+  reminder_before: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +63,7 @@ export function useDatabase(userId: string | undefined) {
     recurrenceEnd: dbTask.recurrence_end ? new Date(dbTask.recurrence_end) : undefined,
     parentId: dbTask.parent_id || undefined,
     sortOrder: dbTask.sort_order ?? 0,
+    reminderBefore: dbTask.reminder_before ?? undefined,
   });
 
   // Convert DB event to app CalendarEvent
@@ -134,6 +136,7 @@ export function useDatabase(userId: string | undefined) {
         recurrence_end: task.recurrenceEnd?.toISOString(),
         parent_id: task.parentId,
         sort_order: task.sortOrder ?? 0,
+        reminder_before: task.reminderBefore,
       })
       .select()
       .single();
@@ -158,6 +161,7 @@ export function useDatabase(userId: string | undefined) {
     if (updates.recurrenceEnd !== undefined) dbUpdates.recurrence_end = updates.recurrenceEnd?.toISOString();
     if (updates.parentId !== undefined) dbUpdates.parent_id = updates.parentId;
     if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
+    if (updates.reminderBefore !== undefined) dbUpdates.reminder_before = updates.reminderBefore;
 
     const { error } = await supabase
       .from('tasks')

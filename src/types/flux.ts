@@ -34,6 +34,7 @@ export interface Task {
   recurrenceEnd?: Date;
   parentId?: string; // For subtasks
   sortOrder?: number; // For drag-and-drop ordering
+  reminderBefore?: number; // Minutes before due date to notify
 }
 
 export interface CalendarEvent {

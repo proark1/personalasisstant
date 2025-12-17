@@ -4,13 +4,13 @@ import { differenceInMinutes, isPast } from 'date-fns';
 
 interface UseTaskNotificationsOptions {
   tasks: Task[];
-  reminderMinutesBefore: number;
+  defaultReminderMinutes: number;
   enabled: boolean;
 }
 
 export function useTaskNotifications({ 
   tasks, 
-  reminderMinutesBefore,
+  defaultReminderMinutes,
   enabled 
 }: UseTaskNotificationsOptions) {
   const notifiedTasks = useRef<Set<string>>(new Set());
@@ -36,11 +36,23 @@ export function useTaskNotifications({
     return false;
   }, []);
 
-  const showNotification = useCallback((task: Task) => {
+  const showNotification = useCallback((task: Task, minutesBefore: number) => {
     if (!permissionGranted.current || notifiedTasks.current.has(task.id)) return;
 
+    // Format the time remaining for the notification
+    let timeMessage: string;
+    if (minutesBefore >= 1440) {
+      const days = Math.round(minutesBefore / 1440);
+      timeMessage = `${days} day${days > 1 ? 's' : ''}`;
+    } else if (minutesBefore >= 60) {
+      const hours = Math.round(minutesBefore / 60);
+      timeMessage = `${hours} hour${hours > 1 ? 's' : ''}`;
+    } else {
+      timeMessage = `${minutesBefore} minute${minutesBefore > 1 ? 's' : ''}`;
+    }
+
     const notification = new Notification('Task Due Soon', {
-      body: `"${task.title}" is due in ${reminderMinutesBefore} minutes`,
+      body: `"${task.title}" is due in ${timeMessage}`,
       icon: '/favicon.ico',
       tag: task.id,
       requireInteraction: true,
@@ -52,7 +64,7 @@ export function useTaskNotifications({
     };
 
     notifiedTasks.current.add(task.id);
-  }, [reminderMinutesBefore]);
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -69,10 +81,14 @@ export function useTaskNotifications({
         if (!task.dueDate || task.completed) return;
         if (isPast(task.dueDate)) return;
         
+        // Use task-specific reminder or fall back to default
+        const reminderMinutes = task.reminderBefore ?? defaultReminderMinutes;
+        if (reminderMinutes <= 0) return; // No reminder set
+        
         const minutesUntilDue = differenceInMinutes(task.dueDate, now);
         
-        if (minutesUntilDue <= reminderMinutesBefore && minutesUntilDue > 0) {
-          showNotification(task);
+        if (minutesUntilDue <= reminderMinutes && minutesUntilDue > 0) {
+          showNotification(task, minutesUntilDue);
         }
       });
     };
@@ -84,7 +100,7 @@ export function useTaskNotifications({
     const interval = setInterval(checkTasks, 60000);
 
     return () => clearInterval(interval);
-  }, [tasks, enabled, reminderMinutesBefore, showNotification]);
+  }, [tasks, enabled, defaultReminderMinutes, showNotification]);
 
   // Reset notified tasks when tasks change significantly
   useEffect(() => {

@@ -38,7 +38,7 @@ const Index = () => {
   // Task notifications
   useTaskNotifications({
     tasks,
-    reminderMinutesBefore: settings.notifications.reminderMinutesBefore,
+    defaultReminderMinutes: settings.notifications.reminderMinutesBefore,
     enabled: settings.notifications.taskReminders,
   });
 
