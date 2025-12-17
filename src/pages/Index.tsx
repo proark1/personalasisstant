@@ -507,6 +507,7 @@ const Index = () => {
             setShareProjectDialog({ projectId, projectName });
             getProjectMembers(projectId);
           }}
+          onShareProjectWithEmail={(projectId, email) => shareProject(projectId, email)}
         />
       ) : (
         <GhostMode 

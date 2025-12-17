@@ -8,15 +8,24 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { FolderPlus, Archive, Trash2, Pencil, Users } from 'lucide-react';
+import { FamilyShoppingTemplate } from '../shopping/FamilyShoppingTemplate';
 
 const PROJECT_COLORS = [
   '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
   '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
 ];
 
+interface Contact {
+  id?: string;
+  userId: string;
+  email?: string;
+  displayName?: string;
+}
+
 interface ProjectManagerProps {
   projects: Project[];
   tasks: Task[];
+  contacts?: Contact[];
   onAddProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Project | null>;
   onUpdateProject: (id: string, updates: Partial<Project>) => void;
   onDeleteProject: (id: string) => void;
@@ -24,11 +33,14 @@ interface ProjectManagerProps {
   selectedProjectId?: string;
   onSelectProject?: (projectId: string | undefined) => void;
   onShareProject?: (projectId: string, projectName: string) => void;
+  onShareProjectWithEmail?: (projectId: string, email: string) => Promise<{ error: string | null }>;
+  onAddTask?: (task: { title: string; projectId: string; category: 'personal'; priority: 'medium' }) => void;
 }
 
 export function ProjectManager({
   projects,
   tasks,
+  contacts = [],
   onAddProject,
   onUpdateProject,
   onDeleteProject,
@@ -36,6 +48,8 @@ export function ProjectManager({
   selectedProjectId,
   onSelectProject,
   onShareProject,
+  onShareProjectWithEmail,
+  onAddTask,
 }: ProjectManagerProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -186,6 +200,16 @@ export function ProjectManager({
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Family Shopping Template */}
+      {onShareProjectWithEmail && onAddTask && (
+        <FamilyShoppingTemplate
+          onCreateProject={onAddProject}
+          onShareProject={onShareProjectWithEmail}
+          onAddTask={onAddTask}
+          contacts={contacts}
+        />
+      )}
 
       <div className="space-y-2">
         {activeProjects.map(project => (

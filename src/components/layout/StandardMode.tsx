@@ -78,6 +78,7 @@ interface StandardModeProps {
   onDeleteProject?: (id: string) => void;
   getProjectProgress?: (projectId: string, tasks: { projectId?: string; completed: boolean }[]) => number;
   onShareProject?: (projectId: string, projectName: string) => void;
+  onShareProjectWithEmail?: (projectId: string, email: string) => Promise<{ error: string | null }>;
 }
 
 type FullscreenPanel = 'chat' | 'tasks' | 'calendar' | null;
@@ -123,6 +124,7 @@ export function StandardMode({
   onDeleteProject,
   getProjectProgress,
   onShareProject,
+  onShareProjectWithEmail,
 }: StandardModeProps) {
   const [filter, setFilter] = useState<SidebarFilter>('all');
   const [calendarMode, setCalendarMode] = useState<'agenda' | 'grid'>('agenda');
@@ -369,6 +371,7 @@ export function StandardMode({
               <ProjectManager
                 projects={projects}
                 tasks={tasks}
+                contacts={contacts}
                 onAddProject={onAddProject}
                 onUpdateProject={onUpdateProject}
                 onDeleteProject={onDeleteProject}
@@ -376,6 +379,8 @@ export function StandardMode({
                 selectedProjectId={selectedProjectId}
                 onSelectProject={setSelectedProjectId}
                 onShareProject={onShareProject}
+                onShareProjectWithEmail={onShareProjectWithEmail}
+                onAddTask={(task) => onAddTask({ ...task, completed: false })}
               />
             </div>
           )}
