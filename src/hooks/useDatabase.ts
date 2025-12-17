@@ -307,17 +307,28 @@ export function useDatabase(userId: string | undefined) {
     shareWithEmail: string,
     permission: 'view' | 'edit' = 'view'
   ) => {
-    if (!userId) return { error: 'Not authenticated' };
+    if (!userId) return { error: 'Not authenticated. Please log in to share items.' };
 
-    // Find user by email
-    const { data: profiles } = await supabase
+    const normalizedEmail = shareWithEmail.trim().toLowerCase();
+
+    // Find user by email (case-insensitive)
+    const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('user_id')
-      .eq('email', shareWithEmail)
-      .single();
+      .select('user_id, email')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (profileError) {
+      return { error: 'Failed to look up user. Please try again.' };
+    }
 
     if (!profiles) {
-      return { error: 'User not found' };
+      return { error: `No account found with email "${shareWithEmail}". Make sure the user has registered and the email is correct.` };
+    }
+
+    // Prevent sharing with yourself
+    if (profiles.user_id === userId) {
+      return { error: "You can't share an item with yourself." };
     }
 
     const { error } = await supabase
@@ -331,7 +342,11 @@ export function useDatabase(userId: string | undefined) {
       });
 
     if (error) {
-      return { error: error.message };
+      // Check for duplicate share
+      if (error.code === '23505') {
+        return { error: `This ${itemType} is already shared with ${profiles.email}.` };
+      }
+      return { error: `Failed to share: ${error.message}` };
     }
 
     return { error: null };
