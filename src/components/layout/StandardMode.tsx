@@ -518,7 +518,7 @@ export function StandardMode({
       )}
 
       {/* Quick Add FAB */}
-      <QuickAddFAB onAddTask={onAddTask} />
+      <QuickAddFAB onAddTask={onAddTask} projects={projects} />
     </div>
   );
 }

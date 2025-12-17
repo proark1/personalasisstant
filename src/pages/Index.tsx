@@ -69,11 +69,12 @@ const Index = () => {
   // Real-time notifications for shares
   useSharedItemsRealtime({ userId: user?.id, onNewShare: loadSharedItems });
 
-  // Task notifications
+  // Task notifications with ADHD mode support
   useTaskNotifications({
     tasks,
     defaultReminderMinutes: settings.notifications.reminderMinutesBefore,
     enabled: settings.notifications.taskReminders,
+    adhdMode: settings.notifications.adhdMode,
   });
 
   // Tags system

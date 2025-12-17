@@ -361,6 +361,20 @@ export function ProfileSettingsDialog({
                   className="w-full"
                 />
               </div>
+
+              {/* ADHD Mode */}
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <div>
+                  <p className="font-medium text-sm">ADHD Focus Mode</p>
+                  <p className="text-xs text-muted-foreground">
+                    Multiple gentle reminders (15min, 5min, now) + nagging for overdue tasks
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.notifications.adhdMode}
+                  onCheckedChange={(checked) => onUpdateNotifications({ adhdMode: checked })}
+                />
+              </div>
             </>
           )}
 

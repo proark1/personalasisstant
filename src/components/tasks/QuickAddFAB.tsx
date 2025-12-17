@@ -1,22 +1,39 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, X, Sparkles, Calendar, Flag } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, X, Sparkles, Calendar, Flag, Folder } from 'lucide-react';
 import { parseTaskInput } from '@/lib/taskParser';
-import { Task } from '@/types/flux';
+import { detectProjectFromText } from '@/lib/projectDetection';
+import { Task, Project } from '@/types/flux';
 import { format } from 'date-fns';
 
 interface QuickAddFABProps {
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+  projects?: Project[];
 }
 
-export function QuickAddFAB({ onAddTask }: QuickAddFABProps) {
+export function QuickAddFAB({ onAddTask, projects = [] }: QuickAddFABProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const parsedTask = input.trim() ? parseTaskInput(input) : null;
+  
+  // Detect project from input text
+  const projectSuggestion = useMemo(() => {
+    if (!input.trim() || projects.length === 0) return null;
+    return detectProjectFromText(input, projects);
+  }, [input, projects]);
+
+  // Auto-select suggested project if user hasn't manually selected one
+  useEffect(() => {
+    if (projectSuggestion && !selectedProjectId) {
+      // Only auto-suggest, don't auto-select
+    }
+  }, [projectSuggestion, selectedProjectId]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -34,6 +51,7 @@ export function QuickAddFAB({ onAddTask }: QuickAddFABProps) {
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
         setInput('');
+        setSelectedProjectId(undefined);
       }
     };
 
@@ -52,10 +70,22 @@ export function QuickAddFAB({ onAddTask }: QuickAddFABProps) {
       completed: false,
       dueDate: parsedTask.dueDate,
       sortOrder: 0,
+      projectId: selectedProjectId || projectSuggestion?.project.id,
     });
 
     setInput('');
+    setSelectedProjectId(undefined);
     setIsOpen(false);
+  };
+
+  const handleAcceptSuggestion = () => {
+    if (projectSuggestion) {
+      setSelectedProjectId(projectSuggestion.project.id);
+    }
+  };
+
+  const handleClearProject = () => {
+    setSelectedProjectId(undefined);
   };
 
   const priorityColors = {
@@ -63,6 +93,10 @@ export function QuickAddFAB({ onAddTask }: QuickAddFABProps) {
     medium: 'text-warning',
     low: 'text-muted-foreground',
   };
+
+  const activeProject = selectedProjectId 
+    ? projects.find(p => p.id === selectedProjectId)
+    : projectSuggestion?.project;
 
   return (
     <>
@@ -73,6 +107,7 @@ export function QuickAddFAB({ onAddTask }: QuickAddFABProps) {
           onClick={() => {
             setIsOpen(false);
             setInput('');
+            setSelectedProjectId(undefined);
           }}
         />
       )}
@@ -92,6 +127,7 @@ export function QuickAddFAB({ onAddTask }: QuickAddFABProps) {
                 onClick={() => {
                   setIsOpen(false);
                   setInput('');
+                  setSelectedProjectId(undefined);
                 }}
               >
                 <X className="w-4 h-4" />
@@ -103,9 +139,47 @@ export function QuickAddFAB({ onAddTask }: QuickAddFABProps) {
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder='Try "Call mom tomorrow at 3pm"'
+                placeholder='Try "Buy milk for family shopping"'
                 className="mb-3"
               />
+
+              {/* Project suggestion chip */}
+              {projectSuggestion && !selectedProjectId && (
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Suggested:</span>
+                  <Badge 
+                    variant="outline" 
+                    className="cursor-pointer hover:bg-primary/10 transition-colors"
+                    onClick={handleAcceptSuggestion}
+                  >
+                    <div 
+                      className="w-2 h-2 rounded-full mr-1.5"
+                      style={{ backgroundColor: projectSuggestion.project.color }}
+                    />
+                    {projectSuggestion.project.name}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Selected project */}
+              {selectedProjectId && activeProject && (
+                <div className="mb-3 flex items-center gap-2">
+                  <Badge variant="secondary" className="flex items-center gap-1.5">
+                    <div 
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: activeProject.color }}
+                    />
+                    {activeProject.name}
+                    <button 
+                      type="button"
+                      onClick={handleClearProject}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                </div>
+              )}
 
               {/* Preview parsed result */}
               {parsedTask && parsedTask.title && (
@@ -113,7 +187,7 @@ export function QuickAddFAB({ onAddTask }: QuickAddFABProps) {
                   <div className="font-medium text-foreground truncate">
                     {parsedTask.title}
                   </div>
-                  <div className="flex items-center gap-3 text-muted-foreground">
+                  <div className="flex items-center gap-3 text-muted-foreground flex-wrap">
                     {parsedTask.dueDate && (
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
@@ -124,7 +198,12 @@ export function QuickAddFAB({ onAddTask }: QuickAddFABProps) {
                       <Flag className="w-3 h-3" />
                       {parsedTask.priority}
                     </span>
-                    <span className="capitalize">{parsedTask.category}</span>
+                    {activeProject && (
+                      <span className="flex items-center gap-1">
+                        <Folder className="w-3 h-3" />
+                        {activeProject.name}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}

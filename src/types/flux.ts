@@ -128,6 +128,7 @@ export interface UserSettings {
     taskReminders: boolean;
     calendarAlerts: boolean;
     reminderMinutesBefore: number;
+    adhdMode: boolean; // Multiple gentle reminders for ADHD support
   };
 }
 
@@ -172,5 +173,6 @@ export const defaultSettings: UserSettings = {
     taskReminders: true,
     calendarAlerts: true,
     reminderMinutesBefore: 15,
+    adhdMode: false,
   },
 };
