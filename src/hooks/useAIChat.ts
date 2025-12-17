@@ -23,26 +23,37 @@ export function useAIChat() {
     const toolCalls: ToolCall[] = [];
     let cleanContent = content;
 
-    // Parse manage_task tool calls - use a more flexible regex for nested JSON
-    const taskMatches = content.matchAll(/<tool>manage_task<\/tool><action>(\w+)<\/action><task>(\{[\s\S]*?\})<\/task>/g);
+    // Parse manage_task tool calls (allow whitespace/newlines between tags)
+    const taskMatches = content.matchAll(
+      /<tool>manage_task<\/tool>\s*<action>(\w+)<\/action>\s*<task>(\{[\s\S]*?\})<\/task>/g
+    );
     for (const match of taskMatches) {
       try {
         const action = match[1] as 'add' | 'update' | 'delete' | 'complete';
         const taskData = JSON.parse(match[2]);
-        // Convert dueDate string to Date object if present
+
+        const dueDateRaw = taskData.dueDate ?? taskData.due_date;
+        const recurrenceRuleRaw = taskData.recurrenceRule ?? taskData.recurrence_rule;
+        const recurrenceEndRaw = taskData.recurrenceEnd ?? taskData.recurrence_end;
+
         const task: Partial<Task> = {
           ...taskData,
-          dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
-          recurrenceRule: taskData.recurrenceRule,
+          dueDate: dueDateRaw ? new Date(dueDateRaw) : undefined,
+          recurrenceRule: recurrenceRuleRaw,
+          recurrenceEnd: recurrenceEndRaw ? new Date(recurrenceEndRaw) : undefined,
         };
+
         toolCalls.push({ tool: 'manage_task', action, task });
         cleanContent = cleanContent.replace(match[0], '');
       } catch (e) {
         console.error('Failed to parse task tool call:', e);
       }
     }
-    // Parse schedule_event tool calls - use a more flexible regex for nested JSON
-    const eventMatches = content.matchAll(/<tool>schedule_event<\/tool><event>(\{[\s\S]*?\})<\/event>/g);
+
+    // Parse schedule_event tool calls (allow whitespace/newlines between tags)
+    const eventMatches = content.matchAll(
+      /<tool>schedule_event<\/tool>\s*<event>(\{[\s\S]*?\})<\/event>/g
+    );
     for (const match of eventMatches) {
       try {
         const eventData = JSON.parse(match[1]);
@@ -52,7 +63,12 @@ export function useAIChat() {
           endTime: new Date(eventData.endTime),
           location: eventData.location,
           attendees: eventData.attendees,
-          recurrenceRule: eventData.recurrenceRule,
+          recurrenceRule: eventData.recurrenceRule ?? eventData.recurrence_rule,
+          recurrenceEnd: eventData.recurrenceEnd
+            ? new Date(eventData.recurrenceEnd)
+            : eventData.recurrence_end
+              ? new Date(eventData.recurrence_end)
+              : undefined,
         };
         toolCalls.push({ tool: 'schedule_event', event });
         cleanContent = cleanContent.replace(match[0], '');

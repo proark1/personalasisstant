@@ -138,21 +138,56 @@ const Index = () => {
                 console.warn('Task creation rate limit reached for this message');
                 return;
               }
-              // Dedupe: skip if we already created a task with this title in this message
-              const taskTitle = (toolCall.task.title || 'New Task').toLowerCase().trim();
+
+              const taskTitleRaw = toolCall.task.title || 'New Task';
+              const taskTitle = taskTitleRaw.toLowerCase().trim();
+
+              // Dedupe: skip if we already created/updated a task with this title in this message
               if (createdTaskTitles.has(taskTitle)) {
                 console.warn('Duplicate task title skipped:', taskTitle);
                 return;
               }
               createdTaskTitles.add(taskTitle);
               tasksCreatedThisMessage++;
-              
+
+              const dueDate = toolCall.task.dueDate;
+              const recurrenceRule = toolCall.task.recurrenceRule;
+              const recurrenceEnd = toolCall.task.recurrenceEnd;
+
+              // If a task with same title already exists but is missing scheduling fields,
+              // update it instead of creating a duplicate.
+              const existing = tasks.find(
+                (t) => t.title.toLowerCase().trim() === taskTitle
+              );
+
+              if (
+                existing &&
+                (dueDate || recurrenceRule || recurrenceEnd) &&
+                !existing.dueDate &&
+                !existing.recurrenceRule
+              ) {
+                await updateTask(existing.id, {
+                  dueDate: dueDate ?? existing.dueDate,
+                  recurrenceRule: recurrenceRule ?? existing.recurrenceRule,
+                  recurrenceEnd: recurrenceEnd ?? existing.recurrenceEnd,
+                });
+                toast({
+                  title: 'Task Updated',
+                  description: `${existing.title} scheduled`,
+                });
+                return;
+              }
+
               const newTask = await addTask({
-                title: toolCall.task.title || 'New Task',
+                title: taskTitleRaw,
                 category: toolCall.task.category || settings.defaultTaskCategory,
                 priority: toolCall.task.priority || settings.defaultTaskPriority,
                 completed: false,
+                dueDate,
+                recurrenceRule,
+                recurrenceEnd,
               });
+
               if (newTask) {
                 toast({
                   title: 'Task Added',
@@ -184,13 +219,15 @@ const Index = () => {
             }
             createdEventTitles.add(eventTitle);
             eventsCreatedThisMessage++;
-            
+
             const newEvent = await addEvent({
               title: toolCall.event.title || 'New Event',
               startTime: toolCall.event.startTime || new Date(),
               endTime: toolCall.event.endTime || new Date(Date.now() + 60 * 60 * 1000),
               location: toolCall.event.location,
               attendees: toolCall.event.attendees,
+              recurrenceRule: toolCall.event.recurrenceRule,
+              recurrenceEnd: toolCall.event.recurrenceEnd,
             });
             if (newEvent) {
               toast({
@@ -230,7 +267,7 @@ const Index = () => {
     } finally {
       sendLockRef.current = false;
     }
-  }, [addMessage, addTask, addEvent, deleteTask, toggleTaskComplete, events, messages, settings, streamChat, tasks, toast]);
+  }, [addMessage, addTask, addEvent, deleteTask, toggleTaskComplete, updateTask, events, messages, settings, streamChat, tasks, toast]);
 
   const handleGhostCommand = useCallback((command: string) => {
     handleSendMessage(command);
