@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,10 @@ import {
 } from '@/components/ui/select';
 import { Contract, ContractInput, ContractCategory, CostFrequency, CONTRACT_CATEGORIES } from '@/hooks/useContracts';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Upload, FileText, X, Loader2, ExternalLink } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface AddEditContractDialogProps {
   open: boolean;
@@ -33,6 +37,10 @@ export function AddEditContractDialog({
   contract,
   onSave,
 }: AddEditContractDialogProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [name, setName] = useState('');
   const [category, setCategory] = useState<ContractCategory>('other');
   const [provider, setProvider] = useState('');
@@ -47,6 +55,8 @@ export function AddEditContractDialog({
   const [notes, setNotes] = useState('');
   const [documentUrl, setDocumentUrl] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   useEffect(() => {
     if (contract) {
@@ -64,6 +74,13 @@ export function AddEditContractDialog({
       setNotes(contract.notes || '');
       setDocumentUrl(contract.documentUrl || '');
       setIsActive(contract.isActive);
+      // Extract filename from URL
+      if (contract.documentUrl) {
+        const parts = contract.documentUrl.split('/');
+        setFileName(parts[parts.length - 1]);
+      } else {
+        setFileName(null);
+      }
     } else {
       // Reset form
       setName('');
@@ -80,8 +97,120 @@ export function AddEditContractDialog({
       setNotes('');
       setDocumentUrl('');
       setIsActive(true);
+      setFileName(null);
     }
   }, [contract, open]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid file type',
+        description: 'Please upload a PDF or image file (JPG, PNG, WebP)',
+      });
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        variant: 'destructive',
+        title: 'File too large',
+        description: 'Maximum file size is 10MB',
+      });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const timestamp = Date.now();
+      const filePath = `${user.id}/${timestamp}-${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('contract-documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('contract-documents')
+        .getPublicUrl(filePath);
+
+      // For private buckets, we need to use createSignedUrl
+      const { data: signedUrlData } = await supabase.storage
+        .from('contract-documents')
+        .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year
+
+      const url = signedUrlData?.signedUrl || urlData.publicUrl;
+      
+      setDocumentUrl(filePath); // Store path, not URL
+      setFileName(file.name);
+      
+      toast({
+        title: 'Document uploaded',
+        description: file.name,
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Upload failed',
+        description: 'Could not upload document. Please try again.',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveDocument = async () => {
+    if (!documentUrl || !user) return;
+
+    try {
+      // Only delete from storage if it's a storage path (not external URL)
+      if (!documentUrl.startsWith('http')) {
+        await supabase.storage
+          .from('contract-documents')
+          .remove([documentUrl]);
+      }
+      
+      setDocumentUrl('');
+      setFileName(null);
+      
+      toast({
+        title: 'Document removed',
+      });
+    } catch (error) {
+      console.error('Remove error:', error);
+    }
+  };
+
+  const handleViewDocument = async () => {
+    if (!documentUrl) return;
+
+    // If it's an external URL, open directly
+    if (documentUrl.startsWith('http')) {
+      window.open(documentUrl, '_blank');
+      return;
+    }
+
+    // Get signed URL for private bucket
+    const { data } = await supabase.storage
+      .from('contract-documents')
+      .createSignedUrl(documentUrl, 60 * 60); // 1 hour
+
+    if (data?.signedUrl) {
+      window.open(data.signedUrl, '_blank');
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,16 +369,64 @@ export function AddEditContractDialog({
             />
           </div>
 
-          {/* Document URL */}
+          {/* Document Upload */}
           <div className="space-y-2">
-            <Label htmlFor="documentUrl">Document Link</Label>
-            <Input
-              id="documentUrl"
-              type="url"
-              value={documentUrl}
-              onChange={(e) => setDocumentUrl(e.target.value)}
-              placeholder="https://..."
+            <Label>Contract Document</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              onChange={handleFileUpload}
+              className="hidden"
             />
+            
+            {fileName ? (
+              <div className="flex items-center gap-2 p-3 rounded-lg border bg-muted/50">
+                <FileText className="w-5 h-5 text-primary shrink-0" />
+                <span className="text-sm truncate flex-1">{fileName}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={handleViewDocument}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                  onClick={handleRemoveDocument}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload PDF or Image
+                  </>
+                )}
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground">
+              PDF, JPG, PNG, or WebP. Max 10MB.
+            </p>
           </div>
 
           {/* Notes */}
