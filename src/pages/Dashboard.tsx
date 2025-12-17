@@ -2,9 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useContracts } from '@/hooks/useContracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { ContractCostWidget } from '@/components/contracts/ContractCostWidget';
 import { 
   ArrowLeft, 
   CheckCircle2, 
@@ -36,6 +38,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const { contracts } = useContracts(user?.id);
 
   useEffect(() => {
     if (!user) return;
@@ -325,6 +328,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Contract Costs Widget */}
+        <ContractCostWidget contracts={contracts} />
 
         {/* Upcoming Deadlines */}
         <Card className="glass-panel-solid">

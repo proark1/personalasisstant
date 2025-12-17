@@ -2,9 +2,10 @@ import { Contract, CONTRACT_CATEGORIES } from '@/hooks/useContracts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Pencil, Trash2, Calendar, DollarSign, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Pencil, Trash2, Calendar, DollarSign, AlertTriangle, FileText } from 'lucide-react';
 import { format, differenceInDays, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ContractCardProps {
   contract: Contract;
@@ -109,9 +110,20 @@ export function ContractCard({ contract, onEdit, onDelete }: ContractCardProps) 
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => window.open(contract.documentUrl, '_blank')}
+                onClick={async () => {
+                  if (contract.documentUrl?.startsWith('http')) {
+                    window.open(contract.documentUrl, '_blank');
+                  } else {
+                    const { data } = await supabase.storage
+                      .from('contract-documents')
+                      .createSignedUrl(contract.documentUrl!, 60 * 60);
+                    if (data?.signedUrl) {
+                      window.open(data.signedUrl, '_blank');
+                    }
+                  }
+                }}
               >
-                <ExternalLink className="h-4 w-4" />
+                <FileText className="h-4 w-4" />
               </Button>
             )}
             <Button
