@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   ArrowLeft, UserPlus, Trash2, Search, Users, Briefcase, Heart, 
   Phone, Mail, Building, Clock, Bell, MessageSquare, Check, Pencil,
-  AlertCircle, Linkedin, Twitter, Globe
+  AlertCircle, Linkedin, Twitter, Globe, MapPin
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, isPast } from 'date-fns';
@@ -41,6 +41,8 @@ interface ContactFormData {
   phone: string;
   company: string;
   role: string;
+  country: string;
+  city: string;
   contactType: ContactType;
   personalTier: PersonalTier | '';
   businessLevel: BusinessLevel | '';
@@ -58,6 +60,8 @@ const defaultFormData: ContactFormData = {
   phone: '',
   company: '',
   role: '',
+  country: '',
+  city: '',
   contactType: 'personal',
   personalTier: '',
   businessLevel: '',
@@ -105,6 +109,8 @@ export default function Contacts() {
       phone: contact.phone || '',
       company: contact.company || '',
       role: contact.role || '',
+      country: contact.country || '',
+      city: contact.city || '',
       contactType: contact.contactType,
       personalTier: contact.personalTier || '',
       businessLevel: contact.businessLevel || '',
@@ -133,6 +139,8 @@ export default function Contacts() {
         phone: formData.phone || undefined,
         company: formData.company || undefined,
         role: formData.role || undefined,
+        country: formData.country || undefined,
+        city: formData.city || undefined,
         contactType: formData.contactType,
         personalTier: formData.personalTier || undefined,
         businessLevel: formData.businessLevel || undefined,
@@ -155,6 +163,8 @@ export default function Contacts() {
         phone: formData.phone || undefined,
         company: formData.company || undefined,
         role: formData.role || undefined,
+        country: formData.country || undefined,
+        city: formData.city || undefined,
         contactType: formData.contactType,
         personalTier: formData.personalTier || undefined,
         businessLevel: formData.businessLevel || undefined,
@@ -194,6 +204,8 @@ export default function Contacts() {
       c.name.toLowerCase().includes(query) ||
       c.email?.toLowerCase().includes(query) ||
       c.company?.toLowerCase().includes(query) ||
+      c.country?.toLowerCase().includes(query) ||
+      c.city?.toLowerCase().includes(query) ||
       c.notes?.toLowerCase().includes(query) ||
       c.tags.some(t => t.toLowerCase().includes(query))
     );
@@ -257,6 +269,12 @@ export default function Contacts() {
                     <p className="flex items-center gap-1 truncate">
                       <Building className="w-3 h-3 shrink-0" />
                       {contact.company}{contact.role && ` • ${contact.role}`}
+                    </p>
+                  )}
+                  {(contact.city || contact.country) && (
+                    <p className="flex items-center gap-1 truncate">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      {[contact.city, contact.country].filter(Boolean).join(', ')}
                     </p>
                   )}
                 </div>
@@ -421,6 +439,24 @@ export default function Contacts() {
                       value={formData.role}
                       onChange={(e) => setFormData(p => ({ ...p, role: e.target.value }))}
                       placeholder="CEO, Investor, etc."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>City</Label>
+                    <Input
+                      value={formData.city}
+                      onChange={(e) => setFormData(p => ({ ...p, city: e.target.value }))}
+                      placeholder="Munich, Berlin, etc."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Country</Label>
+                    <Input
+                      value={formData.country}
+                      onChange={(e) => setFormData(p => ({ ...p, country: e.target.value }))}
+                      placeholder="Germany, USA, etc."
                     />
                   </div>
                 </div>

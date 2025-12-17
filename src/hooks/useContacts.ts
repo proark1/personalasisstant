@@ -14,6 +14,8 @@ export interface Contact {
   phone?: string;
   company?: string;
   role?: string;
+  country?: string;
+  city?: string;
   contactType: ContactType;
   personalTier?: PersonalTier;
   businessLevel?: BusinessLevel;
@@ -35,6 +37,8 @@ export interface ContactInput {
   phone?: string;
   company?: string;
   role?: string;
+  country?: string;
+  city?: string;
   contactType: ContactType;
   personalTier?: PersonalTier;
   businessLevel?: BusinessLevel;
@@ -71,6 +75,8 @@ export function useContacts(userId: string | undefined) {
     phone: row.phone || undefined,
     company: row.company || undefined,
     role: row.role || undefined,
+    country: row.country || undefined,
+    city: row.city || undefined,
     contactType: row.contact_type as ContactType,
     personalTier: row.personal_tier as PersonalTier | undefined,
     businessLevel: row.business_level as BusinessLevel | undefined,
@@ -130,6 +136,8 @@ export function useContacts(userId: string | undefined) {
         phone: input.phone || null,
         company: input.company || null,
         role: input.role || null,
+        country: input.country || null,
+        city: input.city || null,
         contact_type: input.contactType,
         personal_tier: input.personalTier || null,
         business_level: input.businessLevel || null,
@@ -163,6 +171,8 @@ export function useContacts(userId: string | undefined) {
     if (updates.phone !== undefined) dbUpdates.phone = updates.phone || null;
     if (updates.company !== undefined) dbUpdates.company = updates.company || null;
     if (updates.role !== undefined) dbUpdates.role = updates.role || null;
+    if (updates.country !== undefined) dbUpdates.country = updates.country || null;
+    if (updates.city !== undefined) dbUpdates.city = updates.city || null;
     if (updates.contactType !== undefined) dbUpdates.contact_type = updates.contactType;
     if (updates.personalTier !== undefined) dbUpdates.personal_tier = updates.personalTier || null;
     if (updates.businessLevel !== undefined) dbUpdates.business_level = updates.businessLevel || null;

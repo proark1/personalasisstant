@@ -581,10 +581,12 @@ export type Database = {
       user_contacts: {
         Row: {
           business_level: string | null
+          city: string | null
           company: string | null
           contact_frequency_days: number | null
           contact_type: string
           contact_user_id: string | null
+          country: string | null
           created_at: string
           email: string | null
           id: string
@@ -604,10 +606,12 @@ export type Database = {
         }
         Insert: {
           business_level?: string | null
+          city?: string | null
           company?: string | null
           contact_frequency_days?: number | null
           contact_type?: string
           contact_user_id?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -627,10 +631,12 @@ export type Database = {
         }
         Update: {
           business_level?: string | null
+          city?: string | null
           company?: string | null
           contact_frequency_days?: number | null
           contact_type?: string
           contact_user_id?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           id?: string
