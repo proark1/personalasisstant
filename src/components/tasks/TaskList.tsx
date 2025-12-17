@@ -742,6 +742,19 @@ export function TaskList({
           onClose={() => setEditingTask(null)}
           onSave={onUpdateTask}
           onDelete={onDeleteTask}
+          onAddSubtasks={(parentId, subtasks) => {
+            subtasks.forEach((subtask) => {
+              onAddTask({
+                title: subtask.title,
+                priority: subtask.priority,
+                category: editingTask.category,
+                completed: false,
+                parentId,
+                sortOrder: tasks.length,
+              });
+            });
+            setEditingTask(null);
+          }}
           projects={projects}
           contacts={contacts}
         />

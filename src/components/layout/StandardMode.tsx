@@ -10,6 +10,7 @@ import { ProjectManager } from '../projects/ProjectManager';
 import { ActivityPanel } from '../activity/ActivityPanel';
 import { GlobalSearch } from '../search/GlobalSearch';
 import { QuickAddFAB } from '../tasks/QuickAddFAB';
+import { AICommandPanel } from '../ai/AICommandPanel';
 import { Task, CalendarEvent, ChatMessage, Project } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCelebration } from '@/hooks/useCelebration';
@@ -343,6 +344,19 @@ export function StandardMode({
 
         {/* Right Side - Tasks & Calendar */}
         <div className="flex-1 flex flex-col p-2 pl-1 gap-2">
+          {/* AI Commands */}
+          <div className="flex items-center justify-between px-2">
+            <AICommandPanel
+              tasks={tasks}
+              events={events}
+              onRescheduleTask={(taskId, newDate) => {
+                if (onUpdateTask) {
+                  onUpdateTask(taskId, { dueDate: newDate });
+                }
+              }}
+            />
+          </div>
+
           {/* Tasks - takes full height when calendar hidden */}
           <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
             <TaskList
