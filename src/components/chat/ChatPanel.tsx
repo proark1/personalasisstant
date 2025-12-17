@@ -3,18 +3,38 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatMessage } from '@/types/flux';
-import { Send, Sparkles, User, Bot, Search } from 'lucide-react';
+import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
+import { Send, Sparkles, User, Bot, Search, Mic, MicOff, Maximize2, Minimize2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
   isProcessing: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
-export function ChatPanel({ messages, onSendMessage, isProcessing }: ChatPanelProps) {
+export function ChatPanel({ messages, onSendMessage, isProcessing, isFullscreen = false, onToggleFullscreen }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Voice recognition for text input
+  const {
+    isListening,
+    isSupported,
+    transcript,
+    startListening,
+    stopListening,
+  } = useVoiceRecognition({
+    onTranscript: (text, isFinal) => {
+      if (isFinal) {
+        setInput(prev => prev + (prev ? ' ' : '') + text);
+        stopListening();
+      }
+    },
+    continuous: false,
+  });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,6 +45,14 @@ export function ChatPanel({ messages, onSendMessage, isProcessing }: ChatPanelPr
     if (input.trim() && !isProcessing) {
       onSendMessage(input.trim());
       setInput('');
+    }
+  };
+
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
     }
   };
 
@@ -41,9 +69,21 @@ export function ChatPanel({ messages, onSendMessage, isProcessing }: ChatPanelPr
             <p className="text-xs text-muted-foreground">Gemini 2.5 Flash</p>
           </div>
         </div>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Search className="w-3 h-3" />
-          <span>Search Grounded</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Search className="w-3 h-3" />
+            <span>Search Grounded</span>
+          </div>
+          {onToggleFullscreen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onToggleFullscreen}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -136,15 +176,34 @@ export function ChatPanel({ messages, onSendMessage, isProcessing }: ChatPanelPr
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Voice transcript indicator */}
+      {isListening && transcript && (
+        <div className="px-4 py-2 bg-primary/10 text-sm text-primary">
+          <Mic className="w-3 h-3 inline mr-2 animate-pulse" />
+          {transcript}...
+        </div>
+      )}
+
       {/* Input */}
       <form onSubmit={handleSubmit} className="p-4 border-t border-border">
         <div className="flex gap-2">
+          {isSupported && (
+            <Button 
+              type="button" 
+              variant={isListening ? "default" : "outline"}
+              size="icon"
+              onClick={toggleVoiceInput}
+              className={cn(isListening && "animate-pulse bg-primary")}
+            >
+              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
+          )}
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Flux anything..."
+            placeholder={isListening ? "Listening..." : "Ask Flux anything..."}
             className="flex-1 bg-muted border-0"
-            disabled={isProcessing}
+            disabled={isProcessing || isListening}
           />
           <Button type="submit" size="icon" disabled={!input.trim() || isProcessing}>
             <Send className="w-4 h-4" />

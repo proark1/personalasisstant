@@ -167,44 +167,70 @@ export function EditTaskModal({ task, onClose, onSave, onDelete }: EditTaskModal
             </div>
           </div>
 
-          {/* Due Date */}
+          {/* Due Date & Time */}
           <div className="space-y-2">
-            <Label>Due Date</Label>
-            <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <CalendarIcon className="w-4 h-4" />
-                  {dueDate ? format(dueDate, 'PPP') : 'No due date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dueDate}
-                  onSelect={(date) => {
-                    setDueDate(date);
-                    setShowDatePicker(false);
-                  }}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-                {dueDate && (
-                  <div className="p-2 border-t">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-destructive hover:text-destructive"
-                      onClick={() => {
-                        setDueDate(undefined);
-                        setShowDatePicker(false);
-                      }}
-                    >
-                      Clear due date
-                    </Button>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
+            <Label>Due Date & Time</Label>
+            <div className="flex gap-2">
+              <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="flex-1 justify-start gap-2">
+                    <CalendarIcon className="w-4 h-4" />
+                    {dueDate ? format(dueDate, 'PPP') : 'No due date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dueDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        // Preserve the time from the existing dueDate if any
+                        const hours = dueDate?.getHours() || 9;
+                        const minutes = dueDate?.getMinutes() || 0;
+                        date.setHours(hours, minutes, 0, 0);
+                      }
+                      setDueDate(date);
+                      setShowDatePicker(false);
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                  {dueDate && (
+                    <div className="p-2 border-t">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setDueDate(undefined);
+                          setShowDatePicker(false);
+                        }}
+                      >
+                        Clear due date
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+              {dueDate && (
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="time"
+                    value={dueDate ? format(dueDate, 'HH:mm') : '09:00'}
+                    onChange={(e) => {
+                      if (dueDate && e.target.value) {
+                        const [hours, minutes] = e.target.value.split(':').map(Number);
+                        const newDate = new Date(dueDate);
+                        newDate.setHours(hours, minutes, 0, 0);
+                        setDueDate(newDate);
+                      }
+                    }}
+                    className="w-24"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Recurrence */}

@@ -56,6 +56,8 @@ interface TaskListProps {
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onReorderTasks?: (taskOrders: { id: string; sortOrder: number }[]) => void;
   onShareTask?: (id: string, title: string) => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 const priorityColors: Record<TaskPriority, string> = {

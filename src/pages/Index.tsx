@@ -357,7 +357,7 @@ const Index = () => {
           onDeleteEvent={deleteEvent}
           onImportEvents={handleImportEvents}
           onSendMessage={handleSendMessage}
-          onGhostMode={() => setMode('ghost')}
+          onVoiceMode={() => setMode('ghost')}
           onOpenSettings={() => setShowProfileSettings(true)}
           onEditProfile={() => setShowProfileSettings(true)}
           onShareTask={(id, title) => setShareDialog({ type: 'task', id, title })}

@@ -18,6 +18,7 @@ const buttonVariants = cva(
         glass: "bg-glass/60 backdrop-blur-lg border border-glass-border/50 text-foreground hover:bg-glass/80 hover:border-primary/30",
         glow: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:shadow-xl",
         ghost_mode: "bg-ghost-primary/20 text-ghost-primary border border-ghost-primary/30 hover:bg-ghost-primary/30 hover:shadow-lg hover:shadow-ghost-primary/20",
+        voice_mode: "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 hover:shadow-lg hover:shadow-primary/20",
       },
       size: {
         default: "h-10 px-4 py-2",

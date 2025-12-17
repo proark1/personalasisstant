@@ -5,11 +5,10 @@ import {
   LayoutDashboard, 
   Briefcase, 
   User, 
-  Ghost,
+  Mic,
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Settings,
   LogOut,
   UserCircle
 } from 'lucide-react';
@@ -18,13 +17,13 @@ import { TaskCategory } from '@/types/flux';
 interface SidebarProps {
   activeFilter: TaskCategory | 'all';
   onFilterChange: (filter: TaskCategory | 'all') => void;
-  onGhostMode: () => void;
+  onVoiceMode: () => void;
   onOpenSettings: () => void;
   onEditProfile?: () => void;
   onSignOut?: () => void;
 }
 
-export function Sidebar({ activeFilter, onFilterChange, onGhostMode, onOpenSettings, onEditProfile, onSignOut }: SidebarProps) {
+export function Sidebar({ activeFilter, onFilterChange, onVoiceMode, onOpenSettings, onEditProfile, onSignOut }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
@@ -94,15 +93,15 @@ export function Sidebar({ activeFilter, onFilterChange, onGhostMode, onOpenSetti
         </Button>
         
         <Button
-          variant="ghost_mode"
+          variant="voice_mode"
           className={cn(
             "w-full gap-3",
             collapsed && "justify-center px-0"
           )}
-          onClick={onGhostMode}
+          onClick={onVoiceMode}
         >
-          <Ghost className="w-5 h-5 shrink-0" />
-          {!collapsed && <span>Ghost Mode</span>}
+          <Mic className="w-5 h-5 shrink-0" />
+          {!collapsed && <span>Voice Mode</span>}
         </Button>
 
         {onSignOut && (

@@ -8,7 +8,8 @@ import { CalendarView } from '../calendar/CalendarView';
 import { TaskCategory, Task, CalendarEvent, ChatMessage } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { List, Grid3X3 } from 'lucide-react';
+import { List, Grid3X3, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface StandardModeProps {
   tasks: Task[];
@@ -26,13 +27,15 @@ interface StandardModeProps {
   onDeleteEvent?: (id: string) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
-  onGhostMode: () => void;
+  onVoiceMode: () => void;
   onOpenSettings: () => void;
   onEditProfile?: () => void;
   onShareTask?: (id: string, title: string) => void;
   onShareEvent?: (id: string, title: string) => void;
   onSignOut?: () => void;
 }
+
+type FullscreenPanel = 'chat' | 'tasks' | 'calendar' | null;
 
 export function StandardMode({
   tasks,
@@ -50,7 +53,7 @@ export function StandardMode({
   onDeleteEvent,
   onImportEvents,
   onSendMessage,
-  onGhostMode,
+  onVoiceMode,
   onOpenSettings,
   onEditProfile,
   onShareTask,
@@ -59,6 +62,7 @@ export function StandardMode({
 }: StandardModeProps) {
   const [filter, setFilter] = useState<TaskCategory | 'all'>('all');
   const [calendarMode, setCalendarMode] = useState<'agenda' | 'grid'>('agenda');
+  const [fullscreenPanel, setFullscreenPanel] = useState<FullscreenPanel>(null);
   const isMobile = useIsMobile();
 
   // Use mobile layout on small screens
@@ -80,7 +84,7 @@ export function StandardMode({
         onDeleteEvent={onDeleteEvent}
         onImportEvents={onImportEvents}
         onSendMessage={onSendMessage}
-        onGhostMode={onGhostMode}
+        onVoiceMode={onVoiceMode}
         onOpenSettings={onOpenSettings}
         onEditProfile={onEditProfile}
         onShareTask={onShareTask}
@@ -90,12 +94,79 @@ export function StandardMode({
     );
   }
 
+  // Fullscreen overlay
+  if (fullscreenPanel) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <div className="h-14 px-4 flex items-center justify-end border-b border-border">
+          <Button variant="ghost" size="icon" onClick={() => setFullscreenPanel(null)}>
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          {fullscreenPanel === 'chat' && (
+            <ChatPanel 
+              messages={messages}
+              onSendMessage={onSendMessage}
+              isProcessing={isProcessing}
+              isFullscreen={true}
+              onToggleFullscreen={() => setFullscreenPanel(null)}
+            />
+          )}
+          {fullscreenPanel === 'tasks' && (
+            <TaskList
+              tasks={tasks}
+              filter={filter}
+              onToggleComplete={onToggleTaskComplete}
+              onDeleteTask={onDeleteTask}
+              onDeleteTasks={onDeleteTasks}
+              onAddTask={onAddTask}
+              onUpdateTask={onUpdateTask}
+              onReorderTasks={onReorderTasks}
+              onShareTask={onShareTask}
+              isFullscreen={true}
+              onToggleFullscreen={() => setFullscreenPanel(null)}
+            />
+          )}
+          {fullscreenPanel === 'calendar' && (
+            calendarMode === 'agenda' ? (
+              <CalendarPanel
+                events={events}
+                tasks={tasks}
+                onAddEvent={onAddEvent}
+                onUpdateEvent={onUpdateEvent}
+                onDeleteEvent={onDeleteEvent}
+                onImportEvents={onImportEvents}
+                onShareEvent={onShareEvent}
+                onToggleTaskComplete={onToggleTaskComplete}
+                onUpdateTask={onUpdateTask}
+                onDeleteTask={onDeleteTask}
+                isFullscreen={true}
+                onToggleFullscreen={() => setFullscreenPanel(null)}
+              />
+            ) : (
+              <CalendarView
+                events={events}
+                tasks={tasks}
+                onToggleTaskComplete={onToggleTaskComplete}
+                onUpdateTask={onUpdateTask}
+                onDeleteTask={onDeleteTask}
+                isFullscreen={true}
+                onToggleFullscreen={() => setFullscreenPanel(null)}
+              />
+            )
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-full bg-background">
       <Sidebar 
         activeFilter={filter} 
         onFilterChange={setFilter}
-        onGhostMode={onGhostMode}
+        onVoiceMode={onVoiceMode}
         onOpenSettings={onOpenSettings}
         onEditProfile={onEditProfile}
         onSignOut={onSignOut}
@@ -108,6 +179,7 @@ export function StandardMode({
             messages={messages}
             onSendMessage={onSendMessage}
             isProcessing={isProcessing}
+            onToggleFullscreen={() => setFullscreenPanel('chat')}
           />
         </div>
 
@@ -125,6 +197,7 @@ export function StandardMode({
               onUpdateTask={onUpdateTask}
               onReorderTasks={onReorderTasks}
               onShareTask={onShareTask}
+              onToggleFullscreen={() => setFullscreenPanel('tasks')}
             />
           </div>
 
@@ -161,12 +234,16 @@ export function StandardMode({
                   onToggleTaskComplete={onToggleTaskComplete}
                   onUpdateTask={onUpdateTask}
                   onDeleteTask={onDeleteTask}
+                  onToggleFullscreen={() => setFullscreenPanel('calendar')}
                 />
               ) : (
                 <CalendarView
                   events={events}
                   tasks={tasks}
                   onToggleTaskComplete={onToggleTaskComplete}
+                  onUpdateTask={onUpdateTask}
+                  onDeleteTask={onDeleteTask}
+                  onToggleFullscreen={() => setFullscreenPanel('calendar')}
                 />
               )}
             </div>

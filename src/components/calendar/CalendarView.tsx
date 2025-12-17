@@ -3,12 +3,15 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { CalendarEvent, Task } from '@/types/flux';
 import { expandRecurringItems } from '@/lib/recurrenceExpander';
+import { EditTaskModal } from '@/components/tasks/EditTaskModal';
 import { 
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon,
   List,
-  Grid3X3
+  Grid3X3,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { 
   format, 
@@ -18,7 +21,6 @@ import {
   endOfMonth, 
   eachDayOfInterval, 
   isSameMonth, 
-  isSameDay, 
   isToday,
   addWeeks,
   addMonths,
@@ -34,6 +36,10 @@ interface CalendarViewProps {
   tasks: Task[];
   onItemClick?: (item: { type: 'event' | 'task'; id: string }) => void;
   onToggleTaskComplete?: (id: string) => void;
+  onUpdateTask?: (id: string, updates: Partial<Task>) => void;
+  onDeleteTask?: (id: string) => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 interface CalendarItem {
@@ -45,11 +51,22 @@ interface CalendarItem {
   priority?: string;
   completed?: boolean;
   isRecurrenceInstance?: boolean;
+  originalTask?: Task;
 }
 
-export function CalendarView({ events, tasks, onItemClick, onToggleTaskComplete }: CalendarViewProps) {
+export function CalendarView({ 
+  events, 
+  tasks, 
+  onItemClick, 
+  onToggleTaskComplete,
+  onUpdateTask,
+  onDeleteTask,
+  isFullscreen = false,
+  onToggleFullscreen,
+}: CalendarViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // Calculate date range based on view mode
   const { rangeStart, rangeEnd, days } = useMemo(() => {
@@ -94,6 +111,7 @@ export function CalendarView({ events, tasks, onItemClick, onToggleTaskComplete 
 
     expandedTasks.forEach(task => {
       if (task.dueDate) {
+        const originalTask = tasks.find(t => t.id === task.id.split('-instance-')[0]);
         items.push({
           id: task.id,
           type: 'task',
@@ -102,6 +120,7 @@ export function CalendarView({ events, tasks, onItemClick, onToggleTaskComplete 
           priority: task.priority,
           completed: task.completed,
           isRecurrenceInstance: task.isRecurrenceInstance,
+          originalTask: originalTask || task,
         });
       }
     });
@@ -160,6 +179,28 @@ export function CalendarView({ events, tasks, onItemClick, onToggleTaskComplete 
     setCurrentDate(new Date());
   };
 
+  const handleItemClick = (item: CalendarItem) => {
+    if (item.type === 'task' && item.originalTask) {
+      setEditingTask(item.originalTask);
+    } else if (onItemClick) {
+      onItemClick({ type: item.type, id: item.id.split('-instance-')[0] });
+    }
+  };
+
+  const handleSaveTask = (id: string, updates: Partial<Task>) => {
+    if (onUpdateTask) {
+      onUpdateTask(id, updates);
+    }
+    setEditingTask(null);
+  };
+
+  const handleDeleteTask = (id: string) => {
+    if (onDeleteTask) {
+      onDeleteTask(id);
+    }
+    setEditingTask(null);
+  };
+
   const priorityColors: Record<string, string> = {
     high: 'bg-destructive/20 text-destructive border-destructive/30',
     medium: 'bg-warning/20 text-warning border-warning/30',
@@ -191,13 +232,7 @@ export function CalendarView({ events, tasks, onItemClick, onToggleTaskComplete 
           {dayItems.slice(0, viewMode === 'week' ? 10 : 3).map((item) => (
             <button
               key={`${item.type}-${item.id}-${item.date.getTime()}`}
-              onClick={() => {
-                if (item.type === 'task' && item.completed === false && onToggleTaskComplete && !item.isRecurrenceInstance) {
-                  // Don't complete recurrence instances
-                } else {
-                  onItemClick?.({ type: item.type, id: item.id.split('-instance-')[0] });
-                }
-              }}
+              onClick={() => handleItemClick(item)}
               className={cn(
                 "w-full text-left text-[10px] px-1 py-0.5 rounded truncate border transition-colors",
                 item.type === 'event' 
@@ -267,6 +302,16 @@ export function CalendarView({ events, tasks, onItemClick, onToggleTaskComplete 
               <Grid3X3 className="w-4 h-4" />
             </Button>
           </div>
+          {onToggleFullscreen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onToggleFullscreen}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -291,6 +336,16 @@ export function CalendarView({ events, tasks, onItemClick, onToggleTaskComplete 
           ))}
         </div>
       </div>
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onSave={handleSaveTask}
+          onDelete={handleDeleteTask}
+        />
+      )}
     </div>
   );
 }

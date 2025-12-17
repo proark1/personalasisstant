@@ -2,12 +2,12 @@ import { useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarEvent, Task, TaskPriority } from '@/types/flux';
 import { parseICS, validateICSFile } from '@/lib/icsParser';
 import { useToast } from '@/hooks/use-toast';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
 import { getRecurrenceDescription } from '@/lib/recurrence';
+import { EditTaskModal } from '@/components/tasks/EditTaskModal';
 import { 
   Calendar, 
   Clock, 
@@ -21,9 +21,9 @@ import {
   Repeat,
   CheckSquare,
   AlertCircle,
-  X,
-  Pencil,
-  Trash2
+  Maximize2,
+  Minimize2,
+  Pencil
 } from 'lucide-react';
 import { format, isToday, isTomorrow, startOfDay, isPast } from 'date-fns';
 
@@ -38,6 +38,8 @@ interface CalendarPanelProps {
   onUpdateEvent?: (id: string, updates: Partial<CalendarEvent>) => void;
   onDeleteTask?: (id: string) => void;
   onDeleteEvent?: (id: string) => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 interface CalendarItem {
@@ -49,10 +51,13 @@ interface CalendarItem {
   location?: string;
   attendees?: string[];
   recurrenceRule?: string;
+  recurrenceEnd?: Date;
   priority?: string;
   completed?: boolean;
   isOverdue?: boolean;
   description?: string;
+  category?: string;
+  reminderBefore?: number;
 }
 
 interface GroupedItems {
@@ -72,10 +77,12 @@ export function CalendarPanel({
   onUpdateEvent,
   onDeleteTask,
   onDeleteEvent,
+  isFullscreen = false,
+  onToggleFullscreen,
 }: CalendarPanelProps) {
   const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingItem, setEditingItem] = useState<CalendarItem | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,6 +101,7 @@ export function CalendarPanel({
         location: event.location,
         attendees: event.attendees,
         recurrenceRule: event.recurrenceRule,
+        recurrenceEnd: event.recurrenceEnd,
         description: event.description,
       });
     });
@@ -109,8 +117,11 @@ export function CalendarPanel({
         priority: task.priority,
         completed: task.completed,
         recurrenceRule: task.recurrenceRule,
+        recurrenceEnd: task.recurrenceEnd,
         isOverdue,
         description: task.description,
+        category: task.category,
+        reminderBefore: task.reminderBefore,
       });
     });
 
@@ -209,45 +220,57 @@ export function CalendarPanel({
   };
 
   const handleEditItem = (item: CalendarItem) => {
-    setEditingItem(item);
+    if (item.type === 'task') {
+      // Find the full task object to edit
+      const fullTask = tasks.find(t => t.id === item.id);
+      if (fullTask) {
+        setEditingTask(fullTask);
+      }
+    } else {
+      // For events, we'll use a simplified edit for now
+      // Convert to task-like object for editing
+      const taskLike: Task = {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        dueDate: item.date,
+        priority: 'medium',
+        category: 'personal',
+        completed: false,
+        createdAt: new Date(),
+        recurrenceRule: item.recurrenceRule,
+        recurrenceEnd: item.recurrenceEnd,
+      };
+      setEditingTask(taskLike);
+    }
   };
 
-  const handleSaveEdit = (updates: { title?: string; date?: Date; priority?: string; location?: string }) => {
-    if (!editingItem) return;
-
-    if (editingItem.type === 'task' && onUpdateTask) {
-      onUpdateTask(editingItem.id, {
+  const handleSaveTask = (id: string, updates: Partial<Task>) => {
+    // Check if this is actually an event
+    const isEvent = events.some(e => e.id === id);
+    
+    if (isEvent && onUpdateEvent) {
+      onUpdateEvent(id, {
         title: updates.title,
-        dueDate: updates.date,
-        priority: updates.priority as TaskPriority,
+        startTime: updates.dueDate,
+        endTime: updates.dueDate ? new Date(updates.dueDate.getTime() + 60 * 60 * 1000) : undefined,
       });
-    } else if (editingItem.type === 'event' && onUpdateEvent) {
-      const event = events.find(e => e.id === editingItem.id);
-      if (event && updates.date) {
-        const timeDiff = event.endTime.getTime() - event.startTime.getTime();
-        onUpdateEvent(editingItem.id, {
-          title: updates.title,
-          startTime: updates.date,
-          endTime: new Date(updates.date.getTime() + timeDiff),
-          location: updates.location,
-        });
-      }
+    } else if (onUpdateTask) {
+      onUpdateTask(id, updates);
     }
-
-    setEditingItem(null);
+    setEditingTask(null);
     toast({ title: 'Updated successfully' });
   };
 
-  const handleDeleteItem = () => {
-    if (!editingItem) return;
-
-    if (editingItem.type === 'task' && onDeleteTask) {
-      onDeleteTask(editingItem.id);
-    } else if (editingItem.type === 'event' && onDeleteEvent) {
-      onDeleteEvent(editingItem.id);
+  const handleDeleteItem = (id: string) => {
+    const isEvent = events.some(e => e.id === id);
+    
+    if (isEvent && onDeleteEvent) {
+      onDeleteEvent(id);
+    } else if (onDeleteTask) {
+      onDeleteTask(id);
     }
-
-    setEditingItem(null);
+    setEditingTask(null);
     toast({ title: 'Deleted successfully' });
   };
 
@@ -401,6 +424,16 @@ export function CalendarPanel({
             <Plus className="w-4 h-4" />
             Add
           </Button>
+          {onToggleFullscreen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onToggleFullscreen}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -470,12 +503,12 @@ export function CalendarPanel({
         />
       )}
 
-      {/* Edit Modal */}
-      {editingItem && (
-        <EditItemModal
-          item={editingItem}
-          onClose={() => setEditingItem(null)}
-          onSave={handleSaveEdit}
+      {/* Edit Task Modal - using the detailed one from TaskList */}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onSave={handleSaveTask}
           onDelete={handleDeleteItem}
         />
       )}
@@ -571,135 +604,6 @@ function QuickAddEvent({
             <Button type="submit">
               Add Event
             </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function EditItemModal({
-  item,
-  onClose,
-  onSave,
-  onDelete,
-}: {
-  item: CalendarItem;
-  onClose: () => void;
-  onSave: (updates: { title?: string; date?: Date; priority?: string; location?: string }) => void;
-  onDelete: () => void;
-}) {
-  const [title, setTitle] = useState(item.title);
-  const [date, setDate] = useState(format(item.date, 'yyyy-MM-dd'));
-  const [time, setTime] = useState(format(item.date, 'HH:mm'));
-  const [priority, setPriority] = useState(item.priority || 'medium');
-  const [location, setLocation] = useState(item.location || '');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newDate = new Date(`${date}T${time}`);
-    onSave({
-      title: title.trim(),
-      date: newDate,
-      priority,
-      location: location.trim() || undefined,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="glass-panel-solid w-full max-w-md p-6 animate-scale-in rounded-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">
-            Edit {item.type === 'task' ? 'Task' : 'Event'}
-          </h3>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm text-muted-foreground">Title</label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Title"
-              autoFocus
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm text-muted-foreground">Date</label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Time</label>
-              <Input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {item.type === 'task' && (
-            <div>
-              <label className="text-sm text-muted-foreground">Priority</label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {item.type === 'event' && (
-            <div>
-              <label className="text-sm text-muted-foreground">Location</label>
-              <Input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Location (optional)"
-              />
-            </div>
-          )}
-
-          {item.recurrenceRule && (
-            <div className="flex items-center gap-2 p-2 rounded bg-muted/50 text-sm">
-              <Repeat className="w-4 h-4 text-primary" />
-              <span>{getRecurrenceDescription(item.recurrenceRule)}</span>
-            </div>
-          )}
-
-          <div className="flex gap-2 justify-between pt-2">
-            <Button 
-              type="button" 
-              variant="destructive" 
-              size="sm"
-              onClick={onDelete}
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Delete
-            </Button>
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                Save Changes
-              </Button>
-            </div>
           </div>
         </form>
       </div>

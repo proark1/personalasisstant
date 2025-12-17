@@ -11,7 +11,7 @@ import {
   MessageSquare, 
   CheckSquare, 
   Calendar, 
-  Ghost,
+  Mic,
   Settings,
   LogOut,
   UserCircle,
@@ -37,7 +37,7 @@ interface MobileLayoutProps {
   onDeleteEvent?: (id: string) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
-  onGhostMode: () => void;
+  onVoiceMode: () => void;
   onOpenSettings: () => void;
   onEditProfile?: () => void;
   onShareTask?: (id: string, title: string) => void;
@@ -63,7 +63,7 @@ export function MobileLayout({
   onDeleteEvent,
   onImportEvents,
   onSendMessage,
-  onGhostMode,
+  onVoiceMode,
   onOpenSettings,
   onEditProfile,
   onShareTask,
@@ -157,15 +157,15 @@ export function MobileLayout({
                   </Button>
                   
                   <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-3 text-ghost"
+                    variant="voice_mode"
+                    className="w-full justify-start gap-3"
                     onClick={() => {
-                      onGhostMode();
+                      onVoiceMode();
                       setSidebarOpen(false);
                     }}
                   >
-                    <Ghost className="w-5 h-5 shrink-0" />
-                    <span>Ghost Mode</span>
+                    <Mic className="w-5 h-5 shrink-0" />
+                    <span>Voice Mode</span>
                   </Button>
 
                   {onSignOut && (
@@ -195,10 +195,10 @@ export function MobileLayout({
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={onGhostMode}
-          className="text-ghost hover:text-ghost hover:bg-ghost/10"
+          onClick={onVoiceMode}
+          className="text-primary hover:text-primary hover:bg-primary/10"
         >
-          <Ghost className="w-5 h-5" />
+          <Mic className="w-5 h-5" />
         </Button>
       </header>
 
