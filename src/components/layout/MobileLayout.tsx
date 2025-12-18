@@ -104,8 +104,8 @@ export function MobileLayout({
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
   const tabs = [
-    { id: 'chat' as Tab, icon: MessageSquare, label: 'AI' },
-    { id: 'messages' as Tab, icon: MessageCircle, label: 'Chat' },
+    { id: 'chat' as Tab, icon: Sparkles, label: 'Assistant' },
+    { id: 'messages' as Tab, icon: MessageCircle, label: 'Friends' },
     { id: 'tasks' as Tab, icon: CheckSquare, label: 'Tasks' },
     { id: 'calendar' as Tab, icon: Calendar, label: 'Calendar' },
   ];
