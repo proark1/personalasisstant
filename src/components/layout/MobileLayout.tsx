@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ChatPanel } from '../chat/ChatPanel';
+import { TeamChatPanel } from '../chat/TeamChatPanel';
 import { TaskList } from '../tasks/TaskList';
 import { CalendarPanel } from '../calendar/CalendarPanel';
 import { TodayFocusView } from '../focus/TodayFocusView';
@@ -15,6 +16,7 @@ import { SidebarFilter } from './Sidebar';
 import { 
   Menu, 
   MessageSquare, 
+  MessageCircle,
   CheckSquare, 
   Calendar, 
   Mic,
@@ -30,6 +32,7 @@ import {
 } from 'lucide-react';
 
 interface MobileLayoutProps {
+  userId: string;
   tasks: Task[];
   events: CalendarEvent[];
   sharedTasks?: Task[];
@@ -55,9 +58,10 @@ interface MobileLayoutProps {
   onSignOut?: () => void;
 }
 
-type Tab = 'chat' | 'tasks' | 'calendar' | 'focus';
+type Tab = 'chat' | 'messages' | 'tasks' | 'calendar' | 'focus';
 
 export function MobileLayout({
+  userId,
   tasks,
   events,
   sharedTasks = [],
@@ -100,8 +104,8 @@ export function MobileLayout({
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
   const tabs = [
-    { id: 'chat' as Tab, icon: MessageSquare, label: 'Chat' },
-    { id: 'focus' as Tab, icon: Target, label: 'Focus' },
+    { id: 'chat' as Tab, icon: MessageSquare, label: 'AI' },
+    { id: 'messages' as Tab, icon: MessageCircle, label: 'Chat' },
     { id: 'tasks' as Tab, icon: CheckSquare, label: 'Tasks' },
     { id: 'calendar' as Tab, icon: Calendar, label: 'Calendar' },
   ];
@@ -258,6 +262,12 @@ export function MobileLayout({
             onSendMessage={onSendMessage}
             isProcessing={isProcessing}
           />
+        </div>
+        <div className={cn(
+          "h-full",
+          activeTab === 'messages' ? 'block' : 'hidden'
+        )}>
+          {userId && <TeamChatPanel userId={userId} />}
         </div>
         <div className={cn(
           "h-full",
