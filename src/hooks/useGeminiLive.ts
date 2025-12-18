@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { AssistantPersonality } from '@/types/flux';
+import type { AssistantPersonality, VoiceTaskAction } from '@/types/flux';
 
 interface UserProfile {
   displayName?: string | null;
@@ -16,10 +16,20 @@ interface UserProfile {
   preferredWorkHours?: string | null;
 }
 
+interface TaskItem {
+  id: string;
+  title: string;
+  category: string;
+  priority: string;
+  dueDate: string | null;
+  completed: boolean;
+}
+
 interface ContextData {
   overdueTasks?: Array<{ title: string; category: string; priority: string; dueDate: string | null }>;
   todayTasks?: Array<{ title: string; category: string; priority: string; dueDate: string | null }>;
   upcomingTasks?: Array<{ title: string; category: string; priority: string; dueDate: string | null }>;
+  allTasks?: TaskItem[];
   upcomingEvents?: Array<{ title: string; startTime: string; endTime: string; location?: string | null; category?: string | null }>;
   contactsDue?: Array<{ name: string; company?: string | null; role?: string | null; nextContactDue?: string | null }>;
   contractsWithRenewals?: Array<{ name: string; category: string; renewalDate?: string | null; costAmount?: number | null; costFrequency?: string | null }>;
@@ -35,6 +45,7 @@ interface UseGeminiLiveOptions {
   userProfile?: UserProfile | null;
   contextData?: ContextData | null;
   onResponse?: (text: string) => void;
+  onAction?: (action: VoiceTaskAction) => void;
   onError?: (error: string) => void;
   onSpeakingChange?: (speaking: boolean) => void;
 }
@@ -44,6 +55,7 @@ export function useGeminiLive({
   userProfile,
   contextData,
   onResponse,
+  onAction,
   onError,
   onSpeakingChange,
 }: UseGeminiLiveOptions = {}) {
@@ -86,6 +98,12 @@ export function useGeminiLive({
       setLastResponse(responseText);
       onResponse?.(responseText);
 
+      // Handle voice action if present
+      if (data?.action) {
+        console.log('Voice action received:', data.action);
+        onAction?.(data.action as VoiceTaskAction);
+      }
+
       return responseText;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to get response';
@@ -95,7 +113,7 @@ export function useGeminiLive({
     } finally {
       setIsProcessing(false);
     }
-  }, [personality, userProfile, contextData, onResponse, onError, onSpeakingChange]);
+  }, [personality, userProfile, contextData, onResponse, onAction, onError, onSpeakingChange]);
 
   const sendAudio = useCallback(async (audioData: Float32Array, sampleRate: number = 16000) => {
     setIsProcessing(true);

@@ -24,6 +24,8 @@ interface DbTask {
   checklist: unknown;
   attachments: unknown;
   comments: unknown;
+  trashed: boolean;
+  trashed_at: string | null;
 }
 
 interface DbEvent {
@@ -52,6 +54,7 @@ interface SharedItem {
 
 export function useDatabase(userId: string | undefined) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [trashedTasks, setTrashedTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,6 +79,8 @@ export function useDatabase(userId: string | undefined) {
     checklist: (dbTask.checklist as Task['checklist']) || [],
     attachments: (dbTask.attachments as Task['attachments']) || [],
     comments: (dbTask.comments as Task['comments']) || [],
+    trashed: dbTask.trashed,
+    trashedAt: dbTask.trashed_at ? new Date(dbTask.trashed_at) : undefined,
   });
 
   // Convert DB event to app CalendarEvent
@@ -95,6 +100,7 @@ export function useDatabase(userId: string | undefined) {
   const fetchData = useCallback(async () => {
     if (!userId) {
       setTasks([]);
+      setTrashedTasks([]);
       setEvents([]);
       setLoading(false);
       return;
@@ -102,15 +108,27 @@ export function useDatabase(userId: string | undefined) {
 
     setLoading(true);
     
-    // Fetch tasks
+    // Fetch active tasks (not trashed)
     const { data: tasksData } = await supabase
       .from('tasks')
       .select('*')
+      .eq('trashed', false)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
     
     if (tasksData) {
       setTasks(tasksData.map(dbTaskToTask));
+    }
+
+    // Fetch trashed tasks
+    const { data: trashedData } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('trashed', true)
+      .order('trashed_at', { ascending: false });
+    
+    if (trashedData) {
+      setTrashedTasks(trashedData.map(dbTaskToTask));
     }
 
     // Fetch events
@@ -207,8 +225,74 @@ export function useDatabase(userId: string | undefined) {
 
     if (!error) {
       setTasks(prev => prev.filter(t => t.id !== id));
+      setTrashedTasks(prev => prev.filter(t => t.id !== id));
     }
   }, []);
+
+  // Move task to trash (soft delete)
+  const trashTask = useCallback(async (id: string) => {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ trashed: true, trashed_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (!error) {
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        const trashedTask = { ...task, trashed: true, trashedAt: new Date() };
+        setTasks(prev => prev.filter(t => t.id !== id));
+        setTrashedTasks(prev => [trashedTask, ...prev]);
+      }
+    }
+    return { error };
+  }, [tasks]);
+
+  // Restore task from trash
+  const restoreTask = useCallback(async (id: string) => {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ trashed: false, trashed_at: null })
+      .eq('id', id);
+
+    if (!error) {
+      const task = trashedTasks.find(t => t.id === id);
+      if (task) {
+        const restoredTask = { ...task, trashed: false, trashedAt: undefined };
+        setTrashedTasks(prev => prev.filter(t => t.id !== id));
+        setTasks(prev => [restoredTask, ...prev]);
+      }
+    }
+    return { error };
+  }, [trashedTasks]);
+
+  // Permanently delete a trashed task
+  const permanentlyDeleteTask = useCallback(async (id: string) => {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', id);
+
+    if (!error) {
+      setTrashedTasks(prev => prev.filter(t => t.id !== id));
+    }
+    return { error };
+  }, []);
+
+  // Empty entire trash
+  const emptyTrash = useCallback(async () => {
+    const trashedIds = trashedTasks.map(t => t.id);
+    if (trashedIds.length === 0) return { error: null };
+
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .in('id', trashedIds);
+
+    if (!error) {
+      setTrashedTasks([]);
+    }
+    return { error };
+  }, [trashedTasks]);
 
   const deleteTasks = useCallback(async (ids: string[]): Promise<{ error: string | null }> => {
     if (ids.length === 0) return { error: null };
@@ -517,12 +601,17 @@ export function useDatabase(userId: string | undefined) {
 
   return {
     tasks,
+    trashedTasks,
     events,
     loading,
     addTask,
     updateTask,
     deleteTask,
     deleteTasks,
+    trashTask,
+    restoreTask,
+    permanentlyDeleteTask,
+    emptyTrash,
     toggleTaskComplete,
     reorderTasks,
     addEvent,

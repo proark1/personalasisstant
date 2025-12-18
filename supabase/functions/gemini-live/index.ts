@@ -21,10 +21,12 @@ interface UserProfile {
 }
 
 interface TaskItem {
+  id: string;
   title: string;
   category: string;
   priority: string;
   dueDate: string | null;
+  completed: boolean;
 }
 
 interface EventItem {
@@ -54,6 +56,7 @@ interface ContextData {
   overdueTasks?: TaskItem[];
   todayTasks?: TaskItem[];
   upcomingTasks?: TaskItem[];
+  allTasks?: TaskItem[];
   upcomingEvents?: EventItem[];
   contactsDue?: ContactItem[];
   contractsWithRenewals?: ContractItem[];
@@ -62,6 +65,20 @@ interface ContextData {
   totalEvents?: number;
   totalContacts?: number;
   totalContracts?: number;
+}
+
+interface VoiceAction {
+  type: 'create_task' | 'edit_task' | 'complete_task' | 'trash_task' | 'restore_task' | 'reschedule_task';
+  taskTitle?: string;
+  taskId?: string;
+  updates?: {
+    title?: string;
+    description?: string;
+    category?: string;
+    priority?: string;
+    dueDate?: string;
+  };
+  newDate?: string;
 }
 
 interface LiveSessionRequest {
@@ -79,6 +96,190 @@ const personalityPrompts: Record<string, string> = {
   supportive: "You are Flux in supportive mode. Be empathetic, encouraging, and understanding. Celebrate progress and be patient.",
   creative: "You are Flux in creative mode. Think outside the box, brainstorm freely, and encourage exploration of new ideas.",
 };
+
+// Detect task-related commands in user input
+function detectTaskCommand(input: string, allTasks?: TaskItem[]): { command: string | null; details: any } {
+  const text = input.toLowerCase().trim();
+  
+  // Create task patterns
+  const createPatterns = [
+    /(?:create|add|new|make)\s+(?:a\s+)?(?:new\s+)?task\s*(?:called|named|titled)?\s*[:\-]?\s*["']?(.+?)["']?$/i,
+    /(?:erstell|hinzufüg|neu)\s+(?:eine?\s+)?(?:neue?\s+)?(?:aufgabe|task)\s*(?:mit|names?)?\s*[:\-]?\s*["']?(.+?)["']?$/i,
+    /(?:remind me to|i need to|i have to|i should|i must)\s+(.+)/i,
+    /(?:erinner mich an|ich muss|ich sollte)\s+(.+)/i,
+  ];
+  
+  for (const pattern of createPatterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      return { command: 'create', details: { title: match[1].trim() } };
+    }
+  }
+  
+  // Complete/done task patterns
+  const completePatterns = [
+    /(?:mark|set)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?\s+(?:as\s+)?(?:done|complete|completed|finished)/i,
+    /(?:complete|finish|done with)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?/i,
+    /(?:ich habe|ich bin fertig mit|erledigt)\s+(?:die\s+)?(?:aufgabe\s+)?["']?(.+?)["']?/i,
+    /["']?(.+?)["']?\s+(?:is\s+)?(?:done|complete|finished|erledigt)/i,
+  ];
+  
+  for (const pattern of completePatterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      const taskTitle = match[1].trim();
+      const matchedTask = findMatchingTask(taskTitle, allTasks);
+      return { 
+        command: 'complete', 
+        details: { 
+          title: taskTitle,
+          taskId: matchedTask?.id 
+        } 
+      };
+    }
+  }
+  
+  // Trash/delete task patterns
+  const trashPatterns = [
+    /(?:trash|delete|remove|throw away)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?/i,
+    /(?:put|move)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?\s+(?:in|to)\s+(?:the\s+)?trash/i,
+    /(?:lösch|entfern|weg mit)\s+(?:die\s+)?(?:aufgabe\s+)?["']?(.+?)["']?/i,
+  ];
+  
+  for (const pattern of trashPatterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      const taskTitle = match[1].trim();
+      const matchedTask = findMatchingTask(taskTitle, allTasks);
+      return { 
+        command: 'trash', 
+        details: { 
+          title: taskTitle,
+          taskId: matchedTask?.id 
+        } 
+      };
+    }
+  }
+  
+  // Reschedule task patterns
+  const reschedulePatterns = [
+    /(?:move|reschedule|shift|change)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?\s+(?:to|for)\s+(.+)/i,
+    /(?:verschieb|ändere)\s+(?:die\s+)?(?:aufgabe\s+)?["']?(.+?)["']?\s+(?:auf|zu|für)\s+(.+)/i,
+  ];
+  
+  for (const pattern of reschedulePatterns) {
+    const match = text.match(pattern);
+    if (match && match[1] && match[2]) {
+      const taskTitle = match[1].trim();
+      const matchedTask = findMatchingTask(taskTitle, allTasks);
+      return { 
+        command: 'reschedule', 
+        details: { 
+          title: taskTitle,
+          taskId: matchedTask?.id,
+          newDateText: match[2].trim()
+        } 
+      };
+    }
+  }
+  
+  // Edit task patterns
+  const editPatterns = [
+    /(?:edit|update|change|modify)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?\s+(?:to|as)\s+["']?(.+?)["']?$/i,
+    /(?:rename|bearbeite|ändere)\s+(?:die\s+)?(?:aufgabe\s+)?["']?(.+?)["']?\s+(?:zu|in)\s+["']?(.+?)["']?$/i,
+  ];
+  
+  for (const pattern of editPatterns) {
+    const match = text.match(pattern);
+    if (match && match[1] && match[2]) {
+      const taskTitle = match[1].trim();
+      const matchedTask = findMatchingTask(taskTitle, allTasks);
+      return { 
+        command: 'edit', 
+        details: { 
+          title: taskTitle,
+          taskId: matchedTask?.id,
+          newTitle: match[2].trim()
+        } 
+      };
+    }
+  }
+  
+  return { command: null, details: null };
+}
+
+// Find a task that matches the given title (fuzzy matching)
+function findMatchingTask(searchTitle: string, tasks?: TaskItem[]): TaskItem | null {
+  if (!tasks || tasks.length === 0) return null;
+  
+  const search = searchTitle.toLowerCase().trim();
+  
+  // Exact match first
+  let match = tasks.find(t => t.title.toLowerCase() === search);
+  if (match) return match;
+  
+  // Contains match
+  match = tasks.find(t => t.title.toLowerCase().includes(search) || search.includes(t.title.toLowerCase()));
+  if (match) return match;
+  
+  // Word-based fuzzy match
+  const searchWords = search.split(/\s+/);
+  for (const task of tasks) {
+    const taskWords = task.title.toLowerCase().split(/\s+/);
+    const matchingWords = searchWords.filter(sw => taskWords.some(tw => tw.includes(sw) || sw.includes(tw)));
+    if (matchingWords.length >= Math.min(2, searchWords.length)) {
+      return task;
+    }
+  }
+  
+  return null;
+}
+
+// Parse natural language date
+function parseNaturalDate(text: string): string | null {
+  const lower = text.toLowerCase().trim();
+  const now = new Date();
+  
+  if (lower === 'today' || lower === 'heute') {
+    return now.toISOString();
+  }
+  
+  if (lower === 'tomorrow' || lower === 'morgen') {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString();
+  }
+  
+  if (lower === 'next week' || lower === 'nächste woche') {
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    return nextWeek.toISOString();
+  }
+  
+  // Day names
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const germanDays = ['sonntag', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag'];
+  
+  for (let i = 0; i < days.length; i++) {
+    if (lower.includes(days[i]) || lower.includes(germanDays[i])) {
+      const targetDay = i;
+      const currentDay = now.getDay();
+      let daysUntil = targetDay - currentDay;
+      if (daysUntil <= 0) daysUntil += 7;
+      const target = new Date(now);
+      target.setDate(target.getDate() + daysUntil);
+      return target.toISOString();
+    }
+  }
+  
+  // Try parsing as date
+  const parsed = new Date(text);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString();
+  }
+  
+  return null;
+}
 
 function looksLikeAboutMeQuestion(input?: string): boolean {
   const t = (input || '').trim().toLowerCase();
@@ -120,30 +321,22 @@ function buildUserContext(profile?: UserProfile): string {
 
   const parts: string[] = [];
   
-  // Name is critical - must be explicit
   if (profile.displayName) {
-    parts.push(`**NAME**: ${profile.displayName} (THIS IS THE USER'S REAL NAME - DO NOT USE ANY OTHER NAME)`);
-  } else {
-    parts.push(`**NAME**: Unknown (DO NOT invent a name - say "I don't know your name")`);
+    parts.push(`**NAME**: ${profile.displayName}`);
   }
   
   if (profile.role) {
     parts.push(`**ROLE**: ${profile.role}`);
   }
   
-  // Businesses - be very explicit
   if (profile.businesses && profile.businesses.length > 0) {
-    parts.push(`**BUSINESSES** (ONLY these, no others):\n${profile.businesses.map((b, i) => `  ${i + 1}. ${b}`).join('\n')}`);
-  } else {
-    parts.push(`**BUSINESSES**: None specified (DO NOT invent any companies)`);
+    parts.push(`**BUSINESSES**:\n${profile.businesses.map((b, i) => `  ${i + 1}. ${b}`).join('\n')}`);
   }
   
   if (profile.locationCity && profile.locationCountry) {
     parts.push(`**LOCATION**: ${profile.locationCity}, ${profile.locationCountry}`);
   } else if (profile.locationCountry) {
     parts.push(`**LOCATION**: ${profile.locationCountry}`);
-  } else if (profile.locationCity) {
-    parts.push(`**LOCATION**: ${profile.locationCity}`);
   }
   
   if (profile.timezone) {
@@ -161,12 +354,8 @@ function buildUserContext(profile?: UserProfile): string {
   if (profile.goals) {
     parts.push(`**GOALS**: ${profile.goals}`);
   }
-  
-  if (profile.bio) {
-    parts.push(`**BIO**: ${profile.bio}`);
-  }
 
-  return `\n\n## USER IDENTITY - FACTUAL DATA ONLY\nThe following is the COMPLETE and ONLY information about this user. Do NOT add, invent, or assume anything beyond this:\n\n${parts.join('\n')}`;
+  return `\n\n## USER IDENTITY\n${parts.join('\n')}`;
 }
 
 function buildDataContext(contextData?: ContextData): string {
@@ -177,64 +366,39 @@ function buildDataContext(contextData?: ContextData): string {
   
   parts.push(`\n\n## Current Date & Time\n${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
 
-  // Summary stats
-  parts.push(`\n\n## Quick Stats\n- ${contextData.totalPendingTasks || 0} pending tasks (${contextData.totalOverdue || 0} overdue)\n- ${contextData.totalEvents || 0} upcoming events\n- ${contextData.totalContacts || 0} contacts\n- ${contextData.totalContracts || 0} active contracts`);
+  parts.push(`\n\n## Quick Stats\n- ${contextData.totalPendingTasks || 0} pending tasks (${contextData.totalOverdue || 0} overdue)\n- ${contextData.totalEvents || 0} upcoming events`);
 
-  // Overdue tasks
-  if (contextData.overdueTasks && contextData.overdueTasks.length > 0) {
-    parts.push(`\n\n## OVERDUE TASKS (Need immediate attention!)`);
-    for (const task of contextData.overdueTasks) {
-      const dueInfo = task.dueDate ? `was due ${new Date(task.dueDate).toLocaleDateString()}` : '';
-      parts.push(`- ${task.title} (${task.category}, ${task.priority} priority) ${dueInfo}`);
+  // All tasks for reference
+  if (contextData.allTasks && contextData.allTasks.length > 0) {
+    parts.push(`\n\n## ALL ACTIVE TASKS (for command matching)`);
+    for (const task of contextData.allTasks.slice(0, 20)) {
+      const status = task.completed ? '✓' : '○';
+      const due = task.dueDate ? ` - due ${new Date(task.dueDate).toLocaleDateString()}` : '';
+      parts.push(`- [${status}] "${task.title}" (${task.priority})${due} [ID: ${task.id}]`);
     }
   }
 
-  // Today's tasks
+  if (contextData.overdueTasks && contextData.overdueTasks.length > 0) {
+    parts.push(`\n\n## OVERDUE TASKS`);
+    for (const task of contextData.overdueTasks) {
+      parts.push(`- ${task.title} (${task.priority}) - was due ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}`);
+    }
+  }
+
   if (contextData.todayTasks && contextData.todayTasks.length > 0) {
     parts.push(`\n\n## TODAY'S TASKS`);
     for (const task of contextData.todayTasks) {
-      const timeInfo = task.dueDate ? new Date(task.dueDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
-      parts.push(`- ${task.title} (${task.category}, ${task.priority} priority) ${timeInfo}`);
+      parts.push(`- ${task.title} (${task.priority})`);
     }
   }
 
-  // Upcoming tasks (next 7 days)
-  if (contextData.upcomingTasks && contextData.upcomingTasks.length > 0) {
-    parts.push(`\n\n## UPCOMING TASKS (Next 7 days)`);
-    for (const task of contextData.upcomingTasks) {
-      const dueInfo = task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
-      parts.push(`- ${task.title} (${task.category}) - ${dueInfo}`);
-    }
-  }
-
-  // Today's and upcoming events
   if (contextData.upcomingEvents && contextData.upcomingEvents.length > 0) {
-    parts.push(`\n\n## CALENDAR EVENTS (Next 7 days)`);
+    parts.push(`\n\n## CALENDAR EVENTS`);
     for (const event of contextData.upcomingEvents) {
       const eventDate = new Date(event.startTime);
       const dateStr = eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       const timeStr = eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      const location = event.location ? ` at ${event.location}` : '';
-      parts.push(`- ${event.title} - ${dateStr} at ${timeStr}${location}`);
-    }
-  }
-
-  // Contacts due for follow-up
-  if (contextData.contactsDue && contextData.contactsDue.length > 0) {
-    parts.push(`\n\n## CONTACTS DUE FOR FOLLOW-UP`);
-    for (const contact of contextData.contactsDue) {
-      const details = [contact.role, contact.company].filter(Boolean).join(' at ');
-      parts.push(`- ${contact.name}${details ? ` (${details})` : ''}`);
-    }
-  }
-
-  // Contracts with upcoming renewals
-  if (contextData.contractsWithRenewals && contextData.contractsWithRenewals.length > 0) {
-    parts.push(`\n\n## CONTRACTS RENEWING SOON`);
-    for (const contract of contextData.contractsWithRenewals) {
-      const cost = contract.costAmount ? `€${contract.costAmount}/${contract.costFrequency || 'month'}` : '';
-      const renewalDate = contract.renewalDate ? new Date(contract.renewalDate).toLocaleDateString() : '';
-      parts.push(`- ${contract.name} (${contract.category}) - renews ${renewalDate} ${cost}`);
+      parts.push(`- ${event.title} - ${dateStr} at ${timeStr}`);
     }
   }
 
@@ -254,36 +418,103 @@ serve(async (req) => {
 
     const { action, personality = 'balanced', audio, text, userProfile, contextData } = await req.json() as LiveSessionRequest;
 
-    // Enhanced logging for debugging
     console.log('=== GEMINI LIVE REQUEST ===');
     console.log('Action:', action);
-    console.log('Personality:', personality);
-    console.log('User Profile received:', !!userProfile);
-    if (userProfile) {
-      console.log('  - displayName:', userProfile.displayName || 'NOT SET');
-      console.log('  - businesses:', userProfile.businesses?.join(', ') || 'NONE');
-      console.log('  - role:', userProfile.role || 'NOT SET');
-      console.log('  - location:', `${userProfile.locationCity || '?'}, ${userProfile.locationCountry || '?'}`);
-    }
-    console.log('Context Data received:', !!contextData);
-    if (contextData) {
-      console.log('  - overdueTasks:', contextData.overdueTasks?.length || 0);
-      console.log('  - todayTasks:', contextData.todayTasks?.length || 0);
-      console.log('  - upcomingEvents:', contextData.upcomingEvents?.length || 0);
+    console.log('Text:', text?.substring(0, 100));
+
+    // Check for task commands in the text
+    const { command, details } = detectTaskCommand(text || '', contextData?.allTasks);
+    
+    if (command && details) {
+      console.log('Task command detected:', command, details);
+      
+      let voiceAction: VoiceAction | null = null;
+      let responseText = '';
+      
+      switch (command) {
+        case 'create':
+          voiceAction = {
+            type: 'create_task',
+            taskTitle: details.title,
+          };
+          responseText = `I'll create a new task: "${details.title}". Done!`;
+          break;
+          
+        case 'complete':
+          if (details.taskId) {
+            voiceAction = {
+              type: 'complete_task',
+              taskId: details.taskId,
+              taskTitle: details.title,
+            };
+            responseText = `Marking "${details.title}" as done. Great job!`;
+          } else {
+            responseText = `I couldn't find a task matching "${details.title}". Can you be more specific?`;
+          }
+          break;
+          
+        case 'trash':
+          if (details.taskId) {
+            voiceAction = {
+              type: 'trash_task',
+              taskId: details.taskId,
+              taskTitle: details.title,
+            };
+            responseText = `Moving "${details.title}" to trash. You can restore it later if needed.`;
+          } else {
+            responseText = `I couldn't find a task matching "${details.title}". Which task do you want to delete?`;
+          }
+          break;
+          
+        case 'reschedule':
+          const newDate = parseNaturalDate(details.newDateText);
+          if (details.taskId && newDate) {
+            voiceAction = {
+              type: 'reschedule_task',
+              taskId: details.taskId,
+              taskTitle: details.title,
+              newDate: newDate,
+            };
+            const dateStr = new Date(newDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+            responseText = `Rescheduling "${details.title}" to ${dateStr}.`;
+          } else if (!details.taskId) {
+            responseText = `I couldn't find a task matching "${details.title}".`;
+          } else {
+            responseText = `I didn't understand the date "${details.newDateText}". Try saying "tomorrow" or a specific day like "Monday".`;
+          }
+          break;
+          
+        case 'edit':
+          if (details.taskId) {
+            voiceAction = {
+              type: 'edit_task',
+              taskId: details.taskId,
+              taskTitle: details.title,
+              updates: { title: details.newTitle },
+            };
+            responseText = `Updated the task to "${details.newTitle}".`;
+          } else {
+            responseText = `I couldn't find a task matching "${details.title}".`;
+          }
+          break;
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          text: responseText, 
+          action: voiceAction 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const userContext = buildUserContext(userProfile);
     const dataContext = buildDataContext(contextData);
     
-    // System prompt with STRICT anti-hallucination instructions at the TOP
-    const systemPrompt = `## ⚠️ CRITICAL ANTI-HALLUCINATION RULES - YOU MUST FOLLOW THESE ⚠️
-
-1. **NEVER INVENT OR FABRICATE** any names, companies, tasks, events, meetings, or facts
-2. **ONLY USE** the exact data provided in USER IDENTITY and CURRENT DATA sections below
-3. If user asks "What do you know about me?" - ONLY state facts from USER IDENTITY section
-4. If user asks about tasks/meetings - ONLY reference items from CURRENT DATA section
-5. If data is missing or empty, say "I don't have that information" - DO NOT MAKE THINGS UP
-6. **THE USER'S NAME IS IN THE USER IDENTITY SECTION** - use ONLY that name, never invent one
+    const systemPrompt = `## CRITICAL RULES
+1. NEVER INVENT OR FABRICATE any names, companies, tasks, or facts
+2. ONLY USE the exact data provided below
+3. Keep responses conversational and concise (1-3 sentences)
 
 ${userContext}
 ${dataContext}
@@ -293,29 +524,23 @@ ${dataContext}
 ## Your Role
 ${personalityPrompts[personality] || personalityPrompts.balanced}
 
-You are having a real-time voice conversation. Keep responses conversational, natural, and concise (1-3 sentences unless more detail is needed).
+You are a voice assistant helping manage tasks and schedule. You can:
+- Summarize tasks and schedule
+- Answer questions about what's due
+- Help with productivity advice
 
-## What you can help with (ONLY using data provided above)
-- Summarizing the user's tasks and schedule
-- Answering questions about what's due today/this week
-- Discussing contacts and follow-ups listed above
-- Contract renewal reminders from the data above
-- General productivity advice (this can be general knowledge)
+The user can also give you commands like:
+- "Create a task called..." / "Add task..."
+- "Mark [task] as done" / "Complete [task]"
+- "Move [task] to trash" / "Delete [task]"
+- "Move [task] to tomorrow" / "Reschedule [task] to Monday"
+- "Edit [task] to [new name]"
 
-## FINAL REMINDER
-Before every response, check: "Am I about to say something that's NOT in the data above?" If yes, STOP and say you don't have that information instead.`;
-
-    // Log first 800 chars of system prompt for debugging
-    console.log('System prompt preview:', systemPrompt.substring(0, 800));
+These commands are processed automatically, so just confirm when you recognize them.`;
 
     if (action === 'send_text') {
-      console.log('Processing text:', text?.substring(0, 50));
-      console.log('Has context data:', !!contextData);
-
-      // Hard-guard: never let the model answer "about me" questions (prevents name/company hallucinations)
       if (looksLikeAboutMeQuestion(text)) {
         const safe = buildAboutMeAnswerGerman(userProfile);
-        console.log('About-me question detected -> returning deterministic profile-based answer');
         return new Response(JSON.stringify({ text: safe }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -343,6 +568,7 @@ Before every response, check: "Am I about to say something that's NOT in the dat
           }),
         }
       );
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Gemini API error:', response.status, errorText);
@@ -360,9 +586,6 @@ Before every response, check: "Am I about to say something that's NOT in the dat
     }
 
     if (action === 'send_audio') {
-      console.log('Processing audio input');
-      console.log('Has context data:', !!contextData);
-      
       if (!audio) {
         throw new Error('Audio data is required for send_audio action');
       }
@@ -396,6 +619,7 @@ Before every response, check: "Am I about to say something that's NOT in the dat
           }),
         }
       );
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Gemini audio API error:', response.status, errorText);
@@ -404,7 +628,6 @@ Before every response, check: "Am I about to say something that's NOT in the dat
 
       const data = await response.json();
       const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't understand that. Please try again.";
-      console.log('Gemini audio response:', responseText.substring(0, 100));
 
       return new Response(
         JSON.stringify({ text: responseText }),

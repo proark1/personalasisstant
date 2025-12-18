@@ -11,7 +11,7 @@ import { useContacts } from '@/hooks/useContacts';
 import { useContracts } from '@/hooks/useContracts';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import type { AssistantPersonality } from '@/types/flux';
+import type { AssistantPersonality, VoiceTaskAction } from '@/types/flux';
 import { 
   Mic, 
   MicOff, 
@@ -50,9 +50,83 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const { profile } = useUserProfile();
   
   // Fetch real data from the platform
-  const { tasks, events } = useDatabase(userId);
+  const { tasks, events, addTask, updateTask, trashTask, toggleTaskComplete, refetch } = useDatabase(userId);
   const { contacts } = useContacts(userId);
   const { contracts } = useContracts(userId);
+
+  // Handle voice actions (task commands)
+  const handleVoiceAction = useCallback(async (action: VoiceTaskAction) => {
+    console.log('Executing voice action:', action);
+    
+    try {
+      switch (action.type) {
+        case 'create_task':
+          if (action.taskTitle) {
+            await addTask({
+              title: action.taskTitle,
+              category: 'personal',
+              priority: 'medium',
+              completed: false,
+            });
+            toast({
+              title: 'Task Created',
+              description: `"${action.taskTitle}" has been added`,
+            });
+          }
+          break;
+          
+        case 'complete_task':
+          if (action.taskId) {
+            await toggleTaskComplete(action.taskId);
+            toast({
+              title: 'Task Completed',
+              description: `"${action.taskTitle}" marked as done`,
+            });
+          }
+          break;
+          
+        case 'trash_task':
+          if (action.taskId) {
+            await trashTask(action.taskId);
+            toast({
+              title: 'Task Trashed',
+              description: `"${action.taskTitle}" moved to trash`,
+            });
+          }
+          break;
+          
+        case 'reschedule_task':
+          if (action.taskId && action.newDate) {
+            await updateTask(action.taskId, { dueDate: new Date(action.newDate) });
+            toast({
+              title: 'Task Rescheduled',
+              description: `"${action.taskTitle}" moved to ${new Date(action.newDate).toLocaleDateString()}`,
+            });
+          }
+          break;
+          
+        case 'edit_task':
+          if (action.taskId && action.updates) {
+            await updateTask(action.taskId, action.updates);
+            toast({
+              title: 'Task Updated',
+              description: `Task has been updated`,
+            });
+          }
+          break;
+      }
+      
+      // Refresh tasks after any action
+      refetch();
+    } catch (err) {
+      console.error('Error executing voice action:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Action Failed',
+        description: 'Could not complete the requested action',
+      });
+    }
+  }, [addTask, updateTask, trashTask, toggleTaskComplete, refetch, toast]);
 
   // Prepare context data for the AI - convert Date objects to strings for serialization
   const contextData = useMemo(() => {
@@ -61,7 +135,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     // Filter tasks
-    const pendingTasks = tasks.filter(t => !t.completed);
+    const pendingTasks = tasks.filter(t => !t.completed && !t.trashed);
     const overdueTasks = pendingTasks.filter(t => t.dueDate && t.dueDate < now);
     const todayTasks = pendingTasks.filter(t => {
       if (!t.dueDate) return false;
@@ -89,7 +163,18 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       return c.renewalDate <= nextWeek;
     }).slice(0, 5);
 
+    // All tasks for voice command matching (include id)
+    const allTasks = tasks.filter(t => !t.trashed).map(t => ({
+      id: t.id,
+      title: t.title,
+      category: String(t.category),
+      priority: String(t.priority),
+      dueDate: t.dueDate?.toISOString() || null,
+      completed: t.completed,
+    }));
+
     return {
+      allTasks,
       overdueTasks: overdueTasks.slice(0, 5).map(t => ({
         title: t.title,
         category: String(t.category),
@@ -185,6 +270,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         setConnectionStatus('connected');
       }
     },
+    onAction: handleVoiceAction,
     onError: (error) => {
       setConnectionStatus('error');
       toast({

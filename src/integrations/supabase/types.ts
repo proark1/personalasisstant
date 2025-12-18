@@ -528,6 +528,8 @@ export type Database = {
           secondary_responsible_id: string | null
           sort_order: number | null
           title: string
+          trashed: boolean
+          trashed_at: string | null
           updated_at: string
           user_id: string
         }
@@ -551,6 +553,8 @@ export type Database = {
           secondary_responsible_id?: string | null
           sort_order?: number | null
           title: string
+          trashed?: boolean
+          trashed_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -574,6 +578,8 @@ export type Database = {
           secondary_responsible_id?: string | null
           sort_order?: number | null
           title?: string
+          trashed?: boolean
+          trashed_at?: string | null
           updated_at?: string
           user_id?: string
         }

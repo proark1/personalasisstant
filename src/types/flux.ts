@@ -86,6 +86,17 @@ export interface Task {
   checklist?: ChecklistItem[];
   attachments?: TaskAttachment[];
   comments?: TaskComment[];
+  trashed?: boolean;
+  trashedAt?: Date;
+}
+
+// Voice command action types for task management
+export interface VoiceTaskAction {
+  type: 'create_task' | 'edit_task' | 'complete_task' | 'trash_task' | 'restore_task' | 'reschedule_task';
+  taskTitle?: string;
+  taskId?: string;
+  updates?: Partial<Task>;
+  newDate?: string;
 }
 
 export interface CalendarEvent {
