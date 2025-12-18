@@ -13,8 +13,11 @@ import {
   ListTodo, 
   Sun, 
   Moon,
-  Check
+  Check,
+  Users
 } from 'lucide-react';
+import { SpaceMembersPanel } from './SpaceMembersPanel';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SettingsPanelProps {
   settings: UserSettings;
@@ -37,12 +40,14 @@ export function SettingsPanel({
   onUpdateNotifications, 
   onClose 
 }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'defaults'>('appearance');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'defaults' | 'team'>('appearance');
 
   const tabs = [
     { id: 'appearance' as const, label: 'Appearance', icon: Palette },
     { id: 'notifications' as const, label: 'Notifications', icon: Bell },
     { id: 'defaults' as const, label: 'Defaults', icon: ListTodo },
+    { id: 'team' as const, label: 'Team', icon: Users },
   ];
 
   return (
@@ -209,10 +214,14 @@ export function SettingsPanel({
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
+              </SelectContent>
                 </Select>
               </div>
             </>
+          )}
+
+          {activeTab === 'team' && user && (
+            <SpaceMembersPanel userId={user.id} />
           )}
         </div>
       </div>

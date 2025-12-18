@@ -5,6 +5,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { useAIChat } from '@/hooks/useAIChat';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
 import { useSharedItemsRealtime } from '@/hooks/useSharedItemsRealtime';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 import { useTags } from '@/hooks/useTags';
 import { useProjects } from '@/hooks/useProjects';
 import { useSharedProjects } from '@/hooks/useSharedProjects';
@@ -72,6 +73,9 @@ const Index = () => {
 
   // Real-time notifications for shares
   useSharedItemsRealtime({ userId: user?.id, onNewShare: loadSharedItems });
+  
+  // Real-time notifications from database (for space sharing)
+  useRealtimeNotifications(user?.id);
 
   // Task notifications with ADHD mode support
   useTaskNotifications({

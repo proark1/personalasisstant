@@ -408,6 +408,98 @@ export type Database = {
           },
         ]
       }
+      space_members: {
+        Row: {
+          created_at: string
+          id: string
+          member_email: string
+          member_id: string
+          owner_id: string
+          role: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_email: string
+          member_id: string
+          owner_id: string
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_email?: string
+          member_id?: string
+          owner_id?: string
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      space_share_settings: {
+        Row: {
+          created_at: string
+          id: string
+          share_business_events: boolean
+          share_business_tasks: boolean
+          share_contacts: boolean
+          share_contracts: boolean
+          share_family_events: boolean
+          share_family_tasks: boolean
+          share_personal_events: boolean
+          share_personal_tasks: boolean
+          share_work_events: boolean
+          share_work_tasks: boolean
+          space_member_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          share_business_events?: boolean
+          share_business_tasks?: boolean
+          share_contacts?: boolean
+          share_contracts?: boolean
+          share_family_events?: boolean
+          share_family_tasks?: boolean
+          share_personal_events?: boolean
+          share_personal_tasks?: boolean
+          share_work_events?: boolean
+          share_work_tasks?: boolean
+          space_member_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          share_business_events?: boolean
+          share_business_tasks?: boolean
+          share_contacts?: boolean
+          share_contracts?: boolean
+          share_family_events?: boolean
+          share_family_tasks?: boolean
+          share_personal_events?: boolean
+          share_personal_tasks?: boolean
+          share_work_events?: boolean
+          share_work_tasks?: boolean
+          space_member_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_share_settings_space_member_id_fkey"
+            columns: ["space_member_id"]
+            isOneToOne: true
+            referencedRelation: "space_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tags: {
         Row: {
           color: string
@@ -692,6 +784,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string
+          data: Json | null
+          id: string
+          message: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message: string
+          read?: boolean
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       weekly_reviews: {
         Row: {
           celebrations: string | null
@@ -733,7 +861,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_view_shared_contacts: {
+        Args: { owner_user_id: string }
+        Returns: boolean
+      }
+      can_view_shared_contracts: {
+        Args: { owner_user_id: string }
+        Returns: boolean
+      }
+      can_view_shared_event: {
+        Args: { event_row: Database["public"]["Tables"]["events"]["Row"] }
+        Returns: boolean
+      }
+      can_view_shared_task: {
+        Args: { task_row: Database["public"]["Tables"]["tasks"]["Row"] }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
