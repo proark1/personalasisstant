@@ -11,16 +11,18 @@ import { useProjects } from '@/hooks/useProjects';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import type { AssistantPersonality } from '@/types/flux';
-import { 
-  Mic, 
-  MicOff, 
-  X, 
-  Wifi, 
+import {
+  Mic,
+  MicOff,
+  X,
+  Wifi,
   WifiOff,
   Volume2,
   VolumeX,
   AlertCircle,
   Loader2,
+  PhoneCall,
+  PhoneOff,
 } from 'lucide-react';
 
 interface GhostModeProps {
@@ -33,13 +35,13 @@ type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'processin
 
 export function GhostMode({ onClose, onCommand, personality = 'balanced' }: GhostModeProps) {
   const { toast } = useToast();
-  const [isMuted, setIsMuted] = useState(false);
+  const [speakerMuted, setSpeakerMuted] = useState(false);
+  const [micMuted, setMicMuted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [displayTranscript, setDisplayTranscript] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const aiResponseRef = useRef('');
   const isConnectingRef = useRef(false);
-  const hasAutoStartedRef = useRef(false);
 
   // Get current user
   const { user } = useAuth();
@@ -213,6 +215,8 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     isSpeaking,
     connect,
     disconnect,
+    setSpeakerMuted: setSpeakerMutedInEngine,
+    setMicMuted: setMicMutedInEngine,
   } = useOpenAIRealtime({
     userProfile: profile,
     contextData,
@@ -243,8 +247,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       if (status === 'connected') {
         isConnectingRef.current = false;
         aiResponseRef.current = '';
-        setAiResponse('');
         setDisplayTranscript('');
+        // Local greeting (matches expected UX)
+        setAiResponse('Hey. You called me. How can I help you?');
       } else if (status === 'disconnected') {
         isConnectingRef.current = false;
       } else if (status === 'error') {
@@ -345,16 +350,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, handleEndSession]);
 
-  // Auto-start session when component mounts (only once)
-  useEffect(() => {
-    if (!hasAutoStartedRef.current) {
-      hasAutoStartedRef.current = true;
-      const timer = setTimeout(() => {
-        handleStartSession();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [handleStartSession]);
+  // Do not auto-start: user initiates the call explicitly via the call button.
 
   // Cleanup on unmount
   useEffect(() => {
@@ -376,8 +372,16 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const StatusIcon = currentStatus.icon;
 
   // Determine mic button state
-  const isMicActive = isListening && !isSpeaking && !isMuted;
+  const isMicActive = isListening && !isSpeaking && !micMuted;
   const isSessionActive = isConnected || connectionStatus === 'connecting';
+
+  useEffect(() => {
+    setSpeakerMutedInEngine?.(speakerMuted);
+  }, [speakerMuted, setSpeakerMutedInEngine]);
+
+  useEffect(() => {
+    setMicMutedInEngine?.(micMuted);
+  }, [micMuted, setMicMutedInEngine]);
 
   return (
     <div className="fixed inset-0 ghost-gradient z-50 flex flex-col animate-fade-in">
@@ -444,7 +448,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             </p>
           ) : isListening && !isSpeaking ? (
             <p className="text-lg text-muted-foreground">
-              Listening... say something
+              Listening... speak now
             </p>
           ) : isSpeaking ? (
             <p className="text-lg text-purple-300">
@@ -452,7 +456,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             </p>
           ) : connectionStatus === 'disconnected' ? (
             <p className="text-lg text-muted-foreground">
-              Tap the microphone to start
+              Tap the call button to start
             </p>
           ) : (
             <p className="text-lg text-muted-foreground">
@@ -464,73 +468,59 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
 
       {/* Footer Controls */}
       <footer className="absolute bottom-0 left-0 right-0 p-8 flex items-center justify-center gap-6">
-        {/* Speaker Mute */}
+        {/* Left: Speaker mute */}
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setIsMuted(!isMuted)}
+          onClick={() => setSpeakerMuted((v) => !v)}
           className={cn(
             "rounded-full w-14 h-14 transition-all",
-            isMuted 
-              ? "bg-destructive/20 text-destructive hover:bg-destructive/30" 
+            speakerMuted
+              ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
               : "bg-muted/50 text-muted-foreground hover:bg-muted"
           )}
-          title={isMuted ? "Unmute speaker" : "Mute speaker"}
+          title={speakerMuted ? "Unmute speaker" : "Mute speaker"}
         >
-          {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+          {speakerMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
         </Button>
 
-        {/* Main Microphone Button */}
+        {/* Center: Call / Hang up */}
         <Button
           onClick={isSessionActive ? handleEndSession : handleStartSession}
           disabled={connectionStatus === 'connecting'}
           className={cn(
             "rounded-full w-24 h-24 transition-all shadow-lg",
             connectionStatus === 'connecting' && "opacity-70 cursor-wait",
-            isSessionActive 
-              ? isMicActive
-                ? "bg-success hover:bg-success/80 animate-pulse"
-                : isSpeaking
-                  ? "bg-purple-500 hover:bg-purple-600"
-                  : "bg-ghost-primary hover:bg-ghost-primary/80"
-              : "bg-muted hover:bg-muted/80"
+            isSessionActive ? "bg-ghost-primary hover:bg-ghost-primary/80" : "bg-muted hover:bg-muted/80"
           )}
-          title={isSessionActive ? "End session" : "Start voice session"}
+          title={isSessionActive ? "End call" : "Call assistant"}
         >
           {connectionStatus === 'connecting' ? (
             <Loader2 className="w-12 h-12 animate-spin text-white" />
           ) : isSessionActive ? (
-            isMicActive ? (
-              <Mic className="w-12 h-12 text-white" />
-            ) : isSpeaking ? (
-              <Volume2 className="w-12 h-12 text-white animate-pulse" />
-            ) : (
-              <MicOff className="w-12 h-12 text-white/70" />
-            )
+            <PhoneOff className="w-12 h-12 text-white" />
           ) : (
-            <Mic className="w-12 h-12 text-foreground/70" />
+            <PhoneCall className="w-12 h-12 text-foreground/70" />
           )}
         </Button>
 
-        {/* Status indicator */}
-        <div className={cn(
-          "rounded-full w-14 h-14 flex items-center justify-center transition-all",
-          isSessionActive 
-            ? isMicActive 
-              ? "bg-success/20 text-success" 
-              : isSpeaking
-                ? "bg-purple-500/20 text-purple-400"
-                : "bg-muted/50 text-muted-foreground"
-            : "bg-muted/30 text-muted-foreground/50"
-        )}>
-          {isSpeaking ? (
-            <Volume2 className="w-6 h-6 animate-pulse" />
-          ) : isMicActive ? (
-            <Mic className="w-6 h-6 animate-pulse" />
-          ) : (
-            <MicOff className="w-6 h-6" />
+        {/* Right: Mic mute */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setMicMuted((v) => !v)}
+          disabled={!isSessionActive}
+          className={cn(
+            "rounded-full w-14 h-14 transition-all",
+            !isSessionActive && "opacity-40",
+            micMuted
+              ? "bg-muted/50 text-muted-foreground hover:bg-muted"
+              : "bg-success/20 text-success hover:bg-success/30"
           )}
-        </div>
+          title={micMuted ? "Unmute microphone" : "Mute microphone"}
+        >
+          {micMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+        </Button>
       </footer>
     </div>
   );

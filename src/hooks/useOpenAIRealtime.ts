@@ -133,14 +133,20 @@ export function useOpenAIRealtime({
   
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const localAudioTrackRef = useRef<MediaStreamTrack | null>(null);
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioQueueRef = useRef<AudioQueue | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
-  
+
   const currentTranscriptRef = useRef<string>('');
   const pendingFunctionCallRef = useRef<{ name: string; callId: string; args: string } | null>(null);
   const isConnectingRef = useRef(false);
+  const dcIsOpenRef = useRef(false);
+  const rtcReadyRef = useRef(false);
+  const speakerMutedRef = useRef(false);
+  const micMutedRef = useRef(false);
 
   // Handle function calls from OpenAI
   const handleFunctionCall = useCallback(async (name: string, args: any, callId: string) => {
@@ -808,15 +814,27 @@ export function useOpenAIRealtime({
   }, [contextData, addTask, updateTask, trashTask, toggleTaskComplete, addContact, updateContact, deleteContact, markContacted, addEvent, updateEvent, deleteEvent, addContract, updateContract, deleteContract, addProject, updateProject, deleteProject, refetch, refetchContacts, refetchContracts, refetchProjects]);
 
   const connect = useCallback(async () => {
-    // Prevent multiple simultaneous connection attempts
-    if (isConnectingRef.current) {
-      console.log('Already connecting, skipping...');
+    // Prevent multiple simultaneous connections
+    if (isConnectingRef.current || isConnected) {
+      console.log('Already connecting or connected');
       return;
     }
-    
-    // Close any existing connection first
+
+    // Reset state flags
+    dcIsOpenRef.current = false;
+    rtcReadyRef.current = false;
+
+    const maybeSetConnected = () => {
+      if (dcIsOpenRef.current && rtcReadyRef.current) {
+        console.log('WebRTC ready + data channel open → connected');
+        setIsConnected(true);
+        setIsListening(true);
+        onConnectionChange?.('connected');
+      }
+    };
+
+    // Close any existing connections
     if (pcRef.current) {
-      console.log('Closing existing connection before reconnecting...');
       pcRef.current.close();
       pcRef.current = null;
     }
@@ -824,82 +842,96 @@ export function useOpenAIRealtime({
       dcRef.current.close();
       dcRef.current = null;
     }
-    
+
+    // Stop local media
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+    }
+    localAudioTrackRef.current = null;
+
     isConnectingRef.current = true;
-    
+
     try {
       onConnectionChange?.('connecting');
       console.log('Getting ephemeral token...');
-      
+
       const { data, error } = await supabase.functions.invoke('openai-realtime-session', {
-        body: { userProfile, contextData }
+        body: { userProfile, contextData },
       });
-      
+
       if (error || !data?.client_secret?.value) {
         throw new Error(error?.message || 'Failed to get session token');
       }
-      
+
       const EPHEMERAL_KEY = data.client_secret.value;
       console.log('Got ephemeral token, establishing WebRTC...');
-      
+
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
-      
+
       const audioEl = document.createElement('audio');
       audioEl.autoplay = true;
+      audioEl.muted = speakerMutedRef.current;
       audioElRef.current = audioEl;
-      
+
       audioContextRef.current = new AudioContext({ sampleRate: 24000 });
       audioQueueRef.current = new AudioQueue(audioContextRef.current, {
         onPlaybackStart: () => {
+          if (speakerMutedRef.current) return;
           setIsSpeaking(true);
           onSpeakingChange?.(true);
         },
         onPlaybackEnd: () => {
           setIsSpeaking(false);
           onSpeakingChange?.(false);
-        }
+        },
       });
-      
+
       pc.ontrack = (e) => {
         console.log('Received audio track');
         audioEl.srcObject = e.streams[0];
       };
-      
+
       const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
-      pc.addTrack(ms.getTracks()[0]);
-      
+      localStreamRef.current = ms;
+      const track = ms.getTracks()[0];
+      localAudioTrackRef.current = track;
+      track.enabled = !micMutedRef.current;
+      pc.addTrack(track);
+
       const dc = pc.createDataChannel('oai-events');
       dcRef.current = dc;
-      
+
       dc.addEventListener('open', () => {
         console.log('Data channel opened');
-        setIsConnected(true);
-        setIsListening(true);
-        onConnectionChange?.('connected');
+        dcIsOpenRef.current = true;
+        maybeSetConnected();
       });
-      
+
       dc.addEventListener('message', async (e) => {
         const event = JSON.parse(e.data);
         console.log('Received event:', event.type);
-        
+
         switch (event.type) {
           case 'input_audio_buffer.speech_started':
             currentTranscriptRef.current = '';
             break;
-            
-          case 'conversation.item.input_audio_transcription.completed':
+
+          case 'conversation.item.input_audio_transcription.completed': {
             const userText = event.transcript || '';
             currentTranscriptRef.current = userText;
             onTranscript?.(userText, true);
             break;
-            
+          }
+
           case 'response.audio_transcript.delta':
             onResponse?.(event.delta || '');
             break;
-            
+
           case 'response.audio.delta':
             if (event.delta) {
+              if (speakerMutedRef.current) break;
               setIsSpeaking(true);
               onSpeakingChange?.(true);
               const binaryString = atob(event.delta);
@@ -910,27 +942,31 @@ export function useOpenAIRealtime({
               audioQueueRef.current?.addToQueue(bytes);
             }
             break;
-            
+
           case 'response.audio.done':
             setTimeout(() => {
               setIsSpeaking(false);
               onSpeakingChange?.(false);
             }, 500);
             break;
-            
+
           case 'response.function_call_arguments.delta':
             if (!pendingFunctionCallRef.current) {
-              pendingFunctionCallRef.current = { name: event.name || '', callId: event.call_id || '', args: '' };
+              pendingFunctionCallRef.current = {
+                name: event.name || '',
+                callId: event.call_id || '',
+                args: '',
+              };
             }
             pendingFunctionCallRef.current.args += event.delta || '';
             break;
-            
+
           case 'response.function_call_arguments.done':
             if (pendingFunctionCallRef.current || event.arguments) {
               const fnName = pendingFunctionCallRef.current?.name || event.name;
               const fnArgs = event.arguments || pendingFunctionCallRef.current?.args || '{}';
               const callId = event.call_id || pendingFunctionCallRef.current?.callId;
-              
+
               try {
                 const parsedArgs = JSON.parse(fnArgs);
                 await handleFunctionCall(fnName, parsedArgs, callId);
@@ -940,86 +976,98 @@ export function useOpenAIRealtime({
               pendingFunctionCallRef.current = null;
             }
             break;
-            
+
           case 'error':
             console.error('OpenAI error:', event.error);
             onError?.(event.error?.message || 'Unknown error');
             break;
         }
       });
-      
+
       dc.addEventListener('close', () => {
         console.log('Data channel closed');
+        dcIsOpenRef.current = false;
+        rtcReadyRef.current = false;
         setIsConnected(false);
         setIsListening(false);
         onConnectionChange?.('disconnected');
       });
-      
+
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      
+
       const baseUrl = 'https://api.openai.com/v1/realtime';
       const model = 'gpt-4o-realtime-preview-2024-12-17';
-      
+
       const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
         method: 'POST',
         body: offer.sdp,
         headers: {
           Authorization: `Bearer ${EPHEMERAL_KEY}`,
-          'Content-Type': 'application/sdp'
+          'Content-Type': 'application/sdp',
         },
       });
-      
+
       if (!sdpResponse.ok) {
         throw new Error(`Failed to connect to OpenAI: ${sdpResponse.status}`);
       }
-      
+
       const answer = {
         type: 'answer' as RTCSdpType,
         sdp: await sdpResponse.text(),
       };
-      
+
       await pc.setRemoteDescription(answer);
       console.log('WebRTC connection established');
+      rtcReadyRef.current = true;
+      maybeSetConnected();
       isConnectingRef.current = false;
-      
     } catch (err) {
       console.error('Connection error:', err);
       isConnectingRef.current = false;
       onConnectionChange?.('error');
       onError?.(err instanceof Error ? err.message : 'Connection failed');
     }
-  }, [userProfile, contextData, onConnectionChange, onError, onTranscript, onResponse, onSpeakingChange, handleFunctionCall]);
+  }, [contextData, handleFunctionCall, isConnected, onConnectionChange, onError, onResponse, onSpeakingChange, onTranscript, userProfile]);
 
   const disconnect = useCallback(() => {
     console.log('Disconnecting...');
     isConnectingRef.current = false;
-    
+    dcIsOpenRef.current = false;
+    rtcReadyRef.current = false;
+
+    // Stop local media
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+    }
+    localAudioTrackRef.current = null;
+
     audioRecorderRef.current?.stop();
     audioRecorderRef.current = null;
-    
+
     audioQueueRef.current?.clear();
-    
+
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    
+
     if (dcRef.current) {
       dcRef.current.close();
       dcRef.current = null;
     }
-    
+
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;
     }
-    
+
     if (audioElRef.current) {
       audioElRef.current.srcObject = null;
       audioElRef.current = null;
     }
-    
+
     setIsConnected(false);
     setIsListening(false);
     setIsSpeaking(false);
@@ -1031,7 +1079,7 @@ export function useOpenAIRealtime({
       console.warn('Data channel not ready');
       return;
     }
-    
+
     dcRef.current.send(JSON.stringify({
       type: 'conversation.item.create',
       item: {
@@ -1040,8 +1088,25 @@ export function useOpenAIRealtime({
         content: [{ type: 'input_text', text }]
       }
     }));
-    
+
     dcRef.current.send(JSON.stringify({ type: 'response.create' }));
+  }, []);
+
+  const setSpeakerMuted = useCallback((muted: boolean) => {
+    speakerMutedRef.current = muted;
+    if (audioElRef.current) audioElRef.current.muted = muted;
+    if (muted) {
+      audioQueueRef.current?.clear();
+      setIsSpeaking(false);
+      onSpeakingChange?.(false);
+    }
+  }, [onSpeakingChange]);
+
+  const setMicMuted = useCallback((muted: boolean) => {
+    micMutedRef.current = muted;
+    if (localAudioTrackRef.current) {
+      localAudioTrackRef.current.enabled = !muted;
+    }
   }, []);
 
   useEffect(() => {
@@ -1057,5 +1122,7 @@ export function useOpenAIRealtime({
     connect,
     disconnect,
     sendTextMessage,
+    setSpeakerMuted,
+    setMicMuted,
   };
 }
