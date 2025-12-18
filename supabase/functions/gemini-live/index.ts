@@ -80,6 +80,39 @@ const personalityPrompts: Record<string, string> = {
   creative: "You are Flux in creative mode. Think outside the box, brainstorm freely, and encourage exploration of new ideas.",
 };
 
+function looksLikeAboutMeQuestion(input?: string): boolean {
+  const t = (input || '').trim().toLowerCase();
+  if (!t) return false;
+  return (
+    t.includes('was weisst du ueber mich') ||
+    t.includes('was weißt du über mich') ||
+    t.includes('wer bin ich') ||
+    t.includes('who am i') ||
+    t.includes('what do you know about me')
+  );
+}
+
+function buildAboutMeAnswerGerman(profile?: UserProfile): string {
+  if (!profile) return 'Ich habe gerade keine Profildaten von dir geladen.';
+
+  const name = profile.displayName?.trim();
+  const role = profile.role?.trim();
+  const businesses = (profile.businesses || []).map((b) => b.trim()).filter(Boolean);
+  const location = [profile.locationCity, profile.locationCountry].filter(Boolean).join(', ');
+
+  const lines: string[] = [];
+  if (name) lines.push(`Dein Name (laut Profil) ist: ${name}.`);
+  else lines.push('Deinen Namen habe ich in deinem Profil nicht gespeichert.');
+
+  if (role) lines.push(`Deine Rolle: ${role}.`);
+  if (businesses.length) lines.push(`Deine Businesses/Projekte (laut Profil): ${businesses.join(', ')}.`);
+  if (location) lines.push(`Dein Standort (laut Profil): ${location}.`);
+
+  if (lines.length === 0) return 'Ich habe aktuell keine Profildetails von dir gespeichert.';
+
+  return `${lines.join(' ')} Wenn etwas davon nicht stimmt, sag mir kurz was ich im Profil korrigieren soll.`;
+}
+
 function buildUserContext(profile?: UserProfile): string {
   if (!profile) {
     return '\n\n## USER IDENTITY\n⚠️ NO USER PROFILE DATA PROVIDED - If asked about the user, say "I don\'t have your profile information loaded."';
@@ -278,27 +311,38 @@ Before every response, check: "Am I about to say something that's NOT in the dat
     if (action === 'send_text') {
       console.log('Processing text:', text?.substring(0, 50));
       console.log('Has context data:', !!contextData);
-      
+
+      // Hard-guard: never let the model answer "about me" questions (prevents name/company hallucinations)
+      if (looksLikeAboutMeQuestion(text)) {
+        const safe = buildAboutMeAnswerGerman(userProfile);
+        console.log('About-me question detected -> returning deterministic profile-based answer');
+        return new Response(JSON.stringify({ text: safe }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: systemPrompt }],
+            },
             contents: [
               {
                 role: 'user',
-                parts: [{ text: `${systemPrompt}\n\nUser says: ${text}` }]
-              }
+                parts: [{ text: text ? String(text) : '' }],
+              },
             ],
             generationConfig: {
               temperature: 0.1,
               maxOutputTokens: 512,
-            }
-          })
+            },
+          }),
         }
       );
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Gemini API error:', response.status, errorText);
@@ -324,33 +368,34 @@ Before every response, check: "Am I about to say something that's NOT in the dat
       }
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: systemPrompt }],
+            },
             contents: [
               {
                 role: 'user',
                 parts: [
-                  { text: systemPrompt },
                   {
                     inlineData: {
                       mimeType: 'audio/wav',
-                      data: audio
-                    }
-                  }
-                ]
-              }
+                      data: audio,
+                    },
+                  },
+                ],
+              },
             ],
             generationConfig: {
               temperature: 0.1,
               maxOutputTokens: 512,
-            }
-          })
+            },
+          }),
         }
       );
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Gemini audio API error:', response.status, errorText);
