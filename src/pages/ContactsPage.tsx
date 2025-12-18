@@ -819,9 +819,9 @@ export default function Contacts() {
               <TabsContent value="personal">
                 {viewMode === 'cards' ? (
                   <ScrollArea className="h-[calc(100vh-400px)]">
-                    <div className="space-y-3 pr-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-4">
                       {filterContacts(personalContacts).length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
                           No personal contacts yet. Add family, friends, or acquaintances!
                         </div>
                       ) : (
@@ -839,9 +839,9 @@ export default function Contacts() {
               <TabsContent value="business">
                 {viewMode === 'cards' ? (
                   <ScrollArea className="h-[calc(100vh-400px)]">
-                    <div className="space-y-3 pr-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-4">
                       {filterContacts(businessContacts).length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
                           No business contacts yet. Build your professional network!
                         </div>
                       ) : (
@@ -859,9 +859,9 @@ export default function Contacts() {
               <TabsContent value="due">
                 {viewMode === 'cards' ? (
                   <ScrollArea className="h-[calc(100vh-400px)]">
-                    <div className="space-y-3 pr-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-4">
                       {contactsDue.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
                           You're all caught up! No contacts due for follow-up.
                         </div>
                       ) : (
