@@ -151,16 +151,22 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     continuous: true,
   });
 
-  // TTS hook - pause recognition when speaking to prevent echo
+  // TTS hook - pause recognition when speaking to prevent echo/self-listening
   const { speak, stop: stopSpeaking, isSpeaking, isLoading: isTTSLoading } = useTextToSpeech({
     onStart: () => {
+      // Immediately pause listening when AI starts speaking
       pauseListening();
+      // Clear displayed transcript to avoid confusion
+      setDisplayTranscript('');
     },
     onEnd: () => {
       setConnectionStatus('connected');
+      // Wait longer before resuming to let audio fully dissipate and prevent echo pickup
       setTimeout(() => {
+        // Reset the last processed ref so we don't accidentally re-process old text
+        lastProcessedRef.current = '';
         resumeListening();
-      }, 300);
+      }, 800);
     }
   });
 
