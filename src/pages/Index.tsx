@@ -6,6 +6,7 @@ import { useAIChat } from '@/hooks/useAIChat';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
 import { useSharedItemsRealtime } from '@/hooks/useSharedItemsRealtime';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
+import { useSpaceSharedData } from '@/hooks/useSpaceSharedData';
 import { useTags } from '@/hooks/useTags';
 import { useProjects } from '@/hooks/useProjects';
 import { useSharedProjects } from '@/hooks/useSharedProjects';
@@ -76,6 +77,23 @@ const Index = () => {
   
   // Real-time notifications from database (for space sharing)
   useRealtimeNotifications(user?.id);
+  
+  // Space shared data (from space members)
+  const { 
+    sharedTasks: spaceSharedTasks, 
+    sharedEvents: spaceSharedEvents 
+  } = useSpaceSharedData(user?.id);
+  
+  // Combine all shared items
+  const allSharedTasks = useMemo(() => [
+    ...sharedTasks,
+    ...spaceSharedTasks,
+  ], [sharedTasks, spaceSharedTasks]);
+  
+  const allSharedEvents = useMemo(() => [
+    ...sharedEvents,
+    ...spaceSharedEvents,
+  ], [sharedEvents, spaceSharedEvents]);
 
   // Task notifications with ADHD mode support
   useTaskNotifications({
@@ -509,8 +527,8 @@ const Index = () => {
         <StandardMode
           tasks={tasks}
           events={events}
-          sharedTasks={sharedTasks}
-          sharedEvents={sharedEvents}
+          sharedTasks={allSharedTasks}
+          sharedEvents={allSharedEvents}
           messages={messages}
           isProcessing={isProcessing || isStreaming}
           projects={projects}

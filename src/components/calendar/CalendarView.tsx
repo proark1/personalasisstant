@@ -54,6 +54,11 @@ interface CalendarItem {
   completed?: boolean;
   isRecurrenceInstance?: boolean;
   originalTask?: Task;
+  sharedByOwner?: {
+    id: string;
+    display_name: string | null;
+    email: string | null;
+  };
 }
 
 export function CalendarView({ 
@@ -126,6 +131,7 @@ export function CalendarView({
           completed: task.completed,
           isRecurrenceInstance: task.isRecurrenceInstance,
           originalTask: originalTask || task,
+          sharedByOwner: task.sharedByOwner,
         });
       }
     });
@@ -138,6 +144,7 @@ export function CalendarView({
         date: event.startTime,
         endTime: event.endTime,
         isRecurrenceInstance: event.isRecurrenceInstance,
+        sharedByOwner: event.sharedByOwner,
       });
     });
 
@@ -266,19 +273,25 @@ export function CalendarView({
               key={`${item.type}-${item.id}-${item.date.getTime()}`}
               onClick={() => handleItemClick(item)}
               className={cn(
-                "w-full text-left text-[10px] px-1 py-0.5 rounded truncate border transition-colors",
+                "w-full text-left text-[10px] px-1 py-0.5 rounded truncate border transition-colors flex items-center gap-1",
                 item.type === 'event' 
                   ? "bg-primary/20 text-primary border-primary/30 hover:bg-primary/30"
                   : priorityColors[item.priority || 'medium'],
                 item.completed && "opacity-50 line-through",
-                item.isRecurrenceInstance && "border-dashed"
+                item.isRecurrenceInstance && "border-dashed",
+                item.sharedByOwner && "ring-1 ring-primary/50"
               )}
-              title={`${item.title}${item.isRecurrenceInstance ? ' (recurring)' : ''}`}
+              title={`${item.title}${item.isRecurrenceInstance ? ' (recurring)' : ''}${item.sharedByOwner ? ` • Shared by ${item.sharedByOwner.display_name || item.sharedByOwner.email}` : ''}`}
             >
+              {item.sharedByOwner && (
+                <span className="w-3 h-3 rounded-full bg-primary/30 text-[6px] flex items-center justify-center font-medium shrink-0">
+                  {(item.sharedByOwner.display_name || item.sharedByOwner.email || '?').charAt(0).toUpperCase()}
+                </span>
+              )}
               {item.type === 'event' && (
                 <span className="font-medium">{format(item.date, 'HH:mm')} </span>
               )}
-              {item.title}
+              <span className="truncate">{item.title}</span>
             </button>
           ))}
           {dayItems.length > (viewMode === 'week' ? 10 : 3) && (

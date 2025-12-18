@@ -79,7 +79,13 @@ export interface Task {
   parentId?: string; // For subtasks
   sortOrder?: number; // For drag-and-drop ordering
   reminderBefore?: number; // Minutes before due date to notify
-  sharedBy?: { displayName?: string; email?: string }; // Who shared this item
+  sharedBy?: { displayName?: string; email?: string }; // Who shared this item (direct share)
+  sharedByOwner?: { // Who shared this item (space sharing)
+    id: string;
+    display_name: string | null;
+    email: string | null;
+    avatar_url?: string | null;
+  };
   projectId?: string;
   mainResponsibleId?: string;
   secondaryResponsibleId?: string;
@@ -109,7 +115,13 @@ export interface CalendarEvent {
   attendees?: string[];
   recurrenceRule?: string; // RRULE format
   recurrenceEnd?: Date;
-  sharedBy?: { displayName?: string; email?: string }; // Who shared this item
+  sharedBy?: { displayName?: string; email?: string }; // Who shared this item (direct share)
+  sharedByOwner?: { // Who shared this item (space sharing)
+    id: string;
+    display_name: string | null;
+    email: string | null;
+    avatar_url?: string | null;
+  };
   category?: EventCategory; // For color-coding: business/personal/family
 }
 

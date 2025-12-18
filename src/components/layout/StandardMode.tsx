@@ -13,8 +13,8 @@ import { GlobalSearch } from '../search/GlobalSearch';
 import { QuickAddFAB } from '../tasks/QuickAddFAB';
 import { AICommandPanel } from '../ai/AICommandPanel';
 import { WorkspaceTabs } from '../workspace/WorkspaceTabs';
-import { NotificationCenter } from '../notifications/NotificationCenter';
-import { useNotifications } from '@/hooks/useNotifications';
+import { RealtimeNotificationCenter } from '../notifications/RealtimeNotificationCenter';
+import { useAuth } from '@/hooks/useAuth';
 import { Task, CalendarEvent, ChatMessage, Project } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCelebration } from '@/hooks/useCelebration';
@@ -133,14 +133,7 @@ export function StandardMode({
   const [activeWorkspace, setActiveWorkspace] = useState<string>('all');
   const isMobile = useIsMobile();
   const { celebrate } = useCelebration();
-  const { 
-    notifications, 
-    markRead, 
-    markAllRead, 
-    deleteNotification, 
-    clearAll,
-    addNotification,
-  } = useNotifications();
+  const { user } = useAuth();
 
   // Workspace task counts
   const workspaceTaskCounts = useMemo(() => {
@@ -342,13 +335,7 @@ export function StandardMode({
         onOpenTodayFocus={() => setShowTodayFocus(true)}
         showCalendar={showCalendar}
         notificationButton={
-          <NotificationCenter
-            notifications={notifications}
-            onMarkRead={markRead}
-            onMarkAllRead={markAllRead}
-            onDelete={deleteNotification}
-            onClearAll={clearAll}
-          />
+          <RealtimeNotificationCenter userId={user?.id} />
         }
       />
       

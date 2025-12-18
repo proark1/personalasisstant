@@ -47,7 +47,8 @@ import {
   AlertCircle,
   Pencil,
   UserCircle,
-  Filter
+  Filter,
+  Users
 } from 'lucide-react';
 import { format, isPast, isToday, isTomorrow, isThisWeek, isThisMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
@@ -302,6 +303,12 @@ function SortableTaskItem({
               <span className="flex items-center gap-1 text-xs text-accent-foreground bg-accent/30 px-1.5 py-0.5 rounded">
                 <UserCircle className="w-3 h-3" />
                 Shared by {task.sharedBy.displayName || task.sharedBy.email || 'someone'}
+              </span>
+            )}
+            {task.sharedByOwner && (
+              <span className="flex items-center gap-1 text-xs text-primary-foreground bg-primary/80 px-1.5 py-0.5 rounded">
+                <Users className="w-3 h-3" />
+                {task.sharedByOwner.display_name || task.sharedByOwner.email || 'Team member'}
               </span>
             )}
             {tags.length > 0 && (
