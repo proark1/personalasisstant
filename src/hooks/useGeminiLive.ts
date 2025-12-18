@@ -16,9 +16,24 @@ interface UserProfile {
   preferredWorkHours?: string | null;
 }
 
+interface ContextData {
+  overdueTasks?: Array<{ title: string; category: string; priority: string; dueDate: string | null }>;
+  todayTasks?: Array<{ title: string; category: string; priority: string; dueDate: string | null }>;
+  upcomingTasks?: Array<{ title: string; category: string; priority: string; dueDate: string | null }>;
+  upcomingEvents?: Array<{ title: string; startTime: string; endTime: string; location?: string | null; category?: string | null }>;
+  contactsDue?: Array<{ name: string; company?: string | null; role?: string | null; nextContactDue?: string | null }>;
+  contractsWithRenewals?: Array<{ name: string; category: string; renewalDate?: string | null; costAmount?: number | null; costFrequency?: string | null }>;
+  totalPendingTasks?: number;
+  totalOverdue?: number;
+  totalEvents?: number;
+  totalContacts?: number;
+  totalContracts?: number;
+}
+
 interface UseGeminiLiveOptions {
   personality?: AssistantPersonality;
   userProfile?: UserProfile | null;
+  contextData?: ContextData | null;
   onResponse?: (text: string) => void;
   onError?: (error: string) => void;
   onSpeakingChange?: (speaking: boolean) => void;
@@ -27,6 +42,7 @@ interface UseGeminiLiveOptions {
 export function useGeminiLive({
   personality = 'balanced',
   userProfile,
+  contextData,
   onResponse,
   onError,
   onSpeakingChange,
@@ -59,7 +75,8 @@ export function useGeminiLive({
             locationCountry: userProfile.locationCountry,
             timezone: userProfile.timezone,
             preferredWorkHours: userProfile.preferredWorkHours,
-          } : undefined
+          } : undefined,
+          contextData: contextData || undefined
         }
       });
 
@@ -78,7 +95,7 @@ export function useGeminiLive({
     } finally {
       setIsProcessing(false);
     }
-  }, [personality, userProfile, onResponse, onError, onSpeakingChange]);
+  }, [personality, userProfile, contextData, onResponse, onError, onSpeakingChange]);
 
   const sendAudio = useCallback(async (audioData: Float32Array, sampleRate: number = 16000) => {
     setIsProcessing(true);
@@ -105,7 +122,8 @@ export function useGeminiLive({
             locationCountry: userProfile.locationCountry,
             timezone: userProfile.timezone,
             preferredWorkHours: userProfile.preferredWorkHours,
-          } : undefined
+          } : undefined,
+          contextData: contextData || undefined
         }
       });
 
@@ -124,7 +142,7 @@ export function useGeminiLive({
     } finally {
       setIsProcessing(false);
     }
-  }, [personality, userProfile, onResponse, onError, onSpeakingChange]);
+  }, [personality, userProfile, contextData, onResponse, onError, onSpeakingChange]);
 
   return {
     isProcessing,
