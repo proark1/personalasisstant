@@ -109,9 +109,14 @@ export function useVoiceRecognition({
       };
 
       recognition.onend = () => {
+        // If we're paused (e.g. AI is speaking or mic muted), do NOT auto-restart.
+        // We'll resume explicitly via resumeListening().
+        if (isPausedRef.current) return;
+
         // Always restart if continuous and should be listening
         if (continuous && shouldRestartRef.current) {
           setTimeout(() => {
+            if (isPausedRef.current) return;
             if (shouldRestartRef.current && recognitionRef.current) {
               try {
                 recognitionRef.current.start();
@@ -119,6 +124,7 @@ export function useVoiceRecognition({
                 console.log('Recognition restart delayed, will retry');
                 // Try again after a short delay
                 setTimeout(() => {
+                  if (isPausedRef.current) return;
                   if (shouldRestartRef.current && recognitionRef.current) {
                     try {
                       recognitionRef.current.start();
