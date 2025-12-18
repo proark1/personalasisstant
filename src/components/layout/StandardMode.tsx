@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Sidebar, SidebarFilter } from './Sidebar';
 import { MobileLayout } from './MobileLayout';
 import { ChatPanel } from '../chat/ChatPanel';
+import { TeamChatPanel } from '../chat/TeamChatPanel';
 import { TaskList } from '../tasks/TaskList';
 import { KanbanBoard } from '../tasks/KanbanBoard';
 import { CalendarPanel } from '../calendar/CalendarPanel';
@@ -20,7 +21,7 @@ import { Task, CalendarEvent, ChatMessage, Project } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
-import { List, Grid3X3, X, Mic, LayoutGrid } from 'lucide-react';
+import { List, Grid3X3, X, Mic, LayoutGrid, MessageCircle } from 'lucide-react';
 import type { ActivityItem } from '@/hooks/useActivityFeed';
 import type { SearchResult, SearchFilters } from '@/hooks/useGlobalSearch';
 import type { Contact } from '@/hooks/useContacts';
@@ -131,6 +132,7 @@ export function StandardMode({
   const [showActivityPanel, setShowActivityPanel] = useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showTeamChat, setShowTeamChat] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
   const [activeWorkspace, setActiveWorkspace] = useState<string>('all');
   const isMobile = useIsMobile();
@@ -408,6 +410,15 @@ export function StandardMode({
             />
             <div className="flex items-center gap-1">
               <Button
+                variant={showTeamChat ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setShowTeamChat(!showTeamChat)}
+                title="Team Chat"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </Button>
+              <Button
                 variant={taskViewMode === 'list' ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-7 px-2"
@@ -503,6 +514,13 @@ export function StandardMode({
                   />
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Team Chat Panel - toggleable */}
+          {showTeamChat && user?.id && (
+            <div className="h-96 glass-panel-solid rounded-xl overflow-hidden">
+              <TeamChatPanel userId={user.id} />
             </div>
           )}
         </div>

@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Sun, Calendar, CheckCircle2, Flame, Clock, Users, FileText, Zap, FolderKanban, Battery, BatteryLow, BatteryFull, AlertTriangle, Moon } from 'lucide-react';
+import { X, Sun, Calendar, CheckCircle2, Flame, Clock, Users, FileText, Zap, FolderKanban, Battery, BatteryLow, BatteryFull, AlertTriangle, Moon, CloudSun, Newspaper, MapPin, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { Task, CalendarEvent, Project } from '@/types/flux';
 import { Contact } from '@/hooks/useContacts';
 import { Contract } from '@/hooks/useContracts';
+import { useWeather } from '@/hooks/useWeather';
+import { usePersonalizedNews } from '@/hooks/usePersonalizedNews';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { isToday, isTomorrow, isPast, differenceInDays, startOfDay, format, addDays, isWithinInterval, endOfDay, getHours } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +38,19 @@ export function MorningBriefing({
 }: MorningBriefingProps) {
   const [visible, setVisible] = useState(true);
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(null);
+
+  // Weather data
+  const { weather, loading: weatherLoading } = useWeather();
+
+  // User profile for personalized news
+  const { profile } = useUserProfile();
+
+  // Personalized news based on user interests
+  const { news, loading: newsLoading } = usePersonalizedNews({
+    interests: profile?.interests || [],
+    skills: profile?.skills || [],
+    businesses: profile?.businesses || [],
+  });
 
   // Check if we should show the briefing (only show once per day)
   useEffect(() => {
@@ -280,6 +297,63 @@ export function MorningBriefing({
         </CardHeader>
         
         <CardContent className="space-y-4">
+          {/* Weather */}
+          <div className="p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-sky-500/10 border border-blue-500/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{weather?.icon || '🌡️'}</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold">
+                      {weatherLoading ? '...' : weather ? `${weather.temperature}°C` : '--'}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {weather?.condition || 'Loading...'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    {weather?.location || 'Detecting location...'}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right text-xs text-muted-foreground">
+                {weather && (
+                  <>
+                    <p>Humidity: {weather.humidity}%</p>
+                    <p>Wind: {weather.windSpeed} km/h</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Personalized News */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Newspaper className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Today's Headlines</span>
+              {newsLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+            </div>
+            {!newsLoading && news.length > 0 ? (
+              <div className="space-y-2">
+                {news.slice(0, 4).map((item, i) => (
+                  <div key={i} className="p-2 rounded bg-muted/50">
+                    <p className="text-sm font-medium">{item.headline}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.summary}</p>
+                    <Badge variant="outline" className="text-[10px] mt-1">{item.category}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : !newsLoading && (
+              <p className="text-xs text-muted-foreground">
+                Add interests to your profile to get personalized news
+              </p>
+            )}
+          </div>
+
+          <Separator className="my-2" />
+
           {/* Streak */}
           {streak > 0 && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
