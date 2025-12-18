@@ -23,6 +23,7 @@ import {
   Loader2,
   PhoneCall,
   PhoneOff,
+  Bug,
 } from 'lucide-react';
 
 interface GhostModeProps {
@@ -33,6 +34,35 @@ interface GhostModeProps {
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'processing' | 'speaking' | 'error';
 
+// Helper component for debug timing rows
+function DebugTimingRow({ 
+  label, 
+  start, 
+  end, 
+  baseTime 
+}: { 
+  label: string; 
+  start?: number; 
+  end?: number; 
+  baseTime?: number; 
+}) {
+  const formatTime = (time?: number) => {
+    if (!time || !baseTime) return '—';
+    return `+${((time - baseTime) / 1000).toFixed(2)}s`;
+  };
+  
+  const duration = start && end ? `(${((end - start) / 1000).toFixed(2)}s)` : '';
+  
+  return (
+    <div className="flex justify-between items-center text-muted-foreground">
+      <span>{label}</span>
+      <span className={start ? 'text-foreground' : ''}>
+        {formatTime(end || start)} {duration}
+      </span>
+    </div>
+  );
+}
+
 export function GhostMode({ onClose, onCommand, personality = 'balanced' }: GhostModeProps) {
   const { toast } = useToast();
   const [speakerMuted, setSpeakerMuted] = useState(false);
@@ -40,6 +70,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [displayTranscript, setDisplayTranscript] = useState('');
   const [aiResponse, setAiResponse] = useState('');
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [buttonCooldown, setButtonCooldown] = useState(false);
+  const [buttonPulse, setButtonPulse] = useState(false);
   const aiResponseRef = useRef('');
   const isConnectingRef = useRef(false);
 
@@ -217,6 +250,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     disconnect,
     setSpeakerMuted: setSpeakerMutedInEngine,
     setMicMuted: setMicMutedInEngine,
+    debugTimings,
   } = useOpenAIRealtime({
     userProfile: profile,
     contextData,
@@ -307,11 +341,17 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   }, [isListening, isSpeaking, isConnected]);
 
   const handleStartSession = useCallback(async () => {
-    // Prevent multiple simultaneous connection attempts
-    if (isConnectingRef.current || isConnected) {
-      console.log('Already connecting or connected, skipping...');
+    // Prevent multiple simultaneous connection attempts + cooldown
+    if (isConnectingRef.current || isConnected || buttonCooldown) {
+      console.log('Already connecting, connected, or in cooldown, skipping...');
       return;
     }
+
+    // Enable cooldown and haptic pulse feedback
+    setButtonCooldown(true);
+    setButtonPulse(true);
+    setTimeout(() => setButtonPulse(false), 200);
+    setTimeout(() => setButtonCooldown(false), 2500);
     
     isConnectingRef.current = true;
     setConnectionStatus('connecting');
@@ -333,10 +373,11 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       });
       setTimeout(() => setConnectionStatus('disconnected'), 4000);
     }
-  }, [connect, isConnected, toast]);
+  }, [connect, isConnected, buttonCooldown, toast]);
 
   const handleEndSession = useCallback(() => {
     isConnectingRef.current = false;
+    setButtonCooldown(false);
     disconnect();
     setConnectionStatus('disconnected');
   }, [disconnect]);
@@ -404,18 +445,74 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
           </div>
         </div>
         
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => {
-            handleEndSession();
-            onClose();
-          }}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <X className="w-6 h-6" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowDebugPanel((v) => !v)}
+            className={cn(
+              "text-muted-foreground hover:text-foreground",
+              showDebugPanel && "text-ghost-primary"
+            )}
+            title="Toggle debug panel"
+          >
+            <Bug className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              handleEndSession();
+              onClose();
+            }}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-6 h-6" />
+          </Button>
+        </div>
       </header>
+
+      {/* Debug Panel */}
+      {showDebugPanel && (
+        <div className="absolute top-20 right-6 w-72 glass-panel rounded-lg p-4 text-xs font-mono space-y-2">
+          <div className="text-ghost-primary font-semibold mb-2">Voice Debug Timings</div>
+          <DebugTimingRow 
+            label="Token Fetch" 
+            start={debugTimings.tokenFetchStart} 
+            end={debugTimings.tokenFetchEnd} 
+            baseTime={debugTimings.connectStart} 
+          />
+          <DebugTimingRow 
+            label="Mic Permission" 
+            start={debugTimings.micPermissionStart} 
+            end={debugTimings.micPermissionEnd} 
+            baseTime={debugTimings.connectStart} 
+          />
+          <DebugTimingRow 
+            label="Data Channel Open" 
+            start={debugTimings.dataChannelOpen} 
+            baseTime={debugTimings.connectStart} 
+          />
+          <DebugTimingRow 
+            label="Remote SDP Set" 
+            start={debugTimings.remoteSdpSet} 
+            baseTime={debugTimings.connectStart} 
+          />
+          <DebugTimingRow 
+            label="First Audio Received" 
+            start={debugTimings.firstAudioReceived} 
+            baseTime={debugTimings.connectStart} 
+          />
+          {debugTimings.connectStart && (
+            <div className="pt-2 border-t border-border/50 text-muted-foreground">
+              Total elapsed: {debugTimings.remoteSdpSet 
+                ? `${((debugTimings.remoteSdpSet - debugTimings.connectStart) / 1000).toFixed(2)}s`
+                : '...'
+              }
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center px-8">
@@ -490,13 +587,18 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         {/* Center: Call / Hang up */}
         <Button
           onClick={isSessionActive ? handleEndSession : handleStartSession}
-          disabled={connectionStatus === 'connecting'}
+          disabled={connectionStatus === 'connecting' || buttonCooldown}
           className={cn(
             "rounded-full w-24 h-24 transition-all shadow-lg",
             connectionStatus === 'connecting' && "opacity-70 cursor-wait",
+            buttonCooldown && !isSessionActive && "opacity-50 cursor-not-allowed",
+            buttonPulse && "scale-95",
             isSessionActive ? "bg-ghost-primary hover:bg-ghost-primary/80" : "bg-muted hover:bg-muted/80"
           )}
-          title={isSessionActive ? "End call" : "Call assistant"}
+          style={{
+            transition: buttonPulse ? 'transform 100ms ease-out' : 'transform 200ms ease-out, opacity 200ms',
+          }}
+          title={isSessionActive ? "End call" : buttonCooldown ? "Please wait..." : "Call assistant"}
         >
           {connectionStatus === 'connecting' ? (
             <Loader2 className="w-12 h-12 animate-spin text-white" />

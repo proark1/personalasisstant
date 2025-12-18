@@ -130,6 +130,18 @@ export function useOpenAIRealtime({
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Debug timing metrics
+  const [debugTimings, setDebugTimings] = useState<{
+    tokenFetchStart?: number;
+    tokenFetchEnd?: number;
+    micPermissionStart?: number;
+    micPermissionEnd?: number;
+    dataChannelOpen?: number;
+    remoteSdpSet?: number;
+    firstAudioReceived?: number;
+    connectStart?: number;
+  }>({});
   
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -869,11 +881,19 @@ export function useOpenAIRealtime({
 
     try {
       onConnectionChange?.('connecting');
+      const connectStart = performance.now();
+      setDebugTimings({ connectStart });
       console.log('Getting ephemeral token...');
+
+      const tokenFetchStart = performance.now();
+      setDebugTimings(prev => ({ ...prev, tokenFetchStart }));
 
       const { data, error } = await supabase.functions.invoke('openai-realtime-session', {
         body: { userProfile: userProfileRef.current, contextData: contextDataRef.current },
       });
+
+      const tokenFetchEnd = performance.now();
+      setDebugTimings(prev => ({ ...prev, tokenFetchEnd }));
 
       if (error || !data?.client_secret?.value) {
         throw new Error(error?.message || 'Failed to get session token');
@@ -908,8 +928,14 @@ export function useOpenAIRealtime({
         audioEl.srcObject = e.streams[0];
       };
 
+      const micPermissionStart = performance.now();
+      setDebugTimings(prev => ({ ...prev, micPermissionStart }));
+
       const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = ms;
+
+      const micPermissionEnd = performance.now();
+      setDebugTimings(prev => ({ ...prev, micPermissionEnd }));
       const track = ms.getTracks()[0];
       localAudioTrackRef.current = track;
       track.enabled = !micMutedRef.current;
@@ -921,6 +947,7 @@ export function useOpenAIRealtime({
       dc.addEventListener('open', () => {
         console.log('Data channel opened');
         dcIsOpenRef.current = true;
+        setDebugTimings(prev => ({ ...prev, dataChannelOpen: performance.now() }));
         maybeSetConnected();
       });
 
@@ -947,6 +974,13 @@ export function useOpenAIRealtime({
           case 'response.audio.delta':
             if (event.delta) {
               if (speakerMutedRef.current) break;
+              // Record first audio received timing
+              setDebugTimings(prev => {
+                if (!prev.firstAudioReceived) {
+                  return { ...prev, firstAudioReceived: performance.now() };
+                }
+                return prev;
+              });
               setIsSpeaking(true);
               onSpeakingChange?.(true);
               const binaryString = atob(event.delta);
@@ -1034,6 +1068,7 @@ export function useOpenAIRealtime({
 
       await pc.setRemoteDescription(answer);
       console.log('WebRTC connection established');
+      setDebugTimings(prev => ({ ...prev, remoteSdpSet: performance.now() }));
       rtcReadyRef.current = true;
       maybeSetConnected();
       isConnectingRef.current = false;
@@ -1135,6 +1170,7 @@ export function useOpenAIRealtime({
   const disconnect = useCallback(() => {
     console.log('Disconnecting...');
     cleanupConnection({ emitDisconnected: true });
+    setDebugTimings({});
   }, [cleanupConnection]);
 
   const sendTextMessage = useCallback((text: string) => {
@@ -1187,5 +1223,6 @@ export function useOpenAIRealtime({
     sendTextMessage,
     setSpeakerMuted,
     setMicMuted,
+    debugTimings,
   };
 }
