@@ -81,51 +81,59 @@ const personalityPrompts: Record<string, string> = {
 };
 
 function buildUserContext(profile?: UserProfile): string {
-  if (!profile || !profile.displayName) return '';
+  if (!profile) {
+    return '\n\n## USER IDENTITY\n⚠️ NO USER PROFILE DATA PROVIDED - If asked about the user, say "I don\'t have your profile information loaded."';
+  }
 
   const parts: string[] = [];
   
+  // Name is critical - must be explicit
   if (profile.displayName) {
-    parts.push(`The user's name is ${profile.displayName}.`);
+    parts.push(`**NAME**: ${profile.displayName} (THIS IS THE USER'S REAL NAME - DO NOT USE ANY OTHER NAME)`);
+  } else {
+    parts.push(`**NAME**: Unknown (DO NOT invent a name - say "I don't know your name")`);
   }
   
   if (profile.role) {
-    parts.push(`Their role is ${profile.role}.`);
+    parts.push(`**ROLE**: ${profile.role}`);
   }
   
+  // Businesses - be very explicit
   if (profile.businesses && profile.businesses.length > 0) {
-    parts.push(`They run these businesses: ${profile.businesses.join('; ')}.`);
+    parts.push(`**BUSINESSES** (ONLY these, no others):\n${profile.businesses.map((b, i) => `  ${i + 1}. ${b}`).join('\n')}`);
+  } else {
+    parts.push(`**BUSINESSES**: None specified (DO NOT invent any companies)`);
   }
   
   if (profile.locationCity && profile.locationCountry) {
-    parts.push(`Based in ${profile.locationCity}, ${profile.locationCountry}.`);
+    parts.push(`**LOCATION**: ${profile.locationCity}, ${profile.locationCountry}`);
   } else if (profile.locationCountry) {
-    parts.push(`Based in ${profile.locationCountry}.`);
+    parts.push(`**LOCATION**: ${profile.locationCountry}`);
+  } else if (profile.locationCity) {
+    parts.push(`**LOCATION**: ${profile.locationCity}`);
   }
   
   if (profile.timezone) {
-    parts.push(`Timezone: ${profile.timezone}.`);
+    parts.push(`**TIMEZONE**: ${profile.timezone}`);
   }
   
   if (profile.interests && profile.interests.length > 0) {
-    parts.push(`Interests: ${profile.interests.join(', ')}.`);
+    parts.push(`**INTERESTS**: ${profile.interests.join(', ')}`);
   }
   
   if (profile.skills && profile.skills.length > 0) {
-    parts.push(`Skills: ${profile.skills.join(', ')}.`);
+    parts.push(`**SKILLS**: ${profile.skills.join(', ')}`);
   }
   
   if (profile.goals) {
-    parts.push(`Current goals: ${profile.goals}`);
+    parts.push(`**GOALS**: ${profile.goals}`);
   }
   
   if (profile.bio) {
-    parts.push(`Background: ${profile.bio}`);
+    parts.push(`**BIO**: ${profile.bio}`);
   }
 
-  return parts.length > 0 
-    ? `\n\n## User Identity (who they are)\n${parts.join('\n')}`
-    : '';
+  return `\n\n## USER IDENTITY - FACTUAL DATA ONLY\nThe following is the COMPLETE and ONLY information about this user. Do NOT add, invent, or assume anything beyond this:\n\n${parts.join('\n')}`;
 }
 
 function buildDataContext(contextData?: ContextData): string {
@@ -213,30 +221,59 @@ serve(async (req) => {
 
     const { action, personality = 'balanced', audio, text, userProfile, contextData } = await req.json() as LiveSessionRequest;
 
+    // Enhanced logging for debugging
+    console.log('=== GEMINI LIVE REQUEST ===');
+    console.log('Action:', action);
+    console.log('Personality:', personality);
+    console.log('User Profile received:', !!userProfile);
+    if (userProfile) {
+      console.log('  - displayName:', userProfile.displayName || 'NOT SET');
+      console.log('  - businesses:', userProfile.businesses?.join(', ') || 'NONE');
+      console.log('  - role:', userProfile.role || 'NOT SET');
+      console.log('  - location:', `${userProfile.locationCity || '?'}, ${userProfile.locationCountry || '?'}`);
+    }
+    console.log('Context Data received:', !!contextData);
+    if (contextData) {
+      console.log('  - overdueTasks:', contextData.overdueTasks?.length || 0);
+      console.log('  - todayTasks:', contextData.todayTasks?.length || 0);
+      console.log('  - upcomingEvents:', contextData.upcomingEvents?.length || 0);
+    }
+
     const userContext = buildUserContext(userProfile);
     const dataContext = buildDataContext(contextData);
     
-    const systemPrompt = `${personalityPrompts[personality] || personalityPrompts.balanced}
+    // System prompt with STRICT anti-hallucination instructions at the TOP
+    const systemPrompt = `## ⚠️ CRITICAL ANTI-HALLUCINATION RULES - YOU MUST FOLLOW THESE ⚠️
 
-You are having a real-time voice conversation. Keep responses conversational, natural, and concise (1-3 sentences unless more detail is needed).
+1. **NEVER INVENT OR FABRICATE** any names, companies, tasks, events, meetings, or facts
+2. **ONLY USE** the exact data provided in USER IDENTITY and CURRENT DATA sections below
+3. If user asks "What do you know about me?" - ONLY state facts from USER IDENTITY section
+4. If user asks about tasks/meetings - ONLY reference items from CURRENT DATA section
+5. If data is missing or empty, say "I don't have that information" - DO NOT MAKE THINGS UP
+6. **THE USER'S NAME IS IN THE USER IDENTITY SECTION** - use ONLY that name, never invent one
 
-## CRITICAL INSTRUCTIONS - READ CAREFULLY
-1. **ONLY reference ACTUAL data provided below** - NEVER make up tasks, events, meetings, or any other information
-2. When asked "What do I need to do today?", answer ONLY based on the OVERDUE TASKS and TODAY'S TASKS sections below
-3. When asked about meetings or events, check ONLY the CALENDAR EVENTS section below
-4. If no data exists for a category, say "You don't have any [tasks/events/etc] scheduled" - don't invent items
-5. When asked about the user personally ("Who am I?", "What do you know about me?"), use ONLY the User Identity section
 ${userContext}
 ${dataContext}
 
-## What you can help with
-- Task management (discussing tasks from the data above)
-- Calendar and scheduling (based on events above)
-- Contacts and follow-ups (based on contacts above)
-- Contracts and renewals (based on contracts above)
-- General productivity advice
+---
 
-Remember: Be helpful but NEVER fabricate information. Only reference what's in the data above.`;
+## Your Role
+${personalityPrompts[personality] || personalityPrompts.balanced}
+
+You are having a real-time voice conversation. Keep responses conversational, natural, and concise (1-3 sentences unless more detail is needed).
+
+## What you can help with (ONLY using data provided above)
+- Summarizing the user's tasks and schedule
+- Answering questions about what's due today/this week
+- Discussing contacts and follow-ups listed above
+- Contract renewal reminders from the data above
+- General productivity advice (this can be general knowledge)
+
+## FINAL REMINDER
+Before every response, check: "Am I about to say something that's NOT in the data above?" If yes, STOP and say you don't have that information instead.`;
+
+    // Log first 800 chars of system prompt for debugging
+    console.log('System prompt preview:', systemPrompt.substring(0, 800));
 
     if (action === 'send_text') {
       console.log('Processing text:', text?.substring(0, 50));
@@ -255,8 +292,8 @@ Remember: Be helpful but NEVER fabricate information. Only reference what's in t
               }
             ],
             generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 256,
+              temperature: 0.1,
+              maxOutputTokens: 512,
             }
           })
         }
@@ -307,8 +344,8 @@ Remember: Be helpful but NEVER fabricate information. Only reference what's in t
               }
             ],
             generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 256,
+              temperature: 0.1,
+              maxOutputTokens: 512,
             }
           })
         }
