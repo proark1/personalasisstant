@@ -118,6 +118,20 @@ serve(async (req) => {
           },
           required: ["type"]
         }
+      },
+      {
+        type: "function",
+        name: "search_contacts",
+        description: "Search for contacts by name, company, location, role, or tags. Use when user asks about people, networking, who to contact, or who they know.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search term - name, company, city, country, role, or keyword" },
+            location: { type: "string", description: "Filter by city or country (e.g., 'Dubai', 'UAE', 'Germany')" },
+            type: { type: "string", enum: ["personal", "business", "all"], description: "Filter by contact type" }
+          },
+          required: ["query"]
+        }
       }
     ];
 
@@ -257,11 +271,28 @@ Current date and time: ${timeString}
       });
     }
 
-    // Contacts
+    // Contacts due for follow-up
     if (contextData.contactsDue?.length > 0) {
       prompt += `\n### Contacts Due for Follow-up:\n`;
       contextData.contactsDue.forEach((c: any) => {
         prompt += `- ${c.name}${c.company ? ` at ${c.company}` : ''}\n`;
+      });
+    }
+
+    // ALL contacts for searching
+    if (contextData.allContacts?.length > 0) {
+      prompt += `\n### All Contacts (${contextData.allContacts.length} total - use search_contacts tool to find specific ones):\n`;
+      contextData.allContacts.forEach((c: any) => {
+        const location = [c.city, c.country].filter(Boolean).join(', ');
+        const tags = c.tags?.length > 0 ? ` [${c.tags.join(', ')}]` : '';
+        prompt += `- ${c.name}`;
+        if (c.company) prompt += ` at ${c.company}`;
+        if (c.role) prompt += ` (${c.role})`;
+        if (location) prompt += ` - ${location}`;
+        if (c.contactType) prompt += ` | ${c.contactType}`;
+        if (tags) prompt += tags;
+        if (c.notes) prompt += ` | Notes: ${c.notes.substring(0, 80)}`;
+        prompt += `\n`;
       });
     }
 

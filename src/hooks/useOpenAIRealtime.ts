@@ -229,6 +229,46 @@ export function useOpenAIRealtime({
           };
           break;
         }
+        
+        case 'search_contacts': {
+          const allContacts = contextData?.allContacts || [];
+          const query = (args.query || '').toLowerCase();
+          const location = (args.location || '').toLowerCase();
+          const typeFilter = args.type || 'all';
+          
+          const matches = allContacts.filter((c: any) => {
+            // Search across multiple fields
+            const searchFields = [
+              c.name, c.company, c.role, c.city, c.country,
+              c.notes, ...(c.tags || [])
+            ].filter(Boolean).join(' ').toLowerCase();
+            
+            const matchesQuery = searchFields.includes(query);
+            const matchesLocation = !location || 
+              (c.city?.toLowerCase().includes(location)) ||
+              (c.country?.toLowerCase().includes(location));
+            const matchesType = typeFilter === 'all' || c.contactType === typeFilter;
+            
+            return matchesQuery && matchesLocation && matchesType;
+          });
+          
+          result = {
+            success: true,
+            message: matches.length > 0 
+              ? `Found ${matches.length} contact(s) matching "${args.query}"${location ? ` in ${args.location}` : ''}`
+              : `No contacts found matching "${args.query}"${location ? ` in ${args.location}` : ''}`,
+            contacts: matches.slice(0, 10).map((c: any) => ({
+              name: c.name,
+              company: c.company,
+              role: c.role,
+              location: [c.city, c.country].filter(Boolean).join(', '),
+              phone: c.phone,
+              email: c.email,
+              notes: c.notes?.substring(0, 100)
+            }))
+          };
+          break;
+        }
       }
     } catch (err) {
       console.error('Function call error:', err);

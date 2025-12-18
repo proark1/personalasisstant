@@ -130,6 +130,21 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         role: c.role || null,
         nextContactDue: c.nextContactDue?.toISOString() || null
       })),
+      // ALL contacts for AI searching
+      allContacts: contacts.slice(0, 100).map(c => ({
+        name: c.name,
+        company: c.company || null,
+        role: c.role || null,
+        city: c.city || null,
+        country: c.country || null,
+        contactType: c.contactType,
+        personalTier: c.personalTier || null,
+        businessLevel: c.businessLevel || null,
+        notes: c.notes || null,
+        tags: c.tags || [],
+        phone: c.phone || null,
+        email: c.email || null,
+      })),
       contractsWithRenewals: contractsWithRenewals.map(c => ({
         name: c.name,
         category: String(c.category),
