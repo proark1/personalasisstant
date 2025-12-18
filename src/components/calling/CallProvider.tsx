@@ -1,8 +1,13 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { useWebRTCCall, CallType } from '@/hooks/useWebRTCCall';
 import { useOnlinePresence } from '@/hooks/useOnlinePresence';
 import { CallDialog } from './CallDialog';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  showCallNotification, 
+  stopRingtone,
+  requestNotificationPermission 
+} from '@/lib/notificationSounds';
 
 interface CallSession {
   id: string;
@@ -42,11 +47,19 @@ export function CallProvider({ userId, children }: CallProviderProps) {
   const [incomingCallerName, setIncomingCallerName] = useState('');
   const [pendingSession, setPendingSession] = useState<CallSession | null>(null);
 
+  // Request notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
   const handleIncomingCall = useCallback((session: CallSession, callerName: string) => {
     console.log('Incoming call from:', callerName);
     setIncomingCallerName(callerName);
     setPendingSession(session);
     setIsDialogOpen(true);
+    
+    // Play ringtone and show desktop notification
+    showCallNotification(callerName, session.call_type as 'video' | 'audio');
     
     toast({
       title: 'Incoming Call',
@@ -106,6 +119,7 @@ export function CallProvider({ userId, children }: CallProviderProps) {
   }, [startCall, toast]);
 
   const handleAnswer = useCallback(async () => {
+    stopRingtone();
     if (pendingSession) {
       await answerCall(pendingSession);
       setPendingSession(null);
@@ -113,6 +127,7 @@ export function CallProvider({ userId, children }: CallProviderProps) {
   }, [pendingSession, answerCall]);
 
   const handleDecline = useCallback(async () => {
+    stopRingtone();
     if (pendingSession) {
       await declineCall(pendingSession);
       setPendingSession(null);
@@ -121,6 +136,7 @@ export function CallProvider({ userId, children }: CallProviderProps) {
   }, [pendingSession, declineCall]);
 
   const handleEndCall = useCallback(async () => {
+    stopRingtone();
     await endCall();
     setIsDialogOpen(false);
     setPendingSession(null);

@@ -11,15 +11,20 @@ import {
   Send, 
   ArrowLeft, 
   Users,
-  Circle
+  Paperclip,
+  Image as ImageIcon,
+  FileText,
+  X
 } from 'lucide-react';
-import { useDirectMessages, Conversation } from '@/hooks/useDirectMessages';
+import { useDirectMessages, Conversation, ChatAttachment } from '@/hooks/useDirectMessages';
 import { useSpaceMembers, SpaceMember } from '@/hooks/useSpaceMembers';
+import { useChatAttachments } from '@/hooks/useChatAttachments';
 import { useCall } from '@/components/calling/CallProvider';
 import { OnlineIndicator } from '@/components/calling/OnlineIndicator';
 import { CallButton } from '@/components/calling/CallButton';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { showMessageNotification, requestNotificationPermission } from '@/lib/notificationSounds';
 
 interface TeamChatPanelProps {
   userId: string;
@@ -36,6 +41,7 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
   } = useDirectMessages(userId);
   
   const { members } = useSpaceMembers(userId);
+  const { uploading, uploadMultipleFiles } = useChatAttachments(userId);
   const { isOnline, startVideoCall, startAudioCall } = useCall();
   
   const [selectedPartner, setSelectedPartner] = useState<{
@@ -43,13 +49,31 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
     name: string;
   } | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const prevMessagesLengthRef = useRef(0);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    
+    // Check for new incoming messages and play notification
+    if (messages.length > prevMessagesLengthRef.current && prevMessagesLengthRef.current > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.sender_id !== userId) {
+        const senderName = lastMessage.sender_profile?.display_name || 'Someone';
+        showMessageNotification(senderName, lastMessage.content);
+      }
+    }
+    prevMessagesLengthRef.current = messages.length;
+  }, [messages, userId]);
 
   // Load messages when selecting a conversation
   useEffect(() => {
@@ -60,16 +84,36 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
   }, [selectedPartner, fetchMessages, markAsRead]);
 
   const handleSendMessage = async () => {
-    if (!selectedPartner || !newMessage.trim() || isSending) return;
+    if (!selectedPartner || (!newMessage.trim() && pendingAttachments.length === 0) || isSending) return;
 
     setIsSending(true);
-    const result = await sendMessage(selectedPartner.id, newMessage);
+    const result = await sendMessage(selectedPartner.id, newMessage, pendingAttachments);
     if (result) {
       setNewMessage('');
+      setPendingAttachments([]);
       await fetchMessages(selectedPartner.id);
     }
     setIsSending(false);
   };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const attachments = await uploadMultipleFiles(files);
+    setPendingAttachments(prev => [...prev, ...attachments]);
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removePendingAttachment = (index: number) => {
+    setPendingAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const isImageFile = (type: string) => type.startsWith('image/');
 
   const handleSelectMember = (member: SpaceMember) => {
     setSelectedPartner({
@@ -146,6 +190,7 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
           <div className="space-y-4">
             {messages.map((msg) => {
               const isOwn = msg.sender_id === userId;
+              const hasAttachments = msg.attachments && msg.attachments.length > 0;
               return (
                 <div
                   key={msg.id}
@@ -169,7 +214,37 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
                         : 'bg-muted'
                     )}
                   >
-                    <p className="text-sm">{msg.content}</p>
+                    {/* Attachments */}
+                    {hasAttachments && (
+                      <div className="space-y-2 mb-2">
+                        {msg.attachments.map((att, idx) => (
+                          <a
+                            key={idx}
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                          >
+                            {isImageFile(att.type) ? (
+                              <img
+                                src={att.url}
+                                alt={att.name}
+                                className="max-w-full rounded-md max-h-48 object-cover"
+                              />
+                            ) : (
+                              <div className={cn(
+                                'flex items-center gap-2 p-2 rounded border',
+                                isOwn ? 'border-primary-foreground/20' : 'border-border'
+                              )}>
+                                <FileText className="w-4 h-4 flex-shrink-0" />
+                                <span className="text-xs truncate">{att.name}</span>
+                              </div>
+                            )}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    {msg.content && <p className="text-sm">{msg.content}</p>}
                     <p className={cn(
                       'text-[10px] mt-1',
                       isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'
@@ -184,18 +259,62 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
           </div>
         </ScrollArea>
 
-        <div className="p-4 border-t">
+        <div className="p-4 border-t space-y-2">
+          {/* Pending attachments preview */}
+          {pendingAttachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 p-2 bg-muted/50 rounded-lg">
+              {pendingAttachments.map((att, idx) => (
+                <div key={idx} className="relative group">
+                  {isImageFile(att.type) ? (
+                    <img
+                      src={att.url}
+                      alt={att.name}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 flex items-center justify-center bg-muted rounded">
+                      <FileText className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removePendingAttachment(idx)}
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          
           <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.txt"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
             <Input
               placeholder="Type a message..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-              disabled={isSending}
+              disabled={isSending || uploading}
             />
             <Button 
               onClick={handleSendMessage} 
-              disabled={!newMessage.trim() || isSending}
+              disabled={(!newMessage.trim() && pendingAttachments.length === 0) || isSending || uploading}
             >
               <Send className="w-4 h-4" />
             </Button>

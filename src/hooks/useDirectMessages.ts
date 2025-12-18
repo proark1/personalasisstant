@@ -1,11 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface ChatAttachment {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+}
+
 export interface DirectMessage {
   id: string;
   sender_id: string;
   recipient_id: string;
   content: string;
+  attachments: ChatAttachment[];
   is_read: boolean;
   created_at: string;
   sender_profile?: {
@@ -125,9 +133,10 @@ export function useDirectMessages(userId: string | null) {
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
-      const messagesWithProfiles = (data || []).map(msg => ({
+      const messagesWithProfiles: DirectMessage[] = (data || []).map(msg => ({
         ...msg,
-        sender_profile: profileMap.get(msg.sender_id) || null,
+        attachments: (Array.isArray(msg.attachments) ? msg.attachments : []) as unknown as ChatAttachment[],
+        sender_profile: profileMap.get(msg.sender_id) || undefined,
       }));
 
       setMessages(messagesWithProfiles);
@@ -139,8 +148,12 @@ export function useDirectMessages(userId: string | null) {
   }, [userId]);
 
   // Send a message
-  const sendMessage = useCallback(async (recipientId: string, content: string) => {
-    if (!userId || !content.trim()) return null;
+  const sendMessage = useCallback(async (
+    recipientId: string, 
+    content: string,
+    attachments: ChatAttachment[] = []
+  ) => {
+    if (!userId || (!content.trim() && attachments.length === 0)) return null;
 
     try {
       const { data, error } = await supabase
@@ -149,6 +162,7 @@ export function useDirectMessages(userId: string | null) {
           sender_id: userId,
           recipient_id: recipientId,
           content: content.trim(),
+          attachments: attachments as unknown as null,
         })
         .select()
         .single();
