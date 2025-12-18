@@ -613,47 +613,17 @@ Current date and time: ${timeString}
       });
     }
 
-    // Projects summary
+    // Projects summary (keep short)
     if (contextData.allProjects?.length > 0) {
       prompt += `\n### Projects:\n`;
-      contextData.allProjects.forEach((p: any) => {
-        prompt += `- "${p.name}" (ID: ${p.id})${p.description ? `: ${p.description}` : ''}\n`;
+      contextData.allProjects.slice(0, 10).forEach((p: any) => {
+        prompt += `- "${p.name}"${p.description ? `: ${p.description}` : ''}\n`;
       });
     }
 
-    // All tasks for matching (abbreviated)
-    if (contextData.allTasks?.length > 0) {
-      prompt += `\n### All Active Tasks (for search):\n`;
-      contextData.allTasks.slice(0, 50).forEach((t: any) => {
-        const due = t.dueDate ? ` - due ${t.dueDate.split('T')[0]}` : '';
-        const project = t.projectId ? ` [Project: ${t.projectId}]` : '';
-        prompt += `- ID:${t.id} "${t.title}" (${t.priority})${due}${project}\n`;
-      });
-    }
+    // Note: We intentionally DO NOT include full task/contact/contract lists in the prompt.
+    // Those large lists slow down session creation and aren't required for tool-based actions.
 
-    // All contacts for matching (abbreviated)
-    if (contextData.allContacts?.length > 0) {
-      prompt += `\n### All Contacts (for search - ${contextData.allContacts.length} total):\n`;
-      contextData.allContacts.slice(0, 30).forEach((c: any) => {
-        const location = [c.city, c.country].filter(Boolean).join(', ');
-        prompt += `- ID:${c.id} "${c.name}"`;
-        if (c.company) prompt += ` at ${c.company}`;
-        if (c.role) prompt += ` (${c.role})`;
-        if (location) prompt += ` - ${location}`;
-        prompt += ` | ${c.contactType}\n`;
-      });
-    }
-
-    // All contracts for matching
-    if (contextData.allContracts?.length > 0) {
-      prompt += `\n### All Contracts (for search - ${contextData.allContracts.length} total):\n`;
-      contextData.allContracts.slice(0, 20).forEach((c: any) => {
-        prompt += `- ID:${c.id} "${c.name}"`;
-        if (c.provider) prompt += ` (${c.provider})`;
-        if (c.costAmount) prompt += ` - $${c.costAmount}/${c.costFrequency}`;
-        prompt += ` | ${c.category}\n`;
-      });
-    }
   }
 
   return prompt;

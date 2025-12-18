@@ -1039,14 +1039,56 @@ export function useOpenAIRealtime({
       isConnectingRef.current = false;
     } catch (err) {
       console.error('Connection error:', err);
+
+      // Important: fully cleanup partially-initialized WebRTC so a retry can't overlap
       isConnectingRef.current = false;
+      dcIsOpenRef.current = false;
+      rtcReadyRef.current = false;
+
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+      }
+      localAudioTrackRef.current = null;
+
+      audioRecorderRef.current?.stop();
+      audioRecorderRef.current = null;
+
+      audioQueueRef.current?.clear();
+
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+
+      if (dcRef.current) {
+        dcRef.current.close();
+        dcRef.current = null;
+      }
+
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+
+      if (audioElRef.current) {
+        audioElRef.current.srcObject = null;
+        audioElRef.current = null;
+      }
+
+      setIsConnected(false);
+      setIsListening(false);
+      setIsSpeaking(false);
+
       onConnectionChange?.('error');
       onError?.(err instanceof Error ? err.message : 'Connection failed');
     }
   }, [handleFunctionCall, isConnected, onConnectionChange, onError, onResponse, onSpeakingChange, onTranscript]);
 
-  const disconnect = useCallback(() => {
-    console.log('Disconnecting...');
+  const cleanupConnection = useCallback((opts?: { emitDisconnected?: boolean }) => {
+    const emitDisconnected = opts?.emitDisconnected ?? true;
+
+    console.log('Cleaning up connection...');
     isConnectingRef.current = false;
     dcIsOpenRef.current = false;
     rtcReadyRef.current = false;
@@ -1086,8 +1128,14 @@ export function useOpenAIRealtime({
     setIsConnected(false);
     setIsListening(false);
     setIsSpeaking(false);
-    onConnectionChange?.('disconnected');
+
+    if (emitDisconnected) onConnectionChange?.('disconnected');
   }, [onConnectionChange]);
+
+  const disconnect = useCallback(() => {
+    console.log('Disconnecting...');
+    cleanupConnection({ emitDisconnected: true });
+  }, [cleanupConnection]);
 
   const sendTextMessage = useCallback((text: string) => {
     if (!dcRef.current || dcRef.current.readyState !== 'open') {
