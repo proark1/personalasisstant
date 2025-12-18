@@ -75,23 +75,28 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
   }, [toast]);
 
   // Create peer connection
-  const createPeerConnection = useCallback((sessionId: string) => {
+  const createPeerConnection = useCallback((_sessionId: string) => {
     const pc = new RTCPeerConnection(iceServers);
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        // Send ICE candidate to the other peer via Supabase Realtime
-        const channel = supabase.channel(`call-signaling-${sessionId}`);
-        channel.send({
-          type: 'broadcast',
-          event: 'ice-candidate',
-          payload: {
-            candidate: event.candidate.toJSON(),
-            from: userId,
-          },
-        });
+      if (!event.candidate) return;
+
+      if (!channelRef.current) {
+        console.log('[webrtc] ICE candidate generated before channel ready');
+        return;
       }
+
+      // Send ICE candidate to the other peer via the existing signaling channel
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'ice-candidate',
+        payload: {
+          candidate: event.candidate.toJSON(),
+          from: userId,
+        },
+      });
     };
+
 
     pc.ontrack = (event) => {
       console.log('Remote track received:', event.streams[0]);
@@ -139,17 +144,19 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       // Initialize local media
       const stream = await initializeMedia(type);
 
+      // Set up signaling channel FIRST (needed for early ICE candidates)
+      const channel = supabase.channel(`call-signaling-${session.id}`);
+      channelRef.current = channel;
+
       // Create peer connection
       const pc = createPeerConnection(session.id);
 
       // Add local tracks to peer connection
       stream.getTracks().forEach((track) => {
+        console.log('[webrtc] adding local track', track.kind);
         pc.addTrack(track, stream);
       });
 
-      // Set up signaling channel
-      const channel = supabase.channel(`call-signaling-${session.id}`);
-      channelRef.current = channel;
 
       // Store offer for resending
       let currentOffer: RTCSessionDescriptionInit | null = null;
@@ -229,17 +236,19 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       // Initialize local media
       const stream = await initializeMedia(session.call_type);
 
+      // Set up signaling channel FIRST (needed for early ICE candidates)
+      const channel = supabase.channel(`call-signaling-${session.id}`);
+      channelRef.current = channel;
+
       // Create peer connection
       const pc = createPeerConnection(session.id);
 
       // Add local tracks to peer connection
       stream.getTracks().forEach((track) => {
+        console.log('[webrtc] adding local track', track.kind);
         pc.addTrack(track, stream);
       });
 
-      // Set up signaling channel
-      const channel = supabase.channel(`call-signaling-${session.id}`);
-      channelRef.current = channel;
 
       // Store reference to handle offer
       let hasReceivedOffer = false;
