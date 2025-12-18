@@ -206,14 +206,15 @@ export function useDirectMessages(userId: string | null) {
     }
   }, [userId]);
 
-  // Set up realtime subscription
+  // Set up realtime subscription for all messages involving the user
   useEffect(() => {
     if (!userId) return;
 
     fetchConversations();
 
-    const channel = supabase
-      .channel('direct-messages')
+    // Subscribe to messages where user is recipient (incoming)
+    const incomingChannel = supabase
+      .channel('direct-messages-incoming')
       .on(
         'postgres_changes',
         {
@@ -223,14 +224,60 @@ export function useDirectMessages(userId: string | null) {
           filter: `recipient_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('New message received:', payload);
+          console.log('New incoming message received:', payload);
           fetchConversations();
+          // Also update messages if currently viewing this conversation
+          const newMsg = payload.new as { sender_id: string };
+          if (newMsg?.sender_id) {
+            setMessages(prev => {
+              // Check if this message is from the partner we're currently chatting with
+              const lastPartnerId = prev.length > 0 ? 
+                (prev[0].sender_id === userId ? prev[0].recipient_id : prev[0].sender_id) : null;
+              if (lastPartnerId === newMsg.sender_id) {
+                // Add the new message to the list
+                const fullMsg = payload.new as DirectMessage & { sender_profile?: { display_name: string | null; email: string | null } };
+                return [...prev, {
+                  ...fullMsg,
+                  attachments: (Array.isArray(fullMsg.attachments) ? fullMsg.attachments : []) as ChatAttachment[],
+                  reactions: (Array.isArray(fullMsg.reactions) ? fullMsg.reactions : []) as MessageReaction[],
+                  read_at: fullMsg.read_at || null,
+                }];
+              }
+              return prev;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to messages where user is sender (for delivery/read status)
+    const outgoingChannel = supabase
+      .channel('direct-messages-outgoing')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'direct_messages',
+          filter: `sender_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('Outgoing message update:', payload);
+          if (payload.eventType === 'UPDATE') {
+            // Update read status in current messages
+            setMessages(prev => prev.map(msg => 
+              msg.id === (payload.new as DirectMessage).id 
+                ? { ...msg, is_read: (payload.new as DirectMessage).is_read, read_at: (payload.new as DirectMessage).read_at }
+                : msg
+            ));
+          }
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(incomingChannel);
+      supabase.removeChannel(outgoingChannel);
     };
   }, [userId, fetchConversations]);
 
