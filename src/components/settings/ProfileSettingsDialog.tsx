@@ -21,8 +21,10 @@ import {
   Sun,
   Moon,
   Check,
-  Brain
+  Brain,
+  Briefcase
 } from 'lucide-react';
+import { EnhancedProfileSettings } from './EnhancedProfileSettings';
 
 interface ProfileSettingsDialogProps {
   isOpen: boolean;
@@ -56,7 +58,7 @@ export function ProfileSettingsDialog({
   onUpdateNotifications 
 }: ProfileSettingsDialogProps) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'notifications' | 'defaults' | 'assistant'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'aiprofile' | 'appearance' | 'notifications' | 'defaults' | 'assistant'>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -126,6 +128,7 @@ export function ProfileSettingsDialog({
 
   const tabs = [
     { id: 'profile' as const, label: 'Profile', icon: User },
+    { id: 'aiprofile' as const, label: 'AI Profile', icon: Briefcase },
     { id: 'appearance' as const, label: 'Appearance', icon: Palette },
     { id: 'assistant' as const, label: 'Assistant', icon: Brain },
     { id: 'notifications' as const, label: 'Notifications', icon: Bell },
@@ -169,6 +172,10 @@ export function ProfileSettingsDialog({
 
         {/* Content */}
         <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+          {activeTab === 'aiprofile' && (
+            <EnhancedProfileSettings />
+          )}
+
           {activeTab === 'profile' && (
             <>
               {loading ? (

@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Task, CalendarEvent, AssistantPersonality } from '@/types/flux';
+import { UserProfile, SmartContext, buildContextSummary } from './useSmartContext';
+import { Contact } from './useContacts';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -9,10 +11,31 @@ interface Message {
 }
 
 interface ToolCall {
-  tool: 'manage_task' | 'schedule_event';
+  tool: 'manage_task' | 'schedule_event' | 'suggest_contacts' | 'create_meeting_plan';
   action?: 'add' | 'update' | 'delete' | 'complete';
   task?: Partial<Task>;
   event?: Partial<CalendarEvent>;
+  criteria?: { location?: string; type?: string; keywords?: string[] };
+  plan?: { city?: string; contacts?: string[]; dates?: string[] };
+}
+
+interface RelevantContact {
+  name: string;
+  role?: string;
+  company?: string;
+  city?: string;
+  country?: string;
+  tags?: string[];
+  email?: string;
+}
+
+interface RelevantContract {
+  name: string;
+  provider?: string;
+  category: string;
+  costAmount?: number;
+  costFrequency?: string;
+  renewalDate?: string;
 }
 
 export function useAIChat() {
@@ -77,6 +100,34 @@ export function useAIChat() {
       }
     }
 
+    // Parse suggest_contacts tool calls
+    const contactMatches = content.matchAll(
+      /<tool>suggest_contacts<\/tool>\s*<criteria>(\{[\s\S]*?\})<\/criteria>/g
+    );
+    for (const match of contactMatches) {
+      try {
+        const criteria = JSON.parse(match[1]);
+        toolCalls.push({ tool: 'suggest_contacts', criteria });
+        cleanContent = cleanContent.replace(match[0], '');
+      } catch (e) {
+        console.error('Failed to parse contact suggestion tool call:', e);
+      }
+    }
+
+    // Parse create_meeting_plan tool calls
+    const planMatches = content.matchAll(
+      /<tool>create_meeting_plan<\/tool>\s*<plan>(\{[\s\S]*?\})<\/plan>/g
+    );
+    for (const match of planMatches) {
+      try {
+        const plan = JSON.parse(match[1]);
+        toolCalls.push({ tool: 'create_meeting_plan', plan });
+        cleanContent = cleanContent.replace(match[0], '');
+      } catch (e) {
+        console.error('Failed to parse meeting plan tool call:', e);
+      }
+    }
+
     return { cleanContent: cleanContent.trim(), toolCalls };
   };
 
@@ -88,6 +139,11 @@ export function useAIChat() {
     onDelta,
     onToolCall,
     onDone,
+    // Enhanced context
+    userProfile,
+    relevantContacts,
+    relevantContracts,
+    contextSummary,
   }: {
     messages: Message[];
     tasks?: Task[];
@@ -96,34 +152,68 @@ export function useAIChat() {
     onDelta: (text: string) => void;
     onToolCall: (toolCall: ToolCall) => void;
     onDone: () => void;
+    // Enhanced context
+    userProfile?: UserProfile | null;
+    relevantContacts?: Contact[];
+    relevantContracts?: RelevantContract[];
+    contextSummary?: string;
   }) => {
     setIsStreaming(true);
     setError(null);
 
     try {
+      // Build request payload
+      const payload: Record<string, unknown> = {
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        tasks: tasks?.map(t => ({
+          id: t.id,
+          title: t.title,
+          completed: t.completed,
+          category: t.category,
+          priority: t.priority,
+          dueDate: t.dueDate?.toISOString(),
+        })),
+        events: events?.map(e => ({
+          id: e.id,
+          title: e.title,
+          startTime: e.startTime.toISOString(),
+          endTime: e.endTime.toISOString(),
+        })),
+        personality,
+      };
+
+      // Add enhanced context if available
+      if (userProfile) {
+        payload.userProfile = userProfile;
+      }
+
+      if (relevantContacts && relevantContacts.length > 0) {
+        payload.relevantContacts = relevantContacts.map(c => ({
+          name: c.name,
+          role: c.role,
+          company: c.company,
+          city: c.city,
+          country: c.country,
+          tags: c.tags,
+          email: c.email,
+        }));
+      }
+
+      if (relevantContracts && relevantContracts.length > 0) {
+        payload.relevantContracts = relevantContracts;
+      }
+
+      if (contextSummary) {
+        payload.contextSummary = contextSummary;
+      }
+
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({
-          messages: messages.map(m => ({ role: m.role, content: m.content })),
-          tasks: tasks?.map(t => ({
-            id: t.id,
-            title: t.title,
-            completed: t.completed,
-            category: t.category,
-            priority: t.priority,
-          })),
-          events: events?.map(e => ({
-            id: e.id,
-            title: e.title,
-            startTime: e.startTime.toISOString(),
-            endTime: e.endTime.toISOString(),
-          })),
-          personality,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!resp.ok) {

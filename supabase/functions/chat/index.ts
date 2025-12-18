@@ -10,11 +10,47 @@ interface Message {
   content: string;
 }
 
+interface UserProfile {
+  displayName?: string;
+  bio?: string;
+  businesses?: string[];
+  role?: string;
+  interests?: string[];
+  skills?: string[];
+  goals?: string;
+  locationCity?: string;
+  locationCountry?: string;
+}
+
+interface RelevantContact {
+  name: string;
+  role?: string;
+  company?: string;
+  city?: string;
+  country?: string;
+  tags?: string[];
+  email?: string;
+}
+
+interface RelevantContract {
+  name: string;
+  provider?: string;
+  category: string;
+  costAmount?: number;
+  costFrequency?: string;
+  renewalDate?: string;
+}
+
 interface ChatRequest {
   messages: Message[];
-  tasks?: { id: string; title: string; completed: boolean; category: string; priority: string }[];
+  tasks?: { id: string; title: string; completed: boolean; category: string; priority: string; dueDate?: string }[];
   events?: { id: string; title: string; startTime: string; endTime: string }[];
   personality?: 'balanced' | 'strict' | 'supportive' | 'creative';
+  // Enhanced context
+  userProfile?: UserProfile;
+  relevantContacts?: RelevantContact[];
+  relevantContracts?: RelevantContract[];
+  contextSummary?: string;
 }
 
 const personalityPrompts: Record<string, string> = {
@@ -28,7 +64,7 @@ const personalityPrompts: Record<string, string> = {
 const currentHour = new Date().getHours();
 const timeContext = currentHour < 12 ? 'morning' : currentHour < 17 ? 'afternoon' : 'evening';
 
-const systemPrompt = `You are Flux, an intelligent AI productivity assistant. You help users manage tasks, schedule events, and stay organized.
+const baseSystemPrompt = `You are Flux, an intelligent AI productivity assistant that KNOWS the user personally. You help users manage tasks, schedule events, connect with contacts, and stay organized.
 
 ## CURRENT CONTEXT
 - Current date and time: ${new Date().toISOString()}
@@ -42,7 +78,7 @@ Use this to add, update, or delete tasks.
 Format: <tool>manage_task</tool><action>add|update|delete|complete</action><task>JSON_OBJECT</task>
 Task JSON fields:
 - "title": string (required)
-- "category": "business" | "personal"
+- "category": "business" | "personal" | "family" | "shared"
 - "priority": "high" | "medium" | "low"
 - "dueDate": ISO date string (IMPORTANT: always set this when user mentions a date, deadline, or "starting from today")
 - "recurrenceRule": RRULE string for recurring tasks (e.g., "FREQ=WEEKLY;INTERVAL=2" for every 2 weeks, "FREQ=DAILY", "FREQ=MONTHLY")
@@ -59,27 +95,54 @@ Event JSON fields:
 - "attendees": string[] (optional)
 - "recurrenceRule": RRULE string (optional, e.g., "FREQ=WEEKLY;INTERVAL=2")
 
+TOOL: suggest_contacts
+Use this to suggest relevant contacts based on criteria.
+Format: <tool>suggest_contacts</tool><criteria>{"location": "city_name", "type": "investor|developer|designer|etc", "keywords": ["tag1", "tag2"]}</criteria>
+
+TOOL: create_meeting_plan
+Use this to create a structured meeting itinerary.
+Format: <tool>create_meeting_plan</tool><plan>{"city": "location", "contacts": ["name1", "name2"], "dates": ["date1", "date2"]}</plan>
+
 ## ENHANCED AI CAPABILITIES
 
-### 1. Pattern Recognition & Suggestions
+### 1. Personal Context Awareness
+You have access to the user's profile, contacts, and contracts. USE THIS INFORMATION to:
+- Reference their businesses, interests, and goals in your responses
+- Suggest relevant contacts when they mention travel, meetings, or networking
+- Provide personalized advice based on their role and industry
+- Remember their location for timezone-aware scheduling
+
+### 2. Location-Aware Contact Matching
+When the user mentions travel or locations:
+- Check if any contacts are in that location
+- Proactively suggest meetings with relevant contacts
+- Offer to create a meeting itinerary
+
+### 3. Smart Contract Awareness
+When discussing costs, subscriptions, or renewals:
+- Reference their active contracts
+- Alert them to upcoming renewals or cancellation deadlines
+- Provide cost summaries when asked
+
+### 4. Pattern Recognition & Suggestions
 When you notice patterns in the user's tasks or behavior, proactively suggest:
 - "I notice you usually [pattern]. Would you like me to schedule that?"
 - "Based on your routine, should I add [suggestion]?"
 - Look for: recurring task types, time preferences, category patterns
 
-### 2. Task Breakdown
+### 5. Task Breakdown
 When a user mentions a complex task, automatically break it into subtasks:
 - "Let me break that down into manageable steps..."
 - Create 3-5 actionable subtasks with clear titles
 - Set appropriate priorities (main task = high, subtasks = medium/low)
 
-### 3. Context-Aware Responses
+### 6. Context-Aware Responses
 Adapt your tone and suggestions based on time:
 - Morning: Focus on planning, priorities, energetic tone
 - Afternoon: Check-ins on progress, encourage momentum  
 - Evening: Summarize accomplishments, plan for tomorrow, calmer tone
 
-### 4. Smart Scheduling
+### 7. Smart Scheduling
 - Morning tasks: schedule between 9-12 AM
 - Afternoon tasks: schedule between 1-5 PM
 - If user says "later" or "when I have time", suggest specific times
@@ -87,12 +150,13 @@ Adapt your tone and suggestions based on time:
 
 ## GUIDELINES
 - Be concise and helpful
-- When adding tasks, infer the category (business/personal) and priority from context
+- PERSONALIZE responses using the user's profile information
+- When adding tasks, infer the category (business/personal/family) and priority from context
 - ALWAYS include dueDate when user mentions any time reference
 - For recurring tasks, ALWAYS set both dueDate (start date) AND recurrenceRule
 - Always confirm what you've done after using a tool
-- Proactively offer to break down complex tasks
-- Reference patterns when making suggestions`;
+- Proactively offer relevant contacts when discussing travel, meetings, or networking
+- Reference the user by name when appropriate to make interactions personal`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -100,7 +164,17 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, tasks, events, personality = 'balanced' }: ChatRequest = await req.json();
+    const { 
+      messages, 
+      tasks, 
+      events, 
+      personality = 'balanced',
+      userProfile,
+      relevantContacts,
+      relevantContracts,
+      contextSummary,
+    }: ChatRequest = await req.json();
+    
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
@@ -108,17 +182,80 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Build context about current state
+    // Build comprehensive context
     let contextMessage = "";
+    
+    // Add context summary if provided (pre-built by the client)
+    if (contextSummary) {
+      contextMessage += `\n${contextSummary}`;
+    } else {
+      // Fallback: build context from individual pieces
+      if (userProfile) {
+        contextMessage += "\n## USER PROFILE";
+        if (userProfile.displayName) contextMessage += `\nName: ${userProfile.displayName}`;
+        if (userProfile.role) contextMessage += `\nRole: ${userProfile.role}`;
+        if (userProfile.businesses?.length) contextMessage += `\nBusinesses: ${userProfile.businesses.join(', ')}`;
+        if (userProfile.interests?.length) contextMessage += `\nInterests: ${userProfile.interests.join(', ')}`;
+        if (userProfile.locationCity || userProfile.locationCountry) {
+          contextMessage += `\nLocation: ${[userProfile.locationCity, userProfile.locationCountry].filter(Boolean).join(', ')}`;
+        }
+        if (userProfile.goals) contextMessage += `\nGoals: ${userProfile.goals}`;
+        if (userProfile.bio) contextMessage += `\nBio: ${userProfile.bio}`;
+      }
+      
+      if (relevantContacts && relevantContacts.length > 0) {
+        contextMessage += "\n\n## RELEVANT CONTACTS";
+        for (const contact of relevantContacts) {
+          const location = [contact.city, contact.country].filter(Boolean).join(', ');
+          const details = [contact.role, contact.company, location].filter(Boolean).join(' | ');
+          contextMessage += `\n- ${contact.name}${details ? `: ${details}` : ''}`;
+          if (contact.tags?.length) contextMessage += ` [${contact.tags.join(', ')}]`;
+          if (contact.email) contextMessage += ` (${contact.email})`;
+        }
+      }
+      
+      if (relevantContracts && relevantContracts.length > 0) {
+        contextMessage += "\n\n## RELEVANT CONTRACTS";
+        for (const contract of relevantContracts) {
+          const cost = contract.costAmount ? `€${contract.costAmount}/${contract.costFrequency || 'month'}` : '';
+          const renewal = contract.renewalDate ? `renews ${contract.renewalDate}` : '';
+          contextMessage += `\n- ${contract.name}${contract.provider ? ` (${contract.provider})` : ''}: ${[cost, renewal].filter(Boolean).join(', ')}`;
+        }
+      }
+    }
+    
+    // Add tasks and events
     if (tasks && tasks.length > 0) {
       const pendingTasks = tasks.filter(t => !t.completed);
-      contextMessage += `\nCurrent tasks (${pendingTasks.length} pending):\n${pendingTasks.map(t => `- ${t.title} (${t.category}, ${t.priority} priority)`).join('\n')}`;
+      const overdueTasks = pendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
+      const todayTasks = pendingTasks.filter(t => {
+        if (!t.dueDate) return false;
+        const taskDate = new Date(t.dueDate).toDateString();
+        const today = new Date().toDateString();
+        return taskDate === today;
+      });
+      
+      contextMessage += `\n\n## TASKS (${pendingTasks.length} pending, ${overdueTasks.length} overdue)`;
+      if (todayTasks.length > 0) {
+        contextMessage += `\nDue today: ${todayTasks.map(t => t.title).join(', ')}`;
+      }
+      contextMessage += `\nAll pending:\n${pendingTasks.slice(0, 10).map(t => `- ${t.title} (${t.category}, ${t.priority} priority${t.dueDate ? `, due ${t.dueDate}` : ''})`).join('\n')}`;
     }
+    
     if (events && events.length > 0) {
-      contextMessage += `\nUpcoming events:\n${events.map(e => `- ${e.title} at ${e.startTime}`).join('\n')}`;
+      contextMessage += `\n\n## UPCOMING EVENTS`;
+      contextMessage += `\n${events.slice(0, 5).map(e => `- ${e.title} at ${e.startTime}`).join('\n')}`;
     }
 
-    const fullSystemPrompt = systemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage;
+    const fullSystemPrompt = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage;
+
+    console.log("Chat request with enhanced context:", {
+      hasUserProfile: !!userProfile,
+      relevantContactsCount: relevantContacts?.length || 0,
+      relevantContractsCount: relevantContracts?.length || 0,
+      tasksCount: tasks?.length || 0,
+      eventsCount: events?.length || 0,
+    });
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

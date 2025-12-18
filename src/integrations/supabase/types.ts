@@ -229,28 +229,58 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
+          businesses: string[] | null
           created_at: string
           display_name: string | null
           email: string | null
+          goals: string | null
           id: string
+          interests: string[] | null
+          location_city: string | null
+          location_country: string | null
+          preferred_work_hours: string | null
+          role: string | null
+          skills: string[] | null
+          timezone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
+          businesses?: string[] | null
           created_at?: string
           display_name?: string | null
           email?: string | null
+          goals?: string | null
           id?: string
+          interests?: string[] | null
+          location_city?: string | null
+          location_country?: string | null
+          preferred_work_hours?: string | null
+          role?: string | null
+          skills?: string[] | null
+          timezone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
+          businesses?: string[] | null
           created_at?: string
           display_name?: string | null
           email?: string | null
+          goals?: string | null
           id?: string
+          interests?: string[] | null
+          location_city?: string | null
+          location_country?: string | null
+          preferred_work_hours?: string | null
+          role?: string | null
+          skills?: string[] | null
+          timezone?: string | null
           updated_at?: string
           user_id?: string
         }
