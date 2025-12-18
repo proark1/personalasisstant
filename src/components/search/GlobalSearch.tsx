@@ -14,7 +14,9 @@ import {
   X,
   ArrowRight,
   CheckCircle2,
-  Circle
+  Circle,
+  FileText,
+  Users
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { SearchResult, SearchFilters } from '@/hooks/useGlobalSearch';
@@ -35,6 +37,8 @@ const typeIcons: Record<string, React.ElementType> = {
   task: ListTodo,
   event: Calendar,
   chat: MessageSquare,
+  contract: FileText,
+  contact: Users,
 };
 
 const priorityColors: Record<string, string> = {
@@ -56,7 +60,7 @@ export function GlobalSearch({
 }: GlobalSearchProps) {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<SearchFilters>({
-    types: ['task', 'event', 'chat'],
+    types: ['task', 'event', 'chat', 'contract', 'contact'],
   });
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
@@ -90,7 +94,7 @@ export function GlobalSearch({
     };
   }, [query, filters, onSearch, onClearResults]);
 
-  const toggleTypeFilter = (type: 'task' | 'event' | 'chat') => {
+  const toggleTypeFilter = (type: 'task' | 'event' | 'chat' | 'contract' | 'contact') => {
     setFilters(prev => ({
       ...prev,
       types: prev.types.includes(type)
@@ -122,7 +126,7 @@ export function GlobalSearch({
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tasks, events, and chat history..."
+              placeholder="Search tasks, events, contracts, contacts..."
               className="pl-10 pr-10"
             />
             {query && (
@@ -143,9 +147,12 @@ export function GlobalSearch({
           {/* Type Filters */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm text-muted-foreground">Filter:</span>
-            {(['task', 'event', 'chat'] as const).map((type) => {
+            {(['task', 'event', 'chat', 'contract', 'contact'] as const).map((type) => {
               const Icon = typeIcons[type];
               const isActive = filters.types.includes(type);
+              const label = type === 'contract' ? 'Contracts' : 
+                           type === 'contact' ? 'Contacts' : 
+                           type.charAt(0).toUpperCase() + type.slice(1) + 's';
               return (
                 <Button
                   key={type}
@@ -155,7 +162,7 @@ export function GlobalSearch({
                   onClick={() => toggleTypeFilter(type)}
                 >
                   <Icon className="h-3 w-3 mr-1" />
-                  {type.charAt(0).toUpperCase() + type.slice(1)}s
+                  {label}
                 </Button>
               );
             })}

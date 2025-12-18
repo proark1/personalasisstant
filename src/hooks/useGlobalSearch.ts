@@ -4,7 +4,7 @@ import type { Task, CalendarEvent } from '@/types/flux';
 
 export interface SearchResult {
   id: string;
-  type: 'task' | 'event' | 'chat';
+  type: 'task' | 'event' | 'chat' | 'contract' | 'contact';
   title: string;
   description?: string;
   date?: Date;
@@ -14,7 +14,7 @@ export interface SearchResult {
 }
 
 export interface SearchFilters {
-  types: ('task' | 'event' | 'chat')[];
+  types: ('task' | 'event' | 'chat' | 'contract' | 'contact')[];
   dateRange?: { start: Date; end: Date };
   priority?: string[];
   completed?: boolean;
@@ -48,7 +48,7 @@ export function useGlobalSearch(userId: string | undefined) {
         setRecentSearches(data.map(s => ({
           id: s.id,
           query: s.query,
-          filters: (s.filters as unknown as SearchFilters) || { types: ['task', 'event', 'chat'] },
+          filters: (s.filters as unknown as SearchFilters) || { types: ['task', 'event', 'chat', 'contract', 'contact'] },
           createdAt: new Date(s.created_at),
         })));
       }
@@ -78,7 +78,7 @@ export function useGlobalSearch(userId: string | undefined) {
 
   const search = useCallback(async (
     query: string,
-    filters: SearchFilters = { types: ['task', 'event', 'chat'] }
+    filters: SearchFilters = { types: ['task', 'event', 'chat', 'contract', 'contact'] }
   ) => {
     if (!userId || !query.trim()) {
       setResults([]);
@@ -181,6 +181,74 @@ export function useGlobalSearch(userId: string | undefined) {
                 title: msg.content.substring(0, 100) + (msg.content.length > 100 ? '...' : ''),
                 date: new Date(msg.created_at),
                 matchedField: 'content',
+              });
+            }
+          });
+        }
+      }
+
+      // Search contracts
+      if (filters.types.includes('contract')) {
+        const { data: contracts } = await supabase
+          .from('contracts')
+          .select('*');
+
+        if (contracts) {
+          contracts.forEach(contract => {
+            let matchedField = '';
+            if (fuzzyMatch(contract.name, trimmedQuery)) {
+              matchedField = 'name';
+            } else if (contract.provider && fuzzyMatch(contract.provider, trimmedQuery)) {
+              matchedField = 'provider';
+            } else if (contract.notes && fuzzyMatch(contract.notes, trimmedQuery)) {
+              matchedField = 'notes';
+            } else if (contract.category && fuzzyMatch(contract.category, trimmedQuery)) {
+              matchedField = 'category';
+            }
+
+            if (matchedField) {
+              searchResults.push({
+                id: contract.id,
+                type: 'contract',
+                title: contract.name,
+                description: contract.provider || contract.category || undefined,
+                date: contract.renewal_date ? new Date(contract.renewal_date) : undefined,
+                matchedField,
+              });
+            }
+          });
+        }
+      }
+
+      // Search contacts
+      if (filters.types.includes('contact')) {
+        const { data: contacts } = await supabase
+          .from('user_contacts')
+          .select('*');
+
+        if (contacts) {
+          contacts.forEach(contact => {
+            let matchedField = '';
+            if (fuzzyMatch(contact.name, trimmedQuery)) {
+              matchedField = 'name';
+            } else if (contact.email && fuzzyMatch(contact.email, trimmedQuery)) {
+              matchedField = 'email';
+            } else if (contact.company && fuzzyMatch(contact.company, trimmedQuery)) {
+              matchedField = 'company';
+            } else if (contact.role && fuzzyMatch(contact.role, trimmedQuery)) {
+              matchedField = 'role';
+            } else if (contact.notes && fuzzyMatch(contact.notes, trimmedQuery)) {
+              matchedField = 'notes';
+            }
+
+            if (matchedField) {
+              searchResults.push({
+                id: contact.id,
+                type: 'contact',
+                title: contact.name,
+                description: [contact.company, contact.role].filter(Boolean).join(' - ') || contact.email || undefined,
+                date: contact.updated_at ? new Date(contact.updated_at) : undefined,
+                matchedField,
               });
             }
           });
