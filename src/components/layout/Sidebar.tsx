@@ -5,14 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { 
   LayoutDashboard, 
-  Briefcase, 
-  User, 
   Mic,
   ChevronLeft,
   ChevronRight,
   Sparkles,
   LogOut,
-  Users,
   BookUser,
   Target,
   CalendarCheck,
@@ -24,15 +21,13 @@ import {
   CheckSquare,
   Zap,
   FileText,
-  Home
+  MessageCircle
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
 
 interface SidebarProps {
-  activeFilter: SidebarFilter;
-  onFilterChange: (filter: SidebarFilter) => void;
   onVoiceMode: () => void;
   onOpenSettings: () => void;
   onEditProfile?: () => void;
@@ -44,13 +39,15 @@ interface SidebarProps {
   onOpenGlobalSearch?: () => void;
   onToggleCalendar?: () => void;
   onOpenTodayFocus?: () => void;
+  onToggleTeamChat?: () => void;
+  onOpenTasks?: () => void;
   showCalendar?: boolean;
+  showTeamChat?: boolean;
+  showTasks?: boolean;
   notificationButton?: React.ReactNode;
 }
 
 export function Sidebar({ 
-  activeFilter, 
-  onFilterChange, 
   onVoiceMode, 
   onOpenSettings, 
   onSignOut, 
@@ -61,20 +58,16 @@ export function Sidebar({
   onOpenGlobalSearch,
   onToggleCalendar,
   onOpenTodayFocus,
+  onToggleTeamChat,
+  onOpenTasks,
   showCalendar,
+  showTeamChat,
+  showTasks,
   notificationButton,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
-  const categoryFilters: { icon: typeof LayoutDashboard; label: string; filter: SidebarFilter }[] = [
-    { icon: CheckSquare, label: 'All Tasks', filter: 'all' },
-    { icon: Briefcase, label: 'Business', filter: 'business' },
-    { icon: User, label: 'Personal', filter: 'personal' },
-    { icon: Home, label: 'Family', filter: 'family' },
-    { icon: Users, label: 'Shared', filter: 'shared' },
-  ];
 
   return (
     <aside 
@@ -143,34 +136,42 @@ export function Sidebar({
 
         <Separator className="my-2" />
 
-        {/* Category Filters */}
+        {/* Main Views */}
         <div className={cn("space-y-0.5", !collapsed && "mb-2")}>
           {!collapsed && (
-            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Tasks</span>
+            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Main</span>
           )}
-          {categoryFilters.map((item) => (
+          
+          {/* Tasks */}
+          {onOpenTasks && (
             <Button
-              key={item.filter}
-              variant={activeFilter === item.filter ? 'secondary' : 'ghost'}
+              variant={showTasks ? 'secondary' : 'ghost'}
               className={cn(
                 "w-full h-9 gap-3",
                 collapsed ? "justify-center px-0" : "justify-start",
-                activeFilter === item.filter && "bg-sidebar-accent text-sidebar-primary font-medium"
+                showTasks && "bg-sidebar-accent text-sidebar-primary font-medium"
               )}
-              onClick={() => onFilterChange(item.filter)}
+              onClick={onOpenTasks}
             >
-              <item.icon className="w-4 h-4 shrink-0" />
-              {!collapsed && <span className="text-sm">{item.label}</span>}
+              <CheckSquare className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">Tasks</span>}
             </Button>
-          ))}
-        </div>
+          )}
 
-        <Separator className="my-2" />
-
-        {/* Views & Tools */}
-        <div className={cn("space-y-0.5", !collapsed && "mb-2")}>
-          {!collapsed && (
-            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Views</span>
+          {/* Team Chat */}
+          {onToggleTeamChat && (
+            <Button
+              variant={showTeamChat ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full h-9 gap-3",
+                collapsed ? "justify-center px-0" : "justify-start",
+                showTeamChat && "bg-sidebar-accent text-sidebar-primary font-medium"
+              )}
+              onClick={onToggleTeamChat}
+            >
+              <MessageCircle className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">Chat</span>}
+            </Button>
           )}
           
           {onToggleCalendar && (

@@ -335,8 +335,6 @@ export function StandardMode({
   return (
     <div className="flex h-screen w-full bg-background">
       <Sidebar 
-        activeFilter={filter}
-        onFilterChange={setFilter}
         onVoiceMode={onVoiceMode}
         onOpenSettings={onOpenSettings}
         onSignOut={onSignOut}
@@ -347,7 +345,14 @@ export function StandardMode({
         onOpenGlobalSearch={() => setShowGlobalSearch(true)}
         onToggleCalendar={() => setShowCalendar(!showCalendar)}
         onOpenTodayFocus={() => setShowTodayFocus(true)}
+        onToggleTeamChat={() => setShowTeamChat(!showTeamChat)}
+        onOpenTasks={() => {
+          setShowTeamChat(false);
+          setShowCalendar(false);
+        }}
         showCalendar={showCalendar}
+        showTeamChat={showTeamChat}
+        showTasks={!showTeamChat && !showCalendar}
         notificationButton={
           <RealtimeNotificationCenter userId={user?.id} />
         }
@@ -449,8 +454,8 @@ export function StandardMode({
               />
             ) : (
               <TaskList
-                tasks={displayTasks}
-                filter={filter}
+                tasks={tasks}
+                sharedTasks={sharedTasks}
                 onToggleComplete={handleToggleTaskComplete}
                 onDeleteTask={onDeleteTask}
                 onDeleteTasks={onDeleteTasks}

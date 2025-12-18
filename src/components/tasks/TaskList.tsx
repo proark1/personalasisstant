@@ -62,7 +62,9 @@ interface Tag {
 
 interface TaskListProps {
   tasks: Task[];
-  filter: SidebarFilter;
+  sharedTasks?: Task[];
+  filter?: SidebarFilter;
+  onFilterChange?: (filter: SidebarFilter) => void;
   onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onDeleteTasks?: (ids: string[]) => Promise<{ error: string | null }> | void;
@@ -392,7 +394,9 @@ function SortableTaskItem({
 
 export function TaskList({ 
   tasks, 
-  filter, 
+  sharedTasks = [],
+  filter: externalFilter, 
+  onFilterChange,
   onToggleComplete, 
   onDeleteTask, 
   onDeleteTasks, 
@@ -415,6 +419,19 @@ export function TaskList({
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [timeFilter, setTimeFilter] = useState<TimeFilter | 'all'>('all');
+  const [internalFilter, setInternalFilter] = useState<SidebarFilter>('all');
+
+  // Use external filter if provided, otherwise use internal
+  const filter = externalFilter ?? internalFilter;
+  const handleFilterChange = onFilterChange ?? setInternalFilter;
+
+  const categoryFilters: { label: string; filter: SidebarFilter }[] = [
+    { label: 'All', filter: 'all' },
+    { label: 'Business', filter: 'business' },
+    { label: 'Personal', filter: 'personal' },
+    { label: 'Family', filter: 'family' },
+    { label: 'Shared', filter: 'shared' },
+  ];
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -425,10 +442,12 @@ export function TaskList({
     })
   );
 
-  // Apply category filter first
-  const categoryFilteredTasks = filter === 'all' || filter === 'shared'
-    ? tasks 
-    : tasks.filter(task => task.category === filter);
+  // Apply category filter first - use sharedTasks for shared filter
+  const categoryFilteredTasks = filter === 'shared'
+    ? sharedTasks 
+    : filter === 'all'
+      ? tasks 
+      : tasks.filter(task => task.category === filter);
 
   // Apply time filter
   const filteredTasks = useMemo(() => {
@@ -621,6 +640,26 @@ export function TaskList({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Category Filter Tabs */}
+      <div className="px-4 pt-3 pb-2 border-b border-border">
+        <div className="flex gap-1 flex-wrap">
+          {categoryFilters.map((item) => (
+            <Button
+              key={item.filter}
+              variant={filter === item.filter ? 'secondary' : 'ghost'}
+              size="sm"
+              className={cn(
+                "h-8 px-3 text-xs",
+                filter === item.filter && "bg-primary text-primary-foreground"
+              )}
+              onClick={() => handleFilterChange(item.filter)}
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
       {/* Header */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-border">
         <div className="flex items-center gap-3">
