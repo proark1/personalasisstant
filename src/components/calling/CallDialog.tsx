@@ -56,6 +56,7 @@ export function CallDialog({
 }: CallDialogProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const qualityStats = useCallQuality(peerConnection);
 
   // Attach local stream to video element
@@ -65,10 +66,20 @@ export function CallDialog({
     }
   }, [localStream]);
 
-  // Attach remote stream to video element
+  // Attach remote stream to video/audio elements
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
+    if (!remoteStream) return;
+
+    if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
+    }
+
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      // Some browsers still require an explicit play() call.
+      remoteAudioRef.current.play().catch((err) => {
+        console.log('Remote audio autoplay blocked or failed:', err);
+      });
     }
   }, [remoteStream]);
 
@@ -88,6 +99,11 @@ export function CallDialog({
           onPointerDownOutside={(e) => e.preventDefault()}
         >
           <div className="relative w-full aspect-video bg-muted/50 rounded-t-lg overflow-hidden">
+            {/* Hidden audio element for voice calls */}
+            {isConnected && callType === 'audio' && (
+              <audio ref={remoteAudioRef} autoPlay playsInline />
+            )}
+
             {/* Call quality indicator - shown when connected */}
             {isConnected && (
               <div className="absolute top-4 left-4 z-10">
