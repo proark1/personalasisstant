@@ -31,6 +31,9 @@ import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { MessageReactions } from './MessageReactions';
 import { ReadReceipt } from './ReadReceipt';
 import { CreateGroupDialog } from './CreateGroupDialog';
+import { EmojiPicker } from './EmojiPicker';
+import { TypingIndicator } from './TypingIndicator';
+import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { showMessageNotification, requestNotificationPermission } from '@/lib/notificationSounds';
@@ -78,6 +81,19 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevMessagesLengthRef = useRef(0);
+  
+  // Get current chat ID for typing indicator
+  const currentChatId = view === 'direct' && selectedPartner 
+    ? `dm-${[userId, selectedPartner.id].sort().join('-')}` 
+    : view === 'group' && selectedGroup 
+      ? `group-${selectedGroup.id}` 
+      : '';
+  
+  const { typingUsers, onInputChange: onTypingChange, stopTyping } = useTypingIndicator({
+    chatId: currentChatId,
+    userId,
+    userName: 'You',
+  });
 
   // Request notification permission on mount
   useEffect(() => {
@@ -117,6 +133,7 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && pendingAttachments.length === 0) || isSending) return;
 
+    stopTyping();
     setIsSending(true);
     
     if (view === 'direct' && selectedPartner) {
@@ -333,6 +350,9 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
         </ScrollArea>
 
         <div className="p-4 border-t space-y-2">
+          {/* Typing indicator */}
+          <TypingIndicator typingUsers={typingUsers} className="px-1" />
+          
           {pendingAttachments.length > 0 && (
             <div className="flex flex-wrap gap-2 p-2 bg-muted/50 rounded-lg">
               {pendingAttachments.map((att, idx) => (
@@ -361,10 +381,18 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
               <Paperclip className="w-4 h-4" />
             </Button>
             
+            <EmojiPicker 
+              onEmojiSelect={(emoji) => setNewMessage(prev => prev + emoji)} 
+              disabled={isSending || uploading || voiceRecorder.isRecording}
+            />
+            
             <Input
               placeholder="Type a message..."
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                onTypingChange();
+              }}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
               disabled={isSending || uploading || voiceRecorder.isRecording}
               className="flex-1 min-w-0"
