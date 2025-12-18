@@ -2,16 +2,14 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AudioVisualizer } from './AudioVisualizer';
-import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
-import { useGeminiLive } from '@/hooks/useGeminiLive';
-import { useTextToSpeech } from '@/hooks/useTextToSpeech';
+import { useOpenAIRealtime } from '@/hooks/useOpenAIRealtime';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useDatabase } from '@/hooks/useDatabase';
 import { useContacts } from '@/hooks/useContacts';
 import { useContracts } from '@/hooks/useContracts';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import type { AssistantPersonality, VoiceTaskAction } from '@/types/flux';
+import type { AssistantPersonality } from '@/types/flux';
 import { 
   Mic, 
   MicOff, 
@@ -21,7 +19,9 @@ import {
   Volume2,
   VolumeX,
   AlertCircle,
-  Loader2
+  Loader2,
+  Phone,
+  PhoneOff
 } from 'lucide-react';
 
 interface GhostModeProps {
@@ -35,12 +35,10 @@ type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'processin
 export function GhostMode({ onClose, onCommand, personality = 'balanced' }: GhostModeProps) {
   const { toast } = useToast();
   const [isMuted, setIsMuted] = useState(false);
-  const [isMicMuted, setIsMicMuted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [displayTranscript, setDisplayTranscript] = useState('');
   const [aiResponse, setAiResponse] = useState('');
-  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastProcessedRef = useRef<string>('');
+  const aiResponseRef = useRef('');
 
   // Get current user
   const { user } = useAuth();
@@ -54,81 +52,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const { contacts } = useContacts(userId);
   const { contracts } = useContracts(userId);
 
-  // Handle voice actions (task commands)
-  const handleVoiceAction = useCallback(async (action: VoiceTaskAction) => {
-    console.log('Executing voice action:', action);
-    
-    try {
-      switch (action.type) {
-        case 'create_task':
-          if (action.taskTitle) {
-            await addTask({
-              title: action.taskTitle,
-              category: 'personal',
-              priority: 'medium',
-              completed: false,
-            });
-            toast({
-              title: 'Task Created',
-              description: `"${action.taskTitle}" has been added`,
-            });
-          }
-          break;
-          
-        case 'complete_task':
-          if (action.taskId) {
-            await toggleTaskComplete(action.taskId);
-            toast({
-              title: 'Task Completed',
-              description: `"${action.taskTitle}" marked as done`,
-            });
-          }
-          break;
-          
-        case 'trash_task':
-          if (action.taskId) {
-            await trashTask(action.taskId);
-            toast({
-              title: 'Task Trashed',
-              description: `"${action.taskTitle}" moved to trash`,
-            });
-          }
-          break;
-          
-        case 'reschedule_task':
-          if (action.taskId && action.newDate) {
-            await updateTask(action.taskId, { dueDate: new Date(action.newDate) });
-            toast({
-              title: 'Task Rescheduled',
-              description: `"${action.taskTitle}" moved to ${new Date(action.newDate).toLocaleDateString()}`,
-            });
-          }
-          break;
-          
-        case 'edit_task':
-          if (action.taskId && action.updates) {
-            await updateTask(action.taskId, action.updates);
-            toast({
-              title: 'Task Updated',
-              description: `Task has been updated`,
-            });
-          }
-          break;
-      }
-      
-      // Refresh tasks after any action
-      refetch();
-    } catch (err) {
-      console.error('Error executing voice action:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Action Failed',
-        description: 'Could not complete the requested action',
-      });
-    }
-  }, [addTask, updateTask, trashTask, toggleTaskComplete, refetch, toast]);
-
-  // Prepare context data for the AI - convert Date objects to strings for serialization
+  // Prepare context data for the AI
   const contextData = useMemo(() => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
@@ -221,184 +145,125 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     };
   }, [tasks, events, contacts, contracts]);
 
-  // Voice recognition with pause/resume capability
+  // OpenAI Realtime hook
   const {
+    isConnected,
     isListening,
-    isSupported,
-    isPaused,
-    startListening,
-    stopListening,
-    pauseListening,
-    resumeListening,
-  } = useVoiceRecognition({
-    onTranscript: handleTranscript,
-    onError: handleVoiceError,
-    continuous: true,
-  });
-
-  // TTS hook - pause recognition when speaking to prevent echo/self-listening
-  const { speak, stop: stopSpeaking, isSpeaking, isLoading: isTTSLoading } = useTextToSpeech({
-    onStart: () => {
-      // Immediately pause listening when AI starts speaking
-      pauseListening();
-      // Clear displayed transcript to avoid confusion
-      setDisplayTranscript('');
-    },
-    onEnd: () => {
-      setConnectionStatus('connected');
-      // Wait longer before resuming to let audio fully dissipate and prevent echo pickup
-      setTimeout(() => {
-        // Reset the last processed ref so we don't accidentally re-process old text
-        lastProcessedRef.current = '';
-        resumeListening();
-      }, 800);
-    }
-  });
-
-  // Gemini Live hook for AI responses with full context
-  const { isProcessing, sendText } = useGeminiLive({
-    personality,
+    isSpeaking,
+    connect,
+    disconnect,
+  } = useOpenAIRealtime({
     userProfile: profile,
     contextData,
-    onResponse: async (text) => {
-      setAiResponse(text);
-      setConnectionStatus('speaking');
-      
-      if (!isMuted) {
-        await speak(text, personality);
-      } else {
-        setConnectionStatus('connected');
+    onTranscript: (text, isFinal) => {
+      setDisplayTranscript(text);
+      if (isFinal) {
+        // Clear after a moment
+        setTimeout(() => setDisplayTranscript(''), 3000);
       }
     },
-    onAction: handleVoiceAction,
+    onResponse: (text) => {
+      // Accumulate response text
+      aiResponseRef.current += text;
+      setAiResponse(aiResponseRef.current);
+    },
     onError: (error) => {
-      setConnectionStatus('error');
       toast({
         variant: 'destructive',
-        title: 'AI Error',
+        title: 'Voice Error',
         description: error,
       });
-      setTimeout(() => setConnectionStatus('connected'), 2000);
+      setConnectionStatus('error');
+      setTimeout(() => setConnectionStatus('disconnected'), 2000);
     },
+    onConnectionChange: (status) => {
+      setConnectionStatus(status);
+      if (status === 'connected') {
+        aiResponseRef.current = '';
+        setAiResponse('');
+        setDisplayTranscript('');
+      }
+    },
+    onSpeakingChange: (speaking) => {
+      if (speaking) {
+        setConnectionStatus('speaking');
+      } else if (isConnected) {
+        setConnectionStatus('connected');
+        // Clear AI response after speaking ends
+        setTimeout(() => {
+          aiResponseRef.current = '';
+          setAiResponse('');
+        }, 2000);
+      }
+    },
+    // Pass task operations
+    addTask,
+    updateTask,
+    trashTask,
+    toggleTaskComplete,
+    refetch,
   });
 
-  function handleTranscript(transcript: string, isFinal: boolean) {
-    if (isPaused) return;
-    
-    setDisplayTranscript(transcript);
-    
-    if (silenceTimeoutRef.current) {
-      clearTimeout(silenceTimeoutRef.current);
-    }
-
-    if (isFinal && transcript.trim() && transcript.trim() !== lastProcessedRef.current) {
-      lastProcessedRef.current = transcript.trim();
-      setConnectionStatus('processing');
-      sendText(transcript.trim());
-    } else if (transcript.trim()) {
-      silenceTimeoutRef.current = setTimeout(() => {
-        if (transcript.trim() && transcript.trim() !== lastProcessedRef.current) {
-          lastProcessedRef.current = transcript.trim();
-          setConnectionStatus('processing');
-          sendText(transcript.trim());
-        }
-      }, 2000);
-    }
-  }
-
-  function handleVoiceError(error: string) {
-    setConnectionStatus('error');
-    toast({
-      variant: 'destructive',
-      title: 'Voice Recognition Error',
-      description: error,
-    });
-  }
-
+  // Update connection status based on state
   useEffect(() => {
-    if (isProcessing) {
-      setConnectionStatus('processing');
-    } else if (isSpeaking || isTTSLoading) {
+    if (isSpeaking) {
       setConnectionStatus('speaking');
-    } else if (isListening && !isPaused) {
+    } else if (isListening && isConnected) {
       setConnectionStatus('connected');
     }
-  }, [isListening, isProcessing, isSpeaking, isTTSLoading, isPaused]);
+  }, [isListening, isSpeaking, isConnected]);
 
-  const handleStartListening = useCallback(() => {
-    if (!isSupported) {
-      toast({
-        variant: 'destructive',
-        title: 'Not Supported',
-        description: 'Voice recognition is not supported in this browser. Try Chrome or Edge.',
-      });
-      return;
-    }
-
+  const handleStartSession = useCallback(async () => {
     setConnectionStatus('connecting');
-    setDisplayTranscript('');
+    aiResponseRef.current = '';
     setAiResponse('');
-    lastProcessedRef.current = '';
-    
-    setTimeout(() => {
-      startListening();
-      setConnectionStatus('connected');
-    }, 500);
-  }, [isSupported, startListening, toast]);
-
-  const handleStopListening = useCallback(() => {
-    stopListening();
-    stopSpeaking();
-    setConnectionStatus('disconnected');
     setDisplayTranscript('');
-    if (silenceTimeoutRef.current) {
-      clearTimeout(silenceTimeoutRef.current);
-    }
-  }, [stopListening, stopSpeaking]);
+    await connect();
+  }, [connect]);
 
+  const handleEndSession = useCallback(() => {
+    disconnect();
+    setConnectionStatus('disconnected');
+  }, [disconnect]);
+
+  // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        handleEndSession();
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, handleEndSession]);
 
-  // Auto-start listening when Voice Mode opens
+  // Auto-start session when component mounts
   useEffect(() => {
-    if (isSupported) {
-      const timer = setTimeout(() => {
-        handleStartListening();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isSupported]); // eslint-disable-line react-hooks/exhaustive-deps
+    const timer = setTimeout(() => {
+      handleStartSession();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-      }
-      stopListening();
-      stopSpeaking();
+      disconnect();
     };
-  }, [stopListening, stopSpeaking]);
+  }, [disconnect]);
 
   const statusConfig = {
-    connecting: { color: 'text-warning', icon: Wifi, label: 'Connecting...', animate: true },
+    connecting: { color: 'text-warning', icon: Loader2, label: 'Connecting...', animate: true },
     connected: { color: 'text-success', icon: Wifi, label: 'Listening', animate: false },
     processing: { color: 'text-ghost-primary', icon: Loader2, label: 'Thinking...', animate: true },
-    speaking: { color: 'text-purple-400', icon: Volume2, label: 'Speaking (mic paused)', animate: true },
+    speaking: { color: 'text-purple-400', icon: Volume2, label: 'Speaking', animate: true },
     disconnected: { color: 'text-muted-foreground', icon: WifiOff, label: 'Disconnected', animate: false },
     error: { color: 'text-destructive', icon: AlertCircle, label: 'Error', animate: false },
   };
 
   const currentStatus = statusConfig[connectionStatus];
   const StatusIcon = currentStatus.icon;
-
-  const isCurrentlySpeaking = connectionStatus === 'speaking' || isTTSLoading || isSpeaking;
 
   return (
     <div className="fixed inset-0 ghost-gradient z-50 flex flex-col animate-fade-in">
@@ -413,18 +278,18 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             <span className="font-mono text-xs">{currentStatus.label}</span>
           </div>
           
-          {!isSupported && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel text-warning text-sm">
-              <AlertCircle className="w-4 h-4" />
-              <span className="font-mono text-xs">Use Chrome/Edge</span>
-            </div>
-          )}
+          <div className="px-3 py-1.5 rounded-full glass-panel text-sm text-ghost-primary">
+            <span className="font-mono text-xs">OpenAI Realtime</span>
+          </div>
         </div>
         
         <Button
           variant="ghost"
           size="icon"
-          onClick={onClose}
+          onClick={() => {
+            handleEndSession();
+            onClose();
+          }}
           className="text-muted-foreground hover:text-foreground"
         >
           <X className="w-6 h-6" />
@@ -436,44 +301,44 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         {/* Visualizer */}
         <div className="w-80 h-80 mb-8">
           <AudioVisualizer 
-            isActive={isListening || isProcessing || isCurrentlySpeaking}
-            isSpeaking={isCurrentlySpeaking}
-            isListening={isListening && !isProcessing && !isCurrentlySpeaking && !isPaused}
+            isActive={isConnected || connectionStatus === 'connecting'}
+            isSpeaking={isSpeaking}
+            isListening={isListening && !isSpeaking}
           />
         </div>
 
         {/* Transcript / Response */}
         <div className="h-32 flex flex-col items-center justify-center gap-2 max-w-2xl">
-          {displayTranscript && connectionStatus !== 'speaking' ? (
+          {displayTranscript && !isSpeaking ? (
             <p className="text-2xl md:text-3xl font-light text-center text-foreground/90 animate-fade-in">
               "{displayTranscript}"
             </p>
-          ) : aiResponse && (connectionStatus === 'speaking' || connectionStatus === 'connected') ? (
+          ) : aiResponse && isSpeaking ? (
             <p className="text-xl md:text-2xl font-light text-center text-purple-300 animate-fade-in">
               {aiResponse}
             </p>
-          ) : isProcessing ? (
+          ) : connectionStatus === 'connecting' ? (
             <div className="flex items-center gap-3">
               <Loader2 className="w-6 h-6 animate-spin text-ghost-primary" />
               <p className="text-lg text-ghost-primary">
-                Processing with Gemini...
+                Connecting to AI...
               </p>
             </div>
-          ) : isListening && !isPaused && !isMicMuted ? (
+          ) : isListening && !isSpeaking ? (
             <p className="text-lg text-muted-foreground">
               Listening... say something
             </p>
-          ) : isPaused ? (
+          ) : isSpeaking ? (
             <p className="text-lg text-purple-300">
               AI is speaking...
             </p>
-          ) : isMicMuted ? (
-            <p className="text-lg text-warning">
-              Microphone muted
+          ) : connectionStatus === 'disconnected' ? (
+            <p className="text-lg text-muted-foreground">
+              Press the button to start
             </p>
           ) : (
             <p className="text-lg text-muted-foreground">
-              Starting voice mode...
+              Ready to assist
             </p>
           )}
         </div>
@@ -485,10 +350,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => {
-            setIsMuted(!isMuted);
-            if (!isMuted) stopSpeaking();
-          }}
+          onClick={() => setIsMuted(!isMuted)}
           className={cn(
             "rounded-full w-12 h-12",
             isMuted ? "text-destructive" : "text-muted-foreground"
@@ -498,54 +360,43 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
           {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
         </Button>
 
-        {/* Mic Mute - pauses listening but keeps session active */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => {
-            if (isMicMuted) {
-              setIsMicMuted(false);
-              resumeListening();
-            } else {
-              setIsMicMuted(true);
-              pauseListening();
-            }
-          }}
-          disabled={!isListening}
-          className={cn(
-            "rounded-full w-20 h-20 transition-all",
-            isListening && !isMicMuted && "bg-ghost-primary/20 border-2 border-ghost-primary",
-            isListening && isMicMuted && "bg-destructive/20 border-2 border-destructive",
-            !isListening && "bg-muted"
-          )}
-          title={isMicMuted ? "Unmute microphone" : "Mute microphone"}
-        >
-          {isMicMuted ? (
-            <MicOff className="w-8 h-8 text-destructive" />
+        {/* Main Action Button */}
+        {!isConnected ? (
+          <Button
+            onClick={handleStartSession}
+            disabled={connectionStatus === 'connecting'}
+            className={cn(
+              "rounded-full w-20 h-20 bg-ghost-primary hover:bg-ghost-primary/80",
+              connectionStatus === 'connecting' && "opacity-50"
+            )}
+          >
+            {connectionStatus === 'connecting' ? (
+              <Loader2 className="w-10 h-10 animate-spin" />
+            ) : (
+              <Phone className="w-10 h-10" />
+            )}
+          </Button>
+        ) : (
+          <Button
+            onClick={handleEndSession}
+            className="rounded-full w-20 h-20 bg-destructive hover:bg-destructive/80"
+          >
+            <PhoneOff className="w-10 h-10" />
+          </Button>
+        )}
+
+        {/* Mic indicator */}
+        <div className={cn(
+          "rounded-full w-12 h-12 flex items-center justify-center",
+          isListening && !isSpeaking ? "text-success" : "text-muted-foreground"
+        )}>
+          {isListening && !isSpeaking ? (
+            <Mic className="w-6 h-6 animate-pulse" />
           ) : (
-            <Mic className={cn("w-8 h-8", isListening ? "text-ghost-primary" : "text-muted-foreground")} />
+            <MicOff className="w-6 h-6" />
           )}
-        </Button>
-
-        {/* Stop Session */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleStopListening}
-          disabled={!isListening}
-          className="rounded-full w-12 h-12 text-muted-foreground hover:text-destructive"
-          title="End voice session"
-        >
-          <X className="w-6 h-6" />
-        </Button>
+        </div>
       </footer>
-
-      {/* Keyboard shortcut hint */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-        <span className="text-xs text-muted-foreground/50 font-mono">
-          Press ESC to exit
-        </span>
-      </div>
     </div>
   );
 }
