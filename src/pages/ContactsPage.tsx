@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -96,6 +97,7 @@ export default function Contacts() {
   const [formData, setFormData] = useState<ContactFormData>(defaultFormData);
   const [activeTab, setActiveTab] = useState<'personal' | 'business' | 'due'>('personal');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
 
   const contactsDue = getContactsDue();
 
@@ -186,11 +188,13 @@ export default function Contacts() {
     }
   };
 
-  const handleDelete = async (contact: Contact) => {
-    const success = await deleteContact(contact.id);
+  const handleDeleteConfirm = async () => {
+    if (!contactToDelete) return;
+    const success = await deleteContact(contactToDelete.id);
     if (success) {
       toast({ title: 'Contact deleted' });
     }
+    setContactToDelete(null);
   };
 
   const handleMarkContacted = async (contact: Contact) => {
@@ -364,7 +368,7 @@ export default function Contacts() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={(e) => { e.stopPropagation(); handleDelete(contact); }}
+                onClick={(e) => { e.stopPropagation(); setContactToDelete(contact); }}
                 className="text-destructive hover:text-destructive"
                 title="Delete"
               >
@@ -392,6 +396,7 @@ export default function Contacts() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Level</TableHead>
               <TableHead>Company / Role</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Email</TableHead>
@@ -416,11 +421,11 @@ export default function Contacts() {
                           {getInitials(contact.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <p className="font-medium">{contact.name}</p>
-                        {getTierBadge(contact)}
-                      </div>
+                      <p className="font-medium">{contact.name}</p>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {getTierBadge(contact)}
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
@@ -479,7 +484,7 @@ export default function Contacts() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(contact); }}
+                        onClick={(e) => { e.stopPropagation(); setContactToDelete(contact); }}
                         title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -873,6 +878,24 @@ export default function Contacts() {
             </>
           )}
         </Tabs>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!contactToDelete} onOpenChange={(open) => !open && setContactToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Contact</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {contactToDelete?.name}? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
