@@ -1,0 +1,191 @@
+import { useRef, useEffect } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  Phone,
+  PhoneOff,
+  Video,
+  VideoOff,
+  Mic,
+  MicOff,
+  Monitor,
+  MonitorOff,
+} from 'lucide-react';
+import type { CallStatus, CallType } from '@/hooks/useWebRTCCall';
+
+interface CallDialogProps {
+  isOpen: boolean;
+  callStatus: CallStatus;
+  callType: CallType;
+  callerName: string;
+  localStream: MediaStream | null;
+  remoteStream: MediaStream | null;
+  isAudioMuted: boolean;
+  isVideoOff: boolean;
+  isScreenSharing: boolean;
+  onAnswer: () => void;
+  onDecline: () => void;
+  onEndCall: () => void;
+  onToggleAudio: () => void;
+  onToggleVideo: () => void;
+  onToggleScreenShare: () => void;
+}
+
+export function CallDialog({
+  isOpen,
+  callStatus,
+  callType,
+  callerName,
+  localStream,
+  remoteStream,
+  isAudioMuted,
+  isVideoOff,
+  isScreenSharing,
+  onAnswer,
+  onDecline,
+  onEndCall,
+  onToggleAudio,
+  onToggleVideo,
+  onToggleScreenShare,
+}: CallDialogProps) {
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Attach local stream to video element
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  // Attach remote stream to video element
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const isRinging = callStatus === 'ringing';
+  const isCalling = callStatus === 'calling';
+  const isConnected = callStatus === 'connected';
+
+  return (
+    <Dialog open={isOpen} onOpenChange={() => {}}>
+      <DialogContent 
+        className="sm:max-w-[600px] md:max-w-[800px] p-0 overflow-hidden bg-background/95 backdrop-blur-sm"
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
+        <div className="relative w-full aspect-video bg-muted/50 rounded-t-lg overflow-hidden">
+          {/* Remote video (main view) */}
+          {isConnected && remoteStream && callType === 'video' ? (
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center">
+              <Avatar className="w-24 h-24 mb-4">
+                <AvatarFallback className="text-3xl bg-primary/20">
+                  {getInitials(callerName)}
+                </AvatarFallback>
+              </Avatar>
+              <p className="text-xl font-medium">{callerName}</p>
+              <p className="text-muted-foreground mt-2">
+                {isRinging && 'Incoming call...'}
+                {isCalling && 'Calling...'}
+                {isConnected && (callType === 'audio' ? 'Voice call connected' : 'Connecting...')}
+              </p>
+            </div>
+          )}
+
+          {/* Local video (picture-in-picture) */}
+          {isConnected && localStream && callType === 'video' && !isVideoOff && (
+            <div className="absolute bottom-4 right-4 w-32 h-24 md:w-48 md:h-36 rounded-lg overflow-hidden shadow-lg border border-border">
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Call controls */}
+        <div className="p-6 flex items-center justify-center gap-4">
+          {isRinging ? (
+            <>
+              <Button
+                size="lg"
+                variant="destructive"
+                className="rounded-full w-14 h-14"
+                onClick={onDecline}
+              >
+                <PhoneOff className="w-6 h-6" />
+              </Button>
+              <Button
+                size="lg"
+                className="rounded-full w-14 h-14 bg-success hover:bg-success/90"
+                onClick={onAnswer}
+              >
+                <Phone className="w-6 h-6" />
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* Audio toggle */}
+              <Button
+                size="lg"
+                variant={isAudioMuted ? 'destructive' : 'secondary'}
+                className="rounded-full w-12 h-12"
+                onClick={onToggleAudio}
+              >
+                {isAudioMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </Button>
+
+              {/* Video toggle (only for video calls) */}
+              {callType === 'video' && (
+                <Button
+                  size="lg"
+                  variant={isVideoOff ? 'destructive' : 'secondary'}
+                  className="rounded-full w-12 h-12"
+                  onClick={onToggleVideo}
+                >
+                  {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                </Button>
+              )}
+
+              {/* Screen share toggle */}
+              <Button
+                size="lg"
+                variant={isScreenSharing ? 'default' : 'secondary'}
+                className="rounded-full w-12 h-12"
+                onClick={onToggleScreenShare}
+              >
+                {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+              </Button>
+
+              {/* End call */}
+              <Button
+                size="lg"
+                variant="destructive"
+                className="rounded-full w-14 h-14"
+                onClick={onEndCall}
+              >
+                <PhoneOff className="w-6 h-6" />
+              </Button>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

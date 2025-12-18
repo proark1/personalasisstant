@@ -34,6 +34,9 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { useSpaceMembers, SpaceMember, SpaceShareSettings } from '@/hooks/useSpaceMembers';
+import { CallButton } from '@/components/calling/CallButton';
+import { OnlineIndicator } from '@/components/calling/OnlineIndicator';
+import { useCall } from '@/components/calling/CallProvider';
 
 interface SpaceMembersPanelProps {
   userId: string;
@@ -51,6 +54,8 @@ export function SpaceMembersPanel({ userId }: SpaceMembersPanelProps) {
     removeMember,
     updateShareSettings,
   } = useSpaceMembers(userId);
+
+  const { startVideoCall, startAudioCall, isOnline } = useCall();
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
@@ -217,11 +222,18 @@ export function SpaceMembersPanel({ userId }: SpaceMembersPanelProps) {
                         onClick={() => setExpandedMember(isExpanded ? null : member.id)}
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10">
-                            <AvatarFallback className="bg-primary/20">
-                              {getInitials(member.member_profile?.display_name, member.member_email)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="w-10 h-10">
+                              <AvatarFallback className="bg-primary/20">
+                                {getInitials(member.member_profile?.display_name, member.member_email)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <OnlineIndicator 
+                              isOnline={isOnline(member.member_id)} 
+                              className="absolute -bottom-0.5 -right-0.5"
+                              size="sm"
+                            />
+                          </div>
                           <div>
                             <p className="font-medium">
                               {member.member_profile?.display_name || member.member_email}
@@ -230,6 +242,13 @@ export function SpaceMembersPanel({ userId }: SpaceMembersPanelProps) {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {member.status === 'accepted' && (
+                            <CallButton
+                              onVideoCall={() => startVideoCall(member.member_id)}
+                              onAudioCall={() => startAudioCall(member.member_id)}
+                              isOnline={isOnline(member.member_id)}
+                            />
+                          )}
                           <Badge variant="secondary" className={getStatusColor(member.status)}>
                             {member.status}
                           </Badge>

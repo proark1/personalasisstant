@@ -24,6 +24,7 @@ import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { ShareProjectDialog } from '@/components/projects/ShareProjectDialog';
 import { MorningBriefing } from '@/components/notifications/MorningBriefing';
 import { WeeklyReviewDialog } from '@/components/review/WeeklyReviewDialog';
+import { CallProvider } from '@/components/calling/CallProvider';
 import { CalendarEvent, ChatMessage, AppMode, Task } from '@/types/flux';
 import { useToast } from '@/hooks/use-toast';
 import { differenceInCalendarDays, startOfDay, subDays } from 'date-fns';
@@ -508,7 +509,7 @@ const Index = () => {
   }
 
   return (
-    <>
+    <CallProvider userId={user?.id || ''}>
       {/* Morning Briefing */}
       {showMorningDigest && (
         <MorningBriefing
@@ -624,7 +625,7 @@ const Index = () => {
         onSaveReview={createOrUpdateReview}
         weeklyStats={weeklyStats}
       />
-    </>
+    </CallProvider>
   );
 };
 
