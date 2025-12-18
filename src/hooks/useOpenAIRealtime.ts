@@ -159,6 +159,8 @@ export function useOpenAIRealtime({
   const rtcReadyRef = useRef(false);
   const speakerMutedRef = useRef(false);
   const micMutedRef = useRef(false);
+  // Used to cancel in-flight connection attempts when the user taps hang up / retries
+  const connectAttemptRef = useRef(0);
 
   // Handle function calls from OpenAI
   const handleFunctionCall = useCallback(async (name: string, args: any, callId: string) => {
@@ -846,6 +848,16 @@ export function useOpenAIRealtime({
       return;
     }
 
+    // New attempt id for this connection
+    const attemptId = ++connectAttemptRef.current;
+
+    const assertStillActive = (stage: string) => {
+      if (connectAttemptRef.current !== attemptId) {
+        console.log(`Connect attempt cancelled at: ${stage}`);
+        throw new Error('Connection cancelled');
+      }
+    };
+
     // Set lock IMMEDIATELY before any async work
     isConnectingRef.current = true;
 
@@ -885,6 +897,7 @@ export function useOpenAIRealtime({
       setDebugTimings({ connectStart });
       console.log('Getting ephemeral token...');
 
+      assertStillActive('before token fetch');
       const tokenFetchStart = performance.now();
       setDebugTimings(prev => ({ ...prev, tokenFetchStart }));
 
@@ -892,6 +905,7 @@ export function useOpenAIRealtime({
         body: { userProfile: userProfileRef.current, contextData: contextDataRef.current },
       });
 
+      assertStillActive('after token fetch');
       const tokenFetchEnd = performance.now();
       setDebugTimings(prev => ({ ...prev, tokenFetchEnd }));
 
@@ -902,6 +916,7 @@ export function useOpenAIRealtime({
       const EPHEMERAL_KEY = data.client_secret.value;
       console.log('Got ephemeral token, establishing WebRTC...');
 
+      assertStillActive('before pc init');
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
 
@@ -928,17 +943,26 @@ export function useOpenAIRealtime({
         audioEl.srcObject = e.streams[0];
       };
 
+      assertStillActive('before mic permission');
       const micPermissionStart = performance.now();
       setDebugTimings(prev => ({ ...prev, micPermissionStart }));
 
       const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = ms;
 
+      assertStillActive('after mic permission');
       const micPermissionEnd = performance.now();
       setDebugTimings(prev => ({ ...prev, micPermissionEnd }));
+
       const track = ms.getTracks()[0];
       localAudioTrackRef.current = track;
       track.enabled = !micMutedRef.current;
+
+      // If we were cancelled while the browser prompt was open, the pc may be closed already
+      if (pc.signalingState === 'closed') {
+        throw new Error('Peer connection closed before track could be added');
+      }
+
       pc.addTrack(track);
 
       const dc = pc.createDataChannel('oai-events');
@@ -1067,6 +1091,7 @@ export function useOpenAIRealtime({
       };
 
       await pc.setRemoteDescription(answer);
+      assertStillActive('after remote SDP');
       console.log('WebRTC connection established');
       setDebugTimings(prev => ({ ...prev, remoteSdpSet: performance.now() }));
       rtcReadyRef.current = true;
@@ -1168,10 +1193,20 @@ export function useOpenAIRealtime({
   }, [onConnectionChange]);
 
   const disconnect = useCallback(() => {
+    const hasAnythingToClose =
+      !!pcRef.current ||
+      !!dcRef.current ||
+      !!localStreamRef.current ||
+      !!audioContextRef.current ||
+      isConnectingRef.current ||
+      isConnected;
+
+    if (!hasAnythingToClose) return;
+
     console.log('Disconnecting...');
     cleanupConnection({ emitDisconnected: true });
     setDebugTimings({});
-  }, [cleanupConnection]);
+  }, [cleanupConnection, isConnected]);
 
   const sendTextMessage = useCallback((text: string) => {
     if (!dcRef.current || dcRef.current.readyState !== 'open') {
