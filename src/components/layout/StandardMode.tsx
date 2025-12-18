@@ -235,9 +235,9 @@ export function StandardMode({
   if (isMobile) {
     return (
       <MobileLayout
+        userId={user?.id || ''}
         tasks={tasks}
         events={events}
-        sharedTasks={sharedTasks}
         sharedEvents={sharedEvents}
         messages={messages}
         isProcessing={isProcessing}
