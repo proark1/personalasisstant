@@ -1243,11 +1243,6 @@ export function useOpenAIRealtime({
     }
   }, []);
 
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  }, [disconnect]);
 
   return {
     isConnected,
