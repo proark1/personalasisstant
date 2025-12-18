@@ -1243,6 +1243,13 @@ export function useOpenAIRealtime({
     }
   }, []);
 
+  // Note: We intentionally do NOT auto-disconnect on unmount here.
+  // GhostMode handles cleanup via its own useEffect calling disconnect().
+  // Removing the cleanup useEffect entirely caused React hooks order errors,
+  // so we keep a no-op useEffect to maintain consistent hook count.
+  useEffect(() => {
+    // Cleanup is handled by GhostMode component
+  }, []);
 
   return {
     isConnected,
