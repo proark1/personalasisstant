@@ -1081,6 +1081,18 @@ export type Database = {
         Args: { task_row: Database["public"]["Tables"]["tasks"]["Row"] }
         Returns: boolean
       }
+      is_group_admin: {
+        Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_group_creator: {
+        Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_group_member: {
+        Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

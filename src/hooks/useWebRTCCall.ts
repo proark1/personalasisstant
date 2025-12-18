@@ -151,6 +151,9 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       const channel = supabase.channel(`call-signaling-${session.id}`);
       channelRef.current = channel;
 
+      // Store offer for resending
+      let currentOffer: RTCSessionDescriptionInit | null = null;
+
       channel
         .on('broadcast', { event: 'answer' }, async ({ payload }) => {
           if (payload.from !== userId && payload.sdp) {
@@ -174,21 +177,39 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
           });
           endCall();
         })
-        .subscribe();
+        .on('broadcast', { event: 'request-offer' }, async ({ payload }) => {
+          if (payload.from !== userId && currentOffer) {
+            console.log('Resending offer upon request');
+            channel.send({
+              type: 'broadcast',
+              event: 'offer',
+              payload: {
+                sdp: currentOffer,
+                from: userId,
+                callType: type,
+              },
+            });
+          }
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            // Create and send offer after subscription is confirmed
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            currentOffer = offer;
 
-      // Create and send offer
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      channel.send({
-        type: 'broadcast',
-        event: 'offer',
-        payload: {
-          sdp: offer,
-          from: userId,
-          callType: type,
-        },
-      });
+            console.log('Sending initial offer');
+            channel.send({
+              type: 'broadcast',
+              event: 'offer',
+              payload: {
+                sdp: offer,
+                from: userId,
+                callType: type,
+              },
+            });
+          }
+        });
 
       return session;
     } catch (error) {
@@ -220,24 +241,32 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       const channel = supabase.channel(`call-signaling-${session.id}`);
       channelRef.current = channel;
 
+      // Store reference to handle offer
+      let hasReceivedOffer = false;
+
+      const handleOffer = async (payload: any) => {
+        if (payload.from !== userId && payload.sdp && !hasReceivedOffer) {
+          hasReceivedOffer = true;
+          console.log('Received offer, creating answer');
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          channel.send({
+            type: 'broadcast',
+            event: 'answer',
+            payload: {
+              sdp: answer,
+              from: userId,
+            },
+          });
+        }
+      };
+
       channel
         .on('broadcast', { event: 'offer' }, async ({ payload }) => {
-          if (payload.from !== userId && payload.sdp) {
-            console.log('Received offer');
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            channel.send({
-              type: 'broadcast',
-              event: 'answer',
-              payload: {
-                sdp: answer,
-                from: userId,
-              },
-            });
-          }
+          await handleOffer(payload);
         })
         .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
           if (payload.from !== userId && payload.candidate) {
@@ -248,7 +277,17 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
             }
           }
         })
-        .subscribe();
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Callee subscribed to signaling channel, requesting offer');
+            // Request the caller to resend the offer
+            channel.send({
+              type: 'broadcast',
+              event: 'request-offer',
+              payload: { from: userId },
+            });
+          }
+        });
 
       // Update session status
       await supabase
