@@ -8,13 +8,20 @@ export interface ChatAttachment {
   size: number;
 }
 
+export interface MessageReaction {
+  emoji: string;
+  user_ids: string[];
+}
+
 export interface DirectMessage {
   id: string;
   sender_id: string;
   recipient_id: string;
   content: string;
   attachments: ChatAttachment[];
+  reactions: MessageReaction[];
   is_read: boolean;
+  read_at: string | null;
   created_at: string;
   sender_profile?: {
     display_name: string | null;
@@ -136,6 +143,8 @@ export function useDirectMessages(userId: string | null) {
       const messagesWithProfiles: DirectMessage[] = (data || []).map(msg => ({
         ...msg,
         attachments: (Array.isArray(msg.attachments) ? msg.attachments : []) as unknown as ChatAttachment[],
+        reactions: (Array.isArray(msg.reactions) ? msg.reactions : []) as unknown as MessageReaction[],
+        read_at: msg.read_at || null,
         sender_profile: profileMap.get(msg.sender_id) || undefined,
       }));
 
