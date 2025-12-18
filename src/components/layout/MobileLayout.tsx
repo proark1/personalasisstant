@@ -144,7 +144,7 @@ export function MobileLayout({
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                       <Sparkles className="w-5 h-5 text-primary-foreground" />
                     </div>
-                    <span className="font-semibold text-lg">Flux</span>
+                    <span className="font-semibold text-lg">DarAI</span>
                   </div>
                 </div>
 
@@ -228,7 +228,7 @@ export function MobileLayout({
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-semibold">Flux</span>
+            <span className="font-semibold">DarAI</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
