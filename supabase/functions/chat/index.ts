@@ -66,6 +66,13 @@ const timeContext = currentHour < 12 ? 'morning' : currentHour < 17 ? 'afternoon
 
 const baseSystemPrompt = `You are Flux, an intelligent AI productivity assistant that KNOWS the user personally. You help users manage tasks, schedule events, connect with contacts, and stay organized.
 
+## CRITICAL: RESPONDING TO PERSONAL IDENTITY QUESTIONS
+When the user asks "What do you know about me?", "Who am I?", "Tell me about myself", or similar identity questions:
+- Focus ONLY on their personal profile: name, role, businesses, interests, skills, goals, location, bio
+- Do NOT list their current tasks - those are work items, not their identity
+- Make it feel like you truly know them as a person
+- Be warm and personal, like a trusted assistant who knows their story
+
 ## CURRENT CONTEXT
 - Current date and time: ${new Date().toISOString()}
 - Time of day: ${timeContext}
@@ -191,20 +198,21 @@ serve(async (req) => {
     } else {
       // Fallback: build context from individual pieces
       if (userProfile) {
-        contextMessage += "\n## USER PROFILE";
+        contextMessage += "\n\n## WHO THIS USER IS (Their Identity)";
         if (userProfile.displayName) contextMessage += `\nName: ${userProfile.displayName}`;
         if (userProfile.role) contextMessage += `\nRole: ${userProfile.role}`;
-        if (userProfile.businesses?.length) contextMessage += `\nBusinesses: ${userProfile.businesses.join(', ')}`;
+        if (userProfile.businesses?.length) contextMessage += `\nBusinesses they run: ${userProfile.businesses.join(', ')}`;
         if (userProfile.interests?.length) contextMessage += `\nInterests: ${userProfile.interests.join(', ')}`;
+        if (userProfile.skills?.length) contextMessage += `\nSkills: ${userProfile.skills.join(', ')}`;
         if (userProfile.locationCity || userProfile.locationCountry) {
           contextMessage += `\nLocation: ${[userProfile.locationCity, userProfile.locationCountry].filter(Boolean).join(', ')}`;
         }
-        if (userProfile.goals) contextMessage += `\nGoals: ${userProfile.goals}`;
-        if (userProfile.bio) contextMessage += `\nBio: ${userProfile.bio}`;
+        if (userProfile.goals) contextMessage += `\nCurrent goals: ${userProfile.goals}`;
+        if (userProfile.bio) contextMessage += `\nAbout them: ${userProfile.bio}`;
       }
       
       if (relevantContacts && relevantContacts.length > 0) {
-        contextMessage += "\n\n## RELEVANT CONTACTS";
+        contextMessage += "\n\n## RELEVANT CONTACTS (for current conversation)";
         for (const contact of relevantContacts) {
           const location = [contact.city, contact.country].filter(Boolean).join(', ');
           const details = [contact.role, contact.company, location].filter(Boolean).join(' | ');
@@ -215,7 +223,7 @@ serve(async (req) => {
       }
       
       if (relevantContracts && relevantContracts.length > 0) {
-        contextMessage += "\n\n## RELEVANT CONTRACTS";
+        contextMessage += "\n\n## RELEVANT CONTRACTS (for current conversation)";
         for (const contract of relevantContracts) {
           const cost = contract.costAmount ? `€${contract.costAmount}/${contract.costFrequency || 'month'}` : '';
           const renewal = contract.renewalDate ? `renews ${contract.renewalDate}` : '';
@@ -224,7 +232,7 @@ serve(async (req) => {
       }
     }
     
-    // Add tasks and events
+    // Add tasks and events - these are WORK ITEMS, not identity
     if (tasks && tasks.length > 0) {
       const pendingTasks = tasks.filter(t => !t.completed);
       const overdueTasks = pendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
@@ -235,15 +243,16 @@ serve(async (req) => {
         return taskDate === today;
       });
       
-      contextMessage += `\n\n## TASKS (${pendingTasks.length} pending, ${overdueTasks.length} overdue)`;
+      contextMessage += `\n\n## CURRENT WORK ITEMS (Not their identity - these are just things they're working on)`;
+      contextMessage += `\n${pendingTasks.length} pending tasks, ${overdueTasks.length} overdue`;
       if (todayTasks.length > 0) {
         contextMessage += `\nDue today: ${todayTasks.map(t => t.title).join(', ')}`;
       }
-      contextMessage += `\nAll pending:\n${pendingTasks.slice(0, 10).map(t => `- ${t.title} (${t.category}, ${t.priority} priority${t.dueDate ? `, due ${t.dueDate}` : ''})`).join('\n')}`;
+      contextMessage += `\nPending tasks:\n${pendingTasks.slice(0, 10).map(t => `- ${t.title} (${t.category}, ${t.priority} priority${t.dueDate ? `, due ${t.dueDate}` : ''})`).join('\n')}`;
     }
     
     if (events && events.length > 0) {
-      contextMessage += `\n\n## UPCOMING EVENTS`;
+      contextMessage += `\n\n## UPCOMING CALENDAR EVENTS`;
       contextMessage += `\n${events.slice(0, 5).map(e => `- ${e.title} at ${e.startTime}`).join('\n')}`;
     }
 
