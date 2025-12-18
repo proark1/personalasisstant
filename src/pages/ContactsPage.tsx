@@ -221,11 +221,11 @@ export default function Contacts() {
   const getTierBadge = (contact: Contact) => {
     if (contact.contactType === 'personal' && contact.personalTier) {
       const tier = PERSONAL_TIERS.find(t => t.value === contact.personalTier);
-      return tier ? <Badge className={`${tier.color} text-white`}>{tier.label}</Badge> : null;
+      return tier ? <Badge className={`${tier.color} text-white whitespace-nowrap text-xs`}>{tier.label}</Badge> : null;
     }
     if (contact.contactType === 'business' && contact.businessLevel) {
       const level = BUSINESS_LEVELS.find(l => l.value === contact.businessLevel);
-      return level ? <Badge className={`${level.color} text-white`}>{level.label}</Badge> : null;
+      return level ? <Badge className={`${level.color} text-white whitespace-nowrap text-xs`}>{level.label}</Badge> : null;
     }
     return null;
   };
