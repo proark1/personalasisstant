@@ -50,6 +50,7 @@ const Index = () => {
     removeShare,
     getRecentContacts,
     fetchSharedWithMe,
+    refetch,
   } = useDatabase(user?.id);
 
   // Shared items state
@@ -201,6 +202,16 @@ const Index = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mode]);
+
+  // Refetch data when returning from ghost mode to sync any changes made there
+  const prevModeRef = useRef(mode);
+  useEffect(() => {
+    if (prevModeRef.current === 'ghost' && mode === 'standard') {
+      console.log('[Index] Returning from ghost mode, refetching data...');
+      refetch();
+    }
+    prevModeRef.current = mode;
+  }, [mode, refetch]);
 
   const addMessage = useCallback((message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
     const newMessage: ChatMessage = {

@@ -148,6 +148,42 @@ export function useDatabase(userId: string | undefined) {
     fetchData();
   }, [fetchData]);
 
+  // Subscribe to realtime changes for tasks and events
+  useEffect(() => {
+    if (!userId) return;
+
+    console.log('[useDatabase] Setting up realtime subscriptions for user:', userId);
+
+    const channel = supabase
+      .channel('tasks-events-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        (payload) => {
+          console.log('[useDatabase] Tasks realtime change:', payload.eventType, payload);
+          // Refetch to get updated data
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'events' },
+        (payload) => {
+          console.log('[useDatabase] Events realtime change:', payload.eventType, payload);
+          // Refetch to get updated data
+          fetchData();
+        }
+      )
+      .subscribe((status) => {
+        console.log('[useDatabase] Realtime subscription status:', status);
+      });
+
+    return () => {
+      console.log('[useDatabase] Cleaning up realtime subscriptions');
+      supabase.removeChannel(channel);
+    };
+  }, [userId, fetchData]);
+
   // Task operations
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt'>): Promise<Task | null> => {
     if (!userId) return null;

@@ -46,14 +46,19 @@ export function useAIChat() {
     const toolCalls: ToolCall[] = [];
     let cleanContent = content;
 
+    console.log('[useAIChat] Parsing tool calls from content:', content.substring(0, 500) + (content.length > 500 ? '...' : ''));
+
     // Parse manage_task tool calls (allow whitespace/newlines between tags)
-    const taskMatches = content.matchAll(
-      /<tool>manage_task<\/tool>\s*<action>(\w+)<\/action>\s*<task>(\{[\s\S]*?\})<\/task>/g
-    );
+    const taskRegex = /<tool>manage_task<\/tool>\s*<action>(\w+)<\/action>\s*<task>(\{[\s\S]*?\})<\/task>/g;
+    const taskMatches = content.matchAll(taskRegex);
+    let taskMatchCount = 0;
     for (const match of taskMatches) {
+      taskMatchCount++;
+      console.log('[useAIChat] Found task tool call match:', match[0].substring(0, 200));
       try {
         const action = match[1] as 'add' | 'update' | 'delete' | 'complete';
         const taskData = JSON.parse(match[2]);
+        console.log('[useAIChat] Parsed task data:', { action, taskData });
 
         const dueDateRaw = taskData.dueDate ?? taskData.due_date;
         const recurrenceRuleRaw = taskData.recurrenceRule ?? taskData.recurrence_rule;
@@ -68,10 +73,12 @@ export function useAIChat() {
 
         toolCalls.push({ tool: 'manage_task', action, task });
         cleanContent = cleanContent.replace(match[0], '');
+        console.log('[useAIChat] Successfully parsed manage_task tool call:', { action, title: task.title });
       } catch (e) {
-        console.error('Failed to parse task tool call:', e);
+        console.error('[useAIChat] Failed to parse task tool call:', e, 'Raw match:', match[0]);
       }
     }
+    console.log('[useAIChat] Total task matches found:', taskMatchCount);
 
     // Parse schedule_event tool calls (allow whitespace/newlines between tags)
     const eventMatches = content.matchAll(
@@ -128,6 +135,7 @@ export function useAIChat() {
       }
     }
 
+    console.log('[useAIChat] Parse complete. Total tool calls found:', toolCalls.length, toolCalls.map(tc => tc.tool));
     return { cleanContent: cleanContent.trim(), toolCalls };
   };
 
