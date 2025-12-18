@@ -6,11 +6,26 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+interface UserProfile {
+  displayName?: string;
+  role?: string;
+  bio?: string;
+  businesses?: string[];
+  interests?: string[];
+  skills?: string[];
+  goals?: string;
+  locationCity?: string;
+  locationCountry?: string;
+  timezone?: string;
+  preferredWorkHours?: string;
+}
+
 interface LiveSessionRequest {
   action: 'send_audio' | 'send_text';
   personality?: string;
-  audio?: string; // base64 encoded audio
+  audio?: string;
   text?: string;
+  userProfile?: UserProfile;
 }
 
 const personalityPrompts: Record<string, string> = {
@@ -19,6 +34,54 @@ const personalityPrompts: Record<string, string> = {
   supportive: "You are Flux in supportive mode. Be empathetic, encouraging, and understanding. Celebrate progress and be patient.",
   creative: "You are Flux in creative mode. Think outside the box, brainstorm freely, and encourage exploration of new ideas.",
 };
+
+function buildUserContext(profile?: UserProfile): string {
+  if (!profile || !profile.displayName) return '';
+
+  const parts: string[] = [];
+  
+  if (profile.displayName) {
+    parts.push(`The user's name is ${profile.displayName}.`);
+  }
+  
+  if (profile.role) {
+    parts.push(`Their role is ${profile.role}.`);
+  }
+  
+  if (profile.businesses && profile.businesses.length > 0) {
+    parts.push(`They run these businesses: ${profile.businesses.join('; ')}.`);
+  }
+  
+  if (profile.locationCity && profile.locationCountry) {
+    parts.push(`Based in ${profile.locationCity}, ${profile.locationCountry}.`);
+  } else if (profile.locationCountry) {
+    parts.push(`Based in ${profile.locationCountry}.`);
+  }
+  
+  if (profile.timezone) {
+    parts.push(`Timezone: ${profile.timezone}.`);
+  }
+  
+  if (profile.interests && profile.interests.length > 0) {
+    parts.push(`Interests: ${profile.interests.join(', ')}.`);
+  }
+  
+  if (profile.skills && profile.skills.length > 0) {
+    parts.push(`Skills: ${profile.skills.join(', ')}.`);
+  }
+  
+  if (profile.goals) {
+    parts.push(`Current goals: ${profile.goals}`);
+  }
+  
+  if (profile.bio) {
+    parts.push(`Background: ${profile.bio}`);
+  }
+
+  return parts.length > 0 
+    ? `\n\n## User Context (use this to personalize responses)\n${parts.join('\n')}`
+    : '';
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -31,18 +94,23 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY is not configured');
     }
 
-    const { action, personality = 'balanced', audio, text } = await req.json() as LiveSessionRequest;
+    const { action, personality = 'balanced', audio, text, userProfile } = await req.json() as LiveSessionRequest;
 
+    const userContext = buildUserContext(userProfile);
+    
     const systemPrompt = `${personalityPrompts[personality] || personalityPrompts.balanced}
 
 You are having a real-time voice conversation. Keep responses conversational, natural, and concise (1-3 sentences unless more detail is needed).
+${userContext}
 
 You can help with:
 - Task management (creating, updating, completing tasks)
 - Calendar scheduling (creating events, checking availability)
 - General questions and brainstorming
 - Productivity advice
+- Questions about the user (based on their profile context above)
 
+When the user asks about themselves, use the profile context to give personalized answers.
 When the user asks to create a task or schedule an event, confirm what you'll do and provide brief confirmation.`;
 
     if (action === 'send_text') {

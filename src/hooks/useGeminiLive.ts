@@ -2,8 +2,23 @@ import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { AssistantPersonality } from '@/types/flux';
 
+interface UserProfile {
+  displayName?: string | null;
+  role?: string | null;
+  bio?: string | null;
+  businesses?: string[] | null;
+  interests?: string[] | null;
+  skills?: string[] | null;
+  goals?: string | null;
+  locationCity?: string | null;
+  locationCountry?: string | null;
+  timezone?: string | null;
+  preferredWorkHours?: string | null;
+}
+
 interface UseGeminiLiveOptions {
   personality?: AssistantPersonality;
+  userProfile?: UserProfile | null;
   onResponse?: (text: string) => void;
   onError?: (error: string) => void;
   onSpeakingChange?: (speaking: boolean) => void;
@@ -11,6 +26,7 @@ interface UseGeminiLiveOptions {
 
 export function useGeminiLive({
   personality = 'balanced',
+  userProfile,
   onResponse,
   onError,
   onSpeakingChange,
@@ -27,7 +43,24 @@ export function useGeminiLive({
 
     try {
       const { data, error } = await supabase.functions.invoke('gemini-live', {
-        body: { action: 'send_text', text, personality }
+        body: { 
+          action: 'send_text', 
+          text, 
+          personality,
+          userProfile: userProfile ? {
+            displayName: userProfile.displayName,
+            role: userProfile.role,
+            bio: userProfile.bio,
+            businesses: userProfile.businesses,
+            interests: userProfile.interests,
+            skills: userProfile.skills,
+            goals: userProfile.goals,
+            locationCity: userProfile.locationCity,
+            locationCountry: userProfile.locationCountry,
+            timezone: userProfile.timezone,
+            preferredWorkHours: userProfile.preferredWorkHours,
+          } : undefined
+        }
       });
 
       if (error) throw error;
@@ -45,19 +78,35 @@ export function useGeminiLive({
     } finally {
       setIsProcessing(false);
     }
-  }, [personality, onResponse, onError, onSpeakingChange]);
+  }, [personality, userProfile, onResponse, onError, onSpeakingChange]);
 
   const sendAudio = useCallback(async (audioData: Float32Array, sampleRate: number = 16000) => {
     setIsProcessing(true);
     onSpeakingChange?.(false);
 
     try {
-      // Convert Float32Array to WAV format
       const wavBuffer = encodeWAV(audioData, sampleRate);
       const base64Audio = arrayBufferToBase64(wavBuffer);
 
       const { data, error } = await supabase.functions.invoke('gemini-live', {
-        body: { action: 'send_audio', audio: base64Audio, personality }
+        body: { 
+          action: 'send_audio', 
+          audio: base64Audio, 
+          personality,
+          userProfile: userProfile ? {
+            displayName: userProfile.displayName,
+            role: userProfile.role,
+            bio: userProfile.bio,
+            businesses: userProfile.businesses,
+            interests: userProfile.interests,
+            skills: userProfile.skills,
+            goals: userProfile.goals,
+            locationCity: userProfile.locationCity,
+            locationCountry: userProfile.locationCountry,
+            timezone: userProfile.timezone,
+            preferredWorkHours: userProfile.preferredWorkHours,
+          } : undefined
+        }
       });
 
       if (error) throw error;
@@ -75,7 +124,7 @@ export function useGeminiLive({
     } finally {
       setIsProcessing(false);
     }
-  }, [personality, onResponse, onError, onSpeakingChange]);
+  }, [personality, userProfile, onResponse, onError, onSpeakingChange]);
 
   return {
     isProcessing,
@@ -90,22 +139,20 @@ function encodeWAV(samples: Float32Array, sampleRate: number): ArrayBuffer {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
 
-  // WAV header
   writeString(view, 0, 'RIFF');
   view.setUint32(4, 36 + samples.length * 2, true);
   writeString(view, 8, 'WAVE');
   writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true); // PCM format
-  view.setUint16(20, 1, true); // Audio format (1 = PCM)
-  view.setUint16(22, 1, true); // Mono
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true); // Byte rate
-  view.setUint16(32, 2, true); // Block align
-  view.setUint16(34, 16, true); // Bits per sample
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
   writeString(view, 36, 'data');
   view.setUint32(40, samples.length * 2, true);
 
-  // Write audio data
   const offset = 44;
   for (let i = 0; i < samples.length; i++) {
     const s = Math.max(-1, Math.min(1, samples[i]));

@@ -5,6 +5,7 @@ import { AudioVisualizer } from './AudioVisualizer';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { useGeminiLive } from '@/hooks/useGeminiLive';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToast } from '@/hooks/use-toast';
 import type { AssistantPersonality } from '@/types/flux';
 import { 
@@ -36,6 +37,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedRef = useRef<string>('');
 
+  // Fetch user profile for personalized AI responses
+  const { profile } = useUserProfile();
+
   // Voice recognition with pause/resume capability
   const {
     isListening,
@@ -54,35 +58,29 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   // TTS hook - pause recognition when speaking to prevent echo
   const { speak, stop: stopSpeaking, isSpeaking, isLoading: isTTSLoading } = useTextToSpeech({
     onStart: () => {
-      // Pause recognition when AI starts speaking to prevent echo
       pauseListening();
     },
     onEnd: () => {
       setConnectionStatus('connected');
-      // Resume recognition after AI finishes speaking
       setTimeout(() => {
         resumeListening();
-      }, 300); // Small delay to avoid catching tail end of speech
+      }, 300);
     }
   });
 
-  // Gemini Live hook for AI responses
+  // Gemini Live hook for AI responses with user profile
   const { isProcessing, sendText } = useGeminiLive({
     personality,
+    userProfile: profile,
     onResponse: async (text) => {
       setAiResponse(text);
       setConnectionStatus('speaking');
       
-      // Speak the response if not muted
       if (!isMuted) {
         await speak(text, personality);
       } else {
         setConnectionStatus('connected');
       }
-      
-      // NOTE: We intentionally do NOT call onCommand here
-      // The AI response should not be sent back to chat as a user message
-      // That would create an infinite loop where AI responds to itself
     },
     onError: (error) => {
       setConnectionStatus('error');
@@ -96,12 +94,10 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   });
 
   function handleTranscript(transcript: string, isFinal: boolean) {
-    // Don't process if paused (AI is speaking)
     if (isPaused) return;
     
     setDisplayTranscript(transcript);
     
-    // Clear any existing silence timeout
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current);
     }
@@ -111,7 +107,6 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       setConnectionStatus('processing');
       sendText(transcript.trim());
     } else if (transcript.trim()) {
-      // Set a timeout to send after silence
       silenceTimeoutRef.current = setTimeout(() => {
         if (transcript.trim() && transcript.trim() !== lastProcessedRef.current) {
           lastProcessedRef.current = transcript.trim();
@@ -131,7 +126,6 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     });
   }
 
-  // Update connection status based on state
   useEffect(() => {
     if (isProcessing) {
       setConnectionStatus('processing');
@@ -173,7 +167,6 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     }
   }, [stopListening, stopSpeaking]);
 
-  // Handle ESC key to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -184,7 +177,6 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (silenceTimeoutRef.current) {
