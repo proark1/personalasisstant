@@ -236,10 +236,11 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         variant: 'destructive',
         title: 'Voice Error',
         description: error,
+        duration: 8000, // Show error longer so user can read it
       });
       setConnectionStatus('error');
       isConnectingRef.current = false;
-      setTimeout(() => setConnectionStatus('disconnected'), 2000);
+      setTimeout(() => setConnectionStatus('disconnected'), 4000);
     },
     onConnectionChange: (status) => {
       console.log('Connection status changed:', status);
@@ -328,7 +329,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         variant: 'destructive',
         title: 'Connection Failed',
         description: err instanceof Error ? err.message : 'Failed to connect to voice service',
+        duration: 8000,
       });
+      setTimeout(() => setConnectionStatus('disconnected'), 4000);
     }
   }, [connect, isConnected, toast]);
 

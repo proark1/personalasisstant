@@ -813,12 +813,29 @@ export function useOpenAIRealtime({
     return result;
   }, [contextData, addTask, updateTask, trashTask, toggleTaskComplete, addContact, updateContact, deleteContact, markContacted, addEvent, updateEvent, deleteEvent, addContract, updateContract, deleteContract, addProject, updateProject, deleteProject, refetch, refetchContacts, refetchContracts, refetchProjects]);
 
+  // Store latest context in refs to avoid reconnection on every context change
+  const contextDataRef = useRef(contextData);
+  const userProfileRef = useRef(userProfile);
+  useEffect(() => {
+    contextDataRef.current = contextData;
+  }, [contextData]);
+  useEffect(() => {
+    userProfileRef.current = userProfile;
+  }, [userProfile]);
+
   const connect = useCallback(async () => {
-    // Prevent multiple simultaneous connections
-    if (isConnectingRef.current || isConnected) {
-      console.log('Already connecting or connected');
+    // Prevent multiple simultaneous connections - bulletproof lock
+    if (isConnectingRef.current) {
+      console.log('Already connecting, skipping...');
       return;
     }
+    if (isConnected) {
+      console.log('Already connected, skipping...');
+      return;
+    }
+
+    // Set lock IMMEDIATELY before any async work
+    isConnectingRef.current = true;
 
     // Reset state flags
     dcIsOpenRef.current = false;
@@ -850,14 +867,12 @@ export function useOpenAIRealtime({
     }
     localAudioTrackRef.current = null;
 
-    isConnectingRef.current = true;
-
     try {
       onConnectionChange?.('connecting');
       console.log('Getting ephemeral token...');
 
       const { data, error } = await supabase.functions.invoke('openai-realtime-session', {
-        body: { userProfile, contextData },
+        body: { userProfile: userProfileRef.current, contextData: contextDataRef.current },
       });
 
       if (error || !data?.client_secret?.value) {
@@ -1028,7 +1043,7 @@ export function useOpenAIRealtime({
       onConnectionChange?.('error');
       onError?.(err instanceof Error ? err.message : 'Connection failed');
     }
-  }, [contextData, handleFunctionCall, isConnected, onConnectionChange, onError, onResponse, onSpeakingChange, onTranscript, userProfile]);
+  }, [handleFunctionCall, isConnected, onConnectionChange, onError, onResponse, onSpeakingChange, onTranscript]);
 
   const disconnect = useCallback(() => {
     console.log('Disconnecting...');
