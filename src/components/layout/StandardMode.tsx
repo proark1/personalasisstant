@@ -453,7 +453,6 @@ export function StandardMode({
               />
             )}
           </div>
-          </div>
 
           {/* Calendar - only shown when toggled */}
           {showCalendar && (
