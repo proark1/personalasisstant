@@ -46,6 +46,10 @@ export function MealPlanningPanel() {
     setShowAddMealDialog(true);
   };
 
+  const handleMealAdded = () => {
+    fetchMealPlans(format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'));
+  };
+
   const handleGenerateShoppingList = async () => {
     const ingredients = await generateShoppingList(
       format(weekStart, 'yyyy-MM-dd'),
@@ -188,6 +192,7 @@ export function MealPlanningPanel() {
           open={showAddMealDialog}
           onOpenChange={setShowAddMealDialog}
           selectedDate={selectedDate}
+          onSuccess={handleMealAdded}
         />
       )}
     </div>

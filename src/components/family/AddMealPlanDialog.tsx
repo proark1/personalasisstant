@@ -11,6 +11,7 @@ interface AddMealPlanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date;
+  onSuccess?: () => void;
 }
 
 const mealTypes = [
@@ -20,7 +21,7 @@ const mealTypes = [
   { value: 'snack', label: 'Snack' },
 ];
 
-export function AddMealPlanDialog({ open, onOpenChange, selectedDate }: AddMealPlanDialogProps) {
+export function AddMealPlanDialog({ open, onOpenChange, selectedDate, onSuccess }: AddMealPlanDialogProps) {
   const { recipes, addMealPlan, refetchRecipes } = useMealPlanning();
   const [mealType, setMealType] = useState('dinner');
   const [recipeId, setRecipeId] = useState<string>('');
@@ -37,7 +38,7 @@ export function AddMealPlanDialog({ open, onOpenChange, selectedDate }: AddMealP
   const handleSubmit = async () => {
     if (!recipeId && !customMealName.trim()) return;
 
-    await addMealPlan({
+    const result = await addMealPlan({
       recipe_id: recipeId || null,
       meal_date: format(selectedDate, 'yyyy-MM-dd'),
       meal_type: mealType,
@@ -46,6 +47,9 @@ export function AddMealPlanDialog({ open, onOpenChange, selectedDate }: AddMealP
       servings: parseInt(servings) || 4,
     });
 
+    if (result) {
+      onSuccess?.();
+    }
     resetForm();
     onOpenChange(false);
   };
