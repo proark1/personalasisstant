@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useContacts, Contact, ContactType, PersonalTier, BusinessLevel, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
+import { useContacts, Contact, ContactType, PersonalTier, BusinessLevel, FamilyRelationship, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +34,29 @@ const BUSINESS_LEVELS: { value: BusinessLevel; label: string; color: string }[] 
   { value: 'not_contacted', label: 'Not Contacted Yet', color: 'bg-gray-500' },
 ];
 
+const FAMILY_RELATIONSHIPS: { value: FamilyRelationship; label: string }[] = [
+  { value: 'spouse', label: 'Spouse' },
+  { value: 'partner', label: 'Partner' },
+  { value: 'mother', label: 'Mother' },
+  { value: 'father', label: 'Father' },
+  { value: 'daughter', label: 'Daughter' },
+  { value: 'son', label: 'Son' },
+  { value: 'sister', label: 'Sister' },
+  { value: 'brother', label: 'Brother' },
+  { value: 'grandmother', label: 'Grandmother' },
+  { value: 'grandfather', label: 'Grandfather' },
+  { value: 'granddaughter', label: 'Granddaughter' },
+  { value: 'grandson', label: 'Grandson' },
+  { value: 'aunt', label: 'Aunt' },
+  { value: 'uncle', label: 'Uncle' },
+  { value: 'cousin', label: 'Cousin' },
+  { value: 'niece', label: 'Niece' },
+  { value: 'nephew', label: 'Nephew' },
+  { value: 'mother_in_law', label: 'Mother-in-law' },
+  { value: 'father_in_law', label: 'Father-in-law' },
+  { value: 'other', label: 'Other' },
+];
+
 interface ContactFormData {
   name: string;
   email: string;
@@ -45,6 +68,7 @@ interface ContactFormData {
   contactType: ContactType;
   personalTier: PersonalTier | '';
   businessLevel: BusinessLevel | '';
+  familyRelationship: FamilyRelationship | '';
   contactFrequencyDays: number;
   notes: string;
   tags: string;
@@ -64,6 +88,7 @@ const defaultFormData: ContactFormData = {
   contactType: 'personal',
   personalTier: '',
   businessLevel: '',
+  familyRelationship: '',
   contactFrequencyDays: 30,
   notes: '',
   tags: '',
@@ -116,6 +141,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
       contactType: contact.contactType,
       personalTier: contact.personalTier || '',
       businessLevel: contact.businessLevel || '',
+      familyRelationship: contact.familyRelationship || '',
       contactFrequencyDays: contact.contactFrequencyDays,
       notes: contact.notes || '',
       tags: contact.tags.join(', '),
@@ -146,6 +172,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
         contactType: formData.contactType,
         personalTier: formData.personalTier || undefined,
         businessLevel: formData.businessLevel || undefined,
+        familyRelationship: formData.personalTier === 'family' ? (formData.familyRelationship || undefined) : undefined,
         contactFrequencyDays: formData.contactFrequencyDays,
         notes: formData.notes || undefined,
         tags,
@@ -170,6 +197,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
         contactType: formData.contactType,
         personalTier: formData.personalTier || undefined,
         businessLevel: formData.businessLevel || undefined,
+        familyRelationship: formData.personalTier === 'family' ? (formData.familyRelationship || undefined) : undefined,
         contactFrequencyDays: formData.contactFrequencyDays,
         notes: formData.notes || undefined,
         tags,
@@ -367,10 +395,21 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
               {formData.contactType === 'personal' && (
                 <div>
                   <Label>Tier</Label>
-                  <Select value={formData.personalTier} onValueChange={(v: PersonalTier) => setFormData({ ...formData, personalTier: v })}>
+                  <Select value={formData.personalTier} onValueChange={(v: PersonalTier) => setFormData({ ...formData, personalTier: v, familyRelationship: v !== 'family' ? '' : formData.familyRelationship })}>
                     <SelectTrigger><SelectValue placeholder="Select tier" /></SelectTrigger>
                     <SelectContent>
                       {PERSONAL_TIERS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {formData.personalTier === 'family' && (
+                <div>
+                  <Label>Relationship</Label>
+                  <Select value={formData.familyRelationship} onValueChange={(v: FamilyRelationship) => setFormData({ ...formData, familyRelationship: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select relationship" /></SelectTrigger>
+                    <SelectContent>
+                      {FAMILY_RELATIONSHIPS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

@@ -2060,6 +2060,7 @@ export type Database = {
           country: string | null
           created_at: string
           email: string | null
+          family_relationship: string | null
           id: string
           last_contacted_at: string | null
           linkedin_url: string | null
@@ -2085,6 +2086,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           email?: string | null
+          family_relationship?: string | null
           id?: string
           last_contacted_at?: string | null
           linkedin_url?: string | null
@@ -2110,6 +2112,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           email?: string | null
+          family_relationship?: string | null
           id?: string
           last_contacted_at?: string | null
           linkedin_url?: string | null

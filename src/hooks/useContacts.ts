@@ -5,6 +5,8 @@ export type ContactType = 'personal' | 'business';
 export type PersonalTier = 'family' | 'close_friend' | 'friend' | 'acquaintance';
 export type BusinessLevel = 'very_well' | 'well' | 'barely' | 'not_contacted';
 
+export type FamilyRelationship = 'spouse' | 'partner' | 'mother' | 'father' | 'daughter' | 'son' | 'sister' | 'brother' | 'grandmother' | 'grandfather' | 'granddaughter' | 'grandson' | 'aunt' | 'uncle' | 'cousin' | 'niece' | 'nephew' | 'mother_in_law' | 'father_in_law' | 'other';
+
 export interface Contact {
   id: string;
   userId: string;
@@ -19,6 +21,7 @@ export interface Contact {
   contactType: ContactType;
   personalTier?: PersonalTier;
   businessLevel?: BusinessLevel;
+  familyRelationship?: FamilyRelationship;
   contactFrequencyDays: number;
   lastContactedAt?: Date;
   nextContactDue?: Date;
@@ -42,6 +45,7 @@ export interface ContactInput {
   contactType: ContactType;
   personalTier?: PersonalTier;
   businessLevel?: BusinessLevel;
+  familyRelationship?: FamilyRelationship;
   contactFrequencyDays?: number;
   notes?: string;
   tags?: string[];
@@ -80,6 +84,7 @@ export function useContacts(userId: string | undefined) {
     contactType: row.contact_type as ContactType,
     personalTier: row.personal_tier as PersonalTier | undefined,
     businessLevel: row.business_level as BusinessLevel | undefined,
+    familyRelationship: row.family_relationship as FamilyRelationship | undefined,
     contactFrequencyDays: row.contact_frequency_days || 30,
     lastContactedAt: row.last_contacted_at ? new Date(row.last_contacted_at) : undefined,
     nextContactDue: row.next_contact_due ? new Date(row.next_contact_due) : undefined,
@@ -141,6 +146,7 @@ export function useContacts(userId: string | undefined) {
         contact_type: input.contactType,
         personal_tier: input.personalTier || null,
         business_level: input.businessLevel || null,
+        family_relationship: input.familyRelationship || null,
         contact_frequency_days: frequencyDays,
         next_contact_due: nextContactDue.toISOString(),
         notes: input.notes || null,
@@ -176,6 +182,7 @@ export function useContacts(userId: string | undefined) {
     if (updates.contactType !== undefined) dbUpdates.contact_type = updates.contactType;
     if (updates.personalTier !== undefined) dbUpdates.personal_tier = updates.personalTier || null;
     if (updates.businessLevel !== undefined) dbUpdates.business_level = updates.businessLevel || null;
+    if (updates.familyRelationship !== undefined) dbUpdates.family_relationship = updates.familyRelationship || null;
     if (updates.contactFrequencyDays !== undefined) dbUpdates.contact_frequency_days = updates.contactFrequencyDays;
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
     if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
