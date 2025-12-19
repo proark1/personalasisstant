@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, ListTodo, Calendar, Baby } from 'lucide-react';
+import { Users, ListTodo, Calendar, Baby, ShoppingCart } from 'lucide-react';
 import { FamilyMembersList } from './FamilyMembersList';
 import { HouseholdTasksList } from './HouseholdTasksList';
 import { FamilyCalendarView } from './FamilyCalendarView';
 import { ChildDashboard } from './ChildDashboard';
+import { ShoppingListsPanel } from './ShoppingListsPanel';
 
 export function FamilyPanel() {
   const [activeTab, setActiveTab] = useState('members');
@@ -22,7 +23,7 @@ export function FamilyPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-4 grid grid-cols-4">
+        <TabsList className="mx-4 mt-4 grid grid-cols-5">
           <TabsTrigger value="members" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Members</span>
@@ -34,6 +35,10 @@ export function FamilyPanel() {
           <TabsTrigger value="tasks" className="flex items-center gap-2">
             <ListTodo className="h-4 w-4" />
             <span className="hidden sm:inline">Tasks</span>
+          </TabsTrigger>
+          <TabsTrigger value="shopping" className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden sm:inline">Shopping</span>
           </TabsTrigger>
           <TabsTrigger value="calendar" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
@@ -50,6 +55,9 @@ export function FamilyPanel() {
           </TabsContent>
           <TabsContent value="tasks" className="mt-0 h-full">
             <HouseholdTasksList />
+          </TabsContent>
+          <TabsContent value="shopping" className="mt-0 h-full">
+            <ShoppingListsPanel />
           </TabsContent>
           <TabsContent value="calendar" className="mt-0 h-full">
             <FamilyCalendarView />
