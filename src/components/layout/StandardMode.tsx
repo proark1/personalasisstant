@@ -17,6 +17,7 @@ import { AICommandPanel } from '../ai/AICommandPanel';
 import { NotesPanel } from '../notes/NotesPanel';
 import { HabitsPanel } from '../habits/HabitsPanel';
 import { AdminAnalyticsPanel } from '../admin/AdminAnalyticsPanel';
+import { FamilyPanel } from '../family/FamilyPanel';
 
 import { RealtimeNotificationCenter } from '../notifications/RealtimeNotificationCenter';
 import { CallHistory } from '../calling/CallHistory';
@@ -572,6 +573,13 @@ export function StandardMode({
             {activePanel === 'habits' && user?.id && (
               <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
                 <HabitsPanel userId={user.id} />
+              </div>
+            )}
+
+            {/* Family Panel */}
+            {activePanel === 'family' && user?.id && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                <FamilyPanel />
               </div>
             )}
 

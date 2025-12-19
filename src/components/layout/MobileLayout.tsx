@@ -11,6 +11,7 @@ import { WorkspaceTabs } from '../workspace/WorkspaceTabs';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { SettingsPanelContent } from '../settings/SettingsPanelContent';
 import { VoiceQuickAdd } from '../tasks/VoiceQuickAdd';
+import { FamilyPanel } from '../family/FamilyPanel';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Task, CalendarEvent, ChatMessage, UserSettings } from '@/types/flux';
 import { SidebarFilter } from './Sidebar';
@@ -29,7 +30,8 @@ import {
   Briefcase,
   User,
   Users,
-  Target
+  Target,
+  Home
 } from 'lucide-react';
 
 interface MobileLayoutProps {
@@ -61,7 +63,7 @@ interface MobileLayoutProps {
   onUpdateNotifications?: (updates: Partial<UserSettings['notifications']>) => void;
 }
 
-type Tab = 'chat' | 'messages' | 'tasks' | 'calendar' | 'focus' | 'settings';
+type Tab = 'chat' | 'messages' | 'tasks' | 'calendar' | 'focus' | 'settings' | 'family';
 
 export function MobileLayout({
   userId,
@@ -115,7 +117,7 @@ export function MobileLayout({
     { id: 'calendar' as Tab, icon: Calendar, label: 'Calendar' },
   ];
 
-  const navItems: { icon: typeof LayoutDashboard; label: string; filter: SidebarFilter }[] = [
+  const navItems: { icon: typeof LayoutDashboard; label: string; filter: SidebarFilter | 'family' }[] = [
     { icon: LayoutDashboard, label: 'All Tasks', filter: 'all' },
     { icon: Briefcase, label: 'Business', filter: 'business' },
     { icon: User, label: 'Personal', filter: 'personal' },
@@ -158,10 +160,10 @@ export function MobileLayout({
                   {navItems.map((item) => (
                     <Button
                       key={item.filter}
-                      variant={filter === item.filter ? 'secondary' : 'ghost'}
+                      variant={filter === item.filter && activeTab === 'tasks' ? 'secondary' : 'ghost'}
                       className="w-full justify-start gap-3"
                       onClick={() => {
-                        setFilter(item.filter);
+                        setFilter(item.filter as SidebarFilter);
                         setActiveTab('tasks');
                         setSidebarOpen(false);
                       }}
@@ -170,6 +172,19 @@ export function MobileLayout({
                       <span>{item.label}</span>
                     </Button>
                   ))}
+                  
+                  {/* Family Hub */}
+                  <Button
+                    variant={activeTab === 'family' ? 'secondary' : 'ghost'}
+                    className="w-full justify-start gap-3"
+                    onClick={() => {
+                      setActiveTab('family');
+                      setSidebarOpen(false);
+                    }}
+                  >
+                    <Home className="w-5 h-5 shrink-0" />
+                    <span>Family Hub</span>
+                  </Button>
                 </nav>
 
                 {/* Bottom Actions */}
@@ -328,6 +343,12 @@ export function MobileLayout({
             />
           </div>
         )}
+        <div className={cn(
+          "h-full",
+          activeTab === 'family' ? 'block' : 'hidden'
+        )}>
+          <FamilyPanel />
+        </div>
 
         {/* Voice Quick Add FAB */}
         <div className="absolute bottom-4 right-4 z-10">

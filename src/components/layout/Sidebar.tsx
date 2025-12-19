@@ -24,14 +24,15 @@ import {
   Phone,
   Flame,
   StickyNote,
-  BarChart3
+  BarChart3,
+  Home
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | null;
+export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | null;
 
 interface SidebarProps {
   onVoiceMode: () => void;
@@ -263,6 +264,20 @@ export function Sidebar({
           >
             <Activity className="w-4 h-4 shrink-0" />
             {!collapsed && <span className="text-sm">Activity</span>}
+          </Button>
+
+          {/* Family Hub */}
+          <Button
+            variant={activePanel === 'family' ? 'secondary' : 'ghost'}
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start",
+              activePanel === 'family' && "bg-sidebar-accent text-sidebar-primary font-medium"
+            )}
+            onClick={() => handlePanelClick('family')}
+          >
+            <Home className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">Family</span>}
           </Button>
         </div>
 
