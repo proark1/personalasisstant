@@ -41,14 +41,64 @@ const mealTypeColors: Record<string, string> = {
   snack: 'bg-pink-500/20 text-pink-700 dark:text-pink-400 border-pink-500/30',
 };
 
-interface DroppableDayProps {
+const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
+
+interface DroppableMealSlotProps {
   day: Date;
+  mealType: string;
   children: React.ReactNode;
-  isToday: boolean;
-  isPast: boolean;
+  isOver: boolean;
 }
 
-function DroppableDay({ day, children, isToday, isPast }: DroppableDayProps) {
+function DroppableMealSlot({ day, mealType, children, isOver }: DroppableMealSlotProps) {
+  const { t } = useLanguage();
+  const { setNodeRef, isOver: slotIsOver } = useDroppable({
+    id: `${format(day, 'yyyy-MM-dd')}_${mealType}`,
+    data: { date: day, mealType },
+  });
+
+  const mealTypeTranslations: Record<string, string> = {
+    breakfast: 'mealType.breakfast',
+    lunch: 'mealType.lunch',
+    dinner: 'mealType.dinner',
+    snack: 'mealType.snack',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`min-h-[50px] rounded-md transition-all ${
+        slotIsOver 
+          ? 'ring-2 ring-primary bg-primary/10 scale-[1.02]' 
+          : 'bg-muted/30'
+      }`}
+    >
+      <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+        <span>{mealTypeIcons[mealType]}</span>
+        <span>{t(mealTypeTranslations[mealType])}</span>
+      </div>
+      <div className="px-1 pb-1 space-y-1">
+        {children}
+        {slotIsOver && (
+          <div className="text-[10px] text-center text-primary py-1 border border-dashed border-primary/50 rounded">
+            {t('meals.dropHere')}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface DroppableDayProps {
+  day: Date;
+  meals: MealPlan[];
+  isToday: boolean;
+  isPast: boolean;
+  onDelete: (e: React.MouseEvent, mealId: string) => void;
+  onAddMeal: (day: Date) => void;
+}
+
+function DroppableDay({ day, meals, isToday, isPast, onDelete, onAddMeal }: DroppableDayProps) {
   const { t, language } = useLanguage();
   const { isOver, setNodeRef } = useDroppable({
     id: format(day, 'yyyy-MM-dd'),
@@ -57,10 +107,14 @@ function DroppableDay({ day, children, isToday, isPast }: DroppableDayProps) {
 
   const locale = language === 'de' ? de : enUS;
 
+  const getMealsForType = (mealType: string) => {
+    return meals.filter(m => m.meal_type === mealType);
+  };
+
   return (
     <Card
       ref={setNodeRef}
-      className={`p-3 min-h-[180px] transition-all ${
+      className={`p-2 min-h-[280px] transition-all ${
         isToday 
           ? 'ring-2 ring-primary bg-primary/5' 
           : isPast 
@@ -68,15 +122,53 @@ function DroppableDay({ day, children, isToday, isPast }: DroppableDayProps) {
             : 'hover:shadow-md'
       } ${isOver ? 'ring-2 ring-accent bg-accent/10' : ''}`}
     >
-      <div className="text-center mb-3 pb-2 border-b">
+      <div className="text-center mb-2 pb-2 border-b">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           {format(day, 'EEE', { locale })}
         </div>
-        <div className={`text-xl font-bold ${isToday ? 'text-primary' : ''}`}>
+        <div className={`text-lg font-bold ${isToday ? 'text-primary' : ''}`}>
           {format(day, 'd')}
         </div>
       </div>
-      {children}
+      
+      <div className="space-y-1">
+        {mealTypes.map((mealType) => {
+          const typeMeals = getMealsForType(mealType);
+          return (
+            <DroppableMealSlot
+              key={mealType}
+              day={day}
+              mealType={mealType}
+              isOver={isOver}
+            >
+              <SortableContext
+                items={typeMeals.map(m => m.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {typeMeals.map((meal) => (
+                  <MealCard
+                    key={meal.id}
+                    meal={meal}
+                    onDelete={onDelete}
+                    mealTypeColors={mealTypeColors}
+                    mealTypeIcons={mealTypeIcons}
+                  />
+                ))}
+              </SortableContext>
+            </DroppableMealSlot>
+          );
+        })}
+      </div>
+      
+      <Button
+        variant="ghost"
+        size="sm"
+        className="w-full h-6 text-xs border-dashed border hover:bg-accent mt-2"
+        onClick={() => onAddMeal(day)}
+      >
+        <Plus className="h-3 w-3 mr-1" />
+        {t('meals.addMeal')}
+      </Button>
     </Card>
   );
 }
@@ -148,10 +240,24 @@ export function MealPlanningPanel() {
     const meal = mealPlans.find(m => m.id === active.id);
     if (!meal) return;
 
-    const newDate = over.id as string;
-    if (meal.meal_date === newDate) return;
-
-    await updateMealPlan(meal.id, { meal_date: newDate });
+    const overId = over.id as string;
+    
+    // Check if dropped on a meal type slot (format: date_mealType)
+    if (overId.includes('_')) {
+      const [newDate, newMealType] = overId.split('_');
+      const hasChanges = meal.meal_date !== newDate || meal.meal_type !== newMealType;
+      
+      if (hasChanges) {
+        await updateMealPlan(meal.id, { 
+          meal_date: newDate, 
+          meal_type: newMealType 
+        });
+      }
+    } else {
+      // Dropped on day card (keep same meal type)
+      if (meal.meal_date === overId) return;
+      await updateMealPlan(meal.id, { meal_date: overId });
+    }
   };
 
   const handleGenerateShoppingList = async () => {
@@ -275,42 +381,12 @@ export function MealPlanningPanel() {
                     <DroppableDay
                       key={day.toISOString()}
                       day={day}
+                      meals={meals}
                       isToday={isToday}
                       isPast={isPast}
-                    >
-                      <div className="space-y-2">
-                        <SortableContext
-                          items={meals.map(m => m.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {meals.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-2">
-                              {t('meals.noMeals')}
-                            </p>
-                          ) : (
-                            meals.map((meal) => (
-                              <MealCard
-                                key={meal.id}
-                                meal={meal}
-                                onDelete={handleDeleteMeal}
-                                mealTypeColors={mealTypeColors}
-                                mealTypeIcons={mealTypeIcons}
-                              />
-                            ))
-                          )}
-                        </SortableContext>
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full h-7 text-xs border-dashed border hover:bg-accent"
-                          onClick={() => handleAddMeal(day)}
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          {t('meals.addMeal')}
-                        </Button>
-                      </div>
-                    </DroppableDay>
+                      onDelete={handleDeleteMeal}
+                      onAddMeal={handleAddMeal}
+                    />
                   );
                 })}
               </div>
