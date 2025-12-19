@@ -74,6 +74,7 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
       milestones: [],
       preferences: {},
       is_active: true,
+      contact_id: null,
     });
 
     setIsSubmitting(false);

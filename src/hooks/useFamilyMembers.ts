@@ -7,6 +7,7 @@ import { Json } from '@/integrations/supabase/types';
 export interface FamilyMember {
   id: string;
   user_id: string;
+  contact_id: string | null;
   name: string;
   relationship: string;
   birth_date: string | null;
@@ -100,6 +101,7 @@ export function useFamilyMembers() {
         .insert({
           ...member,
           user_id: user.id,
+          contact_id: member.contact_id || null,
           activities: member.activities as unknown as Json,
           milestones: member.milestones as unknown as Json,
           clothing_sizes: member.clothing_sizes as unknown as Json,
