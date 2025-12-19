@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Clock, Users, ChefHat, List, BookOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, Users, ChefHat, List, BookOpen, Play, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useMealPlanning, Recipe, RecipeIngredient } from '@/hooks/useMealPlanning';
 
@@ -18,6 +19,8 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
   const { getRecipeWithIngredients } = useMealPlanning();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [cookingMode, setCookingMode] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
     if (open && recipeId) {
@@ -28,6 +31,8 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
       });
     } else if (!open) {
       setRecipe(null);
+      setCookingMode(false);
+      setCurrentStep(0);
     }
   }, [open, recipeId]);
 
@@ -43,6 +48,112 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
     return instructions.split('\n').filter(line => line.trim());
   };
 
+  const instructions = formatInstructions(recipe?.instructions || null);
+  const totalSteps = instructions.length;
+
+  const handlePrevStep = () => {
+    setCurrentStep((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleNextStep = () => {
+    setCurrentStep((prev) => Math.min(totalSteps - 1, prev + 1));
+  };
+
+  const exitCookingMode = () => {
+    setCookingMode(false);
+    setCurrentStep(0);
+  };
+
+  // Cooking Mode View
+  if (cookingMode && recipe) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl h-[90vh] p-0 flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b bg-primary/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ChefHat className="h-6 w-6 text-primary" />
+              <div>
+                <h2 className="font-semibold text-lg">{recipe.name}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {t('recipe.cookingMode')} • {t('recipe.step')} {currentStep + 1} {t('recipe.of')} {totalSteps}
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={exitCookingMode}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="h-2 bg-muted">
+            <div 
+              className="h-full bg-primary transition-all duration-300"
+              style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
+            />
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-primary/10 text-primary text-2xl font-bold flex items-center justify-center mb-6">
+              {currentStep + 1}
+            </div>
+            <p className="text-2xl md:text-3xl leading-relaxed max-w-2xl">
+              {instructions[currentStep]}
+            </p>
+          </div>
+
+          {/* Navigation */}
+          <div className="p-6 border-t bg-background flex items-center justify-between gap-4">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handlePrevStep}
+              disabled={currentStep === 0}
+              className="flex-1 max-w-[200px]"
+            >
+              <ChevronLeft className="h-5 w-5 mr-2" />
+              {t('recipe.previous')}
+            </Button>
+
+            <div className="flex gap-1">
+              {instructions.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentStep(idx)}
+                  className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                    idx === currentStep ? 'bg-primary' : 'bg-muted-foreground/30'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {currentStep === totalSteps - 1 ? (
+              <Button
+                size="lg"
+                onClick={exitCookingMode}
+                className="flex-1 max-w-[200px]"
+              >
+                <Check className="h-5 w-5 mr-2" />
+                {t('recipe.done')}
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                onClick={handleNextStep}
+                className="flex-1 max-w-[200px]"
+              >
+                {t('recipe.next')}
+                <ChevronRight className="h-5 w-5 ml-2" />
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Normal Recipe View
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] p-0">
@@ -99,6 +210,18 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
                   </div>
                 )}
 
+                {/* Start Cooking Mode Button */}
+                {instructions.length > 0 && (
+                  <Button 
+                    onClick={() => setCookingMode(true)} 
+                    className="w-full mt-4"
+                    size="lg"
+                  >
+                    <Play className="h-5 w-5 mr-2" />
+                    {t('recipe.startCooking')}
+                  </Button>
+                )}
+
                 <Separator className="my-4" />
 
                 {/* Ingredients */}
@@ -135,14 +258,14 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
                 )}
 
                 {/* Instructions */}
-                {recipe.instructions && (
+                {instructions.length > 0 && (
                   <div>
                     <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
                       <BookOpen className="h-5 w-5 text-primary" />
                       {t('recipe.instructions')}
                     </h3>
                     <ol className="space-y-3">
-                      {formatInstructions(recipe.instructions).map((step, index) => (
+                      {instructions.map((step, index) => (
                         <li key={index} className="flex gap-3">
                           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-sm font-medium flex items-center justify-center">
                             {index + 1}

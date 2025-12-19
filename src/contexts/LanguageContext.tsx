@@ -129,6 +129,13 @@ const translations: Record<Language, Record<string, string>> = {
     'recipe.noDetails': 'No recipe details available.',
     'recipe.notFound': 'Recipe not found.',
     'recipe.other': 'Other',
+    'recipe.cookingMode': 'Cooking Mode',
+    'recipe.step': 'Step',
+    'recipe.of': 'of',
+    'recipe.previous': 'Previous',
+    'recipe.next': 'Next',
+    'recipe.done': 'Done',
+    'recipe.startCooking': 'Start Cooking',
     
     // Add Meal Dialog
     'addMeal.title': 'Add Meal',
@@ -343,6 +350,13 @@ const translations: Record<Language, Record<string, string>> = {
     'recipe.noDetails': 'Keine Rezeptdetails verfügbar.',
     'recipe.notFound': 'Rezept nicht gefunden.',
     'recipe.other': 'Sonstiges',
+    'recipe.cookingMode': 'Kochmodus',
+    'recipe.step': 'Schritt',
+    'recipe.of': 'von',
+    'recipe.previous': 'Zurück',
+    'recipe.next': 'Weiter',
+    'recipe.done': 'Fertig',
+    'recipe.startCooking': 'Kochen starten',
     
     // Add Meal Dialog
     'addMeal.title': 'Mahlzeit hinzufügen',
