@@ -12,12 +12,25 @@ import {
   MicOff,
   Monitor,
   MonitorOff,
+  Circle,
+  CircleStop,
 } from 'lucide-react';
 import type { CallStatus, CallType } from '@/hooks/useWebRTCCall';
 import { useCallQuality } from '@/hooks/useCallQuality';
+import { useCallRecording } from '@/hooks/useCallRecording';
 import { CallQualityIndicator } from './CallQualityIndicator';
 import { InCallChat } from './InCallChat';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface CallDialogProps {
   isOpen: boolean;
@@ -68,6 +81,33 @@ export function CallDialog({
   const qualityStats = useCallQuality(peerConnection);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const [showRecordingConsent, setShowRecordingConsent] = useState(false);
+
+  // Call recording
+  const {
+    isRecording,
+    recordingConsent,
+    giveConsent,
+    startRecording,
+    stopRecording,
+  } = useCallRecording(sessionId ?? null, userId);
+
+  // Handle recording toggle
+  const handleRecordingToggle = () => {
+    if (isRecording) {
+      stopRecording();
+    } else if (recordingConsent) {
+      startRecording(localStream, remoteStream);
+    } else {
+      setShowRecordingConsent(true);
+    }
+  };
+
+  const handleConsentConfirm = () => {
+    giveConsent();
+    setShowRecordingConsent(false);
+    startRecording(localStream, remoteStream);
+  };
 
   // Attach local stream to video element
   useEffect(() => {
@@ -258,6 +298,23 @@ export function CallDialog({
                 {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
               </Button>
 
+              {/* Recording toggle (only when connected) */}
+              {isConnected && (
+                <Button
+                  size="lg"
+                  variant={isRecording ? 'destructive' : 'secondary'}
+                  className="rounded-full w-12 h-12"
+                  onClick={handleRecordingToggle}
+                  title={isRecording ? 'Stop recording' : 'Start recording'}
+                >
+                  {isRecording ? (
+                    <CircleStop className="w-5 h-5" />
+                  ) : (
+                    <Circle className="w-5 h-5 text-red-500" />
+                  )}
+                </Button>
+              )}
+
               {/* End call */}
               <Button
                 size="lg"
@@ -272,6 +329,25 @@ export function CallDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Recording Consent Dialog */}
+    <AlertDialog open={showRecordingConsent} onOpenChange={setShowRecordingConsent}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Record this call?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will record the audio from both participants. The recording will be saved
+            for later playback and troubleshooting. Both parties should consent to being recorded.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConsentConfirm}>
+            Start Recording
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </TooltipProvider>
   );
 }

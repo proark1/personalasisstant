@@ -14,7 +14,7 @@ import { ActivityFeed } from '../activity/ActivityFeed';
 import { GlobalSearch } from '../search/GlobalSearch';
 import { QuickAddFAB } from '../tasks/QuickAddFAB';
 import { AICommandPanel } from '../ai/AICommandPanel';
-import { WorkspaceTabs } from '../workspace/WorkspaceTabs';
+
 import { RealtimeNotificationCenter } from '../notifications/RealtimeNotificationCenter';
 import { CallHistory } from '../calling/CallHistory';
 import { DashboardPanel } from '../dashboard/DashboardPanel';
@@ -141,26 +141,9 @@ export function StandardMode({
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel>('tasks');
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
-  const [activeWorkspace, setActiveWorkspace] = useState<string>('all');
   const isMobile = useIsMobile();
   const { celebrate } = useCelebration();
   const { user } = useAuth();
-
-  // Derive showCalendar and showTeamChat from activePanel for compatibility
-  const showCalendar = activePanel === 'calendar';
-  const showTeamChat = activePanel === 'chat';
-  const showCalls = activePanel === 'calls';
-
-  // Workspace task counts
-  const workspaceTaskCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      all: tasks.filter(t => !t.completed).length,
-      family: tasks.filter(t => !t.completed && t.category === 'family').length,
-      work: tasks.filter(t => !t.completed && t.category === 'business').length,
-      personal: tasks.filter(t => !t.completed && t.category === 'personal').length,
-    };
-    return counts;
-  }, [tasks]);
 
   // Wrapper for task completion with celebration
   const handleToggleTaskComplete = (id: string) => {
@@ -364,14 +347,6 @@ export function StandardMode({
       />
       
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Workspace Tabs */}
-        <div className="px-4 pt-3 pb-1">
-          <WorkspaceTabs
-            activeWorkspace={activeWorkspace}
-            onWorkspaceChange={setActiveWorkspace}
-            workspaceTaskCounts={workspaceTaskCounts}
-          />
-        </div>
 
         <div className="flex-1 flex overflow-hidden">
 
