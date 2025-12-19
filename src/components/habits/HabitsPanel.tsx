@@ -22,6 +22,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface HabitsPanelProps {
   userId: string;
@@ -32,6 +33,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
   const { goals, loading: goalsLoading, updateGoalProgress, deleteGoal, refetch: refetchGoals } = useGoals(userId);
   const [showAddHabit, setShowAddHabit] = useState(false);
   const [showAddGoal, setShowAddGoal] = useState(false);
+  const { t } = useLanguage();
 
   const completedHabits = todayHabits.filter(h => h.isCompleted).length;
   const totalHabits = todayHabits.length;
@@ -49,7 +51,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Target className="w-5 h-5" />
-            Habits & Goals
+            {t('habits.habitsAndGoals')}
           </h2>
           <Button variant="ghost" size="icon" onClick={() => { refetchHabits(); refetchGoals(); }}>
             <RefreshCw className="w-4 h-4" />
@@ -60,7 +62,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
         {totalHabits > 0 && (
           <div className="mt-3">
             <div className="flex items-center justify-between text-sm mb-1">
-              <span className="text-muted-foreground">Today's Progress</span>
+              <span className="text-muted-foreground">{t('habits.todaysProgress')}</span>
               <span className="font-medium">{completedHabits}/{totalHabits}</span>
             </div>
             <Progress value={habitProgress} className="h-2" />
@@ -77,11 +79,11 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
           <TabsList className="mx-4 mt-3">
             <TabsTrigger value="habits" className="flex-1 gap-1">
               <Flame className="w-4 h-4" />
-              Habits
+              {t('nav.habits')}
             </TabsTrigger>
             <TabsTrigger value="goals" className="flex-1 gap-1">
               <Trophy className="w-4 h-4" />
-              Goals
+              {t('habits.goals')}
             </TabsTrigger>
           </TabsList>
 
@@ -95,14 +97,14 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                   onClick={() => setShowAddHabit(true)}
                 >
                   <Plus className="w-4 h-4" />
-                  Add New Habit
+                  {t('habits.addNewHabit')}
                 </Button>
 
                 {todayHabits.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Flame className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No habits yet</p>
-                    <p className="text-xs">Create your first habit to start tracking</p>
+                    <p className="text-sm">{t('habits.noHabitsYet')}</p>
+                    <p className="text-xs">{t('habits.createFirstHabit')}</p>
                   </div>
                 ) : (
                   todayHabits.map(habit => (
@@ -193,14 +195,14 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                   onClick={() => setShowAddGoal(true)}
                 >
                   <Plus className="w-4 h-4" />
-                  Add New Goal
+                  {t('habits.addNewGoal')}
                 </Button>
 
                 {activeGoals.length === 0 && completedGoals.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Trophy className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No goals yet</p>
-                    <p className="text-xs">Set a goal to track your progress</p>
+                    <p className="text-sm">{t('habits.noGoalsYet')}</p>
+                    <p className="text-xs">{t('habits.setGoal')}</p>
                   </div>
                 ) : (
                   <>
@@ -242,7 +244,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
 
                               {goal.targetDate && (
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  Target: {goal.targetDate.toLocaleDateString()}
+                                  {t('habits.target')}: {goal.targetDate.toLocaleDateString()}
                                 </p>
                               )}
 
@@ -276,7 +278,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                         <Separator className="my-4" />
                         <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                           <Trophy className="w-4 h-4" />
-                          Completed Goals
+                          {t('habits.completedGoals')}
                         </h3>
                         {completedGoals.map(goal => (
                           <Card key={goal.id} className="p-3 bg-success/10 border-success/30">
@@ -290,7 +292,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                               <div className="flex-1">
                                 <span className="font-medium">{goal.name}</span>
                                 <p className="text-xs text-muted-foreground">
-                                  Completed {goal.completedAt?.toLocaleDateString()}
+                                  {t('habits.completedOn')} {goal.completedAt?.toLocaleDateString()}
                                 </p>
                               </div>
                             </div>

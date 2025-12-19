@@ -286,6 +286,8 @@ const translations: Record<Language, Record<string, string>> = {
     'taskList.editTask': 'Edit task',
     'taskList.addSubtask': 'Add subtask',
     'taskList.sharedBy': 'Shared by',
+    'taskList.event': 'Event',
+    'taskList.task': 'Task',
     
     // Time Filters
     'time.all': 'All',
@@ -293,6 +295,47 @@ const translations: Record<Language, Record<string, string>> = {
     'time.week': 'Week',
     'time.month': 'Month',
     'time.noDate': 'No Date',
+    
+    // Calendar Panel
+    'calendar.agenda': 'Agenda',
+    'calendar.import': 'Import',
+    'calendar.invalidFile': 'Invalid File',
+    'calendar.invalidFileDesc': 'Please upload a valid .ics calendar file.',
+    'calendar.noEventsFound': 'No Events Found',
+    'calendar.noEventsFoundDesc': 'The file does not contain any valid events.',
+    'calendar.importSuccess': 'Import Successful',
+    'calendar.importedEvents': 'Imported {count} event(s).',
+    'calendar.importFailed': 'Import Failed',
+    'calendar.importFailedDesc': 'Failed to parse the calendar file. Please check the format.',
+    'calendar.updatedSuccess': 'Updated successfully',
+    'calendar.deletedSuccess': 'Deleted successfully',
+    'calendar.noUpcoming': 'No upcoming events or tasks',
+    'calendar.tasksWithDueDates': 'Tasks with due dates will appear here',
+    'calendar.importIcs': 'Import .ics',
+    'calendar.scheduleSomething': 'Schedule something',
+    'calendar.sharedBy': 'Shared by',
+    
+    // Notes Panel
+    'notes.title': 'Notes',
+    'notes.newNote': 'New Note',
+    'notes.searchNotes': 'Search notes...',
+    'notes.noNotes': 'No notes yet',
+    'notes.createFirst': 'Create your first note',
+    'notes.noContent': 'No content',
+    
+    // Habits Panel
+    'habits.habitsAndGoals': 'Habits & Goals',
+    'habits.todaysProgress': "Today's Progress",
+    'habits.addNewHabit': 'Add New Habit',
+    'habits.noHabitsYet': 'No habits yet',
+    'habits.createFirstHabit': 'Create your first habit to start tracking',
+    'habits.goals': 'Goals',
+    'habits.addNewGoal': 'Add New Goal',
+    'habits.noGoalsYet': 'No goals yet',
+    'habits.setGoal': 'Set a goal to track your progress',
+    'habits.target': 'Target',
+    'habits.completedGoals': 'Completed Goals',
+    'habits.completedOn': 'Completed',
   },
   de: {
     // Navigation & Tabs
@@ -571,6 +614,8 @@ const translations: Record<Language, Record<string, string>> = {
     'taskList.editTask': 'Aufgabe bearbeiten',
     'taskList.addSubtask': 'Unteraufgabe hinzufügen',
     'taskList.sharedBy': 'Geteilt von',
+    'taskList.event': 'Termin',
+    'taskList.task': 'Aufgabe',
     
     // Time Filters
     'time.all': 'Alle',
@@ -578,6 +623,47 @@ const translations: Record<Language, Record<string, string>> = {
     'time.week': 'Woche',
     'time.month': 'Monat',
     'time.noDate': 'Ohne Datum',
+    
+    // Calendar Panel
+    'calendar.agenda': 'Terminübersicht',
+    'calendar.import': 'Importieren',
+    'calendar.invalidFile': 'Ungültige Datei',
+    'calendar.invalidFileDesc': 'Bitte laden Sie eine gültige .ics Kalenderdatei hoch.',
+    'calendar.noEventsFound': 'Keine Termine gefunden',
+    'calendar.noEventsFoundDesc': 'Die Datei enthält keine gültigen Termine.',
+    'calendar.importSuccess': 'Import erfolgreich',
+    'calendar.importedEvents': '{count} Termin(e) importiert.',
+    'calendar.importFailed': 'Import fehlgeschlagen',
+    'calendar.importFailedDesc': 'Kalenderdatei konnte nicht gelesen werden. Bitte Format prüfen.',
+    'calendar.updatedSuccess': 'Erfolgreich aktualisiert',
+    'calendar.deletedSuccess': 'Erfolgreich gelöscht',
+    'calendar.noUpcoming': 'Keine anstehenden Termine oder Aufgaben',
+    'calendar.tasksWithDueDates': 'Aufgaben mit Fälligkeitsdatum erscheinen hier',
+    'calendar.importIcs': '.ics importieren',
+    'calendar.scheduleSomething': 'Etwas planen',
+    'calendar.sharedBy': 'Geteilt von',
+    
+    // Notes Panel
+    'notes.title': 'Notizen',
+    'notes.newNote': 'Neue Notiz',
+    'notes.searchNotes': 'Notizen suchen...',
+    'notes.noNotes': 'Noch keine Notizen',
+    'notes.createFirst': 'Erstelle deine erste Notiz',
+    'notes.noContent': 'Kein Inhalt',
+    
+    // Habits Panel
+    'habits.habitsAndGoals': 'Gewohnheiten & Ziele',
+    'habits.todaysProgress': 'Heutiger Fortschritt',
+    'habits.addNewHabit': 'Neue Gewohnheit hinzufügen',
+    'habits.noHabitsYet': 'Noch keine Gewohnheiten',
+    'habits.createFirstHabit': 'Erstelle deine erste Gewohnheit',
+    'habits.goals': 'Ziele',
+    'habits.addNewGoal': 'Neues Ziel hinzufügen',
+    'habits.noGoalsYet': 'Noch keine Ziele',
+    'habits.setGoal': 'Setze ein Ziel um deinen Fortschritt zu verfolgen',
+    'habits.target': 'Ziel',
+    'habits.completedGoals': 'Erledigte Ziele',
+    'habits.completedOn': 'Erledigt am',
   },
 };
 
