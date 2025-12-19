@@ -119,6 +119,16 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       console.log('Connection state:', pc.connectionState);
       if (pc.connectionState === 'connected') {
         setCallStatus('connected');
+
+        // Mark session as connected once WebRTC is actually connected
+        const sessionId = _sessionId;
+        supabase
+          .from('call_sessions')
+          .update({ status: 'connected', started_at: new Date().toISOString() })
+          .eq('id', sessionId)
+          .then(({ error }) => {
+            if (error) console.warn('[webrtc] failed updating session to connected:', error);
+          });
       } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
         endCall();
       }
@@ -258,7 +268,8 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
   // Answer a call
   const answerCall = useCallback(async (session: CallSession) => {
     try {
-      setCallStatus('connected');
+      // Don't mark connected until WebRTC is actually connected
+      setCallStatus('calling');
       setCurrentSession(session);
       setCallType(session.call_type);
 
@@ -344,11 +355,9 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
            }
          });
 
-      // Update session status
-      await supabase
-        .from('call_sessions')
-        .update({ status: 'connected', started_at: new Date().toISOString() })
-        .eq('id', session.id);
+      // Keep session "ringing" until WebRTC is actually connected (updated in pc.onconnectionstatechange)
+      // (no DB update needed here)
+
 
     } catch (error) {
       console.error('Error answering call:', error);

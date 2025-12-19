@@ -107,8 +107,8 @@ export function CallDialog({
           onPointerDownOutside={(e) => e.preventDefault()}
         >
           <div className="relative w-full aspect-video bg-muted/50 rounded-t-lg overflow-hidden">
-            {/* Hidden audio element for voice calls */}
-            {isConnected && callType === 'audio' && (
+            {/* Remote audio element for voice calls */}
+            {callType === 'audio' && remoteStream && (
               <audio ref={remoteAudioRef} autoPlay playsInline />
             )}
 
@@ -147,8 +147,8 @@ export function CallDialog({
               <p className="text-xl font-medium">{callerName}</p>
               <p className="text-muted-foreground mt-2">
                 {isRinging && 'Incoming call...'}
-                {isCalling && 'Calling...'}
-                {isConnected && (callType === 'audio' ? 'Voice call connected' : 'Connecting...')}
+                {isCalling && (callType === 'audio' ? 'Connecting voice call…' : 'Calling...')}
+                {isConnected && (callType === 'audio' ? 'Voice call connected' : 'Video call connected')}
               </p>
             </div>
           )}
