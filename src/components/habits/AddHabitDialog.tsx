@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useHabits } from '@/hooks/useHabits';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Dialog,
   DialogContent,
@@ -27,9 +28,9 @@ interface AddHabitDialogProps {
 
 const HABIT_ICONS = ['✓', '💪', '📚', '🏃', '🧘', '💊', '💧', '🍎', '😴', '🎯', '✨', '🌟'];
 const HABIT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function AddHabitDialog({ open, onOpenChange, userId }: AddHabitDialogProps) {
+  const { t } = useLanguage();
   const { createHabit } = useHabits(userId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -68,37 +69,42 @@ export function AddHabitDialog({ open, onOpenChange, userId }: AddHabitDialogPro
     onOpenChange(false);
   };
 
+  const DAYS = [
+    t('weekday.sun'), t('weekday.mon'), t('weekday.tue'), t('weekday.wed'),
+    t('weekday.thu'), t('weekday.fri'), t('weekday.sat')
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add New Habit</DialogTitle>
+          <DialogTitle>{t('addHabit.title')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="name">Habit Name</Label>
+            <Label htmlFor="name">{t('addHabit.habitName')}</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Drink 8 glasses of water"
+              placeholder={t('addHabit.habitNamePlaceholder')}
             />
           </div>
 
           <div>
-            <Label htmlFor="description">Description (optional)</Label>
+            <Label htmlFor="description">{t('addHabit.description')}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Why is this habit important to you?"
+              placeholder={t('addHabit.descriptionPlaceholder')}
               rows={2}
             />
           </div>
 
           <div>
-            <Label>Icon</Label>
+            <Label>{t('addHabit.icon')}</Label>
             <div className="flex flex-wrap gap-2 mt-1">
               {HABIT_ICONS.map((i) => (
                 <Button
@@ -115,7 +121,7 @@ export function AddHabitDialog({ open, onOpenChange, userId }: AddHabitDialogPro
           </div>
 
           <div>
-            <Label>Color</Label>
+            <Label>{t('addHabit.color')}</Label>
             <div className="flex flex-wrap gap-2 mt-1">
               {HABIT_COLORS.map((c) => (
                 <button
@@ -134,21 +140,21 @@ export function AddHabitDialog({ open, onOpenChange, userId }: AddHabitDialogPro
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Frequency</Label>
+              <Label>{t('addHabit.frequency')}</Label>
               <Select value={frequency} onValueChange={(v) => setFrequency(v as 'daily' | 'weekly' | 'custom')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="custom">Custom Days</SelectItem>
+                  <SelectItem value="daily">{t('addHabit.daily')}</SelectItem>
+                  <SelectItem value="weekly">{t('addHabit.weekly')}</SelectItem>
+                  <SelectItem value="custom">{t('addHabit.custom')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label>Target per day</Label>
+              <Label>{t('addHabit.targetPerDay')}</Label>
               <Input
                 type="number"
                 min={1}
@@ -161,7 +167,7 @@ export function AddHabitDialog({ open, onOpenChange, userId }: AddHabitDialogPro
 
           {frequency === 'custom' && (
             <div>
-              <Label>Days of Week</Label>
+              <Label>{t('addHabit.daysOfWeek')}</Label>
               <ToggleGroup 
                 type="multiple" 
                 value={daysOfWeek}
@@ -179,10 +185,10 @@ export function AddHabitDialog({ open, onOpenChange, userId }: AddHabitDialogPro
 
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSave} disabled={!name.trim() || saving}>
-              {saving ? 'Creating...' : 'Create Habit'}
+              {saving ? t('addHabit.creating') : t('addHabit.createHabit')}
             </Button>
           </div>
         </div>

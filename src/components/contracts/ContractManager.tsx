@@ -21,7 +21,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Search, DollarSign, Calendar, AlertTriangle, LayoutGrid, List, Pencil, Trash2, FileText } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
+import { de, enUS } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ContractManagerProps {
   contracts: Contract[];
@@ -48,6 +50,8 @@ export function ContractManager({
   getExpiringContracts,
   getCancellationDeadlines,
 }: ContractManagerProps) {
+  const { t, language } = useLanguage();
+  const dateLocale = language === 'de' ? de : enUS;
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
@@ -104,7 +108,7 @@ export function ContractManager({
       return (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            {search ? 'No contracts match your search' : 'No contracts yet. Add your first contract!'}
+            {search ? t('contracts.noContractsSearch') : t('contracts.noContracts')}
           </CardContent>
         </Card>
       );
@@ -115,13 +119,13 @@ export function ContractManager({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Contract</TableHead>
-              <TableHead>Provider</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Cost</TableHead>
-              <TableHead>Renewal</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
+              <TableHead>{t('contracts.contract')}</TableHead>
+              <TableHead>{t('contracts.provider')}</TableHead>
+              <TableHead>{t('contracts.category')}</TableHead>
+              <TableHead>{t('contracts.cost')}</TableHead>
+              <TableHead>{t('contracts.renewal')}</TableHead>
+              <TableHead>{t('contracts.status')}</TableHead>
+              <TableHead className="w-[100px]">{t('contracts.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -148,6 +152,11 @@ export function ContractManager({
                   <TableCell>
                     {contract.renewalDate ? (
                       <span className={isRenewalSoon ? 'text-primary font-medium' : ''}>
+                        {format(contract.renewalDate, 'PPP', { locale: dateLocale })}
+                      </span>
+                    ) : '-'}
+                  </TableCell>
+                      <span className={isRenewalSoon ? 'text-primary font-medium' : ''}>
                         {format(contract.renewalDate, 'MMM d, yyyy')}
                       </span>
                     ) : '-'}
@@ -155,12 +164,15 @@ export function ContractManager({
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {contract.isActive ? (
-                        <Badge variant="secondary">Active</Badge>
+                        <Badge variant="secondary">{t('contracts.active')}</Badge>
                       ) : (
-                        <Badge variant="outline">Inactive</Badge>
+                        <Badge variant="outline">{t('contracts.inactive')}</Badge>
                       )}
                       {contract.autoRenews && (
-                        <Badge variant="outline" className="text-xs">Auto</Badge>
+                        <Badge variant="outline" className="text-xs">{t('contracts.auto')}</Badge>
+                      )}
+                    </div>
+                  </TableCell>
                       )}
                     </div>
                   </TableCell>
@@ -219,14 +231,14 @@ export function ContractManager({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Contracts & Subscriptions</h2>
+          <h2 className="text-2xl font-bold">{t('contracts.title')}</h2>
           <p className="text-muted-foreground">
-            Manage your contracts, subscriptions, and recurring payments
+            {t('contracts.subtitle')}
           </p>
         </div>
         <Button onClick={() => { setEditingContract(null); setDialogOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Contract
+          {t('contracts.addContract')}
         </Button>
       </div>
 
@@ -236,7 +248,9 @@ export function ContractManager({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-4 w-4" />
-              Upcoming Cancellation Deadlines
+              {t('contracts.cancellationDeadlines')}
+            </CardTitle>
+          </CardHeader>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -245,7 +259,9 @@ export function ContractManager({
                 <div key={c.id} className="flex items-center justify-between text-sm">
                   <span>{c.name}</span>
                   <Badge variant="destructive">
-                    Cancel by {format(c.cancellationDeadline, 'MMM d')}
+                    {t('contracts.cancelBy')} {format(c.cancellationDeadline, 'MMM d', { locale: dateLocale })}
+                  </Badge>
+                </div>
                   </Badge>
                 </div>
               ))}
@@ -260,8 +276,10 @@ export function ContractManager({
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <DollarSign className="h-4 w-4" />
-              Monthly Cost
+              {t('contracts.monthlyCost')}
             </div>
+            <p className="text-2xl font-bold">€{monthlyCost.toFixed(2)}</p>
+          </CardContent>
             <p className="text-2xl font-bold">€{monthlyCost.toFixed(2)}</p>
           </CardContent>
         </Card>
@@ -269,15 +287,20 @@ export function ContractManager({
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <DollarSign className="h-4 w-4" />
-              Yearly Cost
+              {t('contracts.yearlyCost')}
             </div>
+            <p className="text-2xl font-bold">€{yearlyCost.toFixed(2)}</p>
+          </CardContent>
             <p className="text-2xl font-bold">€{yearlyCost.toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              Active Contracts
+              {t('contracts.activeContracts')}
+            </div>
+            <p className="text-2xl font-bold">{activeContracts.length}</p>
+          </CardContent>
             </div>
             <p className="text-2xl font-bold">{activeContracts.length}</p>
           </CardContent>
@@ -286,7 +309,10 @@ export function ContractManager({
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <Calendar className="h-4 w-4" />
-              Expiring Soon
+              {t('contracts.expiringSoon')}
+            </div>
+            <p className="text-2xl font-bold">{expiringContracts.length}</p>
+          </CardContent>
             </div>
             <p className="text-2xl font-bold">{expiringContracts.length}</p>
           </CardContent>
@@ -298,7 +324,12 @@ export function ContractManager({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search contracts..."
+            placeholder={t('contracts.searchContracts')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -318,7 +349,8 @@ export function ContractManager({
       <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as any)}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="all">
-            All ({contracts.length})
+            {t('contracts.all')} ({contracts.length})
+          </TabsTrigger>
           </TabsTrigger>
           {CONTRACT_CATEGORIES.map(cat => {
             const count = contractsByCategory[cat.value].length;
@@ -336,7 +368,10 @@ export function ContractManager({
             filteredContracts.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  {search ? 'No contracts match your search' : 'No contracts yet. Add your first contract!'}
+                  {search ? t('contracts.noContractsSearch') : t('contracts.noContracts')}
+                </CardContent>
+              </Card>
+            ) : (
                 </CardContent>
               </Card>
             ) : (
@@ -369,15 +404,22 @@ export function ContractManager({
       <AlertDialog open={!!deleteContract} onOpenChange={() => setDeleteContract(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Contract?</AlertDialogTitle>
+            <AlertDialogTitle>{t('contracts.confirmDeleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deleteContract?.name}"? This action cannot be undone.
+              {t('contracts.confirmDeleteDesc').replace('this contract', `"${deleteContract?.name}"`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground">
-              Delete
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
