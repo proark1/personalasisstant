@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,10 +30,66 @@ interface AIRequest {
   events?: Event[];
 }
 
+async function logAIUsage(
+  supabase: any,
+  userId: string,
+  functionName: string,
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
+  totalTokens: number,
+  status: string,
+  requestData?: Record<string, unknown>
+) {
+  try {
+    // Estimate cost based on model (rough estimates for Gemini Flash)
+    const inputCostPer1K = 0.000075; // $0.075 per 1M input tokens
+    const outputCostPer1K = 0.0003;  // $0.30 per 1M output tokens
+    const costEstimate = (promptTokens / 1000) * inputCostPer1K + (completionTokens / 1000) * outputCostPer1K;
+
+    await supabase.from('ai_usage').insert({
+      user_id: userId,
+      function_name: functionName,
+      model,
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens,
+      cost_estimate: costEstimate,
+      response_status: status,
+      request_data: requestData,
+    });
+  } catch (error) {
+    console.error('Failed to log AI usage:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Get user from authorization header
+  const authHeader = req.headers.get('authorization');
+  let userId = 'anonymous';
+  
+  if (authHeader) {
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) userId = user.id;
+    } catch (e) {
+      console.log('Could not get user from auth header');
+    }
+  }
+
+  // Create service role client for logging
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
     const { type, task, tasks, events }: AIRequest = await req.json();
@@ -47,7 +104,6 @@ serve(async (req) => {
 
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    const currentHour = now.getHours();
 
     if (type === 'breakdown') {
       if (!task) throw new Error("Task is required for breakdown");
@@ -136,6 +192,7 @@ ${events && events.length > 0 ? `\nExisting events/commitments:\n${events.filter
 
     console.log(`AI Assistant request: ${type}`);
 
+    const model = 'google/gemini-2.5-flash';
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -143,7 +200,7 @@ ${events && events.length > 0 ? `\nExisting events/commitments:\n${events.filter
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -155,6 +212,9 @@ ${events && events.length > 0 ? `\nExisting events/commitments:\n${events.filter
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
+      
+      // Log failed request
+      await logAIUsage(supabaseAdmin, userId, `ai-assistant-${type}`, model, 0, 0, 0, 'error', { error: errorText });
       
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
@@ -176,6 +236,25 @@ ${events && events.length > 0 ? `\nExisting events/commitments:\n${events.filter
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     
+    // Extract token usage from response
+    const usage = data.usage || {};
+    const promptTokens = usage.prompt_tokens || 0;
+    const completionTokens = usage.completion_tokens || 0;
+    const totalTokens = usage.total_tokens || promptTokens + completionTokens;
+
+    // Log successful AI usage
+    await logAIUsage(
+      supabaseAdmin, 
+      userId, 
+      `ai-assistant-${type}`, 
+      model, 
+      promptTokens, 
+      completionTokens, 
+      totalTokens, 
+      'success',
+      { type }
+    );
+    
     if (!content) {
       throw new Error("No content in AI response");
     }
@@ -189,7 +268,7 @@ ${events && events.length > 0 ? `\nExisting events/commitments:\n${events.filter
       result = { raw: content };
     }
 
-    console.log(`AI Assistant ${type} completed successfully`);
+    console.log(`AI Assistant ${type} completed successfully - tokens: ${totalTokens}`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
