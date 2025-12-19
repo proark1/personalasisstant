@@ -3,8 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Plus, Edit, Trash2, Phone, Mail, Cake, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, Phone, Mail, Cake, MapPin, Link2, ExternalLink } from 'lucide-react';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
+import { useFamilyContacts } from '@/hooks/useFamilyContacts';
+import { useAuth } from '@/hooks/useAuth';
 import { AddFamilyMemberDialog } from './AddFamilyMemberDialog';
 import { EditFamilyMemberDialog } from './EditFamilyMemberDialog';
 import { format, differenceInYears } from 'date-fns';
@@ -34,7 +36,9 @@ const relationshipColors: Record<string, string> = {
 };
 
 export function FamilyMembersList() {
+  const { user } = useAuth();
   const { members, isLoading, deleteMember } = useFamilyMembers();
+  const { contactsWithoutDetails, familyContactsWithDetails } = useFamilyContacts(user?.id);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
   const [deletingMember, setDeletingMember] = useState<FamilyMember | null>(null);
@@ -63,10 +67,22 @@ export function FamilyMembersList() {
     );
   }
 
+  // Combine members with contact-only family members
+  const linkedContactInfo = familyContactsWithDetails.find(f => 
+    members.some(m => m.contact_id === f.contact.id)
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Family Members</h3>
+        <div>
+          <h3 className="text-lg font-medium">Family Members</h3>
+          {contactsWithoutDetails.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {contactsWithoutDetails.length} family contact(s) can be linked
+            </p>
+          )}
+        </div>
         <Button onClick={() => setShowAddDialog(true)} size="sm">
           <Plus className="h-4 w-4 mr-2" />
           Add Member
@@ -76,6 +92,11 @@ export function FamilyMembersList() {
       {members.length === 0 ? (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground mb-4">No family members added yet</p>
+          {contactsWithoutDetails.length > 0 && (
+            <p className="text-sm text-muted-foreground mb-4">
+              You have {contactsWithoutDetails.length} family contact(s) in your contacts list
+            </p>
+          )}
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Your First Family Member
@@ -93,7 +114,7 @@ export function FamilyMembersList() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-medium truncate">{member.name}</h4>
                       <Badge 
                         variant="outline" 
@@ -101,6 +122,12 @@ export function FamilyMembersList() {
                       >
                         {member.relationship}
                       </Badge>
+                      {member.contact_id && (
+                        <Badge variant="secondary" className="text-xs gap-1">
+                          <Link2 className="h-3 w-3" />
+                          Linked
+                        </Badge>
+                      )}
                     </div>
                     
                     <div className="mt-2 space-y-1 text-sm text-muted-foreground">

@@ -7,6 +7,7 @@ export type CostFrequency = 'monthly' | 'quarterly' | 'yearly' | 'one_time';
 export interface Contract {
   id: string;
   userId: string;
+  contactId?: string;
   name: string;
   category: ContractCategory;
   provider?: string;
@@ -28,6 +29,7 @@ export interface Contract {
 export interface ContractInput {
   name: string;
   category: ContractCategory;
+  contactId?: string;
   provider?: string;
   costAmount?: number;
   costFrequency?: CostFrequency;
@@ -59,6 +61,7 @@ export function useContracts(userId: string | undefined) {
   const mapDbToContract = (row: any): Contract => ({
     id: row.id,
     userId: row.user_id,
+    contactId: row.contact_id || undefined,
     name: row.name,
     category: row.category as ContractCategory,
     provider: row.provider || undefined,
@@ -110,6 +113,7 @@ export function useContracts(userId: string | undefined) {
         user_id: userId,
         name: input.name,
         category: input.category,
+        contact_id: input.contactId || null,
         provider: input.provider || null,
         cost_amount: input.costAmount || null,
         cost_frequency: input.costFrequency || 'monthly',
@@ -142,6 +146,7 @@ export function useContracts(userId: string | undefined) {
 
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.category !== undefined) dbUpdates.category = updates.category;
+    if (updates.contactId !== undefined) dbUpdates.contact_id = updates.contactId || null;
     if (updates.provider !== undefined) dbUpdates.provider = updates.provider || null;
     if (updates.costAmount !== undefined) dbUpdates.cost_amount = updates.costAmount || null;
     if (updates.costFrequency !== undefined) dbUpdates.cost_frequency = updates.costFrequency;

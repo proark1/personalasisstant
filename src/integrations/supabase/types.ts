@@ -326,6 +326,7 @@ export type Database = {
           auto_renews: boolean | null
           cancellation_notice_days: number | null
           category: string
+          contact_id: string | null
           contract_number: string | null
           cost_amount: number | null
           cost_frequency: string | null
@@ -346,6 +347,7 @@ export type Database = {
           auto_renews?: boolean | null
           cancellation_notice_days?: number | null
           category?: string
+          contact_id?: string | null
           contract_number?: string | null
           cost_amount?: number | null
           cost_frequency?: string | null
@@ -366,6 +368,7 @@ export type Database = {
           auto_renews?: boolean | null
           cancellation_notice_days?: number | null
           category?: string
+          contact_id?: string | null
           contract_number?: string | null
           cost_amount?: number | null
           cost_frequency?: string | null
@@ -382,7 +385,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contracts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "user_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       direct_messages: {
         Row: {
@@ -802,6 +813,7 @@ export type Database = {
           avatar_url: string | null
           birth_date: string | null
           clothing_sizes: Json | null
+          contact_id: string | null
           created_at: string
           email: string | null
           id: string
@@ -828,6 +840,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           clothing_sizes?: Json | null
+          contact_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -854,6 +867,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           clothing_sizes?: Json | null
+          contact_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -873,7 +887,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "family_members_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "user_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       family_vaccinations: {
         Row: {
