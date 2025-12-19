@@ -468,6 +468,149 @@ export type Database = {
         }
         Relationships: []
       }
+      family_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_time: string
+          event_type: string | null
+          id: string
+          is_all_day: boolean | null
+          location: string | null
+          notes: string | null
+          recurrence_rule: string | null
+          related_member_id: string | null
+          reminder_before: number | null
+          start_time: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_time: string
+          event_type?: string | null
+          id?: string
+          is_all_day?: boolean | null
+          location?: string | null
+          notes?: string | null
+          recurrence_rule?: string | null
+          related_member_id?: string | null
+          reminder_before?: number | null
+          start_time: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          event_type?: string | null
+          id?: string
+          is_all_day?: boolean | null
+          location?: string | null
+          notes?: string | null
+          recurrence_rule?: string | null
+          related_member_id?: string | null
+          reminder_before?: number | null
+          start_time?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_events_related_member_id_fkey"
+            columns: ["related_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_members: {
+        Row: {
+          activities: Json | null
+          address: string | null
+          allergies: string[] | null
+          avatar_url: string | null
+          birth_date: string | null
+          clothing_sizes: Json | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          lives_with_user: boolean | null
+          medical_notes: string | null
+          milestones: Json | null
+          name: string
+          notes: string | null
+          phone: string | null
+          preferences: Json | null
+          relationship: string
+          school_grade: string | null
+          school_name: string | null
+          teacher_contact: string | null
+          teacher_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activities?: Json | null
+          address?: string | null
+          allergies?: string[] | null
+          avatar_url?: string | null
+          birth_date?: string | null
+          clothing_sizes?: Json | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          lives_with_user?: boolean | null
+          medical_notes?: string | null
+          milestones?: Json | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          preferences?: Json | null
+          relationship: string
+          school_grade?: string | null
+          school_name?: string | null
+          teacher_contact?: string | null
+          teacher_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activities?: Json | null
+          address?: string | null
+          allergies?: string[] | null
+          avatar_url?: string | null
+          birth_date?: string | null
+          clothing_sizes?: Json | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          lives_with_user?: boolean | null
+          medical_notes?: string | null
+          milestones?: Json | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          preferences?: Json | null
+          relationship?: string
+          school_grade?: string | null
+          school_name?: string | null
+          teacher_contact?: string | null
+          teacher_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       focus_sessions: {
         Row: {
           completed_at: string | null
@@ -712,6 +855,62 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      household_tasks: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          is_completed: boolean | null
+          priority: string | null
+          recurrence_rule: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean | null
+          priority?: string | null
+          recurrence_rule?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean | null
+          priority?: string | null
+          recurrence_rule?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notes: {
         Row: {
