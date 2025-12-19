@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Switch } from '@/components/ui/switch';
 import {
   Phone,
   PhoneOff,
@@ -66,6 +67,7 @@ export function CallDialog({
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const qualityStats = useCallQuality(peerConnection);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
 
   // Attach local stream to video element
   useEffect(() => {
@@ -116,19 +118,54 @@ export function CallDialog({
             {isConnected && (
               <div className="absolute top-4 left-4 z-10">
                 <CallQualityIndicator stats={qualityStats} />
-            </div>
-          )}
-          
-          {/* In-Call Chat */}
-          {isConnected && sessionId && userId && (
-            <InCallChat
-              sessionId={sessionId}
-              userId={userId}
-              userName={userName || 'You'}
-              isOpen={isChatOpen}
-              onToggle={() => setIsChatOpen(!isChatOpen)}
-            />
-          )}
+              </div>
+            )}
+
+            {/* Debug toggle + panel */}
+            {isConnected && (
+              <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Debug</span>
+                <Switch
+                  checked={isDebugOpen}
+                  onCheckedChange={setIsDebugOpen}
+                  aria-label="Toggle call debug stats"
+                />
+              </div>
+            )}
+
+            {isConnected && isDebugOpen && (
+              <div className="absolute top-14 right-4 z-10 w-[320px] rounded-lg border border-border bg-background/90 backdrop-blur p-3 shadow-sm">
+                <div className="text-xs font-medium">Call Debug</div>
+                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  <div className="flex justify-between gap-4"><span>PC state</span><span className="text-foreground">{qualityStats.connectionState}</span></div>
+                  <div className="flex justify-between gap-4"><span>ICE state</span><span className="text-foreground">{qualityStats.iceConnectionState}</span></div>
+                  <div className="flex justify-between gap-4"><span>Bitrate</span><span className="text-foreground">{qualityStats.bitrate ?? '—'} kbps</span></div>
+                  <div className="flex justify-between gap-4"><span>RTT</span><span className="text-foreground">{qualityStats.latency ?? '—'} ms</span></div>
+                  <div className="flex justify-between gap-4"><span>Packet loss</span><span className="text-foreground">{qualityStats.packetLoss ?? '—'}%</span></div>
+                  <div className="flex justify-between gap-4"><span>Jitter</span><span className="text-foreground">{qualityStats.jitter ?? '—'} ms</span></div>
+
+                  <div className="mt-2 pt-2 border-t border-border/60">
+                    <div className="text-xs font-medium text-foreground">Selected route</div>
+                    <div className="mt-1 space-y-1">
+                      <div className="flex justify-between gap-4"><span>Protocol</span><span className="text-foreground">{qualityStats.selectedCandidatePair?.protocol ?? '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span>Local</span><span className="text-foreground">{qualityStats.selectedCandidatePair?.localType ?? '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span>Remote</span><span className="text-foreground">{qualityStats.selectedCandidatePair?.remoteType ?? '—'}</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* In-Call Chat */}
+            {isConnected && sessionId && userId && (
+              <InCallChat
+                sessionId={sessionId}
+                userId={userId}
+                userName={userName || 'You'}
+                isOpen={isChatOpen}
+                onToggle={() => setIsChatOpen(!isChatOpen)}
+              />
+            )}
           {/* Remote video (main view) */}
           {isConnected && remoteStream && callType === 'video' ? (
             <video

@@ -10,6 +10,16 @@ export interface CallQualityStats {
   jitter: number | null; // in ms
   resolution: { width: number; height: number } | null;
   frameRate: number | null;
+
+  // Debug details
+  selectedCandidatePair: {
+    localType?: string;
+    remoteType?: string;
+    protocol?: string;
+    rttMs?: number;
+    localAddress?: string;
+    remoteAddress?: string;
+  } | null;
 }
 
 const initialStats: CallQualityStats = {
@@ -22,6 +32,7 @@ const initialStats: CallQualityStats = {
   jitter: null,
   resolution: null,
   frameRate: null,
+  selectedCandidatePair: null,
 };
 
 export function useCallQuality(peerConnection: RTCPeerConnection | null) {
@@ -76,17 +87,22 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
           iceConnectionState: peerConnection.iceConnectionState,
         };
 
+        // We’ll resolve candidate IDs after we find the selected pair.
+        let selectedPair: any | null = null;
+        let localCandidateId: string | undefined;
+        let remoteCandidateId: string | undefined;
+
         report.forEach((stat) => {
           // Get inbound RTP stats for audio/video
           if (stat.type === 'inbound-rtp' && (stat.kind === 'video' || stat.kind === 'audio')) {
             const packetsLost = stat.packetsLost || 0;
             const packetsReceived = stat.packetsReceived || 0;
             const totalPackets = packetsLost + packetsReceived;
-            
+
             if (totalPackets > 0) {
               newStats.packetLoss = Math.round((packetsLost / totalPackets) * 100 * 100) / 100;
             }
-            
+
             if (stat.jitter !== undefined) {
               newStats.jitter = Math.round(stat.jitter * 1000 * 100) / 100;
             }
@@ -95,7 +111,7 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
             if (stat.bytesReceived !== undefined && stat.timestamp) {
               const bytesReceived = stat.bytesReceived;
               const timestamp = stat.timestamp;
-              
+
               if (prevBytesReceived.current > 0 && prevTimestamp.current > 0) {
                 const timeDiff = (timestamp - prevTimestamp.current) / 1000;
                 const bytesDiff = bytesReceived - prevBytesReceived.current;
@@ -103,7 +119,7 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
                   newStats.bitrate = Math.round((bytesDiff * 8) / timeDiff / 1000);
                 }
               }
-              
+
               prevBytesReceived.current = bytesReceived;
               prevTimestamp.current = timestamp;
             }
@@ -122,13 +138,38 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
             }
           }
 
-          // Get candidate pair stats for latency
+          // Find the *selected* candidate pair (best for "why doesn't this connect")
           if (stat.type === 'candidate-pair' && stat.state === 'succeeded') {
-            if (stat.currentRoundTripTime !== undefined) {
-              newStats.latency = Math.round(stat.currentRoundTripTime * 1000);
+            // Modern browsers set either `selected` or `nominated` (or both).
+            const isSelected = (stat as any).selected === true || (stat as any).nominated === true;
+            if (isSelected && !selectedPair) {
+              selectedPair = stat;
+              localCandidateId = (stat as any).localCandidateId;
+              remoteCandidateId = (stat as any).remoteCandidateId;
+
+              if ((stat as any).currentRoundTripTime !== undefined) {
+                newStats.latency = Math.round(((stat as any).currentRoundTripTime as number) * 1000);
+              }
             }
           }
         });
+
+        // Resolve candidate details for the selected pair
+        if (selectedPair && localCandidateId && remoteCandidateId) {
+          const local = report.get(localCandidateId) as any;
+          const remote = report.get(remoteCandidateId) as any;
+
+          newStats.selectedCandidatePair = {
+            localType: local?.candidateType,
+            remoteType: remote?.candidateType,
+            protocol: local?.protocol || remote?.protocol,
+            rttMs: newStats.latency ?? null,
+            localAddress: local?.ip || local?.address,
+            remoteAddress: remote?.ip || remote?.address,
+          };
+        } else {
+          newStats.selectedCandidatePair = null;
+        }
 
         // Calculate signal strength
         newStats.signalStrength = calculateSignalStrength(

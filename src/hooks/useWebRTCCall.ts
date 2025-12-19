@@ -40,6 +40,12 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
   const isSignalingReadyRef = useRef(false);
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
 
+  // Connect timeout / retry
+  const connectTimeoutRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
+  const offerRevisionRef = useRef(0);
+  const latestOfferRevisionRef = useRef(0);
+
   // ICE servers configuration
   const iceServers: RTCConfiguration = {
     iceServers: [
@@ -120,6 +126,12 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       if (pc.connectionState === 'connected') {
         setCallStatus('connected');
 
+        if (connectTimeoutRef.current) {
+          window.clearTimeout(connectTimeoutRef.current);
+          connectTimeoutRef.current = null;
+        }
+        retryCountRef.current = 0;
+
         // Mark session as connected once WebRTC is actually connected
         const sessionId = _sessionId;
         supabase
@@ -185,6 +197,53 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       // Store offer for resending
       let currentOffer: RTCSessionDescriptionInit | null = null;
 
+      const sendOffer = async (opts?: { iceRestart?: boolean }) => {
+        if (!channelRef.current) return;
+        try {
+          if (opts?.iceRestart) {
+            try {
+              pc.restartIce();
+            } catch {
+              // ignore (not supported in some browsers)
+            }
+          }
+
+          const offer = await pc.createOffer(opts?.iceRestart ? { iceRestart: true } : undefined);
+          await pc.setLocalDescription(offer);
+          currentOffer = offer;
+
+          offerRevisionRef.current += 1;
+          const revision = offerRevisionRef.current;
+
+          console.log('[webrtc] sending offer', { revision, iceRestart: !!opts?.iceRestart });
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'offer',
+            payload: {
+              sdp: offer,
+              from: userId,
+              callType: type,
+              revision,
+              iceRestart: !!opts?.iceRestart,
+            },
+          });
+        } catch (e) {
+          console.error('[webrtc] failed to send offer:', e);
+        }
+      };
+
+      const scheduleConnectTimeout = () => {
+        if (connectTimeoutRef.current) window.clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = window.setTimeout(async () => {
+          if (pc.connectionState === 'connected' || callStatus === 'connected') return;
+          if (retryCountRef.current >= 2) return;
+          retryCountRef.current += 1;
+
+          console.warn('[webrtc] connect timeout – retrying', retryCountRef.current);
+          await sendOffer({ iceRestart: true });
+        }, 10_000);
+      };
+
       channel
         .on('broadcast', { event: 'answer' }, async ({ payload }) => {
           if (payload.from !== userId && payload.sdp) {
@@ -209,53 +268,34 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
           endCall();
         })
         .on('broadcast', { event: 'request-offer' }, async ({ payload }) => {
-          if (payload.from !== userId && currentOffer) {
+          if (payload.from !== userId) {
             console.log('Resending offer upon request');
-            channel.send({
-              type: 'broadcast',
-              event: 'offer',
-              payload: {
-                sdp: currentOffer,
-                from: userId,
-                callType: type,
-              },
-            });
+            // If the callee is struggling, do an ICE restart offer
+            await sendOffer({ iceRestart: true });
           }
         })
-         .subscribe(async (status) => {
-           if (status === 'SUBSCRIBED') {
-             isSignalingReadyRef.current = true;
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            isSignalingReadyRef.current = true;
 
-             // Flush any queued ICE candidates gathered before subscription finished
-             if (pendingIceCandidatesRef.current.length) {
-               console.log('[webrtc] flushing queued ICE candidates:', pendingIceCandidatesRef.current.length);
-               for (const candidate of pendingIceCandidatesRef.current) {
-                 channel.send({
-                   type: 'broadcast',
-                   event: 'ice-candidate',
-                   payload: { candidate, from: userId },
-                 });
-               }
-               pendingIceCandidatesRef.current = [];
-             }
+            // Flush any queued ICE candidates gathered before subscription finished
+            if (pendingIceCandidatesRef.current.length) {
+              console.log('[webrtc] flushing queued ICE candidates:', pendingIceCandidatesRef.current.length);
+              for (const candidate of pendingIceCandidatesRef.current) {
+                channel.send({
+                  type: 'broadcast',
+                  event: 'ice-candidate',
+                  payload: { candidate, from: userId },
+                });
+              }
+              pendingIceCandidatesRef.current = [];
+            }
 
-             // Create and send offer after subscription is confirmed
-             const offer = await pc.createOffer();
-             await pc.setLocalDescription(offer);
-             currentOffer = offer;
-
-             console.log('Sending initial offer');
-             channel.send({
-               type: 'broadcast',
-               event: 'offer',
-               payload: {
-                 sdp: offer,
-                 from: userId,
-                 callType: type,
-               },
-             });
-           }
-         });
+            // Create and send offer after subscription is confirmed
+            await sendOffer();
+            scheduleConnectTimeout();
+          }
+        });
 
       return session;
     } catch (error) {
@@ -292,15 +332,18 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       });
 
 
-      // Store reference to handle offer
-      let hasReceivedOffer = false;
-
+      // Track latest offer revision so we can accept retries
       const handleOffer = async (payload: any) => {
-        if (payload.from !== userId && payload.sdp && !hasReceivedOffer) {
-          hasReceivedOffer = true;
-          console.log('Received offer, creating answer');
+        if (payload.from === userId || !payload.sdp) return;
+
+        const revision = typeof payload.revision === 'number' ? payload.revision : 0;
+        if (revision && revision < latestOfferRevisionRef.current) return;
+        latestOfferRevisionRef.current = revision;
+
+        try {
+          console.log('[webrtc] received offer', { revision, iceRestart: !!payload.iceRestart });
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-          
+
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
 
@@ -310,9 +353,28 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
             payload: {
               sdp: answer,
               from: userId,
+              revision,
             },
           });
+        } catch (e) {
+          console.error('[webrtc] failed handling offer:', e);
         }
+      };
+
+      const scheduleOfferWaitTimeout = () => {
+        if (connectTimeoutRef.current) window.clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = window.setTimeout(async () => {
+          if (pc.connectionState === 'connected' || callStatus === 'connected') return;
+          if (retryCountRef.current >= 2) return;
+          retryCountRef.current += 1;
+
+          console.warn('[webrtc] offer wait timeout – requesting offer again', retryCountRef.current);
+          channel.send({
+            type: 'broadcast',
+            event: 'request-offer',
+            payload: { from: userId },
+          });
+        }, 10_000);
       };
 
       channel
@@ -328,32 +390,34 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
             }
           }
         })
-         .subscribe(async (status) => {
-           if (status === 'SUBSCRIBED') {
-             isSignalingReadyRef.current = true;
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            isSignalingReadyRef.current = true;
 
-             // Flush any queued ICE candidates gathered before subscription finished
-             if (pendingIceCandidatesRef.current.length) {
-               console.log('[webrtc] flushing queued ICE candidates:', pendingIceCandidatesRef.current.length);
-               for (const candidate of pendingIceCandidatesRef.current) {
-                 channel.send({
-                   type: 'broadcast',
-                   event: 'ice-candidate',
-                   payload: { candidate, from: userId },
-                 });
-               }
-               pendingIceCandidatesRef.current = [];
-             }
+            // Flush any queued ICE candidates gathered before subscription finished
+            if (pendingIceCandidatesRef.current.length) {
+              console.log('[webrtc] flushing queued ICE candidates:', pendingIceCandidatesRef.current.length);
+              for (const candidate of pendingIceCandidatesRef.current) {
+                channel.send({
+                  type: 'broadcast',
+                  event: 'ice-candidate',
+                  payload: { candidate, from: userId },
+                });
+              }
+              pendingIceCandidatesRef.current = [];
+            }
 
-             console.log('Callee subscribed to signaling channel, requesting offer');
-             // Request the caller to resend the offer
-             channel.send({
-               type: 'broadcast',
-               event: 'request-offer',
-               payload: { from: userId },
-             });
-           }
-         });
+            console.log('Callee subscribed to signaling channel, requesting offer');
+            // Request the caller to resend the offer
+            channel.send({
+              type: 'broadcast',
+              event: 'request-offer',
+              payload: { from: userId },
+            });
+
+            scheduleOfferWaitTimeout();
+          }
+        });
 
       // Keep session "ringing" until WebRTC is actually connected (updated in pc.onconnectionstatechange)
       // (no DB update needed here)
@@ -391,6 +455,13 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
     localStream?.getTracks().forEach((track) => track.stop());
     remoteStream?.getTracks().forEach((track) => track.stop());
     screenStream.current?.getTracks().forEach((track) => track.stop());
+
+    if (connectTimeoutRef.current) {
+      window.clearTimeout(connectTimeoutRef.current);
+      connectTimeoutRef.current = null;
+    }
+    retryCountRef.current = 0;
+    latestOfferRevisionRef.current = 0;
 
     // Close peer connection
     peerConnection.current?.close();
