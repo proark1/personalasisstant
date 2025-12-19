@@ -524,6 +524,36 @@ export type Database = {
           },
         ]
       }
+      family_budget_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          icon: string | null
+          id: string
+          monthly_limit: number | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          monthly_limit?: number | null
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          monthly_limit?: number | null
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       family_documents: {
         Row: {
           category: string | null
@@ -642,6 +672,60 @@ export type Database = {
           {
             foreignKeyName: "family_events_related_member_id_fkey"
             columns: ["related_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_expenses: {
+        Row: {
+          amount: number
+          category_id: string | null
+          created_at: string
+          description: string | null
+          expense_date: string
+          family_member_id: string | null
+          id: string
+          receipt_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          family_member_id?: string | null
+          id?: string
+          receipt_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          family_member_id?: string | null
+          id?: string
+          receipt_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "family_budget_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_expenses_family_member_id_fkey"
+            columns: ["family_member_id"]
             isOneToOne: false
             referencedRelation: "family_members"
             referencedColumns: ["id"]

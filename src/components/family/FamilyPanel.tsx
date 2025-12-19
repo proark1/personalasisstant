@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, ListTodo, Calendar, Baby, ShoppingCart, Utensils, Heart, FolderOpen } from 'lucide-react';
+import { Users, ListTodo, Calendar, Baby, ShoppingCart, Utensils, Heart, FolderOpen, Wallet } from 'lucide-react';
 import { FamilyMembersList } from './FamilyMembersList';
 import { HouseholdTasksList } from './HouseholdTasksList';
 import { FamilyCalendarView } from './FamilyCalendarView';
@@ -9,6 +9,7 @@ import { ShoppingListsPanel } from './ShoppingListsPanel';
 import { MealPlanningPanel } from './MealPlanningPanel';
 import { HealthTrackingPanel } from './HealthTrackingPanel';
 import { DocumentStoragePanel } from './DocumentStoragePanel';
+import { BudgetTrackingPanel } from './BudgetTrackingPanel';
 
 export function FamilyPanel() {
   const [activeTab, setActiveTab] = useState('members');
@@ -26,7 +27,7 @@ export function FamilyPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-4 grid grid-cols-8">
+        <TabsList className="mx-4 mt-4 grid grid-cols-9">
           <TabsTrigger value="members" className="flex items-center gap-1">
             <Users className="h-4 w-4" />
             <span className="hidden 2xl:inline">Members</span>
@@ -46,6 +47,10 @@ export function FamilyPanel() {
           <TabsTrigger value="shopping" className="flex items-center gap-1">
             <ShoppingCart className="h-4 w-4" />
             <span className="hidden 2xl:inline">Shop</span>
+          </TabsTrigger>
+          <TabsTrigger value="budget" className="flex items-center gap-1">
+            <Wallet className="h-4 w-4" />
+            <span className="hidden 2xl:inline">Budget</span>
           </TabsTrigger>
           <TabsTrigger value="health" className="flex items-center gap-1">
             <Heart className="h-4 w-4" />
@@ -76,6 +81,9 @@ export function FamilyPanel() {
           </TabsContent>
           <TabsContent value="shopping" className="mt-0 h-full">
             <ShoppingListsPanel />
+          </TabsContent>
+          <TabsContent value="budget" className="mt-0 h-full">
+            <BudgetTrackingPanel />
           </TabsContent>
           <TabsContent value="health" className="mt-0 h-full">
             <HealthTrackingPanel />
