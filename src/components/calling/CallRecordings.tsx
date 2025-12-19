@@ -104,8 +104,7 @@ export function CallRecordings({ userId }: CallRecordingsProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <h3 className="font-semibold text-foreground">Recordings</h3>
+      <div className="flex items-center justify-end px-4 py-2">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={refetch}>
           <RefreshCw className="w-4 h-4" />
         </Button>
