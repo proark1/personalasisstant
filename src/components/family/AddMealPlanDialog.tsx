@@ -4,14 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMealPlanning } from '@/hooks/useMealPlanning';
 import { format } from 'date-fns';
+import type { MealPlan, Recipe } from '@/hooks/useMealPlanning';
 
 interface AddMealPlanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date;
   onSuccess?: () => void;
+  recipes: Recipe[];
+  addMealPlan: (plan: Omit<MealPlan, 'id' | 'user_id' | 'created_at'>) => Promise<MealPlan | null>;
+  refetchRecipes: () => void;
 }
 
 const mealTypes = [
@@ -21,8 +24,15 @@ const mealTypes = [
   { value: 'snack', label: 'Snack' },
 ];
 
-export function AddMealPlanDialog({ open, onOpenChange, selectedDate, onSuccess }: AddMealPlanDialogProps) {
-  const { recipes, addMealPlan, refetchRecipes } = useMealPlanning();
+export function AddMealPlanDialog({
+  open,
+  onOpenChange,
+  selectedDate,
+  onSuccess,
+  recipes,
+  addMealPlan,
+  refetchRecipes,
+}: AddMealPlanDialogProps) {
   const [mealType, setMealType] = useState('dinner');
   const [recipeId, setRecipeId] = useState<string>('');
   const [customMealName, setCustomMealName] = useState('');

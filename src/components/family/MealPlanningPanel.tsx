@@ -29,7 +29,7 @@ const mealTypeColors: Record<string, string> = {
 
 export function MealPlanningPanel() {
   const { user } = useAuth();
-  const { mealPlans, recipes, deleteMealPlan, fetchMealPlans, generateShoppingList, isLoading } = useMealPlanning();
+  const { mealPlans, recipes, addMealPlan, refetchRecipes, deleteMealPlan, fetchMealPlans, generateShoppingList, isLoading } = useMealPlanning();
   const { addList, addItem } = useShoppingLists();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [showAddRecipeDialog, setShowAddRecipeDialog] = useState(false);
@@ -257,6 +257,9 @@ export function MealPlanningPanel() {
           onOpenChange={setShowAddMealDialog}
           selectedDate={selectedDate}
           onSuccess={handleMealAdded}
+          recipes={recipes}
+          addMealPlan={addMealPlan}
+          refetchRecipes={refetchRecipes}
         />
       )}
     </div>
