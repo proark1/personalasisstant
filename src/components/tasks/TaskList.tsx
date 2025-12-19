@@ -13,6 +13,7 @@ import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
 import { getRecurrenceDescription } from '@/lib/recurrence';
 import { EditTaskModal } from './EditTaskModal';
 import { TaskTagBadges } from './TaskTagBadges';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   DndContext, 
   closestCenter, 
@@ -51,6 +52,7 @@ import {
   Users
 } from 'lucide-react';
 import { format, isPast, isToday, isTomorrow, isThisWeek, isThisMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { de, enUS } from 'date-fns/locale';
 
 import { SidebarFilter } from '@/components/layout/Sidebar';
 
@@ -227,7 +229,7 @@ function SortableTaskItem({
             {isOverdue && (
               <span className="flex items-center gap-1 text-destructive text-xs">
                 <AlertCircle className="w-3 h-3" />
-                Overdue
+                {/* We'll access t() from parent component context */}
               </span>
             )}
           </div>
@@ -409,6 +411,8 @@ export function TaskList({
   tags = [],
   getTaskTags,
 }: TaskListProps) {
+  const { t, language } = useLanguage();
+  const dateLocale = language === 'de' ? de : enUS;
   const [isAdding, setIsAdding] = useState(false);
   const [addingSubtaskFor, setAddingSubtaskFor] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -426,11 +430,11 @@ export function TaskList({
   const handleFilterChange = onFilterChange ?? setInternalFilter;
 
   const categoryFilters: { label: string; filter: SidebarFilter }[] = [
-    { label: 'All', filter: 'all' },
-    { label: 'Business', filter: 'business' },
-    { label: 'Personal', filter: 'personal' },
-    { label: 'Family', filter: 'family' },
-    { label: 'Shared', filter: 'shared' },
+    { label: t('category.all'), filter: 'all' },
+    { label: t('category.business'), filter: 'business' },
+    { label: t('category.personal'), filter: 'personal' },
+    { label: t('category.family'), filter: 'family' },
+    { label: t('category.shared'), filter: 'shared' },
   ];
 
   const sensors = useSensors(
@@ -579,7 +583,7 @@ export function TaskList({
       <Input
         value={newTaskTitle}
         onChange={(e) => setNewTaskTitle(e.target.value)}
-        placeholder={parentId ? "Subtask title..." : "What needs to be done?"}
+        placeholder={parentId ? t('taskList.addSubtask') + "..." : t('taskList.newTask')}
         className="mb-2"
         autoFocus
         onKeyDown={(e) => {
@@ -596,8 +600,8 @@ export function TaskList({
           <Popover open={showDueDatePicker} onOpenChange={setShowDueDatePicker}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1">
-                <CalendarIcon className="w-4 h-4" />
-                {newTaskDueDate ? format(newTaskDueDate, 'MMM d') : 'Due date'}
+              <CalendarIcon className="w-4 h-4" />
+              {newTaskDueDate ? format(newTaskDueDate, 'MMM d', { locale: dateLocale }) : t('common.dueDate')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -628,10 +632,10 @@ export function TaskList({
             setNewTaskRecurrence(undefined);
             setNewTaskDueDate(undefined);
           }}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button size="sm" onClick={() => handleAddTask(parentId)}>
-            {parentId ? 'Add Subtask' : 'Add Task'}
+            {parentId ? t('taskList.addSubtask') : t('taskList.addTask')}
           </Button>
         </div>
       </div>
@@ -664,23 +668,23 @@ export function TaskList({
       <div className="h-14 px-4 flex items-center justify-between border-b border-border">
         <div className="flex items-center gap-3">
           <h2 className="font-semibold">
-            Tasks
+            {t('nav.tasks')}
             <span className="ml-2 text-sm text-muted-foreground font-normal">
-              {incompleteTasks.length} remaining
+              {incompleteTasks.length} {language === 'de' ? 'übrig' : 'remaining'}
             </span>
           </h2>
           {/* Due Date Filter */}
           <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter | 'all')}>
             <SelectTrigger className="h-8 w-[130px] text-xs">
               <Filter className="w-3 h-3 mr-1" />
-              <SelectValue placeholder="Due date" />
+              <SelectValue placeholder={t('common.dueDate')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All dates</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="noDate">No Date</SelectItem>
+              <SelectItem value="all">{t('time.all')}</SelectItem>
+              <SelectItem value="today">{t('time.today')}</SelectItem>
+              <SelectItem value="week">{t('time.week')}</SelectItem>
+              <SelectItem value="month">{t('time.month')}</SelectItem>
+              <SelectItem value="noDate">{t('time.noDate')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -695,7 +699,7 @@ export function TaskList({
                 size="sm"
                 onClick={selectAllVisible}
               >
-                Select All
+                {t('common.all')}
               </Button>
               <Button 
                 variant="destructive" 
@@ -704,7 +708,7 @@ export function TaskList({
                 disabled={selectedTasks.size === 0}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
-                Delete ({selectedTasks.size})
+                {t('common.delete')} ({selectedTasks.size})
               </Button>
               <Button 
                 variant="ghost" 
@@ -721,7 +725,7 @@ export function TaskList({
                 size="sm"
                 onClick={() => setIsSelectMode(true)}
               >
-                Select
+                {language === 'de' ? 'Auswählen' : 'Select'}
               </Button>
               <Button 
                 variant="ghost" 
@@ -730,7 +734,7 @@ export function TaskList({
                 onClick={() => setIsAdding(true)}
               >
                 <Plus className="w-4 h-4" />
-                Add
+                {t('common.add')}
               </Button>
             </>
           )}
@@ -779,7 +783,7 @@ export function TaskList({
         {completedTasks.length > 0 && (
           <div className="mt-4">
             <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Completed ({completedTasks.length})
+              {t('taskList.completed')} ({completedTasks.length})
             </div>
             <div className="space-y-1">
               {completedTasks.map(task => (
@@ -805,14 +809,14 @@ export function TaskList({
         {filteredTasks.length === 0 && !isAdding && (
           <div className="flex flex-col items-center justify-center h-40 text-center">
             <CheckCircle2 className="w-10 h-10 text-muted-foreground/30 mb-2" />
-            <p className="text-sm text-muted-foreground">No tasks yet</p>
+            <p className="text-sm text-muted-foreground">{t('taskList.noTasks')}</p>
             <Button 
               variant="link" 
               size="sm" 
               className="text-primary"
               onClick={() => setIsAdding(true)}
             >
-              Add your first task
+              {t('taskList.startAdding')}
             </Button>
           </div>
         )}

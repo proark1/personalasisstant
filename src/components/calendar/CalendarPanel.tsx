@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
 import { getRecurrenceDescription } from '@/lib/recurrence';
 import { EditTaskModal } from '@/components/tasks/EditTaskModal';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   Calendar, 
   Clock, 
@@ -27,6 +28,7 @@ import {
   UserCircle
 } from 'lucide-react';
 import { format, isToday, isTomorrow, startOfDay, isPast } from 'date-fns';
+import { de, enUS } from 'date-fns/locale';
 
 interface CalendarPanelProps {
   events: CalendarEvent[];
@@ -85,6 +87,8 @@ export function CalendarPanel({
   onToggleFullscreen,
 }: CalendarPanelProps) {
   const { toast } = useToast();
+  const { t, language } = useLanguage();
+  const dateLocale = language === 'de' ? de : enUS;
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -150,9 +154,9 @@ export function CalendarPanel({
     const sortedDates = Array.from(itemsByDate.keys()).sort();
     return sortedDates.map(dateKey => {
       const date = new Date(dateKey);
-      let label = format(date, 'EEEE, MMMM d');
-      if (isToday(date)) label = 'Today';
-      else if (isTomorrow(date)) label = 'Tomorrow';
+      let label = format(date, 'EEEE, MMMM d', { locale: dateLocale });
+      if (isToday(date)) label = t('common.today');
+      else if (isTomorrow(date)) label = t('common.tomorrow');
 
       return {
         label,
@@ -162,7 +166,7 @@ export function CalendarPanel({
         ),
       };
     });
-  }, [calendarItems]);
+  }, [calendarItems, dateLocale, t]);
 
   const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -171,8 +175,8 @@ export function CalendarPanel({
     if (!validateICSFile(file)) {
       toast({
         variant: 'destructive',
-        title: 'Invalid File',
-        description: 'Please upload a valid .ics calendar file.',
+        title: t('calendar.invalidFile'),
+        description: t('calendar.invalidFileDesc'),
       });
       return;
     }
@@ -185,8 +189,8 @@ export function CalendarPanel({
       if (importedEvents.length === 0) {
         toast({
           variant: 'destructive',
-          title: 'No Events Found',
-          description: 'The file does not contain any valid events.',
+          title: t('calendar.noEventsFound'),
+          description: t('calendar.noEventsFoundDesc'),
         });
         return;
       }
@@ -207,15 +211,15 @@ export function CalendarPanel({
       }
 
       toast({
-        title: 'Import Successful',
-        description: `Imported ${importedEvents.length} event${importedEvents.length > 1 ? 's' : ''}.`,
+        title: t('calendar.importSuccess'),
+        description: t('calendar.importedEvents').replace('{count}', importedEvents.length.toString()),
       });
     } catch (error) {
       console.error('ICS import error:', error);
       toast({
         variant: 'destructive',
-        title: 'Import Failed',
-        description: 'Failed to parse the calendar file. Please check the format.',
+        title: t('calendar.importFailed'),
+        description: t('calendar.importFailedDesc'),
       });
     } finally {
       setIsImporting(false);
@@ -265,7 +269,7 @@ export function CalendarPanel({
       onUpdateTask(id, updates);
     }
     setEditingTask(null);
-    toast({ title: 'Updated successfully' });
+    toast({ title: t('calendar.updatedSuccess') });
   };
 
   const handleDeleteItem = (id: string) => {
@@ -277,7 +281,7 @@ export function CalendarPanel({
       onDeleteTask(id);
     }
     setEditingTask(null);
-    toast({ title: 'Deleted successfully' });
+    toast({ title: t('calendar.deletedSuccess') });
   };
 
   const priorityColors: Record<string, string> = {
@@ -379,7 +383,7 @@ export function CalendarPanel({
             "px-1.5 py-0.5 rounded text-[10px] font-medium",
             item.type === 'event' ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent-foreground"
           )}>
-            {item.type === 'event' ? 'Event' : 'Task'}
+            {item.type === 'event' ? t('taskList.event') : t('taskList.task')}
           </span>
         </div>
 
@@ -400,7 +404,7 @@ export function CalendarPanel({
         {item.sharedBy && (
           <div className="flex items-center gap-1 mt-1.5 text-xs text-accent-foreground bg-accent/30 px-1.5 py-0.5 rounded w-fit">
             <UserCircle className="w-3 h-3" />
-            <span>Shared by {item.sharedBy.displayName || item.sharedBy.email || 'someone'}</span>
+            <span>{t('calendar.sharedBy')} {item.sharedBy.displayName || item.sharedBy.email || 'someone'}</span>
           </div>
         )}
       </div>
@@ -413,7 +417,7 @@ export function CalendarPanel({
       <div className="h-14 px-4 flex items-center justify-between border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
-          <h2 className="font-semibold">Agenda</h2>
+          <h2 className="font-semibold">{t('calendar.agenda')}</h2>
           <span className="text-xs text-muted-foreground">
             ({calendarItems.length})
           </span>
@@ -434,7 +438,7 @@ export function CalendarPanel({
             disabled={isImporting}
           >
             <Upload className="w-4 h-4" />
-            <span className="hidden sm:inline">Import</span>
+            <span className="hidden sm:inline">{t('calendar.import')}</span>
           </Button>
           <Button 
             variant="ghost" 
@@ -443,7 +447,7 @@ export function CalendarPanel({
             onClick={() => setShowAddModal(true)}
           >
             <Plus className="w-4 h-4" />
-            Add
+            {t('common.add')}
           </Button>
           {onToggleFullscreen && (
             <Button
@@ -463,9 +467,9 @@ export function CalendarPanel({
         {groupedItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-center">
             <Calendar className="w-10 h-10 text-muted-foreground/30 mb-2" />
-            <p className="text-sm text-muted-foreground">No upcoming events or tasks</p>
+            <p className="text-sm text-muted-foreground">{t('calendar.noUpcoming')}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Tasks with due dates will appear here
+              {t('calendar.tasksWithDueDates')}
             </p>
             <div className="flex gap-2 mt-3">
               <Button 
@@ -475,7 +479,7 @@ export function CalendarPanel({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <FileUp className="w-3 h-3" />
-                Import .ics
+                {t('calendar.importIcs')}
               </Button>
               <Button 
                 variant="link" 
@@ -483,7 +487,7 @@ export function CalendarPanel({
                 className="text-primary text-xs"
                 onClick={() => setShowAddModal(true)}
               >
-                Schedule something
+                {t('calendar.scheduleSomething')}
               </Button>
             </div>
           </div>

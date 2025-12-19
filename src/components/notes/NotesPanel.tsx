@@ -14,7 +14,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { de, enUS } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface NotesPanelProps {
   userId: string;
@@ -24,6 +26,8 @@ export function NotesPanel({ userId }: NotesPanelProps) {
   const { notes, loading, createNote, updateNote, deleteNote, searchNotes, refetch } = useNotes(userId);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const { t, language } = useLanguage();
+  const dateLocale = language === 'de' ? de : enUS;
 
   const handleCreateNote = async () => {
     const newNote = await createNote();
@@ -54,7 +58,7 @@ export function NotesPanel({ userId }: NotesPanelProps) {
 
   const getPreviewText = (content: string) => {
     const lines = content.split('\n').filter(l => l.trim());
-    if (lines.length === 0) return 'No content';
+    if (lines.length === 0) return t('notes.noContent');
     return lines[0].slice(0, 100) + (lines[0].length > 100 ? '...' : '');
   };
 
@@ -77,7 +81,7 @@ export function NotesPanel({ userId }: NotesPanelProps) {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            Notes
+            {t('notes.title')}
           </h2>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={refetch}>
@@ -85,7 +89,7 @@ export function NotesPanel({ userId }: NotesPanelProps) {
             </Button>
             <Button onClick={handleCreateNote} size="sm" className="gap-1">
               <Plus className="w-4 h-4" />
-              New Note
+              {t('notes.newNote')}
             </Button>
           </div>
         </div>
@@ -94,7 +98,7 @@ export function NotesPanel({ userId }: NotesPanelProps) {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search notes..."
+            placeholder={t('notes.searchNotes')}
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-9"
@@ -110,9 +114,9 @@ export function NotesPanel({ userId }: NotesPanelProps) {
       ) : notes.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
           <FileText className="w-8 h-8 mb-2 opacity-50" />
-          <p className="text-sm">No notes yet</p>
+          <p className="text-sm">{t('notes.noNotes')}</p>
           <Button variant="link" onClick={handleCreateNote} className="mt-2">
-            Create your first note
+            {t('notes.createFirst')}
           </Button>
         </div>
       ) : (
@@ -154,7 +158,7 @@ export function NotesPanel({ userId }: NotesPanelProps) {
                   </div>
                   
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatDistanceToNow(note.updatedAt, { addSuffix: true })}
+                    {formatDistanceToNow(note.updatedAt, { addSuffix: true, locale: dateLocale })}
                   </span>
                 </div>
               </Card>
