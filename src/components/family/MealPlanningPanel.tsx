@@ -199,10 +199,9 @@ export function MealPlanningPanel() {
   );
 
   const loadMeals = useCallback(() => {
-    if (user?.id) {
-      fetchMealPlans(format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'));
-    }
-  }, [user?.id, weekStart.getTime(), weekEnd.getTime()]);
+    if (!user?.id) return;
+    fetchMealPlans(format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'));
+  }, [user?.id, fetchMealPlans, weekStart.getTime(), weekEnd.getTime()]);
 
   useEffect(() => {
     loadMeals();

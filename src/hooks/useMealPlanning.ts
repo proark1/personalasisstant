@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -50,9 +50,9 @@ export function useMealPlanning() {
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchRecipes = async () => {
+  const fetchRecipes = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('recipes')
@@ -65,14 +65,14 @@ export function useMealPlanning() {
     } catch (error: any) {
       console.error('Error fetching recipes:', error);
     }
-  };
+  }, [user?.id]);
 
-  const fetchMealPlans = async (startDate: string, endDate: string) => {
+  const fetchMealPlans = useCallback(async (startDate: string, endDate: string) => {
     if (!user?.id) {
       setIsLoading(false);
       return;
     }
-    
+
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -86,22 +86,22 @@ export function useMealPlanning() {
       if (error) throw error;
 
       // Fetch associated recipes
-      const recipeIds = data?.filter(m => m.recipe_id).map(m => m.recipe_id) || [];
+      const recipeIds = data?.filter((m) => m.recipe_id).map((m) => m.recipe_id) || [];
       let recipesMap: Record<string, Recipe> = {};
-      
+
       if (recipeIds.length > 0) {
         const { data: recipesData } = await supabase
           .from('recipes')
           .select('*')
           .in('id', recipeIds);
-        
+
         recipesMap = (recipesData || []).reduce((acc, r) => {
           acc[r.id] = r;
           return acc;
         }, {} as Record<string, Recipe>);
       }
 
-      const plansWithRecipes = (data || []).map(plan => ({
+      const plansWithRecipes = (data || []).map((plan) => ({
         ...plan,
         recipe: plan.recipe_id ? recipesMap[plan.recipe_id] : undefined,
       }));
@@ -112,7 +112,7 @@ export function useMealPlanning() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
 
   const addRecipe = async (recipe: Omit<Recipe, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     if (!user?.id) return null;
@@ -323,7 +323,7 @@ export function useMealPlanning() {
 
   useEffect(() => {
     fetchRecipes();
-  }, [user?.id]);
+  }, [fetchRecipes]);
 
   return {
     recipes,
