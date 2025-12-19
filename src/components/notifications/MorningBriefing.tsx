@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
-import { X, Sun, Calendar, CheckCircle2, Flame, Clock, Users, FileText, Zap, FolderKanban, Battery, BatteryLow, BatteryFull, AlertTriangle, Moon, CloudSun, Newspaper, MapPin, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo, ReactNode } from 'react';
+import { X, Sun, Calendar, CheckCircle2, Flame, Clock, Users, FileText, Zap, FolderKanban, Battery, BatteryLow, BatteryFull, AlertTriangle, Moon, CloudSun, Newspaper, MapPin, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Task, CalendarEvent, Project } from '@/types/flux';
 import { Contact } from '@/hooks/useContacts';
 import { Contract } from '@/hooks/useContracts';
@@ -14,6 +15,34 @@ import { isToday, isTomorrow, isPast, differenceInDays, startOfDay, format, addD
 import { cn } from '@/lib/utils';
 
 type EnergyLevel = 'low' | 'medium' | 'high' | null;
+
+interface CollapsibleSectionProps {
+  icon: ReactNode;
+  title: string;
+  badge?: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}
+
+function CollapsibleSection({ icon, title, badge, children, defaultOpen = true }: CollapsibleSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
+      <CollapsibleTrigger asChild>
+        <button className="flex items-center gap-2 w-full text-left hover:bg-muted/50 rounded p-1 -ml-1 transition-colors">
+          {icon}
+          <span className="text-sm font-medium flex-1">{title}</span>
+          {badge}
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-1">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 interface MorningBriefingProps {
   tasks: Task[];
@@ -297,331 +326,311 @@ export function MorningBriefing({
         </CardHeader>
         
         <CardContent className="space-y-4">
-          {/* Weather */}
-          <div className="p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-sky-500/10 border border-blue-500/20">
-            <div className="flex items-center justify-between">
+          {/* Top Row: Weather + Energy + Streak */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Weather */}
+            <div className="p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-sky-500/10 border border-blue-500/20">
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{weather?.icon || '🌡️'}</span>
-                <div>
+                <span className="text-2xl">{weather?.icon || '🌡️'}</span>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold">
+                    <span className="text-xl font-bold">
                       {weatherLoading ? '...' : weather ? `${weather.temperature}°C` : '--'}
                     </span>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs text-muted-foreground truncate">
                       {weather?.condition || 'Loading...'}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    {weather?.location || 'Detecting location...'}
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{weather?.location || 'Detecting...'}</span>
                   </div>
                 </div>
               </div>
-              <div className="text-right text-xs text-muted-foreground">
-                {weather && (
-                  <>
-                    <p>Humidity: {weather.humidity}%</p>
-                    <p>Wind: {weather.windSpeed} km/h</p>
-                  </>
-                )}
+            </div>
+
+            {/* Energy Check */}
+            <div className="p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs font-medium mb-2 flex items-center gap-1">
+                <Zap className="h-3 w-3" />
+                How are you feeling?
+              </p>
+              <div className="flex gap-1">
+                <Button
+                  variant={energyLevel === 'low' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEnergyLevel('low')}
+                  className={cn("flex-1 gap-1 h-7 text-xs", energyLevel === 'low' && "bg-yellow-600")}
+                >
+                  <BatteryLow className="h-3 w-3" />
+                  Low
+                </Button>
+                <Button
+                  variant={energyLevel === 'medium' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEnergyLevel('medium')}
+                  className={cn("flex-1 gap-1 h-7 text-xs", energyLevel === 'medium' && "bg-blue-600")}
+                >
+                  <Battery className="h-3 w-3" />
+                  Good
+                </Button>
+                <Button
+                  variant={energyLevel === 'high' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEnergyLevel('high')}
+                  className={cn("flex-1 gap-1 h-7 text-xs", energyLevel === 'high' && "bg-green-600")}
+                >
+                  <BatteryFull className="h-3 w-3" />
+                  Great
+                </Button>
               </div>
             </div>
-          </div>
 
-          {/* Personalized News */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Newspaper className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Today's Headlines</span>
-              {newsLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-            </div>
-            {!newsLoading && news.length > 0 ? (
-              <div className="space-y-2">
-                {news.slice(0, 4).map((item, i) => (
-                  <div key={i} className="p-2 rounded bg-muted/50">
-                    <p className="text-sm font-medium">{item.headline}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.summary}</p>
-                    <Badge variant="outline" className="text-[10px] mt-1">{item.category}</Badge>
-                  </div>
-                ))}
-              </div>
-            ) : !newsLoading && (
-              <p className="text-xs text-muted-foreground">
-                Add interests to your profile to get personalized news
-              </p>
-            )}
-          </div>
-
-          <Separator className="my-2" />
-
-          {/* Streak */}
-          {streak > 0 && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
-              <Flame className="h-5 w-5 text-orange-500" />
-              <span className="font-medium text-orange-500">
-                {streak} day streak! Keep it going!
-              </span>
-            </div>
-          )}
-
-          {/* Energy Check */}
-          <div className="p-3 rounded-lg bg-muted/50 border">
-            <p className="text-sm font-medium mb-2 flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              How are you feeling today?
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant={energyLevel === 'low' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setEnergyLevel('low')}
-                className={cn("flex-1 gap-1", energyLevel === 'low' && "bg-yellow-600")}
-              >
-                <BatteryLow className="h-4 w-4" />
-                Low
-              </Button>
-              <Button
-                variant={energyLevel === 'medium' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setEnergyLevel('medium')}
-                className={cn("flex-1 gap-1", energyLevel === 'medium' && "bg-blue-600")}
-              >
-                <Battery className="h-4 w-4" />
-                Good
-              </Button>
-              <Button
-                variant={energyLevel === 'high' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setEnergyLevel('high')}
-                className={cn("flex-1 gap-1", energyLevel === 'high' && "bg-green-600")}
-              >
-                <BatteryFull className="h-4 w-4" />
-                Great
-              </Button>
-            </div>
-          </div>
-
-          {/* Overdue Alert */}
-          {overdueTasks.length > 0 && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-              <p className="text-sm font-medium text-destructive">
-                ⚠️ {overdueTasks.length} overdue task{overdueTasks.length > 1 ? 's' : ''} need attention
-              </p>
-            </div>
-          )}
-
-          {/* Top 3 Tasks */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Today's Top 3</span>
-            </div>
-            <div className="space-y-1">
-              {top3Tasks.map((task, i) => (
-                <div key={task.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
-                  <span className="truncate flex items-center gap-2">
-                    <span className="text-muted-foreground">{i + 1}.</span>
-                    {task.title}
+            {/* Streak + Overdue */}
+            <div className="space-y-2">
+              {streak > 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                  <Flame className="h-4 w-4 text-orange-500" />
+                  <span className="font-medium text-sm text-orange-500">
+                    {streak} day streak!
                   </span>
-                  <Badge 
-                    variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'default' : 'secondary'}
-                    className="text-xs"
-                  >
-                    {task.priority}
-                  </Badge>
                 </div>
-              ))}
-              {top3Tasks.length === 0 && (
-                <p className="text-sm text-muted-foreground">No tasks scheduled</p>
+              )}
+              {overdueTasks.length > 0 && (
+                <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <p className="text-xs font-medium text-destructive">
+                    ⚠️ {overdueTasks.length} overdue task{overdueTasks.length > 1 ? 's' : ''}
+                  </p>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Next Week Tasks */}
-          {nextWeekTasks.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-blue-500" />
-                <span className="text-sm font-medium">Next Week</span>
-              </div>
-              <div className="space-y-1">
-                {nextWeekTasks.map((task) => (
+          <Separator className="my-2" />
+
+          {/* Main Grid Layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Column 1: Tasks */}
+            <div className="space-y-4">
+              {/* Top 3 Tasks */}
+              <CollapsibleSection
+                icon={<CheckCircle2 className="h-4 w-4 text-primary" />}
+                title="Today's Top 3"
+                defaultOpen={true}
+              >
+                {top3Tasks.map((task, i) => (
                   <div key={task.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
                     <span className="truncate flex items-center gap-2">
+                      <span className="text-muted-foreground">{i + 1}.</span>
                       {task.title}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {isTomorrow(task.dueDate!) ? 'Tomorrow' : format(task.dueDate!, 'EEE, MMM d')}
-                      </span>
-                      <Badge 
-                        variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {task.priority}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Projects Needing Attention */}
-          {projectsNeedingAttention.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <FolderKanban className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Needs Attention</span>
-              </div>
-              <div className="space-y-1">
-                {projectsNeedingAttention.map(({ project, overdueCount, dueTodayCount }) => (
-                  <div key={project.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
-                    <span className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: project.color }} />
-                      {project.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {overdueCount > 0 && <span className="text-destructive">{overdueCount} overdue</span>}
-                      {overdueCount > 0 && dueTodayCount > 0 && ' · '}
-                      {dueTodayCount > 0 && `${dueTodayCount} today`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Contacts Due */}
-          {contactsDue.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Reach Out Today</span>
-              </div>
-              <div className="space-y-1">
-                {contactsDue.map(contact => {
-                  const daysOverdue = differenceInDays(new Date(), contact.nextContactDue!);
-                  return (
-                    <div key={contact.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
-                      <span className="truncate">
-                        {contact.name}
-                        <span className="text-muted-foreground ml-1">
-                          ({contact.contactType === 'personal' ? contact.personalTier : contact.businessLevel})
-                        </span>
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {daysOverdue > 0 && (
-                          <Badge variant="outline" className="text-xs text-destructive">
-                            {daysOverdue}d overdue
-                          </Badge>
-                        )}
-                        {onMarkContactContacted && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 px-2 text-xs"
-                            onClick={() => onMarkContactContacted(contact.id)}
-                          >
-                            ✓
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Contract Alerts */}
-          {contractAlerts.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Contract Alerts</span>
-              </div>
-              <div className="space-y-1">
-                {contractAlerts.map((alert, i) => (
-                  <div key={`${alert.contract.id}-${alert.type}`} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
-                    <span className="truncate">{alert.contract.name}</span>
                     <Badge 
-                      variant={alert.type === 'cancellation' ? 'destructive' : 'outline'}
-                      className="text-xs"
+                      variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'default' : 'secondary'}
+                      className="text-xs shrink-0"
                     >
-                      {alert.type === 'cancellation' ? 'Cancel by' : 'Renewal'} {format(alert.date, 'MMM d')}
+                      {task.priority}
                     </Badge>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* Week Ahead - Evening commitments highlighted */}
-          {weekAhead.some(d => d.hasEveningCommitment || d.events.length > 0) && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Moon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Week Ahead</span>
-                {weekAhead.filter(d => d.hasEveningCommitment).length > 0 && (
-                  <Badge variant="outline" className="text-xs text-amber-500 border-amber-500/30 ml-auto">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    {weekAhead.filter(d => d.hasEveningCommitment).length} evening{weekAhead.filter(d => d.hasEveningCommitment).length > 1 ? 's' : ''} busy
-                  </Badge>
+                {top3Tasks.length === 0 && (
+                  <p className="text-sm text-muted-foreground p-2">No tasks scheduled</p>
                 )}
-              </div>
-              <div className="space-y-1">
-                {weekAhead.slice(0, 5).map((day) => (
-                  <div 
-                    key={day.date.toISOString()} 
-                    className={cn(
-                      "flex items-center justify-between text-sm p-2 rounded",
-                      day.hasEveningCommitment && "bg-amber-500/10 border border-amber-500/20"
-                    )}
-                  >
-                    <span className="font-medium text-muted-foreground w-16">{day.dayName}</span>
-                    <span className="flex-1 truncate text-right">
-                      {day.events.length === 0 ? (
-                        <span className="text-muted-foreground/60">Free</span>
-                      ) : day.hasEveningCommitment ? (
-                        <span className="text-amber-600">
-                          ⚠️ {day.eveningEvents[0]?.title} ({format(day.eveningEvents[0]?.startTime, 'HH:mm')})
-                        </span>
-                      ) : (
-                        <span>{day.events[0]?.title}</span>
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+              </CollapsibleSection>
 
-          {/* Today's Schedule */}
-          {timeBlocks.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Today's Schedule</span>
-              </div>
-              <div className="space-y-1">
-                {timeBlocks.map((block, i) => (
-                  <div 
-                    key={i} 
-                    className={cn(
-                      "flex items-center justify-between text-sm p-2 rounded",
-                      block.type === 'free' ? "bg-green-500/10 border border-green-500/20" : "bg-muted/50"
-                    )}
-                  >
-                    <span className="text-muted-foreground">{block.start} - {block.end}</span>
-                    <span className={cn(block.type === 'free' && "text-green-600 font-medium")}>
-                      {block.type === 'free' ? '✨ Deep work' : block.title}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {/* Next Week Tasks */}
+              {nextWeekTasks.length > 0 && (
+                <CollapsibleSection
+                  icon={<Calendar className="h-4 w-4 text-blue-500" />}
+                  title="Next Week"
+                  defaultOpen={false}
+                >
+                  {nextWeekTasks.map((task) => (
+                    <div key={task.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
+                      <span className="truncate">{task.title}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {isTomorrow(task.dueDate!) ? 'Tomorrow' : format(task.dueDate!, 'EEE')}
+                      </span>
+                    </div>
+                  ))}
+                </CollapsibleSection>
+              )}
+
+              {/* Projects Needing Attention */}
+              {projectsNeedingAttention.length > 0 && (
+                <CollapsibleSection
+                  icon={<FolderKanban className="h-4 w-4 text-muted-foreground" />}
+                  title="Needs Attention"
+                  defaultOpen={false}
+                >
+                  {projectsNeedingAttention.map(({ project, overdueCount, dueTodayCount }) => (
+                    <div key={project.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
+                      <span className="flex items-center gap-2 truncate">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: project.color }} />
+                        {project.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {overdueCount > 0 && <span className="text-destructive">{overdueCount} overdue</span>}
+                        {overdueCount > 0 && dueTodayCount > 0 && ' · '}
+                        {dueTodayCount > 0 && `${dueTodayCount} today`}
+                      </span>
+                    </div>
+                  ))}
+                </CollapsibleSection>
+              )}
             </div>
-          )}
+
+            {/* Column 2: Contacts & Contracts */}
+            <div className="space-y-4">
+              {/* Contacts Due */}
+              {contactsDue.length > 0 && (
+                <CollapsibleSection
+                  icon={<Users className="h-4 w-4 text-muted-foreground" />}
+                  title="Reach Out Today"
+                  defaultOpen={true}
+                >
+                  {contactsDue.map(contact => {
+                    const daysOverdue = differenceInDays(new Date(), contact.nextContactDue!);
+                    return (
+                      <div key={contact.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
+                        <span className="truncate">
+                          {contact.name}
+                          <span className="text-muted-foreground ml-1 text-xs">
+                            ({contact.contactType === 'personal' ? contact.personalTier : contact.businessLevel})
+                          </span>
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {daysOverdue > 0 && (
+                            <Badge variant="outline" className="text-[10px] text-destructive">
+                              {daysOverdue}d
+                            </Badge>
+                          )}
+                          {onMarkContactContacted && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 w-6 p-0"
+                              onClick={() => onMarkContactContacted(contact.id)}
+                            >
+                              ✓
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CollapsibleSection>
+              )}
+
+              {/* Contract Alerts */}
+              {contractAlerts.length > 0 && (
+                <CollapsibleSection
+                  icon={<FileText className="h-4 w-4 text-muted-foreground" />}
+                  title="Contract Alerts"
+                  defaultOpen={true}
+                >
+                  {contractAlerts.map((alert) => (
+                    <div key={`${alert.contract.id}-${alert.type}`} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
+                      <span className="truncate">{alert.contract.name}</span>
+                      <Badge 
+                        variant={alert.type === 'cancellation' ? 'destructive' : 'outline'}
+                        className="text-[10px] shrink-0"
+                      >
+                        {alert.type === 'cancellation' ? 'Cancel' : 'Renew'} {format(alert.date, 'MMM d')}
+                      </Badge>
+                    </div>
+                  ))}
+                </CollapsibleSection>
+              )}
+
+              {/* Personalized News */}
+              <CollapsibleSection
+                icon={<Newspaper className="h-4 w-4 text-primary" />}
+                title="Headlines"
+                badge={newsLoading ? <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /> : undefined}
+                defaultOpen={false}
+              >
+                {!newsLoading && news.length > 0 ? (
+                  news.slice(0, 3).map((item, i) => (
+                    <div key={i} className="p-2 rounded bg-muted/50">
+                      <p className="text-sm font-medium line-clamp-2">{item.headline}</p>
+                      <Badge variant="outline" className="text-[10px] mt-1">{item.category}</Badge>
+                    </div>
+                  ))
+                ) : !newsLoading && (
+                  <p className="text-xs text-muted-foreground p-2">
+                    Add interests to your profile for personalized news
+                  </p>
+                )}
+              </CollapsibleSection>
+            </div>
+
+            {/* Column 3: Schedule */}
+            <div className="space-y-4">
+              {/* Today's Schedule */}
+              {timeBlocks.length > 0 && (
+                <CollapsibleSection
+                  icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+                  title="Today's Schedule"
+                  defaultOpen={true}
+                >
+                  {timeBlocks.map((block, i) => (
+                    <div 
+                      key={i} 
+                      className={cn(
+                        "flex items-center justify-between text-sm p-2 rounded",
+                        block.type === 'free' ? "bg-green-500/10 border border-green-500/20" : "bg-muted/50"
+                      )}
+                    >
+                      <span className="text-muted-foreground text-xs">{block.start}-{block.end}</span>
+                      <span className={cn("truncate ml-2", block.type === 'free' && "text-green-600 font-medium")}>
+                        {block.type === 'free' ? '✨ Deep work' : block.title}
+                      </span>
+                    </div>
+                  ))}
+                </CollapsibleSection>
+              )}
+
+              {/* Week Ahead */}
+              {weekAhead.some(d => d.hasEveningCommitment || d.events.length > 0) && (
+                <CollapsibleSection
+                  icon={<Moon className="h-4 w-4 text-muted-foreground" />}
+                  title="Week Ahead"
+                  badge={
+                    weekAhead.filter(d => d.hasEveningCommitment).length > 0 ? (
+                      <Badge variant="outline" className="text-[10px] text-amber-500 border-amber-500/30">
+                        <AlertTriangle className="h-2 w-2 mr-1" />
+                        {weekAhead.filter(d => d.hasEveningCommitment).length} eve
+                      </Badge>
+                    ) : undefined
+                  }
+                  defaultOpen={false}
+                >
+                  {weekAhead.slice(0, 5).map((day) => (
+                    <div 
+                      key={day.date.toISOString()} 
+                      className={cn(
+                        "flex items-center justify-between text-sm p-2 rounded",
+                        day.hasEveningCommitment ? "bg-amber-500/10 border border-amber-500/20" : "bg-muted/50"
+                      )}
+                    >
+                      <span className="font-medium text-muted-foreground w-12 text-xs">{day.dayName}</span>
+                      <span className="flex-1 truncate text-right text-xs">
+                        {day.events.length === 0 ? (
+                          <span className="text-muted-foreground/60">Free</span>
+                        ) : day.hasEveningCommitment ? (
+                          <span className="text-amber-600">
+                            ⚠️ {day.eveningEvents[0]?.title}
+                          </span>
+                        ) : (
+                          <span>{day.events[0]?.title}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </CollapsibleSection>
+              )}
+            </div>
+          </div>
 
           {/* Action Button */}
           <Button onClick={handleDismiss} className="w-full" size="lg">
