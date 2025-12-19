@@ -267,6 +267,32 @@ export function useMealPlanning() {
     }
   };
 
+  const updateMealPlan = async (id: string, updates: Partial<MealPlan>) => {
+    try {
+      const { data, error } = await supabase
+        .from('meal_plans')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setMealPlans(prev => prev.map(m => {
+        if (m.id === id) {
+          return { ...m, ...data, recipe: m.recipe };
+        }
+        return m;
+      }));
+      toast.success('Meal moved');
+      return data;
+    } catch (error: any) {
+      console.error('Error updating meal plan:', error);
+      toast.error('Failed to move meal');
+      return null;
+    }
+  };
+
   const generateShoppingList = async (startDate: string, endDate: string) => {
     // Get all meal plans for the date range
     const plans = mealPlans.filter(
@@ -310,6 +336,7 @@ export function useMealPlanning() {
     addIngredient,
     deleteIngredient,
     addMealPlan,
+    updateMealPlan,
     deleteMealPlan,
     fetchMealPlans,
     generateShoppingList,

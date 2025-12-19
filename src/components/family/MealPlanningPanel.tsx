@@ -2,16 +2,30 @@ import { useState, useEffect, useCallback } from 'react';
 import { useMealPlanning, MealPlan } from '@/hooks/useMealPlanning';
 import { useShoppingLists } from '@/hooks/useShoppingLists';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, ChevronRight, Plus, BookOpen, ShoppingCart, Utensils, Trash2, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, BookOpen, ShoppingCart, Utensils } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay } from 'date-fns';
+import { de, enUS } from 'date-fns/locale';
 import { AddRecipeDialog } from './AddRecipeDialog';
 import { AddMealPlanDialog } from './AddMealPlanDialog';
 import { RecipesList } from './RecipesList';
+import { MealCard } from './MealCard';
+import { LanguageSwitcher } from '@/components/settings/LanguageSwitcher';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+} from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 const mealTypeIcons: Record<string, string> = {
   breakfast: '🌅',
@@ -27,19 +41,70 @@ const mealTypeColors: Record<string, string> = {
   snack: 'bg-pink-500/20 text-pink-700 dark:text-pink-400 border-pink-500/30',
 };
 
+interface DroppableDayProps {
+  day: Date;
+  children: React.ReactNode;
+  isToday: boolean;
+  isPast: boolean;
+}
+
+function DroppableDay({ day, children, isToday, isPast }: DroppableDayProps) {
+  const { t, language } = useLanguage();
+  const { isOver, setNodeRef } = useDroppable({
+    id: format(day, 'yyyy-MM-dd'),
+    data: { date: day },
+  });
+
+  const locale = language === 'de' ? de : enUS;
+
+  return (
+    <Card
+      ref={setNodeRef}
+      className={`p-3 min-h-[180px] transition-all ${
+        isToday 
+          ? 'ring-2 ring-primary bg-primary/5' 
+          : isPast 
+            ? 'opacity-60' 
+            : 'hover:shadow-md'
+      } ${isOver ? 'ring-2 ring-accent bg-accent/10' : ''}`}
+    >
+      <div className="text-center mb-3 pb-2 border-b">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {format(day, 'EEE', { locale })}
+        </div>
+        <div className={`text-xl font-bold ${isToday ? 'text-primary' : ''}`}>
+          {format(day, 'd')}
+        </div>
+      </div>
+      {children}
+    </Card>
+  );
+}
+
 export function MealPlanningPanel() {
   const { user } = useAuth();
-  const { mealPlans, recipes, addMealPlan, refetchRecipes, deleteMealPlan, fetchMealPlans, generateShoppingList, isLoading } = useMealPlanning();
+  const { t, language } = useLanguage();
+  const { mealPlans, recipes, addMealPlan, updateMealPlan, refetchRecipes, deleteMealPlan, fetchMealPlans, generateShoppingList, isLoading } = useMealPlanning();
   const { addList, addItem } = useShoppingLists();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [showAddRecipeDialog, setShowAddRecipeDialog] = useState(false);
   const [showAddMealDialog, setShowAddMealDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'planner' | 'recipes'>('planner');
+  const [activeDragMeal, setActiveDragMeal] = useState<MealPlan | null>(null);
 
+  const locale = language === 'de' ? de : enUS;
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   const loadMeals = useCallback(() => {
     if (user?.id) {
@@ -69,6 +134,26 @@ export function MealPlanningPanel() {
     await deleteMealPlan(mealId);
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const meal = mealPlans.find(m => m.id === event.active.id);
+    setActiveDragMeal(meal || null);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragMeal(null);
+    
+    const { active, over } = event;
+    if (!over || !active) return;
+
+    const meal = mealPlans.find(m => m.id === active.id);
+    if (!meal) return;
+
+    const newDate = over.id as string;
+    if (meal.meal_date === newDate) return;
+
+    await updateMealPlan(meal.id, { meal_date: newDate });
+  };
+
   const handleGenerateShoppingList = async () => {
     const ingredients = await generateShoppingList(
       format(weekStart, 'yyyy-MM-dd'),
@@ -76,13 +161,17 @@ export function MealPlanningPanel() {
     );
 
     if (ingredients.length === 0) {
-      toast.error('No ingredients to add. Plan some meals with recipes first!');
+      toast.error(language === 'de' 
+        ? 'Keine Zutaten zum Hinzufügen. Planen Sie zuerst Mahlzeiten mit Rezepten!'
+        : 'No ingredients to add. Plan some meals with recipes first!');
       return;
     }
 
     const list = await addList({
-      name: `Groceries for ${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`,
-      description: 'Auto-generated from meal plan',
+      name: language === 'de' 
+        ? `Einkaufsliste ${format(weekStart, 'd. MMM', { locale })} - ${format(weekEnd, 'd. MMM', { locale })}`
+        : `Groceries for ${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`,
+      description: language === 'de' ? 'Automatisch aus Mahlzeitenplan erstellt' : 'Auto-generated from meal plan',
       category: 'grocery',
       assigned_to: null,
       is_template: false,
@@ -104,7 +193,9 @@ export function MealPlanningPanel() {
         }, true);
         if (result) addedCount++;
       }
-      toast.success(`Shopping list created with ${addedCount} items!`);
+      toast.success(language === 'de'
+        ? `Einkaufsliste mit ${addedCount} Artikeln erstellt!`
+        : `Shopping list created with ${addedCount} items!`);
     }
   };
 
@@ -117,26 +208,29 @@ export function MealPlanningPanel() {
           <TabsList>
             <TabsTrigger value="planner" className="flex items-center gap-2">
               <Utensils className="h-4 w-4" />
-              Week Planner
+              {t('nav.weekPlanner')}
             </TabsTrigger>
             <TabsTrigger value="recipes" className="flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
-              Recipes
+              {t('nav.recipes')}
             </TabsTrigger>
           </TabsList>
           
-          {activeTab === 'planner' && (
-            <Button onClick={handleGenerateShoppingList} variant="outline" size="sm">
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              Generate Shopping List
-            </Button>
-          )}
-          {activeTab === 'recipes' && (
-            <Button onClick={() => setShowAddRecipeDialog(true)} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Recipe
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            {activeTab === 'planner' && (
+              <Button onClick={handleGenerateShoppingList} variant="outline" size="sm">
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">{t('meals.generateShoppingList')}</span>
+              </Button>
+            )}
+            {activeTab === 'recipes' && (
+              <Button onClick={() => setShowAddRecipeDialog(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                {t('meals.addRecipe')}
+              </Button>
+            )}
+          </div>
         </div>
 
         <TabsContent value="planner" className="mt-4">
@@ -148,10 +242,10 @@ export function MealPlanningPanel() {
               </Button>
               <div className="text-center">
                 <h3 className="text-lg font-semibold">
-                  {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
+                  {format(weekStart, 'd. MMM', { locale })} - {format(weekEnd, 'd. MMM yyyy', { locale })}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {totalMealsThisWeek} meal{totalMealsThisWeek !== 1 ? 's' : ''} planned
+                  {totalMealsThisWeek} {totalMealsThisWeek !== 1 ? t('meals.mealsPlanned') : t('meals.mealPlanned')}
                 </p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}>
@@ -160,87 +254,81 @@ export function MealPlanningPanel() {
             </div>
           </Card>
 
-          {/* Week Grid */}
+          {/* Week Grid with DnD */}
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : (
-            <div className="grid grid-cols-7 gap-2">
-              {days.map((day) => {
-                const meals = getMealsForDay(day);
-                const isToday = isSameDay(day, new Date());
-                const isPast = day < new Date() && !isToday;
-                
-                return (
-                  <Card
-                    key={day.toISOString()}
-                    className={`p-3 min-h-[180px] transition-all ${
-                      isToday 
-                        ? 'ring-2 ring-primary bg-primary/5' 
-                        : isPast 
-                          ? 'opacity-60' 
-                          : 'hover:shadow-md'
-                    }`}
-                  >
-                    <div className="text-center mb-3 pb-2 border-b">
-                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {format(day, 'EEE')}
+            <DndContext
+              sensors={sensors}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="grid grid-cols-7 gap-2">
+                {days.map((day) => {
+                  const meals = getMealsForDay(day);
+                  const isToday = isSameDay(day, new Date());
+                  const isPast = day < new Date() && !isToday;
+                  
+                  return (
+                    <DroppableDay
+                      key={day.toISOString()}
+                      day={day}
+                      isToday={isToday}
+                      isPast={isPast}
+                    >
+                      <div className="space-y-2">
+                        <SortableContext
+                          items={meals.map(m => m.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {meals.length === 0 ? (
+                            <p className="text-xs text-muted-foreground text-center py-2">
+                              {t('meals.noMeals')}
+                            </p>
+                          ) : (
+                            meals.map((meal) => (
+                              <MealCard
+                                key={meal.id}
+                                meal={meal}
+                                onDelete={handleDeleteMeal}
+                                mealTypeColors={mealTypeColors}
+                                mealTypeIcons={mealTypeIcons}
+                              />
+                            ))
+                          )}
+                        </SortableContext>
+                        
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full h-7 text-xs border-dashed border hover:bg-accent"
+                          onClick={() => handleAddMeal(day)}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          {t('meals.addMeal')}
+                        </Button>
                       </div>
-                      <div className={`text-xl font-bold ${isToday ? 'text-primary' : ''}`}>
-                        {format(day, 'd')}
-                      </div>
+                    </DroppableDay>
+                  );
+                })}
+              </div>
+
+              <DragOverlay>
+                {activeDragMeal && (
+                  <div className={`text-xs p-2 rounded-lg border ${mealTypeColors[activeDragMeal.meal_type]} shadow-lg opacity-90`}>
+                    <div className="flex items-center gap-1 mb-1">
+                      <span>{mealTypeIcons[activeDragMeal.meal_type]}</span>
+                      <span className="font-medium capitalize">{activeDragMeal.meal_type}</span>
                     </div>
-                    
-                    <div className="space-y-2">
-                      {meals.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-2">
-                          No meals
-                        </p>
-                      ) : (
-                        meals.map((meal) => (
-                          <div
-                            key={meal.id}
-                            className={`text-xs p-2 rounded-lg border ${mealTypeColors[meal.meal_type]} group relative`}
-                          >
-                            <div className="flex items-center gap-1 mb-1">
-                              <span>{mealTypeIcons[meal.meal_type]}</span>
-                              <span className="font-medium capitalize">{meal.meal_type}</span>
-                            </div>
-                            <div className="font-medium truncate pr-5">
-                              {meal.recipe?.name || meal.custom_meal_name || 'Unnamed'}
-                            </div>
-                            {meal.recipe && (
-                              <div className="flex items-center gap-1 text-[10px] opacity-70 mt-1">
-                                <Clock className="h-2.5 w-2.5" />
-                                {meal.servings} servings
-                              </div>
-                            )}
-                            <button
-                              onClick={(e) => handleDeleteMeal(e, meal.id)}
-                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/20"
-                              title="Remove meal"
-                            >
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </button>
-                          </div>
-                        ))
-                      )}
-                      
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full h-7 text-xs border-dashed border hover:bg-accent"
-                        onClick={() => handleAddMeal(day)}
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add
-                      </Button>
+                    <div className="font-medium truncate">
+                      {activeDragMeal.recipe?.name || activeDragMeal.custom_meal_name || 'Unnamed'}
                     </div>
-                  </Card>
-                );
-              })}
-            </div>
+                  </div>
+                )}
+              </DragOverlay>
+            </DndContext>
           )}
         </TabsContent>
 
