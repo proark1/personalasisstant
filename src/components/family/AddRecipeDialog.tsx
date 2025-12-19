@@ -48,6 +48,21 @@ const ingredientCategories = [
   { value: 'other', label: 'Other' },
 ];
 
+const dietTypes = [
+  { value: 'any', label: 'Any Diet' },
+  { value: 'vegan', label: 'Vegan' },
+  { value: 'vegetarian', label: 'Vegetarian' },
+  { value: 'pescetarian', label: 'Pescetarian' },
+];
+
+const mealCategories = [
+  { value: 'any', label: 'Any Category' },
+  { value: 'breakfast', label: 'Breakfast' },
+  { value: 'lunch', label: 'Lunch' },
+  { value: 'dinner', label: 'Dinner' },
+  { value: 'dessert', label: 'Dessert' },
+];
+
 export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
   const { toast } = useToast();
   const { addRecipe, addIngredient } = useMealPlanning();
@@ -66,6 +81,8 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
   
   // AI state
   const [aiQuery, setAiQuery] = useState('');
+  const [selectedDiet, setSelectedDiet] = useState('any');
+  const [selectedMealCategory, setSelectedMealCategory] = useState('any');
   const [suggestions, setSuggestions] = useState<RecipeSuggestion[]>([]);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [isFillingRecipe, setIsFillingRecipe] = useState(false);
@@ -83,8 +100,19 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
   const handleAIExplore = async () => {
     setIsLoadingAI(true);
     try {
+      // Build filter string for AI
+      const filters: string[] = [];
+      if (selectedDiet !== 'any') filters.push(selectedDiet);
+      if (selectedMealCategory !== 'any') filters.push(selectedMealCategory);
+      const filterQuery = filters.length > 0 ? filters.join(' ') + ' recipes' : '';
+      
       const { data, error } = await supabase.functions.invoke('recipe-assistant', {
-        body: { type: 'explore', query: aiQuery }
+        body: { 
+          type: 'explore', 
+          query: filterQuery,
+          diet: selectedDiet !== 'any' ? selectedDiet : undefined,
+          mealCategory: selectedMealCategory !== 'any' ? selectedMealCategory : undefined
+        }
       });
       
       if (error) throw error;
@@ -284,17 +312,33 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
 
           <TabsContent value="ai" className="space-y-4 mt-4">
             <div className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search for recipes... (e.g., 'quick weeknight pasta')"
-                  value={aiQuery}
-                  onChange={(e) => setAiQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAISearch()}
-                  className="flex-1"
-                />
-                <Button onClick={handleAISearch} disabled={isLoadingAI || !aiQuery.trim()}>
-                  {isLoadingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                </Button>
+              {/* Filters for Explore */}
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={selectedDiet} onValueChange={setSelectedDiet}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Diet Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dietTypes.map((diet) => (
+                      <SelectItem key={diet.value} value={diet.value}>
+                        {diet.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select value={selectedMealCategory} onValueChange={setSelectedMealCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Meal Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mealCategories.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <Button 
@@ -310,6 +354,28 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
                 )}
                 Explore Recipe Ideas
               </Button>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">or search</span>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Search for recipes... (e.g., 'quick weeknight pasta')"
+                  value={aiQuery}
+                  onChange={(e) => setAiQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAISearch()}
+                  className="flex-1"
+                />
+                <Button onClick={handleAISearch} disabled={isLoadingAI || !aiQuery.trim()}>
+                  {isLoadingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
 
             {isFillingRecipe && (

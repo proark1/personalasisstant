@@ -11,12 +11,29 @@ serve(async (req) => {
   }
 
   try {
-    const { type, query, recipeName, dietaryPreferences } = await req.json();
+    const { type, query, recipeName, dietaryPreferences, diet, mealCategory } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    // Build dietary filter string
+    const buildDietaryFilter = () => {
+      const filters: string[] = [];
+      if (diet && diet !== 'any') {
+        filters.push(diet);
+      }
+      if (mealCategory && mealCategory !== 'any') {
+        filters.push(`${mealCategory} recipes`);
+      }
+      if (dietaryPreferences) {
+        filters.push(dietaryPreferences);
+      }
+      return filters.length > 0 ? filters.join(', ') : '';
+    };
+
+    const dietaryFilter = buildDietaryFilter();
 
     let systemPrompt = "";
     let userPrompt = "";
@@ -35,7 +52,7 @@ Return JSON with this exact structure:
     }
   ]
 }`;
-      userPrompt = `Suggest recipes for: ${query}${dietaryPreferences ? `. Dietary preferences: ${dietaryPreferences}` : ''}`;
+      userPrompt = `Suggest recipes for: ${query}${dietaryFilter ? `. Requirements: ${dietaryFilter}` : ''}`;
     } else if (type === "fill") {
       systemPrompt = `You are a culinary expert. Given a recipe name, provide complete recipe details.
 Return JSON with this exact structure:
@@ -53,9 +70,14 @@ Return JSON with this exact structure:
     ]
   }
 }`;
-      userPrompt = `Provide a complete recipe for: ${recipeName}${dietaryPreferences ? `. Dietary preferences: ${dietaryPreferences}` : ''}`;
+      userPrompt = `Provide a complete recipe for: ${recipeName}${dietaryFilter ? `. Requirements: ${dietaryFilter}` : ''}`;
     } else if (type === "explore") {
+      const dietLabel = diet && diet !== 'any' ? diet.charAt(0).toUpperCase() + diet.slice(1) : '';
+      const mealLabel = mealCategory && mealCategory !== 'any' ? mealCategory.charAt(0).toUpperCase() + mealCategory.slice(1) : '';
+      
       systemPrompt = `You are a creative culinary assistant. Suggest unique and interesting recipe ideas.
+${diet && diet !== 'any' ? `IMPORTANT: All recipes MUST be ${dietLabel}. Do not suggest any recipes with meat, fish, or animal products that violate ${dietLabel} diet.` : ''}
+${mealCategory && mealCategory !== 'any' ? `IMPORTANT: All recipes MUST be suitable for ${mealLabel}.` : ''}
 Return JSON with this exact structure:
 {
   "suggestions": [
@@ -69,7 +91,12 @@ Return JSON with this exact structure:
     }
   ]
 }`;
-      userPrompt = `Suggest 5 interesting and creative recipe ideas${query ? ` related to: ${query}` : ''}${dietaryPreferences ? `. Dietary preferences: ${dietaryPreferences}` : ''}. Include a mix of cuisines and categories.`;
+      let explorePrompt = 'Suggest 5 interesting and creative recipe ideas';
+      if (dietLabel) explorePrompt += ` that are strictly ${dietLabel}`;
+      if (mealLabel) explorePrompt += ` for ${mealLabel}`;
+      if (query) explorePrompt += ` related to: ${query}`;
+      explorePrompt += '. Include a mix of cuisines.';
+      userPrompt = explorePrompt;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
