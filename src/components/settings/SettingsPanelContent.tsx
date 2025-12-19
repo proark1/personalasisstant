@@ -44,10 +44,10 @@ export function SettingsPanelContent({
   const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'defaults' | 'team'>('appearance');
 
   const tabs = [
-    { id: 'appearance' as const, label: 'Appearance', icon: Palette },
-    { id: 'notifications' as const, label: 'Notifications', icon: Bell },
-    { id: 'defaults' as const, label: 'Defaults', icon: ListTodo },
-    { id: 'team' as const, label: 'Team', icon: Users },
+    { id: 'appearance' as const, label: t('settings.appearance'), icon: Palette },
+    { id: 'notifications' as const, label: t('settings.notifications'), icon: Bell },
+    { id: 'defaults' as const, label: t('settings.defaults'), icon: ListTodo },
+    { id: 'team' as const, label: t('settings.team'), icon: Users },
   ];
 
   return (
@@ -55,7 +55,7 @@ export function SettingsPanelContent({
       {/* Header */}
       <div className="flex items-center gap-2 p-4 border-b border-border">
         <Settings className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">Settings</h2>
+        <h2 className="text-lg font-semibold">{t('settings.title')}</h2>
       </div>
 
       {/* Tabs */}
@@ -83,7 +83,7 @@ export function SettingsPanelContent({
           <>
             {/* Theme Toggle */}
             <div className="space-y-3">
-              <label className="text-sm font-medium">Theme</label>
+              <label className="text-sm font-medium">{t('settings.theme')}</label>
               <div className="flex gap-3">
                 <Button
                   variant={settings.theme === 'dark' ? 'secondary' : 'outline'}
@@ -91,7 +91,7 @@ export function SettingsPanelContent({
                   onClick={() => onUpdateSettings({ theme: 'dark' })}
                 >
                   <Moon className="w-4 h-4" />
-                  Dark
+                  {t('settings.dark')}
                 </Button>
                 <Button
                   variant={settings.theme === 'light' ? 'secondary' : 'outline'}
@@ -99,14 +99,14 @@ export function SettingsPanelContent({
                   onClick={() => onUpdateSettings({ theme: 'light' })}
                 >
                   <Sun className="w-4 h-4" />
-                  Light
+                  {t('settings.light')}
                 </Button>
               </div>
             </div>
 
             {/* Color Scheme */}
             <div className="space-y-3">
-              <label className="text-sm font-medium">Accent Color</label>
+              <label className="text-sm font-medium">{t('settings.accentColor')}</label>
               <div className="grid grid-cols-5 gap-2">
                 {colorSchemes.map((scheme) => (
                   <button
@@ -158,8 +158,8 @@ export function SettingsPanelContent({
             {/* Task Reminders */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-sm">Task Reminders</p>
-                <p className="text-xs text-muted-foreground">Get notified before task deadlines</p>
+                <p className="font-medium text-sm">{t('settings.taskReminders')}</p>
+                <p className="text-xs text-muted-foreground">{t('settings.taskRemindersDesc')}</p>
               </div>
               <Switch
                 checked={settings.notifications.taskReminders}
@@ -170,8 +170,8 @@ export function SettingsPanelContent({
             {/* Calendar Alerts */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-sm">Calendar Alerts</p>
-                <p className="text-xs text-muted-foreground">Reminders before scheduled events</p>
+                <p className="font-medium text-sm">{t('settings.calendarAlerts')}</p>
+                <p className="text-xs text-muted-foreground">{t('settings.calendarAlertsDesc')}</p>
               </div>
               <Switch
                 checked={settings.notifications.calendarAlerts}
@@ -182,9 +182,9 @@ export function SettingsPanelContent({
             {/* Reminder Time */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Reminder Time</label>
+                <label className="text-sm font-medium">{t('settings.reminderTime')}</label>
                 <span className="text-sm text-muted-foreground">
-                  {settings.notifications.reminderMinutesBefore} minutes before
+                  {settings.notifications.reminderMinutesBefore} {t('settings.minutesBefore')}
                 </span>
               </div>
               <Slider
@@ -203,7 +203,7 @@ export function SettingsPanelContent({
           <>
             {/* Default Task Category */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Default Task Category</label>
+              <label className="text-sm font-medium">{t('settings.defaultCategory')}</label>
               <Select
                 value={settings.defaultTaskCategory}
                 onValueChange={(value: TaskCategory) => onUpdateSettings({ defaultTaskCategory: value })}
@@ -212,15 +212,15 @@ export function SettingsPanelContent({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="personal">Personal</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
+                  <SelectItem value="personal">{t('category.personal')}</SelectItem>
+                  <SelectItem value="business">{t('category.business')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Default Task Priority */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Default Task Priority</label>
+              <label className="text-sm font-medium">{t('settings.defaultPriority')}</label>
               <Select
                 value={settings.defaultTaskPriority}
                 onValueChange={(value: TaskPriority) => onUpdateSettings({ defaultTaskPriority: value })}
@@ -229,9 +229,9 @@ export function SettingsPanelContent({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="low">{t('priority.low')}</SelectItem>
+                  <SelectItem value="medium">{t('priority.medium')}</SelectItem>
+                  <SelectItem value="high">{t('priority.high')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

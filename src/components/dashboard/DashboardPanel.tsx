@@ -4,6 +4,7 @@ import { useContracts } from '@/hooks/useContracts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ContractCostWidget } from '@/components/contracts/ContractCostWidget';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   CheckCircle2, 
   Flame, 
@@ -37,6 +38,7 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const { contracts } = useContracts(userId);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!userId) return;
@@ -160,7 +162,7 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="animate-pulse text-primary">Loading...</div>
+        <div className="animate-pulse text-primary">{t('common.loading')}</div>
       </div>
     );
   }
@@ -169,53 +171,53 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
     <div className="h-full overflow-y-auto p-4 space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold">Productivity Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Track your progress and insights</p>
+        <h1 className="text-xl font-bold">{t('dashboard.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="glass-panel-solid">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">This Week</CardTitle>
+            <CardTitle className="text-xs font-medium">{t('dashboard.thisWeek')}</CardTitle>
             <CheckCircle2 className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-2xl font-bold">{stats.completedThisWeek}</div>
-            <p className="text-xs text-muted-foreground">tasks completed</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.tasksCompleted')}</p>
           </CardContent>
         </Card>
 
         <Card className="glass-panel-solid">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">This Month</CardTitle>
+            <CardTitle className="text-xs font-medium">{t('dashboard.thisMonth')}</CardTitle>
             <TrendingUp className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-2xl font-bold">{stats.completedThisMonth}</div>
-            <p className="text-xs text-muted-foreground">tasks completed</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.tasksCompleted')}</p>
           </CardContent>
         </Card>
 
         <Card className="glass-panel-solid">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Streak</CardTitle>
+            <CardTitle className="text-xs font-medium">{t('dashboard.streak')}</CardTitle>
             <Flame className="w-4 h-4 text-warning" />
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-2xl font-bold">{stats.streak}</div>
-            <p className="text-xs text-muted-foreground">consecutive days</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.consecutiveDays')}</p>
           </CardContent>
         </Card>
 
         <Card className="glass-panel-solid">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Peak Hours</CardTitle>
+            <CardTitle className="text-xs font-medium">{t('dashboard.peakHours')}</CardTitle>
             <Zap className="w-4 h-4 text-warning" />
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-lg font-bold">{stats.peakHourLabel}</div>
-            <p className="text-xs text-muted-foreground">most productive</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.mostProductive')}</p>
           </CardContent>
         </Card>
       </div>
@@ -226,7 +228,7 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Target className="w-4 h-4 text-primary" />
-              Category Breakdown
+              {t('dashboard.categoryBreakdown')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -252,21 +254,21 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
                   </ResponsiveContainer>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-                    No tasks
+                    {t('dashboard.noTasks')}
                   </div>
                 )}
               </div>
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-primary" />
-                  <span className="text-xs">Business: {stats.businessTasks}</span>
+                  <span className="text-xs">{t('dashboard.business')}: {stats.businessTasks}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-accent" />
-                  <span className="text-xs">Personal: {stats.personalTasks}</span>
+                  <span className="text-xs">{t('dashboard.personal')}: {stats.personalTasks}</span>
                 </div>
                 <div className="pt-2 border-t">
-                  <p className="text-xs text-muted-foreground">Completion Rate</p>
+                  <p className="text-xs text-muted-foreground">{t('dashboard.completionRate')}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Progress value={completionRate} className="h-1.5 flex-1" />
                     <span className="text-xs font-medium">{completionRate}%</span>
@@ -281,7 +283,7 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Clock className="w-4 h-4 text-primary" />
-              Productivity by Hour
+              {t('dashboard.productivityByHour')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -314,7 +316,7 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Calendar className="w-4 h-4 text-primary" />
-            Upcoming Deadlines (Next 7 Days)
+            {t('dashboard.upcomingDeadlines')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -345,14 +347,14 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
               ))}
               {stats.upcomingDeadlines.length > 5 && (
                 <p className="text-xs text-muted-foreground text-center pt-1">
-                  +{stats.upcomingDeadlines.length - 5} more
+                  +{stats.upcomingDeadlines.length - 5} {t('dashboard.more')}
                 </p>
               )}
             </div>
           ) : (
             <div className="text-center py-6 text-muted-foreground">
               <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No upcoming deadlines</p>
+              <p className="text-sm">{t('dashboard.noDeadlines')}</p>
             </div>
           )}
         </CardContent>
