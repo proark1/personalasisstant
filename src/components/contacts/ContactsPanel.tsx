@@ -395,7 +395,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
               {formData.contactType === 'personal' && (
                 <div>
                   <Label>Tier</Label>
-                  <Select value={formData.personalTier} onValueChange={(v: PersonalTier) => setFormData({ ...formData, personalTier: v, familyRelationship: v !== 'family' ? '' : formData.familyRelationship })}>
+                  <Select value={formData.personalTier || undefined} onValueChange={(v: PersonalTier) => setFormData({ ...formData, personalTier: v, familyRelationship: v !== 'family' ? '' : formData.familyRelationship })}>
                     <SelectTrigger><SelectValue placeholder="Select tier" /></SelectTrigger>
                     <SelectContent>
                       {PERSONAL_TIERS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -406,7 +406,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
               {formData.personalTier === 'family' && (
                 <div>
                   <Label>Relationship</Label>
-                  <Select value={formData.familyRelationship} onValueChange={(v: FamilyRelationship) => setFormData({ ...formData, familyRelationship: v })}>
+                  <Select value={formData.familyRelationship || undefined} onValueChange={(v: FamilyRelationship) => setFormData({ ...formData, familyRelationship: v })}>
                     <SelectTrigger><SelectValue placeholder="Select relationship" /></SelectTrigger>
                     <SelectContent>
                       {FAMILY_RELATIONSHIPS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
@@ -417,7 +417,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
               {formData.contactType === 'business' && (
                 <div>
                   <Label>Level</Label>
-                  <Select value={formData.businessLevel} onValueChange={(v: BusinessLevel) => setFormData({ ...formData, businessLevel: v })}>
+                  <Select value={formData.businessLevel || undefined} onValueChange={(v: BusinessLevel) => setFormData({ ...formData, businessLevel: v })}>
                     <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
                     <SelectContent>
                       {BUSINESS_LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
