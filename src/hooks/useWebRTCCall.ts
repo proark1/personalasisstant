@@ -36,6 +36,10 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
   const originalVideoTrack = useRef<MediaStreamTrack | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // Signaling readiness + early ICE candidate queue (prevents race before channel SUBSCRIBED)
+  const isSignalingReadyRef = useRef(false);
+  const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+
   // ICE servers configuration
   const iceServers: RTCConfiguration = {
     iceServers: [
@@ -81,17 +85,25 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
 
+      const candidate = event.candidate.toJSON();
+
       if (!channelRef.current) {
-        console.log('[webrtc] ICE candidate generated before channel ready');
+        console.log('[webrtc] ICE candidate generated before channel exists');
+        pendingIceCandidatesRef.current.push(candidate);
         return;
       }
 
-      // Send ICE candidate to the other peer via the existing signaling channel
+      if (!isSignalingReadyRef.current) {
+        console.log('[webrtc] queueing ICE candidate (channel not subscribed yet)');
+        pendingIceCandidatesRef.current.push(candidate);
+        return;
+      }
+
       channelRef.current.send({
         type: 'broadcast',
         event: 'ice-candidate',
         payload: {
-          candidate: event.candidate.toJSON(),
+          candidate,
           from: userId,
         },
       });
@@ -144,12 +156,14 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       // Initialize local media
       const stream = await initializeMedia(type);
 
-      // Set up signaling channel FIRST (needed for early ICE candidates)
-      const channel = supabase.channel(`call-signaling-${session.id}`);
-      channelRef.current = channel;
+       // Set up signaling channel FIRST (needed for early ICE candidates)
+       const channel = supabase.channel(`call-signaling-${session.id}`);
+       channelRef.current = channel;
+       isSignalingReadyRef.current = false;
+       pendingIceCandidatesRef.current = [];
 
-      // Create peer connection
-      const pc = createPeerConnection(session.id);
+       // Create peer connection
+       const pc = createPeerConnection(session.id);
 
       // Add local tracks to peer connection
       stream.getTracks().forEach((track) => {
@@ -198,25 +212,40 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
             });
           }
         })
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
-            // Create and send offer after subscription is confirmed
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            currentOffer = offer;
+         .subscribe(async (status) => {
+           if (status === 'SUBSCRIBED') {
+             isSignalingReadyRef.current = true;
 
-            console.log('Sending initial offer');
-            channel.send({
-              type: 'broadcast',
-              event: 'offer',
-              payload: {
-                sdp: offer,
-                from: userId,
-                callType: type,
-              },
-            });
-          }
-        });
+             // Flush any queued ICE candidates gathered before subscription finished
+             if (pendingIceCandidatesRef.current.length) {
+               console.log('[webrtc] flushing queued ICE candidates:', pendingIceCandidatesRef.current.length);
+               for (const candidate of pendingIceCandidatesRef.current) {
+                 channel.send({
+                   type: 'broadcast',
+                   event: 'ice-candidate',
+                   payload: { candidate, from: userId },
+                 });
+               }
+               pendingIceCandidatesRef.current = [];
+             }
+
+             // Create and send offer after subscription is confirmed
+             const offer = await pc.createOffer();
+             await pc.setLocalDescription(offer);
+             currentOffer = offer;
+
+             console.log('Sending initial offer');
+             channel.send({
+               type: 'broadcast',
+               event: 'offer',
+               payload: {
+                 sdp: offer,
+                 from: userId,
+                 callType: type,
+               },
+             });
+           }
+         });
 
       return session;
     } catch (error) {
@@ -236,12 +265,14 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
       // Initialize local media
       const stream = await initializeMedia(session.call_type);
 
-      // Set up signaling channel FIRST (needed for early ICE candidates)
-      const channel = supabase.channel(`call-signaling-${session.id}`);
-      channelRef.current = channel;
+       // Set up signaling channel FIRST (needed for early ICE candidates)
+       const channel = supabase.channel(`call-signaling-${session.id}`);
+       channelRef.current = channel;
+       isSignalingReadyRef.current = false;
+       pendingIceCandidatesRef.current = [];
 
-      // Create peer connection
-      const pc = createPeerConnection(session.id);
+       // Create peer connection
+       const pc = createPeerConnection(session.id);
 
       // Add local tracks to peer connection
       stream.getTracks().forEach((track) => {
@@ -286,17 +317,32 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
             }
           }
         })
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('Callee subscribed to signaling channel, requesting offer');
-            // Request the caller to resend the offer
-            channel.send({
-              type: 'broadcast',
-              event: 'request-offer',
-              payload: { from: userId },
-            });
-          }
-        });
+         .subscribe(async (status) => {
+           if (status === 'SUBSCRIBED') {
+             isSignalingReadyRef.current = true;
+
+             // Flush any queued ICE candidates gathered before subscription finished
+             if (pendingIceCandidatesRef.current.length) {
+               console.log('[webrtc] flushing queued ICE candidates:', pendingIceCandidatesRef.current.length);
+               for (const candidate of pendingIceCandidatesRef.current) {
+                 channel.send({
+                   type: 'broadcast',
+                   event: 'ice-candidate',
+                   payload: { candidate, from: userId },
+                 });
+               }
+               pendingIceCandidatesRef.current = [];
+             }
+
+             console.log('Callee subscribed to signaling channel, requesting offer');
+             // Request the caller to resend the offer
+             channel.send({
+               type: 'broadcast',
+               event: 'request-offer',
+               payload: { from: userId },
+             });
+           }
+         });
 
       // Update session status
       await supabase
@@ -341,11 +387,13 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
     peerConnection.current?.close();
     peerConnection.current = null;
 
-    // Unsubscribe from channel
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+     // Unsubscribe from channel
+     if (channelRef.current) {
+       supabase.removeChannel(channelRef.current);
+       channelRef.current = null;
+     }
+     isSignalingReadyRef.current = false;
+     pendingIceCandidatesRef.current = [];
 
     // Update session status
     if (currentSession) {

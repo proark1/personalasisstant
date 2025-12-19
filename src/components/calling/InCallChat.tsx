@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useInCallChat, InCallMessage } from '@/hooks/useInCallChat';
+import { useInCallChat } from '@/hooks/useInCallChat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,13 +18,11 @@ interface InCallChatProps {
 export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: InCallChatProps) {
   const { messages, sendMessage } = useInCallChat(sessionId, userId);
   const [input, setInput] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    endRef.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
 
   const handleSend = () => {
@@ -70,34 +68,27 @@ export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: In
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 px-3 py-2" ref={scrollRef}>
+      <ScrollArea className="flex-1 px-3 py-2">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
             No messages yet
           </div>
         ) : (
           <div className="space-y-2">
-            {messages.map(msg => {
+            {messages.map((msg) => {
               const isOwn = msg.senderId === userId;
               return (
                 <div
                   key={msg.id}
-                  className={cn(
-                    'flex flex-col max-w-[85%]',
-                    isOwn ? 'ml-auto items-end' : 'items-start'
-                  )}
+                  className={cn('flex flex-col max-w-[85%]', isOwn ? 'ml-auto items-end' : 'items-start')}
                 >
                   {!isOwn && (
-                    <span className="text-xs text-muted-foreground mb-0.5">
-                      {msg.senderName}
-                    </span>
+                    <span className="text-xs text-muted-foreground mb-0.5">{msg.senderName}</span>
                   )}
                   <div
                     className={cn(
                       'px-3 py-1.5 rounded-lg text-sm',
-                      isOwn
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
+                      isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
                     )}
                   >
                     {msg.content}
@@ -108,6 +99,7 @@ export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: In
                 </div>
               );
             })}
+            <div ref={endRef} />
           </div>
         )}
       </ScrollArea>
