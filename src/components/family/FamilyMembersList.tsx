@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Plus, Edit, Trash2, Phone, Mail, Cake, MapPin, Link2, ExternalLink } from 'lucide-react';
+import { Plus, Edit, Trash2, Phone, Mail, Cake, MapPin, Link2, Users } from 'lucide-react';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { useFamilyContacts } from '@/hooks/useFamilyContacts';
 import { useAuth } from '@/hooks/useAuth';
+import { Contact } from '@/hooks/useContacts';
 import { AddFamilyMemberDialog } from './AddFamilyMemberDialog';
 import { EditFamilyMemberDialog } from './EditFamilyMemberDialog';
 import { format, differenceInYears } from 'date-fns';
@@ -32,18 +33,24 @@ const relationshipColors: Record<string, string> = {
   'uncle': 'bg-rose-500/10 text-rose-500 border-rose-500/20',
   'cousin': 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
   'in-law': 'bg-orange-500/10 text-orange-500 border-orange-500/20',
+  family: 'bg-violet-500/10 text-violet-500 border-violet-500/20',
   other: 'bg-muted text-muted-foreground border-border',
 };
+
+// Unified type for displaying in the list
+type FamilyListItem = 
+  | { type: 'member'; data: FamilyMember; contact?: Contact }
+  | { type: 'contact'; data: Contact };
 
 export function FamilyMembersList() {
   const { user } = useAuth();
   const { members, isLoading, deleteMember } = useFamilyMembers();
-  const { contactsWithoutDetails, familyContactsWithDetails } = useFamilyContacts(user?.id);
+  const { contactsWithoutDetails, familyContactsWithDetails, isLoading: contactsLoading } = useFamilyContacts(user?.id);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
   const [deletingMember, setDeletingMember] = useState<FamilyMember | null>(null);
 
-  const getAge = (birthDate: string | null) => {
+  const getAge = (birthDate: string | null | undefined) => {
     if (!birthDate) return null;
     return differenceInYears(new Date(), new Date(birthDate));
   };
@@ -59,7 +66,7 @@ export function FamilyMembersList() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || contactsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -67,21 +74,27 @@ export function FamilyMembersList() {
     );
   }
 
-  // Combine members with contact-only family members
-  const linkedContactInfo = familyContactsWithDetails.find(f => 
-    members.some(m => m.contact_id === f.contact.id)
-  );
+  // Build unified list: members (with their linked contacts) + unlinked family contacts
+  const unifiedList: FamilyListItem[] = [
+    // Family members (may have linked contacts)
+    ...members.map(member => {
+      const linkedContact = familyContactsWithDetails.find(f => f.contact.id === member.contact_id);
+      return { type: 'member' as const, data: member, contact: linkedContact?.contact };
+    }),
+    // Family contacts without family_member records
+    ...contactsWithoutDetails.map(contact => ({ type: 'contact' as const, data: contact })),
+  ];
+
+  const totalCount = unifiedList.length;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-medium">Family Members</h3>
-          {contactsWithoutDetails.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {contactsWithoutDetails.length} family contact(s) can be linked
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            {members.length} member(s){contactsWithoutDetails.length > 0 && ` + ${contactsWithoutDetails.length} from contacts`}
+          </p>
         </div>
         <Button onClick={() => setShowAddDialog(true)} size="sm">
           <Plus className="h-4 w-4 mr-2" />
@@ -89,14 +102,12 @@ export function FamilyMembersList() {
         </Button>
       </div>
 
-      {members.length === 0 ? (
+      {totalCount === 0 ? (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground mb-4">No family members added yet</p>
-          {contactsWithoutDetails.length > 0 && (
-            <p className="text-sm text-muted-foreground mb-4">
-              You have {contactsWithoutDetails.length} family contact(s) in your contacts list
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground mb-4">
+            Add family members here or tag contacts as "family" in your contacts
+          </p>
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Your First Family Member
@@ -104,86 +115,150 @@ export function FamilyMembersList() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {members.map((member) => (
-            <Card key={member.id} className="overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                      {getInitials(member.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-medium truncate">{member.name}</h4>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs capitalize ${relationshipColors[member.relationship] || relationshipColors.other}`}
-                      >
-                        {member.relationship}
-                      </Badge>
-                      {member.contact_id && (
-                        <Badge variant="secondary" className="text-xs gap-1">
-                          <Link2 className="h-3 w-3" />
-                          Linked
-                        </Badge>
-                      )}
+          {unifiedList.map((item) => {
+            if (item.type === 'member') {
+              const member = item.data;
+              return (
+                <Card key={`member-${member.id}`} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                          {getInitials(member.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-medium truncate">{member.name}</h4>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs capitalize ${relationshipColors[member.relationship] || relationshipColors.other}`}
+                          >
+                            {member.relationship}
+                          </Badge>
+                          {member.contact_id && (
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <Link2 className="h-3 w-3" />
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                          {member.birth_date && (
+                            <div className="flex items-center gap-1">
+                              <Cake className="h-3 w-3" />
+                              <span>
+                                {format(new Date(member.birth_date), 'MMM d, yyyy')}
+                                {getAge(member.birth_date) !== null && ` (${getAge(member.birth_date)} yrs)`}
+                              </span>
+                            </div>
+                          )}
+                          {member.phone && (
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              <span className="truncate">{member.phone}</span>
+                            </div>
+                          )}
+                          {member.email && (
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              <span className="truncate">{member.email}</span>
+                            </div>
+                          )}
+                          {!member.lives_with_user && member.address && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              <span className="truncate">{member.address}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      {member.birth_date && (
-                        <div className="flex items-center gap-1">
-                          <Cake className="h-3 w-3" />
-                          <span>
-                            {format(new Date(member.birth_date), 'MMM d, yyyy')}
-                            {getAge(member.birth_date) !== null && ` (${getAge(member.birth_date)} years)`}
-                          </span>
-                        </div>
-                      )}
-                      {member.phone && (
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          <span className="truncate">{member.phone}</span>
-                        </div>
-                      )}
-                      {member.email && (
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate">{member.email}</span>
-                        </div>
-                      )}
-                      {!member.lives_with_user && member.address && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          <span className="truncate">{member.address}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
 
-                <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => setEditingMember(member)}
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => setDeletingMember(member)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => setEditingMember(member)}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeletingMember(member)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            } else {
+              // Contact-only family member (from contacts)
+              const contact = item.data;
+              return (
+                <Card key={`contact-${contact.id}`} className="overflow-hidden border-dashed">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback className="bg-secondary text-secondary-foreground font-medium">
+                          {getInitials(contact.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-medium truncate">{contact.name}</h4>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${relationshipColors.family}`}
+                          >
+                            Family
+                          </Badge>
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Users className="h-3 w-3" />
+                            Contact
+                          </Badge>
+                        </div>
+                        
+                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                          {contact.phone && (
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              <span className="truncate">{contact.phone}</span>
+                            </div>
+                          )}
+                          {contact.email && (
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              <span className="truncate">{contact.email}</span>
+                            </div>
+                          )}
+                          {(contact.city || contact.country) && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              <span className="truncate">
+                                {[contact.city, contact.country].filter(Boolean).join(', ')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-border">
+                      <p className="text-xs text-muted-foreground text-center">
+                        From Contacts • Add details in Family Hub
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+          })}
         </div>
       )}
 
