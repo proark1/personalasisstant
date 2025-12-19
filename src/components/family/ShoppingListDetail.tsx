@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useShoppingLists, ShoppingList, ShoppingListItem } from '@/hooks/useShoppingLists';
+import { useAuth } from '@/hooks/useAuth';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -37,7 +38,10 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
   const [newItemCategory, setNewItemCategory] = useState('other');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
 
+  const { user } = useAuth();
+
   const loadList = async () => {
+    if (!user?.id) return;
     setIsLoading(true);
     const data = await fetchListWithItems(listId);
     setList(data);
@@ -46,7 +50,7 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
 
   useEffect(() => {
     loadList();
-  }, [listId]);
+  }, [listId, user?.id]);
 
   const handleAddItem = async () => {
     if (!newItemName.trim()) return;
