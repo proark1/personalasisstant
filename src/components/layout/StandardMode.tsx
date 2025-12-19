@@ -18,6 +18,8 @@ import { WorkspaceTabs } from '../workspace/WorkspaceTabs';
 import { RealtimeNotificationCenter } from '../notifications/RealtimeNotificationCenter';
 import { CallHistory } from '../calling/CallHistory';
 import { DashboardPanel } from '../dashboard/DashboardPanel';
+import { ContactsPanel } from '../contacts/ContactsPanel';
+import { ContractsPanel } from '../contracts/ContractsPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { Task, CalendarEvent, ChatMessage, Project } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -536,6 +538,20 @@ export function StandardMode({
                   onShareProjectWithEmail={onShareProjectWithEmail}
                   onAddTask={(task) => onAddTask({ ...task, completed: false })}
                 />
+              </div>
+            )}
+
+            {/* Contacts Panel */}
+            {activePanel === 'contacts' && user?.id && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                <ContactsPanel userId={user.id} />
+              </div>
+            )}
+
+            {/* Contracts Panel */}
+            {activePanel === 'contracts' && user?.id && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                <ContractsPanel userId={user.id} />
               </div>
             )}
           </div>

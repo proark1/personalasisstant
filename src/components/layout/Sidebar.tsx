@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -27,7 +26,7 @@ import {
 import { TaskCategory } from '@/types/flux';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | 'dashboard' | 'projects' | null;
+export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | null;
 
 interface SidebarProps {
   onVoiceMode: () => void;
@@ -58,8 +57,6 @@ export function Sidebar({
   notificationButton,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
 
   const handlePanelClick = (panel: ActivePanel) => {
     if (onPanelChange) {
@@ -289,25 +286,29 @@ export function Sidebar({
             </Button>
           )}
 
+          {/* Contacts */}
           <Button
-            variant={location.pathname === '/contacts' ? 'secondary' : 'ghost'}
+            variant={activePanel === 'contacts' ? 'secondary' : 'ghost'}
             className={cn(
               "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start"
+              collapsed ? "justify-center px-0" : "justify-start",
+              activePanel === 'contacts' && "bg-sidebar-accent text-sidebar-primary font-medium"
             )}
-            onClick={() => navigate('/contacts')}
+            onClick={() => handlePanelClick('contacts')}
           >
             <BookUser className="w-4 h-4 shrink-0" />
             {!collapsed && <span className="text-sm">Contacts</span>}
           </Button>
 
+          {/* Contracts */}
           <Button
-            variant={location.pathname === '/contracts' ? 'secondary' : 'ghost'}
+            variant={activePanel === 'contracts' ? 'secondary' : 'ghost'}
             className={cn(
               "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start"
+              collapsed ? "justify-center px-0" : "justify-start",
+              activePanel === 'contracts' && "bg-sidebar-accent text-sidebar-primary font-medium"
             )}
-            onClick={() => navigate('/contracts')}
+            onClick={() => handlePanelClick('contracts')}
           >
             <FileText className="w-4 h-4 shrink-0" />
             {!collapsed && <span className="text-sm">Contracts</span>}
