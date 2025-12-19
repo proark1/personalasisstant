@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -23,12 +23,15 @@ import {
   MessageCircle,
   Phone,
   Flame,
-  StickyNote
+  StickyNote,
+  BarChart3
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | null;
+export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | null;
 
 interface SidebarProps {
   onVoiceMode: () => void;
@@ -55,6 +58,21 @@ export function Sidebar({
   notificationButton,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      setIsAdmin(!!data);
+    };
+    checkAdmin();
+  }, [user]);
 
   const handlePanelClick = (panel: ActivePanel) => {
     if (onPanelChange) {
@@ -368,6 +386,21 @@ export function Sidebar({
           <Settings className="w-4 h-4 shrink-0" />
           {!collapsed && <span className="text-sm">Settings</span>}
         </Button>
+
+        {isAdmin && (
+          <Button
+            variant={activePanel === 'admin' ? 'secondary' : 'ghost'}
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start",
+              activePanel === 'admin' && "bg-sidebar-accent text-sidebar-primary font-medium"
+            )}
+            onClick={() => handlePanelClick('admin')}
+          >
+            <BarChart3 className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">Admin</span>}
+          </Button>
+        )}
 
         {onSignOut && (
           <Button

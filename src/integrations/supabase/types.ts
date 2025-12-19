@@ -50,6 +50,105 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_users: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_usage: {
+        Row: {
+          completion_tokens: number | null
+          cost_estimate: number | null
+          created_at: string
+          function_name: string
+          id: string
+          model: string | null
+          prompt_tokens: number | null
+          request_data: Json | null
+          response_status: string | null
+          total_tokens: number | null
+          user_id: string
+        }
+        Insert: {
+          completion_tokens?: number | null
+          cost_estimate?: number | null
+          created_at?: string
+          function_name: string
+          id?: string
+          model?: string | null
+          prompt_tokens?: number | null
+          request_data?: Json | null
+          response_status?: string | null
+          total_tokens?: number | null
+          user_id: string
+        }
+        Update: {
+          completion_tokens?: number | null
+          cost_estimate?: number | null
+          created_at?: string
+          function_name?: string
+          id?: string
+          model?: string | null
+          prompt_tokens?: number | null
+          request_data?: Json | null
+          response_status?: string | null
+          total_tokens?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      analytics_events: {
+        Row: {
+          created_at: string
+          event_category: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          page_path: string | null
+          session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_category: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_category?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       call_recordings: {
         Row: {
           callee_id: string
@@ -1346,6 +1445,7 @@ export type Database = {
         Args: { task_row: Database["public"]["Tables"]["tasks"]["Row"] }
         Returns: boolean
       }
+      is_admin: { Args: { check_user_id: string }; Returns: boolean }
       is_group_admin: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
