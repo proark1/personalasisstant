@@ -6,7 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   showCallNotification, 
   stopRingtone,
-  requestNotificationPermission 
+  requestNotificationPermission,
+  setupServiceWorkerListener
 } from '@/lib/notificationSounds';
 
 interface CallSession {
@@ -59,8 +60,8 @@ export function CallProvider({ userId, userName, children }: CallProviderProps) 
     setPendingSession(session);
     setIsDialogOpen(true);
     
-    // Play ringtone and show desktop notification
-    showCallNotification(callerName, session.call_type as 'video' | 'audio');
+    // Play ringtone and show desktop/push notification with session ID
+    showCallNotification(callerName, session.call_type as 'video' | 'audio', session.id);
     
     toast({
       title: 'Incoming Call',
@@ -136,6 +137,26 @@ export function CallProvider({ userId, userName, children }: CallProviderProps) 
       setIsDialogOpen(false);
     }
   }, [pendingSession, declineCall]);
+
+  // Set up service worker message listener for notification actions
+  useEffect(() => {
+    const cleanup = setupServiceWorkerListener(
+      // Handle answer from notification
+      () => {
+        if (pendingSession) {
+          handleAnswer();
+        }
+      },
+      // Handle decline from notification
+      () => {
+        if (pendingSession) {
+          handleDecline();
+        }
+      }
+    );
+    
+    return cleanup;
+  }, [pendingSession, handleAnswer, handleDecline]);
 
   const handleEndCall = useCallback(async () => {
     stopRingtone();

@@ -27,7 +27,7 @@ import {
 import { TaskCategory } from '@/types/flux';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | null;
+export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | null;
 
 interface SidebarProps {
   onVoiceMode: () => void;
@@ -142,6 +142,20 @@ export function Sidebar({
             <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Main</span>
           )}
           
+          {/* AI Assistant */}
+          <Button
+            variant={activePanel === 'assistant' ? 'secondary' : 'ghost'}
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start",
+              activePanel === 'assistant' && "bg-sidebar-accent text-sidebar-primary font-medium"
+            )}
+            onClick={() => handlePanelClick('assistant')}
+          >
+            <Sparkles className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">Assistant</span>}
+          </Button>
+
           {/* Tasks */}
           <Button
             variant={activePanel === 'tasks' ? 'secondary' : 'ghost'}

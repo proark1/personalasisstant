@@ -22,7 +22,7 @@ import { Task, CalendarEvent, ChatMessage, Project } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
-import { List, Grid3X3, X, Mic, LayoutGrid, MessageCircle } from 'lucide-react';
+import { List, Grid3X3, X, LayoutGrid } from 'lucide-react';
 import type { ActivityItem } from '@/hooks/useActivityFeed';
 import type { SearchResult, SearchFilters } from '@/hooks/useGlobalSearch';
 import type { Contact } from '@/hooks/useContacts';
@@ -387,146 +387,151 @@ export function StandardMode({
             </div>
           )}
 
-          {/* Chat Panel */}
-          <div className="w-[400px] border-r border-border flex flex-col glass-panel-solid m-2 mr-1 rounded-xl overflow-hidden">
-            <ChatPanel 
-              messages={messages}
-              onSendMessage={onSendMessage}
-              isProcessing={isProcessing}
-              onToggleFullscreen={() => setFullscreenPanel('chat')}
-              contacts={contacts}
-            />
-          </div>
+          {/* Main Content Area - Only one panel at a time */}
+          <div className="flex-1 flex flex-col p-2 gap-2">
+            {/* AI Assistant Panel */}
+            {activePanel === 'assistant' && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                <ChatPanel 
+                  messages={messages}
+                  onSendMessage={onSendMessage}
+                  isProcessing={isProcessing}
+                  onToggleFullscreen={() => setFullscreenPanel('chat')}
+                  contacts={contacts}
+                />
+              </div>
+            )}
 
-          {/* Right Side - Tasks & Calendar */}
-        <div className="flex-1 flex flex-col p-2 pl-1 gap-2">
-          {/* AI Commands + View Toggle */}
-          <div className="flex items-center justify-between px-2">
-            <AICommandPanel
-              tasks={tasks}
-              events={events}
-              onRescheduleTask={(taskId, newDate) => {
-                if (onUpdateTask) {
-                  onUpdateTask(taskId, { dueDate: newDate });
-                }
-              }}
-            />
-            <div className="flex items-center gap-1">
-              <Button
-                variant={showTeamChat ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-7 px-2"
-                onClick={() => setActivePanel(showTeamChat ? 'tasks' : 'chat')}
-                title="Team Chat"
-              >
-                <MessageCircle className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={taskViewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-7 px-2"
-                onClick={() => setTaskViewMode('list')}
-              >
-                <List className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={taskViewMode === 'kanban' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-7 px-2"
-                onClick={() => setTaskViewMode('kanban')}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+            {/* Tasks Panel */}
+            {activePanel === 'tasks' && (
+              <>
+                {/* View Toggle for Tasks */}
+                <div className="flex items-center justify-between px-2">
+                  <AICommandPanel
+                    tasks={tasks}
+                    events={events}
+                    onRescheduleTask={(taskId, newDate) => {
+                      if (onUpdateTask) {
+                        onUpdateTask(taskId, { dueDate: newDate });
+                      }
+                    }}
+                  />
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant={taskViewMode === 'list' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setTaskViewMode('list')}
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={taskViewMode === 'kanban' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setTaskViewMode('kanban')}
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
 
-          {/* Tasks - List or Kanban view */}
-          <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-            {taskViewMode === 'kanban' ? (
-              <KanbanBoard
-                tasks={displayTasks}
-                sharedTasks={sharedTasks}
-                projects={projects}
-                onUpdateTask={onUpdateTask || (() => {})}
-                onToggleComplete={handleToggleTaskComplete}
-              />
-            ) : (
-              <TaskList
-                tasks={tasks}
-                sharedTasks={sharedTasks}
-                onToggleComplete={handleToggleTaskComplete}
-                onDeleteTask={onDeleteTask}
-                onDeleteTasks={onDeleteTasks}
-                onAddTask={onAddTask}
-                onUpdateTask={onUpdateTask}
-                onReorderTasks={onReorderTasks}
-                onShareTask={onShareTask}
-                projects={projects}
-                contacts={contacts}
-                onToggleFullscreen={() => setFullscreenPanel('tasks')}
-              />
+                {/* Tasks - List or Kanban view */}
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  {taskViewMode === 'kanban' ? (
+                    <KanbanBoard
+                      tasks={displayTasks}
+                      sharedTasks={sharedTasks}
+                      projects={projects}
+                      onUpdateTask={onUpdateTask || (() => {})}
+                      onToggleComplete={handleToggleTaskComplete}
+                    />
+                  ) : (
+                    <TaskList
+                      tasks={tasks}
+                      sharedTasks={sharedTasks}
+                      onToggleComplete={handleToggleTaskComplete}
+                      onDeleteTask={onDeleteTask}
+                      onDeleteTasks={onDeleteTasks}
+                      onAddTask={onAddTask}
+                      onUpdateTask={onUpdateTask}
+                      onReorderTasks={onReorderTasks}
+                      onShareTask={onShareTask}
+                      projects={projects}
+                      contacts={contacts}
+                      onToggleFullscreen={() => setFullscreenPanel('tasks')}
+                    />
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Calendar Panel */}
+            {activePanel === 'calendar' && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden flex flex-col">
+                <div className="h-10 px-4 flex items-center justify-end border-b border-border gap-1">
+                  <Button
+                    variant={calendarMode === 'agenda' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setCalendarMode('agenda')}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={calendarMode === 'grid' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setCalendarMode('grid')}
+                  >
+                    <Grid3X3 className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  {calendarMode === 'agenda' ? (
+                    <CalendarPanel
+                      events={displayEvents}
+                      tasks={displayTasks}
+                      onAddEvent={onAddEvent}
+                      onUpdateEvent={onUpdateEvent}
+                      onDeleteEvent={onDeleteEvent}
+                      onImportEvents={onImportEvents}
+                      onShareEvent={onShareEvent}
+                      onShareTask={onShareTask}
+                      onToggleTaskComplete={onToggleTaskComplete}
+                      onUpdateTask={onUpdateTask}
+                      onDeleteTask={onDeleteTask}
+                      onToggleFullscreen={() => setFullscreenPanel('calendar')}
+                    />
+                  ) : (
+                    <CalendarView
+                      events={displayEvents}
+                      tasks={displayTasks}
+                      onToggleTaskComplete={onToggleTaskComplete}
+                      onUpdateTask={onUpdateTask}
+                      onDeleteTask={onDeleteTask}
+                      onAddTask={(task) => onAddTask({ ...task, completed: false, priority: task.priority || 'medium', category: task.category || 'personal' } as Omit<Task, 'id' | 'createdAt'>)}
+                      onToggleFullscreen={() => setFullscreenPanel('calendar')}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Team Chat Panel */}
+            {activePanel === 'chat' && user?.id && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                <TeamChatPanel userId={user.id} />
+              </div>
+            )}
+
+            {/* Call History Panel */}
+            {activePanel === 'calls' && user?.id && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                <CallHistory userId={user.id} />
+              </div>
             )}
           </div>
-
-          {/* Calendar - only shown when toggled */}
-          {showCalendar && (
-            <div className="h-80 glass-panel-solid rounded-xl overflow-hidden">
-              <div className="h-10 px-4 flex items-center justify-end border-b border-border gap-1">
-                <Button
-                  variant={calendarMode === 'agenda' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="h-7 px-2"
-                  onClick={() => setCalendarMode('agenda')}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={calendarMode === 'grid' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="h-7 px-2"
-                  onClick={() => setCalendarMode('grid')}
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="h-[calc(100%-2.5rem)]">
-                {calendarMode === 'agenda' ? (
-                  <CalendarPanel
-                    events={displayEvents}
-                    tasks={displayTasks}
-                    onAddEvent={onAddEvent}
-                    onUpdateEvent={onUpdateEvent}
-                    onDeleteEvent={onDeleteEvent}
-                    onImportEvents={onImportEvents}
-                    onShareEvent={onShareEvent}
-                    onShareTask={onShareTask}
-                    onToggleTaskComplete={onToggleTaskComplete}
-                    onUpdateTask={onUpdateTask}
-                    onDeleteTask={onDeleteTask}
-                    onToggleFullscreen={() => setFullscreenPanel('calendar')}
-                  />
-                ) : (
-                  <CalendarView
-                    events={displayEvents}
-                    tasks={displayTasks}
-                    onToggleTaskComplete={onToggleTaskComplete}
-                    onUpdateTask={onUpdateTask}
-                    onDeleteTask={onDeleteTask}
-                    onAddTask={(task) => onAddTask({ ...task, completed: false, priority: task.priority || 'medium', category: task.category || 'personal' } as Omit<Task, 'id' | 'createdAt'>)}
-                    onToggleFullscreen={() => setFullscreenPanel('calendar')}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Team Chat Panel - toggleable */}
-          {showTeamChat && user?.id && (
-            <div className="h-96 glass-panel-solid rounded-xl overflow-hidden">
-              <TeamChatPanel userId={user.id} />
-            </div>
-          )}
-        </div>
         </div>
       </main>
 

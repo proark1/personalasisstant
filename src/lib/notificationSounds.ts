@@ -86,6 +86,52 @@ export function stopRingtone(): void {
   }
 }
 
+// Service Worker registration for push notifications
+let serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
+
+export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) {
+    console.warn('Service workers not supported');
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    serviceWorkerRegistration = registration;
+    console.log('Service Worker registered:', registration);
+    return registration;
+  } catch (error) {
+    console.error('Service Worker registration failed:', error);
+    return null;
+  }
+}
+
+// Listen for messages from service worker
+export function setupServiceWorkerListener(
+  onAnswer: () => void,
+  onDecline: () => void
+): () => void {
+  if (!('serviceWorker' in navigator)) {
+    return () => {};
+  }
+
+  const handleMessage = (event: MessageEvent) => {
+    if (event.data.type === 'NOTIFICATION_CLICK') {
+      if (event.data.action === 'answer') {
+        onAnswer();
+      } else if (event.data.action === 'decline') {
+        onDecline();
+      }
+    }
+  };
+
+  navigator.serviceWorker.addEventListener('message', handleMessage);
+  
+  return () => {
+    navigator.serviceWorker.removeEventListener('message', handleMessage);
+  };
+}
+
 // Desktop notification helper
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!('Notification' in window)) {
@@ -93,11 +139,16 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
   
   if (Notification.permission === 'granted') {
+    // Also register service worker for push notifications
+    await registerServiceWorker();
     return true;
   }
   
   if (Notification.permission !== 'denied') {
     const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      await registerServiceWorker();
+    }
     return permission === 'granted';
   }
   
@@ -126,11 +177,27 @@ export function showMessageNotification(senderName: string, message: string): vo
   });
 }
 
-export function showCallNotification(callerName: string, callType: 'video' | 'audio'): void {
+export function showCallNotification(
+  callerName: string, 
+  callType: 'video' | 'audio',
+  sessionId?: string
+): void {
   startRingtone();
-  showDesktopNotification(`Incoming ${callType} call`, {
-    body: `${callerName} is calling you`,
-    tag: 'incoming-call',
-    requireInteraction: true,
-  });
+  
+  // Try to use service worker for background notifications
+  if (serviceWorkerRegistration?.active) {
+    serviceWorkerRegistration.active.postMessage({
+      type: 'SHOW_CALL_NOTIFICATION',
+      callerName,
+      callType,
+      sessionId
+    });
+  } else {
+    // Fallback to regular notification
+    showDesktopNotification(`Incoming ${callType} call`, {
+      body: `${callerName} is calling you`,
+      tag: 'incoming-call',
+      requireInteraction: true,
+    });
+  }
 }
