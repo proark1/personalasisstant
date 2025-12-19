@@ -68,8 +68,12 @@ export function useMealPlanning() {
   };
 
   const fetchMealPlans = async (startDate: string, endDate: string) => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
     
+    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('meal_plans')
