@@ -14,6 +14,8 @@ import { ActivityFeed } from '../activity/ActivityFeed';
 import { GlobalSearch } from '../search/GlobalSearch';
 import { QuickAddFAB } from '../tasks/QuickAddFAB';
 import { AICommandPanel } from '../ai/AICommandPanel';
+import { NotesPanel } from '../notes/NotesPanel';
+import { HabitsPanel } from '../habits/HabitsPanel';
 
 import { RealtimeNotificationCenter } from '../notifications/RealtimeNotificationCenter';
 import { CallHistory } from '../calling/CallHistory';
@@ -555,6 +557,20 @@ export function StandardMode({
                   onUpdateSettings={onUpdateSettings}
                   onUpdateNotifications={onUpdateNotifications}
                 />
+              </div>
+            )}
+
+            {/* Notes Panel */}
+            {activePanel === 'notes' && user?.id && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                <NotesPanel userId={user.id} />
+              </div>
+            )}
+
+            {/* Habits Panel */}
+            {activePanel === 'habits' && user?.id && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                <HabitsPanel userId={user.id} />
               </div>
             )}
           </div>

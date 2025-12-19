@@ -10,7 +10,17 @@ export interface CallRecording {
   createdAt: Date;
 }
 
-export function useCallRecording(sessionId: string | null, userId: string | undefined) {
+interface UseCallRecordingOptions {
+  callerId?: string;
+  calleeId?: string;
+}
+
+export function useCallRecording(
+  sessionId: string | null, 
+  userId: string | undefined,
+  options: UseCallRecordingOptions = {}
+) {
+  const { callerId, calleeId } = options;
   const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
   const [recordingConsent, setRecordingConsent] = useState(false);
@@ -141,7 +151,7 @@ export function useCallRecording(sessionId: string | null, userId: string | unde
     if (!sessionId || !userId) return;
 
     try {
-      const fileName = `${userId}/${sessionId}_${Date.now()}.webm`;
+      const fileName = `recordings/${userId}/${sessionId}_${Date.now()}.webm`;
       
       const { data, error } = await supabase.storage
         .from('chat-attachments')
@@ -161,6 +171,25 @@ export function useCallRecording(sessionId: string | null, userId: string | unde
 
       setRecordingUrl(urlData.publicUrl);
 
+      // Save metadata to database
+      const { error: dbError } = await supabase
+        .from('call_recordings')
+        .insert({
+          user_id: userId,
+          session_id: sessionId,
+          caller_id: callerId || userId,
+          callee_id: calleeId || userId,
+          file_path: fileName,
+          file_url: urlData.publicUrl,
+          duration_seconds: duration,
+          file_size_bytes: blob.size,
+        });
+
+      if (dbError) {
+        console.error('[recording] DB insert error:', dbError);
+        // Don't throw - file is already uploaded
+      }
+
       toast({
         title: 'Recording Saved',
         description: `Call recording saved (${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')})`,
@@ -175,7 +204,7 @@ export function useCallRecording(sessionId: string | null, userId: string | unde
         variant: 'destructive',
       });
     }
-  }, [sessionId, userId, toast]);
+  }, [sessionId, userId, callerId, calleeId, toast]);
 
   const giveConsent = useCallback(() => {
     setRecordingConsent(true);
