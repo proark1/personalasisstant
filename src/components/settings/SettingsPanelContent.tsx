@@ -13,10 +13,12 @@ import {
   Sun, 
   Moon,
   Check,
-  Users
+  Users,
+  Globe
 } from 'lucide-react';
 import { SpaceMembersPanel } from './SpaceMembersPanel';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SettingsPanelContentProps {
   settings: UserSettings;
@@ -38,6 +40,7 @@ export function SettingsPanelContent({
   onUpdateNotifications,
 }: SettingsPanelContentProps) {
   const { user } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'defaults' | 'team'>('appearance');
 
   const tabs = [
@@ -121,6 +124,30 @@ export function SettingsPanelContent({
                     )}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Language */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Globe className="w-4 h-4" />
+                {t('common.language')}
+              </label>
+              <div className="flex gap-3">
+                <Button
+                  variant={language === 'en' ? 'secondary' : 'outline'}
+                  className="flex-1 gap-2"
+                  onClick={() => setLanguage('en')}
+                >
+                  🇬🇧 {t('common.english')}
+                </Button>
+                <Button
+                  variant={language === 'de' ? 'secondary' : 'outline'}
+                  className="flex-1 gap-2"
+                  onClick={() => setLanguage('de')}
+                >
+                  🇩🇪 {t('common.german')}
+                </Button>
               </div>
             </div>
           </>
