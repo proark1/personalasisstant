@@ -104,12 +104,12 @@ export function AddShoppingListDialog({ open, onOpenChange, isTemplate = false }
             <>
               <div className="space-y-2">
                 <Label htmlFor="assignedTo">Assign to (optional)</Label>
-                <Select value={assignedTo} onValueChange={setAssignedTo}>
+                <Select value={assignedTo || "_none"} onValueChange={(v) => setAssignedTo(v === "_none" ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select family member" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="_none">Unassigned</SelectItem>
                     {members.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
                         {member.name}

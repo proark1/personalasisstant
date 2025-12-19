@@ -74,12 +74,12 @@ export function AddVaccinationDialog({ open, onOpenChange }: AddVaccinationDialo
             </div>
             <div className="space-y-2">
               <Label htmlFor="member">For</Label>
-              <Select value={memberId} onValueChange={setMemberId}>
+              <Select value={memberId || "_me"} onValueChange={(v) => setMemberId(v === "_me" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select person" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Me</SelectItem>
+                  <SelectItem value="_me">Me</SelectItem>
                   {members.map((m) => (
                     <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                   ))}

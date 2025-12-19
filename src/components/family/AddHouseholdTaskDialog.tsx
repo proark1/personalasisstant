@@ -149,14 +149,14 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
           <div className="space-y-2">
             <Label>Assign To</Label>
             <Select
-              value={formData.assigned_to}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}
+              value={formData.assigned_to || "_none"}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value === "_none" ? "" : value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select family member (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="_none">Unassigned</SelectItem>
                 {members.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
                     {member.name}

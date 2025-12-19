@@ -106,12 +106,12 @@ export function AddExpenseDialog({ open, onOpenChange, categories, familyMembers
 
           <div className="space-y-2">
             <Label htmlFor="member">Family Member (optional)</Label>
-            <Select value={familyMemberId} onValueChange={setFamilyMemberId}>
+            <Select value={familyMemberId || "_none"} onValueChange={(v) => setFamilyMemberId(v === "_none" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Who made this purchase?" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="_none">None</SelectItem>
                 {familyMembers.map(member => (
                   <SelectItem key={member.id} value={member.id}>
                     {member.name}

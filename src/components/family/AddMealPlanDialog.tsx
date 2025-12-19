@@ -76,12 +76,12 @@ export function AddMealPlanDialog({ open, onOpenChange, selectedDate }: AddMealP
 
           <div className="space-y-2">
             <Label htmlFor="recipe">Select Recipe (optional)</Label>
-            <Select value={recipeId} onValueChange={setRecipeId}>
+            <Select value={recipeId || "_none"} onValueChange={(v) => setRecipeId(v === "_none" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a recipe..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No recipe</SelectItem>
+                <SelectItem value="_none">No recipe</SelectItem>
                 {recipes.map((recipe) => (
                   <SelectItem key={recipe.id} value={recipe.id}>
                     {recipe.name}
