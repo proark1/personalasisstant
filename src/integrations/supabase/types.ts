@@ -1172,6 +1172,113 @@ export type Database = {
           },
         ]
       }
+      shopping_list_items: {
+        Row: {
+          added_by: string | null
+          category: string | null
+          created_at: string
+          id: string
+          is_checked: boolean | null
+          list_id: string
+          name: string
+          notes: string | null
+          quantity: number | null
+          unit: string | null
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_checked?: boolean | null
+          list_id: string
+          name: string
+          notes?: string | null
+          quantity?: number | null
+          unit?: string | null
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_checked?: boolean | null
+          list_id?: string
+          name?: string
+          notes?: string | null
+          quantity?: number | null
+          unit?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopping_list_items_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopping_list_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "shopping_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopping_lists: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          is_completed: boolean | null
+          is_template: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean | null
+          is_template?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean | null
+          is_template?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopping_lists_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       space_members: {
         Row: {
           created_at: string
