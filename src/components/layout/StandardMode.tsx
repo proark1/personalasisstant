@@ -20,8 +20,9 @@ import { CallHistory } from '../calling/CallHistory';
 import { DashboardPanel } from '../dashboard/DashboardPanel';
 import { ContactsPanel } from '../contacts/ContactsPanel';
 import { ContractsPanel } from '../contracts/ContractsPanel';
+import { SettingsPanelContent } from '../settings/SettingsPanelContent';
 import { useAuth } from '@/hooks/useAuth';
-import { Task, CalendarEvent, ChatMessage, Project } from '@/types/flux';
+import { Task, CalendarEvent, ChatMessage, Project, UserSettings } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
@@ -67,7 +68,6 @@ interface StandardModeProps {
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
   onVoiceMode: () => void;
-  onOpenSettings: () => void;
   onEditProfile?: () => void;
   onShareTask?: (id: string, title: string) => void;
   onShareEvent?: (id: string, title: string) => void;
@@ -79,6 +79,9 @@ interface StandardModeProps {
   getProjectProgress?: (projectId: string, tasks: { projectId?: string; completed: boolean }[]) => number;
   onShareProject?: (projectId: string, projectName: string) => void;
   onShareProjectWithEmail?: (projectId: string, email: string) => Promise<{ error: string | null }>;
+  settings?: UserSettings;
+  onUpdateSettings?: (updates: Partial<UserSettings>) => void;
+  onUpdateNotifications?: (updates: Partial<UserSettings['notifications']>) => void;
 }
 
 type FullscreenPanel = 'chat' | 'tasks' | 'calendar' | null;
@@ -113,7 +116,6 @@ export function StandardMode({
   onImportEvents,
   onSendMessage,
   onVoiceMode,
-  onOpenSettings,
   onEditProfile,
   onShareTask,
   onShareEvent,
@@ -125,6 +127,9 @@ export function StandardMode({
   getProjectProgress,
   onShareProject,
   onShareProjectWithEmail,
+  settings,
+  onUpdateSettings,
+  onUpdateNotifications,
 }: StandardModeProps) {
   const [filter, setFilter] = useState<SidebarFilter>('all');
   const [calendarMode, setCalendarMode] = useState<'agenda' | 'grid'>('agenda');
@@ -260,11 +265,13 @@ export function StandardMode({
         onImportEvents={onImportEvents}
         onSendMessage={onSendMessage}
         onVoiceMode={onVoiceMode}
-        onOpenSettings={onOpenSettings}
         onEditProfile={onEditProfile}
         onShareTask={onShareTask}
         onShareEvent={onShareEvent}
         onSignOut={onSignOut}
+        settings={settings}
+        onUpdateSettings={onUpdateSettings}
+        onUpdateNotifications={onUpdateNotifications}
       />
     );
   }
@@ -343,7 +350,6 @@ export function StandardMode({
     <div className="flex h-screen w-full bg-background">
       <Sidebar 
         onVoiceMode={onVoiceMode}
-        onOpenSettings={onOpenSettings}
         onSignOut={onSignOut}
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenWeeklyReview={onOpenWeeklyReview}
@@ -563,6 +569,17 @@ export function StandardMode({
                   <h2 className="text-lg font-semibold">Activity Feed</h2>
                 </div>
                 <ActivityFeed activities={activities} loading={activityLoading} />
+              </div>
+            )}
+
+            {/* Settings Panel */}
+            {activePanel === 'settings' && settings && onUpdateSettings && onUpdateNotifications && (
+              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                <SettingsPanelContent
+                  settings={settings}
+                  onUpdateSettings={onUpdateSettings}
+                  onUpdateNotifications={onUpdateNotifications}
+                />
               </div>
             )}
           </div>

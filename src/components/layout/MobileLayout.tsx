@@ -9,9 +9,10 @@ import { CalendarPanel } from '../calendar/CalendarPanel';
 import { TodayFocusView } from '../focus/TodayFocusView';
 import { WorkspaceTabs } from '../workspace/WorkspaceTabs';
 import { NotificationCenter } from '../notifications/NotificationCenter';
+import { SettingsPanelContent } from '../settings/SettingsPanelContent';
 import { VoiceQuickAdd } from '../tasks/VoiceQuickAdd';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Task, CalendarEvent, ChatMessage } from '@/types/flux';
+import { Task, CalendarEvent, ChatMessage, UserSettings } from '@/types/flux';
 import { SidebarFilter } from './Sidebar';
 import { 
   Menu, 
@@ -51,14 +52,16 @@ interface MobileLayoutProps {
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
   onVoiceMode: () => void;
-  onOpenSettings: () => void;
   onEditProfile?: () => void;
   onShareTask?: (id: string, title: string) => void;
   onShareEvent?: (id: string, title: string) => void;
   onSignOut?: () => void;
+  settings?: UserSettings;
+  onUpdateSettings?: (updates: Partial<UserSettings>) => void;
+  onUpdateNotifications?: (updates: Partial<UserSettings['notifications']>) => void;
 }
 
-type Tab = 'chat' | 'messages' | 'tasks' | 'calendar' | 'focus';
+type Tab = 'chat' | 'messages' | 'tasks' | 'calendar' | 'focus' | 'settings';
 
 export function MobileLayout({
   userId,
@@ -80,11 +83,13 @@ export function MobileLayout({
   onImportEvents,
   onSendMessage,
   onVoiceMode,
-  onOpenSettings,
   onEditProfile,
   onShareTask,
   onShareEvent,
   onSignOut,
+  settings,
+  onUpdateSettings,
+  onUpdateNotifications,
 }: MobileLayoutProps) {
   const [activeTab, setActiveTab] = useState<Tab>('chat');
   const [filter, setFilter] = useState<SidebarFilter>('all');
@@ -187,7 +192,7 @@ export function MobileLayout({
                     variant="ghost"
                     className="w-full justify-start gap-3"
                     onClick={() => {
-                      onOpenSettings();
+                      setActiveTab('settings');
                       setSidebarOpen(false);
                     }}
                   >
@@ -314,6 +319,15 @@ export function MobileLayout({
             onDeleteTask={onDeleteTask}
           />
         </div>
+        {activeTab === 'settings' && settings && onUpdateSettings && onUpdateNotifications && (
+          <div className="h-full">
+            <SettingsPanelContent
+              settings={settings}
+              onUpdateSettings={onUpdateSettings}
+              onUpdateNotifications={onUpdateNotifications}
+            />
+          </div>
+        )}
 
         {/* Voice Quick Add FAB */}
         <div className="absolute bottom-4 right-4 z-10">

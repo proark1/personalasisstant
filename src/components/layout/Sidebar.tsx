@@ -26,16 +26,14 @@ import {
 import { TaskCategory } from '@/types/flux';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | null;
+export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | null;
 
 interface SidebarProps {
   onVoiceMode: () => void;
-  onOpenSettings: () => void;
   onEditProfile?: () => void;
   onSignOut?: () => void;
   onOpenFocusTimer?: () => void;
   onOpenWeeklyReview?: () => void;
-  onOpenActivityFeed?: () => void;
   onOpenGlobalSearch?: () => void;
   onPanelChange?: (panel: ActivePanel) => void;
   onOpenTodayFocus?: () => void;
@@ -45,11 +43,9 @@ interface SidebarProps {
 
 export function Sidebar({ 
   onVoiceMode, 
-  onOpenSettings, 
   onSignOut, 
   onOpenFocusTimer,
   onOpenWeeklyReview,
-  onOpenActivityFeed,
   onOpenGlobalSearch,
   onPanelChange,
   onOpenTodayFocus,
@@ -331,12 +327,13 @@ export function Sidebar({
         </Button>
 
         <Button
-          variant="ghost"
+          variant={activePanel === 'settings' ? 'secondary' : 'ghost'}
           className={cn(
             "w-full h-9 gap-3",
-            collapsed ? "justify-center px-0" : "justify-start"
+            collapsed ? "justify-center px-0" : "justify-start",
+            activePanel === 'settings' && "bg-sidebar-accent text-sidebar-primary font-medium"
           )}
-          onClick={onOpenSettings}
+          onClick={() => handlePanelClick('settings')}
         >
           <Settings className="w-4 h-4 shrink-0" />
           {!collapsed && <span className="text-sm">Settings</span>}
