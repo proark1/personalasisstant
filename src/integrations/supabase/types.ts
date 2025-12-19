@@ -468,6 +468,62 @@ export type Database = {
         }
         Relationships: []
       }
+      family_appointments: {
+        Row: {
+          appointment_date: string
+          appointment_type: string | null
+          created_at: string
+          family_member_id: string | null
+          id: string
+          is_completed: boolean | null
+          location: string | null
+          notes: string | null
+          provider_name: string | null
+          provider_phone: string | null
+          reminder_before: number | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          appointment_date: string
+          appointment_type?: string | null
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          is_completed?: boolean | null
+          location?: string | null
+          notes?: string | null
+          provider_name?: string | null
+          provider_phone?: string | null
+          reminder_before?: number | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          appointment_date?: string
+          appointment_type?: string | null
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          is_completed?: boolean | null
+          location?: string | null
+          notes?: string | null
+          provider_name?: string | null
+          provider_phone?: string | null
+          reminder_before?: number | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_appointments_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       family_events: {
         Row: {
           created_at: string
@@ -524,6 +580,68 @@ export type Database = {
           {
             foreignKeyName: "family_events_related_member_id_fkey"
             columns: ["related_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_medications: {
+        Row: {
+          created_at: string
+          dosage: string | null
+          end_date: string | null
+          family_member_id: string | null
+          frequency: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          pharmacy: string | null
+          prescribing_doctor: string | null
+          refill_date: string | null
+          start_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dosage?: string | null
+          end_date?: string | null
+          family_member_id?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          pharmacy?: string | null
+          prescribing_doctor?: string | null
+          refill_date?: string | null
+          start_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dosage?: string | null
+          end_date?: string | null
+          family_member_id?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          pharmacy?: string | null
+          prescribing_doctor?: string | null
+          refill_date?: string | null
+          start_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_medications_family_member_id_fkey"
+            columns: ["family_member_id"]
             isOneToOne: false
             referencedRelation: "family_members"
             referencedColumns: ["id"]
@@ -610,6 +728,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      family_vaccinations: {
+        Row: {
+          administered_by: string | null
+          created_at: string
+          date_administered: string
+          family_member_id: string | null
+          id: string
+          location: string | null
+          lot_number: string | null
+          next_dose_date: string | null
+          notes: string | null
+          user_id: string
+          vaccine_name: string
+        }
+        Insert: {
+          administered_by?: string | null
+          created_at?: string
+          date_administered: string
+          family_member_id?: string | null
+          id?: string
+          location?: string | null
+          lot_number?: string | null
+          next_dose_date?: string | null
+          notes?: string | null
+          user_id: string
+          vaccine_name: string
+        }
+        Update: {
+          administered_by?: string | null
+          created_at?: string
+          date_administered?: string
+          family_member_id?: string | null
+          id?: string
+          location?: string | null
+          lot_number?: string | null
+          next_dose_date?: string | null
+          notes?: string | null
+          user_id?: string
+          vaccine_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_vaccinations_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       focus_sessions: {
         Row: {
