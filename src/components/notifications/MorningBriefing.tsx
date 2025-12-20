@@ -552,7 +552,18 @@ export function MorningBriefing({
                 {!newsLoading && news.length > 0 ? (
                   news.slice(0, 3).map((item, i) => (
                     <div key={i} className="p-2 rounded bg-muted/50">
-                      <p className="text-sm font-medium line-clamp-2">{item.headline}</p>
+                      {item.url ? (
+                        <a 
+                          href={item.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium line-clamp-2 hover:text-primary hover:underline transition-colors cursor-pointer"
+                        >
+                          {item.headline}
+                        </a>
+                      ) : (
+                        <p className="text-sm font-medium line-clamp-2">{item.headline}</p>
+                      )}
                       <Badge variant="outline" className="text-[10px] mt-1">{item.category}</Badge>
                     </div>
                   ))

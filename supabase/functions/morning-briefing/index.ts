@@ -49,6 +49,7 @@ serve(async (req) => {
             - "headline": A brief headline (max 80 chars)
             - "summary": A 1-2 sentence summary
             - "category": The topic category
+            - "url": A real URL to a reputable news source where the user can read more about this topic (e.g., Reuters, BBC, TechCrunch, Bloomberg, etc.)
             
             Only return the JSON array, no other text.`
           },
