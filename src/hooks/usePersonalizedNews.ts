@@ -5,6 +5,7 @@ export interface NewsItem {
   headline: string;
   summary: string;
   category: string;
+  url?: string;
 }
 
 interface UsePersonalizedNewsOptions {

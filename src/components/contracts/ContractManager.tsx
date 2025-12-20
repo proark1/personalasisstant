@@ -156,11 +156,6 @@ export function ContractManager({
                       </span>
                     ) : '-'}
                   </TableCell>
-                      <span className={isRenewalSoon ? 'text-primary font-medium' : ''}>
-                        {format(contract.renewalDate, 'MMM d, yyyy')}
-                      </span>
-                    ) : '-'}
-                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {contract.isActive ? (
@@ -170,9 +165,6 @@ export function ContractManager({
                       )}
                       {contract.autoRenews && (
                         <Badge variant="outline" className="text-xs">{t('contracts.auto')}</Badge>
-                      )}
-                    </div>
-                  </TableCell>
                       )}
                     </div>
                   </TableCell>
@@ -251,8 +243,6 @@ export function ContractManager({
               {t('contracts.cancellationDeadlines')}
             </CardTitle>
           </CardHeader>
-            </CardTitle>
-          </CardHeader>
           <CardContent>
             <div className="space-y-1">
               {cancellationDeadlines.map(c => (
@@ -260,8 +250,6 @@ export function ContractManager({
                   <span>{c.name}</span>
                   <Badge variant="destructive">
                     {t('contracts.cancelBy')} {format(c.cancellationDeadline, 'MMM d', { locale: dateLocale })}
-                  </Badge>
-                </div>
                   </Badge>
                 </div>
               ))}
@@ -280,8 +268,6 @@ export function ContractManager({
             </div>
             <p className="text-2xl font-bold">€{monthlyCost.toFixed(2)}</p>
           </CardContent>
-            <p className="text-2xl font-bold">€{monthlyCost.toFixed(2)}</p>
-          </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
@@ -291,16 +277,11 @@ export function ContractManager({
             </div>
             <p className="text-2xl font-bold">€{yearlyCost.toFixed(2)}</p>
           </CardContent>
-            <p className="text-2xl font-bold">€{yearlyCost.toFixed(2)}</p>
-          </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               {t('contracts.activeContracts')}
-            </div>
-            <p className="text-2xl font-bold">{activeContracts.length}</p>
-          </CardContent>
             </div>
             <p className="text-2xl font-bold">{activeContracts.length}</p>
           </CardContent>
@@ -313,9 +294,6 @@ export function ContractManager({
             </div>
             <p className="text-2xl font-bold">{expiringContracts.length}</p>
           </CardContent>
-            </div>
-            <p className="text-2xl font-bold">{expiringContracts.length}</p>
-          </CardContent>
         </Card>
       </div>
 
@@ -325,11 +303,6 @@ export function ContractManager({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t('contracts.searchContracts')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -351,7 +324,6 @@ export function ContractManager({
           <TabsTrigger value="all">
             {t('contracts.all')} ({contracts.length})
           </TabsTrigger>
-          </TabsTrigger>
           {CONTRACT_CATEGORIES.map(cat => {
             const count = contractsByCategory[cat.value].length;
             if (count === 0) return null;
@@ -369,9 +341,6 @@ export function ContractManager({
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   {search ? t('contracts.noContractsSearch') : t('contracts.noContracts')}
-                </CardContent>
-              </Card>
-            ) : (
                 </CardContent>
               </Card>
             ) : (
@@ -413,13 +382,6 @@ export function ContractManager({
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground">
               {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
