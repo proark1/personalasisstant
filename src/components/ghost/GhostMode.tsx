@@ -592,65 +592,114 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       </main>
 
       {/* Footer Controls */}
-      <footer className="absolute bottom-0 left-0 right-0 p-8 flex items-center justify-center gap-6">
-        {/* Left: Speaker mute */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setSpeakerMuted((v) => !v)}
-          className={cn(
-            "rounded-full w-14 h-14 transition-all",
-            speakerMuted
-              ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
-              : "bg-muted/50 text-muted-foreground hover:bg-muted"
-          )}
-          title={speakerMuted ? "Unmute speaker" : "Mute speaker"}
-        >
-          {speakerMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
-        </Button>
+      <footer className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center gap-4">
+        {/* Text input when in text mode */}
+        {textMode && isSessionActive && (
+          <div className="w-full max-w-md flex gap-2 px-4">
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && textInput.trim()) {
+                  onCommand(textInput.trim());
+                  setTextInput('');
+                }
+              }}
+              placeholder="Type your message..."
+              className="flex-1 px-4 py-3 rounded-full bg-muted/50 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <Button
+              onClick={() => {
+                if (textInput.trim()) {
+                  onCommand(textInput.trim());
+                  setTextInput('');
+                }
+              }}
+              disabled={!textInput.trim()}
+              className="rounded-full w-12 h-12"
+            >
+              <MessageSquare className="w-5 h-5" />
+            </Button>
+          </div>
+        )}
 
-        {/* Center: Call / Hang up */}
-        <Button
-          onClick={isSessionActive ? handleEndSession : handleStartSession}
-          disabled={connectionStatus === 'connecting' || buttonCooldown}
-          className={cn(
-            "rounded-full w-24 h-24 transition-all shadow-lg",
-            connectionStatus === 'connecting' && "opacity-70 cursor-wait",
-            buttonCooldown && !isSessionActive && "opacity-50 cursor-not-allowed",
-            buttonPulse && "scale-95",
-            isSessionActive ? "bg-ghost-primary hover:bg-ghost-primary/80" : "bg-muted hover:bg-muted/80"
-          )}
-          style={{
-            transition: buttonPulse ? 'transform 100ms ease-out' : 'transform 200ms ease-out, opacity 200ms',
-          }}
-          title={isSessionActive ? "End call" : buttonCooldown ? "Please wait..." : "Call assistant"}
-        >
-          {connectionStatus === 'connecting' ? (
-            <Loader2 className="w-12 h-12 animate-spin text-white" />
-          ) : isSessionActive ? (
-            <PhoneOff className="w-12 h-12 text-white" />
-          ) : (
-            <PhoneCall className="w-12 h-12 text-foreground/70" />
-          )}
-        </Button>
+        {/* Control buttons */}
+        <div className="flex items-center justify-center gap-6">
+          {/* Left: Speaker mute */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSpeakerMuted((v) => !v)}
+            className={cn(
+              "rounded-full w-14 h-14 transition-all",
+              speakerMuted
+                ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            )}
+            title={speakerMuted ? "Unmute speaker" : "Mute speaker"}
+          >
+            {speakerMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+          </Button>
 
-        {/* Right: Mic mute */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setMicMuted((v) => !v)}
-          disabled={!isSessionActive}
-          className={cn(
-            "rounded-full w-14 h-14 transition-all",
-            !isSessionActive && "opacity-40",
-            micMuted
-              ? "bg-muted/50 text-muted-foreground hover:bg-muted"
-              : "bg-success/20 text-success hover:bg-success/30"
-          )}
-          title={micMuted ? "Unmute microphone" : "Mute microphone"}
-        >
-          {micMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-        </Button>
+          {/* Center: Call / Hang up */}
+          <Button
+            onClick={isSessionActive ? handleEndSession : handleStartSession}
+            disabled={connectionStatus === 'connecting' || buttonCooldown}
+            className={cn(
+              "rounded-full w-24 h-24 transition-all shadow-lg",
+              connectionStatus === 'connecting' && "opacity-70 cursor-wait",
+              buttonCooldown && !isSessionActive && "opacity-50 cursor-not-allowed",
+              buttonPulse && "scale-95",
+              isSessionActive ? "bg-ghost-primary hover:bg-ghost-primary/80" : "bg-muted hover:bg-muted/80"
+            )}
+            style={{
+              transition: buttonPulse ? 'transform 100ms ease-out' : 'transform 200ms ease-out, opacity 200ms',
+            }}
+            title={isSessionActive ? "End call" : buttonCooldown ? "Please wait..." : "Call assistant"}
+          >
+            {connectionStatus === 'connecting' ? (
+              <Loader2 className="w-12 h-12 animate-spin text-white" />
+            ) : isSessionActive ? (
+              <PhoneOff className="w-12 h-12 text-white" />
+            ) : (
+              <PhoneCall className="w-12 h-12 text-foreground/70" />
+            )}
+          </Button>
+
+          {/* Right: Mic mute / Text mode toggle */}
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMicMuted((v) => !v)}
+              disabled={!isSessionActive || textMode}
+              className={cn(
+                "rounded-full w-14 h-14 transition-all",
+                (!isSessionActive || textMode) && "opacity-40",
+                micMuted
+                  ? "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  : "bg-success/20 text-success hover:bg-success/30"
+              )}
+              title={micMuted ? "Unmute microphone" : "Mute microphone"}
+            >
+              {micMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Text mode toggle */}
+        {isSessionActive && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTextMode((v) => !v)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            {textMode ? "Switch to Voice" : "Switch to Text"}
+          </Button>
+        )}
       </footer>
     </div>
   );
