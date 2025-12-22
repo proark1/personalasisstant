@@ -82,10 +82,7 @@ export function ChatPanel({ messages, onSendMessage, isProcessing, isFullscreen 
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-primary" />
           </div>
-          <div>
-            <h3 className="font-medium text-sm">DarAI Assistant</h3>
-            <p className="text-xs text-muted-foreground">Gemini 2.5 Flash</p>
-          </div>
+          <h3 className="font-medium text-sm">DarAI Assistant</h3>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -241,19 +238,8 @@ export function ChatPanel({ messages, onSendMessage, isProcessing, isFullscreen 
       )}
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-border">
-        <div className="flex gap-2">
-          {isSupported && (
-            <Button 
-              type="button" 
-              variant={isListening ? "default" : "outline"}
-              size="icon"
-              onClick={toggleVoiceInput}
-              className={cn(isListening && "animate-pulse bg-primary")}
-            >
-              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </Button>
-          )}
+      <form onSubmit={handleSubmit} className="p-4 border-t border-border safe-area-bottom">
+        <div className="flex items-center gap-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -261,7 +247,18 @@ export function ChatPanel({ messages, onSendMessage, isProcessing, isFullscreen 
             className="flex-1 bg-muted border-0"
             disabled={isProcessing || isListening}
           />
-          <Button type="submit" size="icon" disabled={!input.trim() || isProcessing}>
+          {isSupported && (
+            <Button 
+              type="button" 
+              variant={isListening ? "default" : "outline"}
+              size="icon"
+              className={cn("shrink-0", isListening && "animate-pulse bg-primary")}
+              onClick={toggleVoiceInput}
+            >
+              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
+          )}
+          <Button type="submit" size="icon" className="shrink-0" disabled={!input.trim() || isProcessing}>
             <Send className="w-4 h-4" />
           </Button>
         </div>

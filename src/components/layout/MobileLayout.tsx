@@ -262,14 +262,6 @@ export function MobileLayout({
         </div>
       </header>
 
-      {/* Workspace Tabs */}
-      <div className="px-3 py-2 border-b border-border">
-        <WorkspaceTabs
-          activeWorkspace={activeWorkspace}
-          onWorkspaceChange={setActiveWorkspace}
-          workspaceTaskCounts={workspaceTaskCounts}
-        />
-      </div>
 
       {/* Content */}
       <main className="flex-1 overflow-hidden relative">
@@ -350,10 +342,6 @@ export function MobileLayout({
           <FamilyPanel />
         </div>
 
-        {/* Voice Quick Add FAB */}
-        <div className="absolute bottom-4 right-4 z-10">
-          <VoiceQuickAdd onVoiceCommand={onSendMessage} />
-        </div>
       </main>
 
       {/* Bottom Tab Bar */}
