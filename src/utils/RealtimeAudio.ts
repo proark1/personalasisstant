@@ -10,6 +10,11 @@ export class AudioRecorder {
 
   async start() {
     try {
+      // Check if mediaDevices API is available (required for iOS WebView/Capacitor)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone access is not available on this device. Please ensure you have granted microphone permissions in your device settings.');
+      }
+      
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 24000,

@@ -151,7 +151,7 @@ export function MobileLayout({
                 <Menu className="w-5 h-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0">
+            <SheetContent side="left" className="w-72 p-0 pt-[env(safe-area-inset-top)]">
               <div className="flex flex-col h-full">
                 {/* Logo */}
                 <div className="h-16 flex items-center px-4 border-b border-border">
@@ -468,22 +468,24 @@ export function MobileLayout({
       </main>
 
       {/* Bottom Tab Bar */}
-      <nav className="h-16 border-t border-border bg-background flex items-center justify-around shrink-0 safe-area-bottom">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors",
-              activeTab === tab.id 
-                ? "text-primary" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <tab.icon className="w-5 h-5" />
-            <span className="text-xs font-medium">{tab.label}</span>
-          </button>
-        ))}
+      <nav className="border-t border-border bg-background shrink-0 pb-[env(safe-area-inset-bottom)]">
+        <div className="h-14 flex items-center justify-evenly px-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 min-w-[64px] py-1.5 rounded-lg transition-colors",
+                activeTab === tab.id 
+                  ? "text-primary" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <tab.icon className="w-5 h-5" />
+              <span className="text-[10px] font-medium">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </nav>
     </div>
   );
