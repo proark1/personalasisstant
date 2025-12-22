@@ -10,7 +10,12 @@ const config: CapacitorConfig = {
     preferredContentMode: 'mobile',
   },
   plugins: {
-    // These descriptions are used in Info.plist for iOS permissions
+    Microphone: {
+      NSMicrophoneUsageDescription: 'DarAI needs microphone access for voice commands and voice mode.',
+    },
+    Geolocation: {
+      NSLocationWhenInUseUsageDescription: 'DarAI uses your location for local news and weather.',
+    },
   },
   server: {
     // Enable hot-reload for development
