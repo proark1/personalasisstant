@@ -16,6 +16,9 @@ const config: CapacitorConfig = {
     Geolocation: {
       NSLocationWhenInUseUsageDescription: 'DarAI uses your location for local news and weather.',
     },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
   },
   server: {
     // Enable hot-reload for development

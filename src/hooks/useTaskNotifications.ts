@@ -1,6 +1,8 @@
 import { useEffect, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Task } from '@/types/flux';
 import { differenceInMinutes, isPast, isToday } from 'date-fns';
+import { usePushNotifications } from './usePushNotifications';
 
 interface UseTaskNotificationsOptions {
   tasks: Task[];
@@ -24,8 +26,17 @@ export function useTaskNotifications({
   const notifiedTasks = useRef<Map<string, Set<number>>>(new Map());
   const overdueNagCount = useRef<Map<string, number>>(new Map());
   const permissionGranted = useRef(false);
+  
+  const isNative = Capacitor.isNativePlatform();
+  const { scheduleLocalNotification, requestPermission: requestNativePermission } = usePushNotifications();
 
   const requestPermission = useCallback(async () => {
+    if (isNative) {
+      const granted = await requestNativePermission();
+      permissionGranted.current = granted;
+      return granted;
+    }
+
     if (!('Notification' in window)) {
       console.log('Browser does not support notifications');
       return false;
@@ -43,7 +54,7 @@ export function useTaskNotifications({
     }
 
     return false;
-  }, []);
+  }, [isNative, requestNativePermission]);
 
   const playNotificationSound = useCallback(() => {
     try {
@@ -107,27 +118,35 @@ export function useTaskNotifications({
       title = minutesBefore <= 5 ? '⏰ Task Due Soon!' : '📋 Task Reminder';
     }
 
-    // Play sound for urgent notifications
-    if (isUrgent || minutesBefore <= 5) {
+    const body = `"${task.title}" is ${timeMessage}`;
+
+    // Play sound for urgent notifications (web only)
+    if (!isNative && (isUrgent || minutesBefore <= 5)) {
       playNotificationSound();
     }
 
-    const notification = new Notification(title, {
-      body: `"${task.title}" is ${timeMessage}`,
-      icon: '/favicon.ico',
-      tag: `${task.id}-${notificationKey}`,
-      requireInteraction: isUrgent || minutesBefore <= 5,
-    });
+    if (isNative) {
+      // Use native push notification on mobile
+      scheduleLocalNotification(title, body, new Date(), { taskId: task.id });
+    } else {
+      // Use web notification on desktop
+      const notification = new Notification(title, {
+        body,
+        icon: '/favicon.ico',
+        tag: `${task.id}-${notificationKey}`,
+        requireInteraction: isUrgent || minutesBefore <= 5,
+      });
 
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-    };
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    }
 
     // Mark as notified
     taskNotifications.add(notificationKey);
     notifiedTasks.current.set(task.id, taskNotifications);
-  }, [playNotificationSound]);
+  }, [isNative, playNotificationSound, scheduleLocalNotification]);
 
   useEffect(() => {
     if (!enabled) return;
