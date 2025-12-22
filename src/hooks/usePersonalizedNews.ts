@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Capacitor } from '@capacitor/core';
 
 export interface NewsItem {
   headline: string;
@@ -59,23 +60,60 @@ export function usePersonalizedNews(options: UsePersonalizedNewsOptions = {}) {
 
   // Get location and then fetch news
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let isCancelled = false;
+    let locationTimeoutId: NodeJS.Timeout;
+    let fallbackTimeoutId: NodeJS.Timeout;
     
     const getLocationAndFetch = async () => {
-      // Try to get location
+      let locationResolved = false;
+      
+      // Set a hard fallback timeout - if location takes too long, proceed without it
+      // This is especially important on iOS native where geolocation can hang
+      fallbackTimeoutId = setTimeout(() => {
+        if (!locationResolved && !isCancelled) {
+          console.log('Location timeout - proceeding without location');
+          locationResolved = true;
+          fetchNews(null);
+        }
+      }, 3000); // 3 second max wait for location
+      
+      // Skip geolocation entirely on native platforms - it often hangs in WKWebView
+      if (Capacitor.isNativePlatform()) {
+        console.log('Native platform detected - skipping browser geolocation');
+        if (!locationResolved && !isCancelled) {
+          locationResolved = true;
+          clearTimeout(fallbackTimeoutId);
+          fetchNews(null);
+        }
+        return;
+      }
+      
+      // Try to get location (web only)
       if ('geolocation' in navigator) {
         try {
           const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+            navigator.geolocation.getCurrentPosition(resolve, reject, { 
+              timeout: 2000, // Short timeout
+              maximumAge: 300000, // Accept cached position up to 5 min old
+              enableHighAccuracy: false // Faster, less accurate
+            });
           });
+          
+          if (isCancelled || locationResolved) return;
           
           const { latitude, longitude } = position.coords;
           
-          // Try to reverse geocode
+          // Try to reverse geocode (with quick timeout)
           try {
+            const controller = new AbortController();
+            const geoTimeoutId = setTimeout(() => controller.abort(), 1500);
+            
             const geoResponse = await fetch(
-              `https://geocoding-api.open-meteo.com/v1/search?latitude=${latitude}&longitude=${longitude}&count=1`
+              `https://geocoding-api.open-meteo.com/v1/search?latitude=${latitude}&longitude=${longitude}&count=1`,
+              { signal: controller.signal }
             );
+            
+            clearTimeout(geoTimeoutId);
             
             if (geoResponse.ok) {
               const geoData = await geoResponse.json();
@@ -91,20 +129,27 @@ export function usePersonalizedNews(options: UsePersonalizedNewsOptions = {}) {
           } catch {
             locationRef.current = { latitude, longitude };
           }
-        } catch {
+        } catch (err) {
+          console.log('Geolocation failed:', err);
           // Geolocation failed, proceed without location
         }
       }
       
       // Fetch news with whatever location we have
-      fetchNews(locationRef.current);
+      if (!locationResolved && !isCancelled) {
+        locationResolved = true;
+        clearTimeout(fallbackTimeoutId);
+        fetchNews(locationRef.current);
+      }
     };
 
     // Small delay to let component mount properly
-    timeoutId = setTimeout(getLocationAndFetch, 100);
+    locationTimeoutId = setTimeout(getLocationAndFetch, 100);
 
     return () => {
-      clearTimeout(timeoutId);
+      isCancelled = true;
+      clearTimeout(locationTimeoutId);
+      clearTimeout(fallbackTimeoutId);
     };
   }, [fetchNews]);
 
