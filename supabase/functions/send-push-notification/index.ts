@@ -1,0 +1,127 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface PushPayload {
+  user_ids: string[];
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+}
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const payload: PushPayload = await req.json();
+    const { user_ids, title, body, data } = payload;
+
+    console.log('Sending push notification to users:', user_ids);
+    console.log('Title:', title);
+    console.log('Body:', body);
+
+    if (!user_ids || user_ids.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'No user IDs provided' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get push tokens for the specified users
+    const { data: tokens, error: tokensError } = await supabase
+      .from('push_tokens')
+      .select('token, platform, user_id')
+      .in('user_id', user_ids);
+
+    if (tokensError) {
+      console.error('Error fetching push tokens:', tokensError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch push tokens' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!tokens || tokens.length === 0) {
+      console.log('No push tokens found for users');
+      return new Response(
+        JSON.stringify({ message: 'No push tokens registered for specified users', sent: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Found ${tokens.length} push tokens`);
+
+    // Group tokens by platform
+    const iosTokens = tokens.filter(t => t.platform === 'ios').map(t => t.token);
+    const androidTokens = tokens.filter(t => t.platform === 'android').map(t => t.token);
+
+    let sentCount = 0;
+    const errors: string[] = [];
+
+    // For iOS - Use APNs (would need APNs certificate configured)
+    // For Android - Use FCM
+    // Since we don't have FCM/APNs configured, we'll create in-app notifications instead
+    
+    // Create in-app notifications for all users
+    const notifications = user_ids.map(userId => ({
+      user_id: userId,
+      type: 'push',
+      title,
+      message: body,
+      data: data || {},
+      read: false,
+    }));
+
+    const { error: insertError } = await supabase
+      .from('user_notifications')
+      .insert(notifications);
+
+    if (insertError) {
+      console.error('Error creating notifications:', insertError);
+      errors.push('Failed to create in-app notifications');
+    } else {
+      sentCount = notifications.length;
+      console.log(`Created ${sentCount} in-app notifications`);
+    }
+
+    // Log notification delivery for iOS/Android tokens (placeholder for actual push service integration)
+    if (iosTokens.length > 0) {
+      console.log(`Would send to ${iosTokens.length} iOS devices (APNs not configured)`);
+    }
+    if (androidTokens.length > 0) {
+      console.log(`Would send to ${androidTokens.length} Android devices (FCM not configured)`);
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        sent: sentCount,
+        tokens_found: tokens.length,
+        ios_tokens: iosTokens.length,
+        android_tokens: androidTokens.length,
+        errors: errors.length > 0 ? errors : undefined,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in send-push-notification:', errorMessage);
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

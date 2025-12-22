@@ -14,3 +14,15 @@ verify_jwt = false
 
 [functions.openai-realtime-session]
 verify_jwt = false
+
+[functions.morning-briefing]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = true
+
+[functions.recipe-assistant]
+verify_jwt = false
+
+[functions.voice-to-text]
+verify_jwt = false
