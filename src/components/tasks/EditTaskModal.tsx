@@ -143,8 +143,8 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="glass-panel-solid w-full max-w-lg animate-scale-in max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] overflow-y-auto">
+      <div className="glass-panel-solid w-full max-w-lg animate-scale-in max-h-[calc(100vh-1rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] sm:max-h-[90vh] overflow-hidden flex flex-col my-1 sm:my-0 rounded-lg">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <h2 className="text-lg font-semibold">Edit Task</h2>
@@ -206,7 +206,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
           )}
 
           {/* Responsibles */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Main Responsible</Label>
               <Select value={mainResponsibleId || '_none'} onValueChange={(v) => setMainResponsibleId(v === '_none' ? undefined : v)}>

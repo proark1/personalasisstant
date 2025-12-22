@@ -29,44 +29,46 @@ export function FamilyPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-4 grid grid-cols-9">
-          <TabsTrigger value="members" className="flex items-center gap-1">
-            <Users className="h-4 w-4" />
-            <span className="hidden 2xl:inline">{t('family.members')}</span>
-          </TabsTrigger>
-          <TabsTrigger value="children" className="flex items-center gap-1">
-            <Baby className="h-4 w-4" />
-            <span className="hidden 2xl:inline">{t('family.kids')}</span>
-          </TabsTrigger>
-          <TabsTrigger value="tasks" className="flex items-center gap-1">
-            <ListTodo className="h-4 w-4" />
-            <span className="hidden 2xl:inline">{t('family.tasks')}</span>
-          </TabsTrigger>
-          <TabsTrigger value="meals" className="flex items-center gap-1">
-            <Utensils className="h-4 w-4" />
-            <span className="hidden 2xl:inline">{t('family.meals')}</span>
-          </TabsTrigger>
-          <TabsTrigger value="shopping" className="flex items-center gap-1">
-            <ShoppingCart className="h-4 w-4" />
-            <span className="hidden 2xl:inline">{t('family.shopping')}</span>
-          </TabsTrigger>
-          <TabsTrigger value="budget" className="flex items-center gap-1">
-            <Wallet className="h-4 w-4" />
-            <span className="hidden 2xl:inline">{t('family.budget')}</span>
-          </TabsTrigger>
-          <TabsTrigger value="health" className="flex items-center gap-1">
-            <Heart className="h-4 w-4" />
-            <span className="hidden 2xl:inline">{t('family.health')}</span>
-          </TabsTrigger>
-          <TabsTrigger value="docs" className="flex items-center gap-1">
-            <FolderOpen className="h-4 w-4" />
-            <span className="hidden 2xl:inline">{t('family.docs')}</span>
-          </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            <span className="hidden 2xl:inline">{t('family.calendar')}</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="mx-4 mt-4 overflow-x-auto scrollbar-hide">
+          <TabsList className="inline-flex min-w-max gap-1">
+            <TabsTrigger value="members" className="flex items-center gap-1.5 px-3">
+              <Users className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.members')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="children" className="flex items-center gap-1.5 px-3">
+              <Baby className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.kids')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="flex items-center gap-1.5 px-3">
+              <ListTodo className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.tasks')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="meals" className="flex items-center gap-1.5 px-3">
+              <Utensils className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.meals')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="shopping" className="flex items-center gap-1.5 px-3">
+              <ShoppingCart className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.shopping')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="budget" className="flex items-center gap-1.5 px-3">
+              <Wallet className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.budget')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="health" className="flex items-center gap-1.5 px-3">
+              <Heart className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.health')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="docs" className="flex items-center gap-1.5 px-3">
+              <FolderOpen className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.docs')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-1.5 px-3">
+              <Calendar className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.calendar')}</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <div className="flex-1 overflow-auto p-4">
           <TabsContent value="members" className="mt-0 h-full">

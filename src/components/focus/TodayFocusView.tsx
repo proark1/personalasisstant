@@ -96,8 +96,8 @@ export function TodayFocusView({
   const hasNoTasks = totalTasks === 0;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg shadow-2xl border-primary/20">
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-start sm:items-center justify-center p-2 sm:p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] overflow-y-auto">
+      <Card className="w-full max-w-lg shadow-2xl border-primary/20 my-2 sm:my-0">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

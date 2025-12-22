@@ -115,8 +115,8 @@ export function ContractManager({
     }
 
     return (
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
               <TableHead>{t('contracts.contract')}</TableHead>
@@ -320,20 +320,22 @@ export function ContractManager({
 
       {/* Category Tabs */}
       <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as any)}>
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="all">
-            {t('contracts.all')} ({contracts.length})
-          </TabsTrigger>
-          {CONTRACT_CATEGORIES.map(cat => {
-            const count = contractsByCategory[cat.value].length;
-            if (count === 0) return null;
-            return (
-              <TabsTrigger key={cat.value} value={cat.value}>
-                {cat.icon} {cat.label} ({count})
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+          <TabsList className="inline-flex min-w-max h-auto gap-1">
+            <TabsTrigger value="all" className="whitespace-nowrap">
+              {t('contracts.all')} ({contracts.length})
+            </TabsTrigger>
+            {CONTRACT_CATEGORIES.map(cat => {
+              const count = contractsByCategory[cat.value].length;
+              if (count === 0) return null;
+              return (
+                <TabsTrigger key={cat.value} value={cat.value} className="whitespace-nowrap">
+                  {cat.icon} {cat.label} ({count})
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
 
         <TabsContent value={activeCategory} className="mt-4">
           {viewMode === 'cards' ? (
