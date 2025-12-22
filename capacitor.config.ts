@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.d44ace3088294d84976944f09f4b4e36',
+  appId: 'com.darai.app',
   appName: 'DarAI',
   webDir: 'dist',
   server: {
