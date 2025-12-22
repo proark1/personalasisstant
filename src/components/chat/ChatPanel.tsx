@@ -33,14 +33,16 @@ export function ChatPanel({ messages, onSendMessage, isProcessing, isFullscreen 
     startListening,
     stopListening,
   } = useVoiceRecognition({
-    onTranscript: (text, isFinal) => {
-      if (isFinal) {
-        setInput(prev => prev + (prev ? ' ' : '') + text);
-        stopListening();
-      }
-    },
     continuous: false,
   });
+
+  // Handle final transcripts from voice recognition
+  useEffect(() => {
+    if (transcript && !isListening) {
+      // Voice recognition completed with a final result
+      setInput(prev => prev + (prev ? ' ' : '') + transcript);
+    }
+  }, [transcript, isListening]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
