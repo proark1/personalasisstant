@@ -13,6 +13,7 @@ import { SettingsPanelContent } from '../settings/SettingsPanelContent';
 import { VoiceQuickAdd } from '../tasks/VoiceQuickAdd';
 import { FamilyPanel } from '../family/FamilyPanel';
 import { DashboardPanel } from '../dashboard/DashboardPanel';
+import { HealthHubPanel } from '../health/HealthHubPanel';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Task, CalendarEvent, ChatMessage, UserSettings } from '@/types/flux';
 import { SidebarFilter } from './Sidebar';
@@ -40,7 +41,8 @@ import {
   FileText,
   Search,
   CalendarCheck,
-  Zap
+  Zap,
+  Heart,
 } from 'lucide-react';
 
 interface MobileLayoutProps {
@@ -72,7 +74,7 @@ interface MobileLayoutProps {
   onUpdateNotifications?: (updates: Partial<UserSettings['notifications']>) => void;
 }
 
-type Tab = 'chat' | 'messages' | 'tasks' | 'calendar' | 'focus' | 'settings' | 'family' | 'dashboard';
+type Tab = 'chat' | 'messages' | 'tasks' | 'calendar' | 'focus' | 'settings' | 'family' | 'dashboard' | 'health';
 
 export function MobileLayout({
   userId,
@@ -119,11 +121,13 @@ export function MobileLayout({
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
-  const tabs = [
-    { id: 'chat' as Tab, icon: Sparkles, label: 'Assistant' },
-    { id: 'dashboard' as Tab, icon: LayoutDashboard, label: 'Dashboard' },
+  // Bottom nav: Tasks, Calendar, Assistant (center), Health, Dashboard
+  const bottomTabs = [
     { id: 'tasks' as Tab, icon: CheckSquare, label: 'Tasks' },
     { id: 'calendar' as Tab, icon: Calendar, label: 'Calendar' },
+    { id: 'assistant' as const, icon: Mic, label: 'Assistant', isCenter: true },
+    { id: 'health' as Tab, icon: Heart, label: 'Health' },
+    { id: 'dashboard' as Tab, icon: LayoutDashboard, label: 'Dashboard' },
   ];
 
   const navItems: { icon: typeof LayoutDashboard; label: string; filter: SidebarFilter | 'family' }[] = [
@@ -471,27 +475,54 @@ export function MobileLayout({
         )}>
           <DashboardPanel userId={userId} />
         </div>
+        <div className={cn(
+          "h-full",
+          activeTab === 'health' ? 'block' : 'hidden'
+        )}>
+          <HealthHubPanel />
+        </div>
 
       </main>
 
       {/* Bottom Tab Bar */}
       <nav className="border-t border-border bg-background shrink-0 pb-[env(safe-area-inset-bottom)]">
-        <div className="h-14 flex items-center justify-evenly px-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-0.5 min-w-[64px] py-1.5 rounded-lg transition-colors",
-                activeTab === tab.id 
-                  ? "text-primary" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <tab.icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{tab.label}</span>
-            </button>
-          ))}
+        <div className="h-16 flex items-center justify-around px-2">
+          {bottomTabs.map((tab) => {
+            if (tab.isCenter) {
+              // Center assistant button - larger and prominent
+              return (
+                <button
+                  key={tab.id}
+                  onClick={onVoiceMode}
+                  className="flex flex-col items-center justify-center -mt-6"
+                >
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
+                    <Mic className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <span className="text-[10px] font-medium text-primary mt-1">{tab.label}</span>
+                </button>
+              );
+            }
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (tab.id !== 'assistant') {
+                    setActiveTab(tab.id as Tab);
+                  }
+                }}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-0.5 min-w-[56px] py-1.5 rounded-lg transition-colors",
+                  activeTab === tab.id 
+                    ? "text-primary" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <tab.icon className="w-5 h-5" />
+                <span className="text-[10px] font-medium">{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </nav>
     </div>

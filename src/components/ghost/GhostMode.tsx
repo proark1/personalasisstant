@@ -24,6 +24,7 @@ import {
   PhoneCall,
   PhoneOff,
   Bug,
+  MessageSquare,
 } from 'lucide-react';
 
 interface GhostModeProps {
@@ -63,6 +64,15 @@ function DebugTimingRow({
   );
 }
 
+// Helper to get time-based greeting
+function getTimeBasedGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning! How can I help you today?";
+  if (hour < 17) return "Good afternoon! What can I do for you?";
+  if (hour < 21) return "Good evening! How can I assist you?";
+  return "Hey there, night owl! What's on your mind?";
+}
+
 export function GhostMode({ onClose, onCommand, personality = 'balanced' }: GhostModeProps) {
   const { toast } = useToast();
   const [speakerMuted, setSpeakerMuted] = useState(false);
@@ -73,6 +83,8 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [buttonCooldown, setButtonCooldown] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
+  const [textMode, setTextMode] = useState(false);
+  const [textInput, setTextInput] = useState('');
   const aiResponseRef = useRef('');
   const isConnectingRef = useRef(false);
   const disconnectRef = useRef<() => void>(() => {});
@@ -257,7 +269,14 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     contextData,
     onTranscript: (text, isFinal) => {
       setDisplayTranscript(text);
+      // Check for voice commands to end session
       if (isFinal) {
+        const lower = text.toLowerCase();
+        if (lower.includes('quit') || lower.includes('end session') || lower.includes('goodbye') || lower.includes('stop listening')) {
+          handleEndSession();
+          onClose();
+          return;
+        }
         setTimeout(() => setDisplayTranscript(''), 3000);
       }
     },
@@ -284,8 +303,8 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         isConnectingRef.current = false;
         aiResponseRef.current = '';
         setDisplayTranscript('');
-        // Local greeting (matches expected UX)
-        setAiResponse('Hey. You called me. How can I help you?');
+        // Use time-based greeting
+        setAiResponse(getTimeBasedGreeting());
       } else if (status === 'disconnected') {
         isConnectingRef.current = false;
       } else if (status === 'error') {
