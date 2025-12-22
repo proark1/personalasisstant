@@ -14,9 +14,11 @@ import {
   Moon,
   Check,
   Users,
-  Globe
+  Globe,
+  BellRing
 } from 'lucide-react';
 import { SpaceMembersPanel } from './SpaceMembersPanel';
+import { NotificationSettingsPanel } from './NotificationSettingsPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -41,11 +43,12 @@ export function SettingsPanelContent({
 }: SettingsPanelContentProps) {
   const { user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'defaults' | 'team'>('appearance');
+  const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'advanced' | 'defaults' | 'team'>('appearance');
 
   const tabs = [
     { id: 'appearance' as const, label: t('settings.appearance'), icon: Palette },
     { id: 'notifications' as const, label: t('settings.notifications'), icon: Bell },
+    { id: 'advanced' as const, label: 'Advanced', icon: BellRing },
     { id: 'defaults' as const, label: t('settings.defaults'), icon: ListTodo },
     { id: 'team' as const, label: t('settings.team'), icon: Users },
   ];
@@ -197,6 +200,10 @@ export function SettingsPanelContent({
               />
             </div>
           </>
+        )}
+
+        {activeTab === 'advanced' && (
+          <NotificationSettingsPanel />
         )}
 
         {activeTab === 'defaults' && (

@@ -1334,6 +1334,60 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          adhd_mode: boolean
+          created_at: string
+          default_reminder_minutes: number
+          event_notifications: boolean
+          id: string
+          quiet_hours_enabled: boolean
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          shared_item_notifications: boolean
+          sound_enabled: boolean
+          sound_type: string
+          task_notifications: boolean
+          updated_at: string
+          user_id: string
+          vibration_enabled: boolean
+        }
+        Insert: {
+          adhd_mode?: boolean
+          created_at?: string
+          default_reminder_minutes?: number
+          event_notifications?: boolean
+          id?: string
+          quiet_hours_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          shared_item_notifications?: boolean
+          sound_enabled?: boolean
+          sound_type?: string
+          task_notifications?: boolean
+          updated_at?: string
+          user_id: string
+          vibration_enabled?: boolean
+        }
+        Update: {
+          adhd_mode?: boolean
+          created_at?: string
+          default_reminder_minutes?: number
+          event_notifications?: boolean
+          id?: string
+          quiet_hours_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          shared_item_notifications?: boolean
+          sound_enabled?: boolean
+          sound_type?: string
+          task_notifications?: boolean
+          updated_at?: string
+          user_id?: string
+          vibration_enabled?: boolean
+        }
+        Relationships: []
+      }
       offline_sync_queue: {
         Row: {
           created_at: string
