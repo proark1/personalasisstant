@@ -12,6 +12,7 @@ import { useHealthTracking } from '@/hooks/useHealthTracking';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { AddHealthMetricDialog } from './AddHealthMetricDialog';
 import { HealthTrackingPanel } from '@/components/family/HealthTrackingPanel';
+import { AgeBasedCheckupsPanel } from './AgeBasedCheckupsPanel';
 import {
   Activity,
   Heart,
@@ -157,25 +158,25 @@ export function HealthHubPanel() {
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="border-b border-border px-4 overflow-x-auto scrollbar-hide">
+      {/* Tabs - Mobile Optimized */}
+      <div className="border-b border-border shrink-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="h-auto p-1 bg-transparent gap-1">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-muted">
-              <Activity className="w-4 h-4 mr-2" />
-              Overview
+          <TabsList className="w-full h-12 p-1 bg-transparent grid grid-cols-4 gap-1">
+            <TabsTrigger value="overview" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+              <Activity className="w-4 h-4" />
+              <span className="hidden xs:inline">Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="vitals" className="data-[state=active]:bg-muted">
-              <Heart className="w-4 h-4 mr-2" />
-              Vitals
+            <TabsTrigger value="vitals" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+              <Heart className="w-4 h-4" />
+              <span className="hidden xs:inline">Vitals</span>
             </TabsTrigger>
-            <TabsTrigger value="medical" className="data-[state=active]:bg-muted">
-              <Pill className="w-4 h-4 mr-2" />
-              Medical
+            <TabsTrigger value="medical" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+              <Pill className="w-4 h-4" />
+              <span className="hidden xs:inline">Medical</span>
             </TabsTrigger>
-            <TabsTrigger value="trends" className="data-[state=active]:bg-muted">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Trends
+            <TabsTrigger value="checkups" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+              <Calendar className="w-4 h-4" />
+              <span className="hidden xs:inline">Checkups</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -509,6 +510,10 @@ export function HealthHubPanel() {
 
           {!isLoading && activeTab === 'medical' && (
             <HealthTrackingPanel />
+          )}
+
+          {!isLoading && activeTab === 'checkups' && (
+            <AgeBasedCheckupsPanel />
           )}
 
           {!isLoading && activeTab === 'trends' && (
