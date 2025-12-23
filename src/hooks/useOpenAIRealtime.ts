@@ -1126,7 +1126,25 @@ export function useOpenAIRealtime({
       const micPermissionStart = performance.now();
       setDebugTimings(prev => ({ ...prev, micPermissionStart }));
 
-      const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Check if mediaDevices API is available (may not be in some mobile contexts)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error('navigator.mediaDevices is not available');
+        throw new Error('Microphone access not available. Please ensure you have granted microphone permissions in your device settings.');
+      }
+
+      let ms: MediaStream;
+      try {
+        ms = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (mediaError: any) {
+        console.error('getUserMedia error:', mediaError);
+        if (mediaError.name === 'NotAllowedError' || mediaError.name === 'PermissionDeniedError') {
+          throw new Error('Microphone permission denied. Please allow microphone access in your device settings.');
+        } else if (mediaError.name === 'NotFoundError') {
+          throw new Error('No microphone found. Please connect a microphone and try again.');
+        } else {
+          throw new Error(`Microphone error: ${mediaError.message || 'Unable to access microphone'}`);
+        }
+      }
       localStreamRef.current = ms;
 
       assertStillActive('after mic permission');
