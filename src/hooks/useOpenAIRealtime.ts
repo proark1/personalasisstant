@@ -799,7 +799,172 @@ export function useOpenAIRealtime({
             result = { success: true, message: `Archived project "${matches[0].name}"` };
             refetchProjects?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple projects. Please be more specific.` };
+          result = { success: false, multiple_matches: true, message: `Found multiple projects. Please be more specific.` };
+          }
+          break;
+        }
+
+        // ==================== HEALTH HANDLERS ====================
+        case 'get_health_summary': {
+          const healthData = contextData?.healthData;
+          if (!healthData?.isConnected) {
+            result = { success: false, message: 'Apple Health is not connected. Please connect it in the Health Hub.' };
+          } else {
+            const period = args.period || 'today';
+            let summary = '';
+            
+            if (period === 'today' && healthData.todaySummary) {
+              const h = healthData.todaySummary;
+              summary = `Today's health: ${h.steps?.toLocaleString() || 0} steps, ${h.calories?.toLocaleString() || 0} calories burned`;
+              if (h.sleepHours > 0) summary += `, ${h.sleepHours.toFixed(1)} hours sleep`;
+              if (h.heartRateAvg > 0) summary += `, avg heart rate ${h.heartRateAvg} bpm`;
+              if (h.activeMinutes > 0) summary += `, ${h.activeMinutes} active minutes`;
+            } else if (period === 'week' && healthData.weeklyData?.length > 0) {
+              const week = healthData.weeklyData;
+              const totalSteps = week.reduce((s: number, d: any) => s + (d.steps || 0), 0);
+              const avgSteps = Math.round(totalSteps / week.length);
+              const avgSleep = week.reduce((s: number, d: any) => s + (d.sleepHours || 0), 0) / week.length;
+              summary = `This week (${week.length} days): average ${avgSteps.toLocaleString()} steps/day`;
+              if (avgSleep > 0) summary += `, average ${avgSleep.toFixed(1)} hours sleep`;
+            } else {
+              summary = 'No health data available for this period';
+            }
+            
+            result = { 
+              success: true, 
+              message: summary,
+              data: period === 'today' ? healthData.todaySummary : healthData.weeklyData
+            };
+          }
+          break;
+        }
+
+        case 'get_steps': {
+          const healthData = contextData?.healthData;
+          if (!healthData?.isConnected) {
+            result = { success: false, message: 'Apple Health is not connected.' };
+          } else {
+            const period = args.period || 'today';
+            if (period === 'today' && healthData.todaySummary) {
+              const steps = healthData.todaySummary.steps || 0;
+              result = { success: true, message: `You've taken ${steps.toLocaleString()} steps today.`, steps };
+            } else if (period === 'week' && healthData.weeklyData?.length > 0) {
+              const week = healthData.weeklyData;
+              const totalSteps = week.reduce((s: number, d: any) => s + (d.steps || 0), 0);
+              const avgSteps = Math.round(totalSteps / week.length);
+              result = { 
+                success: true, 
+                message: `This week you've averaged ${avgSteps.toLocaleString()} steps per day, with a total of ${totalSteps.toLocaleString()} steps.`,
+                avgSteps,
+                totalSteps,
+                dailyData: week.map((d: any) => ({ date: d.date, steps: d.steps }))
+              };
+            } else {
+              result = { success: true, message: 'No step data available for this period.', steps: 0 };
+            }
+          }
+          break;
+        }
+
+        case 'get_sleep_data': {
+          const healthData = contextData?.healthData;
+          if (!healthData?.isConnected) {
+            result = { success: false, message: 'Apple Health is not connected.' };
+          } else {
+            const period = args.period || 'last_night';
+            if ((period === 'last_night' || period === 'today') && healthData.todaySummary) {
+              const sleep = healthData.todaySummary.sleepHours || 0;
+              if (sleep > 0) {
+                result = { success: true, message: `You slept ${sleep.toFixed(1)} hours last night.`, sleepHours: sleep };
+              } else {
+                result = { success: true, message: 'No sleep data recorded for last night.', sleepHours: 0 };
+              }
+            } else if (period === 'week' && healthData.weeklyData?.length > 0) {
+              const week = healthData.weeklyData.filter((d: any) => d.sleepHours > 0);
+              if (week.length > 0) {
+                const avgSleep = week.reduce((s: number, d: any) => s + d.sleepHours, 0) / week.length;
+                result = { 
+                  success: true, 
+                  message: `This week you've averaged ${avgSleep.toFixed(1)} hours of sleep per night.`,
+                  avgSleepHours: avgSleep,
+                  dailyData: week.map((d: any) => ({ date: d.date, sleepHours: d.sleepHours }))
+                };
+              } else {
+                result = { success: true, message: 'No sleep data available for this week.', avgSleepHours: 0 };
+              }
+            } else {
+              result = { success: true, message: 'No sleep data available.', sleepHours: 0 };
+            }
+          }
+          break;
+        }
+
+        case 'get_calories': {
+          const healthData = contextData?.healthData;
+          if (!healthData?.isConnected) {
+            result = { success: false, message: 'Apple Health is not connected.' };
+          } else {
+            const period = args.period || 'today';
+            if (period === 'today' && healthData.todaySummary) {
+              const calories = healthData.todaySummary.calories || 0;
+              result = { success: true, message: `You've burned ${calories.toLocaleString()} calories today.`, calories };
+            } else if (period === 'week' && healthData.weeklyData?.length > 0) {
+              const week = healthData.weeklyData;
+              const totalCals = week.reduce((s: number, d: any) => s + (d.calories || 0), 0);
+              const avgCals = Math.round(totalCals / week.length);
+              result = { 
+                success: true, 
+                message: `This week you've averaged ${avgCals.toLocaleString()} calories burned per day.`,
+                avgCalories: avgCals,
+                totalCalories: totalCals
+              };
+            } else {
+              result = { success: true, message: 'No calorie data available.', calories: 0 };
+            }
+          }
+          break;
+        }
+
+        case 'get_heart_rate': {
+          const healthData = contextData?.healthData;
+          if (!healthData?.isConnected) {
+            result = { success: false, message: 'Apple Health is not connected.' };
+          } else {
+            if (healthData.todaySummary?.heartRateAvg > 0) {
+              result = { 
+                success: true, 
+                message: `Your average heart rate today is ${healthData.todaySummary.heartRateAvg} beats per minute.`,
+                heartRate: healthData.todaySummary.heartRateAvg
+              };
+            } else {
+              result = { success: true, message: 'No heart rate data available today.', heartRate: 0 };
+            }
+          }
+          break;
+        }
+
+        case 'get_habit_summary': {
+          const habitData = contextData?.habitData;
+          if (!habitData?.habits?.length) {
+            result = { success: false, message: 'You have no habits set up yet. You can create habits in the Habits section.' };
+          } else {
+            const query = (args.habit_query || '').toLowerCase();
+            let habits = habitData.habits;
+            
+            if (query) {
+              habits = habits.filter((h: any) => h.name.toLowerCase().includes(query));
+            }
+            
+            if (habits.length === 0) {
+              result = { success: false, message: `No habits found matching "${args.habit_query}".` };
+            } else {
+              const habitList = habits.slice(0, 5).map((h: any) => `${h.icon} ${h.name}`).join(', ');
+              result = { 
+                success: true, 
+                message: `You have ${habitData.habits.length} active habits: ${habitList}`,
+                habits: habits.slice(0, 10)
+              };
+            }
           }
           break;
         }

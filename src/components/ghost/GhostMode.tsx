@@ -10,6 +10,8 @@ import { useContracts } from '@/hooks/useContracts';
 import { useProjects } from '@/hooks/useProjects';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useAppleHealth } from '@/hooks/useAppleHealth';
+import { useHabits } from '@/hooks/useHabits';
 import type { AssistantPersonality } from '@/types/flux';
 import {
   Mic,
@@ -101,6 +103,8 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const { contacts, addContact, updateContact, deleteContact, markContacted, refetch: refetchContacts } = useContacts(userId);
   const { contracts, addContract, updateContract, deleteContract, refetch: refetchContracts } = useContracts(userId);
   const { projects, addProject, updateProject, deleteProject, refetch: refetchProjects } = useProjects(userId);
+  const { healthMetrics, todaySummary, weeklyData, isConnected: healthConnected, refetch: refetchHealth } = useAppleHealth();
+  const { habits, logs: habitLogs } = useHabits(userId);
 
   // Prepare context data for the AI
   const contextData = useMemo(() => {
@@ -201,12 +205,62 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       color: p.color,
     }));
 
+    // Health data for AI access
+    const healthData = {
+      isConnected: healthConnected,
+      todaySummary: todaySummary ? {
+        date: todaySummary.date,
+        steps: todaySummary.steps,
+        calories: todaySummary.calories,
+        activeMinutes: todaySummary.activeMinutes,
+        sleepHours: todaySummary.sleepHours,
+        heartRateAvg: todaySummary.heartRateAvg,
+        weight: todaySummary.weight,
+        waterIntake: todaySummary.waterIntake,
+      } : null,
+      weeklyData: weeklyData.map(d => ({
+        date: d.date,
+        steps: d.steps,
+        calories: d.calories,
+        activeMinutes: d.activeMinutes,
+        sleepHours: d.sleepHours,
+        heartRateAvg: d.heartRateAvg,
+      })),
+      recentMetrics: healthMetrics.slice(0, 100).map(m => ({
+        type: m.metric_type,
+        value: m.value,
+        unit: m.unit,
+        recordedAt: m.recorded_at,
+        source: m.source,
+      })),
+    };
+
+    // Habit data for AI access
+    const habitData = {
+      habits: habits.map(h => ({
+        id: h.id,
+        name: h.name,
+        description: h.description,
+        icon: h.icon,
+        frequency: h.frequency,
+        targetCount: h.targetCount,
+        isActive: h.isActive,
+      })),
+      recentLogs: habitLogs.slice(0, 50).map(l => ({
+        habitId: l.habitId,
+        date: l.logDate.toISOString().split('T')[0],
+        completedCount: l.completedCount,
+      })),
+    };
+
     return {
       allTasks,
       allEvents,
       allContacts,
       allContracts,
       allProjects,
+      healthData,
+      habitData,
       overdueTasks: overdueTasks.slice(0, 5).map(t => ({
         title: t.title,
         category: String(t.category),
@@ -251,8 +305,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       totalContacts: contacts.length,
       totalContracts: activeContracts.length,
       totalProjects: activeProjects.length,
+      totalHabits: habits.length,
     };
-  }, [tasks, events, contacts, contracts, projects]);
+  }, [tasks, events, contacts, contracts, projects, healthMetrics, todaySummary, weeklyData, healthConnected, habits, habitLogs]);
 
   // OpenAI Realtime hook
   const {
