@@ -23,6 +23,9 @@ serve(async (req) => {
       contactCount: contextData?.allContacts?.length || 0,
       contractCount: contextData?.allContracts?.length || 0,
       projectCount: contextData?.allProjects?.length || 0,
+      hasHealthData: !!contextData?.healthData,
+      healthMetricsCount: contextData?.healthData?.recentMetrics?.length || 0,
+      habitCount: contextData?.habitData?.habits?.length || 0,
     });
 
     // Build comprehensive system prompt
@@ -436,6 +439,80 @@ serve(async (req) => {
           },
           required: ["project_query"]
         }
+      },
+
+      // ==================== HEALTH TOOLS ====================
+      {
+        type: "function",
+        name: "get_health_summary",
+        description: "Get health data summary including steps, calories, sleep, heart rate, etc. Use when user asks about their health, fitness, activity, steps, or wellness data.",
+        parameters: {
+          type: "object",
+          properties: {
+            period: { type: "string", enum: ["today", "yesterday", "week", "month"], description: "Time period for health data" }
+          },
+          required: []
+        }
+      },
+      {
+        type: "function",
+        name: "get_steps",
+        description: "Get step count for a specific period. Use when user asks about their steps or walking activity.",
+        parameters: {
+          type: "object",
+          properties: {
+            period: { type: "string", enum: ["today", "yesterday", "week"], description: "Time period for step count" }
+          },
+          required: []
+        }
+      },
+      {
+        type: "function",
+        name: "get_sleep_data",
+        description: "Get sleep data and hours slept. Use when user asks about their sleep.",
+        parameters: {
+          type: "object",
+          properties: {
+            period: { type: "string", enum: ["last_night", "week", "month"], description: "Time period for sleep data" }
+          },
+          required: []
+        }
+      },
+      {
+        type: "function",
+        name: "get_calories",
+        description: "Get calories burned data. Use when user asks about their calories or energy expenditure.",
+        parameters: {
+          type: "object",
+          properties: {
+            period: { type: "string", enum: ["today", "yesterday", "week"], description: "Time period for calorie data" }
+          },
+          required: []
+        }
+      },
+      {
+        type: "function",
+        name: "get_heart_rate",
+        description: "Get heart rate data. Use when user asks about their heart rate or pulse.",
+        parameters: {
+          type: "object",
+          properties: {
+            period: { type: "string", enum: ["today", "week", "month"], description: "Time period for heart rate data" }
+          },
+          required: []
+        }
+      },
+      {
+        type: "function",
+        name: "get_habit_summary",
+        description: "Get habit tracking summary and streak information. Use when user asks about their habits or routines.",
+        parameters: {
+          type: "object",
+          properties: {
+            habit_query: { type: "string", description: "Optional habit name to filter by" }
+          },
+          required: []
+        }
       }
     ];
 
@@ -531,6 +608,16 @@ Current date and time: ${timeString}
 - Get project progress and status
 - Assign tasks to projects
 
+### Health & Fitness
+- Access Apple Health data (steps, calories, sleep, heart rate, weight)
+- Provide health summaries for today, yesterday, or the past week
+- Answer questions about fitness trends and activity levels
+- Compare health metrics across different time periods
+
+### Habits
+- View habit tracking data and streaks
+- Provide summaries of habit completion rates
+
 ## Important Guidelines:
 1. Use fuzzy matching when searching - partial names work
 2. Always confirm before destructive actions (delete, trash)
@@ -540,6 +627,7 @@ Current date and time: ${timeString}
 6. Remember conversation context - if user says "yes", do the discussed action
 7. For dates, understand natural language: "tomorrow", "next monday", "in 3 days"
 8. When creating events, default to 1 hour duration if not specified
+9. For health data, always use the get_health_summary or specific health tools - you have FULL access to the user's health data
 
 ## Conversation Style:
 - Warm and encouraging
@@ -570,6 +658,39 @@ Current date and time: ${timeString}
     prompt += `- Total contacts: ${contextData.totalContacts || 0}\n`;
     prompt += `- Active contracts: ${contextData.totalContracts || 0}\n`;
     prompt += `- Total projects: ${contextData.totalProjects || 0}\n`;
+    prompt += `- Habits tracked: ${contextData.totalHabits || 0}\n`;
+    prompt += `- Apple Health connected: ${contextData.healthData?.isConnected ? 'Yes' : 'No'}\n`;
+
+    // Health data summary
+    if (contextData.healthData?.todaySummary) {
+      const h = contextData.healthData.todaySummary;
+      prompt += `\n### Today's Health Summary:\n`;
+      if (h.steps > 0) prompt += `- Steps: ${h.steps.toLocaleString()}\n`;
+      if (h.calories > 0) prompt += `- Calories burned: ${h.calories.toLocaleString()}\n`;
+      if (h.activeMinutes > 0) prompt += `- Active minutes: ${h.activeMinutes}\n`;
+      if (h.sleepHours > 0) prompt += `- Sleep: ${h.sleepHours.toFixed(1)} hours\n`;
+      if (h.heartRateAvg > 0) prompt += `- Avg heart rate: ${h.heartRateAvg} bpm\n`;
+      if (h.weight) prompt += `- Weight: ${h.weight} kg\n`;
+    }
+
+    // Weekly health trends
+    if (contextData.healthData?.weeklyData?.length > 0) {
+      const weekData = contextData.healthData.weeklyData;
+      const totalSteps = weekData.reduce((sum: number, d: any) => sum + (d.steps || 0), 0);
+      const avgSteps = Math.round(totalSteps / weekData.length);
+      const avgSleep = weekData.reduce((sum: number, d: any) => sum + (d.sleepHours || 0), 0) / weekData.length;
+      prompt += `\n### Week Overview (${weekData.length} days):\n`;
+      prompt += `- Average daily steps: ${avgSteps.toLocaleString()}\n`;
+      if (avgSleep > 0) prompt += `- Average sleep: ${avgSleep.toFixed(1)} hours\n`;
+    }
+
+    // Habits summary
+    if (contextData.habitData?.habits?.length > 0) {
+      prompt += `\n### Active Habits:\n`;
+      contextData.habitData.habits.slice(0, 5).forEach((h: any) => {
+        prompt += `- ${h.icon} ${h.name} (${h.frequency})\n`;
+      });
+    }
 
     // Today's tasks
     if (contextData.todayTasks?.length > 0) {
@@ -620,9 +741,6 @@ Current date and time: ${timeString}
         prompt += `- "${p.name}"${p.description ? `: ${p.description}` : ''}\n`;
       });
     }
-
-    // Note: We intentionally DO NOT include full task/contact/contract lists in the prompt.
-    // Those large lists slow down session creation and aren't required for tool-based actions.
 
   }
 
