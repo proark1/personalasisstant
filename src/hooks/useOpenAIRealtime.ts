@@ -1066,16 +1066,30 @@ export function useOpenAIRealtime({
       const tokenFetchStart = performance.now();
       setDebugTimings(prev => ({ ...prev, tokenFetchStart }));
 
-      const { data, error } = await supabase.functions.invoke('openai-realtime-session', {
+      // Add timeout for edge function call (30 seconds for mobile networks)
+      const edgeFunctionPromise = supabase.functions.invoke('openai-realtime-session', {
         body: { userProfile: userProfileRef.current, contextData: contextDataRef.current },
       });
+      
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Connection timeout - please check your internet connection and try again')), 30000);
+      });
+
+      const { data, error } = await Promise.race([edgeFunctionPromise, timeoutPromise]) as { data: any; error: any };
 
       assertStillActive('after token fetch');
       const tokenFetchEnd = performance.now();
       setDebugTimings(prev => ({ ...prev, tokenFetchEnd }));
+      console.log(`Token fetch took ${(tokenFetchEnd - tokenFetchStart).toFixed(0)}ms`);
 
-      if (error || !data?.client_secret?.value) {
-        throw new Error(error?.message || 'Failed to get session token');
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(`Failed to get session: ${error.message || 'Network error'}`);
+      }
+      
+      if (!data?.client_secret?.value) {
+        console.error('Invalid response data:', data);
+        throw new Error('Invalid session response - please try again');
       }
 
       const EPHEMERAL_KEY = data.client_secret.value;
@@ -1237,17 +1251,34 @@ export function useOpenAIRealtime({
       const baseUrl = 'https://api.openai.com/v1/realtime';
       const model = 'gpt-4o-realtime-preview-2024-12-17';
 
-      const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
-        method: 'POST',
-        body: offer.sdp,
-        headers: {
-          Authorization: `Bearer ${EPHEMERAL_KEY}`,
-          'Content-Type': 'application/sdp',
-        },
-      });
+      // Add timeout for OpenAI SDP request (20 seconds)
+      const controller = new AbortController();
+      const sdpTimeout = setTimeout(() => controller.abort(), 20000);
+
+      let sdpResponse: Response;
+      try {
+        sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+          method: 'POST',
+          body: offer.sdp,
+          headers: {
+            Authorization: `Bearer ${EPHEMERAL_KEY}`,
+            'Content-Type': 'application/sdp',
+          },
+          signal: controller.signal,
+        });
+      } catch (fetchErr: any) {
+        clearTimeout(sdpTimeout);
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('OpenAI connection timeout - please try again');
+        }
+        throw new Error(`Network error connecting to OpenAI: ${fetchErr.message}`);
+      }
+      clearTimeout(sdpTimeout);
 
       if (!sdpResponse.ok) {
-        throw new Error(`Failed to connect to OpenAI: ${sdpResponse.status}`);
+        const errorText = await sdpResponse.text().catch(() => '');
+        console.error('OpenAI SDP error:', sdpResponse.status, errorText);
+        throw new Error(`Failed to connect to OpenAI (${sdpResponse.status})`);
       }
 
       const answer = {

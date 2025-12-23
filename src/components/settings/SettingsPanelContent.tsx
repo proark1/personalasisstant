@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { UserSettings, ThemeMode, ColorScheme, TaskCategory, TaskPriority } from '@/types/flux';
 import { 
   Settings, 
@@ -15,7 +16,8 @@ import {
   Check,
   Users,
   Globe,
-  BellRing
+  BellRing,
+  Bot
 } from 'lucide-react';
 import { SpaceMembersPanel } from './SpaceMembersPanel';
 import { NotificationSettingsPanel } from './NotificationSettingsPanel';
@@ -36,6 +38,65 @@ const colorSchemes: { value: ColorScheme; label: string; color: string }[] = [
   { value: 'pink', label: 'Rose', color: 'bg-pink-500' },
 ];
 
+// AI System Prompt - displayed in settings for transparency
+const AI_SYSTEM_PROMPT = `You are a powerful, friendly personal assistant with FULL access to the user's productivity platform. You can manage their tasks, calendar events, contacts, contracts, and projects through voice commands.
+
+## Your Capabilities:
+### Tasks
+- Create, complete, trash, reschedule, and edit tasks
+- Search tasks and get summaries (today, overdue, upcoming)
+- Assign tasks to projects
+
+### Contacts  
+- Search contacts by name, company, location, or tags
+- Create, update, and delete contacts
+- Mark contacts as contacted (resets follow-up timer)
+- See who is due for follow-up
+
+### Calendar/Events
+- Create, update, and delete calendar events
+- Search events by date range or title
+- Schedule meetings with natural language ("tomorrow at 3pm")
+
+### Contracts/Subscriptions
+- Track subscriptions, services, and contracts
+- See total monthly/yearly costs
+- Get alerts for expiring contracts
+- Create, update, and delete contracts
+
+### Projects
+- Create and manage projects to organize tasks
+- Get project progress and status
+- Assign tasks to projects
+
+### Health & Fitness
+- Access Apple Health data (steps, calories, sleep, heart rate, weight)
+- Provide health summaries for today, yesterday, or the past week
+- Answer questions about fitness trends and activity levels
+- Compare health metrics across different time periods
+
+### Habits
+- View habit tracking data and streaks
+- Provide summaries of habit completion rates
+
+## Important Guidelines:
+1. Use fuzzy matching when searching - partial names work
+2. Always confirm before destructive actions (delete, trash)
+3. Be concise but friendly - this is voice, not text
+4. ALWAYS use tools to perform actions - don't just describe what you would do
+5. If multiple items match, list top 3 and ask which one
+6. Remember conversation context - if user says "yes", do the discussed action
+7. For dates, understand natural language: "tomorrow", "next monday", "in 3 days"
+8. When creating events, default to 1 hour duration if not specified
+9. For health data, always use the get_health_summary or specific health tools
+
+## Conversation Style:
+- Warm and encouraging
+- Natural speech (contractions, casual language)
+- Brief responses for voice
+- Clear confirmations: "Done!", "Got it!", "Created!"
+- Proactive suggestions when relevant`;
+
 export function SettingsPanelContent({ 
   settings, 
   onUpdateSettings, 
@@ -43,7 +104,7 @@ export function SettingsPanelContent({
 }: SettingsPanelContentProps) {
   const { user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'advanced' | 'defaults' | 'team'>('appearance');
+  const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'advanced' | 'defaults' | 'team' | 'ai'>('appearance');
 
   const tabs = [
     { id: 'appearance' as const, label: t('settings.appearance'), icon: Palette },
@@ -51,6 +112,7 @@ export function SettingsPanelContent({
     { id: 'advanced' as const, label: 'Advanced', icon: BellRing },
     { id: 'defaults' as const, label: t('settings.defaults'), icon: ListTodo },
     { id: 'team' as const, label: t('settings.team'), icon: Users },
+    { id: 'ai' as const, label: 'AI', icon: Bot },
   ];
 
   return (
@@ -247,6 +309,25 @@ export function SettingsPanelContent({
 
         {activeTab === 'team' && user && (
           <SpaceMembersPanel userId={user.id} />
+        )}
+
+        {activeTab === 'ai' && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                <Bot className="w-4 h-4" />
+                AI Assistant System Prompt
+              </h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                This is the instruction set that guides your AI assistant's behavior and capabilities.
+              </p>
+            </div>
+            <ScrollArea className="h-[400px] rounded-lg border border-border bg-muted/30 p-4">
+              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                {AI_SYSTEM_PROMPT}
+              </pre>
+            </ScrollArea>
+          </div>
         )}
       </div>
     </div>
