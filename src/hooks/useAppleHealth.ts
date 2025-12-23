@@ -125,10 +125,25 @@ export function useAppleHealth() {
         .select('*')
         .eq('user_id', user.id)
         .order('recorded_at', { ascending: false })
-        .limit(500);
+        .limit(1000);
       
       if (error) throw error;
       setHealthMetrics(data || []);
+      
+      console.log('[HealthMetrics] Fetched:', data?.length || 0, 'records');
+      console.log('[HealthMetrics] Types:', [...new Set(data?.map(d => d.metric_type) || [])]);
+      
+      // Helper to sum values for a metric type on a given day
+      const sumMetricForDay = (metrics: typeof data, type: string) => {
+        const values = metrics?.filter(m => m.metric_type === type).map(m => m.value) || [];
+        return values.reduce((sum, v) => sum + v, 0);
+      };
+      
+      // Helper to get latest value for a metric type on a given day
+      const getLatestMetricForDay = (metrics: typeof data, type: string) => {
+        const metric = metrics?.find(m => m.metric_type === type);
+        return metric?.value;
+      };
       
       // Calculate today's summary
       const today = new Date().toISOString().split('T')[0];
@@ -136,18 +151,19 @@ export function useAppleHealth() {
         m.recorded_at.startsWith(today)
       );
       
-      if (todayMetrics.length > 0) {
-        setTodaySummary({
-          date: today,
-          steps: todayMetrics.find(m => m.metric_type === 'steps')?.value || 0,
-          calories: todayMetrics.find(m => m.metric_type === 'calories')?.value || 0,
-          activeMinutes: todayMetrics.find(m => m.metric_type === 'active_minutes')?.value || 0,
-          sleepHours: todayMetrics.find(m => m.metric_type === 'sleep_hours')?.value || 0,
-          heartRateAvg: todayMetrics.find(m => m.metric_type === 'heart_rate')?.value || 0,
-          weight: todayMetrics.find(m => m.metric_type === 'weight')?.value,
-          waterIntake: todayMetrics.find(m => m.metric_type === 'water_intake')?.value || 0,
-        });
-      }
+      console.log('[HealthMetrics] Today metrics:', todayMetrics.length);
+      
+      // Always set a summary (even if empty) to show zeros
+      setTodaySummary({
+        date: today,
+        steps: sumMetricForDay(todayMetrics, 'steps'),
+        calories: sumMetricForDay(todayMetrics, 'calories'),
+        activeMinutes: sumMetricForDay(todayMetrics, 'active_minutes'),
+        sleepHours: getLatestMetricForDay(todayMetrics, 'sleep_hours') || 0,
+        heartRateAvg: getLatestMetricForDay(todayMetrics, 'heart_rate') || 0,
+        weight: getLatestMetricForDay(todayMetrics, 'weight'),
+        waterIntake: sumMetricForDay(todayMetrics, 'water_intake'),
+      });
       
       // Calculate weekly data
       const weekly: DailyHealthSummary[] = [];
@@ -160,13 +176,13 @@ export function useAppleHealth() {
         
         weekly.push({
           date: dateStr,
-          steps: dayMetrics.find(m => m.metric_type === 'steps')?.value || 0,
-          calories: dayMetrics.find(m => m.metric_type === 'calories')?.value || 0,
-          activeMinutes: dayMetrics.find(m => m.metric_type === 'active_minutes')?.value || 0,
-          sleepHours: dayMetrics.find(m => m.metric_type === 'sleep_hours')?.value || 0,
-          heartRateAvg: dayMetrics.find(m => m.metric_type === 'heart_rate')?.value || 0,
-          weight: dayMetrics.find(m => m.metric_type === 'weight')?.value,
-          waterIntake: dayMetrics.find(m => m.metric_type === 'water_intake')?.value || 0,
+          steps: sumMetricForDay(dayMetrics, 'steps'),
+          calories: sumMetricForDay(dayMetrics, 'calories'),
+          activeMinutes: sumMetricForDay(dayMetrics, 'active_minutes'),
+          sleepHours: getLatestMetricForDay(dayMetrics, 'sleep_hours') || 0,
+          heartRateAvg: getLatestMetricForDay(dayMetrics, 'heart_rate') || 0,
+          weight: getLatestMetricForDay(dayMetrics, 'weight'),
+          waterIntake: sumMetricForDay(dayMetrics, 'water_intake'),
         });
       }
       
@@ -229,13 +245,15 @@ export function useAppleHealth() {
     }
   }, [isAvailable]);
 
-  const syncAppleHealthInternal = async () => {
+  const syncAppleHealthInternal = async (daysBack: number = 90) => {
     if (!Health || !user?.id) return;
 
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekAgo = new Date(startOfDay);
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    const syncStartDate = new Date(startOfDay);
+    syncStartDate.setDate(syncStartDate.getDate() - daysBack);
+    
+    logHealthDebug('sync_internal_start', { daysBack, startDate: syncStartDate.toISOString(), endDate: now.toISOString() });
 
     const metricsToInsert: Array<{
       user_id: string;
@@ -250,10 +268,12 @@ export function useAppleHealth() {
     try {
       const stepsData = await Health.queryAggregated({
         dataType: 'steps',
-        startDate: weekAgo.toISOString(),
+        startDate: syncStartDate.toISOString(),
         endDate: now.toISOString(),
         bucket: 'day'
       });
+
+      logHealthDebug('steps_response', { count: stepsData?.aggregatedData?.length || 0, raw: stepsData });
 
       if (stepsData?.aggregatedData) {
         for (const bucket of stepsData.aggregatedData) {
@@ -271,7 +291,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      console.log('Steps data not available:', e);
+      logHealthDebug('steps_error', { error: (e as any)?.message || String(e) });
     }
 
     // Fetch heart rate (latest sample)
@@ -299,10 +319,12 @@ export function useAppleHealth() {
     try {
       const caloriesData = await Health.queryAggregated({
         dataType: 'active-calories',
-        startDate: weekAgo.toISOString(),
+        startDate: syncStartDate.toISOString(),
         endDate: now.toISOString(),
         bucket: 'day'
       });
+
+      logHealthDebug('calories_response', { count: caloriesData?.aggregatedData?.length || 0 });
 
       if (caloriesData?.aggregatedData) {
         for (const bucket of caloriesData.aggregatedData) {
@@ -320,17 +342,19 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      console.log('Calories data not available:', e);
+      logHealthDebug('calories_error', { error: (e as any)?.message || String(e) });
     }
 
     // Fetch sleep analysis (aggregated by day)
     try {
       const sleepData = await Health.queryAggregated({
         dataType: 'sleep',
-        startDate: weekAgo.toISOString(),
+        startDate: syncStartDate.toISOString(),
         endDate: now.toISOString(),
         bucket: 'day'
       });
+
+      logHealthDebug('sleep_response', { count: sleepData?.aggregatedData?.length || 0 });
 
       if (sleepData?.aggregatedData) {
         for (const bucket of sleepData.aggregatedData) {
@@ -350,7 +374,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      console.log('Sleep data not available:', e);
+      logHealthDebug('sleep_error', { error: (e as any)?.message || String(e) });
     }
 
     // Fetch weight (latest sample)
@@ -374,6 +398,12 @@ export function useAppleHealth() {
       console.log('Weight data not available:', e);
     }
 
+    logHealthDebug('metrics_to_insert', { 
+      count: metricsToInsert.length, 
+      types: [...new Set(metricsToInsert.map(m => m.metric_type))],
+      samples: metricsToInsert.slice(0, 5)
+    });
+
     // Delete existing Apple Health data for the sync period to avoid duplicates
     if (metricsToInsert.length > 0) {
       await supabase
@@ -381,7 +411,7 @@ export function useAppleHealth() {
         .delete()
         .eq('user_id', user.id)
         .eq('source', 'apple_health')
-        .gte('recorded_at', weekAgo.toISOString());
+        .gte('recorded_at', syncStartDate.toISOString());
 
       // Insert new data
       const { error } = await supabase
@@ -390,9 +420,9 @@ export function useAppleHealth() {
 
       if (error) throw error;
 
-      toast.success(`Synced ${metricsToInsert.length} health records`);
+      toast.success(`Synced ${metricsToInsert.length} health records from last ${daysBack} days`);
     } else {
-      toast.info('No health data found to sync');
+      toast.info('No health data found to sync. Check Apple Health permissions.');
     }
 
     await fetchHealthMetrics();

@@ -41,6 +41,7 @@ export function HealthHubPanel() {
     isLoading: healthLoading,
     todaySummary,
     weeklyData,
+    healthMetrics,
     requestAppleHealthPermission,
     syncAppleHealth,
     addManualMetric,
@@ -284,6 +285,41 @@ export function HealthHubPanel() {
                       <div key={appt.id} className="flex items-center gap-2 text-sm">
                         <Calendar className="w-4 h-4 text-primary" />
                         <span>{appt.title} - {format(parseISO(appt.appointment_date), 'MMM d')}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recent Synced Data */}
+              {healthMetrics.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                      Recent Health Data ({healthMetrics.length} records)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {healthMetrics.slice(0, 8).map(metric => (
+                      <div key={metric.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          {metric.metric_type === 'steps' && <Footprints className="w-3 h-3 text-primary" />}
+                          {metric.metric_type === 'calories' && <Flame className="w-3 h-3 text-orange-500" />}
+                          {metric.metric_type === 'heart_rate' && <Heart className="w-3 h-3 text-red-500" />}
+                          {metric.metric_type === 'sleep_hours' && <Moon className="w-3 h-3 text-purple-500" />}
+                          {metric.metric_type === 'weight' && <Scale className="w-3 h-3 text-blue-500" />}
+                          {metric.metric_type === 'water_intake' && <Droplets className="w-3 h-3 text-blue-400" />}
+                          <span className="capitalize">{metric.metric_type.replace('_', ' ')}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            {metric.value.toLocaleString()} {metric.unit}
+                          </span>
+                          <span className="text-xs">
+                            {format(parseISO(metric.recorded_at), 'MMM d')}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </CardContent>
