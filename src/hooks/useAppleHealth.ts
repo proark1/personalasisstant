@@ -27,39 +27,24 @@ export interface DailyHealthSummary {
   waterIntake: number;
 }
 
-// HealthKit read permissions
-const READ_PERMISSIONS = [
-  'stepCount',
-  'heartRate',
-  'activeEnergyBurned',
-  'basalEnergyBurned',
-  'sleepAnalysis',
-  'bodyMass',
-  'height',
-  'bodyMassIndex',
-  'oxygenSaturation',
-  'bloodPressureSystolic',
-  'bloodPressureDiastolic',
-];
-
 const isNative = Capacitor.isNativePlatform();
 const isIOS = isNative && Capacitor.getPlatform() === 'ios';
 
 // Dynamic import for HealthKit plugin (only on iOS)
-let CapacitorHealthkit: any = null;
+let Health: any = null;
 
 const loadHealthKitPlugin = async () => {
-  if (isIOS && !CapacitorHealthkit) {
+  if (isIOS && !Health) {
     try {
-      const module = await import('@perfood/capacitor-healthkit');
-      CapacitorHealthkit = module.CapacitorHealthkit;
+      const module = await import('@flomentumsolutions/capacitor-health-extended');
+      Health = module.Health;
       return true;
     } catch (err) {
       console.warn('HealthKit plugin not available:', err);
       return false;
     }
   }
-  return !!CapacitorHealthkit;
+  return !!Health;
 };
 
 export function useAppleHealth() {
@@ -172,18 +157,30 @@ export function useAppleHealth() {
     }
 
     const loaded = await loadHealthKitPlugin();
-    if (!loaded || !CapacitorHealthkit) {
+    if (!loaded || !Health) {
       toast.error('HealthKit plugin not available. Rebuild app with native code.');
       return false;
     }
     
     setIsLoading(true);
     try {
+      // Check if HealthKit is available on this device
+      const { available } = await Health.isHealthAvailable();
+      if (!available) {
+        toast.error('HealthKit is not available on this device');
+        return false;
+      }
+
       // Request authorization for health data types
-      await CapacitorHealthkit.requestAuthorization({
-        all: [],
-        read: READ_PERMISSIONS,
-        write: [],
+      await Health.requestHealthPermissions({
+        permissions: [
+          'READ_STEPS',
+          'READ_HEART_RATE', 
+          'READ_ACTIVE_CALORIES',
+          'READ_BASAL_CALORIES',
+          'READ_WEIGHT',
+          'READ_SLEEP'
+        ]
       });
 
       setIsConnected(true);
@@ -203,7 +200,7 @@ export function useAppleHealth() {
   }, [isAvailable]);
 
   const syncAppleHealthInternal = async () => {
-    if (!CapacitorHealthkit || !user?.id) return;
+    if (!Health || !user?.id) return;
 
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -219,167 +216,129 @@ export function useAppleHealth() {
       source: string;
     }> = [];
 
-    // Fetch steps
+    // Fetch steps (aggregated by day)
     try {
-      const stepsData = await CapacitorHealthkit.queryHKitSampleType({
-        sampleName: 'stepCount',
+      const stepsData = await Health.queryAggregated({
+        dataType: 'steps',
         startDate: weekAgo.toISOString(),
         endDate: now.toISOString(),
-        limit: 0,
+        bucket: 'day'
       });
 
-      if (stepsData?.resultData) {
-        // Aggregate by day
-        const stepsByDay: Record<string, number> = {};
-        for (const sample of stepsData.resultData) {
-          const dayKey = sample.startDate.split('T')[0];
-          stepsByDay[dayKey] = (stepsByDay[dayKey] || 0) + (sample.value || 0);
-        }
-        
-        for (const [date, value] of Object.entries(stepsByDay)) {
-          metricsToInsert.push({
-            user_id: user.id,
-            metric_type: 'steps',
-            value: Math.round(value),
-            unit: 'steps',
-            recorded_at: `${date}T12:00:00.000Z`,
-            source: 'apple_health',
-          });
+      if (stepsData?.aggregatedData) {
+        for (const bucket of stepsData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'steps',
+              value: Math.round(bucket.value),
+              unit: 'steps',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
         }
       }
     } catch (e) {
       console.log('Steps data not available:', e);
     }
 
-    // Fetch heart rate
+    // Fetch heart rate (latest sample)
     try {
-      const heartRateData = await CapacitorHealthkit.queryHKitSampleType({
-        sampleName: 'heartRate',
-        startDate: weekAgo.toISOString(),
-        endDate: now.toISOString(),
-        limit: 0,
+      const heartRateData = await Health.queryLatestSample({
+        dataType: 'heart-rate'
       });
 
-      if (heartRateData?.resultData) {
-        // Average by day
-        const hrByDay: Record<string, { sum: number; count: number }> = {};
-        for (const sample of heartRateData.resultData) {
-          const dayKey = sample.startDate.split('T')[0];
-          if (!hrByDay[dayKey]) hrByDay[dayKey] = { sum: 0, count: 0 };
-          hrByDay[dayKey].sum += sample.value || 0;
-          hrByDay[dayKey].count += 1;
-        }
-        
-        for (const [date, { sum, count }] of Object.entries(hrByDay)) {
-          metricsToInsert.push({
-            user_id: user.id,
-            metric_type: 'heart_rate',
-            value: Math.round(sum / count),
-            unit: 'bpm',
-            recorded_at: `${date}T12:00:00.000Z`,
-            source: 'apple_health',
-          });
-        }
+      if (heartRateData?.value) {
+        const date = new Date().toISOString().split('T')[0];
+        metricsToInsert.push({
+          user_id: user.id,
+          metric_type: 'heart_rate',
+          value: Math.round(heartRateData.value),
+          unit: 'bpm',
+          recorded_at: `${date}T12:00:00.000Z`,
+          source: 'apple_health',
+        });
       }
     } catch (e) {
       console.log('Heart rate data not available:', e);
     }
 
-    // Fetch active energy burned (calories)
+    // Fetch active energy burned (calories) - aggregated by day
     try {
-      const caloriesData = await CapacitorHealthkit.queryHKitSampleType({
-        sampleName: 'activeEnergyBurned',
+      const caloriesData = await Health.queryAggregated({
+        dataType: 'active-calories',
         startDate: weekAgo.toISOString(),
         endDate: now.toISOString(),
-        limit: 0,
+        bucket: 'day'
       });
 
-      if (caloriesData?.resultData) {
-        const caloriesByDay: Record<string, number> = {};
-        for (const sample of caloriesData.resultData) {
-          const dayKey = sample.startDate.split('T')[0];
-          caloriesByDay[dayKey] = (caloriesByDay[dayKey] || 0) + (sample.value || 0);
-        }
-        
-        for (const [date, value] of Object.entries(caloriesByDay)) {
-          metricsToInsert.push({
-            user_id: user.id,
-            metric_type: 'calories',
-            value: Math.round(value),
-            unit: 'kcal',
-            recorded_at: `${date}T12:00:00.000Z`,
-            source: 'apple_health',
-          });
+      if (caloriesData?.aggregatedData) {
+        for (const bucket of caloriesData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'calories',
+              value: Math.round(bucket.value),
+              unit: 'kcal',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
         }
       }
     } catch (e) {
       console.log('Calories data not available:', e);
     }
 
-    // Fetch sleep analysis
+    // Fetch sleep analysis (aggregated by day)
     try {
-      const sleepData = await CapacitorHealthkit.queryHKitSampleType({
-        sampleName: 'sleepAnalysis',
+      const sleepData = await Health.queryAggregated({
+        dataType: 'sleep',
         startDate: weekAgo.toISOString(),
         endDate: now.toISOString(),
-        limit: 0,
+        bucket: 'day'
       });
 
-      if (sleepData?.resultData) {
-        const sleepByDay: Record<string, number> = {};
-        
-        for (const sample of sleepData.resultData) {
-          // Only count asleep states
-          if (sample.value >= 1 && sample.value <= 5) {
-            const dayKey = sample.startDate.split('T')[0];
-            const durationMs = new Date(sample.endDate).getTime() - new Date(sample.startDate).getTime();
-            const durationHours = durationMs / (1000 * 60 * 60);
-            sleepByDay[dayKey] = (sleepByDay[dayKey] || 0) + durationHours;
+      if (sleepData?.aggregatedData) {
+        for (const bucket of sleepData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            // Sleep is returned in minutes, convert to hours
+            const hours = bucket.value / 60;
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'sleep_hours',
+              value: Math.round(hours * 10) / 10,
+              unit: 'hours',
+              recorded_at: `${date}T00:00:00.000Z`,
+              source: 'apple_health',
+            });
           }
-        }
-
-        for (const [date, hours] of Object.entries(sleepByDay)) {
-          metricsToInsert.push({
-            user_id: user.id,
-            metric_type: 'sleep_hours',
-            value: Math.round(hours * 10) / 10,
-            unit: 'hours',
-            recorded_at: `${date}T00:00:00.000Z`,
-            source: 'apple_health',
-          });
         }
       }
     } catch (e) {
       console.log('Sleep data not available:', e);
     }
 
-    // Fetch weight
+    // Fetch weight (latest sample)
     try {
-      const weightData = await CapacitorHealthkit.queryHKitSampleType({
-        sampleName: 'bodyMass',
-        startDate: weekAgo.toISOString(),
-        endDate: now.toISOString(),
-        limit: 0,
-      });
+      const weightData = await Health.queryWeight();
 
-      if (weightData?.resultData) {
-        // Get latest weight per day
-        const weightByDay: Record<string, number> = {};
-        for (const sample of weightData.resultData) {
-          const dayKey = sample.startDate.split('T')[0];
-          weightByDay[dayKey] = sample.value || 0;
-        }
-        
-        for (const [date, value] of Object.entries(weightByDay)) {
-          metricsToInsert.push({
-            user_id: user.id,
-            metric_type: 'weight',
-            value: Math.round(value * 10) / 10,
-            unit: 'kg',
-            recorded_at: `${date}T12:00:00.000Z`,
-            source: 'apple_health',
-          });
-        }
+      if (weightData?.value && weightData.value > 0) {
+        const date = weightData.timestamp 
+          ? new Date(weightData.timestamp).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0];
+        metricsToInsert.push({
+          user_id: user.id,
+          metric_type: 'weight',
+          value: Math.round(weightData.value * 10) / 10,
+          unit: weightData.unit || 'kg',
+          recorded_at: `${date}T12:00:00.000Z`,
+          source: 'apple_health',
+        });
       }
     } catch (e) {
       console.log('Weight data not available:', e);
@@ -416,7 +375,7 @@ export function useAppleHealth() {
     }
 
     const loaded = await loadHealthKitPlugin();
-    if (!loaded || !CapacitorHealthkit || !user?.id) {
+    if (!loaded || !Health || !user?.id) {
       toast.error('HealthKit not available');
       return;
     }
