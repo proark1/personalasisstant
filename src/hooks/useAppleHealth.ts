@@ -30,16 +30,42 @@ export interface DailyHealthSummary {
 const isNative = Capacitor.isNativePlatform();
 const isIOS = isNative && Capacitor.getPlatform() === 'ios';
 
+const logHealthDebug = (label: string, extra?: Record<string, unknown>) => {
+  try {
+    const href = typeof window !== 'undefined' ? window.location.href : 'unknown';
+    const isRemoteWebview = href.startsWith('http://') || href.startsWith('https://');
+
+    // eslint-disable-next-line no-console
+    console.log(`[AppleHealth][${label}]`, {
+      platform: Capacitor.getPlatform(),
+      isNative,
+      href,
+      isRemoteWebview,
+      plugins: Object.keys((Capacitor as any).Plugins ?? {}),
+      ...extra,
+    });
+
+    if (isIOS && isNative && isRemoteWebview) {
+      toast.error('This iPhone build is loading a remote site (hot-reload). For HealthKit, rebuild with bundled app assets.');
+    }
+  } catch {
+    // ignore
+  }
+};
+
 // Dynamic import for HealthKit plugin (only on iOS)
 let Health: any = null;
 
 const loadHealthKitPlugin = async () => {
   if (isIOS && !Health) {
     try {
+      logHealthDebug('load_start');
       const module = await import('@flomentumsolutions/capacitor-health-extended');
       Health = module.Health;
+      logHealthDebug('load_ok', { moduleKeys: Object.keys(module as any), pluginName: 'HealthPlugin' });
       return true;
     } catch (err) {
+      logHealthDebug('load_fail', { err: (err as any)?.message ?? String(err) });
       console.warn('HealthKit plugin not available:', err);
       return false;
     }
@@ -151,6 +177,8 @@ export function useAppleHealth() {
   }, [user?.id]);
 
   const requestAppleHealthPermission = useCallback(async () => {
+    logHealthDebug('request_permission_click');
+
     if (!isAvailable) {
       toast.error('Apple Health is only available on iPhone');
       return false;
@@ -164,6 +192,8 @@ export function useAppleHealth() {
     
     setIsLoading(true);
     try {
+      logHealthDebug('before_isHealthAvailable');
+
       // Check if HealthKit is available on this device
       const { available } = await Health.isHealthAvailable();
       if (!available) {
@@ -369,6 +399,8 @@ export function useAppleHealth() {
   };
 
   const syncAppleHealth = useCallback(async () => {
+    logHealthDebug('sync_click');
+
     if (!isAvailable) {
       toast.error('Apple Health sync is only available on iPhone');
       return;
