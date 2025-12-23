@@ -146,7 +146,9 @@ export function MobileLayout({
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-background pt-[env(safe-area-inset-top)] overflow-hidden">
+    <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden">
+      {/* Safe area top spacer */}
+      <div className="bg-background shrink-0" style={{ height: 'max(env(safe-area-inset-top), 8px)' }} />
       {/* Header */}
       <header className="h-14 px-4 flex items-center justify-between border-b border-border bg-background shrink-0">
         <div className="flex items-center gap-3">
@@ -485,7 +487,8 @@ export function MobileLayout({
       </main>
 
       {/* Bottom Tab Bar */}
-      <nav className="border-t border-border bg-background shrink-0 pb-[env(safe-area-inset-bottom)] relative">
+      <nav className="border-t border-border bg-background shrink-0 relative">
+        {/* Safe area bottom spacer is inside the nav now */}
         <div className="h-16 flex items-center justify-around px-2">
           {bottomTabs.map((tab) => {
             if (tab.isCenter) {
@@ -524,6 +527,8 @@ export function MobileLayout({
             );
           })}
         </div>
+        {/* Bottom safe area */}
+        <div className="bg-background shrink-0" style={{ height: 'max(env(safe-area-inset-bottom), 4px)' }} />
       </nav>
     </div>
   );
