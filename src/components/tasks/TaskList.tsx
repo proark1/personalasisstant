@@ -80,6 +80,7 @@ interface TaskListProps {
   contacts?: Contact[];
   tags?: Tag[];
   getTaskTags?: (taskId: string) => Tag[];
+  compactMode?: boolean;
 }
 
 const priorityColors: Record<TaskPriority, string> = {
@@ -108,6 +109,7 @@ interface SortableTaskItemProps {
   onAddSubtask: (parentId: string) => void;
   tags?: Tag[];
   level?: number;
+  compactMode?: boolean;
 }
 
 function SortableTaskItem({ 
@@ -123,7 +125,8 @@ function SortableTaskItem({
   onEditTask,
   onAddSubtask,
   tags = [],
-  level = 0
+  level = 0,
+  compactMode = false,
 }: SortableTaskItemProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -161,16 +164,17 @@ function SortableTaskItem({
     <div ref={setNodeRef} style={style}>
       <div 
         className={cn(
-          "group flex items-start gap-2 p-3 rounded-lg transition-all duration-200 hover:bg-muted/50",
+          "group flex items-start gap-1.5 rounded-lg transition-all duration-200 hover:bg-muted/50",
+          compactMode ? "p-2" : "p-3 gap-2",
           task.completed && "opacity-60",
           selectedTasks.has(task.id) && "bg-primary/10 border border-primary/20",
           isDragging && "opacity-50 bg-muted",
           isOverdue && !task.completed && "border-l-2 border-l-destructive",
-          level > 0 && "ml-6 border-l border-border"
+          level > 0 && "ml-4 border-l border-border"
         )}
       >
-        {/* Drag Handle */}
-        {!isSelectMode && (
+        {/* Drag Handle - hide in compact mode */}
+        {!isSelectMode && !compactMode && (
           <button
             {...attributes}
             {...listeners}
@@ -180,17 +184,17 @@ function SortableTaskItem({
           </button>
         )}
 
-        {/* Expand/Collapse for parent tasks */}
-        {subtasks.length > 0 ? (
+        {/* Expand/Collapse for parent tasks - hide in compact mode if no subtasks */}
+        {!compactMode && subtasks.length > 0 ? (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
           >
             {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </button>
-        ) : (
+        ) : !compactMode ? (
           <div className="w-4" />
-        )}
+        ) : null}
 
         {isSelectMode ? (
           <Checkbox
@@ -244,131 +248,154 @@ function SortableTaskItem({
             </div>
           )}
           
-          {task.description && (
+          {!compactMode && task.description && (
             <p className="text-xs text-muted-foreground mt-0.5 truncate">
               {task.description}
             </p>
           )}
           
-          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              {task.category === 'business' ? (
-                <Briefcase className="w-3 h-3" />
-              ) : (
-                <User className="w-3 h-3" />
-              )}
-              {task.category}
-            </span>
+          <div className={cn(
+            "flex items-center flex-wrap",
+            compactMode ? "gap-2 mt-1" : "gap-3 mt-1.5"
+          )}>
+            {!compactMode && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                {task.category === 'business' ? (
+                  <Briefcase className="w-3 h-3" />
+                ) : (
+                  <User className="w-3 h-3" />
+                )}
+                {task.category}
+              </span>
+            )}
 
-            {/* Due Date with Picker */}
-            <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-              <PopoverTrigger asChild>
-                <button className={cn(
-                  "flex items-center gap-1 text-xs hover:underline",
+            {/* Due Date - simplified in compact mode */}
+            {compactMode ? (
+              task.dueDate && (
+                <span className={cn(
+                  "flex items-center gap-1 text-[10px]",
                   isOverdue ? "text-destructive" : 
                   isDueToday ? "text-warning" :
                   isDueTomorrow ? "text-primary" :
                   "text-muted-foreground"
                 )}>
-                  <CalendarIcon className="w-3 h-3" />
-                  {task.dueDate ? format(task.dueDate, 'MMM d') : 'Set due date'}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={task.dueDate}
-                  onSelect={handleDateSelect}
-                  initialFocus
-                />
-                {task.dueDate && (
-                  <div className="p-2 border-t">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full text-destructive hover:text-destructive"
-                      onClick={() => handleDateSelect(undefined)}
-                    >
-                      Clear due date
-                    </Button>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
+                  <CalendarIcon className="w-2.5 h-2.5" />
+                  {format(task.dueDate, 'MMM d')}
+                </span>
+              )
+            ) : (
+              <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+                <PopoverTrigger asChild>
+                  <button className={cn(
+                    "flex items-center gap-1 text-xs hover:underline",
+                    isOverdue ? "text-destructive" : 
+                    isDueToday ? "text-warning" :
+                    isDueTomorrow ? "text-primary" :
+                    "text-muted-foreground"
+                  )}>
+                    <CalendarIcon className="w-3 h-3" />
+                    {task.dueDate ? format(task.dueDate, 'MMM d') : 'Set due date'}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={task.dueDate}
+                    onSelect={handleDateSelect}
+                    initialFocus
+                  />
+                  {task.dueDate && (
+                    <div className="p-2 border-t">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full text-destructive hover:text-destructive"
+                        onClick={() => handleDateSelect(undefined)}
+                      >
+                        Clear due date
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+            )}
 
-            {task.recurrenceRule && (
+            {!compactMode && task.recurrenceRule && (
               <span className="flex items-center gap-1 text-xs text-primary">
                 <Repeat className="w-3 h-3" />
                 {getRecurrenceDescription(task.recurrenceRule)}
               </span>
             )}
 
-            {task.sharedBy && (
+            {!compactMode && task.sharedBy && (
               <span className="flex items-center gap-1 text-xs text-accent-foreground bg-accent/30 px-1.5 py-0.5 rounded">
                 <UserCircle className="w-3 h-3" />
                 Shared by {task.sharedBy.displayName || task.sharedBy.email || 'someone'}
               </span>
             )}
-            {task.sharedByOwner && (
+            {!compactMode && task.sharedByOwner && (
               <span className="flex items-center gap-1 text-xs text-primary-foreground bg-primary/80 px-1.5 py-0.5 rounded">
                 <Users className="w-3 h-3" />
                 {task.sharedByOwner.display_name || task.sharedByOwner.email || 'Team member'}
               </span>
             )}
-            {tags.length > 0 && (
+            {!compactMode && tags.length > 0 && (
               <TaskTagBadges tags={tags} size="sm" />
             )}
           </div>
         </div>
 
         {!isSelectMode && (
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className={cn(
+            "flex items-center shrink-0 transition-opacity",
+            compactMode 
+              ? "gap-0.5 opacity-100" 
+              : "gap-1 opacity-0 group-hover:opacity-100"
+          )}>
             {onEditTask && (
-              <Button
-                variant="ghost"
-                size="iconSm"
-                className="text-muted-foreground hover:text-primary"
+              <button
+                className={cn(
+                  "p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted/50",
+                  compactMode && "p-0.5"
+                )}
                 onClick={() => onEditTask(task)}
                 title="Edit task"
               >
-                <Pencil className="w-4 h-4" />
-              </Button>
+                <Pencil className={compactMode ? "w-3.5 h-3.5" : "w-4 h-4"} />
+              </button>
             )}
-            {!task.parentId && (
-              <Button
-                variant="ghost"
-                size="iconSm"
-                className="text-muted-foreground hover:text-primary"
+            {!compactMode && !task.parentId && (
+              <button
+                className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted/50"
                 onClick={() => onAddSubtask(task.id)}
                 title="Add subtask"
               >
                 <Plus className="w-4 h-4" />
-              </Button>
+              </button>
             )}
-            {onShareTask && (
-              <Button
-                variant="ghost"
-                size="iconSm"
-                className="text-muted-foreground hover:text-primary"
+            {!compactMode && onShareTask && (
+              <button
+                className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted/50"
                 onClick={() => onShareTask(task.id, task.title)}
               >
                 <Share2 className="w-4 h-4" />
-              </Button>
+              </button>
             )}
-            <Button
-              variant="ghost"
-              size="iconSm"
-              className="text-muted-foreground hover:text-destructive"
+            <button
+              className={cn(
+                "p-1 rounded text-muted-foreground hover:text-destructive hover:bg-muted/50",
+                compactMode && "p-0.5"
+              )}
               onClick={() => onDeleteTask(task.id)}
             >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+              <Trash2 className={compactMode ? "w-3.5 h-3.5" : "w-4 h-4"} />
+            </button>
           </div>
         )}
       </div>
 
-      {/* Render Subtasks */}
-      {isExpanded && subtasks.length > 0 && (
+      {/* Render Subtasks - hide in compact mode */}
+      {!compactMode && isExpanded && subtasks.length > 0 && (
         <div className="space-y-1">
           {subtasks.map(subtask => (
             <SortableTaskItem
@@ -386,6 +413,7 @@ function SortableTaskItem({
               onAddSubtask={onAddSubtask}
               tags={[]}
               level={level + 1}
+              compactMode={compactMode}
             />
           ))}
         </div>
@@ -410,6 +438,7 @@ export function TaskList({
   contacts = [],
   tags = [],
   getTaskTags,
+  compactMode = false,
 }: TaskListProps) {
   const { t, language } = useLanguage();
   const dateLocale = language === 'de' ? de : enUS;
@@ -759,7 +788,7 @@ export function TaskList({
             <div className="space-y-1">
               {incompleteTasks.map(task => (
                 <div key={task.id}>
-                  <SortableTaskItem
+                <SortableTaskItem
                     task={task}
                     subtasks={subtasksByParent[task.id] || []}
                     isSelectMode={isSelectMode}
@@ -771,6 +800,7 @@ export function TaskList({
                     onUpdateTask={onUpdateTask}
                     onEditTask={setEditingTask}
                     onAddSubtask={handleAddSubtask}
+                    compactMode={compactMode}
                   />
                   {addingSubtaskFor === task.id && <AddTaskForm parentId={task.id} />}
                 </div>
@@ -800,6 +830,7 @@ export function TaskList({
                   onUpdateTask={onUpdateTask}
                   onEditTask={setEditingTask}
                   onAddSubtask={handleAddSubtask}
+                  compactMode={compactMode}
                 />
               ))}
             </div>
