@@ -4,13 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ChatPanel } from '../chat/ChatPanel';
 import { TeamChatPanel } from '../chat/TeamChatPanel';
-import { TaskList } from '../tasks/TaskList';
-import { CalendarPanel } from '../calendar/CalendarPanel';
-import { TodayFocusView } from '../focus/TodayFocusView';
-import { WorkspaceTabs } from '../workspace/WorkspaceTabs';
+import { CalendarHubPanel } from '../calendar/CalendarHubPanel';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { SettingsPanelContent } from '../settings/SettingsPanelContent';
-import { VoiceQuickAdd } from '../tasks/VoiceQuickAdd';
 import { FamilyPanel } from '../family/FamilyPanel';
 import { DashboardPanel } from '../dashboard/DashboardPanel';
 import { HealthHubPanel } from '../health/HealthHubPanel';
@@ -76,7 +72,7 @@ interface MobileLayoutProps {
   onUpdateNotifications?: (updates: Partial<UserSettings['notifications']>) => void;
 }
 
-type Tab = 'chat' | 'messages' | 'tasks' | 'calendar' | 'focus' | 'settings' | 'family' | 'dashboard' | 'health';
+type Tab = 'chat' | 'messages' | 'calendar' | 'settings' | 'family' | 'dashboard' | 'health';
 
 export function MobileLayout({
   userId,
@@ -123,10 +119,10 @@ export function MobileLayout({
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
-  // Bottom nav: Calendar, Focus, Assistant (center), Health, Friends
+  // Bottom nav: Calendar, Family, Assistant (center), Health, Friends
   const bottomTabs = [
     { id: 'calendar' as Tab, icon: Calendar },
-    { id: 'focus' as Tab, icon: Zap },
+    { id: 'family' as Tab, icon: Home },
     { id: 'assistant' as const, icon: Mic, isCenter: true },
     { id: 'health' as Tab, icon: Heart },
     { id: 'messages' as Tab, icon: MessageCircle },
@@ -190,17 +186,17 @@ export function MobileLayout({
                     <span>AI Assistant</span>
                   </Button>
 
-                  {/* Tasks */}
+                  {/* Calendar (includes Focus & Tasks) */}
                   <Button
-                    variant={activeTab === 'tasks' ? 'secondary' : 'ghost'}
+                    variant={activeTab === 'calendar' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
                     onClick={() => {
-                      setActiveTab('tasks');
+                      setActiveTab('calendar');
                       setSidebarOpen(false);
                     }}
                   >
-                    <CheckSquare className="w-5 h-5 shrink-0" />
-                    <span>Tasks</span>
+                    <Calendar className="w-5 h-5 shrink-0" />
+                    <span>Calendar</span>
                   </Button>
 
                   {/* Friends/Chat */}
@@ -214,19 +210,6 @@ export function MobileLayout({
                   >
                     <MessageCircle className="w-5 h-5 shrink-0" />
                     <span>Friends</span>
-                  </Button>
-
-                  {/* Calendar */}
-                  <Button
-                    variant={activeTab === 'calendar' ? 'secondary' : 'ghost'}
-                    className="w-full justify-start gap-3"
-                    onClick={() => {
-                      setActiveTab('calendar');
-                      setSidebarOpen(false);
-                    }}
-                  >
-                    <Calendar className="w-5 h-5 shrink-0" />
-                    <span>Calendar</span>
                   </Button>
 
                   {/* Dashboard */}
@@ -256,19 +239,6 @@ export function MobileLayout({
 
                   {/* Productivity section */}
                   <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block mt-4">Productivity</span>
-
-                  {/* Today Focus */}
-                  <Button
-                    variant={activeTab === 'focus' ? 'secondary' : 'ghost'}
-                    className="w-full justify-start gap-3"
-                    onClick={() => {
-                      setActiveTab('focus');
-                      setSidebarOpen(false);
-                    }}
-                  >
-                    <Zap className="w-5 h-5 shrink-0" />
-                    <span>Today Focus</span>
-                  </Button>
 
                   {/* Notes */}
                   <Button
@@ -415,47 +385,25 @@ export function MobileLayout({
         </div>
         <div className={cn(
           "h-full",
-          activeTab === 'focus' ? 'block' : 'hidden'
-        )}>
-          <TodayFocusView
-            tasks={tasks}
-            events={events}
-            onToggleComplete={onToggleTaskComplete}
-            onClose={() => setActiveTab('tasks')}
-          />
-        </div>
-        <div className={cn(
-          "h-full",
-          activeTab === 'tasks' ? 'block' : 'hidden'
-        )}>
-          <TaskList
-            tasks={displayTasks}
-            filter={filter}
-            onToggleComplete={onToggleTaskComplete}
-            onDeleteTask={onDeleteTask}
-            onDeleteTasks={onDeleteTasks}
-            onAddTask={onAddTask}
-            onUpdateTask={onUpdateTask}
-            onReorderTasks={onReorderTasks}
-            onShareTask={onShareTask}
-          />
-        </div>
-        <div className={cn(
-          "h-full",
           activeTab === 'calendar' ? 'block' : 'hidden'
         )}>
-          <CalendarPanel
-            events={displayEvents}
+          <CalendarHubPanel
+            userId={userId}
             tasks={displayTasks}
+            events={displayEvents}
+            filter={filter}
+            onAddTask={onAddTask}
+            onToggleTaskComplete={onToggleTaskComplete}
+            onDeleteTask={onDeleteTask}
+            onDeleteTasks={onDeleteTasks}
+            onUpdateTask={onUpdateTask}
+            onReorderTasks={onReorderTasks}
             onAddEvent={onAddEvent}
             onUpdateEvent={onUpdateEvent}
             onDeleteEvent={onDeleteEvent}
             onImportEvents={onImportEvents}
-            onShareEvent={onShareEvent}
             onShareTask={onShareTask}
-            onToggleTaskComplete={onToggleTaskComplete}
-            onUpdateTask={onUpdateTask}
-            onDeleteTask={onDeleteTask}
+            onShareEvent={onShareEvent}
           />
         </div>
         {activeTab === 'settings' && settings && onUpdateSettings && onUpdateNotifications && (
