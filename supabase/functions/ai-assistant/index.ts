@@ -32,11 +32,13 @@ interface DailyCheckin {
 }
 
 interface AIRequest {
-  type: 'breakdown' | 'reschedule' | 'plan_day' | 'what_now';
+  type: 'breakdown' | 'reschedule' | 'plan_day' | 'what_now' | 'categorize_dump';
   task?: Task;
   tasks?: Task[];
   events?: Event[];
   checkin?: DailyCheckin;
+  content?: string;
+  userId?: string;
 }
 
 async function logAIUsage(
@@ -251,6 +253,33 @@ Available tasks (sorted by priority):
 ${incompleteTasks.slice(0, 10).map(t => `- ID: ${t.id}, Title: "${t.title}", Category: ${t.category}, Priority: ${t.priority}${t.dueDate ? `, Due: ${t.dueDate}` : ''}`).join('\n')}
 
 Help me decide: What should I do RIGHT NOW?`;
+
+    } else if (type === 'categorize_dump') {
+      // Brain dump categorization for quick capture
+      const { content: dumpContent } = await req.json().catch(() => ({ content: '' }));
+      if (!dumpContent && !req.body) throw new Error("Content is required for categorization");
+      
+      systemPrompt = `You are an AI assistant that categorizes quick thoughts and brain dumps.
+Analyze the content and determine what type of item it should become.
+
+Return a JSON object with this exact structure:
+{
+  "suggested_type": "task" | "note" | "event" | "reminder",
+  "suggested_category": "personal" | "business" | "family" | "work",
+  "suggested_priority": "low" | "medium" | "high",
+  "ai_summary": "A brief, clean title (max 50 chars)"
+}
+
+Guidelines:
+- "task" = actionable item with a clear outcome
+- "note" = information to remember, no action needed
+- "event" = something with a specific date/time
+- "reminder" = something to remember at a future point
+- Extract the essence into a clean, actionable title
+- Infer priority from urgency words ("urgent", "asap", "when possible")`;
+
+      userPrompt = `Categorize this brain dump:
+"${dumpContent || ''}"`;
 
     } else {
       throw new Error("Invalid request type");
