@@ -10,13 +10,20 @@ interface Message {
   content: string;
 }
 
+interface NoteData {
+  title: string;
+  content: string;
+  tags?: string[];
+}
+
 interface ToolCall {
-  tool: 'manage_task' | 'schedule_event' | 'suggest_contacts' | 'create_meeting_plan';
+  tool: 'manage_task' | 'schedule_event' | 'suggest_contacts' | 'create_meeting_plan' | 'create_note';
   action?: 'add' | 'update' | 'delete' | 'complete';
   task?: Partial<Task>;
   event?: Partial<CalendarEvent>;
   criteria?: { location?: string; type?: string; keywords?: string[] };
   plan?: { city?: string; contacts?: string[]; dates?: string[] };
+  note?: NoteData;
 }
 
 interface RelevantContact {
@@ -139,6 +146,21 @@ export function useAIChat() {
         cleanContent = cleanContent.replace(match[0], '');
       } catch (e) {
         console.error('Failed to parse meeting plan tool call:', e);
+      }
+    }
+
+    // Parse create_note tool calls
+    const noteMatches = content.matchAll(
+      /<tool>create_note<\/tool>\s*<note>(\{[\s\S]*?\})<\/note>/g
+    );
+    for (const match of noteMatches) {
+      try {
+        const noteData = JSON.parse(match[1]);
+        console.log('[useAIChat] Parsed note data:', noteData);
+        toolCalls.push({ tool: 'create_note', note: noteData });
+        cleanContent = cleanContent.replace(match[0], '');
+      } catch (e) {
+        console.error('Failed to parse note tool call:', e);
       }
     }
 

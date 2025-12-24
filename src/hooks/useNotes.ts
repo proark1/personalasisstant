@@ -63,7 +63,7 @@ export function useNotes(userId: string | undefined) {
     }
   }, [userId]);
 
-  const createNote = useCallback(async (title: string = 'Untitled', content: string = '') => {
+  const createNote = useCallback(async (title: string = 'Untitled', content: string = '', tags: string[] = []) => {
     if (!userId) return null;
 
     try {
@@ -73,6 +73,7 @@ export function useNotes(userId: string | undefined) {
           user_id: userId,
           title,
           content,
+          tags: tags.length > 0 ? tags : null,
         })
         .select()
         .single();
@@ -85,7 +86,7 @@ export function useNotes(userId: string | undefined) {
         title: data.title,
         content: data.content,
         linkedItems: [],
-        tags: [],
+        tags: data.tags || [],
         isPinned: false,
         trashed: false,
         trashedAt: null,

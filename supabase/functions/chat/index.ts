@@ -121,6 +121,21 @@ Event JSON fields:
 - "attendees": string[] (optional)
 - "recurrenceRule": RRULE string (optional, e.g., "FREQ=WEEKLY;INTERVAL=2")
 
+TOOL: create_note
+Use this to save notes or ideas the user wants to remember.
+Format: <tool>create_note</tool><note>JSON_OBJECT</note>
+Note JSON fields:
+- "title": string (required) - A short descriptive title for the note
+- "content": string (required) - The full content/body of the note
+- "tags": string[] (optional) - Tags to categorize the note
+
+When to use this tool:
+- When user says "make a note", "save this", "remember this", "note down", "write down"
+- When user shares ideas, thoughts, or information they want to keep
+- When user dictates content they want saved for later
+- Extract a clear title from what they're saying
+- The content should capture the full idea/information
+
 TOOL: suggest_contacts
 Use this to suggest relevant contacts based on criteria.
 Format: <tool>suggest_contacts</tool><criteria>{"location": "city_name", "type": "investor|developer|designer|etc", "keywords": ["tag1", "tag2"]}</criteria>

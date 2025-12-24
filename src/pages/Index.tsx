@@ -19,6 +19,7 @@ import { useContracts } from '@/hooks/useContracts';
 import { useContractReminders } from '@/hooks/useContractReminders';
 import { useHealthTracking } from '@/hooks/useHealthTracking';
 import { useFamilyEvents } from '@/hooks/useFamilyEvents';
+import { useNotes } from '@/hooks/useNotes';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
@@ -153,6 +154,9 @@ const Index = () => {
 
   // Family events for AI assistant
   const { events: familyEvents, getUpcomingEvents: getUpcomingFamilyEvents } = useFamilyEvents();
+
+  // Notes for voice assistant
+  const { createNote } = useNotes(user?.id);
 
   // Contract reminders - creates tasks for contracts ending within 3 months
   useContractReminders({
@@ -495,6 +499,19 @@ const Index = () => {
                 description: newEvent.title,
               });
             }
+          } else if (toolCall.tool === 'create_note' && toolCall.note) {
+            // Create a note from voice assistant
+            const noteTitle = toolCall.note.title || 'Voice Note';
+            const noteContent = toolCall.note.content || '';
+            const noteTags = toolCall.note.tags || [];
+            
+            const newNote = await createNote(noteTitle, noteContent, noteTags);
+            if (newNote) {
+              toast({
+                title: 'Note Saved',
+                description: noteTitle,
+              });
+            }
           }
         },
         onDone: () => {
@@ -506,6 +523,7 @@ const Index = () => {
       const cleanContent = assistantContent
         .replace(/<tool>[\s\S]*?<\/task>/g, '')
         .replace(/<tool>[\s\S]*?<\/event>/g, '')
+        .replace(/<tool>[\s\S]*?<\/note>/g, '')
         .trim();
 
       if (cleanContent) {
