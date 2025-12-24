@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarEvent, Task } from '@/types/flux';
 import { TodayFocusPanel } from '../focus/TodayFocusPanel';
 import { TaskList } from '../tasks/TaskList';
-import { CalendarPanel } from './CalendarPanel';
+import { WeeklyCalendarView } from './WeeklyCalendarView';
 import { SidebarFilter } from '../layout/Sidebar';
 import { Zap, CheckSquare, Calendar } from 'lucide-react';
 
@@ -101,21 +101,14 @@ export function CalendarHubPanel({
             onUpdateTask={onUpdateTask}
             onReorderTasks={onReorderTasks}
             onShareTask={onShareTask}
+            compactMode={true}
           />
         </div>
         <div className={cn("h-full", activeView === 'calendar' ? 'block' : 'hidden')}>
-          <CalendarPanel
+          <WeeklyCalendarView
             events={events}
             tasks={tasks}
-            onAddEvent={onAddEvent}
-            onUpdateEvent={onUpdateEvent}
-            onDeleteEvent={onDeleteEvent}
-            onImportEvents={onImportEvents}
-            onShareEvent={onShareEvent}
-            onShareTask={onShareTask}
             onToggleTaskComplete={onToggleTaskComplete}
-            onUpdateTask={onUpdateTask}
-            onDeleteTask={onDeleteTask}
           />
         </div>
       </div>
