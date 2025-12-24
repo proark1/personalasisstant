@@ -487,58 +487,35 @@ export function MobileLayout({
       </main>
 
       {/* Bottom Tab Bar */}
-      <nav className="border-t border-border bg-background shrink-0 relative" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="h-14 flex items-center relative">
-          {/* Left side tabs */}
-          <div className="flex-1 flex items-center justify-evenly">
-            {bottomTabs.slice(0, 2).map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as Tab)}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors",
-                  activeTab === tab.id 
-                    ? "text-primary" 
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <tab.icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-          
-          {/* Center assistant button */}
-          <div className="w-16 flex items-center justify-center">
+      <nav className="border-t border-border bg-background shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="h-16 flex items-end justify-around px-2 pt-1 pb-1">
+          {bottomTabs.map((tab) => (
             <button
-              onClick={onVoiceMode}
-              className="flex flex-col items-center justify-center absolute -top-6 left-1/2 -translate-x-1/2"
+              key={tab.id}
+              onClick={() => tab.isCenter ? onVoiceMode() : setActiveTab(tab.id as Tab)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 min-w-[56px]",
+                tab.isCenter ? "" : "py-1.5",
+                !tab.isCenter && activeTab === tab.id 
+                  ? "text-primary" 
+                  : !tab.isCenter ? "text-muted-foreground hover:text-foreground" : ""
+              )}
             >
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg border-4 border-background">
-                <Mic className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-[10px] font-medium text-primary mt-1">Assistant</span>
+              {tab.isCenter ? (
+                <>
+                  <div className="w-12 h-12 -mt-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg border-4 border-background">
+                    <Mic className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <span className="text-[10px] font-medium text-primary mt-0.5">{tab.label}</span>
+                </>
+              ) : (
+                <>
+                  <tab.icon className="w-5 h-5" />
+                  <span className="text-[10px] font-medium">{tab.label}</span>
+                </>
+              )}
             </button>
-          </div>
-          
-          {/* Right side tabs */}
-          <div className="flex-1 flex items-center justify-evenly">
-            {bottomTabs.slice(3, 5).map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as Tab)}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors",
-                  activeTab === tab.id 
-                    ? "text-primary" 
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <tab.icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{tab.label}</span>
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
       </nav>
     </div>
