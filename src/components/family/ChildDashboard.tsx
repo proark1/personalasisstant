@@ -64,6 +64,16 @@ export function ChildDashboard() {
     !linkedContactIds.has(c.id)
   );
 
+  // Debug logging
+  console.log('ChildDashboard debug:', {
+    userId: user?.id,
+    totalContacts: contacts.length,
+    childContactsFound: childContacts.map(c => ({ name: c.name, rel: c.familyRelationship })),
+    familyMemberChildren: familyMemberChildren.length,
+    isLoading,
+    contactsLoading
+  });
+
   // Combine both sources
   const allChildren: ChildDisplay[] = [
     ...familyMemberChildren.map(m => ({
