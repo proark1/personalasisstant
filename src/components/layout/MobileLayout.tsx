@@ -423,13 +423,13 @@ export function MobileLayout({
           <HealthHubPanel />
         </div>
         <div className={cn(
-          "h-full",
+          "h-full overflow-y-auto",
           activeTab === 'contacts' ? 'block' : 'hidden'
         )}>
           <ContactsPanel userId={userId} />
         </div>
         <div className={cn(
-          "h-full",
+          "h-full overflow-y-auto",
           activeTab === 'contracts' ? 'block' : 'hidden'
         )}>
           <ContractsPanel userId={userId} />
