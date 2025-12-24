@@ -31,41 +31,32 @@ export function FamilyPanel() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <div className="mx-4 mt-4 overflow-x-auto scrollbar-hide">
           <TabsList className="inline-flex min-w-max gap-1">
-            <TabsTrigger value="members" className="flex items-center gap-1.5 px-3">
-              <Users className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.members')}</span>
+            <TabsTrigger value="members" className="p-2">
+              <Users className="h-5 w-5" />
             </TabsTrigger>
-            <TabsTrigger value="children" className="flex items-center gap-1.5 px-3">
-              <Baby className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.kids')}</span>
+            <TabsTrigger value="children" className="p-2">
+              <Baby className="h-5 w-5" />
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="flex items-center gap-1.5 px-3">
-              <ListTodo className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.tasks')}</span>
+            <TabsTrigger value="tasks" className="p-2">
+              <ListTodo className="h-5 w-5" />
             </TabsTrigger>
-            <TabsTrigger value="meals" className="flex items-center gap-1.5 px-3">
-              <Utensils className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.meals')}</span>
+            <TabsTrigger value="meals" className="p-2">
+              <Utensils className="h-5 w-5" />
             </TabsTrigger>
-            <TabsTrigger value="shopping" className="flex items-center gap-1.5 px-3">
-              <ShoppingCart className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.shopping')}</span>
+            <TabsTrigger value="shopping" className="p-2">
+              <ShoppingCart className="h-5 w-5" />
             </TabsTrigger>
-            <TabsTrigger value="budget" className="flex items-center gap-1.5 px-3">
-              <Wallet className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.budget')}</span>
+            <TabsTrigger value="budget" className="p-2">
+              <Wallet className="h-5 w-5" />
             </TabsTrigger>
-            <TabsTrigger value="health" className="flex items-center gap-1.5 px-3">
-              <Heart className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.health')}</span>
+            <TabsTrigger value="health" className="p-2">
+              <Heart className="h-5 w-5" />
             </TabsTrigger>
-            <TabsTrigger value="docs" className="flex items-center gap-1.5 px-3">
-              <FolderOpen className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.docs')}</span>
+            <TabsTrigger value="docs" className="p-2">
+              <FolderOpen className="h-5 w-5" />
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center gap-1.5 px-3">
-              <Calendar className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{t('family.calendar')}</span>
+            <TabsTrigger value="calendar" className="p-2">
+              <Calendar className="h-5 w-5" />
             </TabsTrigger>
           </TabsList>
         </div>
