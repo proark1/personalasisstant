@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEncryption } from './useEncryption';
 
@@ -47,6 +47,9 @@ export function useDirectMessages(userId: string | null) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const { isReady, encryptDirectMessage, decryptDirectMessage, getRecipientPublicKey } = useEncryption();
+
+  // Cache profile lookups so names don't flicker to "Unknown" on transient network failures.
+  const profileCacheRef = useRef(new Map<string, { display_name: string | null; email: string | null }>());
 
   // Decrypt a single message
   const decryptMessage = useCallback(async (msg: DirectMessage): Promise<DirectMessage> => {
@@ -102,14 +105,24 @@ export function useDirectMessages(userId: string | null) {
         }
       }
 
-      // Fetch partner profiles
+      // Fetch partner profiles (best-effort)
       const partnerIds = Array.from(conversationMap.keys());
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, display_name, email')
         .in('user_id', partnerIds);
 
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      if (!profilesError && profiles) {
+        profiles.forEach((p) => {
+          profileCacheRef.current.set(p.user_id, { display_name: p.display_name, email: p.email });
+        });
+      } else if (profilesError) {
+        console.error('Error fetching conversation partner profiles:', profilesError);
+      }
+
+      const profileMap = new Map(
+        (profiles || []).map((p) => [p.user_id, p])
+      );
 
       // Build conversation list with decrypted last messages
       const convList: Conversation[] = [];
@@ -131,10 +144,14 @@ export function useDirectMessages(userId: string | null) {
           }
         }
         
+        const cached = profileCacheRef.current.get(partnerId);
+        const displayName = profile?.display_name ?? cached?.display_name ?? null;
+        const email = profile?.email ?? cached?.email ?? null;
+
         convList.push({
           partnerId,
-          partnerName: profile?.display_name || 'Unknown',
-          partnerEmail: profile?.email || '',
+          partnerName: displayName || 'Unknown',
+          partnerEmail: email || '',
           lastMessage: lastMessageContent,
           lastMessageAt: lastMsg?.created_at || '',
           unreadCount: conv.unreadCount,
