@@ -14,6 +14,8 @@ import { VoiceQuickAdd } from '../tasks/VoiceQuickAdd';
 import { FamilyPanel } from '../family/FamilyPanel';
 import { DashboardPanel } from '../dashboard/DashboardPanel';
 import { HealthHubPanel } from '../health/HealthHubPanel';
+import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
+import { BrainDumpFAB } from '../capture/BrainDumpFAB';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Task, CalendarEvent, ChatMessage, UserSettings } from '@/types/flux';
 import { SidebarFilter } from './Sidebar';
@@ -518,6 +520,10 @@ export function MobileLayout({
           ))}
         </div>
       </nav>
+
+      {/* ADHD Support Overlays */}
+      <SmartNudgeProvider tasks={tasks} events={events} />
+      <BrainDumpFAB />
     </div>
   );
 }
