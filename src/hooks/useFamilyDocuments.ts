@@ -26,7 +26,7 @@ export function useFamilyDocuments() {
   const [documents, setDocuments] = useState<FamilyDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = async (retryCount = 0) => {
     if (!user?.id) return;
     
     try {
@@ -38,9 +38,15 @@ export function useFamilyDocuments() {
 
       if (error) throw error;
       setDocuments(data || []);
-    } catch (error) {
+    } catch (error: any) {
+      // Silent retry for transient network errors
+      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      if (isNetworkError && retryCount < 2) {
+        await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
+        return fetchDocuments(retryCount + 1);
+      }
       console.error('Error fetching documents:', error);
-      toast.error('Failed to load documents');
+      // Don't show toast for network errors - just keep existing data
     } finally {
       setIsLoading(false);
     }

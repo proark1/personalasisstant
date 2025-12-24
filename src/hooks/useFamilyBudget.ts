@@ -53,9 +53,12 @@ export function useFamilyBudget() {
     }
   }, [user]);
 
-  const loadData = async () => {
+  const loadData = async (retryCount = 0) => {
     if (!user) return;
-    setIsLoading(true);
+    // Only show loading on initial load, not retries
+    if (retryCount === 0) {
+      setIsLoading(true);
+    }
     try {
       // Load categories
       const { data: cats, error: catError } = await supabase
@@ -95,11 +98,19 @@ export function useFamilyBudget() {
       }));
 
       setExpenses(expensesWithCats);
-    } catch (error) {
+    } catch (error: any) {
+      // Silent retry for transient network errors
+      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      if (isNetworkError && retryCount < 2) {
+        await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
+        return loadData(retryCount + 1);
+      }
       console.error('Error loading budget data:', error);
-      toast.error('Failed to load budget data');
+      // Don't show toast for network errors - just keep existing data
     } finally {
-      setIsLoading(false);
+      if (retryCount === 0) {
+        setIsLoading(false);
+      }
     }
   };
 

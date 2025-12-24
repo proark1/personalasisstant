@@ -77,8 +77,8 @@ export function useGroupChat(userId: string | null) {
     return msg;
   }, [isReady, decryptGroupMessage]);
 
-  // Fetch all groups
-  const fetchGroups = useCallback(async () => {
+  // Fetch all groups with silent retry for network errors
+  const fetchGroups = useCallback(async (retryCount = 0) => {
     if (!userId) return;
 
     try {
@@ -118,7 +118,7 @@ export function useGroupChat(userId: string | null) {
             .eq('group_id', group.id)
             .order('created_at', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
           
           let lastMessageContent = lastMsg?.content || '';
           
@@ -149,8 +149,17 @@ export function useGroupChat(userId: string | null) {
       );
 
       setGroups(enrichedGroups);
-    } catch (error) {
-      console.error('Error fetching groups:', error);
+    } catch (error: any) {
+      // Silent retry for transient network errors
+      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      if (isNetworkError && retryCount < 2) {
+        await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
+        return fetchGroups(retryCount + 1);
+      }
+      // Don't log noisy errors for network issues - just keep existing data
+      if (!isNetworkError) {
+        console.error('Error fetching groups:', error);
+      }
     } finally {
       setLoading(false);
     }

@@ -66,8 +66,8 @@ export function useDirectMessages(userId: string | null) {
     return msg;
   }, [isReady, decryptDirectMessage]);
 
-  // Fetch all conversations
-  const fetchConversations = useCallback(async () => {
+  // Fetch all conversations with silent retry for network errors
+  const fetchConversations = useCallback(async (retryCount = 0) => {
     if (!userId) return;
 
     try {
@@ -116,9 +116,8 @@ export function useDirectMessages(userId: string | null) {
         profiles.forEach((p) => {
           profileCacheRef.current.set(p.user_id, { display_name: p.display_name, email: p.email });
         });
-      } else if (profilesError) {
-        console.error('Error fetching conversation partner profiles:', profilesError);
       }
+      // Silently ignore profile errors - we have cache fallback
 
       const profileMap = new Map(
         (profiles || []).map((p) => [p.user_id, p])
@@ -161,8 +160,17 @@ export function useDirectMessages(userId: string | null) {
       setConversations(convList.sort((a, b) => 
         new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
       ));
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
+    } catch (error: any) {
+      // Silent retry for transient network errors
+      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      if (isNetworkError && retryCount < 2) {
+        await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
+        return fetchConversations(retryCount + 1);
+      }
+      // Don't log noisy errors for network issues - just keep existing data
+      if (!isNetworkError) {
+        console.error('Error fetching conversations:', error);
+      }
     } finally {
       setLoading(false);
     }
