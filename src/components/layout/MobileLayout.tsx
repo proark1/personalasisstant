@@ -368,6 +368,7 @@ export function MobileLayout({
             tasks={displayTasks}
             events={displayEvents}
             filter={filter}
+            onFilterChange={setFilter}
             onAddTask={onAddTask}
             onToggleTaskComplete={onToggleTaskComplete}
             onDeleteTask={onDeleteTask}

@@ -7,8 +7,9 @@ import { ChatMessage } from '@/types/flux';
 import { Contact } from '@/hooks/useContacts';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { findRelevantContacts, ContactSuggestion } from '@/lib/contactSuggestions';
-import { Send, Sparkles, User, Bot, Mic, MicOff, MessageSquare, Users, X } from 'lucide-react';
+import { Send, User, Bot, Mic, MicOff, MessageSquare, Users, X } from 'lucide-react';
 import { format } from 'date-fns';
+import doriFish from '@/assets/dori-fish.png';
 
 const EMPTY_CONTACTS: Contact[] = [];
 
@@ -98,11 +99,9 @@ export function DoriPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="h-14 px-4 flex items-center justify-between border-b border-border">
+      <div className="h-14 px-4 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-accent/5">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-primary-foreground" />
-          </div>
+          <img src={doriFish} alt="Dori" className="w-10 h-10 object-contain" />
           <h3 className="font-semibold text-sm">Dori</h3>
         </div>
         
@@ -139,9 +138,7 @@ export function DoriPanel({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-4">
-              <Sparkles className="w-8 h-8 text-primary" />
-            </div>
+            <img src={doriFish} alt="Dori" className="w-24 h-24 object-contain mb-4" />
             <h3 className="text-lg font-medium mb-2">Hi, I'm Dori!</h3>
             <p className="text-sm text-muted-foreground max-w-xs">
               Your personal assistant. Ask me to manage tasks, schedule events, brainstorm ideas, or search the web.
@@ -170,9 +167,7 @@ export function DoriPanel({
               )}
             >
               {message.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                  <Bot className="w-4 h-4 text-primary-foreground" />
-                </div>
+                <img src={doriFish} alt="Dori" className="w-8 h-8 object-contain shrink-0" />
               )}
               <div
                 className={cn(
@@ -209,9 +204,7 @@ export function DoriPanel({
         )}
         {isProcessing && (
           <div className="flex gap-3 animate-fade-in">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-              <Bot className="w-4 h-4 text-primary-foreground" />
-            </div>
+            <img src={doriFish} alt="Dori" className="w-8 h-8 object-contain shrink-0" />
             <div className="glass-panel rounded-xl px-4 py-3">
               <div className="flex gap-1">
                 <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
