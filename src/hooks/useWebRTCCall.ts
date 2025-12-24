@@ -514,9 +514,34 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
     }
   }, [localStream]);
 
+  // Check if screen sharing is supported (not available on iOS native apps)
+  const isScreenShareSupported = useCallback(() => {
+    // Check if running in Capacitor/native iOS
+    const isIOSNative = !!(window as any).Capacitor?.isNativePlatform?.() && 
+                        (window as any).Capacitor?.getPlatform?.() === 'ios';
+    
+    // getDisplayMedia is not available on iOS native apps
+    if (isIOSNative) {
+      return false;
+    }
+    
+    // Check if browser supports getDisplayMedia
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+  }, []);
+
   // Toggle screen sharing
   const toggleScreenShare = useCallback(async () => {
     if (!peerConnection.current) return;
+
+    // Check platform support
+    if (!isScreenShareSupported()) {
+      toast({
+        title: 'Screen Share Unavailable',
+        description: 'Screen sharing is not supported on iOS. This is a platform limitation.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       if (isScreenSharing) {
@@ -572,7 +597,7 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
         variant: 'destructive',
       });
     }
-  }, [isScreenSharing, localStream, toast]);
+  }, [isScreenSharing, localStream, toast, isScreenShareSupported]);
 
   // Listen for incoming calls
   useEffect(() => {
@@ -623,6 +648,7 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
     isAudioMuted,
     isVideoOff,
     isScreenSharing,
+    isScreenShareSupported: isScreenShareSupported(),
     peerConnection: peerConnection.current,
     startCall,
     answerCall,

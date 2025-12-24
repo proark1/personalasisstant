@@ -78,6 +78,7 @@ export function CallProvider({ userId, userName, children }: CallProviderProps) 
     isAudioMuted,
     isVideoOff,
     isScreenSharing,
+    isScreenShareSupported,
     peerConnection,
     startCall,
     answerCall,
@@ -181,6 +182,7 @@ export function CallProvider({ userId, userName, children }: CallProviderProps) 
         isAudioMuted={isAudioMuted}
         isVideoOff={isVideoOff}
         isScreenSharing={isScreenSharing}
+        isScreenShareSupported={isScreenShareSupported}
         peerConnection={peerConnection}
         sessionId={currentSession?.id || null}
         userId={userId}

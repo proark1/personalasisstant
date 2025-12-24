@@ -42,6 +42,7 @@ interface CallDialogProps {
   isAudioMuted: boolean;
   isVideoOff: boolean;
   isScreenSharing: boolean;
+  isScreenShareSupported: boolean;
   peerConnection: RTCPeerConnection | null;
   sessionId?: string | null;
   userId?: string;
@@ -64,6 +65,7 @@ export function CallDialog({
   isAudioMuted,
   isVideoOff,
   isScreenSharing,
+  isScreenShareSupported,
   peerConnection,
   sessionId,
   userId,
@@ -288,12 +290,14 @@ export function CallDialog({
                 </Button>
               )}
 
-              {/* Screen share toggle */}
+              {/* Screen share toggle - disabled on iOS */}
               <Button
                 size="lg"
                 variant={isScreenSharing ? 'default' : 'secondary'}
                 className="rounded-full w-12 h-12"
                 onClick={onToggleScreenShare}
+                disabled={!isScreenShareSupported}
+                title={!isScreenShareSupported ? 'Screen sharing not available on iOS' : undefined}
               >
                 {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
               </Button>
