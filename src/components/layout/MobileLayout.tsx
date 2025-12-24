@@ -11,6 +11,10 @@ import { SettingsPanelContent } from '../settings/SettingsPanelContent';
 import { FamilyPanel } from '../family/FamilyPanel';
 import { DashboardPanel } from '../dashboard/DashboardPanel';
 import { HealthHubPanel } from '../health/HealthHubPanel';
+import { ContactsPanel } from '../contacts/ContactsPanel';
+import { ContractsPanel } from '../contracts/ContractsPanel';
+import { NotesPanel } from '../notes/NotesPanel';
+import { HabitsPanel } from '../habits/HabitsPanel';
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
 
 import { useNotifications } from '@/hooks/useNotifications';
@@ -74,7 +78,7 @@ interface MobileLayoutProps {
   onUpdateNotifications?: (updates: Partial<UserSettings['notifications']>) => void;
 }
 
-type Tab = 'chat' | 'messages' | 'calendar' | 'settings' | 'family' | 'dashboard' | 'health';
+type Tab = 'chat' | 'messages' | 'calendar' | 'settings' | 'family' | 'dashboard' | 'health' | 'contacts' | 'contracts' | 'notes' | 'habits';
 
 export function MobileLayout({
   userId,
@@ -245,9 +249,10 @@ export function MobileLayout({
 
                   {/* Notes */}
                   <Button
-                    variant="ghost"
+                    variant={activeTab === 'notes' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
                     onClick={() => {
+                      setActiveTab('notes');
                       setSidebarOpen(false);
                     }}
                   >
@@ -257,9 +262,10 @@ export function MobileLayout({
 
                   {/* Habits */}
                   <Button
-                    variant="ghost"
+                    variant={activeTab === 'habits' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
                     onClick={() => {
+                      setActiveTab('habits');
                       setSidebarOpen(false);
                     }}
                   >
@@ -269,9 +275,10 @@ export function MobileLayout({
 
                   {/* Contacts */}
                   <Button
-                    variant="ghost"
+                    variant={activeTab === 'contacts' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
                     onClick={() => {
+                      setActiveTab('contacts');
                       setSidebarOpen(false);
                     }}
                   >
@@ -281,9 +288,10 @@ export function MobileLayout({
 
                   {/* Contracts */}
                   <Button
-                    variant="ghost"
+                    variant={activeTab === 'contracts' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
                     onClick={() => {
+                      setActiveTab('contracts');
                       setSidebarOpen(false);
                     }}
                   >
@@ -412,6 +420,30 @@ export function MobileLayout({
           activeTab === 'health' ? 'block' : 'hidden'
         )}>
           <HealthHubPanel />
+        </div>
+        <div className={cn(
+          "h-full",
+          activeTab === 'contacts' ? 'block' : 'hidden'
+        )}>
+          <ContactsPanel userId={userId} />
+        </div>
+        <div className={cn(
+          "h-full",
+          activeTab === 'contracts' ? 'block' : 'hidden'
+        )}>
+          <ContractsPanel userId={userId} />
+        </div>
+        <div className={cn(
+          "h-full",
+          activeTab === 'notes' ? 'block' : 'hidden'
+        )}>
+          <NotesPanel userId={userId} />
+        </div>
+        <div className={cn(
+          "h-full",
+          activeTab === 'habits' ? 'block' : 'hidden'
+        )}>
+          <HabitsPanel userId={userId} />
         </div>
 
       </main>

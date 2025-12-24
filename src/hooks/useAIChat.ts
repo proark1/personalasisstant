@@ -150,6 +150,8 @@ export function useAIChat() {
     messages,
     tasks,
     events,
+    overdueTasks,
+    todayTasks,
     personality,
     onDelta,
     onToolCall,
@@ -164,6 +166,8 @@ export function useAIChat() {
     messages: Message[];
     tasks?: Task[];
     events?: CalendarEvent[];
+    overdueTasks?: Task[];
+    todayTasks?: Task[];
     personality?: AssistantPersonality;
     onDelta: (text: string) => void;
     onToolCall: (toolCall: ToolCall) => void;
@@ -198,6 +202,28 @@ export function useAIChat() {
         })),
         personality,
       };
+
+      // Add overdue tasks for proactive suggestions
+      if (overdueTasks && overdueTasks.length > 0) {
+        payload.overdueTasks = overdueTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          category: t.category,
+          priority: t.priority,
+          dueDate: t.dueDate?.toISOString(),
+        }));
+      }
+
+      // Add today's tasks
+      if (todayTasks && todayTasks.length > 0) {
+        payload.todayTasks = todayTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          category: t.category,
+          priority: t.priority,
+          dueDate: t.dueDate?.toISOString(),
+        }));
+      }
 
       // Add enhanced context if available
       if (userProfile) {

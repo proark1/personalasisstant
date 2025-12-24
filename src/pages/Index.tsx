@@ -338,14 +338,16 @@ const Index = () => {
         })),
       };
 
-      // Get future events only (next 30 days) for AI context
+      // Get events for AI context including today, tomorrow, and next 30 days
       const now = new Date();
+      const startOfToday = new Date(now);
+      startOfToday.setHours(0, 0, 0, 0);
       const thirtyDaysFromNow = addDays(now, 30);
       
-      // Filter calendar events for future only
+      // Filter calendar events to include today and future (next 30 days)
       const upcomingCalendarEvents = events.filter(e => {
         const eventStart = new Date(e.startTime);
-        return isAfter(eventStart, now);
+        return isAfter(eventStart, startOfToday) && isBefore(eventStart, thirtyDaysFromNow);
       });
       
       // Get upcoming family events (next 30 days)
@@ -365,10 +367,25 @@ const Index = () => {
         } as CalendarEvent)),
       ].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
+      // Get overdue tasks (past due date, not completed)
+      const overdueTasks = tasks.filter(t => {
+        if (t.completed || !t.dueDate) return false;
+        return isBefore(new Date(t.dueDate), startOfToday);
+      });
+
+      // Get tasks due today (not completed)
+      const todayTasks = tasks.filter(t => {
+        if (t.completed || !t.dueDate) return false;
+        const taskDate = new Date(t.dueDate);
+        return taskDate >= startOfToday && taskDate < addDays(startOfToday, 1);
+      });
+
       await streamChat({
         messages: conversationMessages,
         tasks,
         events: allUpcomingEvents,
+        overdueTasks,
+        todayTasks,
         healthData,
         onDelta: (delta) => {
           assistantContent += delta;

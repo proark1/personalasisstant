@@ -49,10 +49,20 @@ interface HealthData {
   metrics?: { type: string; value: number; unit: string; date: string; source: string }[];
 }
 
+interface OverdueTask {
+  id: string;
+  title: string;
+  category: string;
+  priority: string;
+  dueDate?: string;
+}
+
 interface ChatRequest {
   messages: Message[];
   tasks?: { id: string; title: string; completed: boolean; category: string; priority: string; dueDate?: string }[];
   events?: { id: string; title: string; startTime: string; endTime: string }[];
+  overdueTasks?: OverdueTask[];
+  todayTasks?: OverdueTask[];
   personality?: 'balanced' | 'strict' | 'supportive' | 'creative';
   // Enhanced context
   userProfile?: UserProfile;
@@ -162,19 +172,27 @@ When you notice patterns in the user's tasks or behavior, proactively suggest:
 - "Based on your routine, should I add [suggestion]?"
 - Look for: recurring task types, time preferences, category patterns
 
-### 5. Task Breakdown
+### 5. PROACTIVE OVERDUE TASK MANAGEMENT
+When you see overdue tasks:
+- Proactively mention them at the start of conversations
+- Suggest realistic reschedule options (e.g., "I see you have 3 overdue tasks. Want me to reschedule them?")
+- Offer to prioritize or break down large overdue tasks
+- Never be judgmental - be supportive and solution-focused
+- Example: "Good morning! I noticed your task 'Call dentist' was due yesterday. Would you like to reschedule it for today or later this week?"
+
+### 6. Task Breakdown
 When a user mentions a complex task, automatically break it into subtasks:
 - "Let me break that down into manageable steps..."
 - Create 3-5 actionable subtasks with clear titles
 - Set appropriate priorities (main task = high, subtasks = medium/low)
 
-### 6. Context-Aware Responses
+### 7. Context-Aware Responses
 Adapt your tone and suggestions based on time:
-- Morning: Focus on planning, priorities, energetic tone
+- Morning: Focus on planning, priorities, energetic tone. Mention any overdue tasks or today's priorities.
 - Afternoon: Check-ins on progress, encourage momentum  
 - Evening: Summarize accomplishments, plan for tomorrow, calmer tone
 
-### 7. Smart Scheduling
+### 8. Smart Scheduling
 - Morning tasks: schedule between 9-12 AM
 - Afternoon tasks: schedule between 1-5 PM
 - If user says "later" or "when I have time", suggest specific times
@@ -188,7 +206,8 @@ Adapt your tone and suggestions based on time:
 - For recurring tasks, ALWAYS set both dueDate (start date) AND recurrenceRule
 - Always confirm what you've done after using a tool
 - Proactively offer relevant contacts when discussing travel, meetings, or networking
-- Reference the user by name when appropriate to make interactions personal`;
+- Reference the user by name when appropriate to make interactions personal
+- PROACTIVELY mention overdue tasks and offer to reschedule them`;
 
 async function logAIUsage(
   supabase: any,
@@ -255,7 +274,9 @@ serve(async (req) => {
     const { 
       messages, 
       tasks, 
-      events, 
+      events,
+      overdueTasks: clientOverdueTasks,
+      todayTasks: clientTodayTasks,
       personality = 'balanced',
       userProfile,
       relevantContacts,
@@ -314,22 +335,39 @@ serve(async (req) => {
       }
     }
     
-    // Add tasks and events - these are WORK ITEMS, not identity
+    // Add overdue tasks prominently if provided by client (for proactive suggestions)
+    if (clientOverdueTasks && clientOverdueTasks.length > 0) {
+      contextMessage += `\n\n## ⚠️ OVERDUE TASKS REQUIRING ATTENTION (${clientOverdueTasks.length} total)`;
+      contextMessage += `\nThese tasks are past their due date and need to be addressed. Proactively mention these and offer to reschedule!`;
+      for (const task of clientOverdueTasks) {
+        const daysOverdue = task.dueDate 
+          ? Math.floor((Date.now() - new Date(task.dueDate).getTime()) / (1000 * 60 * 60 * 24))
+          : 0;
+        contextMessage += `\n- "${task.title}" (${task.priority} priority, ${task.category}) - ${daysOverdue} day(s) overdue`;
+      }
+    }
+
+    // Add today's tasks
+    if (clientTodayTasks && clientTodayTasks.length > 0) {
+      contextMessage += `\n\n## 📅 TODAY'S TASKS (${clientTodayTasks.length} total)`;
+      for (const task of clientTodayTasks) {
+        contextMessage += `\n- "${task.title}" (${task.priority} priority, ${task.category})`;
+      }
+    }
+
+    // Add all tasks and events context
     if (tasks && tasks.length > 0) {
       const pendingTasks = tasks.filter(t => !t.completed);
-      const overdueTasks = pendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
-      const todayTasks = pendingTasks.filter(t => {
+      const overdueCount = clientOverdueTasks?.length || pendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length;
+      const todayCount = clientTodayTasks?.length || pendingTasks.filter(t => {
         if (!t.dueDate) return false;
         const taskDate = new Date(t.dueDate).toDateString();
         const today = new Date().toDateString();
         return taskDate === today;
-      });
+      }).length;
       
       contextMessage += `\n\n## CURRENT WORK ITEMS (Not their identity - these are just things they're working on)`;
-      contextMessage += `\n${pendingTasks.length} pending tasks, ${overdueTasks.length} overdue`;
-      if (todayTasks.length > 0) {
-        contextMessage += `\nDue today: ${todayTasks.map(t => t.title).join(', ')}`;
-      }
+      contextMessage += `\n${pendingTasks.length} pending tasks, ${overdueCount} overdue, ${todayCount} due today`;
       contextMessage += `\nPending tasks:\n${pendingTasks.slice(0, 10).map(t => `- ${t.title} (${t.category}, ${t.priority} priority${t.dueDate ? `, due ${t.dueDate}` : ''})`).join('\n')}`;
     }
     
