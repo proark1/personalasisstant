@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 
 interface WhatNowButtonProps {
   tasks: Task[];
-  events: CalendarEvent[];
+  events?: CalendarEvent[];
   onStartTask?: (task: Task) => void;
   className?: string;
   variant?: 'default' | 'fab';
@@ -52,7 +52,7 @@ export function WhatNowButton({
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-    const todayEvents = events.filter(e => 
+    const todayEvents = (events || []).filter(e => 
       e.startTime >= todayStart && e.startTime <= todayEnd
     );
 

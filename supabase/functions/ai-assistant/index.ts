@@ -23,11 +23,20 @@ interface Event {
   endTime: string;
 }
 
+interface DailyCheckin {
+  mood?: string;
+  energy_level?: string;
+  sleep_hours?: number;
+  sleep_quality?: number;
+  main_focus?: string;
+}
+
 interface AIRequest {
-  type: 'breakdown' | 'reschedule' | 'plan_day';
+  type: 'breakdown' | 'reschedule' | 'plan_day' | 'what_now';
   task?: Task;
   tasks?: Task[];
   events?: Event[];
+  checkin?: DailyCheckin;
 }
 
 async function logAIUsage(
@@ -92,7 +101,7 @@ serve(async (req) => {
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const { type, task, tasks, events }: AIRequest = await req.json();
+    const { type, task, tasks, events, checkin }: AIRequest = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -185,6 +194,63 @@ Available tasks (${incompleteTasks.length} incomplete):
 ${incompleteTasks.slice(0, 15).map(t => `- ID: ${t.id}, Title: "${t.title}", Category: ${t.category}, Priority: ${t.priority}${t.dueDate ? `, Due: ${t.dueDate}` : ''}`).join('\n')}
 
 ${events && events.length > 0 ? `\nExisting events/commitments:\n${events.filter(e => e.startTime.startsWith(today)).map(e => `- ${e.title}: ${new Date(e.startTime).toLocaleTimeString()} to ${new Date(e.endTime).toLocaleTimeString()}`).join('\n')}` : 'No existing events today.'}`;
+
+    } else if (type === 'what_now') {
+      // ADHD-friendly "What should I do now?" decision helper
+      if (!tasks) throw new Error("Tasks are required for what_now");
+      
+      const incompleteTasks = tasks.filter(t => !t.completed);
+      const highPriorityTasks = incompleteTasks.filter(t => t.priority === 'high');
+      const overdueTasks = incompleteTasks.filter(t => t.dueDate && new Date(t.dueDate) < now);
+      
+      systemPrompt = `You are an ADHD-friendly productivity coach. Your job is to help someone with ADHD decide what to do RIGHT NOW.
+
+Return a JSON object with this exact structure:
+{
+  "recommendation": {
+    "taskId": "id of the recommended task or null",
+    "title": "Task title or suggested activity",
+    "reason": "Brief, encouraging reason (1-2 sentences)",
+    "estimatedMinutes": 15,
+    "startTip": "One specific tip to help start this task"
+  },
+  "alternatives": [
+    {"taskId": "id or null", "title": "Alternative task", "reason": "Why this could work", "energy": "low|medium|high"}
+  ],
+  "encouragement": "A short, genuine motivational message"
+}
+
+ADHD-Specific Guidelines:
+- ALWAYS pick the SMALLEST, most doable task first - momentum matters more than importance
+- If energy is low, suggest the easiest task regardless of priority
+- Break large tasks mentally: suggest focusing on "just the first 5 minutes"
+- Acknowledge that starting is the hardest part
+- Provide ONE clear action, not multiple options that cause paralysis
+- Consider time of day and energy levels
+- If many overdue tasks, DON'T shame - focus on what's achievable NOW
+- For high-stakes tasks, suggest a "warm-up" task first
+- Maximum 2 alternatives to prevent decision paralysis`;
+
+      const energyInfo = checkin ? `
+Current state:
+- Mood: ${checkin.mood || 'unknown'}
+- Energy: ${checkin.energy_level || 'unknown'}
+- Sleep: ${checkin.sleep_hours ? `${checkin.sleep_hours} hours` : 'unknown'}
+- Today's focus: ${checkin.main_focus || 'not set'}
+` : 'No check-in data available today.';
+
+      userPrompt = `Current time: ${now.toLocaleTimeString()}
+${energyInfo}
+
+Tasks overview:
+- Total incomplete: ${incompleteTasks.length}
+- High priority: ${highPriorityTasks.length}
+- Overdue: ${overdueTasks.length}
+
+Available tasks (sorted by priority):
+${incompleteTasks.slice(0, 10).map(t => `- ID: ${t.id}, Title: "${t.title}", Category: ${t.category}, Priority: ${t.priority}${t.dueDate ? `, Due: ${t.dueDate}` : ''}`).join('\n')}
+
+Help me decide: What should I do RIGHT NOW?`;
 
     } else {
       throw new Error("Invalid request type");

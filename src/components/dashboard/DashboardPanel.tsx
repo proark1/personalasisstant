@@ -4,6 +4,9 @@ import { useContracts } from '@/hooks/useContracts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ContractCostWidget } from '@/components/contracts/ContractCostWidget';
+import { XPDisplay } from '@/components/gamification/XPDisplay';
+import { CheckinPrompt } from '@/components/checkin/CheckinPrompt';
+import { WhatNowButton } from '@/components/assistant/WhatNowButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   CheckCircle2, 
@@ -169,10 +172,19 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
 
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold">{t('dashboard.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
+      {/* Daily Check-in Prompt */}
+      <CheckinPrompt />
+
+      {/* Header with XP and What Now */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold">{t('dashboard.title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <XPDisplay variant="compact" />
+          <WhatNowButton tasks={tasks} />
+        </div>
       </div>
 
       {/* Stats Grid */}

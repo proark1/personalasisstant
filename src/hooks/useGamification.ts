@@ -233,7 +233,7 @@ export function useGamification() {
           current_streak: newStreak,
           longest_streak: longestStreak,
           last_activity_date: today,
-          badges: allBadges as unknown as Record<string, unknown>[],
+          badges: JSON.parse(JSON.stringify(allBadges)),
           weekly_xp: userXP.weekly_xp + amount,
           updated_at: new Date().toISOString()
         })
