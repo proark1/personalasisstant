@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ContactsPage from "./pages/ContactsPage";
@@ -58,6 +59,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <ErrorBoundary fallbackTitle="DarAI couldn’t load">
+          <NetworkStatusBanner />
           <BrowserRouter>
             <Routes>
               <Route
