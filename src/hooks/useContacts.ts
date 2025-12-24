@@ -99,21 +99,39 @@ export function useContacts(userId: string | undefined) {
 
   const fetchContacts = useCallback(async () => {
     if (!userId) {
-      setContacts([]);
+      // Avoid clearing cached contacts on transient auth/session transitions.
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from('user_contacts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('name');
 
-    if (data && !error) {
-      setContacts(data.map(mapDbToContact));
+    // Retry a few times on transient network errors (e.g. "TypeError: Failed to fetch").
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const { data, error } = await supabase
+          .from('user_contacts')
+          .select('*')
+          .eq('user_id', userId)
+          .order('name');
+
+        if (error) throw error;
+
+        setContacts((data || []).map(mapDbToContact));
+        break;
+      } catch (err) {
+        const isLast = attempt === maxAttempts;
+        if (isLast) {
+          console.error('Error fetching contacts:', err);
+        } else {
+          // small backoff
+          await new Promise((r) => setTimeout(r, 250 * attempt));
+          continue;
+        }
+      }
     }
+
     setLoading(false);
   }, [userId]);
 
