@@ -334,8 +334,60 @@ serve(async (req) => {
     }
     
     if (events && events.length > 0) {
-      contextMessage += `\n\n## UPCOMING CALENDAR EVENTS`;
-      contextMessage += `\n${events.slice(0, 5).map(e => `- ${e.title} at ${e.startTime}`).join('\n')}`;
+      // Filter to only future events (in case client sends mixed data)
+      const now = new Date();
+      const futureEvents = events.filter(e => new Date(e.startTime) > now);
+      
+      if (futureEvents.length > 0) {
+        contextMessage += `\n\n## UPCOMING CALENDAR EVENTS (Future events the user has scheduled)`;
+        contextMessage += `\nTotal upcoming events: ${futureEvents.length}`;
+        
+        // Group by time period for better context
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const thisWeek = new Date(today);
+        thisWeek.setDate(thisWeek.getDate() + 7);
+        
+        const todayEvents = futureEvents.filter(e => new Date(e.startTime) <= today);
+        const tomorrowEvents = futureEvents.filter(e => {
+          const eventDate = new Date(e.startTime);
+          return eventDate > today && eventDate <= tomorrow;
+        });
+        const thisWeekEvents = futureEvents.filter(e => {
+          const eventDate = new Date(e.startTime);
+          return eventDate > tomorrow && eventDate <= thisWeek;
+        });
+        const laterEvents = futureEvents.filter(e => new Date(e.startTime) > thisWeek);
+        
+        if (todayEvents.length > 0) {
+          contextMessage += `\n\n### Today:`;
+          contextMessage += `\n${todayEvents.map(e => `- ${e.title} at ${new Date(e.startTime).toLocaleTimeString()}`).join('\n')}`;
+        }
+        
+        if (tomorrowEvents.length > 0) {
+          contextMessage += `\n\n### Tomorrow:`;
+          contextMessage += `\n${tomorrowEvents.map(e => `- ${e.title} at ${new Date(e.startTime).toLocaleTimeString()}`).join('\n')}`;
+        }
+        
+        if (thisWeekEvents.length > 0) {
+          contextMessage += `\n\n### This week:`;
+          contextMessage += `\n${thisWeekEvents.map(e => `- ${e.title} on ${new Date(e.startTime).toLocaleDateString()} at ${new Date(e.startTime).toLocaleTimeString()}`).join('\n')}`;
+        }
+        
+        if (laterEvents.length > 0) {
+          contextMessage += `\n\n### Later (next 30 days):`;
+          contextMessage += `\n${laterEvents.slice(0, 10).map(e => `- ${e.title} on ${new Date(e.startTime).toLocaleDateString()}`).join('\n')}`;
+          if (laterEvents.length > 10) {
+            contextMessage += `\n... and ${laterEvents.length - 10} more events`;
+          }
+        }
+      } else {
+        contextMessage += `\n\n## UPCOMING CALENDAR EVENTS: None scheduled in the near future`;
+      }
+    } else {
+      contextMessage += `\n\n## UPCOMING CALENDAR EVENTS: None scheduled`;
     }
 
     // Add health data

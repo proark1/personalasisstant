@@ -18,6 +18,7 @@ import { useGlobalSearch } from '@/hooks/useGlobalSearch';
 import { useContracts } from '@/hooks/useContracts';
 import { useContractReminders } from '@/hooks/useContractReminders';
 import { useHealthTracking } from '@/hooks/useHealthTracking';
+import { useFamilyEvents } from '@/hooks/useFamilyEvents';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
@@ -28,7 +29,7 @@ import { WeeklyReviewDialog } from '@/components/review/WeeklyReviewDialog';
 import { CallProvider } from '@/components/calling/CallProvider';
 import { CalendarEvent, ChatMessage, AppMode, Task } from '@/types/flux';
 import { useToast } from '@/hooks/use-toast';
-import { differenceInCalendarDays, startOfDay, subDays } from 'date-fns';
+import { differenceInCalendarDays, startOfDay, subDays, isAfter, isBefore, addDays } from 'date-fns';
 
 const Index = () => {
   const { toast } = useToast();
@@ -149,6 +150,9 @@ const Index = () => {
     getUpcomingAppointments,
     getRecentMetrics,
   } = useHealthTracking();
+
+  // Family events for AI assistant
+  const { events: familyEvents, getUpcomingEvents: getUpcomingFamilyEvents } = useFamilyEvents();
 
   // Contract reminders - creates tasks for contracts ending within 3 months
   useContractReminders({
@@ -334,10 +338,37 @@ const Index = () => {
         })),
       };
 
+      // Get future events only (next 30 days) for AI context
+      const now = new Date();
+      const thirtyDaysFromNow = addDays(now, 30);
+      
+      // Filter calendar events for future only
+      const upcomingCalendarEvents = events.filter(e => {
+        const eventStart = new Date(e.startTime);
+        return isAfter(eventStart, now);
+      });
+      
+      // Get upcoming family events (next 30 days)
+      const upcomingFamilyEventsRaw = getUpcomingFamilyEvents(30);
+      
+      // Combine calendar events with family events for AI context
+      const allUpcomingEvents: CalendarEvent[] = [
+        ...upcomingCalendarEvents,
+        ...upcomingFamilyEventsRaw.map(fe => ({
+          id: fe.id,
+          title: fe.title,
+          startTime: new Date(fe.start_time),
+          endTime: new Date(fe.end_time),
+          description: fe.description || undefined,
+          location: fe.location || undefined,
+          category: fe.event_type || 'family',
+        } as CalendarEvent)),
+      ].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
       await streamChat({
         messages: conversationMessages,
         tasks,
-        events,
+        events: allUpcomingEvents,
         healthData,
         onDelta: (delta) => {
           assistantContent += delta;
