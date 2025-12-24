@@ -221,9 +221,10 @@ export function MobileLayout({
 
                   {/* Dashboard */}
                   <Button
-                    variant="ghost"
+                    variant={activeTab === 'dashboard' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
                     onClick={() => {
+                      setActiveTab('dashboard');
                       setSidebarOpen(false);
                     }}
                   >
@@ -434,13 +435,13 @@ export function MobileLayout({
           <ContractsPanel userId={userId} />
         </div>
         <div className={cn(
-          "h-full",
+          "h-full overflow-y-auto",
           activeTab === 'notes' ? 'block' : 'hidden'
         )}>
           <NotesPanel userId={userId} />
         </div>
         <div className={cn(
-          "h-full",
+          "h-full overflow-y-auto",
           activeTab === 'habits' ? 'block' : 'hidden'
         )}>
           <HabitsPanel userId={userId} />
