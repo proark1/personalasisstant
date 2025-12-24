@@ -38,6 +38,12 @@ interface RelevantContract {
   renewalDate?: string;
 }
 
+interface HealthData {
+  medications?: { name: string; dosage?: string; frequency?: string; isActive: boolean; refillDate?: string }[];
+  appointments?: { title: string; date: string; provider?: string; type?: string; isCompleted: boolean }[];
+  vaccinations?: { name: string; date: string; nextDose?: string }[];
+}
+
 export function useAIChat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,6 +158,7 @@ export function useAIChat() {
     relevantContacts,
     relevantContracts,
     contextSummary,
+    healthData,
   }: {
     messages: Message[];
     tasks?: Task[];
@@ -165,6 +172,7 @@ export function useAIChat() {
     relevantContacts?: Contact[];
     relevantContracts?: RelevantContract[];
     contextSummary?: string;
+    healthData?: HealthData;
   }) => {
     setIsStreaming(true);
     setError(null);
@@ -213,6 +221,10 @@ export function useAIChat() {
 
       if (contextSummary) {
         payload.contextSummary = contextSummary;
+      }
+
+      if (healthData) {
+        payload.healthData = healthData;
       }
 
       const resp = await fetch(CHAT_URL, {

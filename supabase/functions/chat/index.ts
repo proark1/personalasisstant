@@ -42,6 +42,12 @@ interface RelevantContract {
   renewalDate?: string;
 }
 
+interface HealthData {
+  medications?: { name: string; dosage?: string; frequency?: string; isActive: boolean; refillDate?: string }[];
+  appointments?: { title: string; date: string; provider?: string; type?: string; isCompleted: boolean }[];
+  vaccinations?: { name: string; date: string; nextDose?: string }[];
+}
+
 interface ChatRequest {
   messages: Message[];
   tasks?: { id: string; title: string; completed: boolean; category: string; priority: string; dueDate?: string }[];
@@ -52,6 +58,7 @@ interface ChatRequest {
   relevantContacts?: RelevantContact[];
   relevantContracts?: RelevantContract[];
   contextSummary?: string;
+  healthData?: HealthData;
 }
 
 const personalityPrompts: Record<string, string> = {
@@ -131,6 +138,14 @@ When discussing costs, subscriptions, or renewals:
 - Reference their active contracts
 - Alert them to upcoming renewals or cancellation deadlines
 - Provide cost summaries when asked
+
+### 4. Health & Wellness Awareness
+When the user asks about their health, medications, or appointments:
+- Reference their active medications, dosages, and refill dates
+- Mention upcoming medical appointments
+- Note any vaccinations and when next doses are due
+- Be proactive about medication refill reminders
+- You can help track symptoms, remind about appointments, or discuss health-related tasks
 
 ### 4. Pattern Recognition & Suggestions
 When you notice patterns in the user's tasks or behavior, proactively suggest:
@@ -237,6 +252,7 @@ serve(async (req) => {
       relevantContacts,
       relevantContracts,
       contextSummary,
+      healthData,
     }: ChatRequest = await req.json();
     
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
@@ -313,6 +329,46 @@ serve(async (req) => {
       contextMessage += `\n${events.slice(0, 5).map(e => `- ${e.title} at ${e.startTime}`).join('\n')}`;
     }
 
+    // Add health data
+    if (healthData) {
+      contextMessage += `\n\n## HEALTH & WELLNESS DATA`;
+      
+      if (healthData.medications && healthData.medications.length > 0) {
+        const activeMeds = healthData.medications.filter(m => m.isActive);
+        if (activeMeds.length > 0) {
+          contextMessage += `\n\n### Active Medications (${activeMeds.length}):`;
+          for (const med of activeMeds) {
+            const details = [med.dosage, med.frequency].filter(Boolean).join(', ');
+            const refill = med.refillDate ? ` - Refill: ${med.refillDate}` : '';
+            contextMessage += `\n- ${med.name}${details ? `: ${details}` : ''}${refill}`;
+          }
+        }
+      }
+      
+      if (healthData.appointments && healthData.appointments.length > 0) {
+        const upcomingAppts = healthData.appointments.filter(a => !a.isCompleted);
+        if (upcomingAppts.length > 0) {
+          contextMessage += `\n\n### Upcoming Medical Appointments (${upcomingAppts.length}):`;
+          for (const appt of upcomingAppts.slice(0, 5)) {
+            const provider = appt.provider ? ` with ${appt.provider}` : '';
+            const type = appt.type ? ` (${appt.type})` : '';
+            contextMessage += `\n- ${appt.title}${provider}${type}: ${appt.date}`;
+          }
+        }
+      }
+      
+      if (healthData.vaccinations && healthData.vaccinations.length > 0) {
+        const recentVax = healthData.vaccinations.slice(0, 5);
+        if (recentVax.length > 0) {
+          contextMessage += `\n\n### Recent Vaccinations:`;
+          for (const vax of recentVax) {
+            const nextDose = vax.nextDose ? ` - Next dose: ${vax.nextDose}` : '';
+            contextMessage += `\n- ${vax.name}: ${vax.date}${nextDose}`;
+          }
+        }
+      }
+    }
+
     const fullSystemPrompt = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage;
 
     console.log("Chat request with enhanced context:", {
@@ -321,6 +377,11 @@ serve(async (req) => {
       relevantContractsCount: relevantContracts?.length || 0,
       tasksCount: tasks?.length || 0,
       eventsCount: events?.length || 0,
+      healthData: healthData ? {
+        medications: healthData.medications?.length || 0,
+        appointments: healthData.appointments?.length || 0,
+        vaccinations: healthData.vaccinations?.length || 0,
+      } : null,
     });
 
     const model = 'google/gemini-2.5-flash';

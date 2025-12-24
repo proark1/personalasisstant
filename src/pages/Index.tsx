@@ -17,6 +17,7 @@ import { useActivityFeed } from '@/hooks/useActivityFeed';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
 import { useContracts } from '@/hooks/useContracts';
 import { useContractReminders } from '@/hooks/useContractReminders';
+import { useHealthTracking } from '@/hooks/useHealthTracking';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
@@ -137,6 +138,15 @@ const Index = () => {
 
   // Contracts management
   const { contracts } = useContracts(user?.id);
+
+  // Health tracking for AI assistant
+  const { 
+    medications, 
+    appointments, 
+    vaccinations,
+    getActiveMedications,
+    getUpcomingAppointments,
+  } = useHealthTracking();
 
   // Contract reminders - creates tasks for contracts ending within 3 months
   useContractReminders({
@@ -291,10 +301,34 @@ const Index = () => {
     })();
 
     try {
+      // Build health data for AI context
+      const healthData = {
+        medications: getActiveMedications().map(m => ({
+          name: m.name,
+          dosage: m.dosage || undefined,
+          frequency: m.frequency || undefined,
+          isActive: m.is_active,
+          refillDate: m.refill_date || undefined,
+        })),
+        appointments: getUpcomingAppointments().map(a => ({
+          title: a.title,
+          date: a.appointment_date,
+          provider: a.provider_name || undefined,
+          type: a.appointment_type || undefined,
+          isCompleted: a.is_completed,
+        })),
+        vaccinations: vaccinations.slice(0, 10).map(v => ({
+          name: v.vaccine_name,
+          date: v.date_administered,
+          nextDose: v.next_dose_date || undefined,
+        })),
+      };
+
       await streamChat({
         messages: conversationMessages,
         tasks,
         events,
+        healthData,
         onDelta: (delta) => {
           assistantContent += delta;
         },
