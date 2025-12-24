@@ -32,7 +32,10 @@ export function useFamilyEvents() {
   const { notifyEventCreated } = useAppNotifications();
 
   const fetchEvents = async () => {
-    if (!user) return;
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
     
     try {
       const { data, error } = await supabase
@@ -40,11 +43,13 @@ export function useFamilyEvents() {
         .select('*')
         .order('start_time', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching family events:', error);
+        return;
+      }
       setEvents(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching family events:', error);
-      toast.error('Failed to load family events');
     } finally {
       setIsLoading(false);
     }
