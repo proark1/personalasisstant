@@ -98,6 +98,7 @@ export default function Contacts() {
   const [activeTab, setActiveTab] = useState<'personal' | 'business' | 'due'>('personal');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const contactsDue = getContactsDue();
 
@@ -130,61 +131,82 @@ export default function Contacts() {
   };
 
   const handleSubmit = async () => {
+    if (saving) return;
+
     if (!formData.name.trim()) {
       toast({ title: 'Name is required', variant: 'destructive' });
       return;
     }
 
-    const tags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
-    
-    if (editingContact) {
-      const success = await updateContact(editingContact.id, {
-        name: formData.name,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        company: formData.company || undefined,
-        role: formData.role || undefined,
-        country: formData.country || undefined,
-        city: formData.city || undefined,
-        contactType: formData.contactType,
-        personalTier: formData.personalTier || undefined,
-        businessLevel: formData.businessLevel || undefined,
-        contactFrequencyDays: formData.contactFrequencyDays,
-        notes: formData.notes || undefined,
-        tags,
-        linkedinUrl: formData.linkedinUrl || undefined,
-        twitterUrl: formData.twitterUrl || undefined,
-        websiteUrl: formData.websiteUrl || undefined,
-      });
-      if (success) {
-        toast({ title: 'Contact updated' });
-        setShowAddDialog(false);
-        resetForm();
+    setSaving(true);
+    try {
+      const tags = formData.tags.split(',').map((t) => t.trim()).filter(Boolean);
+
+      if (editingContact) {
+        const success = await updateContact(editingContact.id, {
+          name: formData.name,
+          email: formData.email || undefined,
+          phone: formData.phone || undefined,
+          company: formData.company || undefined,
+          role: formData.role || undefined,
+          country: formData.country || undefined,
+          city: formData.city || undefined,
+          contactType: formData.contactType,
+          personalTier: formData.personalTier || undefined,
+          businessLevel: formData.businessLevel || undefined,
+          contactFrequencyDays: formData.contactFrequencyDays,
+          notes: formData.notes || undefined,
+          tags,
+          linkedinUrl: formData.linkedinUrl || undefined,
+          twitterUrl: formData.twitterUrl || undefined,
+          websiteUrl: formData.websiteUrl || undefined,
+        });
+
+        if (success) {
+          toast({ title: 'Contact updated' });
+          setShowAddDialog(false);
+          resetForm();
+        } else {
+          toast({
+            title: 'Update failed',
+            description: 'Please try again in a moment.',
+            variant: 'destructive',
+          });
+        }
+      } else {
+        const result = await addContact({
+          name: formData.name,
+          email: formData.email || undefined,
+          phone: formData.phone || undefined,
+          company: formData.company || undefined,
+          role: formData.role || undefined,
+          country: formData.country || undefined,
+          city: formData.city || undefined,
+          contactType: formData.contactType,
+          personalTier: formData.personalTier || undefined,
+          businessLevel: formData.businessLevel || undefined,
+          contactFrequencyDays: formData.contactFrequencyDays,
+          notes: formData.notes || undefined,
+          tags,
+          linkedinUrl: formData.linkedinUrl || undefined,
+          twitterUrl: formData.twitterUrl || undefined,
+          websiteUrl: formData.websiteUrl || undefined,
+        });
+
+        if (result) {
+          toast({ title: 'Contact added' });
+          setShowAddDialog(false);
+          resetForm();
+        } else {
+          toast({
+            title: 'Add failed',
+            description: 'Please try again in a moment.',
+            variant: 'destructive',
+          });
+        }
       }
-    } else {
-      const result = await addContact({
-        name: formData.name,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        company: formData.company || undefined,
-        role: formData.role || undefined,
-        country: formData.country || undefined,
-        city: formData.city || undefined,
-        contactType: formData.contactType,
-        personalTier: formData.personalTier || undefined,
-        businessLevel: formData.businessLevel || undefined,
-        contactFrequencyDays: formData.contactFrequencyDays,
-        notes: formData.notes || undefined,
-        tags,
-        linkedinUrl: formData.linkedinUrl || undefined,
-        twitterUrl: formData.twitterUrl || undefined,
-        websiteUrl: formData.websiteUrl || undefined,
-      });
-      if (result) {
-        toast({ title: 'Contact added' });
-        setShowAddDialog(false);
-        resetForm();
-      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -752,8 +774,8 @@ export default function Contacts() {
                   </div>
                 </div>
 
-                <Button onClick={handleSubmit} className="w-full">
-                  {editingContact ? 'Update Contact' : 'Add Contact'}
+                <Button onClick={handleSubmit} className="w-full" disabled={saving}>
+                  {saving ? 'Saving…' : editingContact ? 'Update Contact' : 'Add Contact'}
                 </Button>
               </div>
             </DialogContent>

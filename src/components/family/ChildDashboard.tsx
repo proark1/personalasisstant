@@ -24,6 +24,19 @@ import { format, differenceInYears } from 'date-fns';
 // Child-related relationships from contacts
 const CHILD_RELATIONSHIPS: FamilyRelationship[] = ['son', 'daughter', 'grandson', 'granddaughter'];
 
+const getChildRelationshipFromContact = (contact: Contact): FamilyRelationship | undefined => {
+  if (contact.familyRelationship && CHILD_RELATIONSHIPS.includes(contact.familyRelationship)) {
+    return contact.familyRelationship;
+  }
+
+  // Fallback: allow tags to drive child detection (e.g. "son", "daughter")
+  const tagRel = contact.tags
+    .map((t) => t.toLowerCase())
+    .find((t) => (CHILD_RELATIONSHIPS as string[]).includes(t));
+
+  return tagRel as FamilyRelationship | undefined;
+};
+
 // Transform contact to display format
 interface ChildDisplay {
   id: string;
@@ -43,6 +56,7 @@ interface ChildDisplay {
   sourceMember?: FamilyMember;
 }
 
+
 export function ChildDashboard() {
   const { user } = useAuth();
   const { members, getChildren, getUpcomingBirthdays, isLoading } = useFamilyMembers();
@@ -53,20 +67,18 @@ export function ChildDashboard() {
 
   // Get children from family_members
   const familyMemberChildren = getChildren();
-  
+
   // Get linked contact IDs from family members
-  const linkedContactIds = new Set(members.filter(m => m.contact_id).map(m => m.contact_id));
-  
+  const linkedContactIds = new Set(members.filter((m) => m.contact_id).map((m) => m.contact_id));
+
   // Get child contacts that aren't already linked to family members
-  const childContacts = contacts.filter(c => 
-    c.familyRelationship && 
-    CHILD_RELATIONSHIPS.includes(c.familyRelationship) &&
-    !linkedContactIds.has(c.id)
-  );
+  const childContacts = contacts
+    .map((c) => ({ contact: c, rel: getChildRelationshipFromContact(c) }))
+    .filter(({ contact, rel }) => !!rel && !linkedContactIds.has(contact.id));
 
   // Combine both sources
   const allChildren: ChildDisplay[] = [
-    ...familyMemberChildren.map(m => ({
+    ...familyMemberChildren.map((m) => ({
       id: m.id,
       name: m.name,
       birth_date: m.birth_date,
@@ -82,21 +94,21 @@ export function ChildDashboard() {
       isFromContacts: false,
       sourceMember: m,
     })),
-    ...childContacts.map(c => ({
-      id: c.id,
-      name: c.name,
+    ...childContacts.map(({ contact, rel }) => ({
+      id: contact.id,
+      name: contact.name,
       birth_date: null,
       school_name: null,
       school_grade: null,
       activities: [],
       allergies: null,
-      medical_notes: c.notes || null,
+      medical_notes: contact.notes || null,
       teacher_name: null,
       teacher_contact: null,
       milestones: [],
-      relationship: c.familyRelationship || 'child',
+      relationship: rel || 'child',
       isFromContacts: true,
-      sourceContact: c,
+      sourceContact: contact,
     })),
   ];
 
@@ -108,7 +120,12 @@ export function ChildDashboard() {
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const getRelationshipLabel = (relationship: string) => {

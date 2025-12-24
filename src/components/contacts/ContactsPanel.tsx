@@ -120,6 +120,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
   const [formData, setFormData] = useState<ContactFormData>(defaultFormData);
   const [activeTab, setActiveTab] = useState<'personal' | 'business' | 'due'>('personal');
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const contactsDue = getContactsDue();
 
@@ -153,63 +154,86 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
   };
 
   const handleSubmit = async () => {
+    if (saving) return;
+
     if (!formData.name.trim()) {
       toast({ title: 'Name is required', variant: 'destructive' });
       return;
     }
 
-    const tags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
-    
-    if (editingContact) {
-      const success = await updateContact(editingContact.id, {
-        name: formData.name,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        company: formData.company || undefined,
-        role: formData.role || undefined,
-        country: formData.country || undefined,
-        city: formData.city || undefined,
-        contactType: formData.contactType,
-        personalTier: formData.personalTier || undefined,
-        businessLevel: formData.businessLevel || undefined,
-        familyRelationship: formData.personalTier === 'family' ? (formData.familyRelationship || undefined) : undefined,
-        contactFrequencyDays: formData.contactFrequencyDays,
-        notes: formData.notes || undefined,
-        tags,
-        linkedinUrl: formData.linkedinUrl || undefined,
-        twitterUrl: formData.twitterUrl || undefined,
-        websiteUrl: formData.websiteUrl || undefined,
-      });
-      if (success) {
-        toast({ title: 'Contact updated' });
-        setShowAddDialog(false);
-        resetForm();
+    setSaving(true);
+    try {
+      const tags = formData.tags.split(',').map((t) => t.trim()).filter(Boolean);
+
+      if (editingContact) {
+        const success = await updateContact(editingContact.id, {
+          name: formData.name,
+          email: formData.email || undefined,
+          phone: formData.phone || undefined,
+          company: formData.company || undefined,
+          role: formData.role || undefined,
+          country: formData.country || undefined,
+          city: formData.city || undefined,
+          contactType: formData.contactType,
+          personalTier: formData.personalTier || undefined,
+          businessLevel: formData.businessLevel || undefined,
+          familyRelationship:
+            formData.personalTier === 'family' ? (formData.familyRelationship || undefined) : undefined,
+          contactFrequencyDays: formData.contactFrequencyDays,
+          notes: formData.notes || undefined,
+          tags,
+          linkedinUrl: formData.linkedinUrl || undefined,
+          twitterUrl: formData.twitterUrl || undefined,
+          websiteUrl: formData.websiteUrl || undefined,
+        });
+
+        if (success) {
+          toast({ title: 'Contact updated' });
+          setShowAddDialog(false);
+          resetForm();
+        } else {
+          toast({
+            title: 'Update failed',
+            description: 'Please try again in a moment.',
+            variant: 'destructive',
+          });
+        }
+      } else {
+        const result = await addContact({
+          name: formData.name,
+          email: formData.email || undefined,
+          phone: formData.phone || undefined,
+          company: formData.company || undefined,
+          role: formData.role || undefined,
+          country: formData.country || undefined,
+          city: formData.city || undefined,
+          contactType: formData.contactType,
+          personalTier: formData.personalTier || undefined,
+          businessLevel: formData.businessLevel || undefined,
+          familyRelationship:
+            formData.personalTier === 'family' ? (formData.familyRelationship || undefined) : undefined,
+          contactFrequencyDays: formData.contactFrequencyDays,
+          notes: formData.notes || undefined,
+          tags,
+          linkedinUrl: formData.linkedinUrl || undefined,
+          twitterUrl: formData.twitterUrl || undefined,
+          websiteUrl: formData.websiteUrl || undefined,
+        });
+
+        if (result) {
+          toast({ title: 'Contact added' });
+          setShowAddDialog(false);
+          resetForm();
+        } else {
+          toast({
+            title: 'Add failed',
+            description: 'Please try again in a moment.',
+            variant: 'destructive',
+          });
+        }
       }
-    } else {
-      const result = await addContact({
-        name: formData.name,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        company: formData.company || undefined,
-        role: formData.role || undefined,
-        country: formData.country || undefined,
-        city: formData.city || undefined,
-        contactType: formData.contactType,
-        personalTier: formData.personalTier || undefined,
-        businessLevel: formData.businessLevel || undefined,
-        familyRelationship: formData.personalTier === 'family' ? (formData.familyRelationship || undefined) : undefined,
-        contactFrequencyDays: formData.contactFrequencyDays,
-        notes: formData.notes || undefined,
-        tags,
-        linkedinUrl: formData.linkedinUrl || undefined,
-        twitterUrl: formData.twitterUrl || undefined,
-        websiteUrl: formData.websiteUrl || undefined,
-      });
-      if (result) {
-        toast({ title: 'Contact added' });
-        setShowAddDialog(false);
-        resetForm();
-      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -437,7 +461,9 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
                 <Label>Tags (comma-separated)</Label>
                 <Input value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} />
               </div>
-              <Button onClick={handleSubmit} className="w-full">{editingContact ? 'Update' : 'Add'} Contact</Button>
+              <Button onClick={handleSubmit} className="w-full" disabled={saving}>
+                {saving ? 'Saving…' : editingContact ? 'Update' : 'Add'} Contact
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

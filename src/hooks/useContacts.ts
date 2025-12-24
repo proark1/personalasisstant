@@ -70,32 +70,37 @@ export function useContacts(userId: string | undefined) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const mapDbToContact = (row: any): Contact => ({
-    id: row.id,
-    userId: row.user_id,
-    contactUserId: row.contact_user_id || undefined,
-    name: row.name,
-    email: row.email || undefined,
-    phone: row.phone || undefined,
-    company: row.company || undefined,
-    role: row.role || undefined,
-    country: row.country || undefined,
-    city: row.city || undefined,
-    contactType: row.contact_type as ContactType,
-    personalTier: row.personal_tier as PersonalTier | undefined,
-    businessLevel: row.business_level as BusinessLevel | undefined,
-    familyRelationship: row.family_relationship as FamilyRelationship | undefined,
-    contactFrequencyDays: row.contact_frequency_days || 30,
-    lastContactedAt: row.last_contacted_at ? new Date(row.last_contacted_at) : undefined,
-    nextContactDue: row.next_contact_due ? new Date(row.next_contact_due) : undefined,
-    notes: row.notes || undefined,
-    tags: row.tags || [],
-    linkedinUrl: row.linkedin_url || undefined,
-    twitterUrl: row.twitter_url || undefined,
-    websiteUrl: row.website_url || undefined,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
-  });
+  const mapDbToContact = (row: any): Contact => {
+    const familyRelationshipRaw =
+      typeof row.family_relationship === 'string' ? row.family_relationship.toLowerCase() : undefined;
+
+    return {
+      id: row.id,
+      userId: row.user_id,
+      contactUserId: row.contact_user_id || undefined,
+      name: row.name,
+      email: row.email || undefined,
+      phone: row.phone || undefined,
+      company: row.company || undefined,
+      role: row.role || undefined,
+      country: row.country || undefined,
+      city: row.city || undefined,
+      contactType: row.contact_type as ContactType,
+      personalTier: row.personal_tier as PersonalTier | undefined,
+      businessLevel: row.business_level as BusinessLevel | undefined,
+      familyRelationship: familyRelationshipRaw as FamilyRelationship | undefined,
+      contactFrequencyDays: row.contact_frequency_days || 30,
+      lastContactedAt: row.last_contacted_at ? new Date(row.last_contacted_at) : undefined,
+      nextContactDue: row.next_contact_due ? new Date(row.next_contact_due) : undefined,
+      notes: row.notes || undefined,
+      tags: row.tags || [],
+      linkedinUrl: row.linkedin_url || undefined,
+      twitterUrl: row.twitter_url || undefined,
+      websiteUrl: row.website_url || undefined,
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
+    };
+  };
 
   const fetchContacts = useCallback(async () => {
     if (!userId) {
@@ -185,41 +190,50 @@ export function useContacts(userId: string | undefined) {
   }, [userId]);
 
   const updateContact = useCallback(async (
-    id: string, 
+    id: string,
     updates: Partial<ContactInput>
   ): Promise<boolean> => {
-    const dbUpdates: Record<string, any> = {};
-    
-    if (updates.name !== undefined) dbUpdates.name = updates.name;
-    if (updates.email !== undefined) dbUpdates.email = updates.email || null;
-    if (updates.phone !== undefined) dbUpdates.phone = updates.phone || null;
-    if (updates.company !== undefined) dbUpdates.company = updates.company || null;
-    if (updates.role !== undefined) dbUpdates.role = updates.role || null;
-    if (updates.country !== undefined) dbUpdates.country = updates.country || null;
-    if (updates.city !== undefined) dbUpdates.city = updates.city || null;
-    if (updates.contactType !== undefined) dbUpdates.contact_type = updates.contactType;
-    if (updates.personalTier !== undefined) dbUpdates.personal_tier = updates.personalTier || null;
-    if (updates.businessLevel !== undefined) dbUpdates.business_level = updates.businessLevel || null;
-    if (updates.familyRelationship !== undefined) dbUpdates.family_relationship = updates.familyRelationship || null;
-    if (updates.contactFrequencyDays !== undefined) dbUpdates.contact_frequency_days = updates.contactFrequencyDays;
-    if (updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
-    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
-    if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl || null;
-    if (updates.twitterUrl !== undefined) dbUpdates.twitter_url = updates.twitterUrl || null;
-    if (updates.websiteUrl !== undefined) dbUpdates.website_url = updates.websiteUrl || null;
+    try {
+      const dbUpdates: Record<string, any> = {};
 
-    const { error } = await supabase
-      .from('user_contacts')
-      .update(dbUpdates)
-      .eq('id', id);
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.email !== undefined) dbUpdates.email = updates.email || null;
+      if (updates.phone !== undefined) dbUpdates.phone = updates.phone || null;
+      if (updates.company !== undefined) dbUpdates.company = updates.company || null;
+      if (updates.role !== undefined) dbUpdates.role = updates.role || null;
+      if (updates.country !== undefined) dbUpdates.country = updates.country || null;
+      if (updates.city !== undefined) dbUpdates.city = updates.city || null;
+      if (updates.contactType !== undefined) dbUpdates.contact_type = updates.contactType;
+      if (updates.personalTier !== undefined) dbUpdates.personal_tier = updates.personalTier || null;
+      if (updates.businessLevel !== undefined) dbUpdates.business_level = updates.businessLevel || null;
+      if (updates.familyRelationship !== undefined)
+        dbUpdates.family_relationship = updates.familyRelationship || null;
+      if (updates.contactFrequencyDays !== undefined)
+        dbUpdates.contact_frequency_days = updates.contactFrequencyDays;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
+      if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+      if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl || null;
+      if (updates.twitterUrl !== undefined) dbUpdates.twitter_url = updates.twitterUrl || null;
+      if (updates.websiteUrl !== undefined) dbUpdates.website_url = updates.websiteUrl || null;
 
-    if (!error) {
-      setContacts(prev => prev.map(c => 
-        c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c
-      ));
+      const { error } = await supabase
+        .from('user_contacts')
+        .update(dbUpdates)
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error updating contact:', error);
+        return false;
+      }
+
+      setContacts((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c))
+      );
       return true;
+    } catch (err) {
+      console.error('Error updating contact:', err);
+      return false;
     }
-    return false;
   }, []);
 
   const deleteContact = useCallback(async (id: string): Promise<boolean> => {
