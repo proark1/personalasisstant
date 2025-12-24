@@ -123,13 +123,13 @@ export function MobileLayout({
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
-  // Bottom nav: Tasks, Calendar, Assistant (center), Health, Dashboard
+  // Bottom nav: Calendar, Focus, Assistant (center), Health, Friends
   const bottomTabs = [
-    { id: 'tasks' as Tab, icon: CheckSquare, label: 'Tasks' },
-    { id: 'calendar' as Tab, icon: Calendar, label: 'Calendar' },
-    { id: 'assistant' as const, icon: Mic, label: 'Assistant', isCenter: true },
-    { id: 'health' as Tab, icon: Heart, label: 'Health' },
-    { id: 'dashboard' as Tab, icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'calendar' as Tab, icon: Calendar },
+    { id: 'focus' as Tab, icon: Zap },
+    { id: 'assistant' as const, icon: Mic, isCenter: true },
+    { id: 'health' as Tab, icon: Heart },
+    { id: 'messages' as Tab, icon: MessageCircle },
   ];
 
   const navItems: { icon: typeof LayoutDashboard; label: string; filter: SidebarFilter | 'family' }[] = [
@@ -490,31 +490,25 @@ export function MobileLayout({
 
       {/* Bottom Tab Bar */}
       <nav className="border-t border-border bg-background shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="h-16 flex items-end justify-around px-2 pt-1 pb-1">
+        <div className="h-14 flex items-center justify-around px-2">
           {bottomTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => tab.isCenter ? onVoiceMode() : setActiveTab(tab.id as Tab)}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 min-w-[56px]",
-                tab.isCenter ? "" : "py-1.5",
+                "flex items-center justify-center w-12 h-12",
+                tab.isCenter ? "" : "",
                 !tab.isCenter && activeTab === tab.id 
                   ? "text-primary" 
                   : !tab.isCenter ? "text-muted-foreground hover:text-foreground" : ""
               )}
             >
               {tab.isCenter ? (
-                <>
-                  <div className="w-12 h-12 -mt-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg border-4 border-background">
-                    <Mic className="w-5 h-5 text-primary-foreground" />
-                  </div>
-                  <span className="text-[10px] font-medium text-primary mt-0.5">{tab.label}</span>
-                </>
+                <div className="w-12 h-12 -mt-4 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg border-4 border-background">
+                  <Mic className="w-5 h-5 text-primary-foreground" />
+                </div>
               ) : (
-                <>
-                  <tab.icon className="w-5 h-5" />
-                  <span className="text-[10px] font-medium">{tab.label}</span>
-                </>
+                <tab.icon className="w-6 h-6" />
               )}
             </button>
           ))}
