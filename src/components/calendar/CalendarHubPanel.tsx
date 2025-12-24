@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { CalendarEvent, Task } from '@/types/flux';
+import { CalendarEvent, Task, Project } from '@/types/flux';
 import { TodayFocusPanel } from '../focus/TodayFocusPanel';
 import { TaskList } from '../tasks/TaskList';
-import { WeeklyCalendarView } from './WeeklyCalendarView';
+import { MonthCalendarView } from './MonthCalendarView';
 import { SidebarFilter } from '../layout/Sidebar';
 import { Zap, CheckSquare, Calendar } from 'lucide-react';
+import { QuickAddButton } from '../tasks/QuickAddButton';
 
 interface CalendarHubPanelProps {
   userId: string;
   tasks: Task[];
   events: CalendarEvent[];
   filter: SidebarFilter;
+  projects?: Project[];
   onFilterChange?: (filter: SidebarFilter) => void;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onToggleTaskComplete: (id: string) => void;
@@ -35,6 +37,7 @@ export function CalendarHubPanel({
   tasks,
   events,
   filter,
+  projects = [],
   onFilterChange,
   onAddTask,
   onToggleTaskComplete,
@@ -59,24 +62,27 @@ export function CalendarHubPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* View Switcher */}
+      {/* View Switcher with Quick Add */}
       <div className="px-4 py-2 border-b border-border shrink-0">
-        <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
-          {views.map((view) => (
-            <Button
-              key={view.id}
-              variant={activeView === view.id ? 'secondary' : 'ghost'}
-              size="sm"
-              className={cn(
-                "flex-1 gap-1.5",
-                activeView === view.id && "bg-background shadow-sm"
-              )}
-              onClick={() => setActiveView(view.id)}
-            >
-              <view.icon className="w-4 h-4" />
-              <span className="text-xs">{view.label}</span>
-            </Button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex gap-1 bg-muted/50 p-1 rounded-lg">
+            {views.map((view) => (
+              <Button
+                key={view.id}
+                variant={activeView === view.id ? 'secondary' : 'ghost'}
+                size="sm"
+                className={cn(
+                  "flex-1 gap-1.5",
+                  activeView === view.id && "bg-background shadow-sm"
+                )}
+                onClick={() => setActiveView(view.id)}
+              >
+                <view.icon className="w-4 h-4" />
+                <span className="text-xs">{view.label}</span>
+              </Button>
+            ))}
+          </div>
+          <QuickAddButton onAddTask={onAddTask} projects={projects} />
         </div>
       </div>
 
@@ -105,10 +111,11 @@ export function CalendarHubPanel({
           />
         </div>
         <div className={cn("h-full", activeView === 'calendar' ? 'block' : 'hidden')}>
-          <WeeklyCalendarView
+          <MonthCalendarView
             events={events}
             tasks={tasks}
             onToggleTaskComplete={onToggleTaskComplete}
+            onUpdateTask={onUpdateTask}
           />
         </div>
       </div>

@@ -240,6 +240,7 @@ export function StandardMode({
         sharedEvents={sharedEvents}
         messages={messages}
         isProcessing={isProcessing}
+        projects={projects}
         onAddTask={onAddTask}
         onToggleTaskComplete={onToggleTaskComplete}
         onDeleteTask={onDeleteTask}

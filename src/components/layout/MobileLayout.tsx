@@ -14,7 +14,7 @@ import { HealthHubPanel } from '../health/HealthHubPanel';
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
 import { BrainDumpFAB } from '../capture/BrainDumpFAB';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Task, CalendarEvent, ChatMessage, UserSettings } from '@/types/flux';
+import { Task, CalendarEvent, ChatMessage, UserSettings, Project } from '@/types/flux';
 import { SidebarFilter } from './Sidebar';
 import { 
   Menu, 
@@ -52,6 +52,7 @@ interface MobileLayoutProps {
   sharedEvents?: CalendarEvent[];
   messages: ChatMessage[];
   isProcessing: boolean;
+  projects?: Project[];
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onToggleTaskComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
@@ -83,6 +84,7 @@ export function MobileLayout({
   sharedEvents = [],
   messages,
   isProcessing,
+  projects = [],
   onAddTask,
   onToggleTaskComplete,
   onDeleteTask,
@@ -368,6 +370,7 @@ export function MobileLayout({
             tasks={displayTasks}
             events={displayEvents}
             filter={filter}
+            projects={projects}
             onFilterChange={setFilter}
             onAddTask={onAddTask}
             onToggleTaskComplete={onToggleTaskComplete}
