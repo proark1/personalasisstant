@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { useAppNotifications } from './useAppNotifications';
 
 export interface Medication {
   id: string;
@@ -70,6 +71,7 @@ export function useHealthTracking() {
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([]);
   const [healthMetrics, setHealthMetrics] = useState<HealthMetric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { notifyAppointmentCreated, notifyAppointmentUpdated } = useAppNotifications();
 
   const fetchAll = async () => {
     if (!user?.id) return;
@@ -204,6 +206,11 @@ export function useHealthTracking() {
         new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime()
       ));
       toast.success('Appointment added');
+      
+      // Create in-app notification and schedule native iOS notification
+      const appointmentDate = new Date(data.appointment_date);
+      notifyAppointmentCreated(data.title, data.id, appointmentDate, data.reminder_before || 30);
+      
       return data;
     } catch (error) {
       console.error('Error adding appointment:', error);
@@ -223,6 +230,16 @@ export function useHealthTracking() {
       if (error) throw error;
       setAppointments(prev => prev.map(a => a.id === id ? data : a));
       toast.success('Appointment updated');
+      
+      // Create in-app notification
+      notifyAppointmentUpdated(data.title, data.id);
+      
+      // If date changed, reschedule native notification
+      if (updates.appointment_date) {
+        const appointmentDate = new Date(data.appointment_date);
+        notifyAppointmentCreated(data.title, data.id, appointmentDate, data.reminder_before || 30);
+      }
+      
       return data;
     } catch (error) {
       console.error('Error updating appointment:', error);

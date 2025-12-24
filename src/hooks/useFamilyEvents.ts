@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { useAppNotifications } from './useAppNotifications';
 
 export interface FamilyEvent {
   id: string;
@@ -28,6 +29,7 @@ export function useFamilyEvents() {
   const { user } = useAuth();
   const [events, setEvents] = useState<FamilyEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { notifyEventCreated } = useAppNotifications();
 
   const fetchEvents = async () => {
     if (!user) return;
@@ -71,6 +73,10 @@ export function useFamilyEvents() {
         new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
       ));
       toast.success('Family event added');
+      
+      // Create in-app notification
+      notifyEventCreated(data.title, data.id);
+      
       return data;
     } catch (error: any) {
       console.error('Error adding family event:', error);

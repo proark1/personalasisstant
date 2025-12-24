@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-
+import { useAppNotifications } from './useAppNotifications';
 export type ContractCategory = 'insurance' | 'utilities' | 'subscription' | 'phone' | 'internet' | 'streaming' | 'other';
 export type CostFrequency = 'monthly' | 'quarterly' | 'yearly' | 'one_time';
 
@@ -57,6 +57,7 @@ export const CONTRACT_CATEGORIES: { value: ContractCategory; label: string; icon
 export function useContracts(userId: string | undefined) {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const { notifyContractCreated } = useAppNotifications();
 
   const mapDbToContract = (row: any): Contract => ({
     id: row.id,
@@ -133,10 +134,14 @@ export function useContracts(userId: string | undefined) {
     if (data && !error) {
       const newContract = mapDbToContract(data);
       setContracts(prev => [...prev, newContract]);
+      
+      // Create in-app notification
+      notifyContractCreated(newContract.name, newContract.id);
+      
       return newContract;
     }
     return null;
-  }, [userId]);
+  }, [userId, notifyContractCreated]);
 
   const updateContract = useCallback(async (
     id: string,

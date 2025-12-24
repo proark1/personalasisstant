@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { startOfDay, differenceInDays, subDays, format } from 'date-fns';
+import { useAppNotifications } from './useAppNotifications';
 
 export interface Habit {
   id: string;
@@ -34,6 +35,7 @@ export function useHabits(userId: string | undefined) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<HabitLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const { notifyHabitCompleted } = useAppNotifications();
 
   const fetchHabits = useCallback(async () => {
     if (!userId) return;
@@ -140,10 +142,37 @@ export function useHabits(userId: string | undefined) {
     }
   }, [userId, toast]);
 
+  // Calculate streak for a habit - moved before logHabit to avoid circular dependency
+  const getStreak = useCallback((habitId: string) => {
+    const habitLogs = logs
+      .filter(l => l.habitId === habitId)
+      .sort((a, b) => b.logDate.getTime() - a.logDate.getTime());
+
+    if (habitLogs.length === 0) return 0;
+
+    let streak = 0;
+    let currentDate = startOfDay(new Date());
+
+    for (const log of habitLogs) {
+      const logDate = startOfDay(log.logDate);
+      const diff = differenceInDays(currentDate, logDate);
+
+      if (diff === 0 || diff === 1) {
+        streak++;
+        currentDate = logDate;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }, [logs]);
+
   const logHabit = useCallback(async (habitId: string, date: Date = new Date(), count: number = 1) => {
     if (!userId) return;
 
     const dateStr = format(date, 'yyyy-MM-dd');
+    const habit = habits.find(h => h.id === habitId);
 
     try {
       // Check if log exists
@@ -152,18 +181,21 @@ export function useHabits(userId: string | undefined) {
         format(l.logDate, 'yyyy-MM-dd') === dateStr
       );
 
+      let newCompletedCount = count;
+
       if (existingLog) {
         // Update existing log
+        newCompletedCount = existingLog.completedCount + count;
         const { error } = await supabase
           .from('habit_logs')
-          .update({ completed_count: existingLog.completedCount + count })
+          .update({ completed_count: newCompletedCount })
           .eq('id', existingLog.id);
 
         if (error) throw error;
 
         setLogs(prev => prev.map(l => 
           l.id === existingLog.id 
-            ? { ...l, completedCount: l.completedCount + count }
+            ? { ...l, completedCount: newCompletedCount }
             : l
         ));
       } else {
@@ -192,12 +224,18 @@ export function useHabits(userId: string | undefined) {
         }]);
       }
 
+      // Check if habit target is reached - notify completion
+      if (habit && newCompletedCount >= habit.targetCount) {
+        const streak = getStreak(habitId);
+        notifyHabitCompleted(habit.name, habitId, streak + 1);
+      }
+
       toast({ title: 'Habit Logged!', description: 'Keep up the great work!' });
     } catch (error) {
       console.error('[habits] Log error:', error);
       toast({ title: 'Error', description: 'Could not log habit.', variant: 'destructive' });
     }
-  }, [userId, logs, toast]);
+  }, [userId, logs, habits, toast, getStreak, notifyHabitCompleted]);
 
   const deleteHabit = useCallback(async (habitId: string) => {
     try {
@@ -215,32 +253,6 @@ export function useHabits(userId: string | undefined) {
       toast({ title: 'Error', description: 'Could not remove habit.', variant: 'destructive' });
     }
   }, [toast]);
-
-  // Calculate streak for a habit
-  const getStreak = useCallback((habitId: string) => {
-    const habitLogs = logs
-      .filter(l => l.habitId === habitId)
-      .sort((a, b) => b.logDate.getTime() - a.logDate.getTime());
-
-    if (habitLogs.length === 0) return 0;
-
-    let streak = 0;
-    let currentDate = startOfDay(new Date());
-
-    for (const log of habitLogs) {
-      const logDate = startOfDay(log.logDate);
-      const diff = differenceInDays(currentDate, logDate);
-
-      if (diff === 0 || diff === 1) {
-        streak++;
-        currentDate = logDate;
-      } else {
-        break;
-      }
-    }
-
-    return streak;
-  }, [logs]);
 
   // Get today's habits with completion status
   const todayHabits = useMemo(() => {
