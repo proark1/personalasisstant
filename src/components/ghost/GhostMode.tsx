@@ -508,20 +508,16 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   }, [micMuted, setMicMutedInEngine]);
 
   return (
-    <div className="fixed inset-0 ghost-gradient z-50 flex flex-col animate-fade-in">
+    <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 z-50 flex flex-col animate-fade-in">
       {/* Header */}
-      <header className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between">
+      <header className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-background/80 to-transparent backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel text-sm",
+            "flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/30",
             currentStatus.color
           )}>
             <StatusIcon className={cn("w-4 h-4", currentStatus.animate && "animate-pulse")} />
-            <span className="font-mono text-xs">{currentStatus.label}</span>
-          </div>
-          
-          <div className="px-3 py-1.5 rounded-full glass-panel text-sm text-ghost-primary">
-            <span className="font-mono text-xs">OpenAI Realtime</span>
+            <span className="font-medium text-sm">{currentStatus.label}</span>
           </div>
         </div>
         
@@ -531,23 +527,23 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             size="icon"
             onClick={() => setShowDebugPanel((v) => !v)}
             className={cn(
-              "text-muted-foreground hover:text-foreground",
-              showDebugPanel && "text-ghost-primary"
+              "text-muted-foreground hover:text-foreground rounded-full",
+              showDebugPanel && "text-primary bg-primary/10"
             )}
             title="Toggle debug panel"
           >
             <Bug className="w-5 h-5" />
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={() => {
               handleEndSession();
               onClose();
             }}
-            className="text-muted-foreground hover:text-foreground"
+            className="rounded-full border-destructive/30 text-destructive hover:bg-destructive/10"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </Button>
         </div>
       </header>

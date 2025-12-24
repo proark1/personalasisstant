@@ -1,0 +1,256 @@
+import { useMemo } from 'react';
+import { Task, CalendarEvent } from '@/types/flux';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  Target, 
+  AlertTriangle, 
+  Calendar, 
+  Sparkles,
+  Clock,
+  CheckCircle2,
+} from 'lucide-react';
+import { format, isToday, isPast, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+interface TodayFocusPanelProps {
+  tasks: Task[];
+  events: CalendarEvent[];
+  onToggleComplete: (id: string) => void;
+}
+
+export function TodayFocusPanel({
+  tasks,
+  events,
+  onToggleComplete,
+}: TodayFocusPanelProps) {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
+
+  // Get overdue tasks (max 3 to reduce overwhelm)
+  const overdueTasks = useMemo(() => {
+    return tasks
+      .filter(t => !t.completed && t.dueDate && isPast(new Date(t.dueDate)) && !isToday(new Date(t.dueDate)))
+      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
+      .slice(0, 3);
+  }, [tasks]);
+
+  // Get tasks due today
+  const todayTasks = useMemo(() => {
+    return tasks
+      .filter(t => !t.completed && t.dueDate && isToday(new Date(t.dueDate)))
+      .sort((a, b) => {
+        const aTime = new Date(a.dueDate!).getTime();
+        const bTime = new Date(b.dueDate!).getTime();
+        return aTime - bTime;
+      });
+  }, [tasks]);
+
+  // Get next upcoming event
+  const nextEvent = useMemo(() => {
+    return events
+      .filter(e => new Date(e.startTime) >= now && new Date(e.startTime) <= todayEnd)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
+  }, [events, now, todayEnd]);
+
+  // Get high priority incomplete tasks (if no due dates set)
+  const highPriorityTasks = useMemo(() => {
+    if (todayTasks.length > 0 || overdueTasks.length > 0) return [];
+    return tasks
+      .filter(t => !t.completed && t.priority === 'high' && !t.dueDate)
+      .slice(0, 3);
+  }, [tasks, todayTasks, overdueTasks]);
+
+  // AI suggestion for what to do first
+  const suggestion = useMemo(() => {
+    if (overdueTasks.length > 0) {
+      return `Start with "${overdueTasks[0].title}" - it's overdue and needs your attention`;
+    }
+    if (nextEvent && isBefore(new Date(nextEvent.startTime), new Date(now.getTime() + 30 * 60000))) {
+      return `You have "${nextEvent.title}" coming up in less than 30 minutes`;
+    }
+    if (todayTasks.length > 0) {
+      const highPriority = todayTasks.find(t => t.priority === 'high');
+      if (highPriority) {
+        return `Focus on "${highPriority.title}" - it's high priority`;
+      }
+      return `Start with "${todayTasks[0].title}" - it's your first task for today`;
+    }
+    if (highPriorityTasks.length > 0) {
+      return `Consider working on "${highPriorityTasks[0].title}" - it's high priority`;
+    }
+    return "You're all caught up! Great job!";
+  }, [overdueTasks, todayTasks, nextEvent, highPriorityTasks, now]);
+
+  const totalTasks = overdueTasks.length + todayTasks.length + highPriorityTasks.length;
+  const hasNoTasks = totalTasks === 0;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <Target className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h2 className="font-semibold">Today's Focus</h2>
+            <p className="text-xs text-muted-foreground">
+              {format(now, 'EEEE, MMMM d')}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-4">
+          {/* AI Suggestion */}
+          <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+            <div className="flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+              <p className="text-sm text-foreground">{suggestion}</p>
+            </div>
+          </div>
+
+          {/* Next Event */}
+          {nextEvent && (
+            <div className="p-3 rounded-lg bg-accent/10 border border-accent/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="w-4 h-4 text-accent" />
+                <span className="text-xs font-medium text-accent">NEXT EVENT</span>
+              </div>
+              <p className="font-medium">{nextEvent.title}</p>
+              <p className="text-sm text-muted-foreground">
+                {format(new Date(nextEvent.startTime), 'h:mm a')}
+                {nextEvent.location && ` • ${nextEvent.location}`}
+              </p>
+            </div>
+          )}
+
+          {/* Overdue Tasks */}
+          {overdueTasks.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+                <span className="text-xs font-medium text-destructive">OVERDUE</span>
+              </div>
+              <div className="space-y-2">
+                {overdueTasks.map(task => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    onToggle={() => onToggleComplete(task.id)}
+                    variant="overdue"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Today's Tasks */}
+          {todayTasks.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium text-primary">DUE TODAY</span>
+              </div>
+              <div className="space-y-2">
+                {todayTasks.map(task => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    onToggle={() => onToggleComplete(task.id)}
+                    variant="today"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* High Priority (if no dated tasks) */}
+          {highPriorityTasks.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="w-4 h-4 text-orange-500" />
+                <span className="text-xs font-medium text-orange-500">HIGH PRIORITY</span>
+              </div>
+              <div className="space-y-2">
+                {highPriorityTasks.map(task => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    onToggle={() => onToggleComplete(task.id)}
+                    variant="priority"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* All caught up */}
+          {hasNoTasks && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
+              <h3 className="font-semibold text-lg">All caught up!</h3>
+              <p className="text-sm text-muted-foreground">
+                No urgent tasks for today. Great job staying on top of things!
+              </p>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+interface TaskItemProps {
+  task: Task;
+  onToggle: () => void;
+  variant: 'overdue' | 'today' | 'priority';
+}
+
+function TaskItem({ task, onToggle, variant }: TaskItemProps) {
+  const priorityColors = {
+    high: 'text-red-500',
+    medium: 'text-yellow-500',
+    low: 'text-green-500',
+  };
+
+  const variantStyles = {
+    overdue: 'border-destructive/30 bg-destructive/5',
+    today: 'border-primary/30 bg-primary/5',
+    priority: 'border-orange-500/30 bg-orange-500/5',
+  };
+
+  return (
+    <div className={cn(
+      "flex items-center gap-3 p-3 rounded-lg border transition-colors",
+      variantStyles[variant]
+    )}>
+      <Checkbox
+        checked={task.completed}
+        onCheckedChange={onToggle}
+        className="shrink-0"
+      />
+      <div className="flex-1 min-w-0">
+        <p className="font-medium truncate">{task.title}</p>
+        {task.dueDate && (
+          <p className="text-xs text-muted-foreground">
+            {variant === 'overdue' 
+              ? `Was due ${format(new Date(task.dueDate), 'MMM d')}`
+              : format(new Date(task.dueDate), 'h:mm a')
+            }
+          </p>
+        )}
+      </div>
+      <Badge 
+        variant="outline" 
+        className={cn("shrink-0 text-xs", priorityColors[task.priority])}
+      >
+        {task.priority}
+      </Badge>
+    </div>
+  );
+}

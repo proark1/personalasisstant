@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { CalendarEvent, Task } from '@/types/flux';
-import { TodayFocusView } from '../focus/TodayFocusView';
+import { TodayFocusPanel } from '../focus/TodayFocusPanel';
 import { TaskList } from '../tasks/TaskList';
 import { CalendarPanel } from './CalendarPanel';
 import { SidebarFilter } from '../layout/Sidebar';
@@ -13,6 +13,7 @@ interface CalendarHubPanelProps {
   tasks: Task[];
   events: CalendarEvent[];
   filter: SidebarFilter;
+  onFilterChange?: (filter: SidebarFilter) => void;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onToggleTaskComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
@@ -34,6 +35,7 @@ export function CalendarHubPanel({
   tasks,
   events,
   filter,
+  onFilterChange,
   onAddTask,
   onToggleTaskComplete,
   onDeleteTask,
@@ -81,17 +83,17 @@ export function CalendarHubPanel({
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         <div className={cn("h-full", activeView === 'focus' ? 'block' : 'hidden')}>
-          <TodayFocusView
+          <TodayFocusPanel
             tasks={tasks}
             events={events}
             onToggleComplete={onToggleTaskComplete}
-            onClose={() => setActiveView('tasks')}
           />
         </div>
         <div className={cn("h-full", activeView === 'tasks' ? 'block' : 'hidden')}>
           <TaskList
             tasks={tasks}
             filter={filter}
+            onFilterChange={onFilterChange}
             onToggleComplete={onToggleTaskComplete}
             onDeleteTask={onDeleteTask}
             onDeleteTasks={onDeleteTasks}
