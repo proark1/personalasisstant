@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { DoriPanel } from '../assistant/DoriPanel';
 import { ChatPanel } from '../chat/ChatPanel';
 import { TeamChatPanel } from '../chat/TeamChatPanel';
 import { CalendarHubPanel } from '../calendar/CalendarHubPanel';
@@ -119,11 +120,11 @@ export function MobileLayout({
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
-  // Bottom nav: Calendar, Family, Assistant (center), Health, Friends
+  // Bottom nav: Calendar, Family, Dori (center), Health, Friends
   const bottomTabs = [
     { id: 'calendar' as Tab, icon: Calendar },
     { id: 'family' as Tab, icon: Home },
-    { id: 'assistant' as const, icon: Mic, isCenter: true },
+    { id: 'dori' as const, icon: Sparkles, isCenter: true },
     { id: 'health' as Tab, icon: Heart },
     { id: 'messages' as Tab, icon: MessageCircle },
   ];
@@ -173,7 +174,7 @@ export function MobileLayout({
                   {/* Main section label */}
                   <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Main</span>
                   
-                  {/* AI Assistant */}
+                  {/* Dori AI Assistant */}
                   <Button
                     variant={activeTab === 'chat' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
@@ -183,7 +184,7 @@ export function MobileLayout({
                     }}
                   >
                     <Sparkles className="w-5 h-5 shrink-0" />
-                    <span>AI Assistant</span>
+                    <span>Dori</span>
                   </Button>
 
                   {/* Calendar (includes Focus & Tasks) */}
@@ -291,22 +292,8 @@ export function MobileLayout({
 
                 {/* Bottom Actions */}
                 <div className="p-3 border-t border-border space-y-1">
-                  {onEditProfile && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start gap-3"
-                      onClick={() => {
-                        onEditProfile();
-                        setSidebarOpen(false);
-                      }}
-                    >
-                      <UserCircle className="w-5 h-5 shrink-0" />
-                      <span>Edit Profile</span>
-                    </Button>
-                  )}
-                  
                   <Button
-                    variant="ghost"
+                    variant={activeTab === 'settings' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
                     onClick={() => {
                       setActiveTab('settings');
@@ -315,18 +302,6 @@ export function MobileLayout({
                   >
                     <Settings className="w-5 h-5 shrink-0" />
                     <span>Settings</span>
-                  </Button>
-                  
-                  <Button
-                    variant="voice_mode"
-                    className="w-full justify-start gap-3"
-                    onClick={() => {
-                      onVoiceMode();
-                      setSidebarOpen(false);
-                    }}
-                  >
-                    <Mic className="w-5 h-5 shrink-0" />
-                    <span>Voice Mode</span>
                   </Button>
 
                   {onSignOut && (
@@ -371,10 +346,11 @@ export function MobileLayout({
           "h-full",
           activeTab === 'chat' ? 'block' : 'hidden'
         )}>
-          <ChatPanel 
+          <DoriPanel 
             messages={messages}
             onSendMessage={onSendMessage}
             isProcessing={isProcessing}
+            onVoiceMode={onVoiceMode}
           />
         </div>
         <div className={cn(
@@ -442,7 +418,7 @@ export function MobileLayout({
           {bottomTabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => tab.isCenter ? onVoiceMode() : setActiveTab(tab.id as Tab)}
+              onClick={() => tab.isCenter ? setActiveTab('chat') : setActiveTab(tab.id as Tab)}
               className={cn(
                 "flex items-center justify-center w-12 h-12",
                 tab.isCenter ? "" : "",
@@ -453,7 +429,7 @@ export function MobileLayout({
             >
               {tab.isCenter ? (
                 <div className="w-12 h-12 -mt-4 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg border-4 border-background">
-                  <Mic className="w-5 h-5 text-primary-foreground" />
+                  <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </div>
               ) : (
                 <tab.icon className="w-6 h-6" />
