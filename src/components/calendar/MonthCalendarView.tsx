@@ -182,21 +182,27 @@ export function MonthCalendarView({
     setShowAddTaskDialog(true);
   };
 
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (!newTaskTitle.trim() || !selectedDateForTask || !onAddTask) return;
-    
-    onAddTask({
-      title: newTaskTitle.trim(),
-      description: newTaskDescription.trim() || undefined,
-      priority: newTaskPriority,
-      category: newTaskCategory,
-      dueDate: selectedDateForTask,
-      completed: false,
-      status: 'backlog',
-    } as Omit<Task, 'id' | 'createdAt'>);
-    
-    setShowAddTaskDialog(false);
-    setSelectedDateForTask(null);
+
+    try {
+      await Promise.resolve(
+        onAddTask({
+          title: newTaskTitle.trim(),
+          description: newTaskDescription.trim() || undefined,
+          priority: newTaskPriority,
+          category: newTaskCategory,
+          dueDate: selectedDateForTask,
+          completed: false,
+          status: 'backlog',
+        } as Omit<Task, 'id' | 'createdAt'>)
+      );
+
+      setShowAddTaskDialog(false);
+      setSelectedDateForTask(null);
+    } catch (e) {
+      console.error('Failed to create task from calendar:', e);
+    }
   };
 
   const handleItemClick = (item: { id: string; type: 'event' | 'task' }) => {
@@ -432,9 +438,13 @@ export function MonthCalendarView({
         <EditTaskModal
           task={editingTask}
           onClose={() => setEditingTask(null)}
-          onSave={(id, updates) => {
-            onUpdateTask?.(id, updates);
-            setEditingTask(null);
+          onSave={async (id, updates) => {
+            try {
+              await Promise.resolve(onUpdateTask?.(id, updates));
+              setEditingTask(null);
+            } catch (e) {
+              console.error('Failed to update task from calendar:', e);
+            }
           }}
           onDelete={() => {
             setEditingTask(null);

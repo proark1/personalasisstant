@@ -187,8 +187,8 @@ export function useDatabase(userId: string | undefined) {
   }, [userId, fetchData]);
 
   // Task operations
-  const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt'>): Promise<Task | null> => {
-    if (!userId) return null;
+  const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> => {
+    if (!userId) throw new Error('Not authenticated');
 
     const insertData = {
       user_id: userId,
@@ -216,14 +216,14 @@ export function useDatabase(userId: string | undefined) {
       .from('tasks')
       .insert([insertData] as any)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (data && !error) {
-      const newTask = dbTaskToTask(data as unknown as DbTask);
-      setTasks(prev => [newTask, ...prev]);
-      return newTask;
-    }
-    return null;
+    if (error) throw error;
+    if (!data) throw new Error('Task create failed');
+
+    const newTask = dbTaskToTask(data as unknown as DbTask);
+    setTasks(prev => [newTask, ...prev]);
+    return newTask;
   }, [userId]);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
@@ -252,9 +252,8 @@ export function useDatabase(userId: string | undefined) {
       .update(dbUpdates)
       .eq('id', id);
 
-    if (!error) {
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-    }
+    if (error) throw error;
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {

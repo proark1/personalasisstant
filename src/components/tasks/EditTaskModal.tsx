@@ -15,11 +15,12 @@ import { format } from 'date-fns';
 import { RecurrenceFrequency } from '@/types/flux';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TaskBreakdownDialog } from '@/components/ai/TaskBreakdownDialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface EditTaskModalProps {
   task: Task;
   onClose: () => void;
-  onSave: (id: string, updates: Partial<Task>) => void;
+  onSave: (id: string, updates: Partial<Task>) => Promise<void> | void;
   onDelete: (id: string) => void;
   onAddSubtasks?: (parentId: string, subtasks: { title: string; priority: 'high' | 'medium' | 'low' }[]) => void;
   projects?: Project[];
@@ -48,6 +49,7 @@ const WEEKDAYS = [
 ];
 
 export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, projects = [], contacts = [] }: EditTaskModalProps) {
+  const { toast } = useToast();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
@@ -63,33 +65,49 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   const [checklist, setChecklist] = useState<ChecklistItem[]>(task.checklist || []);
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [showBreakdown, setShowBreakdown] = useState(false);
-  
+  const [isSaving, setIsSaving] = useState(false);
+
   // Parse existing recurrence rule for custom controls
   const existingRule = task.recurrenceRule ? parseRRuleString(task.recurrenceRule) : null;
-  
+
   // Custom recurrence state - initialize from existing rule if present
   const [customFrequency, setCustomFrequency] = useState<RecurrenceFrequency>(existingRule?.frequency || 'weekly');
   const [customInterval, setCustomInterval] = useState(existingRule?.interval || 1);
   const [customDays, setCustomDays] = useState<number[]>(existingRule?.daysOfWeek || []);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(existingRule?.endDate);
 
-  const handleSave = () => {
-    if (!title.trim()) return;
-    
-    onSave(task.id, {
-      title: title.trim(),
-      description: description.trim() || undefined,
-      priority,
-      category,
-      dueDate,
-      recurrenceRule,
-      reminderBefore: reminderBefore > 0 ? reminderBefore : undefined,
-      projectId,
-      mainResponsibleId,
-      secondaryResponsibleId,
-      checklist,
-    });
-    onClose();
+  const handleSave = async () => {
+    if (!title.trim() || isSaving) return;
+
+    setIsSaving(true);
+
+    try {
+      await Promise.resolve(
+        onSave(task.id, {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          priority,
+          category,
+          dueDate,
+          recurrenceRule,
+          reminderBefore: reminderBefore > 0 ? reminderBefore : undefined,
+          projectId,
+          mainResponsibleId,
+          secondaryResponsibleId,
+          checklist,
+        })
+      );
+      onClose();
+    } catch (e) {
+      console.error('Failed to save task:', e);
+      toast({
+        title: 'Save failed',
+        description: 'Please try again',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = () => {

@@ -59,7 +59,10 @@ export function QuickAddButton({ onAddTask, projects = [] }: QuickAddButtonProps
         projectId: selectedProjectId || projectSuggestion?.project.id,
       });
 
-      // Show success toast
+      if (!result) {
+        throw new Error('Task create failed');
+      }
+
       toast({
         title: 'Task Added',
         description: parsedTask.title,
