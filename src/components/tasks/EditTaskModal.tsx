@@ -99,6 +99,14 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
 
   const handlePresetRecurrence = (preset: string) => {
     setRecurrenceRule(preset);
+    // Also sync the custom state variables so they stay in sync
+    const parsedPreset = parseRRuleString(preset);
+    if (parsedPreset) {
+      setCustomFrequency(parsedPreset.frequency);
+      setCustomInterval(parsedPreset.interval);
+      setCustomDays(parsedPreset.daysOfWeek || []);
+      setCustomEndDate(parsedPreset.endDate);
+    }
     setShowRecurrenceEditor(false);
   };
 
