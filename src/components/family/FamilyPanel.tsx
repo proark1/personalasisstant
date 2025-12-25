@@ -27,8 +27,8 @@ export function FamilyPanel() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="mx-4 mt-4 overflow-x-auto scrollbar-hide">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
+        <div className="mx-4 mt-4 overflow-x-auto scrollbar-hide flex-shrink-0">
           <TabsList className="inline-flex min-w-max gap-1">
             <TabsTrigger value="members" className="p-2">
               <Users className="h-5 w-5" />
@@ -57,7 +57,10 @@ export function FamilyPanel() {
           </TabsList>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div 
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           <div className="p-4 pb-8">
             <TabsContent value="members" className="mt-0">
               <FamilyMembersList />

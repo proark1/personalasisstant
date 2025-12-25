@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
 
 export interface RecipeIngredient {
   id: string;
@@ -49,16 +50,20 @@ export function useMealPlanning() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchRecipes = useCallback(async () => {
     if (!user?.id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('recipes')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name');
+      const { data, error } = await fetchWithRetry(
+        async () => supabase
+          .from('recipes')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('name'),
+        { maxRetries: 2, timeoutMs: 12000 }
+      );
 
       if (error) throw error;
       setRecipes(data || []);
@@ -74,14 +79,19 @@ export function useMealPlanning() {
     }
 
     setIsLoading(true);
+    setFetchError(null);
+    
     try {
-      const { data, error } = await supabase
-        .from('meal_plans')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('meal_date', startDate)
-        .lte('meal_date', endDate)
-        .order('meal_date');
+      const { data, error } = await fetchWithRetry(
+        async () => supabase
+          .from('meal_plans')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('meal_date', startDate)
+          .lte('meal_date', endDate)
+          .order('meal_date'),
+        { maxRetries: 2, timeoutMs: 12000 }
+      );
 
       if (error) throw error;
 
@@ -109,6 +119,11 @@ export function useMealPlanning() {
       setMealPlans(plansWithRecipes);
     } catch (error: any) {
       console.error('Error fetching meal plans:', error);
+      if (error instanceof TimeoutError) {
+        setFetchError('Loading took too long. Tap to retry.');
+      } else {
+        setFetchError('Failed to load meal plans.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -329,6 +344,7 @@ export function useMealPlanning() {
     recipes,
     mealPlans,
     isLoading,
+    fetchError,
     addRecipe,
     updateRecipe,
     deleteRecipe,

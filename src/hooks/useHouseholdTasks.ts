@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
 
 export interface HouseholdTask {
   id: string;
@@ -26,21 +27,34 @@ export function useHouseholdTasks() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<HouseholdTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchTasks = async () => {
-    if (!user) return;
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+    
+    setFetchError(null);
     
     try {
-      const { data, error } = await supabase
-        .from('household_tasks')
-        .select('*')
-        .order('due_date', { ascending: true, nullsFirst: false });
+      const { data, error } = await fetchWithRetry(
+        async () => supabase
+          .from('household_tasks')
+          .select('*')
+          .order('due_date', { ascending: true, nullsFirst: false }),
+        { maxRetries: 2, timeoutMs: 12000 }
+      );
 
       if (error) throw error;
       setTasks(data || []);
     } catch (error: any) {
       console.error('Error fetching household tasks:', error);
-      toast.error('Failed to load household tasks');
+      if (error instanceof TimeoutError) {
+        setFetchError('Loading took too long. Tap to retry.');
+      } else {
+        setFetchError('Failed to load household tasks.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -138,6 +152,7 @@ export function useHouseholdTasks() {
   return {
     tasks,
     isLoading,
+    fetchError,
     addTask,
     updateTask,
     toggleComplete,

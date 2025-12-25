@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
+import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
 
 export interface FamilyMember {
   id: string;
@@ -53,6 +54,7 @@ export function useFamilyMembers() {
   const { user } = useAuth();
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const parseJsonArray = <T,>(data: Json | null, defaultValue: T[]): T[] => {
     if (!data) return defaultValue;
@@ -72,45 +74,42 @@ export function useFamilyMembers() {
       return;
     }
     
-    // Retry logic for transient network errors
-    const maxAttempts = 3;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const { data, error } = await supabase
+    setFetchError(null);
+    
+    try {
+      const { data, error } = await fetchWithRetry(
+        async () => supabase
           .from('family_members')
           .select('*')
           .eq('is_active', true)
-          .order('name');
+          .order('name'),
+        { maxRetries: 2, timeoutMs: 12000 }
+      );
 
-        if (error) {
-          console.error('Error fetching family members:', error);
-          // On error, don't clear existing data - just return
-          if (attempt === maxAttempts) {
-            setIsLoading(false);
-            return;
-          }
-          await new Promise(r => setTimeout(r, 250 * attempt));
-          continue;
-        }
-        
-        setMembers((data || []).map(m => ({
-          ...m,
-          clothing_sizes: parseJsonObject(m.clothing_sizes, {}),
-          activities: parseJsonArray<Activity>(m.activities, []),
-          milestones: parseJsonArray<Milestone>(m.milestones, []),
-          preferences: parseJsonObject(m.preferences, {}),
-        })));
-        break;
-      } catch (error) {
-        // Network errors - just log, don't spam user with toasts
+      if (error) {
         console.error('Error fetching family members:', error);
-        if (attempt < maxAttempts) {
-          await new Promise(r => setTimeout(r, 250 * attempt));
-          continue;
-        }
+        setFetchError('Failed to load family members.');
+        setIsLoading(false);
+        return;
       }
+      
+      setMembers((data || []).map(m => ({
+        ...m,
+        clothing_sizes: parseJsonObject(m.clothing_sizes, {}),
+        activities: parseJsonArray<Activity>(m.activities, []),
+        milestones: parseJsonArray<Milestone>(m.milestones, []),
+        preferences: parseJsonObject(m.preferences, {}),
+      })));
+    } catch (error: any) {
+      console.error('Error fetching family members:', error);
+      if (error instanceof TimeoutError) {
+        setFetchError('Loading took too long. Tap to retry.');
+      } else {
+        setFetchError('Failed to load family members.');
+      }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -237,6 +236,7 @@ export function useFamilyMembers() {
   return {
     members,
     isLoading,
+    fetchError,
     addMember,
     updateMember,
     deleteMember,

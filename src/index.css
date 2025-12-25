@@ -144,6 +144,13 @@
     bottom: 0;
     width: 100%;
   }
+
+  /* iOS Safari scroll fix - allow nested scrolling in iframes/web views */
+  @supports (-webkit-touch-callout: none) {
+    body {
+      position: relative;
+    }
+  }
   
   #root {
     @apply bg-background text-foreground;

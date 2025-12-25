@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
 
 export interface ShoppingListItem {
   id: string;
@@ -36,22 +37,35 @@ export function useShoppingLists() {
   const { user } = useAuth();
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchLists = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+    
+    setFetchError(null);
     
     try {
-      const { data, error } = await supabase
-        .from('shopping_lists')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await fetchWithRetry(
+        async () => supabase
+          .from('shopping_lists')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        { maxRetries: 2, timeoutMs: 12000 }
+      );
 
       if (error) throw error;
       setLists(data || []);
     } catch (error: any) {
       console.error('Error fetching shopping lists:', error);
-      toast.error('Failed to load shopping lists');
+      if (error instanceof TimeoutError) {
+        setFetchError('Loading took too long. Tap to retry.');
+      } else {
+        setFetchError('Failed to load shopping lists.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -240,6 +254,7 @@ export function useShoppingLists() {
   return {
     lists,
     isLoading,
+    fetchError,
     addList,
     updateList,
     deleteList,
