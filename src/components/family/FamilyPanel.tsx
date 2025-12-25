@@ -57,31 +57,33 @@ export function FamilyPanel() {
           </TabsList>
         </div>
 
-        <div className="flex-1 overflow-auto p-4">
-          <TabsContent value="members" className="mt-0 h-full">
-            <FamilyMembersList />
-          </TabsContent>
-          <TabsContent value="children" className="mt-0 h-full">
-            <ChildDashboard />
-          </TabsContent>
-          <TabsContent value="tasks" className="mt-0 h-full">
-            <HouseholdTasksList />
-          </TabsContent>
-          <TabsContent value="meals" className="mt-0 h-full">
-            <MealPlanningPanel />
-          </TabsContent>
-          <TabsContent value="shopping" className="mt-0 h-full">
-            <ShoppingListsPanel />
-          </TabsContent>
-          <TabsContent value="budget" className="mt-0 h-full">
-            <BudgetTrackingPanel />
-          </TabsContent>
-          <TabsContent value="health" className="mt-0 h-full">
-            <HealthTrackingPanel />
-          </TabsContent>
-          <TabsContent value="docs" className="mt-0 h-full">
-            <DocumentStoragePanel />
-          </TabsContent>
+        <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="p-4 pb-8">
+            <TabsContent value="members" className="mt-0">
+              <FamilyMembersList />
+            </TabsContent>
+            <TabsContent value="children" className="mt-0">
+              <ChildDashboard />
+            </TabsContent>
+            <TabsContent value="tasks" className="mt-0">
+              <HouseholdTasksList />
+            </TabsContent>
+            <TabsContent value="meals" className="mt-0">
+              <MealPlanningPanel />
+            </TabsContent>
+            <TabsContent value="shopping" className="mt-0">
+              <ShoppingListsPanel />
+            </TabsContent>
+            <TabsContent value="budget" className="mt-0">
+              <BudgetTrackingPanel />
+            </TabsContent>
+            <TabsContent value="health" className="mt-0">
+              <HealthTrackingPanel />
+            </TabsContent>
+            <TabsContent value="docs" className="mt-0">
+              <DocumentStoragePanel />
+            </TabsContent>
+          </div>
         </div>
       </Tabs>
     </div>

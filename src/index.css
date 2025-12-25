@@ -119,19 +119,36 @@
     @apply border-border;
   }
   
-  html, body, #root {
+  html {
     @apply bg-background text-foreground;
     height: 100%;
+    height: -webkit-fill-available;
     overflow: hidden;
     overscroll-behavior: none;
   }
-  
+
   body {
+    @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    height: 100%;
+    height: -webkit-fill-available;
+    min-height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
     position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
+  }
+  
+  #root {
+    @apply bg-background text-foreground;
+    height: 100%;
+    overflow: hidden;
   }
 
   /* Safe area for mobile devices */
@@ -176,6 +193,11 @@
   .touch-target {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  /* iOS scroll fix */
+  .-webkit-overflow-scrolling-touch {
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Safe area padding for iOS */

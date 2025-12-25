@@ -363,7 +363,10 @@ export function MonthCalendarView({
                   {dayEvents.slice(0, viewMode === 'week' ? 5 : 2).map((event) => (
                     <div
                       key={event.id}
-                      onClick={() => handleItemClick({ id: event.id, type: 'event' })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleItemClick({ id: event.id, type: 'event' });
+                      }}
                       className="px-1 py-0.5 text-[9px] bg-primary/20 text-primary rounded truncate cursor-pointer hover:bg-primary/30 transition-colors"
                     >
                       {event.title}
@@ -386,7 +389,10 @@ export function MonthCalendarView({
                           isOverdue && "border-destructive",
                           task.isRecurrenceInstance && "border-dashed"
                         )}
-                        onClick={() => handleItemClick({ id: task.id, type: 'task' })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleItemClick({ id: task.id, type: 'task' });
+                        }}
                       >
                         <div className="flex items-center gap-0.5">
                           <button
