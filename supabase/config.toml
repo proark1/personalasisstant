@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.voice-to-text]
 verify_jwt = false
+
+[functions.analyze-patterns]
+verify_jwt = false
+
+[functions.import-calendar]
+verify_jwt = false
