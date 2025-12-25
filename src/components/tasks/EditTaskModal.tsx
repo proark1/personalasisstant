@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import { RecurrenceFrequency } from '@/types/flux';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TaskBreakdownDialog } from '@/components/ai/TaskBreakdownDialog';
 import { useToast } from '@/hooks/use-toast';
+import { useSpaceMembers } from '@/hooks/useSpaceMembers';
+import { useAuth } from '@/hooks/useAuth';
 
 interface EditTaskModalProps {
   task: Task;
@@ -50,6 +52,9 @@ const WEEKDAYS = [
 
 export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, projects = [], contacts = [] }: EditTaskModalProps) {
   const { toast } = useToast();
+  const { user, profile } = useAuth();
+  const { members } = useSpaceMembers(user?.id);
+  
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
@@ -67,6 +72,31 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Build list of assignable people: current user + accepted space members
+  const assignablePeople = useMemo(() => {
+    const people: { id: string; name: string }[] = [];
+    
+    // Add current user first
+    if (user?.id) {
+      people.push({
+        id: user.id,
+        name: profile?.display_name || profile?.email || user.email || 'Me',
+      });
+    }
+    
+    // Add accepted space members
+    members
+      .filter(m => m.status === 'accepted')
+      .forEach(m => {
+        people.push({
+          id: m.member_id,
+          name: m.member_profile?.display_name || m.member_profile?.email || m.member_email,
+        });
+      });
+    
+    return people;
+  }, [user, profile, members]);
+
   // Parse existing recurrence rule for custom controls
   const existingRule = task.recurrenceRule ? parseRRuleString(task.recurrenceRule) : null;
 
@@ -75,7 +105,6 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   const [customInterval, setCustomInterval] = useState(existingRule?.interval || 1);
   const [customDays, setCustomDays] = useState<number[]>(existingRule?.daysOfWeek || []);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(existingRule?.endDate);
-
   const handleSave = async () => {
     if (!title.trim() || isSaving) return;
 
@@ -165,10 +194,10 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
     setChecklist(prev => prev.filter(item => item.id !== id));
   };
 
-  const getContactDisplay = (contactId: string | undefined) => {
-    if (!contactId) return 'Not assigned';
-    const contact = contacts.find(c => c.userId === contactId);
-    return contact?.name || contact?.email || 'Unknown';
+  const getPersonDisplay = (personId: string | undefined) => {
+    if (!personId) return 'Not assigned';
+    const person = assignablePeople.find(p => p.id === personId);
+    return person?.name || 'Unknown';
   };
 
   return (
@@ -242,14 +271,14 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                 <SelectTrigger>
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    <span className="truncate">{getContactDisplay(mainResponsibleId)}</span>
+                    <span className="truncate">{getPersonDisplay(mainResponsibleId)}</span>
                   </div>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Not assigned</SelectItem>
-                  {contacts.map(contact => (
-                    <SelectItem key={contact.userId} value={contact.userId}>
-                      {contact.name || contact.email}
+                  {assignablePeople.map(person => (
+                    <SelectItem key={person.id} value={person.id}>
+                      {person.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -261,14 +290,14 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                 <SelectTrigger>
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    <span className="truncate">{getContactDisplay(secondaryResponsibleId)}</span>
+                    <span className="truncate">{getPersonDisplay(secondaryResponsibleId)}</span>
                   </div>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Not assigned</SelectItem>
-                  {contacts.map(contact => (
-                    <SelectItem key={contact.userId} value={contact.userId}>
-                      {contact.name || contact.email}
+                  {assignablePeople.map(person => (
+                    <SelectItem key={person.id} value={person.id}>
+                      {person.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -539,9 +568,9 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
               <X className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Cancel</span>
             </Button>
-            <Button size="sm" onClick={handleSave} className="px-2 sm:px-3">
+            <Button type="button" size="sm" onClick={handleSave} disabled={isSaving || !title.trim()} className="px-2 sm:px-3">
               <Check className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Save Changes</span>
+              <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save Changes'}</span>
             </Button>
           </div>
         </div>
