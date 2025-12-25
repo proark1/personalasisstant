@@ -522,21 +522,27 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
 
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t border-border shrink-0">
-          <div className="flex gap-2">
-            <Button variant="destructive" size="sm" onClick={handleDelete}>
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
+          <div className="flex gap-1 sm:gap-2">
+            <Button variant="destructive" size="sm" onClick={handleDelete} className="px-2 sm:px-3">
+              <Trash2 className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Delete</span>
             </Button>
             {onAddSubtasks && !task.parentId && (
-              <Button variant="outline" size="sm" onClick={() => setShowBreakdown(true)}>
-                <Sparkles className="w-4 h-4 mr-2 text-primary" />
-                AI Breakdown
+              <Button variant="outline" size="sm" onClick={() => setShowBreakdown(true)} className="px-2 sm:px-3">
+                <Sparkles className="w-4 h-4 sm:mr-2 text-primary" />
+                <span className="hidden sm:inline">AI Breakdown</span>
               </Button>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave}>Save Changes</Button>
+          <div className="flex gap-1 sm:gap-2">
+            <Button variant="outline" size="sm" onClick={onClose} className="px-2 sm:px-3">
+              <X className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Cancel</span>
+            </Button>
+            <Button size="sm" onClick={handleSave} className="px-2 sm:px-3">
+              <Check className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Save Changes</span>
+            </Button>
           </div>
         </div>
       </div>
