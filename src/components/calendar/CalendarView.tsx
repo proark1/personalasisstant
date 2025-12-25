@@ -221,9 +221,9 @@ export function CalendarView({
     }
   };
 
-  const handleSaveTask = (id: string, updates: Partial<Task>) => {
+  const handleSaveTask = async (id: string, updates: Partial<Task>) => {
     if (onUpdateTask) {
-      onUpdateTask(id, updates);
+      await Promise.resolve(onUpdateTask(id, updates));
     }
     setEditingTask(null);
   };

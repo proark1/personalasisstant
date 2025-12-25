@@ -255,20 +255,22 @@ export function CalendarPanel({
     }
   };
 
-  const handleSaveTask = (id: string, updates: Partial<Task>) => {
+  const handleSaveTask = async (id: string, updates: Partial<Task>) => {
     // Check if this is actually an event
     const isEvent = events.some(e => e.id === id);
-    
+
     if (isEvent && onUpdateEvent) {
-      onUpdateEvent(id, {
-        title: updates.title,
-        startTime: updates.dueDate,
-        endTime: updates.dueDate ? new Date(updates.dueDate.getTime() + 60 * 60 * 1000) : undefined,
-      });
+      await Promise.resolve(
+        onUpdateEvent(id, {
+          title: updates.title,
+          startTime: updates.dueDate,
+          endTime: updates.dueDate ? new Date(updates.dueDate.getTime() + 60 * 60 * 1000) : undefined,
+        })
+      );
     } else if (onUpdateTask) {
-      onUpdateTask(id, updates);
+      await Promise.resolve(onUpdateTask(id, updates));
     }
-    setEditingTask(null);
+
     toast({ title: t('calendar.updatedSuccess') });
   };
 

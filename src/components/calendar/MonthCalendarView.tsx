@@ -438,14 +438,15 @@ export function MonthCalendarView({
         <EditTaskModal
           task={editingTask}
           onClose={() => setEditingTask(null)}
-          onSave={async (id, updates) => {
-            try {
-              await Promise.resolve(onUpdateTask?.(id, updates));
-              setEditingTask(null);
-            } catch (e) {
-              console.error('Failed to update task from calendar:', e);
-            }
-          }}
+           onSave={async (id, updates) => {
+             try {
+               await Promise.resolve(onUpdateTask?.(id, updates));
+               setEditingTask(null);
+             } catch (e) {
+               console.error('Failed to update task from calendar:', e);
+               throw e;
+             }
+           }}
           onDelete={() => {
             setEditingTask(null);
           }}
