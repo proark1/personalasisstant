@@ -109,6 +109,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
     if (!title.trim() || isSaving) return;
 
     setIsSaving(true);
+    console.log('[EditTaskModal] save clicked', { taskId: task.id });
 
     try {
       await Promise.resolve(
@@ -126,12 +127,13 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
           checklist,
         })
       );
+      toast({ title: 'Saved' });
       onClose();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to save task:', e);
       toast({
         title: 'Save failed',
-        description: 'Please try again',
+        description: e?.message ? String(e.message) : 'Please try again',
         variant: 'destructive',
       });
     } finally {
@@ -568,7 +570,18 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
               <X className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Cancel</span>
             </Button>
-            <Button type="button" size="sm" onClick={handleSave} disabled={isSaving || !title.trim()} className="px-2 sm:px-3">
+            <Button
+              type="button"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSave();
+              }}
+              disabled={isSaving || !title.trim()}
+              className="px-2 sm:px-3"
+              aria-label="Save task"
+            >
               <Check className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save Changes'}</span>
             </Button>

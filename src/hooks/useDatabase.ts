@@ -247,13 +247,22 @@ export function useDatabase(userId: string | undefined) {
     if (updates.attachments !== undefined) dbUpdates.attachments = updates.attachments;
     if (updates.comments !== undefined) dbUpdates.comments = updates.comments;
 
-    const { error } = await supabase
+    console.log('[useDatabase.updateTask] updating', { id, dbUpdates });
+
+    const { data, error } = await supabase
       .from('tasks')
       .update(dbUpdates)
-      .eq('id', id);
+      .eq('id', id)
+      .select('id')
+      .maybeSingle();
 
     if (error) throw error;
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    if (!data) {
+      // If RLS blocks the update, Supabase can return 0 rows updated without an error.
+      throw new Error('Task update not permitted or task not found');
+    }
+
+    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {
