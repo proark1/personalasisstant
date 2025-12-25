@@ -227,6 +227,15 @@ export function useDatabase(userId: string | undefined) {
   }, [userId]);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
+    const safeJson = (value: unknown) => {
+      if (value === undefined) return undefined;
+      try {
+        return JSON.parse(JSON.stringify(value));
+      } catch {
+        return value;
+      }
+    };
+
     const dbUpdates: Record<string, unknown> = {};
     if (updates.title !== undefined) dbUpdates.title = updates.title;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
@@ -243,26 +252,39 @@ export function useDatabase(userId: string | undefined) {
     if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
     if (updates.mainResponsibleId !== undefined) dbUpdates.main_responsible_id = updates.mainResponsibleId;
     if (updates.secondaryResponsibleId !== undefined) dbUpdates.secondary_responsible_id = updates.secondaryResponsibleId;
-    if (updates.checklist !== undefined) dbUpdates.checklist = updates.checklist;
-    if (updates.attachments !== undefined) dbUpdates.attachments = updates.attachments;
-    if (updates.comments !== undefined) dbUpdates.comments = updates.comments;
+    if (updates.checklist !== undefined) dbUpdates.checklist = safeJson(updates.checklist);
+    if (updates.attachments !== undefined) dbUpdates.attachments = safeJson(updates.attachments);
+    if (updates.comments !== undefined) dbUpdates.comments = safeJson(updates.comments);
 
-    console.log('[useDatabase.updateTask] updating', { id, dbUpdates });
+    const runUpdate = async () =>
+      supabase
+        .from('tasks')
+        .update(dbUpdates)
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .update(dbUpdates)
-      .eq('id', id)
-      .select('id')
-      .maybeSingle();
+    try {
+      const { data, error } = await runUpdate();
+      if (error) throw error;
+      if (!data) throw new Error('Task update not permitted or task not found');
 
-    if (error) throw error;
-    if (!data) {
-      // If RLS blocks the update, Supabase can return 0 rows updated without an error.
-      throw new Error('Task update not permitted or task not found');
+      setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
+    } catch (e: any) {
+      // Network hiccups can manifest as TypeError: Failed to fetch. Retry once after a short delay.
+      if (e instanceof TypeError && String(e.message).toLowerCase().includes('failed to fetch')) {
+        await supabase.auth.getSession();
+        await new Promise((r) => setTimeout(r, 600));
+
+        const { data, error } = await runUpdate();
+        if (error) throw error;
+        if (!data) throw new Error('Task update not permitted or task not found');
+
+        setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
+        return;
+      }
+      throw e;
     }
-
-    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {

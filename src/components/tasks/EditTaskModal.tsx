@@ -18,6 +18,8 @@ import { TaskBreakdownDialog } from '@/components/ai/TaskBreakdownDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useSpaceMembers } from '@/hooks/useSpaceMembers';
 import { useAuth } from '@/hooks/useAuth';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+
 
 interface EditTaskModalProps {
   task: Task;
@@ -52,6 +54,7 @@ const WEEKDAYS = [
 
 export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, projects = [], contacts = [] }: EditTaskModalProps) {
   const { toast } = useToast();
+  const { online } = useNetworkStatus();
   const { user, profile } = useAuth();
   const { members } = useSpaceMembers(user?.id);
   
@@ -108,8 +111,16 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   const handleSave = async () => {
     if (!title.trim() || isSaving) return;
 
+    if (!online) {
+      toast({
+        title: 'Offline',
+        description: 'Reconnect to the internet to save changes.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSaving(true);
-    console.log('[EditTaskModal] save clicked', { taskId: task.id });
 
     try {
       await Promise.resolve(
@@ -578,12 +589,12 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                 e.stopPropagation();
                 handleSave();
               }}
-              disabled={isSaving || !title.trim()}
+              disabled={!online || isSaving || !title.trim()}
               className="px-2 sm:px-3"
               aria-label="Save task"
             >
               <Check className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save Changes'}</span>
+              <span className="hidden sm:inline">{isSaving ? 'Saving...' : online ? 'Save Changes' : 'Offline'}</span>
             </Button>
           </div>
         </div>
