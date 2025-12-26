@@ -21,7 +21,9 @@ const config: CapacitorConfig = {
       NSMicrophoneUsageDescription: 'DarAI needs microphone access for voice commands and voice mode.',
     },
     Geolocation: {
-      NSLocationWhenInUseUsageDescription: 'DarAI uses your location for local news and weather.',
+      NSLocationWhenInUseUsageDescription: 'DarAI uses your location for local news, weather, and location-based reminders.',
+      NSLocationAlwaysAndWhenInUseUsageDescription: 'DarAI needs continuous location access to remind you when you arrive at or leave specific places.',
+      NSLocationAlwaysUsageDescription: 'DarAI needs background location access to remind you when you arrive at or leave specific places.',
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
