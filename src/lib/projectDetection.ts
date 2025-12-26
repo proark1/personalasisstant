@@ -50,16 +50,25 @@ export function detectProjectFromText(
     let confidence = 0;
 
     // Direct project name match (highest confidence)
-    if (lowerText.includes(projectNameLower)) {
+    if (lowerText.includes(projectNameLower) && projectNameLower.length >= 3) {
       confidence += 0.8;
       matchedKeywords.push(project.name);
     }
 
     // Check if any word in task matches project name words
+    // Only match words that are at least 4 characters and have significant overlap
     for (const word of words) {
-      if (projectWords.some(pw => pw.includes(word) || word.includes(pw))) {
-        confidence += 0.3;
-        matchedKeywords.push(word);
+      if (word.length < 4) continue; // Skip short words like "a", "the", "out"
+      for (const pw of projectWords) {
+        if (pw.length < 4) continue; // Skip short project words
+        // Require exact match or very high similarity (one is substring of other AND at least 80% length match)
+        const isExactMatch = pw === word;
+        const isSubstring = pw.includes(word) || word.includes(pw);
+        const lengthRatio = Math.min(pw.length, word.length) / Math.max(pw.length, word.length);
+        if (isExactMatch || (isSubstring && lengthRatio >= 0.8)) {
+          confidence += 0.3;
+          matchedKeywords.push(word);
+        }
       }
     }
 
@@ -90,8 +99,8 @@ export function detectProjectFromText(
     // Normalize confidence (cap at 1.0)
     confidence = Math.min(confidence, 1.0);
 
-    // Only suggest if confidence is above threshold
-    if (confidence >= 0.3 && (!bestMatch || confidence > bestMatch.confidence)) {
+    // Only suggest if confidence is above threshold (increased to 0.5 for stricter matching)
+    if (confidence >= 0.5 && (!bestMatch || confidence > bestMatch.confidence)) {
       bestMatch = {
         project,
         confidence,
@@ -126,17 +135,23 @@ export function getProjectSuggestions(
     let confidence = 0;
 
     // Direct name match
-    if (lowerText.includes(projectNameLower)) {
+    if (lowerText.includes(projectNameLower) && projectNameLower.length >= 3) {
       confidence += 0.8;
       matchedKeywords.push(project.name);
     }
 
-    // Partial word matches
+    // Partial word matches - require minimum 4 character words
     for (const word of words) {
-      if (word.length < 3) continue;
-      if (projectWords.some(pw => pw.includes(word) || word.includes(pw))) {
-        confidence += 0.25;
-        matchedKeywords.push(word);
+      if (word.length < 4) continue;
+      for (const pw of projectWords) {
+        if (pw.length < 4) continue;
+        const isExactMatch = pw === word;
+        const isSubstring = pw.includes(word) || word.includes(pw);
+        const lengthRatio = Math.min(pw.length, word.length) / Math.max(pw.length, word.length);
+        if (isExactMatch || (isSubstring && lengthRatio >= 0.8)) {
+          confidence += 0.25;
+          matchedKeywords.push(word);
+        }
       }
     }
 
@@ -154,7 +169,8 @@ export function getProjectSuggestions(
 
     confidence = Math.min(confidence, 1.0);
 
-    if (confidence >= 0.2) {
+    // Increase threshold to 0.4 for stricter matching
+    if (confidence >= 0.4) {
       suggestions.push({
         project,
         confidence,

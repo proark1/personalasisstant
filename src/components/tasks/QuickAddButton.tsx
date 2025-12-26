@@ -43,6 +43,7 @@ export function QuickAddButton({ onAddTask, projects = [] }: QuickAddButtonProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!parsedTask || !parsedTask.title || isSubmitting) return;
 
     setIsSubmitting(true);
@@ -68,9 +69,14 @@ export function QuickAddButton({ onAddTask, projects = [] }: QuickAddButtonProps
         description: parsedTask.title,
       });
 
+      // Reset state without closing popover immediately to prevent focus stealing
       setInput('');
       setSelectedProjectId(undefined);
-      setIsOpen(false);
+      
+      // Use setTimeout to ensure UI updates before closing
+      setTimeout(() => {
+        setIsOpen(false);
+      }, 50);
     } catch (error) {
       console.error('Failed to add task:', error);
       toast({
@@ -103,8 +109,15 @@ export function QuickAddButton({ onAddTask, projects = [] }: QuickAddButtonProps
     ? projects.find(p => p.id === selectedProjectId)
     : projectSuggestion?.project;
 
+  const handleOpenChange = (open: boolean) => {
+    // Only allow opening, prevent automatic closing from focus events
+    if (open || !isSubmitting) {
+      setIsOpen(open);
+    }
+  };
+
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -118,6 +131,7 @@ export function QuickAddButton({ onAddTask, projects = [] }: QuickAddButtonProps
         className="w-80 p-3" 
         align="end"
         sideOffset={8}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="flex items-center gap-2 text-sm font-medium mb-3">
           <Sparkles className="w-4 h-4 text-primary" />
