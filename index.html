@@ -26,20 +26,47 @@
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">Loading…</div>
     <script>
       // Prevent stale Service Worker / Cache Storage from breaking the dev preview.
-      // (If a cached HTML points to non-existent chunk URLs, you can get a blank screen.)
-      (async function () {
+      // Use only ES5-compatible syntax here (no async/await) to avoid parse-time failures.
+      (function () {
         try {
-          if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map((r) => r.unregister()));
+          var swOk = typeof navigator !== "undefined" && "serviceWorker" in navigator;
+          var cacheOk = typeof window !== "undefined" && "caches" in window;
+
+          var p = Promise.resolve();
+
+          if (swOk && navigator.serviceWorker.getRegistrations) {
+            p = p
+              .then(function () {
+                return navigator.serviceWorker.getRegistrations();
+              })
+              .then(function (regs) {
+                return Promise.all(
+                  regs.map(function (r) {
+                    return r.unregister();
+                  })
+                );
+              });
           }
-          if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map((k) => caches.delete(k)));
+
+          if (cacheOk && window.caches.keys) {
+            p = p
+              .then(function () {
+                return window.caches.keys();
+              })
+              .then(function (keys) {
+                return Promise.all(
+                  keys.map(function (k) {
+                    return window.caches.delete(k);
+                  })
+                );
+              });
           }
+
+          // Intentionally don't block app boot on this.
+          p.catch(function () {});
         } catch (e) {
           // ignore
         }
