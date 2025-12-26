@@ -19,10 +19,28 @@ import {
   Trophy,
   RefreshCw,
   Trash2,
-  TrendingUp
+  TrendingUp,
+  Lightbulb
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { toast } from 'sonner';
+
+// Suggested habits for wellbeing
+const SUGGESTED_HABITS = [
+  { name: 'Drink Water', icon: '💧', color: '#06b6d4', description: 'Stay hydrated with 8 glasses daily', targetCount: 8 },
+  { name: 'Morning Walk', icon: '🚶', color: '#10b981', description: '15-30 minutes of walking', targetCount: 1 },
+  { name: 'Meditate', icon: '🧘', color: '#8b5cf6', description: '10 minutes of mindfulness', targetCount: 1 },
+  { name: 'Read', icon: '📚', color: '#f59e0b', description: 'Read for at least 20 minutes', targetCount: 1 },
+  { name: 'Exercise', icon: '💪', color: '#ef4444', description: '30 minutes of physical activity', targetCount: 1 },
+  { name: 'Sleep 8 Hours', icon: '😴', color: '#6366f1', description: 'Get quality rest', targetCount: 1 },
+  { name: 'Eat Vegetables', icon: '🥗', color: '#84cc16', description: 'Include veggies in meals', targetCount: 3 },
+  { name: 'No Phone Before Bed', icon: '📵', color: '#ec4899', description: 'Screen-free hour before sleep', targetCount: 1 },
+  { name: 'Gratitude Journal', icon: '✨', color: '#f97316', description: 'Write 3 things you\'re grateful for', targetCount: 1 },
+  { name: 'Stretch', icon: '🤸', color: '#14b8a6', description: '5-10 minutes of stretching', targetCount: 1 },
+  { name: 'Take Vitamins', icon: '💊', color: '#3b82f6', description: 'Daily supplements', targetCount: 1 },
+  { name: 'Deep Breathing', icon: '🌬️', color: '#a855f7', description: '5 minutes of breathing exercises', targetCount: 1 },
+];
 
 interface HabitsPanelProps {
   userId: string;
@@ -99,6 +117,15 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                   <Plus className="w-4 h-4" />
                   {t('habits.addNewHabit')}
                 </Button>
+
+                {/* Suggested Habits Section */}
+                {todayHabits.length < 5 && (
+                  <HabitSuggestions 
+                    userId={userId} 
+                    existingHabitNames={todayHabits.map(h => h.name.toLowerCase())}
+                    onHabitAdded={refetchHabits}
+                  />
+                )}
 
                 {todayHabits.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
@@ -311,5 +338,79 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
       <AddHabitDialog open={showAddHabit} onOpenChange={setShowAddHabit} userId={userId} />
       <AddGoalDialog open={showAddGoal} onOpenChange={setShowAddGoal} userId={userId} />
     </div>
+  );
+}
+
+// Habit Suggestions Component
+interface HabitSuggestionsProps {
+  userId: string;
+  existingHabitNames: string[];
+  onHabitAdded: () => void;
+}
+
+function HabitSuggestions({ userId, existingHabitNames, onHabitAdded }: HabitSuggestionsProps) {
+  const { createHabit } = useHabits(userId);
+  const [adding, setAdding] = useState<string | null>(null);
+  const { t } = useLanguage();
+
+  // Filter out habits that user already has
+  const availableSuggestions = SUGGESTED_HABITS.filter(
+    h => !existingHabitNames.includes(h.name.toLowerCase())
+  ).slice(0, 6);
+
+  if (availableSuggestions.length === 0) return null;
+
+  const handleAddSuggested = async (suggestion: typeof SUGGESTED_HABITS[0]) => {
+    setAdding(suggestion.name);
+    try {
+      await createHabit({
+        name: suggestion.name,
+        description: suggestion.description,
+        icon: suggestion.icon,
+        color: suggestion.color,
+        frequency: 'daily',
+        targetCount: suggestion.targetCount,
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        reminderTime: null,
+        isActive: true,
+      });
+      toast.success(`Added "${suggestion.name}" to your habits!`);
+      onHabitAdded();
+    } catch (error) {
+      toast.error('Failed to add habit');
+    } finally {
+      setAdding(null);
+    }
+  };
+
+  return (
+    <Card className="p-3 bg-muted/30 border-dashed">
+      <div className="flex items-center gap-2 mb-3">
+        <Lightbulb className="w-4 h-4 text-amber-500" />
+        <span className="text-sm font-medium">{t('habits.suggestions') || 'Suggested Habits'}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {availableSuggestions.map((suggestion) => (
+          <Button
+            key={suggestion.name}
+            variant="outline"
+            size="sm"
+            className="justify-start gap-2 h-auto py-2 px-3 text-left"
+            disabled={adding === suggestion.name}
+            onClick={() => handleAddSuggested(suggestion)}
+          >
+            <span className="text-base">{suggestion.icon}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium truncate">{suggestion.name}</div>
+            </div>
+            {adding === suggestion.name ? (
+              <RefreshCw className="w-3 h-3 animate-spin" />
+            ) : (
+              <Plus className="w-3 h-3 opacity-50" />
+            )}
+          </Button>
+        ))}
+      </div>
+    </Card>
   );
 }
