@@ -59,9 +59,9 @@ serve(async (req) => {
             - "headline": A brief headline (max 80 chars)
             - "summary": A 1-2 sentence summary
             - "category": The topic category
-            - "url": A real URL to a reputable news source where the user can read more about this topic (e.g., Reuters, BBC, TechCrunch, Bloomberg, etc.)
+            - "searchQuery": A short search query (2-5 words) that would find articles about this news item
             
-            Only return the JSON array, no other text.`
+            Only return the JSON array, no other text. Do NOT include any URLs.`
           },
           {
             role: 'user',
@@ -87,14 +87,23 @@ serve(async (req) => {
     try {
       // Clean up the response in case it has markdown code blocks
       const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      newsItems = JSON.parse(cleanContent);
+      const parsedItems = JSON.parse(cleanContent);
+      
+      // Generate Google News search URLs for each item
+      newsItems = parsedItems.map((item: { headline: string; summary: string; category: string; searchQuery?: string }) => ({
+        headline: item.headline,
+        summary: item.summary,
+        category: item.category,
+        url: `https://news.google.com/search?q=${encodeURIComponent(item.searchQuery || item.headline)}&hl=en`
+      }));
     } catch (parseError) {
       console.error('Parse error:', parseError, 'Content:', content);
       newsItems = [
         {
           headline: 'Unable to fetch personalized news',
           summary: 'Check back later for updates on your interests.',
-          category: 'General'
+          category: 'General',
+          url: 'https://news.google.com'
         }
       ];
     }
