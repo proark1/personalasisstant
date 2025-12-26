@@ -7,6 +7,7 @@ import { ContractCostWidget } from '@/components/contracts/ContractCostWidget';
 import { XPDisplay } from '@/components/gamification/XPDisplay';
 import { CheckinPrompt } from '@/components/checkin/CheckinPrompt';
 import { WhatNowButton } from '@/components/assistant/WhatNowButton';
+import { ProactiveRemindersCard } from './ProactiveRemindersCard';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   CheckCircle2, 
@@ -322,6 +323,9 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
 
       {/* Contract Costs Widget */}
       <ContractCostWidget contracts={contracts} />
+
+      {/* Proactive Reminders */}
+      <ProactiveRemindersCard />
 
       {/* Upcoming Deadlines */}
       <Card className="glass-panel-solid">
