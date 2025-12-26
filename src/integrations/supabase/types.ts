@@ -116,6 +116,60 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_memory: {
+        Row: {
+          category: string | null
+          confidence: number | null
+          context: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          key: string
+          last_referenced_at: string | null
+          memory_type: string
+          reference_count: number | null
+          source: string | null
+          updated_at: string
+          user_id: string
+          value: string
+        }
+        Insert: {
+          category?: string | null
+          confidence?: number | null
+          context?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key: string
+          last_referenced_at?: string | null
+          memory_type: string
+          reference_count?: number | null
+          source?: string | null
+          updated_at?: string
+          user_id: string
+          value: string
+        }
+        Update: {
+          category?: string | null
+          confidence?: number | null
+          context?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key?: string
+          last_referenced_at?: string | null
+          memory_type?: string
+          reference_count?: number | null
+          source?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: string
+        }
+        Relationships: []
+      }
       ai_usage: {
         Row: {
           completion_tokens: number | null
@@ -187,6 +241,48 @@ export type Database = {
           id?: string
           page_path?: string | null
           session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      auto_actions_log: {
+        Row: {
+          action_data: Json
+          action_type: string
+          approved_at: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          reason: string
+          rejected_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action_data?: Json
+          action_type: string
+          approved_at?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          reason: string
+          rejected_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          action_data?: Json
+          action_type?: string
+          approved_at?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          reason?: string
+          rejected_at?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: []
@@ -575,6 +671,51 @@ export type Database = {
           user_id?: string
           water_glasses?: number | null
           went_well?: string | null
+        }
+        Relationships: []
+      }
+      day_predictions: {
+        Row: {
+          accuracy_score: number | null
+          actual_outcome: number | null
+          created_at: string
+          factors: Json
+          id: string
+          insight: string | null
+          label: string
+          prediction_date: string
+          score: number
+          suggestions: Json | null
+          user_id: string
+          weather_data: Json | null
+        }
+        Insert: {
+          accuracy_score?: number | null
+          actual_outcome?: number | null
+          created_at?: string
+          factors?: Json
+          id?: string
+          insight?: string | null
+          label: string
+          prediction_date: string
+          score: number
+          suggestions?: Json | null
+          user_id: string
+          weather_data?: Json | null
+        }
+        Update: {
+          accuracy_score?: number | null
+          actual_outcome?: number | null
+          created_at?: string
+          factors?: Json
+          id?: string
+          insight?: string | null
+          label?: string
+          prediction_date?: string
+          score?: number
+          suggestions?: Json | null
+          user_id?: string
+          weather_data?: Json | null
         }
         Relationships: []
       }
@@ -1624,6 +1765,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      life_correlations: {
+        Row: {
+          confidence_score: number
+          correlation_strength: number
+          correlation_type: string
+          created_at: string
+          data_points: number
+          domain_a: string
+          domain_b: string
+          id: string
+          insight_text: string | null
+          is_dismissed: boolean | null
+          last_updated_at: string | null
+          pattern_description: string
+          sample_data: Json | null
+          user_id: string
+        }
+        Insert: {
+          confidence_score?: number
+          correlation_strength?: number
+          correlation_type: string
+          created_at?: string
+          data_points?: number
+          domain_a: string
+          domain_b: string
+          id?: string
+          insight_text?: string | null
+          is_dismissed?: boolean | null
+          last_updated_at?: string | null
+          pattern_description: string
+          sample_data?: Json | null
+          user_id: string
+        }
+        Update: {
+          confidence_score?: number
+          correlation_strength?: number
+          correlation_type?: string
+          created_at?: string
+          data_points?: number
+          domain_a?: string
+          domain_b?: string
+          id?: string
+          insight_text?: string | null
+          is_dismissed?: boolean | null
+          last_updated_at?: string | null
+          pattern_description?: string
+          sample_data?: Json | null
+          user_id?: string
+        }
+        Relationships: []
       }
       location_triggers: {
         Row: {
@@ -3088,6 +3280,84 @@ export type Database = {
           weekly_habits_logged?: number
           weekly_tasks_completed?: number
           weekly_xp?: number
+        }
+        Relationships: []
+      }
+      weekly_coach_reports: {
+        Row: {
+          average_energy: number | null
+          average_mood: number | null
+          average_sleep: number | null
+          balance_score: number | null
+          correlations_found: Json | null
+          created_at: string
+          focus_minutes: number | null
+          goal_progress: Json | null
+          habits_completed: number | null
+          habits_missed: number | null
+          id: string
+          improvements: Json | null
+          is_read: boolean | null
+          productivity_score: number | null
+          recommendations: Json | null
+          summary_text: string | null
+          tasks_completed: number | null
+          tasks_created: number | null
+          user_id: string
+          week_end: string
+          week_start: string
+          wellbeing_score: number | null
+          wins: Json | null
+        }
+        Insert: {
+          average_energy?: number | null
+          average_mood?: number | null
+          average_sleep?: number | null
+          balance_score?: number | null
+          correlations_found?: Json | null
+          created_at?: string
+          focus_minutes?: number | null
+          goal_progress?: Json | null
+          habits_completed?: number | null
+          habits_missed?: number | null
+          id?: string
+          improvements?: Json | null
+          is_read?: boolean | null
+          productivity_score?: number | null
+          recommendations?: Json | null
+          summary_text?: string | null
+          tasks_completed?: number | null
+          tasks_created?: number | null
+          user_id: string
+          week_end: string
+          week_start: string
+          wellbeing_score?: number | null
+          wins?: Json | null
+        }
+        Update: {
+          average_energy?: number | null
+          average_mood?: number | null
+          average_sleep?: number | null
+          balance_score?: number | null
+          correlations_found?: Json | null
+          created_at?: string
+          focus_minutes?: number | null
+          goal_progress?: Json | null
+          habits_completed?: number | null
+          habits_missed?: number | null
+          id?: string
+          improvements?: Json | null
+          is_read?: boolean | null
+          productivity_score?: number | null
+          recommendations?: Json | null
+          summary_text?: string | null
+          tasks_completed?: number | null
+          tasks_created?: number | null
+          user_id?: string
+          week_end?: string
+          week_start?: string
+          wellbeing_score?: number | null
+          wins?: Json | null
         }
         Relationships: []
       }

@@ -38,3 +38,12 @@ verify_jwt = false
 
 [functions.push-delivery]
 verify_jwt = false
+
+[functions.life-correlator]
+verify_jwt = false
+
+[functions.weekly-coach]
+verify_jwt = false
+
+[functions.auto-pilot]
+verify_jwt = false
