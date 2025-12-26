@@ -1,9 +1,39 @@
-import { Suspense, ComponentType, ReactNode } from 'react';
+import { Suspense, ComponentType, ReactNode, lazy } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface LazyLoaderProps {
   children: ReactNode;
   fallback?: ReactNode;
+}
+
+/**
+ * Retry wrapper for dynamic imports that may fail due to network issues
+ * Retries up to 3 times with exponential backoff
+ */
+export function retryImport<T>(
+  importFn: () => Promise<T>,
+  retries = 3,
+  delay = 1000
+): Promise<T> {
+  return importFn().catch((error) => {
+    if (retries === 0) {
+      throw error;
+    }
+    return new Promise<T>((resolve) => {
+      setTimeout(() => {
+        resolve(retryImport(importFn, retries - 1, delay * 2));
+      }, delay);
+    });
+  });
+}
+
+/**
+ * Create a lazy component with retry logic for failed imports
+ */
+export function lazyWithRetry<T extends ComponentType<any>>(
+  importFn: () => Promise<{ default: T }>
+) {
+  return lazy(() => retryImport(importFn));
 }
 
 /**
