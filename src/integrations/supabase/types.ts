@@ -1237,6 +1237,51 @@ export type Database = {
           },
         ]
       }
+      follow_up_queue: {
+        Row: {
+          check_at: string
+          completed_at: string | null
+          context: Json | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          follow_up_type: string
+          id: string
+          message_template: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          check_at: string
+          completed_at?: string | null
+          context?: Json | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          follow_up_type: string
+          id?: string
+          message_template?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          check_at?: string
+          completed_at?: string | null
+          context?: Json | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          follow_up_type?: string
+          id?: string
+          message_template?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           color: string | null
@@ -1968,6 +2013,7 @@ export type Database = {
           goals: string | null
           id: string
           interests: string[] | null
+          last_session_at: string | null
           location_city: string | null
           location_country: string | null
           preferred_work_hours: string | null
@@ -1988,6 +2034,7 @@ export type Database = {
           goals?: string | null
           id?: string
           interests?: string[] | null
+          last_session_at?: string | null
           location_city?: string | null
           location_country?: string | null
           preferred_work_hours?: string | null
@@ -2008,6 +2055,7 @@ export type Database = {
           goals?: string | null
           id?: string
           interests?: string[] | null
+          last_session_at?: string | null
           location_city?: string | null
           location_country?: string | null
           preferred_work_hours?: string | null

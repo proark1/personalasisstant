@@ -8,6 +8,8 @@ import { XPDisplay } from '@/components/gamification/XPDisplay';
 import { CheckinPrompt } from '@/components/checkin/CheckinPrompt';
 import { WhatNowButton } from '@/components/assistant/WhatNowButton';
 import { ProactiveRemindersCard } from './ProactiveRemindersCard';
+import { FollowUpCard } from './FollowUpCard';
+import { DayPredictionCard } from './DayPredictionCard';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   CheckCircle2, 
@@ -323,6 +325,12 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
 
       {/* Contract Costs Widget */}
       <ContractCostWidget contracts={contracts} />
+
+      {/* Day Prediction */}
+      <DayPredictionCard />
+
+      {/* Follow-ups */}
+      <FollowUpCard />
 
       {/* Proactive Reminders */}
       <ProactiveRemindersCard />
