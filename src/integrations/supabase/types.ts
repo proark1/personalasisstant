@@ -425,6 +425,7 @@ export type Database = {
           end_date: string | null
           id: string
           is_active: boolean | null
+          last_reminded_at: string | null
           name: string
           notes: string | null
           provider: string | null
@@ -446,6 +447,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           is_active?: boolean | null
+          last_reminded_at?: string | null
           name: string
           notes?: string | null
           provider?: string | null
@@ -467,6 +469,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           is_active?: boolean | null
+          last_reminded_at?: string | null
           name?: string
           notes?: string | null
           provider?: string | null
@@ -628,6 +631,7 @@ export type Database = {
           description: string | null
           end_time: string
           id: string
+          last_reminded_at: string | null
           location: string | null
           recurrence_end: string | null
           recurrence_rule: string | null
@@ -643,6 +647,7 @@ export type Database = {
           description?: string | null
           end_time: string
           id?: string
+          last_reminded_at?: string | null
           location?: string | null
           recurrence_end?: string | null
           recurrence_rule?: string | null
@@ -658,6 +663,7 @@ export type Database = {
           description?: string | null
           end_time?: string
           id?: string
+          last_reminded_at?: string | null
           location?: string | null
           recurrence_end?: string | null
           recurrence_rule?: string | null
@@ -1441,6 +1447,7 @@ export type Database = {
           icon: string | null
           id: string
           is_active: boolean
+          last_reminded_at: string | null
           name: string
           reminder_time: string | null
           target_count: number
@@ -1456,6 +1463,7 @@ export type Database = {
           icon?: string | null
           id?: string
           is_active?: boolean
+          last_reminded_at?: string | null
           name: string
           reminder_time?: string | null
           target_count?: number
@@ -1471,6 +1479,7 @@ export type Database = {
           icon?: string | null
           id?: string
           is_active?: boolean
+          last_reminded_at?: string | null
           name?: string
           reminder_time?: string | null
           target_count?: number
@@ -1798,6 +1807,156 @@ export type Database = {
         }
         Relationships: []
       }
+      proactive_reminders: {
+        Row: {
+          action_taken: boolean | null
+          action_type: string | null
+          created_at: string
+          delivered_at: string | null
+          id: string
+          is_active: boolean | null
+          message: string
+          metadata: Json | null
+          priority: string
+          read_at: string | null
+          reminder_type: string
+          scheduled_for: string
+          snooze_until: string | null
+          title: string
+          trigger_entity_id: string | null
+          trigger_entity_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_taken?: boolean | null
+          action_type?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message: string
+          metadata?: Json | null
+          priority?: string
+          read_at?: string | null
+          reminder_type: string
+          scheduled_for: string
+          snooze_until?: string | null
+          title: string
+          trigger_entity_id?: string | null
+          trigger_entity_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_taken?: boolean | null
+          action_type?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message?: string
+          metadata?: Json | null
+          priority?: string
+          read_at?: string | null
+          reminder_type?: string
+          scheduled_for?: string
+          snooze_until?: string | null
+          title?: string
+          trigger_entity_id?: string | null
+          trigger_entity_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      proactive_settings: {
+        Row: {
+          contact_checkin_days: number | null
+          contact_checkins_enabled: boolean | null
+          contract_reminder_days: number[] | null
+          contract_renewals_enabled: boolean | null
+          created_at: string
+          daily_review_enabled: boolean | null
+          enabled: boolean | null
+          evening_review_time: string | null
+          event_prep_enabled: boolean | null
+          forgotten_task_days: number | null
+          forgotten_tasks_enabled: boolean | null
+          habit_streak_warning_hours: number | null
+          habit_streaks_enabled: boolean | null
+          id: string
+          in_app_notifications_enabled: boolean | null
+          morning_briefing_time: string | null
+          push_notifications_enabled: boolean | null
+          quiet_hours_enabled: boolean | null
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          updated_at: string
+          user_id: string
+          voice_alerts_enabled: boolean | null
+          voice_proactive_enabled: boolean | null
+          weekly_planning_day: number | null
+          weekly_planning_enabled: boolean | null
+        }
+        Insert: {
+          contact_checkin_days?: number | null
+          contact_checkins_enabled?: boolean | null
+          contract_reminder_days?: number[] | null
+          contract_renewals_enabled?: boolean | null
+          created_at?: string
+          daily_review_enabled?: boolean | null
+          enabled?: boolean | null
+          evening_review_time?: string | null
+          event_prep_enabled?: boolean | null
+          forgotten_task_days?: number | null
+          forgotten_tasks_enabled?: boolean | null
+          habit_streak_warning_hours?: number | null
+          habit_streaks_enabled?: boolean | null
+          id?: string
+          in_app_notifications_enabled?: boolean | null
+          morning_briefing_time?: string | null
+          push_notifications_enabled?: boolean | null
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string
+          user_id: string
+          voice_alerts_enabled?: boolean | null
+          voice_proactive_enabled?: boolean | null
+          weekly_planning_day?: number | null
+          weekly_planning_enabled?: boolean | null
+        }
+        Update: {
+          contact_checkin_days?: number | null
+          contact_checkins_enabled?: boolean | null
+          contract_reminder_days?: number[] | null
+          contract_renewals_enabled?: boolean | null
+          created_at?: string
+          daily_review_enabled?: boolean | null
+          enabled?: boolean | null
+          evening_review_time?: string | null
+          event_prep_enabled?: boolean | null
+          forgotten_task_days?: number | null
+          forgotten_tasks_enabled?: boolean | null
+          habit_streak_warning_hours?: number | null
+          habit_streaks_enabled?: boolean | null
+          id?: string
+          in_app_notifications_enabled?: boolean | null
+          morning_briefing_time?: string | null
+          push_notifications_enabled?: boolean | null
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string
+          user_id?: string
+          voice_alerts_enabled?: boolean | null
+          voice_proactive_enabled?: boolean | null
+          weekly_planning_day?: number | null
+          weekly_planning_enabled?: boolean | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1931,6 +2090,7 @@ export type Database = {
         Row: {
           created_at: string
           device_id: string | null
+          expo_push_token: string | null
           id: string
           platform: string
           token: string
@@ -1940,6 +2100,7 @@ export type Database = {
         Insert: {
           created_at?: string
           device_id?: string | null
+          expo_push_token?: string | null
           id?: string
           platform: string
           token: string
@@ -1949,6 +2110,7 @@ export type Database = {
         Update: {
           created_at?: string
           device_id?: string | null
+          expo_push_token?: string | null
           id?: string
           platform?: string
           token?: string
@@ -2045,6 +2207,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      reminder_delivery_log: {
+        Row: {
+          clicked_at: string | null
+          created_at: string
+          delivered_at: string | null
+          delivery_channel: string
+          delivery_status: string
+          error_message: string | null
+          expo_push_receipt: string | null
+          expo_push_ticket: string | null
+          id: string
+          reminder_id: string | null
+          sent_at: string | null
+          user_id: string
+        }
+        Insert: {
+          clicked_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_channel: string
+          delivery_status?: string
+          error_message?: string | null
+          expo_push_receipt?: string | null
+          expo_push_ticket?: string | null
+          id?: string
+          reminder_id?: string | null
+          sent_at?: string | null
+          user_id: string
+        }
+        Update: {
+          clicked_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_channel?: string
+          delivery_status?: string
+          error_message?: string | null
+          expo_push_receipt?: string | null
+          expo_push_ticket?: string | null
+          id?: string
+          reminder_id?: string | null
+          sent_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_delivery_log_reminder_id_fkey"
+            columns: ["reminder_id"]
+            isOneToOne: false
+            referencedRelation: "proactive_reminders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       search_history: {
         Row: {
@@ -2444,6 +2659,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          last_reminded_at: string | null
           main_responsible_id: string | null
           parent_id: string | null
           priority: string
@@ -2470,6 +2686,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          last_reminded_at?: string | null
           main_responsible_id?: string | null
           parent_id?: string | null
           priority?: string
@@ -2496,6 +2713,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          last_reminded_at?: string | null
           main_responsible_id?: string | null
           parent_id?: string | null
           priority?: string
@@ -2557,6 +2775,7 @@ export type Database = {
           family_relationship: string | null
           id: string
           last_contacted_at: string | null
+          last_reminded_at: string | null
           linkedin_url: string | null
           name: string
           next_contact_due: string | null
@@ -2583,6 +2802,7 @@ export type Database = {
           family_relationship?: string | null
           id?: string
           last_contacted_at?: string | null
+          last_reminded_at?: string | null
           linkedin_url?: string | null
           name: string
           next_contact_due?: string | null
@@ -2609,6 +2829,7 @@ export type Database = {
           family_relationship?: string | null
           id?: string
           last_contacted_at?: string | null
+          last_reminded_at?: string | null
           linkedin_url?: string | null
           name?: string
           next_contact_due?: string | null
