@@ -4,21 +4,25 @@ export {
   DefaultFallback, 
   PageFallback, 
   PanelFallback,
-  withLazyLoading 
+  withLazyLoading,
+  lazyWithRetry,
+  retryImport
 } from './LazyLoader';
 
 // Feature chunk lazy imports
 import { lazy } from 'react';
+import { lazyWithRetry } from './LazyLoader';
 
 // ============================================
 // PAGE COMPONENTS - Route-level code splitting
+// Use lazyWithRetry for critical page components to handle network failures
 // ============================================
-export const LazyIndex = lazy(() => import('@/pages/Index'));
-export const LazyAuth = lazy(() => import('@/pages/Auth'));
-export const LazyDashboard = lazy(() => import('@/pages/Dashboard'));
-export const LazyContactsPage = lazy(() => import('@/pages/ContactsPage'));
-export const LazyContractsPage = lazy(() => import('@/pages/Contracts'));
-export const LazyNotFound = lazy(() => import('@/pages/NotFound'));
+export const LazyIndex = lazyWithRetry(() => import('@/pages/Index'));
+export const LazyAuth = lazyWithRetry(() => import('@/pages/Auth'));
+export const LazyDashboard = lazyWithRetry(() => import('@/pages/Dashboard'));
+export const LazyContactsPage = lazyWithRetry(() => import('@/pages/ContactsPage'));
+export const LazyContractsPage = lazyWithRetry(() => import('@/pages/Contracts'));
+export const LazyNotFound = lazyWithRetry(() => import('@/pages/NotFound'));
 
 // ============================================
 // FEATURE CHUNKS - Lazy loaded by feature area
