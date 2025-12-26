@@ -8,6 +8,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { AssistantOutreachBubble } from "@/components/assistant/AssistantOutreachBubble";
+import { useMorningAutoPlay } from "@/hooks/useMorningAutoPlay";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ContactsPage from "./pages/ContactsPage";
@@ -53,59 +54,69 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AppContent() {
+  useMorningAutoPlay();
+  
+  return (
+    <>
+      <NetworkStatusBanner />
+      <AssistantOutreachBubble />
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contacts"
+          element={
+            <ProtectedRoute>
+              <ContactsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contracts"
+          element={
+            <ProtectedRoute>
+              <ContractsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/auth"
+          element={
+            <PublicRoute>
+              <Auth />
+            </PublicRoute>
+          }
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <ErrorBoundary fallbackTitle="DarAI couldn’t load">
-          <NetworkStatusBanner />
+        <ErrorBoundary fallbackTitle="DarAI couldn't load">
           <BrowserRouter>
-            <AssistantOutreachBubble />
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/contacts"
-                element={
-                  <ProtectedRoute>
-                    <ContactsPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/contracts"
-                element={
-                  <ProtectedRoute>
-                    <ContractsPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/auth"
-                element={
-                  <PublicRoute>
-                    <Auth />
-                  </PublicRoute>
-                }
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AppContent />
           </BrowserRouter>
         </ErrorBoundary>
       </TooltipProvider>

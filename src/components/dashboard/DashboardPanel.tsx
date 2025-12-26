@@ -10,6 +10,7 @@ import { WhatNowButton } from '@/components/assistant/WhatNowButton';
 import { ProactiveRemindersCard } from './ProactiveRemindersCard';
 import { FollowUpCard } from './FollowUpCard';
 import { DayPredictionCard } from './DayPredictionCard';
+import { SmartSchedulingCard } from './SmartSchedulingCard';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   CheckCircle2, 
@@ -328,6 +329,9 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
 
       {/* Day Prediction */}
       <DayPredictionCard />
+
+      {/* Smart Scheduling */}
+      <SmartSchedulingCard />
 
       {/* Follow-ups */}
       <FollowUpCard />

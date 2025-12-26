@@ -167,6 +167,12 @@ serve(async (req) => {
           remindersCreated.push(...reminders);
         }
       }
+
+      // Smart Follow-Ups (Phase 4)
+      if (!trigger_type || trigger_type === 'smart_followups') {
+        const followUps = await generateSmartFollowUps(supabase, userId);
+        remindersCreated.push(...followUps);
+      }
     }
 
     // Trigger push delivery for new reminders
@@ -537,4 +543,120 @@ async function checkDailyReview(supabase: any, userId: string) {
     .single();
 
   return created ? [created] : [];
+}
+
+// Generate smart follow-ups for stalled tasks, post-events, goals
+async function generateSmartFollowUps(supabase: any, userId: string) {
+  const reminders: any[] = [];
+  const now = new Date();
+  
+  // 1. Stalled tasks (in progress for 2+ days without updates)
+  const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+  const { data: stalledTasks } = await supabase
+    .from('tasks')
+    .select('id, title, updated_at, status')
+    .eq('user_id', userId)
+    .eq('completed', false)
+    .eq('trashed', false)
+    .eq('status', 'in_progress')
+    .lt('updated_at', twoDaysAgo.toISOString());
+
+  for (const task of stalledTasks || []) {
+    // Check if we already have a follow-up for this
+    const { data: existing } = await supabase
+      .from('follow_up_queue')
+      .select('id')
+      .eq('entity_id', task.id)
+      .eq('follow_up_type', 'stalled_task')
+      .eq('status', 'pending')
+      .single();
+
+    if (!existing) {
+      await supabase.from('follow_up_queue').insert({
+        user_id: userId,
+        entity_type: 'task',
+        entity_id: task.id,
+        follow_up_type: 'stalled_task',
+        check_at: now.toISOString(),
+        message_template: `"${task.title}" has been in progress for a while. Still working on it, or should we reschedule?`,
+        context: { title: task.title },
+        status: 'pending',
+      });
+    }
+  }
+
+  // 2. Post-event follow-ups (events that ended in the last hour)
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const { data: recentEvents } = await supabase
+    .from('events')
+    .select('id, title, end_time')
+    .eq('user_id', userId)
+    .gte('end_time', oneHourAgo.toISOString())
+    .lt('end_time', now.toISOString());
+
+  for (const event of recentEvents || []) {
+    const { data: existing } = await supabase
+      .from('follow_up_queue')
+      .select('id')
+      .eq('entity_id', event.id)
+      .eq('follow_up_type', 'post_event')
+      .single();
+
+    if (!existing) {
+      await supabase.from('follow_up_queue').insert({
+        user_id: userId,
+        entity_type: 'event',
+        entity_id: event.id,
+        follow_up_type: 'post_event',
+        check_at: now.toISOString(),
+        message_template: `How did "${event.title}" go? Any action items to capture?`,
+        context: { title: event.title },
+        status: 'pending',
+      });
+    }
+  }
+
+  // 3. Goal progress checks (goals with deadlines in next 7 days)
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const { data: upcomingGoals } = await supabase
+    .from('goals')
+    .select('id, name, target_date, current_value, target_value')
+    .eq('user_id', userId)
+    .eq('is_completed', false)
+    .lte('target_date', sevenDaysFromNow.toISOString().split('T')[0])
+    .gte('target_date', now.toISOString().split('T')[0]);
+
+  for (const goal of upcomingGoals || []) {
+    const progress = goal.target_value > 0 
+      ? Math.round((goal.current_value / goal.target_value) * 100)
+      : 0;
+    
+    const daysLeft = Math.ceil((new Date(goal.target_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Only create follow-up if behind schedule (less than 80% with 7 days or less)
+    if (progress < 80) {
+      const { data: existing } = await supabase
+        .from('follow_up_queue')
+        .select('id')
+        .eq('entity_id', goal.id)
+        .eq('follow_up_type', 'goal_check')
+        .eq('status', 'pending')
+        .single();
+
+      if (!existing) {
+        await supabase.from('follow_up_queue').insert({
+          user_id: userId,
+          entity_type: 'goal',
+          entity_id: goal.id,
+          follow_up_type: 'goal_check',
+          check_at: now.toISOString(),
+          message_template: `You're ${progress}% to "${goal.name}" with ${daysLeft} days left. Need to adjust the target?`,
+          context: { title: goal.name, progress, daysLeft },
+          status: 'pending',
+        });
+      }
+    }
+  }
+
+  return reminders;
 }
