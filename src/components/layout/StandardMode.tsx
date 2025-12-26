@@ -32,6 +32,7 @@ const HabitsPanel = lazy(() => import('../habits/HabitsPanel').then(m => ({ defa
 const AdminAnalyticsPanel = lazy(() => import('../admin/AdminAnalyticsPanel').then(m => ({ default: m.AdminAnalyticsPanel })));
 const FamilyPanel = lazy(() => import('../family/FamilyPanel').then(m => ({ default: m.FamilyPanel })));
 const CallHistory = lazy(() => import('../calling/CallHistory').then(m => ({ default: m.CallHistory })));
+const SocialPanel = lazy(() => import('../social/SocialPanel').then(m => ({ default: m.SocialPanel })));
 const DashboardPanel = lazy(() => import('../dashboard/DashboardPanel').then(m => ({ default: m.DashboardPanel })));
 const ContactsPanel = lazy(() => import('../contacts/ContactsPanel').then(m => ({ default: m.ContactsPanel })));
 const ContractsPanel = lazy(() => import('../contracts/ContractsPanel').then(m => ({ default: m.ContractsPanel })));
@@ -341,7 +342,6 @@ export function StandardMode({
   return (
     <div className="flex h-screen w-full bg-background">
       <Sidebar 
-        onVoiceMode={onVoiceMode}
         onSignOut={onSignOut}
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenWeeklyReview={onOpenWeeklyReview}
@@ -491,17 +491,10 @@ export function StandardMode({
                 </div>
               )}
 
-              {/* Team Chat Panel */}
-              {activePanel === 'chat' && user?.id && (
+              {/* Social Panel (Chat + Calls) */}
+              {activePanel === 'social' && user?.id && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                  <TeamChatPanel userId={user.id} />
-                </div>
-              )}
-
-              {/* Call History Panel */}
-              {activePanel === 'calls' && user?.id && (
-                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                  <CallHistory userId={user.id} />
+                  <SocialPanel userId={user.id} />
                 </div>
               )}
 

@@ -22,29 +22,20 @@ import { Task, CalendarEvent, ChatMessage, UserSettings, Project } from '@/types
 import { SidebarFilter } from './Sidebar';
 import { 
   Menu, 
-  MessageSquare, 
   MessageCircle,
-  CheckSquare, 
   Calendar, 
-  Mic,
   Settings,
   LogOut,
-  UserCircle,
   Sparkles,
   LayoutDashboard,
   Briefcase,
   User,
   Users,
-  Target,
   Home,
-  Phone,
   StickyNote,
   Flame,
   BookUser,
   FileText,
-  Search,
-  CalendarCheck,
-  Zap,
   Heart,
 } from 'lucide-react';
 
@@ -78,7 +69,7 @@ interface MobileLayoutProps {
   onUpdateNotifications?: (updates: Partial<UserSettings['notifications']>) => void;
 }
 
-type Tab = 'chat' | 'messages' | 'calendar' | 'settings' | 'family' | 'dashboard' | 'health' | 'contacts' | 'contracts' | 'notes' | 'habits';
+type Tab = 'chat' | 'social' | 'calendar' | 'settings' | 'family' | 'dashboard' | 'health' | 'contacts' | 'contracts' | 'notes' | 'habits';
 
 export function MobileLayout({
   userId,
@@ -126,13 +117,13 @@ export function MobileLayout({
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
-  // Bottom nav: Calendar, Family, Dori (center), Health, Friends
+  // Bottom nav: Calendar, Family, Dori (center), Health, Social
   const bottomTabs = [
     { id: 'calendar' as Tab, icon: Calendar },
     { id: 'family' as Tab, icon: Home },
     { id: 'dori' as const, icon: Sparkles, isCenter: true },
     { id: 'health' as Tab, icon: Heart },
-    { id: 'messages' as Tab, icon: MessageCircle },
+    { id: 'social' as Tab, icon: MessageCircle },
   ];
 
   const navItems: { icon: typeof LayoutDashboard; label: string; filter: SidebarFilter | 'family' }[] = [
@@ -206,17 +197,17 @@ export function MobileLayout({
                     <span>Calendar</span>
                   </Button>
 
-                  {/* Friends/Chat */}
+                  {/* Social (Chat + Calls) */}
                   <Button
-                    variant={activeTab === 'messages' ? 'secondary' : 'ghost'}
+                    variant={activeTab === 'social' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
                     onClick={() => {
-                      setActiveTab('messages');
+                      setActiveTab('social');
                       setSidebarOpen(false);
                     }}
                   >
                     <MessageCircle className="w-5 h-5 shrink-0" />
-                    <span>Friends</span>
+                    <span>Social</span>
                   </Button>
 
                   {/* Dashboard */}
@@ -366,7 +357,7 @@ export function MobileLayout({
         </div>
         <div className={cn(
           "h-full",
-          activeTab === 'messages' ? 'block' : 'hidden'
+          activeTab === 'social' ? 'block' : 'hidden'
         )}>
           {userId && <TeamChatPanel userId={userId} />}
         </div>

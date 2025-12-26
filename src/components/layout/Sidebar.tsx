@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { 
   LayoutDashboard, 
-  Mic,
   ChevronLeft,
   ChevronRight,
   Sparkles,
@@ -12,8 +11,6 @@ import {
   BookUser,
   Target,
   CalendarCheck,
-  FolderKanban,
-  Activity,
   Search,
   Calendar,
   Settings,
@@ -21,7 +18,6 @@ import {
   Zap,
   FileText,
   MessageCircle,
-  Phone,
   Flame,
   StickyNote,
   BarChart3,
@@ -33,10 +29,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'chat' | 'calendar' | 'calls' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | null;
+export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | null;
 
 interface SidebarProps {
-  onVoiceMode: () => void;
   onEditProfile?: () => void;
   onSignOut?: () => void;
   onOpenFocusTimer?: () => void;
@@ -49,7 +44,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({ 
-  onVoiceMode, 
   onSignOut, 
   onOpenFocusTimer,
   onOpenWeeklyReview,
@@ -184,18 +178,18 @@ export function Sidebar({
             {!collapsed && <span className="text-sm">{t('nav.tasks')}</span>}
           </Button>
 
-          {/* Team Chat */}
+          {/* Social (Chat + Calls) */}
           <Button
-            variant={activePanel === 'chat' ? 'secondary' : 'ghost'}
+            variant={activePanel === 'social' ? 'secondary' : 'ghost'}
             className={cn(
               "w-full h-9 gap-3",
               collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'chat' && "bg-sidebar-accent text-sidebar-primary font-medium"
+              activePanel === 'social' && "bg-sidebar-accent text-sidebar-primary font-medium"
             )}
-            onClick={() => handlePanelClick('chat')}
+            onClick={() => handlePanelClick('social')}
           >
             <MessageCircle className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.chat')}</span>}
+            {!collapsed && <span className="text-sm">{t('nav.social')}</span>}
           </Button>
           
           {/* Calendar */}
@@ -210,20 +204,6 @@ export function Sidebar({
           >
             <Calendar className="w-4 h-4 shrink-0" />
             {!collapsed && <span className="text-sm">{t('nav.calendar')}</span>}
-          </Button>
-
-          {/* Call History */}
-          <Button
-            variant={activePanel === 'calls' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'calls' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('calls')}
-          >
-            <Phone className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.calls')}</span>}
           </Button>
 
           {/* Dashboard */}
@@ -351,18 +331,6 @@ export function Sidebar({
 
       {/* Footer Actions */}
       <div className="p-2 border-t border-sidebar-border space-y-0.5">
-        <Button
-          variant="voice_mode"
-          className={cn(
-            "w-full h-9 gap-3",
-            collapsed ? "justify-center px-0" : "justify-start"
-          )}
-          onClick={onVoiceMode}
-        >
-          <Mic className="w-4 h-4 shrink-0" />
-          {!collapsed && <span className="text-sm">{t('nav.voiceMode')}</span>}
-        </Button>
-
         <Button
           variant={activePanel === 'settings' ? 'secondary' : 'ghost'}
           className={cn(
