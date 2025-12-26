@@ -143,9 +143,13 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
       onClose();
     } catch (e: any) {
       console.error('Failed to save task:', e);
+      const isNetworkError = 
+        e instanceof TypeError && String(e.message).toLowerCase().includes('failed to fetch');
       toast({
-        title: 'Save failed',
-        description: e?.message ? String(e.message) : 'Please try again',
+        title: isNetworkError ? 'Network Error' : 'Save failed',
+        description: isNetworkError 
+          ? 'Please check your connection and try again' 
+          : (e?.message ? String(e.message) : 'Please try again'),
         variant: 'destructive',
       });
     } finally {

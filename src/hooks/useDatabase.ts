@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchWithRetry } from '@/lib/fetchWithTimeout';
 import { Task, CalendarEvent, TaskCategory, TaskPriority, TaskStatus } from '@/types/flux';
 
 interface DbTask {
@@ -256,35 +257,29 @@ export function useDatabase(userId: string | undefined) {
     if (updates.attachments !== undefined) dbUpdates.attachments = safeJson(updates.attachments);
     if (updates.comments !== undefined) dbUpdates.comments = safeJson(updates.comments);
 
-    const runUpdate = async () =>
-      supabase
+    const runUpdate = async () => {
+      const result = await supabase
         .from('tasks')
         .update(dbUpdates)
         .eq('id', id)
         .select('id')
         .maybeSingle();
+      return result;
+    };
 
-    try {
-      const { data, error } = await runUpdate();
-      if (error) throw error;
-      if (!data) throw new Error('Task update not permitted or task not found');
+    // Use fetchWithRetry with exponential backoff for network resilience
+    const { data, error } = await fetchWithRetry(runUpdate, {
+      maxRetries: 3,
+      timeoutMs: 15000,
+      onRetry: (attempt) => {
+        console.log(`[updateTask] Retry attempt ${attempt} for task ${id}`);
+      },
+    });
 
-      setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
-    } catch (e: any) {
-      // Network hiccups can manifest as TypeError: Failed to fetch. Retry once after a short delay.
-      if (e instanceof TypeError && String(e.message).toLowerCase().includes('failed to fetch')) {
-        await supabase.auth.getSession();
-        await new Promise((r) => setTimeout(r, 600));
+    if (error) throw error;
+    if (!data) throw new Error('Task update not permitted or task not found');
 
-        const { data, error } = await runUpdate();
-        if (error) throw error;
-        if (!data) throw new Error('Task update not permitted or task not found');
-
-        setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
-        return;
-      }
-      throw e;
-    }
+    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {
