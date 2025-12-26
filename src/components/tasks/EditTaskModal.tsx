@@ -76,23 +76,24 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   const [isSaving, setIsSaving] = useState(false);
 
   // Build list of assignable people: current user + accepted space members
+  // Uses profile IDs since main_responsible_id references profiles.id
   const assignablePeople = useMemo(() => {
     const people: { id: string; name: string }[] = [];
     
-    // Add current user first
-    if (user?.id) {
+    // Add current user first (using profile.id, not user.id)
+    if (profile?.id) {
       people.push({
-        id: user.id,
-        name: profile?.display_name || profile?.email || user.email || 'Me',
+        id: profile.id,
+        name: profile.display_name || profile.email || user?.email || 'Me',
       });
     }
     
-    // Add accepted space members
+    // Add accepted space members (using their profile.id)
     members
-      .filter(m => m.status === 'accepted')
+      .filter(m => m.status === 'accepted' && m.member_profile?.id)
       .forEach(m => {
         people.push({
-          id: m.member_id,
+          id: m.member_profile!.id,
           name: m.member_profile?.display_name || m.member_profile?.email || m.member_email,
         });
       });

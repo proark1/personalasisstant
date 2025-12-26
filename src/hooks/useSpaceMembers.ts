@@ -12,6 +12,7 @@ export interface SpaceMember {
   created_at: string;
   updated_at: string;
   member_profile?: {
+    id: string;
     display_name: string | null;
     email: string | null;
     avatar_url: string | null;
@@ -58,7 +59,7 @@ export function useSpaceMembers(userId: string | undefined) {
         (data || []).map(async (member) => {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('display_name, email, avatar_url')
+            .select('id, display_name, email, avatar_url')
             .eq('user_id', member.member_id)
             .maybeSingle();
           
@@ -110,7 +111,7 @@ export function useSpaceMembers(userId: string | undefined) {
         (data || []).map(async (inv) => {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('display_name, email, avatar_url')
+            .select('id, display_name, email, avatar_url')
             .eq('user_id', inv.owner_id)
             .maybeSingle();
           
