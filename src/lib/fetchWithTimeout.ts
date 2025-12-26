@@ -43,7 +43,7 @@ export async function fetchWithRetry<T>(
     onRetry?: (attempt: number, error: Error) => void;
   } = {}
 ): Promise<T> {
-  const { maxRetries = 2, timeoutMs = 12000, onRetry } = options;
+  const { maxRetries = 3, timeoutMs = 12000, onRetry } = options;
   
   let lastError: Error | null = null;
   
