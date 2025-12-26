@@ -38,6 +38,7 @@ import {
   FileText,
   Heart,
 } from 'lucide-react';
+import { BrainDumpFAB } from '@/components/capture/BrainDumpFAB';
 
 interface MobileLayoutProps {
   userId: string;
@@ -331,6 +332,7 @@ export function MobileLayout({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <BrainDumpFAB className="static bottom-auto right-auto" collapsed={true} />
           <NotificationCenter
             notifications={notifications}
             onMarkRead={markRead}

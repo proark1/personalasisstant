@@ -10,9 +10,10 @@ import { BrainDumpInbox } from './BrainDumpInbox';
 
 interface BrainDumpFABProps {
   className?: string;
+  collapsed?: boolean;
 }
 
-export function BrainDumpFAB({ className }: BrainDumpFABProps) {
+export function BrainDumpFAB({ className, collapsed = false }: BrainDumpFABProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [text, setText] = useState('');
@@ -56,6 +57,9 @@ export function BrainDumpFAB({ className }: BrainDumpFABProps) {
     // TODO: Integrate with useVoiceRecorder hook
   };
 
+  // Check if we're in menu mode (not floating)
+  const isMenuMode = className?.includes('static');
+
   if (isInboxOpen) {
     return (
       <BrainDumpInbox
@@ -65,6 +69,87 @@ export function BrainDumpFAB({ className }: BrainDumpFABProps) {
     );
   }
 
+  // Menu mode: render as a simple button that opens expanded input inline
+  if (isMenuMode) {
+    return (
+      <div className={cn("relative", className)}>
+        {isExpanded && (
+          <Card className="absolute top-full left-0 mt-2 w-72 shadow-lg z-50 animate-in slide-in-from-top-2 duration-200">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 h-8 w-8"
+                  onClick={() => {
+                    setIsExpanded(false);
+                    setText('');
+                  }}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+                
+                <Input
+                  ref={inputRef}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Quick thought..."
+                  className="flex-1 h-8 text-sm"
+                />
+                
+                <Button
+                  size="icon"
+                  className="shrink-0 h-8 w-8"
+                  onClick={handleSubmit}
+                  disabled={!text.trim() || isProcessing}
+                >
+                  {isProcessing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 px-1">
+                AI will categorize this 🧠
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex items-center gap-1">
+          {unprocessedCount > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 relative"
+              onClick={() => setIsInboxOpen(true)}
+            >
+              <Inbox className="w-4 h-4" />
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
+              >
+                {unprocessedCount}
+              </Badge>
+            </Button>
+          )}
+
+          <Button
+            variant={isExpanded ? 'secondary' : 'ghost'}
+            size="icon"
+            className="h-9 w-9"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            <Brain className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Original floating FAB mode
   return (
     <div className={cn("fixed bottom-20 right-4 z-40", className)}>
       {/* Expanded Input */}

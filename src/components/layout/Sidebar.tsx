@@ -21,12 +21,14 @@ import {
   Flame,
   StickyNote,
   BarChart3,
-  Home
+  Home,
+  Brain
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { BrainDumpFAB } from '@/components/capture/BrainDumpFAB';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
 export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | null;
@@ -126,21 +128,27 @@ export function Sidebar({
 
       {/* Main Navigation */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {/* Search */}
-        {onOpenGlobalSearch && (
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full h-9 gap-3 text-muted-foreground hover:text-foreground",
-              collapsed ? "justify-center px-0" : "justify-start"
-            )}
-            onClick={onOpenGlobalSearch}
-          >
-            <Search className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.search')}</span>}
-            {!collapsed && <span className="ml-auto text-xs text-muted-foreground/60">⌘K</span>}
-          </Button>
-        )}
+        {/* Quick Actions Row */}
+        <div className="flex items-center gap-1 mb-2">
+          {/* Search */}
+          {onOpenGlobalSearch && (
+            <Button
+              variant="ghost"
+              className={cn(
+                "flex-1 h-9 gap-3 text-muted-foreground hover:text-foreground",
+                collapsed ? "justify-center px-0" : "justify-start"
+              )}
+              onClick={onOpenGlobalSearch}
+            >
+              <Search className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">{t('nav.search')}</span>}
+              {!collapsed && <span className="ml-auto text-xs text-muted-foreground/60">⌘K</span>}
+            </Button>
+          )}
+          
+          {/* Brain Dump / Quick Note */}
+          <BrainDumpFAB className="static bottom-auto right-auto" collapsed={collapsed} />
+        </div>
 
         <Separator className="my-2" />
 
