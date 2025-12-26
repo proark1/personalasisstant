@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,12 +10,15 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { AssistantOutreachBubble } from "@/components/assistant/AssistantOutreachBubble";
 import { useMorningAutoPlay } from "@/hooks/useMorningAutoPlay";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import ContactsPage from "./pages/ContactsPage";
-import ContractsPage from "./pages/Contracts";
-import Dashboard from "./pages/Dashboard";
-import NotFound from "./pages/NotFound";
+import { 
+  LazyIndex, 
+  LazyAuth, 
+  LazyDashboard, 
+  LazyContactsPage, 
+  LazyContractsPage, 
+  LazyNotFound,
+  PageFallback 
+} from "@/components/lazy";
 
 const queryClient = new QueryClient();
 
@@ -61,49 +65,51 @@ function AppContent() {
     <>
       <NetworkStatusBanner />
       <AssistantOutreachBubble />
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Index />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/contacts"
-          element={
-            <ProtectedRoute>
-              <ContactsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/contracts"
-          element={
-            <ProtectedRoute>
-              <ContractsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/auth"
-          element={
-            <PublicRoute>
-              <Auth />
-            </PublicRoute>
-          }
-        />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <LazyIndex />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <LazyDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contacts"
+            element={
+              <ProtectedRoute>
+                <LazyContactsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contracts"
+            element={
+              <ProtectedRoute>
+                <LazyContractsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/auth"
+            element={
+              <PublicRoute>
+                <LazyAuth />
+              </PublicRoute>
+            }
+          />
+          <Route path="*" element={<LazyNotFound />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }

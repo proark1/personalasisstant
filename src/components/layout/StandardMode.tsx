@@ -1,39 +1,41 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { Sidebar, SidebarFilter, ActivePanel } from './Sidebar';
 import { MobileLayout } from './MobileLayout';
-import { ChatPanel } from '../chat/ChatPanel';
-import { TeamChatPanel } from '../chat/TeamChatPanel';
-import { TaskList } from '../tasks/TaskList';
-import { KanbanBoard } from '../tasks/KanbanBoard';
-import { CalendarPanel } from '../calendar/CalendarPanel';
-import { CalendarView } from '../calendar/CalendarView';
-import { FocusTimer } from '../focus/FocusTimer';
-import { TodayFocusView } from '../focus/TodayFocusView';
-import { ProjectManager } from '../projects/ProjectManager';
-import { ActivityFeed } from '../activity/ActivityFeed';
-import { GlobalSearch } from '../search/GlobalSearch';
-import { QuickAddFAB } from '../tasks/QuickAddFAB';
-import { AICommandPanel } from '../ai/AICommandPanel';
-import { NotesPanel } from '../notes/NotesPanel';
-import { HabitsPanel } from '../habits/HabitsPanel';
-import { AdminAnalyticsPanel } from '../admin/AdminAnalyticsPanel';
-import { FamilyPanel } from '../family/FamilyPanel';
-
 import { RealtimeNotificationCenter } from '../notifications/RealtimeNotificationCenter';
-import { CallHistory } from '../calling/CallHistory';
-import { DashboardPanel } from '../dashboard/DashboardPanel';
-import { ContactsPanel } from '../contacts/ContactsPanel';
-import { ContractsPanel } from '../contracts/ContractsPanel';
-import { SettingsPanelContent } from '../settings/SettingsPanelContent';
 import { useAuth } from '@/hooks/useAuth';
 import { Task, CalendarEvent, ChatMessage, Project, UserSettings } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
 import { List, Grid3X3, X, LayoutGrid, Activity } from 'lucide-react';
+import { PanelFallback } from '@/components/lazy';
 import type { ActivityItem } from '@/hooks/useActivityFeed';
 import type { SearchResult, SearchFilters } from '@/hooks/useGlobalSearch';
 import type { Contact } from '@/hooks/useContacts';
+
+// Lazy load feature panels for code splitting
+const ChatPanel = lazy(() => import('../chat/ChatPanel').then(m => ({ default: m.ChatPanel })));
+const TeamChatPanel = lazy(() => import('../chat/TeamChatPanel').then(m => ({ default: m.TeamChatPanel })));
+const TaskList = lazy(() => import('../tasks/TaskList').then(m => ({ default: m.TaskList })));
+const KanbanBoard = lazy(() => import('../tasks/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
+const CalendarPanel = lazy(() => import('../calendar/CalendarPanel').then(m => ({ default: m.CalendarPanel })));
+const CalendarView = lazy(() => import('../calendar/CalendarView').then(m => ({ default: m.CalendarView })));
+const FocusTimer = lazy(() => import('../focus/FocusTimer').then(m => ({ default: m.FocusTimer })));
+const TodayFocusView = lazy(() => import('../focus/TodayFocusView').then(m => ({ default: m.TodayFocusView })));
+const ProjectManager = lazy(() => import('../projects/ProjectManager').then(m => ({ default: m.ProjectManager })));
+const ActivityFeed = lazy(() => import('../activity/ActivityFeed').then(m => ({ default: m.ActivityFeed })));
+const GlobalSearch = lazy(() => import('../search/GlobalSearch').then(m => ({ default: m.GlobalSearch })));
+const QuickAddFAB = lazy(() => import('../tasks/QuickAddFAB').then(m => ({ default: m.QuickAddFAB })));
+const AICommandPanel = lazy(() => import('../ai/AICommandPanel').then(m => ({ default: m.AICommandPanel })));
+const NotesPanel = lazy(() => import('../notes/NotesPanel').then(m => ({ default: m.NotesPanel })));
+const HabitsPanel = lazy(() => import('../habits/HabitsPanel').then(m => ({ default: m.HabitsPanel })));
+const AdminAnalyticsPanel = lazy(() => import('../admin/AdminAnalyticsPanel').then(m => ({ default: m.AdminAnalyticsPanel })));
+const FamilyPanel = lazy(() => import('../family/FamilyPanel').then(m => ({ default: m.FamilyPanel })));
+const CallHistory = lazy(() => import('../calling/CallHistory').then(m => ({ default: m.CallHistory })));
+const DashboardPanel = lazy(() => import('../dashboard/DashboardPanel').then(m => ({ default: m.DashboardPanel })));
+const ContactsPanel = lazy(() => import('../contacts/ContactsPanel').then(m => ({ default: m.ContactsPanel })));
+const ContractsPanel = lazy(() => import('../contracts/ContractsPanel').then(m => ({ default: m.ContractsPanel })));
+const SettingsPanelContent = lazy(() => import('../settings/SettingsPanelContent').then(m => ({ default: m.SettingsPanelContent })));
 
 interface StandardModeProps {
   tasks: Task[];
@@ -274,61 +276,63 @@ export function StandardMode({
           </Button>
         </div>
         <div className="flex-1 overflow-hidden">
-          {fullscreenPanel === 'chat' && (
-            <ChatPanel 
-              messages={messages}
-              onSendMessage={onSendMessage}
-              isProcessing={isProcessing}
-              isFullscreen={true}
-              onToggleFullscreen={() => setFullscreenPanel(null)}
-              contacts={contacts}
-            />
-          )}
-          {fullscreenPanel === 'tasks' && (
-            <TaskList
-              tasks={displayTasks}
-              filter={filter}
-              onToggleComplete={handleToggleTaskComplete}
-              onDeleteTask={onDeleteTask}
-              onDeleteTasks={onDeleteTasks}
-              onAddTask={onAddTask}
-              onUpdateTask={onUpdateTask}
-              onReorderTasks={onReorderTasks}
-              onShareTask={onShareTask}
-              isFullscreen={true}
-              onToggleFullscreen={() => setFullscreenPanel(null)}
-            />
-          )}
-          {fullscreenPanel === 'calendar' && (
-            calendarMode === 'agenda' ? (
-              <CalendarPanel
-                events={events}
-                tasks={tasks}
-                onAddEvent={onAddEvent}
-                onUpdateEvent={onUpdateEvent}
-                onDeleteEvent={onDeleteEvent}
-                onImportEvents={onImportEvents}
-                onShareEvent={onShareEvent}
+          <Suspense fallback={<PanelFallback />}>
+            {fullscreenPanel === 'chat' && (
+              <ChatPanel 
+                messages={messages}
+                onSendMessage={onSendMessage}
+                isProcessing={isProcessing}
+                isFullscreen={true}
+                onToggleFullscreen={() => setFullscreenPanel(null)}
+                contacts={contacts}
+              />
+            )}
+            {fullscreenPanel === 'tasks' && (
+              <TaskList
+                tasks={displayTasks}
+                filter={filter}
+                onToggleComplete={handleToggleTaskComplete}
+                onDeleteTask={onDeleteTask}
+                onDeleteTasks={onDeleteTasks}
+                onAddTask={onAddTask}
+                onUpdateTask={onUpdateTask}
+                onReorderTasks={onReorderTasks}
                 onShareTask={onShareTask}
-                onToggleTaskComplete={onToggleTaskComplete}
-                onUpdateTask={onUpdateTask}
-                onDeleteTask={onDeleteTask}
                 isFullscreen={true}
                 onToggleFullscreen={() => setFullscreenPanel(null)}
               />
-            ) : (
-              <CalendarView
-                events={events}
-                tasks={tasks}
-                onToggleTaskComplete={onToggleTaskComplete}
-                onUpdateTask={onUpdateTask}
-                onDeleteTask={onDeleteTask}
-                onAddTask={(task) => onAddTask({ ...task, completed: false, priority: task.priority || 'medium', category: task.category || 'personal' } as Omit<Task, 'id' | 'createdAt'>)}
-                isFullscreen={true}
-                onToggleFullscreen={() => setFullscreenPanel(null)}
-              />
-            )
-          )}
+            )}
+            {fullscreenPanel === 'calendar' && (
+              calendarMode === 'agenda' ? (
+                <CalendarPanel
+                  events={events}
+                  tasks={tasks}
+                  onAddEvent={onAddEvent}
+                  onUpdateEvent={onUpdateEvent}
+                  onDeleteEvent={onDeleteEvent}
+                  onImportEvents={onImportEvents}
+                  onShareEvent={onShareEvent}
+                  onShareTask={onShareTask}
+                  onToggleTaskComplete={onToggleTaskComplete}
+                  onUpdateTask={onUpdateTask}
+                  onDeleteTask={onDeleteTask}
+                  isFullscreen={true}
+                  onToggleFullscreen={() => setFullscreenPanel(null)}
+                />
+              ) : (
+                <CalendarView
+                  events={events}
+                  tasks={tasks}
+                  onToggleTaskComplete={onToggleTaskComplete}
+                  onUpdateTask={onUpdateTask}
+                  onDeleteTask={onDeleteTask}
+                  onAddTask={(task) => onAddTask({ ...task, completed: false, priority: task.priority || 'medium', category: task.category || 'personal' } as Omit<Task, 'id' | 'createdAt'>)}
+                  isFullscreen={true}
+                  onToggleFullscreen={() => setFullscreenPanel(null)}
+                />
+              )
+            )}
+          </Suspense>
         </div>
       </div>
     );
@@ -357,278 +361,281 @@ export function StandardMode({
 
           {/* Main Content Area - Only one panel at a time */}
           <div className="flex-1 flex flex-col p-2 gap-2">
-            {/* AI Assistant Panel */}
-            {activePanel === 'assistant' && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <ChatPanel 
-                  messages={messages}
-                  onSendMessage={onSendMessage}
-                  isProcessing={isProcessing}
-                  onToggleFullscreen={() => setFullscreenPanel('chat')}
-                  contacts={contacts}
-                />
-              </div>
-            )}
-
-            {/* Tasks Panel */}
-            {activePanel === 'tasks' && (
-              <>
-                {/* View Toggle for Tasks */}
-                <div className="flex items-center justify-between px-2">
-                  <AICommandPanel
-                    tasks={tasks}
-                    events={events}
-                    onRescheduleTask={(taskId, newDate) => {
-                      if (onUpdateTask) {
-                        onUpdateTask(taskId, { dueDate: newDate });
-                      }
-                    }}
+            <Suspense fallback={<PanelFallback />}>
+              {/* AI Assistant Panel */}
+              {activePanel === 'assistant' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <ChatPanel 
+                    messages={messages}
+                    onSendMessage={onSendMessage}
+                    isProcessing={isProcessing}
+                    onToggleFullscreen={() => setFullscreenPanel('chat')}
+                    contacts={contacts}
                   />
-                  <div className="flex items-center gap-1">
+                </div>
+              )}
+
+              {/* Tasks Panel */}
+              {activePanel === 'tasks' && (
+                <>
+                  {/* View Toggle for Tasks */}
+                  <div className="flex items-center justify-between px-2">
+                    <AICommandPanel
+                      tasks={tasks}
+                      events={events}
+                      onRescheduleTask={(taskId, newDate) => {
+                        if (onUpdateTask) {
+                          onUpdateTask(taskId, { dueDate: newDate });
+                        }
+                      }}
+                    />
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant={taskViewMode === 'list' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="h-7 px-2"
+                        onClick={() => setTaskViewMode('list')}
+                      >
+                        <List className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={taskViewMode === 'kanban' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="h-7 px-2"
+                        onClick={() => setTaskViewMode('kanban')}
+                      >
+                        <LayoutGrid className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Tasks - List or Kanban view */}
+                  <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                    {taskViewMode === 'kanban' ? (
+                      <KanbanBoard
+                        tasks={displayTasks}
+                        sharedTasks={sharedTasks}
+                        projects={projects}
+                        onUpdateTask={onUpdateTask || (() => {})}
+                        onToggleComplete={handleToggleTaskComplete}
+                      />
+                    ) : (
+                      <TaskList
+                        tasks={tasks}
+                        sharedTasks={sharedTasks}
+                        onToggleComplete={handleToggleTaskComplete}
+                        onDeleteTask={onDeleteTask}
+                        onDeleteTasks={onDeleteTasks}
+                        onAddTask={onAddTask}
+                        onUpdateTask={onUpdateTask}
+                        onReorderTasks={onReorderTasks}
+                        onShareTask={onShareTask}
+                        projects={projects}
+                        contacts={contacts}
+                        onToggleFullscreen={() => setFullscreenPanel('tasks')}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Calendar Panel */}
+              {activePanel === 'calendar' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden flex flex-col">
+                  <div className="h-10 px-4 flex items-center justify-end border-b border-border gap-1">
                     <Button
-                      variant={taskViewMode === 'list' ? 'secondary' : 'ghost'}
+                      variant={calendarMode === 'agenda' ? 'secondary' : 'ghost'}
                       size="sm"
                       className="h-7 px-2"
-                      onClick={() => setTaskViewMode('list')}
+                      onClick={() => setCalendarMode('agenda')}
                     >
                       <List className="w-4 h-4" />
                     </Button>
                     <Button
-                      variant={taskViewMode === 'kanban' ? 'secondary' : 'ghost'}
+                      variant={calendarMode === 'grid' ? 'secondary' : 'ghost'}
                       size="sm"
                       className="h-7 px-2"
-                      onClick={() => setTaskViewMode('kanban')}
+                      onClick={() => setCalendarMode('grid')}
                     >
-                      <LayoutGrid className="w-4 h-4" />
+                      <Grid3X3 className="w-4 h-4" />
                     </Button>
                   </div>
+                  <div className="flex-1 overflow-hidden">
+                    {calendarMode === 'agenda' ? (
+                      <CalendarPanel
+                        events={displayEvents}
+                        tasks={displayTasks}
+                        onAddEvent={onAddEvent}
+                        onUpdateEvent={onUpdateEvent}
+                        onDeleteEvent={onDeleteEvent}
+                        onImportEvents={onImportEvents}
+                        onShareEvent={onShareEvent}
+                        onShareTask={onShareTask}
+                        onToggleTaskComplete={onToggleTaskComplete}
+                        onUpdateTask={onUpdateTask}
+                        onDeleteTask={onDeleteTask}
+                        onToggleFullscreen={() => setFullscreenPanel('calendar')}
+                      />
+                    ) : (
+                      <CalendarView
+                        events={displayEvents}
+                        tasks={displayTasks}
+                        onToggleTaskComplete={onToggleTaskComplete}
+                        onUpdateTask={onUpdateTask}
+                        onDeleteTask={onDeleteTask}
+                        onAddTask={(task) => onAddTask({ ...task, completed: false, priority: task.priority || 'medium', category: task.category || 'personal' } as Omit<Task, 'id' | 'createdAt'>)}
+                        onToggleFullscreen={() => setFullscreenPanel('calendar')}
+                      />
+                    )}
+                  </div>
                 </div>
+              )}
 
-                {/* Tasks - List or Kanban view */}
+              {/* Team Chat Panel */}
+              {activePanel === 'chat' && user?.id && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                  {taskViewMode === 'kanban' ? (
-                    <KanbanBoard
-                      tasks={displayTasks}
-                      sharedTasks={sharedTasks}
-                      projects={projects}
-                      onUpdateTask={onUpdateTask || (() => {})}
-                      onToggleComplete={handleToggleTaskComplete}
-                    />
-                  ) : (
-                    <TaskList
-                      tasks={tasks}
-                      sharedTasks={sharedTasks}
-                      onToggleComplete={handleToggleTaskComplete}
-                      onDeleteTask={onDeleteTask}
-                      onDeleteTasks={onDeleteTasks}
-                      onAddTask={onAddTask}
-                      onUpdateTask={onUpdateTask}
-                      onReorderTasks={onReorderTasks}
-                      onShareTask={onShareTask}
-                      projects={projects}
-                      contacts={contacts}
-                      onToggleFullscreen={() => setFullscreenPanel('tasks')}
-                    />
-                  )}
+                  <TeamChatPanel userId={user.id} />
                 </div>
-              </>
-            )}
+              )}
 
-            {/* Calendar Panel */}
-            {activePanel === 'calendar' && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden flex flex-col">
-                <div className="h-10 px-4 flex items-center justify-end border-b border-border gap-1">
-                  <Button
-                    variant={calendarMode === 'agenda' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="h-7 px-2"
-                    onClick={() => setCalendarMode('agenda')}
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={calendarMode === 'grid' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="h-7 px-2"
-                    onClick={() => setCalendarMode('grid')}
-                  >
-                    <Grid3X3 className="w-4 h-4" />
-                  </Button>
+              {/* Call History Panel */}
+              {activePanel === 'calls' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <CallHistory userId={user.id} />
                 </div>
-                <div className="flex-1 overflow-hidden">
-                  {calendarMode === 'agenda' ? (
-                    <CalendarPanel
-                      events={displayEvents}
-                      tasks={displayTasks}
-                      onAddEvent={onAddEvent}
-                      onUpdateEvent={onUpdateEvent}
-                      onDeleteEvent={onDeleteEvent}
-                      onImportEvents={onImportEvents}
-                      onShareEvent={onShareEvent}
-                      onShareTask={onShareTask}
-                      onToggleTaskComplete={onToggleTaskComplete}
-                      onUpdateTask={onUpdateTask}
-                      onDeleteTask={onDeleteTask}
-                      onToggleFullscreen={() => setFullscreenPanel('calendar')}
-                    />
-                  ) : (
-                    <CalendarView
-                      events={displayEvents}
-                      tasks={displayTasks}
-                      onToggleTaskComplete={onToggleTaskComplete}
-                      onUpdateTask={onUpdateTask}
-                      onDeleteTask={onDeleteTask}
-                      onAddTask={(task) => onAddTask({ ...task, completed: false, priority: task.priority || 'medium', category: task.category || 'personal' } as Omit<Task, 'id' | 'createdAt'>)}
-                      onToggleFullscreen={() => setFullscreenPanel('calendar')}
-                    />
-                  )}
+              )}
+
+              {/* Dashboard Panel */}
+              {activePanel === 'dashboard' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <DashboardPanel userId={user.id} />
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Team Chat Panel */}
-            {activePanel === 'chat' && user?.id && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <TeamChatPanel userId={user.id} />
-              </div>
-            )}
-
-            {/* Call History Panel */}
-            {activePanel === 'calls' && user?.id && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <CallHistory userId={user.id} />
-              </div>
-            )}
-
-            {/* Dashboard Panel */}
-            {activePanel === 'dashboard' && user?.id && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <DashboardPanel userId={user.id} />
-              </div>
-            )}
-
-            {/* Projects Panel */}
-            {activePanel === 'projects' && onAddProject && onUpdateProject && onDeleteProject && getProjectProgress && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden p-4">
-                <ProjectManager
-                  projects={projects}
-                  tasks={tasks}
-                  contacts={contacts}
-                  onAddProject={onAddProject}
-                  onUpdateProject={onUpdateProject}
-                  onDeleteProject={onDeleteProject}
-                  getProjectProgress={getProjectProgress}
-                  selectedProjectId={selectedProjectId}
-                  onSelectProject={setSelectedProjectId}
-                  onShareProject={onShareProject}
-                  onShareProjectWithEmail={onShareProjectWithEmail}
-                  onAddTask={(task) => onAddTask({ ...task, completed: false })}
-                />
-              </div>
-            )}
-
-            {/* Contacts Panel */}
-            {activePanel === 'contacts' && user?.id && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <ContactsPanel userId={user.id} />
-              </div>
-            )}
-
-            {/* Contracts Panel */}
-            {activePanel === 'contracts' && user?.id && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <ContractsPanel userId={user.id} />
-              </div>
-            )}
-
-            {/* Activity Panel */}
-            {activePanel === 'activity' && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Activity className="h-5 w-5" />
-                  <h2 className="text-lg font-semibold">Activity Feed</h2>
+              {/* Projects Panel */}
+              {activePanel === 'projects' && onAddProject && onUpdateProject && onDeleteProject && getProjectProgress && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden p-4">
+                  <ProjectManager
+                    projects={projects}
+                    tasks={tasks}
+                    contacts={contacts}
+                    onAddProject={onAddProject}
+                    onUpdateProject={onUpdateProject}
+                    onDeleteProject={onDeleteProject}
+                    getProjectProgress={getProjectProgress}
+                    selectedProjectId={selectedProjectId}
+                    onSelectProject={setSelectedProjectId}
+                    onShareProject={onShareProject}
+                    onShareProjectWithEmail={onShareProjectWithEmail}
+                    onAddTask={(task) => onAddTask({ ...task, completed: false })}
+                  />
                 </div>
-                <ActivityFeed activities={activities} loading={activityLoading} />
-              </div>
-            )}
+              )}
 
-            {/* Settings Panel */}
-            {activePanel === 'settings' && settings && onUpdateSettings && onUpdateNotifications && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <SettingsPanelContent
-                  settings={settings}
-                  onUpdateSettings={onUpdateSettings}
-                  onUpdateNotifications={onUpdateNotifications}
-                />
-              </div>
-            )}
+              {/* Contacts Panel */}
+              {activePanel === 'contacts' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <ContactsPanel userId={user.id} />
+                </div>
+              )}
 
-            {/* Notes Panel */}
-            {activePanel === 'notes' && user?.id && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <NotesPanel userId={user.id} />
-              </div>
-            )}
+              {/* Contracts Panel */}
+              {activePanel === 'contracts' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <ContractsPanel userId={user.id} />
+                </div>
+              )}
 
-            {/* Habits Panel */}
-            {activePanel === 'habits' && user?.id && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <HabitsPanel userId={user.id} />
-              </div>
-            )}
+              {/* Activity Panel */}
+              {activePanel === 'activity' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Activity className="h-5 w-5" />
+                    <h2 className="text-lg font-semibold">Activity Feed</h2>
+                  </div>
+                  <ActivityFeed activities={activities} loading={activityLoading} />
+                </div>
+              )}
 
-            {/* Family Panel */}
-            {activePanel === 'family' && user?.id && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <FamilyPanel />
-              </div>
-            )}
+              {/* Settings Panel */}
+              {activePanel === 'settings' && settings && onUpdateSettings && onUpdateNotifications && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <SettingsPanelContent
+                    settings={settings}
+                    onUpdateSettings={onUpdateSettings}
+                    onUpdateNotifications={onUpdateNotifications}
+                  />
+                </div>
+              )}
 
-            {/* Admin Analytics Panel */}
-            {activePanel === 'admin' && user?.id && (
-              <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                <AdminAnalyticsPanel userId={user.id} />
-              </div>
-            )}
+              {/* Notes Panel */}
+              {activePanel === 'notes' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <NotesPanel userId={user.id} />
+                </div>
+              )}
+
+              {/* Habits Panel */}
+              {activePanel === 'habits' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <HabitsPanel userId={user.id} />
+                </div>
+              )}
+
+              {/* Family Panel */}
+              {activePanel === 'family' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <FamilyPanel />
+                </div>
+              )}
+
+              {/* Admin Analytics Panel */}
+              {activePanel === 'admin' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <AdminAnalyticsPanel userId={user.id} />
+                </div>
+              )}
+            </Suspense>
           </div>
         </div>
       </main>
 
       {/* Today Focus View */}
-      {showTodayFocus && (
-        <TodayFocusView
+      <Suspense fallback={null}>
+        {showTodayFocus && (
+          <TodayFocusView
+            tasks={tasks}
+            events={events}
+            onToggleComplete={handleToggleTaskComplete}
+            onClose={() => setShowTodayFocus(false)}
+          />
+        )}
+
+        {/* Focus Timer Dialog */}
+        <FocusTimer
           tasks={tasks}
-          events={events}
-          onToggleComplete={handleToggleTaskComplete}
-          onClose={() => setShowTodayFocus(false)}
+          isOpen={showFocusTimer}
+          onClose={() => setShowFocusTimer(false)}
         />
-      )}
 
-      {/* Focus Timer Dialog */}
-      <FocusTimer
-        tasks={tasks}
-        isOpen={showFocusTimer}
-        onClose={() => setShowFocusTimer(false)}
-      />
+        {/* Global Search */}
+        {onSearch && onClearSearchResults && onClearRecentSearches && (
+          <GlobalSearch
+            open={showGlobalSearch}
+            onOpenChange={setShowGlobalSearch}
+            results={searchResults}
+            recentSearches={recentSearches}
+            loading={searchLoading}
+            onSearch={onSearch}
+            onClearResults={onClearSearchResults}
+            onClearRecent={onClearRecentSearches}
+            onSelectResult={handleSelectSearchResult}
+          />
+        )}
 
-
-      {/* Global Search */}
-      {onSearch && onClearSearchResults && onClearRecentSearches && (
-        <GlobalSearch
-          open={showGlobalSearch}
-          onOpenChange={setShowGlobalSearch}
-          results={searchResults}
-          recentSearches={recentSearches}
-          loading={searchLoading}
-          onSearch={onSearch}
-          onClearResults={onClearSearchResults}
-          onClearRecent={onClearRecentSearches}
-          onSelectResult={handleSelectSearchResult}
-        />
-      )}
-
-      {/* Quick Add FAB */}
-      <QuickAddFAB onAddTask={onAddTask} projects={projects} />
+        {/* Quick Add FAB */}
+        <QuickAddFAB onAddTask={onAddTask} projects={projects} />
+      </Suspense>
     </div>
   );
 }
