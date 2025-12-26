@@ -64,15 +64,61 @@ export function IslamPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSurahList, setShowSurahList] = useState(true);
 
+  // Calculate approximate prayer times based on location (fallback)
+  const calculateApproximatePrayerTimes = (lat: number): PrayerTime[] => {
+    // Simplified calculation based on latitude - these are approximations
+    const now = new Date();
+    const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
+    
+    // Basic adjustment for latitude and season
+    const seasonOffset = Math.sin((dayOfYear - 80) * 2 * Math.PI / 365) * 1.5;
+    const latOffset = (lat - 30) * 0.05;
+    
+    const baseHours = {
+      fajr: 5 - seasonOffset + latOffset,
+      sunrise: 6.5 - seasonOffset * 0.8 + latOffset,
+      dhuhr: 12.25,
+      asr: 15.5 + seasonOffset * 0.3,
+      maghrib: 18 + seasonOffset + latOffset,
+      isha: 19.5 + seasonOffset + latOffset,
+    };
+
+    const formatTime = (hours: number): string => {
+      const h = Math.floor(hours);
+      const m = Math.round((hours - h) * 60);
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    };
+
+    return [
+      { name: 'Fajr', arabicName: 'الفجر', time: formatTime(baseHours.fajr) },
+      { name: 'Sunrise', arabicName: 'الشروق', time: formatTime(baseHours.sunrise) },
+      { name: 'Dhuhr', arabicName: 'الظهر', time: formatTime(baseHours.dhuhr) },
+      { name: 'Asr', arabicName: 'العصر', time: formatTime(baseHours.asr) },
+      { name: 'Maghrib', arabicName: 'المغرب', time: formatTime(baseHours.maghrib) },
+      { name: 'Isha', arabicName: 'العشاء', time: formatTime(baseHours.isha) },
+    ];
+  };
+
   // Fetch prayer times based on location
   const fetchPrayerTimes = async (lat: number, lng: number) => {
     setLoading(true);
     try {
       const date = new Date();
       const dateStr = `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
       const response = await fetch(
-        `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lng}&method=2`
+        `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lng}&method=2`,
+        { signal: controller.signal }
       );
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.code === 200) {
@@ -91,10 +137,16 @@ export function IslamPanel() {
           const tz = data.data.meta.timezone;
           setLocationName(tz.split('/').pop()?.replace(/_/g, ' ') || '');
         }
+      } else {
+        throw new Error('Invalid API response');
       }
     } catch (error) {
       console.error('Failed to fetch prayer times:', error);
-      toast.error('Failed to fetch prayer times');
+      // Use fallback calculation
+      const approximateTimes = calculateApproximatePrayerTimes(lat);
+      setPrayerTimes(approximateTimes);
+      setLocationName('Calculated (offline)');
+      toast.info('Using approximate prayer times');
     } finally {
       setLoading(false);
     }
