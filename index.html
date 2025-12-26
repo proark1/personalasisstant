@@ -4,9 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>DarAI - AI Productivity Assistant</title>
-    <meta name="description" content="DarAI is your AI-powered productivity assistant. Manage tasks, schedule events, and stay in flow with voice-controlled Ghost Mode." />
+    <meta
+      name="description"
+      content="DarAI is your AI-powered productivity assistant. Manage tasks, schedule events, and stay in flow with voice-controlled Ghost Mode."
+    />
     <meta name="author" content="DarAI" />
-    
+
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#0ea5e9" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -15,7 +18,7 @@
     <meta name="apple-mobile-web-app-title" content="DarAI" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/pwa-192x192.png" />
-    
+
     <!-- Open Graph -->
     <meta property="og:title" content="DarAI - AI Productivity Assistant" />
     <meta property="og:description" content="Your intelligent solver engine for tasks, calendar, and focus." />
@@ -25,90 +28,7 @@
     <meta name="twitter:site" content="@Lovable" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
   </head>
-  <body>
     <div id="root">Loading…</div>
-    <script>
-      // Prevent stale Service Worker / Cache Storage from breaking the dev preview.
-      // Use only ES5-compatible syntax here (no async/await) to avoid parse-time failures.
-      (function () {
-        try {
-          var swOk = typeof navigator !== "undefined" && "serviceWorker" in navigator;
-          var cacheOk = typeof window !== "undefined" && "caches" in window;
-
-          var p = Promise.resolve();
-
-          if (swOk && navigator.serviceWorker.getRegistrations) {
-            p = p
-              .then(function () {
-                return navigator.serviceWorker.getRegistrations();
-              })
-              .then(function (regs) {
-                return Promise.all(
-                  regs.map(function (r) {
-                    return r.unregister();
-                  })
-                );
-              });
-          }
-
-          if (cacheOk && window.caches.keys) {
-            p = p
-              .then(function () {
-                return window.caches.keys();
-              })
-              .then(function (keys) {
-                return Promise.all(
-                  keys.map(function (k) {
-                    return window.caches.delete(k);
-                  })
-                );
-              });
-          }
-
-          // Intentionally don't block app boot on this.
-          p.catch(function () {});
-        } catch (e) {
-          // ignore
-        }
-      })();
-    </script>
-    <script type="module">
-      const rootEl = document.getElementById("root");
-
-      function mountFatalOverlay(title, detail) {
-        if (!rootEl) return;
-        rootEl.innerHTML = `
-          <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:hsl(var(--background));color:hsl(var(--foreground));font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-            <div style="max-width:720px;width:100%;border:1px solid hsl(var(--border));border-radius:12px;padding:16px;background:hsl(var(--card));">
-              <h1 style="margin:0 0 8px 0;font-size:18px;line-height:1.25;">${title}</h1>
-              <p style="margin:0;color:hsl(var(--muted-foreground));font-size:13px;">The app failed to start. Please reload.</p>
-              ${detail ? `<pre style="margin-top:12px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.4;background:hsl(var(--muted));padding:12px;border-radius:10px;border:1px solid hsl(var(--border));color:hsl(var(--foreground));">${detail}</pre>` : ""}
-              <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-                <button id="fatal-reload" style="padding:10px 12px;border-radius:10px;border:1px solid hsl(var(--border));background:hsl(var(--primary));color:hsl(var(--primary-foreground));font-weight:600;cursor:pointer;">Reload</button>
-              </div>
-            </div>
-          </div>
-        `;
-
-        const btn = document.getElementById("fatal-reload");
-        btn && btn.addEventListener("click", () => window.location.reload());
-      }
-
-      // Catch failures that happen before / during module evaluation.
-      window.addEventListener("error", (e) => {
-        const msg = e && e.error && e.error.message ? e.error.message : (e && e.message ? String(e.message) : "Unknown error");
-        mountFatalOverlay("DarAI couldn’t start", msg);
-      });
-      window.addEventListener("unhandledrejection", (e) => {
-        const r = e && e.reason ? e.reason : "Unknown rejection";
-        const msg = r && r.message ? r.message : String(r);
-        mountFatalOverlay("DarAI couldn’t start", msg);
-      });
-
-      import("/src/main.tsx").catch((err) => {
-        const msg = err && err.message ? err.message : String(err);
-        mountFatalOverlay("DarAI couldn’t start", msg);
-      });
-    </script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
