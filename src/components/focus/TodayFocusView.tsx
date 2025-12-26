@@ -12,10 +12,12 @@ import {
   Sparkles,
   Clock,
   CheckCircle2,
-  X
+  X,
+  Focus,
 } from 'lucide-react';
 import { format, isToday, isPast, isBefore, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useDailyCheckins } from '@/hooks/useDailyCheckins';
 
 interface TodayFocusViewProps {
   tasks: Task[];
@@ -32,6 +34,7 @@ export function TodayFocusView({
   onClose,
   onPlanDay,
 }: TodayFocusViewProps) {
+  const { todayMorning } = useDailyCheckins();
   const now = new Date();
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
@@ -118,6 +121,17 @@ export function TodayFocusView({
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {/* Today's Main Focus from Check-in */}
+          {todayMorning?.main_focus && (
+            <div className="p-4 rounded-lg bg-gradient-to-r from-accent/20 to-primary/10 border border-accent/30">
+              <div className="flex items-center gap-2 mb-2">
+                <Focus className="w-4 h-4 text-accent" />
+                <span className="text-xs font-medium text-accent uppercase">Your Focus Today</span>
+              </div>
+              <p className="font-medium text-foreground">{todayMorning.main_focus}</p>
+            </div>
+          )}
+
           {/* AI Suggestion */}
           <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
             <div className="flex items-start gap-2">
