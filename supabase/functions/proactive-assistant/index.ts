@@ -1,0 +1,540 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface ProactiveSettings {
+  user_id: string;
+  enabled: boolean;
+  forgotten_tasks_enabled: boolean;
+  contract_renewals_enabled: boolean;
+  contact_checkins_enabled: boolean;
+  event_prep_enabled: boolean;
+  habit_streaks_enabled: boolean;
+  weekly_planning_enabled: boolean;
+  daily_review_enabled: boolean;
+  forgotten_task_days: number;
+  contact_checkin_days: number;
+  contract_reminder_days: number[];
+  habit_streak_warning_hours: number;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string;
+  quiet_hours_end: string;
+  push_notifications_enabled: boolean;
+  in_app_notifications_enabled: boolean;
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { user_id, trigger_type } = await req.json().catch(() => ({}));
+
+    // If specific user_id provided, process just that user
+    // Otherwise, process all users (for scheduled cron)
+    let usersToProcess: string[] = [];
+    
+    if (user_id) {
+      usersToProcess = [user_id];
+    } else {
+      // Get all users with proactive settings enabled
+      const { data: settings } = await supabase
+        .from('proactive_settings')
+        .select('user_id')
+        .eq('enabled', true);
+      
+      usersToProcess = settings?.map(s => s.user_id) || [];
+      
+      // Also get users without settings (they use defaults)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id');
+      
+      const allUsers = profiles?.map(p => p.user_id) || [];
+      const usersWithSettings = new Set(usersToProcess);
+      
+      for (const u of allUsers) {
+        if (!usersWithSettings.has(u)) {
+          usersToProcess.push(u);
+        }
+      }
+    }
+
+    console.log(`Processing ${usersToProcess.length} users for proactive reminders`);
+
+    const remindersCreated: any[] = [];
+    const now = new Date();
+
+    for (const userId of usersToProcess) {
+      // Get user's settings or use defaults
+      const { data: userSettings } = await supabase
+        .from('proactive_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      const settings: ProactiveSettings = userSettings || {
+        user_id: userId,
+        enabled: true,
+        forgotten_tasks_enabled: true,
+        contract_renewals_enabled: true,
+        contact_checkins_enabled: true,
+        event_prep_enabled: true,
+        habit_streaks_enabled: true,
+        weekly_planning_enabled: true,
+        daily_review_enabled: true,
+        forgotten_task_days: 3,
+        contact_checkin_days: 14,
+        contract_reminder_days: [30, 14, 7, 3, 1],
+        habit_streak_warning_hours: 4,
+        quiet_hours_enabled: true,
+        quiet_hours_start: '22:00',
+        quiet_hours_end: '07:00',
+        push_notifications_enabled: true,
+        in_app_notifications_enabled: true,
+      };
+
+      if (!settings.enabled) continue;
+
+      // Check quiet hours
+      if (settings.quiet_hours_enabled) {
+        const currentHour = now.getHours();
+        const quietStart = parseInt(settings.quiet_hours_start?.split(':')[0] || '22');
+        const quietEnd = parseInt(settings.quiet_hours_end?.split(':')[0] || '7');
+        
+        if (quietStart > quietEnd) {
+          // Quiet hours span midnight
+          if (currentHour >= quietStart || currentHour < quietEnd) {
+            console.log(`User ${userId} is in quiet hours, skipping`);
+            continue;
+          }
+        } else {
+          if (currentHour >= quietStart && currentHour < quietEnd) {
+            console.log(`User ${userId} is in quiet hours, skipping`);
+            continue;
+          }
+        }
+      }
+
+      // Process each reminder type
+      if (!trigger_type || trigger_type === 'forgotten_tasks') {
+        if (settings.forgotten_tasks_enabled) {
+          const reminders = await checkForgottenTasks(supabase, userId, settings.forgotten_task_days);
+          remindersCreated.push(...reminders);
+        }
+      }
+
+      if (!trigger_type || trigger_type === 'contract_renewals') {
+        if (settings.contract_renewals_enabled) {
+          const reminders = await checkContractRenewals(supabase, userId, settings.contract_reminder_days);
+          remindersCreated.push(...reminders);
+        }
+      }
+
+      if (!trigger_type || trigger_type === 'contact_checkins') {
+        if (settings.contact_checkins_enabled) {
+          const reminders = await checkContactCheckins(supabase, userId, settings.contact_checkin_days);
+          remindersCreated.push(...reminders);
+        }
+      }
+
+      if (!trigger_type || trigger_type === 'event_prep') {
+        if (settings.event_prep_enabled) {
+          const reminders = await checkUpcomingEvents(supabase, userId);
+          remindersCreated.push(...reminders);
+        }
+      }
+
+      if (!trigger_type || trigger_type === 'habit_streaks') {
+        if (settings.habit_streaks_enabled) {
+          const reminders = await checkHabitStreaks(supabase, userId, settings.habit_streak_warning_hours);
+          remindersCreated.push(...reminders);
+        }
+      }
+
+      if (!trigger_type || trigger_type === 'daily_review') {
+        if (settings.daily_review_enabled) {
+          const reminders = await checkDailyReview(supabase, userId);
+          remindersCreated.push(...reminders);
+        }
+      }
+    }
+
+    // Trigger push delivery for new reminders
+    if (remindersCreated.length > 0) {
+      console.log(`Created ${remindersCreated.length} proactive reminders`);
+      
+      // Call push-delivery function for each reminder
+      for (const reminder of remindersCreated) {
+        try {
+          await supabase.functions.invoke('push-delivery', {
+            body: { reminder_id: reminder.id }
+          });
+        } catch (err) {
+          console.error('Failed to trigger push delivery:', err);
+        }
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        reminders_created: remindersCreated.length,
+        users_processed: usersToProcess.length 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in proactive-assistant:', errorMessage);
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
+
+// Check for forgotten tasks (no updates in X days)
+async function checkForgottenTasks(supabase: any, userId: string, thresholdDays: number) {
+  const thresholdDate = new Date();
+  thresholdDate.setDate(thresholdDate.getDate() - thresholdDays);
+  
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('id, title, updated_at, last_reminded_at, priority')
+    .eq('user_id', userId)
+    .eq('completed', false)
+    .eq('trashed', false)
+    .lt('updated_at', thresholdDate.toISOString())
+    .or(`last_reminded_at.is.null,last_reminded_at.lt.${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}`);
+
+  const reminders: any[] = [];
+
+  for (const task of tasks || []) {
+    const daysSinceUpdate = Math.floor((Date.now() - new Date(task.updated_at).getTime()) / (1000 * 60 * 60 * 24));
+    
+    const reminder = {
+      user_id: userId,
+      reminder_type: 'forgotten_task',
+      trigger_entity_type: 'task',
+      trigger_entity_id: task.id,
+      title: '📝 Forgotten Task',
+      message: `"${task.title}" hasn't been touched in ${daysSinceUpdate} days. Still working on it?`,
+      priority: task.priority === 'high' ? 'high' : 'medium',
+      scheduled_for: new Date().toISOString(),
+      metadata: { task_title: task.title, days_since_update: daysSinceUpdate }
+    };
+
+    const { data: created, error } = await supabase
+      .from('proactive_reminders')
+      .insert(reminder)
+      .select()
+      .single();
+
+    if (created) {
+      reminders.push(created);
+      
+      // Update last_reminded_at on the task
+      await supabase
+        .from('tasks')
+        .update({ last_reminded_at: new Date().toISOString() })
+        .eq('id', task.id);
+    }
+  }
+
+  return reminders;
+}
+
+// Check for contract renewals coming up
+async function checkContractRenewals(supabase: any, userId: string, reminderDays: number[]) {
+  const reminders: any[] = [];
+  
+  for (const days of reminderDays) {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + days);
+    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0)).toISOString();
+    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999)).toISOString();
+
+    const { data: contracts } = await supabase
+      .from('contracts')
+      .select('id, name, renewal_date, end_date, cancellation_notice_days, last_reminded_at')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .or(`renewal_date.gte.${startOfDay},end_date.gte.${startOfDay}`)
+      .or(`renewal_date.lte.${endOfDay},end_date.lte.${endOfDay}`)
+      .or(`last_reminded_at.is.null,last_reminded_at.lt.${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}`);
+
+    for (const contract of contracts || []) {
+      const relevantDate = contract.renewal_date || contract.end_date;
+      if (!relevantDate) continue;
+
+      const daysUntil = Math.ceil((new Date(relevantDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      if (Math.abs(daysUntil - days) > 1) continue; // Only match exact day range
+
+      const priority = days <= 3 ? 'urgent' : days <= 7 ? 'high' : 'medium';
+      
+      const reminder = {
+        user_id: userId,
+        reminder_type: 'contract_renewal',
+        trigger_entity_type: 'contract',
+        trigger_entity_id: contract.id,
+        title: days <= 1 ? '🚨 Contract Expires Tomorrow!' : `📋 Contract Renewal in ${days} Days`,
+        message: `"${contract.name}" ${contract.renewal_date ? 'renews' : 'expires'} in ${daysUntil} days. ${contract.cancellation_notice_days ? `Cancellation requires ${contract.cancellation_notice_days} days notice.` : ''}`,
+        priority,
+        scheduled_for: new Date().toISOString(),
+        metadata: { contract_name: contract.name, days_until: daysUntil }
+      };
+
+      const { data: created } = await supabase
+        .from('proactive_reminders')
+        .insert(reminder)
+        .select()
+        .single();
+
+      if (created) {
+        reminders.push(created);
+        await supabase
+          .from('contracts')
+          .update({ last_reminded_at: new Date().toISOString() })
+          .eq('id', contract.id);
+      }
+    }
+  }
+
+  return reminders;
+}
+
+// Check for contacts that haven't been reached out to
+async function checkContactCheckins(supabase: any, userId: string, thresholdDays: number) {
+  const thresholdDate = new Date();
+  thresholdDate.setDate(thresholdDate.getDate() - thresholdDays);
+  
+  const { data: contacts } = await supabase
+    .from('user_contacts')
+    .select('id, name, last_contacted_at, last_reminded_at, is_favorite')
+    .eq('user_id', userId)
+    .or(`last_contacted_at.is.null,last_contacted_at.lt.${thresholdDate.toISOString()}`)
+    .or(`last_reminded_at.is.null,last_reminded_at.lt.${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()}`);
+
+  const reminders: any[] = [];
+
+  for (const contact of contacts || []) {
+    const daysSinceContact = contact.last_contacted_at 
+      ? Math.floor((Date.now() - new Date(contact.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+    
+    const reminder = {
+      user_id: userId,
+      reminder_type: 'contact_checkin',
+      trigger_entity_type: 'contact',
+      trigger_entity_id: contact.id,
+      title: '👋 Time to Reconnect',
+      message: daysSinceContact 
+        ? `You haven't reached out to ${contact.name} in ${daysSinceContact} days. Want to send a quick message?`
+        : `It's been a while since you connected with ${contact.name}. Time for a check-in?`,
+      priority: contact.is_favorite ? 'high' : 'medium',
+      scheduled_for: new Date().toISOString(),
+      metadata: { contact_name: contact.name, days_since_contact: daysSinceContact }
+    };
+
+    const { data: created } = await supabase
+      .from('proactive_reminders')
+      .insert(reminder)
+      .select()
+      .single();
+
+    if (created) {
+      reminders.push(created);
+      await supabase
+        .from('user_contacts')
+        .update({ last_reminded_at: new Date().toISOString() })
+        .eq('id', contact.id);
+    }
+  }
+
+  return reminders;
+}
+
+// Check for upcoming events that need preparation
+async function checkUpcomingEvents(supabase: any, userId: string) {
+  const now = new Date();
+  const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+  const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  
+  const { data: events } = await supabase
+    .from('events')
+    .select('id, title, start_time, location, description, last_reminded_at')
+    .eq('user_id', userId)
+    .gte('start_time', oneHourFromNow.toISOString())
+    .lte('start_time', twoHoursFromNow.toISOString())
+    .or(`last_reminded_at.is.null,last_reminded_at.lt.${new Date(Date.now() - 60 * 60 * 1000).toISOString()}`);
+
+  const reminders: any[] = [];
+
+  for (const event of events || []) {
+    const minutesUntil = Math.round((new Date(event.start_time).getTime() - Date.now()) / (1000 * 60));
+    
+    const reminder = {
+      user_id: userId,
+      reminder_type: 'event_prep',
+      trigger_entity_type: 'event',
+      trigger_entity_id: event.id,
+      title: '🗓️ Upcoming Event',
+      message: `"${event.title}" starts in ${minutesUntil} minutes${event.location ? ` at ${event.location}` : ''}. Time to prepare!`,
+      priority: 'high',
+      scheduled_for: new Date().toISOString(),
+      metadata: { event_title: event.title, minutes_until: minutesUntil, location: event.location }
+    };
+
+    const { data: created } = await supabase
+      .from('proactive_reminders')
+      .insert(reminder)
+      .select()
+      .single();
+
+    if (created) {
+      reminders.push(created);
+      await supabase
+        .from('events')
+        .update({ last_reminded_at: new Date().toISOString() })
+        .eq('id', event.id);
+    }
+  }
+
+  return reminders;
+}
+
+// Check for habit streaks at risk
+async function checkHabitStreaks(supabase: any, userId: string, warningHours: number) {
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { data: habits } = await supabase
+    .from('habits')
+    .select('id, name, icon, last_reminded_at')
+    .eq('user_id', userId)
+    .eq('is_active', true);
+
+  const reminders: any[] = [];
+
+  for (const habit of habits || []) {
+    // Check if habit was logged today
+    const { data: todayLog } = await supabase
+      .from('habit_logs')
+      .select('id')
+      .eq('habit_id', habit.id)
+      .eq('log_date', today)
+      .single();
+
+    if (todayLog) continue; // Already logged today
+
+    // Check if we already reminded in the last few hours
+    if (habit.last_reminded_at) {
+      const hoursSinceReminder = (Date.now() - new Date(habit.last_reminded_at).getTime()) / (1000 * 60 * 60);
+      if (hoursSinceReminder < warningHours) continue;
+    }
+
+    // Check the streak
+    const { data: recentLogs } = await supabase
+      .from('habit_logs')
+      .select('log_date')
+      .eq('habit_id', habit.id)
+      .order('log_date', { ascending: false })
+      .limit(7);
+
+    const hasStreak = recentLogs && recentLogs.length > 0;
+    const currentHour = new Date().getHours();
+    
+    // Only remind in evening hours (after 6 PM) or if it's a long streak
+    if (currentHour < 18 && (!recentLogs || recentLogs.length < 3)) continue;
+
+    const reminder = {
+      user_id: userId,
+      reminder_type: 'habit_streak',
+      trigger_entity_type: 'habit',
+      trigger_entity_id: habit.id,
+      title: hasStreak ? '🔥 Streak at Risk!' : `${habit.icon || '✓'} Don't Forget`,
+      message: hasStreak 
+        ? `Your ${recentLogs.length}-day streak for "${habit.name}" is at risk! Log it before midnight.`
+        : `Have you done "${habit.name}" today? Keep building the habit!`,
+      priority: hasStreak && recentLogs.length >= 7 ? 'high' : 'medium',
+      scheduled_for: new Date().toISOString(),
+      metadata: { habit_name: habit.name, streak_length: recentLogs?.length || 0 }
+    };
+
+    const { data: created } = await supabase
+      .from('proactive_reminders')
+      .insert(reminder)
+      .select()
+      .single();
+
+    if (created) {
+      reminders.push(created);
+      await supabase
+        .from('habits')
+        .update({ last_reminded_at: new Date().toISOString() })
+        .eq('id', habit.id);
+    }
+  }
+
+  return reminders;
+}
+
+// Check if user needs a daily review prompt
+async function checkDailyReview(supabase: any, userId: string) {
+  const today = new Date().toISOString().split('T')[0];
+  const currentHour = new Date().getHours();
+  
+  // Only prompt for evening review between 7-10 PM
+  if (currentHour < 19 || currentHour > 22) return [];
+
+  // Check if evening check-in already done today
+  const { data: checkin } = await supabase
+    .from('daily_checkins')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('checkin_date', today)
+    .eq('checkin_type', 'evening')
+    .single();
+
+  if (checkin) return []; // Already checked in
+
+  // Check if we already reminded today
+  const { data: existingReminder } = await supabase
+    .from('proactive_reminders')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('reminder_type', 'daily_review')
+    .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
+    .single();
+
+  if (existingReminder) return [];
+
+  const reminder = {
+    user_id: userId,
+    reminder_type: 'daily_review',
+    trigger_entity_type: 'checkin',
+    title: '🌙 How Was Your Day?',
+    message: "Take a moment to reflect on your day. What went well? What could be better tomorrow?",
+    priority: 'low',
+    scheduled_for: new Date().toISOString(),
+    metadata: { date: today }
+  };
+
+  const { data: created } = await supabase
+    .from('proactive_reminders')
+    .insert(reminder)
+    .select()
+    .single();
+
+  return created ? [created] : [];
+}

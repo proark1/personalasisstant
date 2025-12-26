@@ -32,3 +32,9 @@ verify_jwt = false
 
 [functions.import-calendar]
 verify_jwt = false
+
+[functions.proactive-assistant]
+verify_jwt = false
+
+[functions.push-delivery]
+verify_jwt = false
