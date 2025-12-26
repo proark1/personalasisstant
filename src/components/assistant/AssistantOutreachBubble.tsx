@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Volume2, VolumeX, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,11 +17,49 @@ export function AssistantOutreachBubble() {
   const { speak, stop, isSpeaking } = useTextToSpeech({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const spokenUrgentIds = useRef<Set<string>>(new Set());
 
   // Get unread reminders only
   const unreadReminders = reminders.filter(r => !r.read_at);
 
-  // Auto-speak newest reminder when voice is enabled
+  // Check if we're in quiet hours
+  const isInQuietHours = (): boolean => {
+    if (!settings?.quiet_hours_enabled) return false;
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinutes;
+    
+    const [startHour, startMin] = (settings.quiet_hours_start || '22:00').split(':').map(Number);
+    const [endHour, endMin] = (settings.quiet_hours_end || '07:00').split(':').map(Number);
+    const startTime = startHour * 60 + startMin;
+    const endTime = endHour * 60 + endMin;
+    
+    if (startTime > endTime) {
+      // Quiet hours span midnight
+      return currentTime >= startTime || currentTime < endTime;
+    } else {
+      return currentTime >= startTime && currentTime < endTime;
+    }
+  };
+
+  // Auto-speak urgent reminders when voice alerts enabled
+  useEffect(() => {
+    if (!settings?.voice_alerts_enabled || isInQuietHours()) return;
+    
+    const urgentUnread = unreadReminders.filter(
+      r => r.priority === 'urgent' && !spokenUrgentIds.current.has(r.id)
+    );
+
+    if (urgentUnread.length > 0 && !isSpeaking) {
+      const urgent = urgentUnread[0];
+      spokenUrgentIds.current.add(urgent.id);
+      speak(`Urgent: ${urgent.title}. ${urgent.message}`, 'supportive');
+    }
+  }, [unreadReminders, settings?.voice_alerts_enabled, isSpeaking]);
+
+  // Auto-speak newest reminder when voice is enabled (manual toggle)
   useEffect(() => {
     if (voiceEnabled && settings?.voice_proactive_enabled && unreadReminders.length > 0 && !isSpeaking) {
       const newest = unreadReminders[0];

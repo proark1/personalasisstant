@@ -15,6 +15,7 @@ interface ProactiveSettings {
   event_prep_enabled: boolean;
   habit_streaks_enabled: boolean;
   weekly_planning_enabled: boolean;
+  weekly_planning_day: number;
   daily_review_enabled: boolean;
   calendar_overload_enabled: boolean;
   calendar_overload_threshold: number;
@@ -93,6 +94,7 @@ serve(async (req) => {
         event_prep_enabled: true,
         habit_streaks_enabled: true,
         weekly_planning_enabled: true,
+        weekly_planning_day: 0, // Sunday
         daily_review_enabled: true,
         calendar_overload_enabled: true,
         calendar_overload_threshold: 6,
@@ -176,6 +178,14 @@ serve(async (req) => {
       if (!trigger_type || trigger_type === 'calendar_overload') {
         if (settings.calendar_overload_enabled) {
           const reminders = await checkCalendarOverload(supabase, userId, settings.calendar_overload_threshold);
+          remindersCreated.push(...reminders);
+        }
+      }
+
+      // Weekly Planning Sunday Prompt
+      if (!trigger_type || trigger_type === 'weekly_planning') {
+        if (settings.weekly_planning_enabled) {
+          const reminders = await checkWeeklyPlanning(supabase, userId, settings.weekly_planning_day);
           remindersCreated.push(...reminders);
         }
       }
@@ -761,4 +771,86 @@ async function generateSmartFollowUps(supabase: any, userId: string) {
   }
 
   return reminders;
+}
+
+// Check if it's time for weekly planning prompt (Sunday evening by default)
+async function checkWeeklyPlanning(supabase: any, userId: string, planningDay: number = 0) {
+  const now = new Date();
+  const currentDay = now.getDay(); // 0 = Sunday
+  const currentHour = now.getHours();
+  
+  // Only prompt on the configured planning day, between 6-8 PM
+  if (currentDay !== planningDay || currentHour < 18 || currentHour > 20) {
+    return [];
+  }
+
+  // Check if we already reminded this week
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(startOfWeek.getDate() - currentDay);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const { data: existingReminder } = await supabase
+    .from('proactive_reminders')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('reminder_type', 'weekly_planning')
+    .gte('created_at', startOfWeek.toISOString())
+    .single();
+
+  if (existingReminder) return [];
+
+  // Get stats for the week
+  const { data: tasksCompleted } = await supabase
+    .from('tasks')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('completed', true)
+    .gte('completed_at', startOfWeek.toISOString());
+
+  const { data: upcomingTasks } = await supabase
+    .from('tasks')
+    .select('id, title, priority')
+    .eq('user_id', userId)
+    .eq('completed', false)
+    .eq('trashed', false)
+    .order('priority', { ascending: false })
+    .limit(5);
+
+  const { data: upcomingEvents } = await supabase
+    .from('events')
+    .select('id')
+    .eq('user_id', userId)
+    .gte('start_time', now.toISOString())
+    .lte('start_time', new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString());
+
+  const completedCount = tasksCompleted?.length || 0;
+  const upcomingTaskCount = upcomingTasks?.length || 0;
+  const eventCount = upcomingEvents?.length || 0;
+
+  const topPriorities = upcomingTasks?.slice(0, 3).map((t: any) => t.title).join(', ') || 'none yet';
+
+  const reminder = {
+    user_id: userId,
+    reminder_type: 'weekly_planning',
+    trigger_entity_type: 'review',
+    title: '📋 Plan Your Week',
+    message: `Great week! You completed ${completedCount} tasks. Next week: ${upcomingTaskCount} tasks, ${eventCount} events. Top priorities: ${topPriorities}. Ready to plan?`,
+    priority: 'medium',
+    action_type: 'weekly_review',
+    scheduled_for: new Date().toISOString(),
+    metadata: {
+      completed_this_week: completedCount,
+      upcoming_tasks: upcomingTaskCount,
+      upcoming_events: eventCount,
+      top_priorities: topPriorities,
+    }
+  };
+
+  const { data: created } = await supabase
+    .from('proactive_reminders')
+    .insert(reminder)
+    .select()
+    .single();
+
+  return created ? [created] : [];
 }
