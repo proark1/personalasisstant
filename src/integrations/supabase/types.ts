@@ -719,6 +719,39 @@ export type Database = {
         }
         Relationships: []
       }
+      dhikr_logs: {
+        Row: {
+          completed_count: number | null
+          created_at: string
+          dhikr_type: string
+          id: string
+          log_date: string
+          target_count: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_count?: number | null
+          created_at?: string
+          dhikr_type: string
+          id?: string
+          log_date?: string
+          target_count?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_count?: number | null
+          created_at?: string
+          dhikr_type?: string
+          id?: string
+          log_date?: string
+          target_count?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       direct_messages: {
         Row: {
           attachments: Json | null
@@ -1906,6 +1939,39 @@ export type Database = {
           },
         ]
       }
+      news_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          include_in_briefing: boolean | null
+          sources: string[] | null
+          topics: string[] | null
+          update_frequency: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          include_in_briefing?: boolean | null
+          sources?: string[] | null
+          topics?: string[] | null
+          update_frequency?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          include_in_briefing?: boolean | null
+          sources?: string[] | null
+          topics?: string[] | null
+          update_frequency?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           content: string
@@ -2344,6 +2410,210 @@ export type Database = {
         }
         Relationships: []
       }
+      properties: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          current_value: number | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          property_type: string
+          purchase_date: string | null
+          purchase_price: number | null
+          size_sqm: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          property_type: string
+          purchase_date?: string | null
+          purchase_price?: number | null
+          size_sqm?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          property_type?: string
+          purchase_date?: string | null
+          purchase_price?: number | null
+          size_sqm?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      property_checklists: {
+        Row: {
+          checklist_type: string | null
+          created_at: string
+          id: string
+          items: Json | null
+          name: string
+          property_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checklist_type?: string | null
+          created_at?: string
+          id?: string
+          items?: Json | null
+          name: string
+          property_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checklist_type?: string | null
+          created_at?: string
+          id?: string
+          items?: Json | null
+          name?: string
+          property_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_checklists_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_documents: {
+        Row: {
+          created_at: string
+          document_type: string | null
+          expiry_date: string | null
+          file_path: string
+          file_url: string
+          id: string
+          name: string
+          notes: string | null
+          property_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_type?: string | null
+          expiry_date?: string | null
+          file_path: string
+          file_url: string
+          id?: string
+          name: string
+          notes?: string | null
+          property_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string | null
+          expiry_date?: string | null
+          file_path?: string
+          file_url?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          property_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_documents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_maintenance: {
+        Row: {
+          category: string | null
+          completed_date: string | null
+          cost: number | null
+          created_at: string
+          description: string | null
+          id: string
+          is_recurring: boolean | null
+          property_id: string
+          recurrence_rule: string | null
+          scheduled_date: string | null
+          status: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          completed_date?: string | null
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          property_id: string
+          recurrence_rule?: string | null
+          scheduled_date?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          completed_date?: string | null
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          property_id?: string
+          recurrence_rule?: string | null
+          scheduled_date?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_maintenance_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       public_holidays: {
         Row: {
           country_code: string
@@ -2407,6 +2677,48 @@ export type Database = {
           token?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      ramadan_tracker: {
+        Row: {
+          created_at: string
+          day_number: number
+          fasting_completed: boolean | null
+          id: string
+          iftar_time: string | null
+          notes: string | null
+          suhoor_time: string | null
+          taraweeh_completed: boolean | null
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          day_number: number
+          fasting_completed?: boolean | null
+          id?: string
+          iftar_time?: string | null
+          notes?: string | null
+          suhoor_time?: string | null
+          taraweeh_completed?: boolean | null
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          day_number?: number
+          fasting_completed?: boolean | null
+          id?: string
+          iftar_time?: string | null
+          notes?: string | null
+          suhoor_time?: string | null
+          taraweeh_completed?: boolean | null
+          updated_at?: string
+          user_id?: string
+          year?: number
         }
         Relationships: []
       }
@@ -2551,6 +2863,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      saved_articles: {
+        Row: {
+          category: string | null
+          id: string
+          image_url: string | null
+          is_bookmarked: boolean | null
+          is_read: boolean | null
+          read_at: string | null
+          saved_at: string
+          source: string | null
+          summary: string | null
+          title: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          id?: string
+          image_url?: string | null
+          is_bookmarked?: boolean | null
+          is_read?: boolean | null
+          read_at?: string | null
+          saved_at?: string
+          source?: string | null
+          summary?: string | null
+          title: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          id?: string
+          image_url?: string | null
+          is_bookmarked?: boolean | null
+          is_read?: boolean | null
+          read_at?: string | null
+          saved_at?: string
+          source?: string | null
+          summary?: string | null
+          title?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       search_history: {
         Row: {
@@ -2839,6 +3196,86 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      startup_metrics: {
+        Row: {
+          created_at: string
+          id: string
+          metric_date: string
+          metric_name: string
+          metric_value: number | null
+          notes: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metric_date?: string
+          metric_name: string
+          metric_value?: number | null
+          notes?: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metric_date?: string
+          metric_name?: string
+          metric_value?: number | null
+          notes?: string | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "startup_metrics_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "startup_workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      startup_workspaces: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+          workspace_type: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+          workspace_type: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+          workspace_type?: string
+        }
+        Relationships: []
       }
       tags: {
         Row: {
