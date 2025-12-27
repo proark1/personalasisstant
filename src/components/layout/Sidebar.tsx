@@ -23,7 +23,10 @@ import {
   BarChart3,
   Home,
   Brain,
-  Moon
+  Moon,
+  Building2,
+  Briefcase,
+  Newspaper
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,7 +35,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { BrainDumpFAB } from '@/components/capture/BrainDumpFAB';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'islam' | null;
+export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'islam' | 'properties' | 'startups' | 'news' | null;
 
 interface SidebarProps {
   onEditProfile?: () => void;
@@ -255,6 +258,48 @@ export function Sidebar({
           >
             <Moon className="w-4 h-4 shrink-0" />
             {!collapsed && <span className="text-sm">{t('nav.islam') || 'Islam'}</span>}
+          </Button>
+
+          {/* Properties */}
+          <Button
+            variant={activePanel === 'properties' ? 'secondary' : 'ghost'}
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start",
+              activePanel === 'properties' && "bg-sidebar-accent text-sidebar-primary font-medium"
+            )}
+            onClick={() => handlePanelClick('properties')}
+          >
+            <Building2 className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">{t('nav.properties') || 'Properties'}</span>}
+          </Button>
+
+          {/* Startups */}
+          <Button
+            variant={activePanel === 'startups' ? 'secondary' : 'ghost'}
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start",
+              activePanel === 'startups' && "bg-sidebar-accent text-sidebar-primary font-medium"
+            )}
+            onClick={() => handlePanelClick('startups')}
+          >
+            <Briefcase className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">{t('nav.startups') || 'Startups'}</span>}
+          </Button>
+
+          {/* Tech News */}
+          <Button
+            variant={activePanel === 'news' ? 'secondary' : 'ghost'}
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start",
+              activePanel === 'news' && "bg-sidebar-accent text-sidebar-primary font-medium"
+            )}
+            onClick={() => handlePanelClick('news')}
+          >
+            <Newspaper className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">{t('nav.news') || 'Tech News'}</span>}
           </Button>
         </div>
 

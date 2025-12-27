@@ -16,6 +16,10 @@ import { ContractsPanel } from '../contracts/ContractsPanel';
 import { NotesPanel } from '../notes/NotesPanel';
 import { HabitsPanel } from '../habits/HabitsPanel';
 import { IslamPanel } from '../islam/IslamPanel';
+import { IslamEnhancedPanel } from '../islam/IslamEnhancedPanel';
+import { PropertyPanel } from '../property/PropertyPanel';
+import { StartupWorkspacePanel } from '../startup/StartupWorkspacePanel';
+import { TechNewsPanel } from '../news/TechNewsPanel';
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
 
 import { useNotifications } from '@/hooks/useNotifications';
@@ -39,6 +43,8 @@ import {
   FileText,
   Heart,
   Moon,
+  Building2,
+  Newspaper
 } from 'lucide-react';
 import { BrainDumpFAB } from '@/components/capture/BrainDumpFAB';
 
@@ -72,7 +78,7 @@ interface MobileLayoutProps {
   onUpdateNotifications?: (updates: Partial<UserSettings['notifications']>) => void;
 }
 
-type Tab = 'chat' | 'social' | 'calendar' | 'settings' | 'family' | 'dashboard' | 'health' | 'contacts' | 'contracts' | 'notes' | 'habits' | 'islam';
+type Tab = 'chat' | 'social' | 'calendar' | 'settings' | 'family' | 'dashboard' | 'health' | 'contacts' | 'contracts' | 'notes' | 'habits' | 'islam' | 'properties' | 'startups' | 'news';
 
 export function MobileLayout({
   userId,
@@ -250,6 +256,45 @@ export function MobileLayout({
                   >
                     <Moon className="w-5 h-5 shrink-0" />
                     <span>Islam</span>
+                  </Button>
+
+                  {/* Properties */}
+                  <Button
+                    variant={activeTab === 'properties' ? 'secondary' : 'ghost'}
+                    className="w-full justify-start gap-3"
+                    onClick={() => {
+                      setActiveTab('properties');
+                      setSidebarOpen(false);
+                    }}
+                  >
+                    <Building2 className="w-5 h-5 shrink-0" />
+                    <span>Properties</span>
+                  </Button>
+
+                  {/* Startups */}
+                  <Button
+                    variant={activeTab === 'startups' ? 'secondary' : 'ghost'}
+                    className="w-full justify-start gap-3"
+                    onClick={() => {
+                      setActiveTab('startups');
+                      setSidebarOpen(false);
+                    }}
+                  >
+                    <Briefcase className="w-5 h-5 shrink-0" />
+                    <span>Startups</span>
+                  </Button>
+
+                  {/* Tech News */}
+                  <Button
+                    variant={activeTab === 'news' ? 'secondary' : 'ghost'}
+                    className="w-full justify-start gap-3"
+                    onClick={() => {
+                      setActiveTab('news');
+                      setSidebarOpen(false);
+                    }}
+                  >
+                    <Newspaper className="w-5 h-5 shrink-0" />
+                    <span>Tech News</span>
                   </Button>
 
                   {/* Productivity section */}
@@ -458,7 +503,25 @@ export function MobileLayout({
           "h-full overflow-y-auto",
           activeTab === 'islam' ? 'block' : 'hidden'
         )}>
-          <IslamPanel />
+          <IslamEnhancedPanel />
+        </div>
+        <div className={cn(
+          "h-full overflow-y-auto",
+          activeTab === 'properties' ? 'block' : 'hidden'
+        )}>
+          <PropertyPanel />
+        </div>
+        <div className={cn(
+          "h-full overflow-y-auto",
+          activeTab === 'startups' ? 'block' : 'hidden'
+        )}>
+          <StartupWorkspacePanel />
+        </div>
+        <div className={cn(
+          "h-full overflow-y-auto",
+          activeTab === 'news' ? 'block' : 'hidden'
+        )}>
+          <TechNewsPanel />
         </div>
 
       </main>

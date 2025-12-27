@@ -32,6 +32,10 @@ const HabitsPanel = lazy(() => import('../habits/HabitsPanel').then(m => ({ defa
 const AdminAnalyticsPanel = lazy(() => import('../admin/AdminAnalyticsPanel').then(m => ({ default: m.AdminAnalyticsPanel })));
 const FamilyPanel = lazy(() => import('../family/FamilyPanel').then(m => ({ default: m.FamilyPanel })));
 const IslamPanel = lazy(() => import('../islam/IslamPanel').then(m => ({ default: m.IslamPanel })));
+const IslamEnhancedPanel = lazy(() => import('../islam/IslamEnhancedPanel').then(m => ({ default: m.IslamEnhancedPanel })));
+const PropertyPanel = lazy(() => import('../property/PropertyPanel').then(m => ({ default: m.PropertyPanel })));
+const StartupWorkspacePanel = lazy(() => import('../startup/StartupWorkspacePanel').then(m => ({ default: m.StartupWorkspacePanel })));
+const TechNewsPanel = lazy(() => import('../news/TechNewsPanel').then(m => ({ default: m.TechNewsPanel })));
 const CallHistory = lazy(() => import('../calling/CallHistory').then(m => ({ default: m.CallHistory })));
 const SocialPanel = lazy(() => import('../social/SocialPanel').then(m => ({ default: m.SocialPanel })));
 const DashboardPanel = lazy(() => import('../dashboard/DashboardPanel').then(m => ({ default: m.DashboardPanel })));
@@ -590,10 +594,31 @@ export function StandardMode({
                 </div>
               )}
 
-              {/* Islam Panel */}
+              {/* Islam Panel - Enhanced */}
               {activePanel === 'islam' && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                  <IslamPanel />
+                  <IslamEnhancedPanel />
+                </div>
+              )}
+
+              {/* Properties Panel */}
+              {activePanel === 'properties' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <PropertyPanel />
+                </div>
+              )}
+
+              {/* Startups Panel */}
+              {activePanel === 'startups' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <StartupWorkspacePanel />
+                </div>
+              )}
+
+              {/* Tech News Panel */}
+              {activePanel === 'news' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <TechNewsPanel />
                 </div>
               )}
             </Suspense>

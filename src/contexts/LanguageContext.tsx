@@ -37,6 +37,10 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.signOut': 'Sign Out',
     'nav.main': 'Main',
     'nav.productivity': 'Productivity',
+    'nav.islam': 'Islam',
+    'nav.properties': 'Properties',
+    'nav.startups': 'Startups',
+    'nav.news': 'Tech News',
     
     // Meal Planning
     'meals.generateShoppingList': 'Generate Shopping List',
@@ -543,6 +547,10 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.signOut': 'Abmelden',
     'nav.main': 'Hauptmenü',
     'nav.productivity': 'Produktivität',
+    'nav.islam': 'Islam',
+    'nav.properties': 'Immobilien',
+    'nav.startups': 'Startups',
+    'nav.news': 'Tech News',
     
     // Meal Planning
     'meals.generateShoppingList': 'Einkaufsliste erstellen',
