@@ -70,6 +70,7 @@ interface Dua {
 }
 
 const DUAS: Dua[] = [
+  // Daily
   {
     id: 'morning',
     category: 'Daily',
@@ -103,6 +104,15 @@ const DUAS: Dua[] = [
     translation: "Praise is to Allah Who gives us life after He has caused us to die and to Him is the return."
   },
   {
+    id: 'morning-protection',
+    category: 'Daily',
+    title: 'Morning Protection',
+    arabic: 'اللَّهُمَّ بِكَ أَصْبَحْنَا، وَبِكَ أَمْسَيْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ',
+    transliteration: "Allahumma bika asbahna, wa bika amsayna, wa bika nahya, wa bika namutu wa ilaykan-nushur",
+    translation: "O Allah, by Your leave we have reached the morning, by Your leave we have reached the evening, by Your leave we live and die, and to You is the resurrection."
+  },
+  // Food
+  {
     id: 'food-before',
     category: 'Food',
     title: 'Before Eating',
@@ -119,6 +129,23 @@ const DUAS: Dua[] = [
     translation: "Praise be to Allah Who has fed us and given us drink and made us Muslims."
   },
   {
+    id: 'food-forget',
+    category: 'Food',
+    title: 'Forgot Bismillah',
+    arabic: 'بِسْمِ اللَّهِ أَوَّلَهُ وَآخِرَهُ',
+    transliteration: "Bismillahi awwalahu wa akhirah",
+    translation: "In the name of Allah at the beginning and at the end."
+  },
+  {
+    id: 'fasting-break',
+    category: 'Food',
+    title: 'Breaking Fast',
+    arabic: 'ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ',
+    transliteration: "Dhahaba-zama'u wab-tallatil-'urooqu wa thabatal-ajru in sha'Allah",
+    translation: "The thirst has gone, the veins are moistened and the reward is confirmed, if Allah wills."
+  },
+  // Travel
+  {
     id: 'travel',
     category: 'Travel',
     title: 'Starting a Journey',
@@ -126,6 +153,15 @@ const DUAS: Dua[] = [
     transliteration: "Subhanal-lathee sakh-khara lana hatha wa ma kunna lahu muqrineen. Wa inna ila Rabbina lamunqaliboon",
     translation: "Glory be to Him Who has subjected this to us, and we could never have it. And to our Lord we shall return."
   },
+  {
+    id: 'travel-return',
+    category: 'Travel',
+    title: 'Returning from Journey',
+    arabic: 'آيِبُونَ تَائِبُونَ عَابِدُونَ لِرَبِّنَا حَامِدُونَ',
+    transliteration: "Ayibuna, ta'ibuna, 'abiduna, li Rabbina hamidun",
+    translation: "We return, repent, worship and praise our Lord."
+  },
+  // Home
   {
     id: 'home-leave',
     category: 'Home',
@@ -143,6 +179,15 @@ const DUAS: Dua[] = [
     translation: "In the name of Allah we enter, in the name of Allah we leave, and upon our Lord we place our trust."
   },
   {
+    id: 'new-home',
+    category: 'Home',
+    title: 'New Home',
+    arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ خَيْرَهَا وَخَيْرَ أَهْلِهَا وَخَيْرَ مَا فِيهَا، وَأَعُوذُ بِكَ مِنْ شَرِّهَا وَشَرِّ أَهْلِهَا وَشَرِّ مَا فِيهَا',
+    transliteration: "Allahumma inni as'aluka khayraha wa khayra ahlliha wa khayra ma fiha, wa a'udhu bika min sharriha wa sharri ahliha wa sharri ma fiha",
+    translation: "O Allah, I ask You for the good of it, the good of its people, and the good of what is in it. And I seek refuge with You from its evil, the evil of its people, and the evil of what is in it."
+  },
+  // Mosque
+  {
     id: 'mosque-enter',
     category: 'Mosque',
     title: 'Entering Mosque',
@@ -158,6 +203,7 @@ const DUAS: Dua[] = [
     transliteration: "Allaahumma innee as'aluka min fadlik",
     translation: "O Allah, I ask You from Your favor."
   },
+  // Distress
   {
     id: 'anxiety',
     category: 'Distress',
@@ -175,6 +221,31 @@ const DUAS: Dua[] = [
     translation: "There is no deity except You; exalted are You. Indeed, I have been of the wrongdoers."
   },
   {
+    id: 'distress-relief',
+    category: 'Distress',
+    title: 'For Relief from Distress',
+    arabic: 'لَا إِلَهَ إِلَّا اللَّهُ الْعَظِيمُ الْحَلِيمُ، لَا إِلَهَ إِلَّا اللَّهُ رَبُّ الْعَرْشِ الْعَظِيمِ',
+    transliteration: "La ilaha illallahul-'Atheemul-Haleem. La ilaha illallahu Rabbul-'Arshil-'Atheem",
+    translation: "There is no deity except Allah, the Magnificent, the Forbearing. There is no deity except Allah, Lord of the Magnificent Throne."
+  },
+  {
+    id: 'fear',
+    category: 'Distress',
+    title: 'When Afraid',
+    arabic: 'حَسْبِيَ اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ ۖ عَلَيْهِ تَوَكَّلْتُ ۖ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ',
+    transliteration: "Hasbiyallahu la ilaha illa Huwa, 'alayhi tawakkaltu, wa Huwa Rabbul-'Arshil-'Atheem",
+    translation: "Allah is sufficient for me; there is no deity except Him. On Him I have relied, and He is the Lord of the Great Throne."
+  },
+  {
+    id: 'anger',
+    category: 'Distress',
+    title: 'When Angry',
+    arabic: 'أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ',
+    transliteration: "A'udhu billahi minash-shaytanir-rajeem",
+    translation: "I seek refuge with Allah from Satan, the accursed."
+  },
+  // Forgiveness
+  {
     id: 'forgiveness',
     category: 'Forgiveness',
     title: 'Seeking Forgiveness',
@@ -182,6 +253,15 @@ const DUAS: Dua[] = [
     transliteration: "Astaghfirullaha-lathee la ilaha illa Huwal-Hayyul-Qayyoomu wa atoobu ilaih",
     translation: "I seek the forgiveness of Allah, there is no deity except Him, the Living, the Sustainer, and I repent to Him."
   },
+  {
+    id: 'sayyidul-istighfar',
+    category: 'Forgiveness',
+    title: 'Master of Forgiveness',
+    arabic: 'اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ',
+    transliteration: "Allahumma Anta Rabbi, la ilaha illa Anta, khalaqtani wa ana 'abduka, wa ana 'ala 'ahdika wa wa'dika mastata't",
+    translation: "O Allah, You are my Lord, there is no deity except You. You created me and I am Your servant, and I abide by Your covenant and promise as best I can."
+  },
+  // Family
   {
     id: 'parents',
     category: 'Family',
@@ -199,6 +279,23 @@ const DUAS: Dua[] = [
     translation: "Our Lord, grant us from among our wives and offspring comfort to our eyes and make us an example for the righteous."
   },
   {
+    id: 'spouse',
+    category: 'Family',
+    title: 'For Spouse',
+    arabic: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
+    transliteration: "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina 'adhaban-nar",
+    translation: "Our Lord, give us good in this world and good in the Hereafter, and protect us from the torment of the Fire."
+  },
+  {
+    id: 'newborn',
+    category: 'Family',
+    title: 'For Newborn',
+    arabic: 'أُعِيذُكَ بِكَلِمَاتِ اللَّهِ التَّامَّةِ مِنْ كُلِّ شَيْطَانٍ وَهَامَّةٍ، وَمِنْ كُلِّ عَيْنٍ لَامَّةٍ',
+    transliteration: "U'idhuka bikalimatillahi-tammati min kulli shaytanin wa hammah, wa min kulli 'aynin lammah",
+    translation: "I seek protection for you in the perfect words of Allah from every devil and every poisonous reptile, and from every evil eye."
+  },
+  // Knowledge
+  {
     id: 'knowledge',
     category: 'Knowledge',
     title: 'For Knowledge',
@@ -206,6 +303,23 @@ const DUAS: Dua[] = [
     transliteration: "Rabbi zidni 'ilma",
     translation: "My Lord, increase me in knowledge."
   },
+  {
+    id: 'understanding',
+    category: 'Knowledge',
+    title: 'For Understanding',
+    arabic: 'اللَّهُمَّ انْفَعْنِي بِمَا عَلَّمْتَنِي وَعَلِّمْنِي مَا يَنْفَعُنِي وَزِدْنِي عِلْمًا',
+    transliteration: "Allahum-manfa'ni bima 'allamtani wa 'allimni ma yanfa'uni wa zidni 'ilma",
+    translation: "O Allah, benefit me with what You have taught me, teach me what will benefit me, and increase me in knowledge."
+  },
+  {
+    id: 'studying',
+    category: 'Knowledge',
+    title: 'Before Studying',
+    arabic: 'اللَّهُمَّ افْتَحْ عَلَيْنَا حِكْمَتَكَ، وَانْشُرْ عَلَيْنَا رَحْمَتَكَ، يَا ذَا الْجَلَالِ وَالْإِكْرَامِ',
+    transliteration: "Allahumma-ftah 'alayna hikmataka, wanshur 'alayna rahmataka, ya Dhal-Jalali wal-Ikram",
+    translation: "O Allah, open to us Your wisdom and spread upon us Your mercy, O Possessor of Majesty and Honor."
+  },
+  // Weather
   {
     id: 'rain',
     category: 'Weather',
@@ -221,6 +335,228 @@ const DUAS: Dua[] = [
     arabic: 'سُبْحَانَ الَّذِي يُسَبِّحُ الرَّعْدُ بِحَمْدِهِ وَالْمَلَائِكَةُ مِنْ خِيفَتِهِ',
     transliteration: "Subhanal-lathee yusabbihur-ra'du bihamdihi, wal-malaa'ikatu min kheefatih",
     translation: "Glory be to Him Whom the thunder glorifies with His praise, and the angels from fear of Him."
+  },
+  {
+    id: 'wind',
+    category: 'Weather',
+    title: 'When Wind Blows',
+    arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ خَيْرَهَا وَخَيْرَ مَا فِيهَا وَخَيْرَ مَا أُرْسِلَتْ بِهِ، وَأَعُوذُ بِكَ مِنْ شَرِّهَا وَشَرِّ مَا فِيهَا وَشَرِّ مَا أُرْسِلَتْ بِهِ',
+    transliteration: "Allahumma inni as'aluka khayraha wa khayra ma fiha wa khayra ma ursilat bih, wa a'udhu bika min sharriha wa sharri ma fiha wa sharri ma ursilat bih",
+    translation: "O Allah, I ask You for its good, the good within it, and the good it was sent with. And I seek refuge with You from its evil, the evil within it, and the evil it was sent with."
+  },
+  // Health
+  {
+    id: 'sick',
+    category: 'Health',
+    title: 'When Sick',
+    arabic: 'اللَّهُمَّ رَبَّ النَّاسِ أَذْهِبِ الْبَأْسَ، اشْفِهِ وَأَنْتَ الشَّافِي، لَا شِفَاءَ إِلَّا شِفَاؤُكَ، شِفَاءً لَا يُغَادِرُ سَقَمًا',
+    transliteration: "Allahumma Rabban-nas, adhhibil-ba's, washfihi wa Antash-Shafi, la shifa'a illa shifa'uka, shifa'an la yughadiru saqama",
+    translation: "O Allah, Lord of mankind, remove the affliction and heal, for You are the Healer. There is no healing except Your healing, a healing that leaves no disease behind."
+  },
+  {
+    id: 'visiting-sick',
+    category: 'Health',
+    title: 'Visiting the Sick',
+    arabic: 'لَا بَأْسَ طَهُورٌ إِنْ شَاءَ اللَّهُ',
+    transliteration: "La ba'sa, tahoorun in sha'Allah",
+    translation: "No harm, it will be a purification (for you), if Allah wills."
+  },
+  {
+    id: 'pain',
+    category: 'Health',
+    title: 'When in Pain',
+    arabic: 'أَعُوذُ بِعِزَّةِ اللَّهِ وَقُدْرَتِهِ مِنْ شَرِّ مَا أَجِدُ وَأُحَاذِرُ',
+    transliteration: "A'udhu bi'izzatillahi wa qudratihi min sharri ma ajidu wa uhadhir",
+    translation: "I seek refuge in Allah's might and power from the evil of what I feel and fear."
+  },
+  // Protection
+  {
+    id: 'evil-eye',
+    category: 'Protection',
+    title: 'Against Evil Eye',
+    arabic: 'أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ',
+    transliteration: "A'udhu bikalimatillahi-tammati min sharri ma khalaq",
+    translation: "I seek refuge in the perfect words of Allah from the evil of that which He has created."
+  },
+  {
+    id: 'morning-evening-protection',
+    category: 'Protection',
+    title: 'Daily Protection',
+    arabic: 'بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ',
+    transliteration: "Bismillahil-lathee la yadurru ma'asmihi shay'un fil-ardi wa la fis-sama'i, wa Huwas-Samee'ul-'Aleem",
+    translation: "In the name of Allah, with Whose name nothing on earth or in heaven can cause harm, and He is the All-Hearing, the All-Knowing."
+  },
+  {
+    id: 'nightmares',
+    category: 'Protection',
+    title: 'After Bad Dream',
+    arabic: 'أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ، أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ غَضَبِهِ وَعِقَابِهِ وَشَرِّ عِبَادِهِ',
+    transliteration: "A'udhu billahi minash-shaytanir-rajeem. A'udhu bikalimatillahit-tammati min ghadabihi wa 'iqabihi wa sharri 'ibadihi",
+    translation: "I seek refuge with Allah from Satan the accursed. I seek refuge in the perfect words of Allah from His anger, His punishment, and the evil of His servants."
+  },
+  // Gratitude
+  {
+    id: 'gratitude-blessing',
+    category: 'Gratitude',
+    title: 'For Blessings',
+    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي بِنِعْمَتِهِ تَتِمُّ الصَّالِحَاتُ',
+    transliteration: "Alhamdu lillahil-lathee bini'matihi tatimmus-salihat",
+    translation: "Praise is to Allah, by Whose favor good deeds are completed."
+  },
+  {
+    id: 'see-something-liked',
+    category: 'Gratitude',
+    title: 'Seeing Something Liked',
+    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي بِنِعْمَتِهِ تَتِمُّ الصَّالِحَاتُ',
+    transliteration: "Alhamdu lillahil-lathee bini'matihi tatimmus-salihat",
+    translation: "Praise is to Allah, by Whose favor good things are accomplished."
+  },
+  {
+    id: 'see-something-disliked',
+    category: 'Gratitude',
+    title: 'Seeing Something Disliked',
+    arabic: 'الْحَمْدُ لِلَّهِ عَلَى كُلِّ حَالٍ',
+    transliteration: "Alhamdu lillahi 'ala kulli hal",
+    translation: "Praise is to Allah in all circumstances."
+  },
+  // Prayer
+  {
+    id: 'after-adhan',
+    category: 'Prayer',
+    title: 'After Adhan',
+    arabic: 'اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ وَالصَّلَاةِ الْقَائِمَةِ آتِ مُحَمَّدًا الْوَسِيلَةَ وَالْفَضِيلَةَ',
+    transliteration: "Allahumma Rabba hadhihid-da'watit-tammah, was-salatil-qa'imah, ati Muhammadanil-waseelata wal-fadeelah",
+    translation: "O Allah, Lord of this perfect call and established prayer, grant Muhammad the intercession and virtue."
+  },
+  {
+    id: 'between-sujood',
+    category: 'Prayer',
+    title: 'Between Prostrations',
+    arabic: 'رَبِّ اغْفِرْ لِي، رَبِّ اغْفِرْ لِي',
+    transliteration: "Rabbighfir li, Rabbighfir li",
+    translation: "My Lord, forgive me. My Lord, forgive me."
+  },
+  {
+    id: 'in-sujood',
+    category: 'Prayer',
+    title: 'In Prostration',
+    arabic: 'سُبْحَانَ رَبِّيَ الْأَعْلَى',
+    transliteration: "Subhana Rabbiyal-A'la",
+    translation: "Glory be to my Lord, the Most High."
+  },
+  {
+    id: 'after-tashahud',
+    category: 'Prayer',
+    title: 'After Tashahud',
+    arabic: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ جَهَنَّمَ، وَمِنْ عَذَابِ الْقَبْرِ، وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ، وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ',
+    transliteration: "Allahumma inni a'udhu bika min 'adhabi jahannam, wa min 'adhabil-qabr, wa min fitnatil-mahya wal-mamat, wa min sharri fitnatil-masihid-dajjal",
+    translation: "O Allah, I seek refuge with You from the torment of Hell, from the torment of the grave, from the trials of life and death, and from the evil of the trial of the False Messiah."
+  },
+  // Patience
+  {
+    id: 'patience',
+    category: 'Patience',
+    title: 'For Patience',
+    arabic: 'رَبَّنَا أَفْرِغْ عَلَيْنَا صَبْرًا وَثَبِّتْ أَقْدَامَنَا وَانْصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ',
+    transliteration: "Rabbana afrigh 'alayna sabran wa thabbit aqdamana wansurna 'alal-qawmil-kafireen",
+    translation: "Our Lord, pour upon us patience and plant firmly our feet and give us victory over the disbelieving people."
+  },
+  {
+    id: 'calamity',
+    category: 'Patience',
+    title: 'Upon Calamity',
+    arabic: 'إِنَّا لِلَّهِ وَإِنَّا إِلَيْهِ رَاجِعُونَ، اللَّهُمَّ أْجُرْنِي فِي مُصِيبَتِي وَأَخْلِفْ لِي خَيْرًا مِنْهَا',
+    transliteration: "Inna lillahi wa inna ilayhi raji'un. Allahumma'jurni fi museebati wakhluf li khayran minha",
+    translation: "Indeed we belong to Allah, and indeed to Him we will return. O Allah, reward me in my calamity and replace it with something better."
+  },
+  // Misc
+  {
+    id: 'mirror',
+    category: 'Misc',
+    title: 'Looking in Mirror',
+    arabic: 'اللَّهُمَّ أَنْتَ حَسَّنْتَ خَلْقِي فَحَسِّنْ خُلُقِي',
+    transliteration: "Allahumma Anta hassanta khalqi fahassin khuluqi",
+    translation: "O Allah, You have made my creation good, so make my character good."
+  },
+  {
+    id: 'new-clothes',
+    category: 'Misc',
+    title: 'Wearing New Clothes',
+    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي كَسَانِي هَذَا وَرَزَقَنِيهِ مِنْ غَيْرِ حَوْلٍ مِنِّي وَلَا قُوَّةٍ',
+    transliteration: "Alhamdulillahil-lathee kasani hadha wa razaqaneehi min ghayri hawlin minni wa la quwwah",
+    translation: "Praise is to Allah Who has clothed me with this and provided it for me, with no power or might from myself."
+  },
+  {
+    id: 'sneezing',
+    category: 'Misc',
+    title: 'After Sneezing',
+    arabic: 'الْحَمْدُ لِلَّهِ',
+    transliteration: "Alhamdulillah",
+    translation: "Praise be to Allah."
+  },
+  {
+    id: 'sneezing-response',
+    category: 'Misc',
+    title: 'Response to Sneezer',
+    arabic: 'يَرْحَمُكَ اللَّهُ',
+    transliteration: "Yarhamukallah",
+    translation: "May Allah have mercy on you."
+  },
+  {
+    id: 'bathroom-enter',
+    category: 'Misc',
+    title: 'Entering Bathroom',
+    arabic: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ',
+    transliteration: "Allahumma inni a'udhu bika minal-khubuthi wal-khaba'ith",
+    translation: "O Allah, I seek refuge with You from male and female devils."
+  },
+  {
+    id: 'bathroom-exit',
+    category: 'Misc',
+    title: 'Leaving Bathroom',
+    arabic: 'غُفْرَانَكَ',
+    transliteration: "Ghufranaka",
+    translation: "I seek Your forgiveness."
+  },
+  {
+    id: 'istikhara',
+    category: 'Guidance',
+    title: 'Istikhara (Guidance)',
+    arabic: 'اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ، وَأَسْتَقْدِرُكَ بِقُدْرَتِكَ، وَأَسْأَلُكَ مِنْ فَضْلِكَ الْعَظِيمِ',
+    transliteration: "Allahumma inni astakhiruka bi'ilmika, wa astaqdiruka biqudratika, wa as'aluka min fadlikal-'atheem",
+    translation: "O Allah, I seek Your guidance by virtue of Your knowledge, and I seek ability by virtue of Your power, and I ask You of Your great bounty."
+  },
+  {
+    id: 'steadfastness',
+    category: 'Guidance',
+    title: 'For Steadfastness',
+    arabic: 'يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ',
+    transliteration: "Ya Muqallibal-qulubi, thabbit qalbi 'ala deenika",
+    translation: "O Turner of the hearts, make my heart firm upon Your religion."
+  },
+  {
+    id: 'good-end',
+    category: 'Guidance',
+    title: 'For Good Ending',
+    arabic: 'اللَّهُمَّ أَحْسِنْ عَاقِبَتَنَا فِي الْأُمُورِ كُلِّهَا، وَأَجِرْنَا مِنْ خِزْيِ الدُّنْيَا وَعَذَابِ الْآخِرَةِ',
+    transliteration: "Allahumma ahsin 'aqibatana fil-umuri kulliha, wa ajirna min khizyid-dunya wa 'adhaabil-akhirah",
+    translation: "O Allah, make our end good in all affairs, and protect us from the disgrace of this world and the punishment of the Hereafter."
+  },
+  {
+    id: 'deceased',
+    category: 'Death',
+    title: 'For the Deceased',
+    arabic: 'اللَّهُمَّ اغْفِرْ لَهُ وَارْحَمْهُ وَعَافِهِ وَاعْفُ عَنْهُ',
+    transliteration: "Allahummaghfir lahu warhamhu wa 'afihi wa'fu 'anhu",
+    translation: "O Allah, forgive him, have mercy on him, grant him well-being, and pardon him."
+  },
+  {
+    id: 'condolence',
+    category: 'Death',
+    title: 'Offering Condolence',
+    arabic: 'إِنَّ لِلَّهِ مَا أَخَذَ، وَلَهُ مَا أَعْطَى، وَكُلُّ شَيْءٍ عِنْدَهُ بِأَجَلٍ مُسَمًّى',
+    transliteration: "Inna lillahi ma akhadh, wa lahu ma a'ta, wa kullu shay'in 'indahu bi ajalin musamma",
+    translation: "To Allah belongs what He has taken, and to Him belongs what He has given. Everything with Him has an appointed time."
   },
 ];
 
