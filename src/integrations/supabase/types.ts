@@ -3491,6 +3491,8 @@ export type Database = {
       }
       user_contacts: {
         Row: {
+          birth_date: string | null
+          birthday_reminder: boolean | null
           business_level: string | null
           city: string | null
           company: string | null
@@ -3518,6 +3520,8 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          birth_date?: string | null
+          birthday_reminder?: boolean | null
           business_level?: string | null
           city?: string | null
           company?: string | null
@@ -3545,6 +3549,8 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          birth_date?: string | null
+          birthday_reminder?: boolean | null
           business_level?: string | null
           city?: string | null
           company?: string | null

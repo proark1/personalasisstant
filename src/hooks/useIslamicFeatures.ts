@@ -56,7 +56,7 @@ function getHijriDate(date: Date): { year: number; month: number; day: number; m
   return { year, month, day, monthName: monthNames[month - 1] || '' };
 }
 
-// Get Islamic events for the current year (approximate dates)
+// Get Islamic events for a given year (approximate dates)
 function getIslamicEvents(year: number): IslamicEvent[] {
   // These are approximate - real dates depend on moon sighting
   const events: IslamicEvent[] = [
@@ -73,6 +73,27 @@ function getIslamicEvents(year: number): IslamicEvent[] {
   return events.sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
+// Get upcoming Islamic events for the next 365 days
+function getUpcomingIslamicEvents(): IslamicEvent[] {
+  const today = new Date();
+  const nextYear = new Date(today);
+  nextYear.setFullYear(nextYear.getFullYear() + 1);
+  
+  const currentYear = today.getFullYear();
+  const nextYearValue = currentYear + 1;
+  
+  // Get events from current year and next year
+  const allEvents = [
+    ...getIslamicEvents(currentYear),
+    ...getIslamicEvents(nextYearValue),
+  ];
+  
+  // Filter to only show events within the next 365 days
+  return allEvents
+    .filter(event => event.date >= today && event.date <= nextYear)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
 export function useIslamicFeatures() {
   const { user } = useAuth();
   const [ramadanDays, setRamadanDays] = useState<RamadanDay[]>([]);
@@ -82,7 +103,7 @@ export function useIslamicFeatures() {
   const currentYear = new Date().getFullYear();
   const today = new Date().toISOString().split('T')[0];
   const hijriToday = getHijriDate(new Date());
-  const islamicEvents = getIslamicEvents(currentYear);
+  const islamicEvents = getUpcomingIslamicEvents();
 
   // Fetch Ramadan data
   const fetchRamadanData = useCallback(async () => {

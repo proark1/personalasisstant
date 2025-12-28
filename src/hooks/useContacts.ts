@@ -30,6 +30,8 @@ export interface Contact {
   linkedinUrl?: string;
   twitterUrl?: string;
   websiteUrl?: string;
+  birthDate?: string;
+  birthdayReminder?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +54,8 @@ export interface ContactInput {
   linkedinUrl?: string;
   twitterUrl?: string;
   websiteUrl?: string;
+  birthDate?: string;
+  birthdayReminder?: boolean;
 }
 
 // Default contact frequencies based on relationship
@@ -97,6 +101,8 @@ export function useContacts(userId: string | undefined) {
       linkedinUrl: row.linkedin_url || undefined,
       twitterUrl: row.twitter_url || undefined,
       websiteUrl: row.website_url || undefined,
+      birthDate: row.birth_date || undefined,
+      birthdayReminder: row.birthday_reminder ?? false,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };
@@ -177,6 +183,8 @@ export function useContacts(userId: string | undefined) {
         linkedin_url: input.linkedinUrl || null,
         twitter_url: input.twitterUrl || null,
         website_url: input.websiteUrl || null,
+        birth_date: input.birthDate || null,
+        birthday_reminder: input.birthdayReminder ?? false,
       })
       .select()
       .single();
@@ -215,6 +223,8 @@ export function useContacts(userId: string | undefined) {
       if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl || null;
       if (updates.twitterUrl !== undefined) dbUpdates.twitter_url = updates.twitterUrl || null;
       if (updates.websiteUrl !== undefined) dbUpdates.website_url = updates.websiteUrl || null;
+      if (updates.birthDate !== undefined) dbUpdates.birth_date = updates.birthDate || null;
+      if (updates.birthdayReminder !== undefined) dbUpdates.birthday_reminder = updates.birthdayReminder;
 
       const { error } = await supabase
         .from('user_contacts')
