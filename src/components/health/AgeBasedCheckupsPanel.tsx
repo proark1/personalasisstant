@@ -52,9 +52,33 @@ const standardCheckups: Checkup[] = [
   // Adults (20-39)
   { id: 'physical', name: 'Annual Physical Exam', description: 'Complete health assessment with blood work', frequency: 'yearly', minAge: 18, icon: Stethoscope, category: 'General', priority: 'high' },
   { id: 'skin', name: 'Skin Cancer Screening', description: 'Full body skin examination', frequency: 'yearly', minAge: 20, icon: User, category: 'Cancer Screening', priority: 'medium' },
-  { id: 'cholesterol', name: 'Cholesterol Screening', description: 'Lipid panel blood test', frequency: 'every 5 years', minAge: 20, icon: HeartPulse, category: 'Cardiovascular', priority: 'medium' },
-  { id: 'bp', name: 'Blood Pressure Check', description: 'Regular blood pressure monitoring', frequency: 'yearly', minAge: 18, icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
   { id: 'std', name: 'STI Screening', description: 'Sexually transmitted infection tests', frequency: 'yearly', minAge: 18, maxAge: 65, icon: Stethoscope, category: 'General', priority: 'medium' },
+  
+  // Cardiovascular - Young Adults (20-39)
+  { id: 'cholesterol-young', name: 'Cholesterol Screening', description: 'Lipid panel blood test for baseline levels', frequency: 'every 5 years', minAge: 20, maxAge: 39, icon: HeartPulse, category: 'Cardiovascular', priority: 'medium' },
+  { id: 'bp-young', name: 'Blood Pressure Check', description: 'Regular blood pressure monitoring', frequency: 'yearly', minAge: 18, maxAge: 39, icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
+  { id: 'heart-baseline', name: 'Baseline ECG', description: 'Electrocardiogram for baseline heart rhythm assessment', frequency: 'once', minAge: 20, maxAge: 35, icon: HeartPulse, category: 'Cardiovascular', priority: 'low' },
+  
+  // Cardiovascular - Middle Age (40-64)
+  { id: 'cholesterol-mid', name: 'Cholesterol Screening', description: 'Lipid panel including LDL, HDL, and triglycerides', frequency: 'yearly', minAge: 40, maxAge: 64, icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
+  { id: 'bp-mid', name: 'Blood Pressure Monitoring', description: 'Regular BP checks for hypertension risk', frequency: 'every 6 months', minAge: 40, maxAge: 64, icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
+  { id: 'cardiac-stress', name: 'Cardiac Stress Test', description: 'Exercise stress test for heart function assessment', frequency: 'every 3 years', minAge: 45, icon: HeartPulse, category: 'Cardiovascular', priority: 'medium' },
+  { id: 'cac-score', name: 'Coronary Calcium Score', description: 'CT scan to measure calcium in coronary arteries', frequency: 'every 5 years', minAge: 40, icon: HeartPulse, category: 'Cardiovascular', priority: 'medium' },
+  { id: 'ecg-mid', name: 'ECG/EKG', description: 'Electrocardiogram for heart rhythm check', frequency: 'yearly', minAge: 50, icon: HeartPulse, category: 'Cardiovascular', priority: 'medium' },
+  { id: 'crp-test', name: 'CRP Test', description: 'C-reactive protein test for inflammation and heart risk', frequency: 'yearly', minAge: 40, icon: HeartPulse, category: 'Cardiovascular', priority: 'medium' },
+  
+  // Cardiovascular - Seniors (65+)
+  { id: 'cholesterol-senior', name: 'Lipid Panel', description: 'Complete cholesterol and lipid screening', frequency: 'yearly', minAge: 65, icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
+  { id: 'bp-senior', name: 'Blood Pressure Check', description: 'Frequent BP monitoring for heart health', frequency: 'every 3 months', minAge: 65, icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
+  { id: 'echo', name: 'Echocardiogram', description: 'Ultrasound of heart for valve and function assessment', frequency: 'every 2 years', minAge: 65, icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
+  { id: 'carotid-ultrasound', name: 'Carotid Ultrasound', description: 'Check for plaque in neck arteries supplying brain', frequency: 'every 2 years', minAge: 65, icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
+  { id: 'ankle-brachial', name: 'Ankle-Brachial Index', description: 'Test for peripheral artery disease', frequency: 'every 2 years', minAge: 65, icon: HeartPulse, category: 'Cardiovascular', priority: 'medium' },
+  { id: 'holter-monitor', name: 'Holter Monitor', description: '24-48 hour heart rhythm monitoring', frequency: 'as needed', minAge: 60, icon: HeartPulse, category: 'Cardiovascular', priority: 'medium' },
+  
+  // Cardiovascular - Gender Specific
+  { id: 'heart-women-early', name: 'Cardiovascular Risk Assessment', description: 'Women\'s heart health screening including hormone impact', frequency: 'yearly', minAge: 40, gender: 'female', icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
+  { id: 'heart-postmenopause', name: 'Post-Menopause Heart Check', description: 'Comprehensive heart screening after menopause', frequency: 'yearly', minAge: 55, gender: 'female', icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
+  { id: 'heart-men-early', name: 'Early Heart Disease Screening', description: 'Men\'s comprehensive cardiovascular assessment', frequency: 'yearly', minAge: 35, gender: 'male', icon: HeartPulse, category: 'Cardiovascular', priority: 'high' },
   
   // Women specific
   { id: 'pap', name: 'Pap Smear', description: 'Cervical cancer screening', frequency: 'every 3 years', minAge: 21, maxAge: 65, gender: 'female', icon: UserRound, category: 'Women\'s Health', priority: 'high' },

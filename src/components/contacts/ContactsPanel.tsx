@@ -15,10 +15,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   UserPlus, Trash2, Search, Users, Briefcase, 
   Phone, Mail, Building, Clock, Bell, MessageSquare, Check, Pencil,
-  Linkedin, Twitter, Globe, MapPin
+  Linkedin, Twitter, Globe, MapPin, Cake
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatDistanceToNow, isPast } from 'date-fns';
+import { formatDistanceToNow, isPast, format } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
 
 const PERSONAL_TIERS: { value: PersonalTier; label: string; color: string }[] = [
   { value: 'family', label: 'Family', color: 'bg-red-500' },
@@ -75,6 +76,8 @@ interface ContactFormData {
   linkedinUrl: string;
   twitterUrl: string;
   websiteUrl: string;
+  birthDate: string;
+  birthdayReminder: boolean;
 }
 
 const defaultFormData: ContactFormData = {
@@ -95,6 +98,8 @@ const defaultFormData: ContactFormData = {
   linkedinUrl: '',
   twitterUrl: '',
   websiteUrl: '',
+  birthDate: '',
+  birthdayReminder: false,
 };
 
 interface ContactsPanelProps {
@@ -149,6 +154,8 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
       linkedinUrl: contact.linkedinUrl || '',
       twitterUrl: contact.twitterUrl || '',
       websiteUrl: contact.websiteUrl || '',
+      birthDate: contact.birthDate || '',
+      birthdayReminder: contact.birthdayReminder ?? false,
     });
     setShowAddDialog(true);
   };
@@ -185,6 +192,8 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
           linkedinUrl: formData.linkedinUrl || undefined,
           twitterUrl: formData.twitterUrl || undefined,
           websiteUrl: formData.websiteUrl || undefined,
+          birthDate: formData.birthDate || undefined,
+          birthdayReminder: formData.birthdayReminder,
         });
 
         if (success) {
@@ -218,6 +227,8 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
           linkedinUrl: formData.linkedinUrl || undefined,
           twitterUrl: formData.twitterUrl || undefined,
           websiteUrl: formData.websiteUrl || undefined,
+          birthDate: formData.birthDate || undefined,
+          birthdayReminder: formData.birthdayReminder,
         });
 
         if (result) {
@@ -461,6 +472,38 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
                 <Label>Tags (comma-separated)</Label>
                 <Input value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} />
               </div>
+              
+              {/* Birthday Section */}
+              <div className="border-t pt-3 mt-3">
+                <Label className="flex items-center gap-2 mb-2">
+                  <Cake className="w-4 h-4 text-primary" />
+                  Birthday
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Input 
+                      type="date" 
+                      value={formData.birthDate} 
+                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })} 
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={formData.birthdayReminder}
+                      onCheckedChange={(checked) => setFormData({ ...formData, birthdayReminder: checked })}
+                    />
+                    <Label className="text-xs">
+                      {formData.personalTier === 'family' ? 'Reminder (on by default)' : 'Remind me'}
+                    </Label>
+                  </div>
+                </div>
+                {formData.personalTier === 'family' && !formData.birthdayReminder && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Birthday reminders are recommended for family members
+                  </p>
+                )}
+              </div>
+              
               <Button onClick={handleSubmit} className="w-full" disabled={saving}>
                 {saving ? 'Saving…' : editingContact ? 'Update' : 'Add'} Contact
               </Button>
