@@ -1,5 +1,8 @@
 project_id = "femilfmcmqmdbncmgcxh"
 
+[functions.contact-insights]
+verify_jwt = true
+
 [functions.chat]
 verify_jwt = false
 

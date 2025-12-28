@@ -507,6 +507,47 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_interactions: {
+        Row: {
+          contact_id: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          interaction_date: string
+          interaction_type: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          interaction_date?: string
+          interaction_type?: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          interaction_date?: string
+          interaction_type?: string
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "user_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           auto_renews: boolean | null
@@ -3590,6 +3631,7 @@ export type Database = {
       }
       user_contacts: {
         Row: {
+          avatar_url: string | null
           birth_date: string | null
           birthday_reminder: boolean | null
           business_level: string | null
@@ -3603,6 +3645,8 @@ export type Database = {
           email: string | null
           family_relationship: string | null
           id: string
+          interaction_count: number | null
+          is_favorite: boolean | null
           last_contacted_at: string | null
           last_reminded_at: string | null
           linkedin_url: string | null
@@ -3619,6 +3663,7 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          avatar_url?: string | null
           birth_date?: string | null
           birthday_reminder?: boolean | null
           business_level?: string | null
@@ -3632,6 +3677,8 @@ export type Database = {
           email?: string | null
           family_relationship?: string | null
           id?: string
+          interaction_count?: number | null
+          is_favorite?: boolean | null
           last_contacted_at?: string | null
           last_reminded_at?: string | null
           linkedin_url?: string | null
@@ -3648,6 +3695,7 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          avatar_url?: string | null
           birth_date?: string | null
           birthday_reminder?: boolean | null
           business_level?: string | null
@@ -3661,6 +3709,8 @@ export type Database = {
           email?: string | null
           family_relationship?: string | null
           id?: string
+          interaction_count?: number | null
+          is_favorite?: boolean | null
           last_contacted_at?: string | null
           last_reminded_at?: string | null
           linkedin_url?: string | null
