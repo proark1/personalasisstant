@@ -41,8 +41,7 @@ export function CheckinPrompt({ className }: CheckinPromptProps) {
               <Sun className="w-5 h-5 text-amber-500" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold">Good Morning! ☀️</h3>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <p className="text-sm text-muted-foreground">
                 Start your day with a quick check-in to set your intentions
               </p>
               <Button 
@@ -74,8 +73,7 @@ export function CheckinPrompt({ className }: CheckinPromptProps) {
               <Moon className="w-5 h-5 text-indigo-400" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold">Evening Reflection 🌙</h3>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <p className="text-sm text-muted-foreground">
                 Take a moment to reflect on your day and set up tomorrow
               </p>
               <Button 

@@ -12,7 +12,7 @@ import {
   CheckCircle2,
   Focus,
 } from 'lucide-react';
-import { format, isToday, isPast, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { format, isToday, isPast, isBefore, startOfDay, endOfDay, isWeekend } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useDailyCheckins } from '@/hooks/useDailyCheckins';
 
@@ -31,6 +31,7 @@ export function TodayFocusPanel({
   const now = new Date();
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
+  const isWeekendDay = isWeekend(now);
 
   // Get overdue tasks (max 3 to reduce overwhelm)
   const overdueTasks = useMemo(() => {
@@ -109,8 +110,8 @@ export function TodayFocusPanel({
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
-          {/* Today's Main Focus from Check-in */}
-          {todayMorning?.main_focus && (
+          {/* Today's Main Focus from Check-in - only show on weekdays */}
+          {!isWeekendDay && todayMorning?.main_focus && (
             <div className="p-4 rounded-lg bg-gradient-to-r from-accent/20 to-primary/10 border border-accent/30">
               <div className="flex items-center gap-2 mb-2">
                 <Focus className="w-4 h-4 text-accent" />
