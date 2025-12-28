@@ -67,6 +67,38 @@ export function PrayerTimesTab() {
     }
   };
 
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    try {
+      // Use OpenStreetMap Nominatim for reverse geocoding (free, no API key needed)
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`,
+        { 
+          signal: AbortSignal.timeout(5000),
+          headers: { 'Accept-Language': 'en' }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Get city, town, village, or municipality - whatever is available
+        const city = data.address?.city || 
+                     data.address?.town || 
+                     data.address?.village || 
+                     data.address?.municipality ||
+                     data.address?.county ||
+                     data.address?.state;
+        if (city) {
+          setLocationName(city);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+    }
+    // Fallback to timezone if reverse geocoding fails
+    setLocationName('');
+  }, []);
+
   const fetchPrayerTimes = useCallback(async (lat: number, lng: number, method: number) => {
     setLoading(true);
     try {
@@ -100,11 +132,6 @@ export function PrayerTimesTab() {
         // Set Gregorian date
         const gregorian = data.data.date.gregorian;
         setGregorianDate(`${gregorian.weekday.en}, ${gregorian.day} ${gregorian.month.en} ${gregorian.year}`);
-        
-        if (data.data.meta?.timezone) {
-          const tz = data.data.meta.timezone;
-          setLocationName(tz.split('/').pop()?.replace(/_/g, ' ') || '');
-        }
       }
     } catch (error) {
       console.error('Failed to fetch prayer times:', error);
@@ -121,7 +148,9 @@ export function PrayerTimesTab() {
         (position) => {
           const { latitude, longitude } = position.coords;
           setCoordinates({ lat: latitude, lng: longitude });
+          // Fetch prayer times and reverse geocode in parallel
           fetchPrayerTimes(latitude, longitude, calculationMethod);
+          reverseGeocode(latitude, longitude);
         },
         (error) => {
           console.error('Location error:', error);
@@ -136,7 +165,7 @@ export function PrayerTimesTab() {
       toast.error('Geolocation not supported');
       setLoading(false);
     }
-  }, [calculationMethod, fetchPrayerTimes]);
+  }, [calculationMethod, fetchPrayerTimes, reverseGeocode]);
 
   const getNextPrayer = useCallback((): { prayer: PrayerTime; minutesRemaining: number } | null => {
     if (prayerTimes.length === 0) return null;
