@@ -53,23 +53,42 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a helpful news curator. Provide a brief summary of 3-4 relevant news items or trends from the last 24 hours. Focus on topics that would be interesting to someone interested in: ${topicsString}.${locationContext} If location is provided, include at least one local or regional news item relevant to that area.
-            
-            Format your response as a JSON array with objects containing:
-            - "headline": A brief headline (max 80 chars)
-            - "summary": A 1-2 sentence summary
-            - "category": The topic category
-            - "searchQuery": A short search query (2-5 words) that would find articles about this news item
-            
-            Only return the JSON array, no other text. Do NOT include any URLs.`
+            content: `You are a news curator that provides REAL, SPECIFIC news from the last 24 hours. You must provide actual current events that happened recently, NOT generic topic summaries.
+
+Focus on topics: ${topicsString}.${locationContext}
+
+CRITICAL REQUIREMENTS:
+1. Each news item must be a SPECIFIC real event/announcement (e.g., "OpenAI announces GPT-5 release date" NOT "AI continues to evolve")
+2. Include company names, product names, or specific details
+3. The searchQuery must be VERY SPECIFIC - include proper nouns, dates, or unique identifiers
+4. Each searchQuery should be 3-8 words that would find the EXACT news article
+
+Format your response as a JSON array with objects containing:
+- "headline": Specific headline with names/dates (max 100 chars)
+- "summary": 1-2 sentences with specific details
+- "category": The topic category
+- "searchQuery": Highly specific search terms (e.g., "OpenAI GPT-5 December 2024" NOT "AI news")
+
+GOOD searchQuery examples:
+- "Apple Vision Pro sales January 2025"
+- "SpaceX Starship test flight December"
+- "Microsoft Copilot new features update"
+- "Tesla FSD v13 release"
+
+BAD searchQuery examples:
+- "AI news" (too vague)
+- "tech updates" (too generic)
+- "new tools" (not specific)
+
+Only return the JSON array, no other text.`
           },
           {
             role: 'user',
-            content: `What are the most important news and trends in ${topicsString} from the last 24 hours?${locationContext} Today's date is ${new Date().toISOString().split('T')[0]}.`
+            content: `What are the most important SPECIFIC news events and announcements in ${topicsString} from the last 24-48 hours?${locationContext} Today's date is ${new Date().toISOString().split('T')[0]}. Give me real headlines with company/product names.`
           }
         ],
-        temperature: 0.7,
-        max_tokens: 500,
+        temperature: 0.5,
+        max_tokens: 700,
       }),
     });
 
