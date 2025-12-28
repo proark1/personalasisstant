@@ -105,12 +105,11 @@ export function SettingsPanelContent({
 }: SettingsPanelContentProps) {
   const { user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'general' | 'proactive' | 'defaults' | 'team' | 'ai'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'proactive' | 'team' | 'ai'>('general');
 
   const tabs = [
-    { id: 'general' as const, label: t('settings.general') || 'General', icon: Palette },
+    { id: 'general' as const, label: 'General', icon: Settings },
     { id: 'proactive' as const, label: 'Proactive & Advanced', icon: Brain },
-    { id: 'defaults' as const, label: t('settings.defaults'), icon: ListTodo },
     { id: 'team' as const, label: t('settings.team'), icon: Users },
     { id: 'ai' as const, label: 'AI', icon: Bot },
   ];
@@ -143,7 +142,8 @@ export function SettingsPanelContent({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <ScrollArea className="flex-1">
+        <div className="p-6 space-y-6">
         {activeTab === 'general' && (
           <>
             {/* Appearance Section */}
@@ -271,6 +271,48 @@ export function SettingsPanelContent({
                 />
               </div>
             </div>
+
+            {/* Defaults Section */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                {t('settings.defaults')}
+              </h3>
+              
+              {/* Default Task Category */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('settings.defaultCategory')}</label>
+                <Select
+                  value={settings.defaultTaskCategory}
+                  onValueChange={(value: TaskCategory) => onUpdateSettings({ defaultTaskCategory: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personal">{t('category.personal')}</SelectItem>
+                    <SelectItem value="business">{t('category.business')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Default Task Priority */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('settings.defaultPriority')}</label>
+                <Select
+                  value={settings.defaultTaskPriority}
+                  onValueChange={(value: TaskPriority) => onUpdateSettings({ defaultTaskPriority: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">{t('priority.low')}</SelectItem>
+                    <SelectItem value="medium">{t('priority.medium')}</SelectItem>
+                    <SelectItem value="high">{t('priority.high')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </>
         )}
 
@@ -281,45 +323,6 @@ export function SettingsPanelContent({
               <NotificationSettingsPanel />
             </div>
           </div>
-        )}
-
-        {activeTab === 'defaults' && (
-          <>
-            {/* Default Task Category */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('settings.defaultCategory')}</label>
-              <Select
-                value={settings.defaultTaskCategory}
-                onValueChange={(value: TaskCategory) => onUpdateSettings({ defaultTaskCategory: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="personal">{t('category.personal')}</SelectItem>
-                  <SelectItem value="business">{t('category.business')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Default Task Priority */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('settings.defaultPriority')}</label>
-              <Select
-                value={settings.defaultTaskPriority}
-                onValueChange={(value: TaskPriority) => onUpdateSettings({ defaultTaskPriority: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">{t('priority.low')}</SelectItem>
-                  <SelectItem value="medium">{t('priority.medium')}</SelectItem>
-                  <SelectItem value="high">{t('priority.high')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </>
         )}
 
         {activeTab === 'team' && user && (
@@ -344,7 +347,8 @@ export function SettingsPanelContent({
             </ScrollArea>
           </div>
         )}
-      </div>
+        </div>
+      </ScrollArea>
     </div>
   );
 }
