@@ -41,8 +41,8 @@ export function useNotifications() {
       playNotificationSound();
     }
 
-    // Show browser notification if permitted
-    if (Notification.permission === 'granted') {
+    // Show browser notification if permitted (check if Notification API exists first for iOS compatibility)
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       new Notification(notification.title, {
         body: notification.message,
         icon: '/pwa-192x192.svg',
