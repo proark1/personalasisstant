@@ -49,6 +49,7 @@ export function DailyCheckinDialog({ open, onOpenChange, type }: DailyCheckinDia
   const [sleepQuality, setSleepQuality] = useState(3);
   const [energyLevel, setEnergyLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const [mood, setMood] = useState('😊');
+  const [moodNote, setMoodNote] = useState('');
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [mainFocus, setMainFocus] = useState('');
   
@@ -80,6 +81,7 @@ export function DailyCheckinDialog({ open, onOpenChange, type }: DailyCheckinDia
           sleep_quality: sleepQuality,
           energy_level: energyLevel,
           mood,
+          mood_note: moodNote || null,
           physical_symptoms: symptoms.filter(s => s !== 'None'),
           main_focus: mainFocus
         }
@@ -254,6 +256,18 @@ export function DailyCheckinDialog({ open, onOpenChange, type }: DailyCheckinDia
                   </button>
                 ))}
               </div>
+              
+              <Label className="mt-4 block">Why do you feel this way? (optional)</Label>
+              <Textarea
+                value={moodNote}
+                onChange={(e) => setMoodNote(e.target.value)}
+                placeholder="Help the system learn your patterns..."
+                className="resize-none"
+                rows={2}
+              />
+              <p className="text-xs text-muted-foreground">
+                This helps personalize insights and recommendations for you
+              </p>
             </div>
           )}
 

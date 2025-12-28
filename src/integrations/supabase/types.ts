@@ -602,6 +602,7 @@ export type Database = {
           main_focus: string | null
           medication_taken: boolean | null
           mood: string | null
+          mood_note: string | null
           physical_symptoms: string[] | null
           screen_time_minutes: number | null
           sleep_hours: number | null
@@ -631,6 +632,7 @@ export type Database = {
           main_focus?: string | null
           medication_taken?: boolean | null
           mood?: string | null
+          mood_note?: string | null
           physical_symptoms?: string[] | null
           screen_time_minutes?: number | null
           sleep_hours?: number | null
@@ -660,6 +662,7 @@ export type Database = {
           main_focus?: string | null
           medication_taken?: boolean | null
           mood?: string | null
+          mood_note?: string | null
           physical_symptoms?: string[] | null
           screen_time_minutes?: number | null
           sleep_hours?: number | null

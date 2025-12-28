@@ -25,7 +25,8 @@ export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
     const today = startOfDay(new Date());
     const days: DaySummary[] = [];
 
-    for (let i = 0; i < 7; i++) {
+    // Show next 5 days instead of 7
+    for (let i = 0; i < 5; i++) {
       const date = addDays(today, i);
       const dayStart = startOfDay(date);
       const dayEnd = endOfDay(date);
@@ -47,7 +48,7 @@ export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
 
       days.push({
         date,
-        dayName: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : format(date, 'EEE'),
+        dayName: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : format(date, 'EEEE'), // Full day name
         events: dayEvents,
         tasks: dayTasks,
         hasEveningCommitment,
@@ -66,7 +67,7 @@ export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-medium">Week at a Glance</CardTitle>
+            <CardTitle className="text-sm font-medium">Next 5 Days</CardTitle>
           </div>
           {eveningWarnings > 0 && (
             <Badge variant="outline" className="text-xs gap-1 text-amber-500 border-amber-500/30">
@@ -88,7 +89,7 @@ export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
           >
             {/* Day Label */}
             <div className={cn(
-              "w-16 shrink-0 font-medium",
+              "w-24 shrink-0 font-medium",
               day.isToday && "text-primary"
             )}>
               {day.dayName}
