@@ -9,16 +9,15 @@ import { UserSettings, ThemeMode, ColorScheme, TaskCategory, TaskPriority } from
 import { 
   Settings, 
   Palette, 
-  Bell, 
   ListTodo, 
   Sun, 
   Moon,
   Check,
   Users,
   Globe,
-  BellRing,
   Bot,
-  Brain
+  Brain,
+  Sliders
 } from 'lucide-react';
 import { SpaceMembersPanel } from './SpaceMembersPanel';
 import { NotificationSettingsPanel } from './NotificationSettingsPanel';
@@ -106,13 +105,11 @@ export function SettingsPanelContent({
 }: SettingsPanelContentProps) {
   const { user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'proactive' | 'advanced' | 'defaults' | 'team' | 'ai'>('appearance');
+  const [activeTab, setActiveTab] = useState<'general' | 'proactive' | 'defaults' | 'team' | 'ai'>('general');
 
   const tabs = [
-    { id: 'appearance' as const, label: t('settings.appearance'), icon: Palette },
-    { id: 'notifications' as const, label: t('settings.notifications'), icon: Bell },
-    { id: 'proactive' as const, label: 'Proactive', icon: Brain },
-    { id: 'advanced' as const, label: 'Advanced', icon: BellRing },
+    { id: 'general' as const, label: t('settings.general') || 'General', icon: Palette },
+    { id: 'proactive' as const, label: 'Proactive & Advanced', icon: Brain },
     { id: 'defaults' as const, label: t('settings.defaults'), icon: ListTodo },
     { id: 'team' as const, label: t('settings.team'), icon: Users },
     { id: 'ai' as const, label: 'AI', icon: Bot },
@@ -147,132 +144,143 @@ export function SettingsPanelContent({
 
       {/* Content */}
       <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-        {activeTab === 'appearance' && (
+        {activeTab === 'general' && (
           <>
-            {/* Theme Toggle */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium">{t('settings.theme')}</label>
-              <div className="flex gap-3">
-                <Button
-                  variant={settings.theme === 'dark' ? 'secondary' : 'outline'}
-                  className="flex-1 gap-2"
-                  onClick={() => onUpdateSettings({ theme: 'dark' })}
-                >
-                  <Moon className="w-4 h-4" />
-                  {t('settings.dark')}
-                </Button>
-                <Button
-                  variant={settings.theme === 'light' ? 'secondary' : 'outline'}
-                  className="flex-1 gap-2"
-                  onClick={() => onUpdateSettings({ theme: 'light' })}
-                >
-                  <Sun className="w-4 h-4" />
-                  {t('settings.light')}
-                </Button>
-              </div>
-            </div>
-
-            {/* Color Scheme */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium">{t('settings.accentColor')}</label>
-              <div className="grid grid-cols-5 gap-2">
-                {colorSchemes.map((scheme) => (
-                  <button
-                    key={scheme.value}
-                    onClick={() => onUpdateSettings({ colorScheme: scheme.value })}
-                    className={cn(
-                      "aspect-square rounded-lg flex items-center justify-center transition-transform hover:scale-110",
-                      scheme.color,
-                      settings.colorScheme === scheme.value && "ring-2 ring-offset-2 ring-offset-background ring-foreground"
-                    )}
-                    title={scheme.label}
+            {/* Appearance Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                {t('settings.appearance')}
+              </h3>
+              
+              {/* Theme Toggle */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium">{t('settings.theme')}</label>
+                <div className="flex gap-3">
+                  <Button
+                    variant={settings.theme === 'dark' ? 'secondary' : 'outline'}
+                    className="flex-1 gap-2"
+                    onClick={() => onUpdateSettings({ theme: 'dark' })}
                   >
-                    {settings.colorScheme === scheme.value && (
-                      <Check className="w-4 h-4 text-white" />
-                    )}
-                  </button>
-                ))}
+                    <Moon className="w-4 h-4" />
+                    {t('settings.dark')}
+                  </Button>
+                  <Button
+                    variant={settings.theme === 'light' ? 'secondary' : 'outline'}
+                    className="flex-1 gap-2"
+                    onClick={() => onUpdateSettings({ theme: 'light' })}
+                  >
+                    <Sun className="w-4 h-4" />
+                    {t('settings.light')}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Color Scheme */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium">{t('settings.accentColor')}</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {colorSchemes.map((scheme) => (
+                    <button
+                      key={scheme.value}
+                      onClick={() => onUpdateSettings({ colorScheme: scheme.value })}
+                      className={cn(
+                        "aspect-square rounded-lg flex items-center justify-center transition-transform hover:scale-110",
+                        scheme.color,
+                        settings.colorScheme === scheme.value && "ring-2 ring-offset-2 ring-offset-background ring-foreground"
+                      )}
+                      title={scheme.label}
+                    >
+                      {settings.colorScheme === scheme.value && (
+                        <Check className="w-4 h-4 text-white" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Language */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  {t('common.language')}
+                </label>
+                <div className="flex gap-3">
+                  <Button
+                    variant={language === 'en' ? 'secondary' : 'outline'}
+                    className="flex-1 gap-2"
+                    onClick={() => setLanguage('en')}
+                  >
+                    🇬🇧 {t('common.english')}
+                  </Button>
+                  <Button
+                    variant={language === 'de' ? 'secondary' : 'outline'}
+                    className="flex-1 gap-2"
+                    onClick={() => setLanguage('de')}
+                  >
+                    🇩🇪 {t('common.german')}
+                  </Button>
+                </div>
               </div>
             </div>
 
-            {/* Language */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Globe className="w-4 h-4" />
-                {t('common.language')}
-              </label>
-              <div className="flex gap-3">
-                <Button
-                  variant={language === 'en' ? 'secondary' : 'outline'}
-                  className="flex-1 gap-2"
-                  onClick={() => setLanguage('en')}
-                >
-                  🇬🇧 {t('common.english')}
-                </Button>
-                <Button
-                  variant={language === 'de' ? 'secondary' : 'outline'}
-                  className="flex-1 gap-2"
-                  onClick={() => setLanguage('de')}
-                >
-                  🇩🇪 {t('common.german')}
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'notifications' && (
-          <>
-            {/* Task Reminders */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-sm">{t('settings.taskReminders')}</p>
-                <p className="text-xs text-muted-foreground">{t('settings.taskRemindersDesc')}</p>
-              </div>
-              <Switch
-                checked={settings.notifications.taskReminders}
-                onCheckedChange={(checked) => onUpdateNotifications({ taskReminders: checked })}
-              />
-            </div>
-
-            {/* Calendar Alerts */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-sm">{t('settings.calendarAlerts')}</p>
-                <p className="text-xs text-muted-foreground">{t('settings.calendarAlertsDesc')}</p>
-              </div>
-              <Switch
-                checked={settings.notifications.calendarAlerts}
-                onCheckedChange={(checked) => onUpdateNotifications({ calendarAlerts: checked })}
-              />
-            </div>
-
-            {/* Reminder Time */}
-            <div className="space-y-3">
+            {/* Notifications Section */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                {t('settings.notifications')}
+              </h3>
+              
+              {/* Task Reminders */}
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">{t('settings.reminderTime')}</label>
-                <span className="text-sm text-muted-foreground">
-                  {settings.notifications.reminderMinutesBefore} {t('settings.minutesBefore')}
-                </span>
+                <div>
+                  <p className="font-medium text-sm">{t('settings.taskReminders')}</p>
+                  <p className="text-xs text-muted-foreground">{t('settings.taskRemindersDesc')}</p>
+                </div>
+                <Switch
+                  checked={settings.notifications.taskReminders}
+                  onCheckedChange={(checked) => onUpdateNotifications({ taskReminders: checked })}
+                />
               </div>
-              <Slider
-                value={[settings.notifications.reminderMinutesBefore]}
-                onValueChange={([value]) => onUpdateNotifications({ reminderMinutesBefore: value })}
-                min={5}
-                max={60}
-                step={5}
-                className="w-full"
-              />
+
+              {/* Calendar Alerts */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">{t('settings.calendarAlerts')}</p>
+                  <p className="text-xs text-muted-foreground">{t('settings.calendarAlertsDesc')}</p>
+                </div>
+                <Switch
+                  checked={settings.notifications.calendarAlerts}
+                  onCheckedChange={(checked) => onUpdateNotifications({ calendarAlerts: checked })}
+                />
+              </div>
+
+              {/* Reminder Time */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">{t('settings.reminderTime')}</label>
+                  <span className="text-sm text-muted-foreground">
+                    {settings.notifications.reminderMinutesBefore} {t('settings.minutesBefore')}
+                  </span>
+                </div>
+                <Slider
+                  value={[settings.notifications.reminderMinutesBefore]}
+                  onValueChange={([value]) => onUpdateNotifications({ reminderMinutesBefore: value })}
+                  min={5}
+                  max={60}
+                  step={5}
+                  className="w-full"
+                />
+              </div>
             </div>
           </>
         )}
 
         {activeTab === 'proactive' && (
-          <ProactiveSettingsPanel />
-        )}
-
-        {activeTab === 'advanced' && (
-          <NotificationSettingsPanel />
+          <div className="space-y-6">
+            <ProactiveSettingsPanel />
+            <div className="border-t border-border pt-6">
+              <NotificationSettingsPanel />
+            </div>
+          </div>
         )}
 
         {activeTab === 'defaults' && (
