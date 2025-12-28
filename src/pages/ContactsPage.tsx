@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useContacts, Contact, ContactType, PersonalTier, BusinessLevel, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
+import { useContacts, Contact, ContactType, ContactInput, PersonalTier, BusinessLevel, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
+import { useContactInteractions } from '@/hooks/useContactInteractions';
+import { useSmartContactReminders } from '@/hooks/useSmartContactReminders';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,10 +18,16 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ContactProfileCard } from '@/components/contacts/ContactProfileCard';
+import { ContactNetworkHealth } from '@/components/contacts/ContactNetworkHealth';
+import { ContactTimeline } from '@/components/contacts/ContactTimeline';
+import { ContactImportExport } from '@/components/contacts/ContactImportExport';
+import { EmailTemplateDialog } from '@/components/contacts/EmailTemplateDialog';
 import { 
   ArrowLeft, UserPlus, Trash2, Search, Users, Briefcase, Heart, 
   Phone, Mail, Building, Clock, Bell, MessageSquare, Check, Pencil,
-  AlertCircle, Linkedin, Twitter, Globe, MapPin, LayoutGrid, List
+  AlertCircle, Linkedin, Twitter, Globe, MapPin, LayoutGrid, List,
+  TrendingUp, Calendar, Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, isPast } from 'date-fns';
@@ -81,6 +89,7 @@ export default function Contacts() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const {
+    contacts,
     personalContacts,
     businessContacts,
     loading,
@@ -91,14 +100,28 @@ export default function Contacts() {
     getContactsDue,
   } = useContacts(user?.id);
 
+  const { getRecentContacts } = useContactInteractions(user?.id);
+  const { syncToCalendar } = useSmartContactReminders({ contacts, userId: user?.id });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [formData, setFormData] = useState<ContactFormData>(defaultFormData);
-  const [activeTab, setActiveTab] = useState<'personal' | 'business' | 'due'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal' | 'business' | 'due' | 'insights' | 'timeline'>('personal');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [showEmailTemplate, setShowEmailTemplate] = useState(false);
+  const [emailTemplateContact, setEmailTemplateContact] = useState<Contact | null>(null);
+  const [recentContactIds, setRecentContactIds] = useState<string[]>([]);
+
+  // Load recent contacts on mount
+  useEffect(() => {
+    if (user?.id) {
+      getRecentContacts(5).then(setRecentContactIds);
+    }
+  }, [user?.id, getRecentContacts]);
 
   const contactsDue = getContactsDue();
 
@@ -226,10 +249,26 @@ export default function Contacts() {
     }
   };
 
-  const filterContacts = (contacts: Contact[]) => {
-    if (!searchQuery) return contacts;
+  const handleImportContacts = async (contactsToImport: ContactInput[]) => {
+    let imported = 0;
+    for (const c of contactsToImport) {
+      const result = await addContact(c);
+      if (result) imported++;
+    }
+    toast({ title: `Imported ${imported} contacts` });
+  };
+
+  const handleOpenEmailTemplate = (contact: Contact) => {
+    setEmailTemplateContact(contact);
+    setShowEmailTemplate(true);
+  };
+
+  const recentContacts = contacts.filter(c => recentContactIds.includes(c.id));
+
+  const filterContacts = (contactList: Contact[]) => {
+    if (!searchQuery) return contactList;
     const query = searchQuery.toLowerCase();
-    return contacts.filter(c =>
+    return contactList.filter(c =>
       c.name.toLowerCase().includes(query) ||
       c.email?.toLowerCase().includes(query) ||
       c.company?.toLowerCase().includes(query) ||
@@ -262,7 +301,7 @@ export default function Contacts() {
     return (
       <Card 
         className={`hover:bg-accent/50 transition-colors cursor-pointer ${isDue ? 'border-orange-500/50' : ''}`}
-        onClick={() => openEditDialog(contact)}
+        onClick={() => setSelectedContact(contact)}
       >
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-3">
@@ -378,6 +417,15 @@ export default function Contacts() {
                 title="Mark as contacted"
               >
                 <Check className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => { e.stopPropagation(); handleOpenEmailTemplate(contact); }}
+                className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                title="Email template"
+              >
+                <Mail className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -524,23 +572,34 @@ export default function Contacts() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-5xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back
           </Button>
           
-          <Dialog open={showAddDialog} onOpenChange={(open) => {
-            setShowAddDialog(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <UserPlus className="w-4 h-4" />
-                Add Contact
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <ContactImportExport contacts={contacts} onImport={handleImportContacts} />
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={syncToCalendar}
+              title="Sync upcoming contacts to calendar"
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Sync Calendar
+            </Button>
+            <Dialog open={showAddDialog} onOpenChange={(open) => {
+              setShowAddDialog(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Add Contact
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -780,8 +839,8 @@ export default function Contacts() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
-
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -806,19 +865,27 @@ export default function Contacts() {
         </Card>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <div className="flex items-center justify-between mb-4">
-            <TabsList className="grid grid-cols-3">
-              <TabsTrigger value="personal" className="gap-2">
-                <Heart className="w-4 h-4" />
-                Personal ({personalContacts.length})
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <TabsList className="grid grid-cols-5">
+              <TabsTrigger value="personal" className="gap-1 text-xs sm:text-sm">
+                <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Personal</span> ({personalContacts.length})
               </TabsTrigger>
-              <TabsTrigger value="business" className="gap-2">
-                <Briefcase className="w-4 h-4" />
-                Business ({businessContacts.length})
+              <TabsTrigger value="business" className="gap-1 text-xs sm:text-sm">
+                <Briefcase className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Business</span> ({businessContacts.length})
               </TabsTrigger>
-              <TabsTrigger value="due" className="gap-2">
-                <AlertCircle className="w-4 h-4" />
-                Due ({contactsDue.length})
+              <TabsTrigger value="due" className="gap-1 text-xs sm:text-sm">
+                <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Due</span> ({contactsDue.length})
+              </TabsTrigger>
+              <TabsTrigger value="insights" className="gap-1 text-xs sm:text-sm">
+                <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Insights</span>
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="gap-1 text-xs sm:text-sm">
+                <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Timeline</span>
               </TabsTrigger>
             </TabsList>
 
@@ -897,9 +964,78 @@ export default function Contacts() {
                   <ContactTable contacts={contactsDue} />
                 )}
               </TabsContent>
+
+              <TabsContent value="insights">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <ContactNetworkHealth contacts={contacts} />
+                  
+                  {/* Recent Contacts */}
+                  {recentContacts.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Clock className="w-5 h-5" />
+                          Recently Contacted
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {recentContacts.map(contact => (
+                            <div 
+                              key={contact.id}
+                              className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer"
+                              onClick={() => setSelectedContact(contact)}
+                            >
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                  {getInitials(contact.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{contact.name}</p>
+                                {contact.company && (
+                                  <p className="text-xs text-muted-foreground truncate">{contact.company}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="timeline">
+                <ContactTimeline contacts={contacts} showUpcoming />
+              </TabsContent>
             </>
           )}
         </Tabs>
+
+        {/* Contact Profile Card */}
+        {selectedContact && (
+          <ContactProfileCard
+            contact={selectedContact}
+            open={!!selectedContact}
+            onOpenChange={(open) => !open && setSelectedContact(null)}
+            onMarkContacted={handleMarkContacted}
+            onEdit={openEditDialog}
+            userId={user?.id}
+          />
+        )}
+
+        {/* Email Template Dialog */}
+        {emailTemplateContact && (
+          <EmailTemplateDialog
+            contact={emailTemplateContact}
+            open={showEmailTemplate}
+            onOpenChange={(open) => {
+              setShowEmailTemplate(open);
+              if (!open) setEmailTemplateContact(null);
+            }}
+          />
+        )}
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!contactToDelete} onOpenChange={(open) => !open && setContactToDelete(null)}>
