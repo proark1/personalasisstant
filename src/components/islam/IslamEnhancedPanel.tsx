@@ -10,13 +10,15 @@ import { Slider } from '@/components/ui/slider';
 import { 
   Calendar, Moon, Hand, RotateCcw, Check, Star, Compass, BookOpen,
   RefreshCw, MapPin, ChevronLeft, ChevronRight, Search, Loader2, 
-  Volume2, VolumeX, Pause, Play, ZoomIn, ZoomOut, Heart
+  Volume2, VolumeX, Pause, Play, ZoomIn, ZoomOut, Heart, Clock
 } from 'lucide-react';
 import { useIslamicFeatures } from '@/hooks/useIslamicFeatures';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
+import { PrayerTimesTab } from './PrayerTimesTab';
+import { HadithTab } from './HadithTab';
 
 interface QiblaData {
   direction: number;
@@ -574,7 +576,7 @@ export function IslamEnhancedPanel() {
     loading: islamicLoading,
   } = useIslamicFeatures();
 
-  const [activeTab, setActiveTab] = useState('ramadan');
+  const [activeTab, setActiveTab] = useState('prayer');
   const [duaCategory, setDuaCategory] = useState<string>('all');
   const [expandedDua, setExpandedDua] = useState<string | null>(null);
 
@@ -810,7 +812,15 @@ export function IslamEnhancedPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-3 grid grid-cols-6">
+        <TabsList className="mx-4 mt-3 grid grid-cols-8">
+          <TabsTrigger value="prayer" className="gap-1 text-xs px-1">
+            <Clock className="w-3 h-3" />
+            <span className="hidden sm:inline">Prayer</span>
+          </TabsTrigger>
+          <TabsTrigger value="hadith" className="gap-1 text-xs px-1">
+            <BookOpen className="w-3 h-3" />
+            <span className="hidden sm:inline">Hadith</span>
+          </TabsTrigger>
           <TabsTrigger value="ramadan" className="gap-1 text-xs px-1">
             <Star className="w-3 h-3" />
             <span className="hidden sm:inline">Ramadan</span>
@@ -836,6 +846,16 @@ export function IslamEnhancedPanel() {
             <span className="hidden sm:inline">Calendar</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Prayer Times */}
+        <TabsContent value="prayer" className="flex-1 mt-0">
+          <PrayerTimesTab />
+        </TabsContent>
+
+        {/* Hadith Collection */}
+        <TabsContent value="hadith" className="flex-1 mt-0">
+          <HadithTab />
+        </TabsContent>
 
         {/* Ramadan Tracker */}
         <TabsContent value="ramadan" className="flex-1 mt-0">

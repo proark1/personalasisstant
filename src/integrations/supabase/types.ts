@@ -1707,6 +1707,42 @@ export type Database = {
         }
         Relationships: []
       }
+      hadith_favorites: {
+        Row: {
+          arabic_text: string
+          chapter: string | null
+          created_at: string
+          english_text: string
+          hadith_collection: string
+          hadith_number: number
+          id: string
+          narrator: string | null
+          user_id: string
+        }
+        Insert: {
+          arabic_text: string
+          chapter?: string | null
+          created_at?: string
+          english_text: string
+          hadith_collection: string
+          hadith_number: number
+          id?: string
+          narrator?: string | null
+          user_id: string
+        }
+        Update: {
+          arabic_text?: string
+          chapter?: string | null
+          created_at?: string
+          english_text?: string
+          hadith_collection?: string
+          hadith_number?: number
+          id?: string
+          narrator?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       health_metrics: {
         Row: {
           created_at: string
