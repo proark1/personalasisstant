@@ -126,11 +126,12 @@ export function MobileLayout({
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
-  // Bottom nav: Calendar, Family, Dori (center), Islam, Social
+  // Bottom nav: Calendar, Family, Dori (center), Health, Islam, Social
   const bottomTabs = [
     { id: 'calendar' as Tab, icon: Calendar },
     { id: 'family' as Tab, icon: Home },
     { id: 'dori' as const, icon: Sparkles, isCenter: true },
+    { id: 'health' as Tab, icon: Heart },
     { id: 'islam' as Tab, icon: Moon },
     { id: 'social' as Tab, icon: MessageCircle },
   ];
