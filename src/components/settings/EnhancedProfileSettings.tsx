@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToast } from '@/hooks/use-toast';
-import { X, Plus, Briefcase, MapPin, Target, Sparkles, User, Building, Brain } from 'lucide-react';
+import { X, Plus, Briefcase, MapPin, Target, Sparkles, User, Building, Brain, Calendar } from 'lucide-react';
 
 interface EnhancedProfileSettingsProps {
   onClose?: () => void;
@@ -22,6 +22,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
   // Form state
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [role, setRole] = useState('');
   const [businesses, setBusinesses] = useState<string[]>([]);
   const [newBusiness, setNewBusiness] = useState('');
@@ -40,6 +41,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
     if (profile) {
       setDisplayName(profile.displayName || '');
       setBio(profile.bio || '');
+      setBirthDate(profile.birthDate || '');
       setRole(profile.role || '');
       setBusinesses(profile.businesses || []);
       setInterests(profile.interests || []);
@@ -76,6 +78,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
       const result = await updateProfile({
         displayName,
         bio,
+        birthDate: birthDate || undefined,
         role,
         businesses,
         interests,
@@ -153,6 +156,20 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
                 placeholder="Your name"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="birthDate" className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5" />
+                Birth Date
+              </Label>
+              <Input
+                id="birthDate"
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="role">Role / Title</Label>
               <Input

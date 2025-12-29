@@ -35,6 +35,7 @@ export function useUserProfile() {
           displayName: data.display_name,
           email: data.email,
           bio: data.bio,
+          birthDate: data.birth_date,
           businesses: data.businesses || [],
           role: data.role,
           interests: data.interests || [],
@@ -67,6 +68,7 @@ export function useUserProfile() {
       const dbUpdates: Record<string, unknown> = {};
       if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
       if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
+      if (updates.birthDate !== undefined) dbUpdates.birth_date = updates.birthDate;
       if (updates.businesses !== undefined) dbUpdates.businesses = updates.businesses;
       if (updates.role !== undefined) dbUpdates.role = updates.role;
       if (updates.interests !== undefined) dbUpdates.interests = updates.interests;
