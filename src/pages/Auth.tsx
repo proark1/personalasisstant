@@ -67,15 +67,14 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <main className="min-h-screen bg-background flex items-center justify-center p-4">
+      <h1 className="sr-only">Sign in to DarAI</h1>
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent mb-4">
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent">
             <Sparkles className="w-8 h-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">DarAI</h1>
-          <p className="text-muted-foreground mt-2">Your AI-powered productivity assistant</p>
         </div>
 
         {/* Auth Card */}
@@ -151,6 +150,6 @@ export default function Auth() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
