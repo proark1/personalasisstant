@@ -46,6 +46,7 @@ export interface UserProfile {
   displayName?: string;
   email?: string;
   bio?: string;
+  birthDate?: string;
   businesses?: string[];
   role?: string;
   interests?: string[];

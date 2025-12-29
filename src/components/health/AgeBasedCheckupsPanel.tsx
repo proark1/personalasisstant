@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import {
   Calendar,
   CheckCircle2,
@@ -105,9 +106,25 @@ const standardCheckups: Checkup[] = [
 
 export function AgeBasedCheckupsPanel() {
   const { user } = useAuth();
+  const { profile, updateProfile } = useUserProfile();
   const [birthDate, setBirthDate] = useState<string>('');
   const [gender, setGender] = useState<'male' | 'female' | 'all'>('all');
   const [addingCheckup, setAddingCheckup] = useState<string | null>(null);
+
+  // Load birth date from profile
+  useEffect(() => {
+    if (profile?.birthDate && !birthDate) {
+      setBirthDate(profile.birthDate);
+    }
+  }, [profile?.birthDate]);
+
+  // Save birth date to profile when changed
+  const handleBirthDateChange = async (newDate: string) => {
+    setBirthDate(newDate);
+    if (newDate && user) {
+      await updateProfile({ birthDate: newDate });
+    }
+  };
 
   const age = useMemo(() => {
     if (!birthDate) return null;
@@ -225,9 +242,12 @@ export function AgeBasedCheckupsPanel() {
                 id="birthDate"
                 type="date"
                 value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
+                onChange={(e) => handleBirthDateChange(e.target.value)}
                 className="mt-1"
               />
+              {profile?.birthDate && (
+                <p className="text-xs text-muted-foreground mt-1">Saved to your profile</p>
+              )}
             </div>
             <div>
               <Label className="text-xs">Gender (for screening recommendations)</Label>
