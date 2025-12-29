@@ -80,65 +80,61 @@ export default function Auth() {
 
         {/* Auth Card */}
         <div className="glass-panel-solid p-8">
-          <h2 className="text-xl font-semibold text-center mb-6">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Display Name</label>
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">Display Name</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Your name"
-                    className="pl-10"
+                    className="pl-12 h-12 text-base"
                   />
                 </div>
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Email</label>
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="pl-10"
+                  className="pl-12 h-12 text-base"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Password</label>
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="pl-10"
+                  className="pl-12 h-12 text-base"
                   required
                   minLength={6}
                 />
               </div>
             </div>
 
-            <Button type="submit" className="w-full gap-2" disabled={loading}>
+            <Button type="submit" className="w-full gap-2 h-12 text-base mt-2" disabled={loading}>
               {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
                   {isLogin ? 'Sign In' : 'Create Account'}
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </Button>
