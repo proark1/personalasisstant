@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, ListTodo, Baby, ShoppingCart, Utensils, Heart, FolderOpen, Wallet } from 'lucide-react';
-import { FamilyMembersList } from './FamilyMembersList';
+import { Users, ListTodo, ShoppingCart, Utensils, Heart, FolderOpen, Wallet } from 'lucide-react';
 import { HouseholdTasksList } from './HouseholdTasksList';
-import { ChildDashboard } from './ChildDashboard';
 import { ShoppingListsPanel } from './ShoppingListsPanel';
 import { MealPlanningPanel } from './MealPlanningPanel';
 import { HealthTrackingPanel } from './HealthTrackingPanel';
@@ -13,7 +11,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 export function FamilyPanel() {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState('members');
+  const [activeTab, setActiveTab] = useState('tasks');
 
   return (
     <div className="h-full flex flex-col">
@@ -30,12 +28,6 @@ export function FamilyPanel() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
         <div className="mx-4 mt-4 overflow-x-auto scrollbar-hide flex-shrink-0">
           <TabsList className="inline-flex min-w-max gap-1">
-            <TabsTrigger value="members" className="p-2">
-              <Users className="h-5 w-5" />
-            </TabsTrigger>
-            <TabsTrigger value="children" className="p-2">
-              <Baby className="h-5 w-5" />
-            </TabsTrigger>
             <TabsTrigger value="tasks" className="p-2">
               <ListTodo className="h-5 w-5" />
             </TabsTrigger>
@@ -62,12 +54,6 @@ export function FamilyPanel() {
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div className="p-4 pb-8">
-            <TabsContent value="members" className="mt-0">
-              <FamilyMembersList />
-            </TabsContent>
-            <TabsContent value="children" className="mt-0">
-              <ChildDashboard />
-            </TabsContent>
             <TabsContent value="tasks" className="mt-0">
               <HouseholdTasksList />
             </TabsContent>
