@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
-import { AssistantOutreachBubble } from "@/components/assistant/AssistantOutreachBubble";
+
 import { useMorningAutoPlay } from "@/hooks/useMorningAutoPlay";
 import Index from "@/pages/Index";
 import {
@@ -64,7 +64,6 @@ function AppContent() {
   return (
     <>
       <NetworkStatusBanner />
-      <AssistantOutreachBubble />
       <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route
