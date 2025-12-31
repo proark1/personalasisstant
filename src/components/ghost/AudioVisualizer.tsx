@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface AudioVisualizerProps {
   isActive: boolean;
@@ -10,6 +10,9 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const particlesRef = useRef<Particle[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(() => 
+    document.documentElement.classList.contains('dark')
+  );
 
   interface Particle {
     angle: number;
@@ -21,15 +24,21 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
     hue: number;
   }
 
+  // Watch for theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    // Detect if dark mode
-    const isDarkMode = document.documentElement.classList.contains('dark');
 
     const resizeCanvas = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -42,15 +51,15 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Initialize particles
-    const particleCount = 120;
+    // Initialize particles with organic distribution
+    const particleCount = 80;
     particlesRef.current = Array.from({ length: particleCount }, (_, i) => ({
-      angle: (i / particleCount) * Math.PI * 2,
-      radius: 100,
-      baseRadius: 100,
-      speed: 0.002 + Math.random() * 0.003,
-      size: 2 + Math.random() * 3,
-      opacity: 0.5 + Math.random() * 0.5,
+      angle: (i / particleCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.3,
+      radius: 80 + Math.random() * 40,
+      baseRadius: 80 + Math.random() * 40,
+      speed: 0.001 + Math.random() * 0.002,
+      size: 1.5 + Math.random() * 2.5,
+      opacity: 0.3 + Math.random() * 0.5,
       hue: isSpeaking ? 270 : 187,
     }));
 
@@ -63,152 +72,108 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
 
-      time += 0.01;
+      time += 0.008;
 
-      // Light mode uses higher opacity and saturation for vibrancy
-      const glowMultiplier = isDarkMode ? 1 : 1.8;
-      const saturation = isDarkMode ? 80 : 95;
-      const lightness = isDarkMode ? 60 : 50;
+      // Theme-aware colors
+      const glowIntensity = isDarkMode ? 0.8 : 1.2;
+      const saturation = isDarkMode ? 75 : 85;
+      const lightness = isDarkMode ? 55 : 45;
 
-      // Soft outer glow with fading edges
-      const outerGlow = ctx.createRadialGradient(
+      // Soft ambient glow - no hard edges
+      const ambientRadius = Math.min(rect.width, rect.height) * 0.4;
+      const ambientGlow = ctx.createRadialGradient(
         centerX, centerY, 0,
-        centerX, centerY, rect.width * 0.5
+        centerX, centerY, ambientRadius
       );
       
-      if (isSpeaking) {
-        outerGlow.addColorStop(0, `hsla(270, ${saturation}%, ${lightness}%, ${0.2 * glowMultiplier})`);
-        outerGlow.addColorStop(0.3, `hsla(270, ${saturation}%, ${lightness - 5}%, ${0.12 * glowMultiplier})`);
-        outerGlow.addColorStop(0.6, `hsla(270, ${saturation}%, ${lightness - 10}%, ${0.05 * glowMultiplier})`);
-        outerGlow.addColorStop(1, 'transparent');
-      } else if (isListening) {
-        outerGlow.addColorStop(0, `hsla(187, ${saturation}%, ${lightness - 10}%, ${0.2 * glowMultiplier})`);
-        outerGlow.addColorStop(0.3, `hsla(187, ${saturation}%, ${lightness - 15}%, ${0.12 * glowMultiplier})`);
-        outerGlow.addColorStop(0.6, `hsla(187, ${saturation}%, ${lightness - 20}%, ${0.05 * glowMultiplier})`);
-        outerGlow.addColorStop(1, 'transparent');
-      } else {
-        outerGlow.addColorStop(0, `hsla(222, 60%, ${lightness - 10}%, ${0.15 * glowMultiplier})`);
-        outerGlow.addColorStop(0.5, `hsla(222, 60%, ${lightness - 20}%, ${0.05 * glowMultiplier})`);
-        outerGlow.addColorStop(1, 'transparent');
-      }
+      const baseHue = isSpeaking ? 270 : isListening ? 187 : 220;
+      ambientGlow.addColorStop(0, `hsla(${baseHue}, ${saturation}%, ${lightness}%, ${0.15 * glowIntensity})`);
+      ambientGlow.addColorStop(0.4, `hsla(${baseHue}, ${saturation - 10}%, ${lightness + 5}%, ${0.08 * glowIntensity})`);
+      ambientGlow.addColorStop(0.7, `hsla(${baseHue}, ${saturation - 20}%, ${lightness + 10}%, ${0.03 * glowIntensity})`);
+      ambientGlow.addColorStop(1, 'transparent');
 
-      ctx.fillStyle = outerGlow;
+      ctx.fillStyle = ambientGlow;
       ctx.fillRect(0, 0, rect.width, rect.height);
 
-      // Soft core glow - more vibrant
+      // Breathing core - organic pulsing
+      const breathScale = 1 + Math.sin(time * 1.5) * 0.15;
+      const coreRadius = 40 * breathScale;
+      
       const coreGlow = ctx.createRadialGradient(
         centerX, centerY, 0,
-        centerX, centerY, 60
+        centerX, centerY, coreRadius * 2
       );
       
-      if (isSpeaking) {
-        coreGlow.addColorStop(0, `hsla(270, ${saturation}%, ${lightness + 10}%, ${0.5 * glowMultiplier})`);
-        coreGlow.addColorStop(0.5, `hsla(270, ${saturation}%, ${lightness}%, ${0.25 * glowMultiplier})`);
-        coreGlow.addColorStop(1, 'transparent');
-      } else if (isListening) {
-        coreGlow.addColorStop(0, `hsla(187, ${saturation}%, ${lightness}%, ${0.5 * glowMultiplier})`);
-        coreGlow.addColorStop(0.5, `hsla(187, ${saturation}%, ${lightness - 10}%, ${0.25 * glowMultiplier})`);
-        coreGlow.addColorStop(1, 'transparent');
-      } else {
-        coreGlow.addColorStop(0, `hsla(222, 60%, ${lightness}%, ${0.3 * glowMultiplier})`);
-        coreGlow.addColorStop(0.5, `hsla(222, 60%, ${lightness - 10}%, ${0.15 * glowMultiplier})`);
-        coreGlow.addColorStop(1, 'transparent');
-      }
+      const coreOpacity = isActive ? 0.4 : 0.2;
+      coreGlow.addColorStop(0, `hsla(${baseHue}, ${saturation}%, ${lightness + 15}%, ${coreOpacity * glowIntensity})`);
+      coreGlow.addColorStop(0.3, `hsla(${baseHue}, ${saturation}%, ${lightness + 5}%, ${coreOpacity * 0.6 * glowIntensity})`);
+      coreGlow.addColorStop(0.6, `hsla(${baseHue}, ${saturation - 10}%, ${lightness}%, ${coreOpacity * 0.3 * glowIntensity})`);
+      coreGlow.addColorStop(1, 'transparent');
 
       ctx.fillStyle = coreGlow;
       ctx.beginPath();
-      ctx.arc(centerX, centerY, 60, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, coreRadius * 2, 0, Math.PI * 2);
       ctx.fill();
 
-      // Animate and draw particles
+      // Floating particles - organic movement
       particlesRef.current.forEach((particle, i) => {
-        particle.angle += particle.speed * (isActive ? 1.5 : 0.5);
+        particle.angle += particle.speed * (isActive ? 2 : 0.8);
 
-        const waveIntensity = isActive ? 25 : 8;
-        const wave = Math.sin(time * 3 + i * 0.1) * waveIntensity;
-        const activityPulse = isActive 
-          ? Math.sin(time * 5 + i * 0.05) * 12
-          : 0;
-        
-        particle.radius = particle.baseRadius + wave + activityPulse;
+        // Organic wave motion
+        const wave1 = Math.sin(time * 2 + i * 0.15) * (isActive ? 20 : 8);
+        const wave2 = Math.cos(time * 1.5 + i * 0.1) * (isActive ? 15 : 5);
+        particle.radius = particle.baseRadius + wave1 + wave2;
 
         const x = centerX + Math.cos(particle.angle) * particle.radius;
         const y = centerY + Math.sin(particle.angle) * particle.radius;
 
+        // Smooth color transition
         const targetHue = isSpeaking ? 270 : 187;
-        particle.hue += (targetHue - particle.hue) * 0.05;
+        particle.hue += (targetHue - particle.hue) * 0.03;
 
-        const particleGlow = ctx.createRadialGradient(
-          x, y, 0,
-          x, y, particle.size * 3
-        );
+        // Soft particle glow
+        const particleGlow = ctx.createRadialGradient(x, y, 0, x, y, particle.size * 4);
         
         const baseAlpha = isActive 
-          ? particle.opacity * (0.7 + Math.sin(time * 4 + i) * 0.3)
-          : particle.opacity * 0.4;
-        const alpha = baseAlpha * glowMultiplier;
+          ? particle.opacity * (0.5 + Math.sin(time * 3 + i * 0.2) * 0.3)
+          : particle.opacity * 0.3;
+        const alpha = Math.min(baseAlpha * glowIntensity, 0.9);
         
-        const particleLightness = isDarkMode ? 65 : 45;
-        particleGlow.addColorStop(0, `hsla(${particle.hue}, ${saturation}%, ${particleLightness}%, ${Math.min(alpha, 1)})`);
-        particleGlow.addColorStop(0.4, `hsla(${particle.hue}, ${saturation}%, ${particleLightness - 5}%, ${Math.min(alpha * 0.5, 1)})`);
+        particleGlow.addColorStop(0, `hsla(${particle.hue}, ${saturation}%, ${lightness + 10}%, ${alpha})`);
+        particleGlow.addColorStop(0.3, `hsla(${particle.hue}, ${saturation}%, ${lightness}%, ${alpha * 0.5})`);
+        particleGlow.addColorStop(0.7, `hsla(${particle.hue}, ${saturation - 15}%, ${lightness - 5}%, ${alpha * 0.2})`);
         particleGlow.addColorStop(1, 'transparent');
         
         ctx.fillStyle = particleGlow;
         ctx.beginPath();
-        ctx.arc(x, y, particle.size * 3, 0, Math.PI * 2);
+        ctx.arc(x, y, particle.size * 4, 0, Math.PI * 2);
         ctx.fill();
-
-        // Draw connecting lines
-        if (isActive && i % 3 === 0) {
-          const nextParticle = particlesRef.current[(i + 1) % particlesRef.current.length];
-          const nextX = centerX + Math.cos(nextParticle.angle) * nextParticle.radius;
-          const nextY = centerY + Math.sin(nextParticle.angle) * nextParticle.radius;
-
-          const lineAlpha = alpha * (isDarkMode ? 0.25 : 0.4);
-          const lineGradient = ctx.createLinearGradient(x, y, nextX, nextY);
-          lineGradient.addColorStop(0, `hsla(${particle.hue}, ${saturation}%, ${particleLightness}%, ${lineAlpha})`);
-          lineGradient.addColorStop(0.5, `hsla(${particle.hue}, ${saturation}%, ${particleLightness}%, ${lineAlpha * 0.6})`);
-          lineGradient.addColorStop(1, `hsla(${particle.hue}, ${saturation}%, ${particleLightness}%, ${lineAlpha * 0.2})`);
-
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(nextX, nextY);
-          ctx.strokeStyle = lineGradient;
-          ctx.lineWidth = isDarkMode ? 1 : 1.5;
-          ctx.stroke();
-        }
       });
 
-      // Soft pulsing inner ring
-      const ringRadius = 50 + Math.sin(time * 2) * 5;
-      const ringGlow = ctx.createRadialGradient(
-        centerX, centerY, ringRadius - 8,
-        centerX, centerY, ringRadius + 8
-      );
-      
-      const ringOpacity = isDarkMode ? 0.3 : 0.5;
-      if (isSpeaking) {
-        ringGlow.addColorStop(0, 'transparent');
-        ringGlow.addColorStop(0.4, `hsla(270, ${saturation}%, ${lightness}%, ${ringOpacity})`);
-        ringGlow.addColorStop(0.6, `hsla(270, ${saturation}%, ${lightness}%, ${ringOpacity})`);
-        ringGlow.addColorStop(1, 'transparent');
-      } else if (isListening) {
-        ringGlow.addColorStop(0, 'transparent');
-        ringGlow.addColorStop(0.4, `hsla(187, ${saturation}%, ${lightness - 10}%, ${ringOpacity})`);
-        ringGlow.addColorStop(0.6, `hsla(187, ${saturation}%, ${lightness - 10}%, ${ringOpacity})`);
-        ringGlow.addColorStop(1, 'transparent');
-      } else {
-        ringGlow.addColorStop(0, 'transparent');
-        ringGlow.addColorStop(0.4, `hsla(222, 60%, ${lightness - 5}%, ${ringOpacity * 0.5})`);
-        ringGlow.addColorStop(0.6, `hsla(222, 60%, ${lightness - 5}%, ${ringOpacity * 0.5})`);
-        ringGlow.addColorStop(1, 'transparent');
-      }
+      // Soft flowing ring - no hard edges
+      if (isActive) {
+        const ringRadius = 55 + Math.sin(time * 1.8) * 8;
+        
+        for (let i = 0; i < 3; i++) {
+          const offset = i * 0.3;
+          const ringGradient = ctx.createRadialGradient(
+            centerX, centerY, ringRadius - 15 + i * 5,
+            centerX, centerY, ringRadius + 15 - i * 3
+          );
+          
+          const ringAlpha = (0.15 - i * 0.04) * glowIntensity;
+          ringGradient.addColorStop(0, 'transparent');
+          ringGradient.addColorStop(0.3, `hsla(${baseHue}, ${saturation}%, ${lightness}%, ${ringAlpha})`);
+          ringGradient.addColorStop(0.5, `hsla(${baseHue}, ${saturation}%, ${lightness + 5}%, ${ringAlpha * 1.2})`);
+          ringGradient.addColorStop(0.7, `hsla(${baseHue}, ${saturation}%, ${lightness}%, ${ringAlpha})`);
+          ringGradient.addColorStop(1, 'transparent');
 
-      ctx.fillStyle = ringGlow;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, ringRadius + 8, 0, Math.PI * 2);
-      ctx.arc(centerX, centerY, ringRadius - 8, 0, Math.PI * 2);
-      ctx.fill('evenodd');
+          ctx.fillStyle = ringGradient;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, ringRadius + 20, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
 
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -221,7 +186,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isActive, isSpeaking, isListening]);
+  }, [isActive, isSpeaking, isListening, isDarkMode]);
 
   return (
     <canvas
