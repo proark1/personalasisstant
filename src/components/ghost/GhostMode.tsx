@@ -634,22 +634,22 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
                   )}
                 >
                   {item.role === 'assistant' && (
-                    <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-purple-500/30 backdrop-blur-sm flex items-center justify-center shrink-0">
                       <Volume2 className="w-3 h-3 text-purple-500" />
                     </div>
                   )}
                   <div
                     className={cn(
-                      "max-w-[80%] text-sm",
+                      "max-w-[80%] px-3 py-1.5 rounded-lg text-sm backdrop-blur-md",
                       item.role === 'user'
-                        ? "text-foreground/80"
-                        : "text-purple-600 dark:text-purple-300"
+                        ? "bg-background/70 dark:bg-background/50 text-foreground"
+                        : "bg-purple-500/20 dark:bg-purple-500/30 text-purple-700 dark:text-purple-200"
                     )}
                   >
                     <p className="whitespace-pre-wrap">{item.text}</p>
                   </div>
                   {item.role === 'user' && (
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-primary/30 backdrop-blur-sm flex items-center justify-center shrink-0">
                       <Mic className="w-3 h-3 text-primary" />
                     </div>
                   )}
