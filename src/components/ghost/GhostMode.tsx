@@ -524,6 +524,20 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 z-50 flex flex-col animate-fade-in">
+      {/* Close button */}
+      <div className="absolute top-4 right-4 z-20">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            handleEndSession();
+            onClose();
+          }}
+          className="rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/70 text-foreground/70 hover:text-foreground"
+        >
+          <X className="w-5 h-5" />
+        </Button>
+      </div>
 
       {/* Debug Panel */}
       {showDebugPanel && (
