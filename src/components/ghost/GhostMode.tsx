@@ -606,18 +606,18 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       )}
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center px-8 pt-20 pb-48">
-        {/* Visualizer - smaller when transcript visible */}
-        <div className={cn(
-          "transition-all duration-300",
-          transcriptHistory.length > 0 ? "w-48 h-48 mb-4" : "w-80 h-80 mb-8"
-        )}>
+      <main className="flex-1 flex flex-col items-center justify-center px-8 pt-20 pb-48 relative overflow-hidden">
+        {/* Full-screen ambient visualizer background */}
+        <div className="absolute inset-0 pointer-events-none">
           <AudioVisualizer 
             isActive={isConnected || connectionStatus === 'connecting'}
             isSpeaking={isSpeaking}
             isListening={isListening && !isSpeaking}
           />
         </div>
+
+        {/* Content overlay */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full">
 
         {/* Current Transcript / Response */}
         <div className="h-20 flex flex-col items-center justify-center gap-2 max-w-2xl mb-4">
@@ -697,6 +697,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             </div>
           </div>
         )}
+        </div>
       </main>
 
       {/* Footer Controls */}

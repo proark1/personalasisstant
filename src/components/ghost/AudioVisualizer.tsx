@@ -6,23 +6,24 @@ interface AudioVisualizerProps {
   isListening: boolean;
 }
 
+interface Orb {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  baseRadius: number;
+  hue: number;
+  phase: number;
+}
+
 export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
-  const particlesRef = useRef<Particle[]>([]);
+  const orbsRef = useRef<Orb[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(() => 
     document.documentElement.classList.contains('dark')
   );
-
-  interface Particle {
-    angle: number;
-    radius: number;
-    baseRadius: number;
-    speed: number;
-    size: number;
-    opacity: number;
-    hue: number;
-  }
 
   // Watch for theme changes
   useEffect(() => {
@@ -51,129 +52,144 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Initialize particles with organic distribution
-    const particleCount = 80;
-    particlesRef.current = Array.from({ length: particleCount }, (_, i) => ({
-      angle: (i / particleCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.3,
-      radius: 80 + Math.random() * 40,
-      baseRadius: 80 + Math.random() * 40,
-      speed: 0.001 + Math.random() * 0.002,
-      size: 1.5 + Math.random() * 2.5,
-      opacity: 0.3 + Math.random() * 0.5,
-      hue: isSpeaking ? 270 : 187,
+    // Initialize floating orbs
+    const orbCount = 5;
+    orbsRef.current = Array.from({ length: orbCount }, (_, i) => ({
+      x: 0.5,
+      y: 0.5,
+      vx: (Math.random() - 0.5) * 0.002,
+      vy: (Math.random() - 0.5) * 0.002,
+      radius: 0.15 + Math.random() * 0.1,
+      baseRadius: 0.15 + Math.random() * 0.1,
+      hue: isSpeaking ? 270 + i * 15 : 180 + i * 20,
+      phase: (i / orbCount) * Math.PI * 2,
     }));
 
     let time = 0;
 
     const animate = () => {
       const rect = canvas.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width, rect.height);
+      const width = rect.width;
+      const height = rect.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const minDim = Math.min(width, height);
 
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
+      ctx.clearRect(0, 0, width, height);
+      time += 0.012;
 
-      time += 0.008;
-
-      // Theme-aware colors
-      const glowIntensity = isDarkMode ? 0.8 : 1.2;
-      const saturation = isDarkMode ? 75 : 85;
-      const lightness = isDarkMode ? 55 : 45;
-
-      // Soft ambient glow - no hard edges
-      const ambientRadius = Math.min(rect.width, rect.height) * 0.4;
-      const ambientGlow = ctx.createRadialGradient(
-        centerX, centerY, 0,
-        centerX, centerY, ambientRadius
-      );
-      
+      // Theme colors
       const baseHue = isSpeaking ? 270 : isListening ? 187 : 220;
-      ambientGlow.addColorStop(0, `hsla(${baseHue}, ${saturation}%, ${lightness}%, ${0.15 * glowIntensity})`);
-      ambientGlow.addColorStop(0.4, `hsla(${baseHue}, ${saturation - 10}%, ${lightness + 5}%, ${0.08 * glowIntensity})`);
-      ambientGlow.addColorStop(0.7, `hsla(${baseHue}, ${saturation - 20}%, ${lightness + 10}%, ${0.03 * glowIntensity})`);
-      ambientGlow.addColorStop(1, 'transparent');
+      const saturation = isDarkMode ? 70 : 80;
+      const baseLightness = isDarkMode ? 50 : 40;
+      const glowOpacity = isDarkMode ? 0.6 : 0.8;
 
-      ctx.fillStyle = ambientGlow;
-      ctx.fillRect(0, 0, rect.width, rect.height);
+      // Update and draw orbs with metaball-like blending
+      orbsRef.current.forEach((orb, i) => {
+        // Organic movement
+        orb.x += orb.vx + Math.sin(time + orb.phase) * 0.003;
+        orb.y += orb.vy + Math.cos(time * 0.8 + orb.phase) * 0.003;
 
-      // Breathing core - organic pulsing
-      const breathScale = 1 + Math.sin(time * 1.5) * 0.15;
-      const coreRadius = 40 * breathScale;
-      
-      const coreGlow = ctx.createRadialGradient(
-        centerX, centerY, 0,
-        centerX, centerY, coreRadius * 2
-      );
-      
-      const coreOpacity = isActive ? 0.4 : 0.2;
-      coreGlow.addColorStop(0, `hsla(${baseHue}, ${saturation}%, ${lightness + 15}%, ${coreOpacity * glowIntensity})`);
-      coreGlow.addColorStop(0.3, `hsla(${baseHue}, ${saturation}%, ${lightness + 5}%, ${coreOpacity * 0.6 * glowIntensity})`);
-      coreGlow.addColorStop(0.6, `hsla(${baseHue}, ${saturation - 10}%, ${lightness}%, ${coreOpacity * 0.3 * glowIntensity})`);
-      coreGlow.addColorStop(1, 'transparent');
+        // Soft boundary attraction to center
+        orb.x += (0.5 - orb.x) * 0.01;
+        orb.y += (0.5 - orb.y) * 0.01;
 
-      ctx.fillStyle = coreGlow;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, coreRadius * 2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Floating particles - organic movement
-      particlesRef.current.forEach((particle, i) => {
-        particle.angle += particle.speed * (isActive ? 2 : 0.8);
-
-        // Organic wave motion
-        const wave1 = Math.sin(time * 2 + i * 0.15) * (isActive ? 20 : 8);
-        const wave2 = Math.cos(time * 1.5 + i * 0.1) * (isActive ? 15 : 5);
-        particle.radius = particle.baseRadius + wave1 + wave2;
-
-        const x = centerX + Math.cos(particle.angle) * particle.radius;
-        const y = centerY + Math.sin(particle.angle) * particle.radius;
+        // Breathing effect
+        const breathe = Math.sin(time * 2 + orb.phase) * 0.03;
+        const activityPulse = isActive ? Math.sin(time * 4 + i) * 0.05 : 0;
+        orb.radius = orb.baseRadius + breathe + activityPulse;
 
         // Smooth color transition
-        const targetHue = isSpeaking ? 270 : 187;
-        particle.hue += (targetHue - particle.hue) * 0.03;
+        const targetHue = isSpeaking ? 270 + i * 15 : 180 + i * 20;
+        orb.hue += (targetHue - orb.hue) * 0.02;
 
-        // Soft particle glow
-        const particleGlow = ctx.createRadialGradient(x, y, 0, x, y, particle.size * 4);
-        
-        const baseAlpha = isActive 
-          ? particle.opacity * (0.5 + Math.sin(time * 3 + i * 0.2) * 0.3)
-          : particle.opacity * 0.3;
-        const alpha = Math.min(baseAlpha * glowIntensity, 0.9);
-        
-        particleGlow.addColorStop(0, `hsla(${particle.hue}, ${saturation}%, ${lightness + 10}%, ${alpha})`);
-        particleGlow.addColorStop(0.3, `hsla(${particle.hue}, ${saturation}%, ${lightness}%, ${alpha * 0.5})`);
-        particleGlow.addColorStop(0.7, `hsla(${particle.hue}, ${saturation - 15}%, ${lightness - 5}%, ${alpha * 0.2})`);
-        particleGlow.addColorStop(1, 'transparent');
-        
-        ctx.fillStyle = particleGlow;
-        ctx.beginPath();
-        ctx.arc(x, y, particle.size * 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
+        const orbX = orb.x * width;
+        const orbY = orb.y * height;
+        const orbRadius = orb.radius * minDim;
 
-      // Soft flowing ring - no hard edges
-      if (isActive) {
-        const ringRadius = 55 + Math.sin(time * 1.8) * 8;
-        
-        for (let i = 0; i < 3; i++) {
-          const offset = i * 0.3;
-          const ringGradient = ctx.createRadialGradient(
-            centerX, centerY, ringRadius - 15 + i * 5,
-            centerX, centerY, ringRadius + 15 - i * 3
+        // Multi-layer gradient for soft, glowing effect
+        for (let layer = 3; layer >= 0; layer--) {
+          const layerRadius = orbRadius * (1 + layer * 0.5);
+          const layerOpacity = glowOpacity * (0.4 - layer * 0.1);
+
+          const gradient = ctx.createRadialGradient(
+            orbX, orbY, 0,
+            orbX, orbY, layerRadius
           );
-          
-          const ringAlpha = (0.15 - i * 0.04) * glowIntensity;
-          ringGradient.addColorStop(0, 'transparent');
-          ringGradient.addColorStop(0.3, `hsla(${baseHue}, ${saturation}%, ${lightness}%, ${ringAlpha})`);
-          ringGradient.addColorStop(0.5, `hsla(${baseHue}, ${saturation}%, ${lightness + 5}%, ${ringAlpha * 1.2})`);
-          ringGradient.addColorStop(0.7, `hsla(${baseHue}, ${saturation}%, ${lightness}%, ${ringAlpha})`);
-          ringGradient.addColorStop(1, 'transparent');
 
-          ctx.fillStyle = ringGradient;
+          const lightness = baseLightness + layer * 5;
+          gradient.addColorStop(0, `hsla(${orb.hue}, ${saturation}%, ${lightness + 20}%, ${layerOpacity})`);
+          gradient.addColorStop(0.3, `hsla(${orb.hue}, ${saturation}%, ${lightness + 10}%, ${layerOpacity * 0.7})`);
+          gradient.addColorStop(0.6, `hsla(${orb.hue}, ${saturation - 10}%, ${lightness}%, ${layerOpacity * 0.3})`);
+          gradient.addColorStop(1, 'transparent');
+
+          ctx.fillStyle = gradient;
           ctx.beginPath();
-          ctx.arc(centerX, centerY, ringRadius + 20, 0, Math.PI * 2);
+          ctx.arc(orbX, orbY, layerRadius, 0, Math.PI * 2);
           ctx.fill();
         }
+      });
+
+      // Central energy core
+      const coreBreath = 1 + Math.sin(time * 1.5) * 0.2;
+      const coreRadius = minDim * 0.08 * coreBreath;
+
+      for (let layer = 4; layer >= 0; layer--) {
+        const layerRadius = coreRadius * (1 + layer * 0.8);
+        const layerOpacity = (isActive ? 0.5 : 0.3) * (0.5 - layer * 0.1);
+
+        const coreGradient = ctx.createRadialGradient(
+          centerX, centerY, 0,
+          centerX, centerY, layerRadius
+        );
+
+        const coreLightness = baseLightness + 20 - layer * 3;
+        coreGradient.addColorStop(0, `hsla(${baseHue}, ${saturation + 10}%, ${coreLightness + 15}%, ${layerOpacity * glowOpacity})`);
+        coreGradient.addColorStop(0.4, `hsla(${baseHue}, ${saturation}%, ${coreLightness + 5}%, ${layerOpacity * 0.6 * glowOpacity})`);
+        coreGradient.addColorStop(0.7, `hsla(${baseHue}, ${saturation - 10}%, ${coreLightness}%, ${layerOpacity * 0.3 * glowOpacity})`);
+        coreGradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = coreGradient;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, layerRadius, 0, Math.PI * 2);
+        ctx.fill();
       }
+
+      // Floating particles
+      const particleCount = isActive ? 30 : 15;
+      for (let i = 0; i < particleCount; i++) {
+        const angle = (i / particleCount) * Math.PI * 2 + time * 0.3;
+        const dist = minDim * (0.15 + Math.sin(time * 2 + i * 0.5) * 0.08);
+        const px = centerX + Math.cos(angle) * dist;
+        const py = centerY + Math.sin(angle) * dist;
+        const size = 2 + Math.sin(time * 3 + i) * 1.5;
+
+        const particleGradient = ctx.createRadialGradient(px, py, 0, px, py, size * 3);
+        const particleOpacity = (0.4 + Math.sin(time * 4 + i * 0.3) * 0.2) * glowOpacity;
+        
+        particleGradient.addColorStop(0, `hsla(${baseHue + i * 3}, ${saturation}%, ${baseLightness + 20}%, ${particleOpacity})`);
+        particleGradient.addColorStop(0.5, `hsla(${baseHue + i * 3}, ${saturation}%, ${baseLightness + 10}%, ${particleOpacity * 0.4})`);
+        particleGradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = particleGradient;
+        ctx.beginPath();
+        ctx.arc(px, py, size * 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Ambient outer glow
+      const ambientGradient = ctx.createRadialGradient(
+        centerX, centerY, minDim * 0.1,
+        centerX, centerY, minDim * 0.5
+      );
+      
+      const ambientOpacity = (isActive ? 0.15 : 0.08) * glowOpacity;
+      ambientGradient.addColorStop(0, `hsla(${baseHue}, ${saturation - 20}%, ${baseLightness + 10}%, ${ambientOpacity})`);
+      ambientGradient.addColorStop(0.5, `hsla(${baseHue}, ${saturation - 30}%, ${baseLightness}%, ${ambientOpacity * 0.4})`);
+      ambientGradient.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = ambientGradient;
+      ctx.fillRect(0, 0, width, height);
 
       animationRef.current = requestAnimationFrame(animate);
     };
