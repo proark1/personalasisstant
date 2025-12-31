@@ -87,7 +87,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const [buttonPulse, setButtonPulse] = useState(false);
   const [textMode, setTextMode] = useState(false);
   const [textInput, setTextInput] = useState('');
+  const [transcriptHistory, setTranscriptHistory] = useState<Array<{ role: 'user' | 'assistant'; text: string; timestamp: Date }>>([]);
   const aiResponseRef = useRef('');
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
   const isConnectingRef = useRef(false);
   const disconnectRef = useRef<() => void>(() => {});
 
@@ -332,6 +334,10 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
           onClose();
           return;
         }
+        // Add user transcript to history
+        if (text.trim()) {
+          setTranscriptHistory(prev => [...prev, { role: 'user', text: text.trim(), timestamp: new Date() }]);
+        }
         setTimeout(() => setDisplayTranscript(''), 3000);
       }
     },
@@ -371,6 +377,10 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         setConnectionStatus('speaking');
       } else if (isConnected) {
         setConnectionStatus('connected');
+        // Add AI response to history when done speaking
+        if (aiResponseRef.current.trim()) {
+          setTranscriptHistory(prev => [...prev, { role: 'assistant', text: aiResponseRef.current.trim(), timestamp: new Date() }]);
+        }
         setTimeout(() => {
           aiResponseRef.current = '';
           setAiResponse('');
@@ -507,6 +517,11 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     setMicMutedInEngine?.(micMuted);
   }, [micMuted, setMicMutedInEngine]);
 
+  // Auto-scroll transcript history
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcriptHistory]);
+
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 z-50 flex flex-col animate-fade-in">
       {/* Header */}
@@ -591,9 +606,12 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       )}
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center px-8">
-        {/* Visualizer */}
-        <div className="w-80 h-80 mb-8">
+      <main className="flex-1 flex flex-col items-center justify-center px-8 pt-20 pb-48">
+        {/* Visualizer - smaller when transcript visible */}
+        <div className={cn(
+          "transition-all duration-300",
+          transcriptHistory.length > 0 ? "w-48 h-48 mb-4" : "w-80 h-80 mb-8"
+        )}>
           <AudioVisualizer 
             isActive={isConnected || connectionStatus === 'connecting'}
             isSpeaking={isSpeaking}
@@ -601,14 +619,14 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
           />
         </div>
 
-        {/* Transcript / Response */}
-        <div className="h-32 flex flex-col items-center justify-center gap-2 max-w-2xl">
+        {/* Current Transcript / Response */}
+        <div className="h-20 flex flex-col items-center justify-center gap-2 max-w-2xl mb-4">
           {displayTranscript && !isSpeaking ? (
-            <p className="text-2xl md:text-3xl font-light text-center text-foreground/90 animate-fade-in">
+            <p className="text-xl md:text-2xl font-light text-center text-foreground/90 animate-fade-in">
               "{displayTranscript}"
             </p>
           ) : aiResponse && isSpeaking ? (
-            <p className="text-xl md:text-2xl font-light text-center text-purple-300 animate-fade-in">
+            <p className="text-lg md:text-xl font-light text-center text-purple-300 animate-fade-in">
               {aiResponse}
             </p>
           ) : connectionStatus === 'connecting' ? (
@@ -640,6 +658,45 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             </p>
           )}
         </div>
+
+        {/* Persistent Transcript History */}
+        {transcriptHistory.length > 0 && (
+          <div className="w-full max-w-xl glass-panel rounded-xl p-4 max-h-48 overflow-y-auto">
+            <div className="space-y-3">
+              {transcriptHistory.map((item, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "flex gap-3 animate-fade-in",
+                    item.role === 'user' ? 'justify-end' : 'justify-start'
+                  )}
+                >
+                  {item.role === 'assistant' && (
+                    <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+                      <Volume2 className="w-3 h-3 text-purple-400" />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-lg px-3 py-2 text-sm",
+                      item.role === 'user'
+                        ? "bg-primary/20 text-foreground"
+                        : "bg-purple-500/10 text-purple-200"
+                    )}
+                  >
+                    <p className="whitespace-pre-wrap">{item.text}</p>
+                  </div>
+                  {item.role === 'user' && (
+                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <Mic className="w-3 h-3 text-primary" />
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div ref={transcriptEndRef} />
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Footer Controls */}
