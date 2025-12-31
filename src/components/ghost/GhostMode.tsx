@@ -523,12 +523,12 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   }, [transcriptHistory]);
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 z-50 flex flex-col animate-fade-in">
+    <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 z-50 flex flex-col animate-fade-in">
       {/* Header */}
-      <header className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-background/80 to-transparent backdrop-blur-sm">
+      <header className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-background/90 to-transparent backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/30",
+            "flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-primary/10 to-accent/10 dark:from-primary/20 dark:to-accent/20 border border-primary/20 dark:border-primary/30 shadow-sm",
             currentStatus.color
           )}>
             <StatusIcon className={cn("w-4 h-4", currentStatus.animate && "animate-pulse")} />
@@ -661,7 +661,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
 
         {/* Persistent Transcript History */}
         {transcriptHistory.length > 0 && (
-          <div className="w-full max-w-xl glass-panel rounded-xl p-4 max-h-48 overflow-y-auto">
+          <div className="w-full max-w-xl bg-card/60 dark:bg-card/40 backdrop-blur-md rounded-xl p-4 max-h-48 overflow-y-auto border border-border/30 dark:border-border/20 shadow-lg">
             <div className="space-y-3">
               {transcriptHistory.map((item, index) => (
                 <div
@@ -672,22 +672,22 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
                   )}
                 >
                   {item.role === 'assistant' && (
-                    <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
-                      <Volume2 className="w-3 h-3 text-purple-400" />
+                    <div className="w-6 h-6 rounded-full bg-purple-500/20 dark:bg-purple-500/30 flex items-center justify-center shrink-0">
+                      <Volume2 className="w-3 h-3 text-purple-600 dark:text-purple-400" />
                     </div>
                   )}
                   <div
                     className={cn(
-                      "max-w-[80%] rounded-lg px-3 py-2 text-sm",
+                      "max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm",
                       item.role === 'user'
-                        ? "bg-primary/20 text-foreground"
-                        : "bg-purple-500/10 text-purple-200"
+                        ? "bg-primary/15 dark:bg-primary/20 text-foreground border border-primary/20"
+                        : "bg-purple-500/10 dark:bg-purple-500/15 text-purple-700 dark:text-purple-200 border border-purple-500/20"
                     )}
                   >
                     <p className="whitespace-pre-wrap">{item.text}</p>
                   </div>
                   {item.role === 'user' && (
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-primary/20 dark:bg-primary/30 flex items-center justify-center shrink-0">
                       <Mic className="w-3 h-3 text-primary" />
                     </div>
                   )}

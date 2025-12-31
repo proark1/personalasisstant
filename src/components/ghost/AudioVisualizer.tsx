@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
+import { useEffect, useRef } from 'react';
 
 interface AudioVisualizerProps {
   isActive: boolean;
@@ -44,8 +43,8 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
     const particleCount = 120;
     particlesRef.current = Array.from({ length: particleCount }, (_, i) => ({
       angle: (i / particleCount) * Math.PI * 2,
-      radius: 120,
-      baseRadius: 120,
+      radius: 100,
+      baseRadius: 100,
       speed: 0.002 + Math.random() * 0.003,
       size: 2 + Math.random() * 3,
       opacity: 0.5 + Math.random() * 0.5,
@@ -63,38 +62,54 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
 
       time += 0.01;
 
-      // Draw outer glow
-      const gradient = ctx.createRadialGradient(
-        centerX, centerY, 80,
-        centerX, centerY, 200
+      // Soft outer glow with fading edges - much larger and softer
+      const outerGlow = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, rect.width * 0.5
       );
       
       if (isSpeaking) {
-        gradient.addColorStop(0, 'hsla(270, 80%, 60%, 0.1)');
-        gradient.addColorStop(0.5, 'hsla(270, 80%, 50%, 0.05)');
-        gradient.addColorStop(1, 'transparent');
+        outerGlow.addColorStop(0, 'hsla(270, 80%, 60%, 0.15)');
+        outerGlow.addColorStop(0.3, 'hsla(270, 80%, 55%, 0.08)');
+        outerGlow.addColorStop(0.6, 'hsla(270, 80%, 50%, 0.03)');
+        outerGlow.addColorStop(1, 'transparent');
       } else if (isListening) {
-        gradient.addColorStop(0, 'hsla(187, 94%, 43%, 0.15)');
-        gradient.addColorStop(0.5, 'hsla(187, 94%, 43%, 0.05)');
-        gradient.addColorStop(1, 'transparent');
+        outerGlow.addColorStop(0, 'hsla(187, 94%, 43%, 0.15)');
+        outerGlow.addColorStop(0.3, 'hsla(187, 94%, 43%, 0.08)');
+        outerGlow.addColorStop(0.6, 'hsla(187, 94%, 43%, 0.03)');
+        outerGlow.addColorStop(1, 'transparent');
       } else {
-        gradient.addColorStop(0, 'hsla(222, 47%, 20%, 0.1)');
-        gradient.addColorStop(1, 'transparent');
+        outerGlow.addColorStop(0, 'hsla(222, 47%, 35%, 0.1)');
+        outerGlow.addColorStop(0.5, 'hsla(222, 47%, 30%, 0.03)');
+        outerGlow.addColorStop(1, 'transparent');
       }
 
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, 200, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = outerGlow;
+      ctx.fillRect(0, 0, rect.width, rect.height);
 
-      // Draw core circle
+      // Soft core glow
+      const coreGlow = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, 60
+      );
+      
+      if (isSpeaking) {
+        coreGlow.addColorStop(0, 'hsla(270, 80%, 70%, 0.4)');
+        coreGlow.addColorStop(0.5, 'hsla(270, 80%, 60%, 0.2)');
+        coreGlow.addColorStop(1, 'transparent');
+      } else if (isListening) {
+        coreGlow.addColorStop(0, 'hsla(187, 94%, 55%, 0.4)');
+        coreGlow.addColorStop(0.5, 'hsla(187, 94%, 45%, 0.2)');
+        coreGlow.addColorStop(1, 'transparent');
+      } else {
+        coreGlow.addColorStop(0, 'hsla(222, 47%, 50%, 0.2)');
+        coreGlow.addColorStop(0.5, 'hsla(222, 47%, 40%, 0.1)');
+        coreGlow.addColorStop(1, 'transparent');
+      }
+
+      ctx.fillStyle = coreGlow;
       ctx.beginPath();
-      ctx.arc(centerX, centerY, 40, 0, Math.PI * 2);
-      ctx.fillStyle = isSpeaking 
-        ? 'hsla(270, 80%, 60%, 0.3)' 
-        : isListening 
-          ? 'hsla(187, 94%, 43%, 0.3)'
-          : 'hsla(222, 47%, 30%, 0.2)';
+      ctx.arc(centerX, centerY, 60, 0, Math.PI * 2);
       ctx.fill();
 
       // Animate and draw particles
@@ -102,10 +117,10 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
         particle.angle += particle.speed * (isActive ? 1.5 : 0.5);
 
         // Add wave effect based on activity
-        const waveIntensity = isActive ? 30 : 10;
+        const waveIntensity = isActive ? 25 : 8;
         const wave = Math.sin(time * 3 + i * 0.1) * waveIntensity;
         const activityPulse = isActive 
-          ? Math.sin(time * 5 + i * 0.05) * 15
+          ? Math.sin(time * 5 + i * 0.05) * 12
           : 0;
         
         particle.radius = particle.baseRadius + wave + activityPulse;
@@ -117,41 +132,74 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
         const targetHue = isSpeaking ? 270 : 187;
         particle.hue += (targetHue - particle.hue) * 0.05;
 
-        ctx.beginPath();
-        ctx.arc(x, y, particle.size, 0, Math.PI * 2);
+        // Soft particle glow instead of hard circles
+        const particleGlow = ctx.createRadialGradient(
+          x, y, 0,
+          x, y, particle.size * 3
+        );
         
         const alpha = isActive 
           ? particle.opacity * (0.7 + Math.sin(time * 4 + i) * 0.3)
           : particle.opacity * 0.4;
         
-        ctx.fillStyle = `hsla(${particle.hue}, 80%, 60%, ${alpha})`;
+        particleGlow.addColorStop(0, `hsla(${particle.hue}, 80%, 65%, ${alpha})`);
+        particleGlow.addColorStop(0.4, `hsla(${particle.hue}, 80%, 60%, ${alpha * 0.4})`);
+        particleGlow.addColorStop(1, 'transparent');
+        
+        ctx.fillStyle = particleGlow;
+        ctx.beginPath();
+        ctx.arc(x, y, particle.size * 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Draw connecting lines to nearby particles
+        // Draw connecting lines to nearby particles with fading
         if (isActive && i % 3 === 0) {
           const nextParticle = particlesRef.current[(i + 1) % particlesRef.current.length];
           const nextX = centerX + Math.cos(nextParticle.angle) * nextParticle.radius;
           const nextY = centerY + Math.sin(nextParticle.angle) * nextParticle.radius;
 
+          const lineGradient = ctx.createLinearGradient(x, y, nextX, nextY);
+          lineGradient.addColorStop(0, `hsla(${particle.hue}, 80%, 60%, ${alpha * 0.25})`);
+          lineGradient.addColorStop(0.5, `hsla(${particle.hue}, 80%, 60%, ${alpha * 0.15})`);
+          lineGradient.addColorStop(1, `hsla(${particle.hue}, 80%, 60%, ${alpha * 0.05})`);
+
           ctx.beginPath();
           ctx.moveTo(x, y);
           ctx.lineTo(nextX, nextY);
-          ctx.strokeStyle = `hsla(${particle.hue}, 80%, 60%, ${alpha * 0.3})`;
-          ctx.lineWidth = 0.5;
+          ctx.strokeStyle = lineGradient;
+          ctx.lineWidth = 1;
           ctx.stroke();
         }
       });
 
-      // Draw inner ring
+      // Soft pulsing inner ring instead of hard stroke
+      const ringRadius = 50 + Math.sin(time * 2) * 5;
+      const ringGlow = ctx.createRadialGradient(
+        centerX, centerY, ringRadius - 8,
+        centerX, centerY, ringRadius + 8
+      );
+      
+      if (isSpeaking) {
+        ringGlow.addColorStop(0, 'transparent');
+        ringGlow.addColorStop(0.4, 'hsla(270, 80%, 60%, 0.3)');
+        ringGlow.addColorStop(0.6, 'hsla(270, 80%, 60%, 0.3)');
+        ringGlow.addColorStop(1, 'transparent');
+      } else if (isListening) {
+        ringGlow.addColorStop(0, 'transparent');
+        ringGlow.addColorStop(0.4, 'hsla(187, 94%, 43%, 0.3)');
+        ringGlow.addColorStop(0.6, 'hsla(187, 94%, 43%, 0.3)');
+        ringGlow.addColorStop(1, 'transparent');
+      } else {
+        ringGlow.addColorStop(0, 'transparent');
+        ringGlow.addColorStop(0.4, 'hsla(222, 47%, 45%, 0.15)');
+        ringGlow.addColorStop(0.6, 'hsla(222, 47%, 45%, 0.15)');
+        ringGlow.addColorStop(1, 'transparent');
+      }
+
+      ctx.fillStyle = ringGlow;
       ctx.beginPath();
-      ctx.arc(centerX, centerY, 60, 0, Math.PI * 2);
-      ctx.strokeStyle = isSpeaking 
-        ? 'hsla(270, 80%, 60%, 0.4)' 
-        : isListening 
-          ? 'hsla(187, 94%, 43%, 0.4)'
-          : 'hsla(222, 47%, 40%, 0.2)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.arc(centerX, centerY, ringRadius + 8, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, ringRadius - 8, 0, Math.PI * 2);
+      ctx.fill('evenodd');
 
       animationRef.current = requestAnimationFrame(animate);
     };
