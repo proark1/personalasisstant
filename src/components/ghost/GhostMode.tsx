@@ -524,42 +524,14 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 z-50 flex flex-col animate-fade-in">
-      {/* Header */}
-      <header className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-background/90 to-transparent backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-primary/10 to-accent/10 dark:from-primary/20 dark:to-accent/20 border border-primary/20 dark:border-primary/30 shadow-sm",
-            currentStatus.color
-          )}>
-            <StatusIcon className={cn("w-4 h-4", currentStatus.animate && "animate-pulse")} />
-            <span className="font-medium text-sm">{currentStatus.label}</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowDebugPanel((v) => !v)}
-            className={cn(
-              "text-muted-foreground hover:text-foreground rounded-full",
-              showDebugPanel && "text-primary bg-primary/10"
-            )}
-            title="Toggle debug panel"
-          >
-            <Bug className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              handleEndSession();
-              onClose();
-            }}
-            className="rounded-full border-destructive/30 text-destructive hover:bg-destructive/10"
-          >
-            <X className="w-5 h-5" />
-          </Button>
+      {/* Header - minimal */}
+      <header className="absolute top-0 left-0 right-0 p-4 flex items-center justify-center">
+        <div className={cn(
+          "flex items-center gap-2 px-4 py-2 rounded-full bg-background/30 backdrop-blur-sm",
+          currentStatus.color
+        )}>
+          <StatusIcon className={cn("w-4 h-4", currentStatus.animate && "animate-pulse")} />
+          <span className="font-medium text-sm">{currentStatus.label}</span>
         </div>
       </header>
 
