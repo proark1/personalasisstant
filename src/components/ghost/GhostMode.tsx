@@ -12,6 +12,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useAppleHealth } from '@/hooks/useAppleHealth';
 import { useHabits } from '@/hooks/useHabits';
+import { useNotes } from '@/hooks/useNotes';
+import { useDirectMessages } from '@/hooks/useDirectMessages';
 import type { AssistantPersonality } from '@/types/flux';
 import {
   Mic,
@@ -106,7 +108,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const { contracts, addContract, updateContract, deleteContract, refetch: refetchContracts } = useContracts(userId);
   const { projects, addProject, updateProject, deleteProject, refetch: refetchProjects } = useProjects(userId);
   const { healthMetrics, todaySummary, weeklyData, isConnected: healthConnected, refetch: refetchHealth } = useAppleHealth();
-  const { habits, logs: habitLogs } = useHabits(userId);
+  const { habits, logs: habitLogs, createHabit, logHabit, deleteHabit, refetch: refetchHabits } = useHabits(userId);
+  const { notes, createNote, updateNote, deleteNote, refetch: refetchNotes } = useNotes(userId);
+  const { sendMessage: sendDirectMessage, conversations, refetch: refetchMessages } = useDirectMessages(userId || null);
 
   // Prepare context data for the AI
   const contextData = useMemo(() => {
@@ -166,7 +170,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       location: e.location || null,
     }));
 
-    // All contacts for matching
+    // All contacts for matching (include familyRelationship for voice commands like "call my wife")
     const allContacts = contacts.slice(0, 100).map(c => ({
       id: c.id,
       name: c.name,
@@ -183,6 +187,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       email: c.email || null,
       nextContactDue: c.nextContactDue?.toISOString() || null,
       lastContactedAt: c.lastContactedAt?.toISOString() || null,
+      familyRelationship: c.familyRelationship || null,
     }));
 
     // All contracts for matching
@@ -255,6 +260,23 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       })),
     };
 
+    // Notes data for AI access
+    const notesData = notes.slice(0, 50).map(n => ({
+      id: n.id,
+      title: n.title,
+      contentPreview: n.content.substring(0, 100),
+      tags: n.tags,
+      isPinned: n.isPinned,
+      updatedAt: n.updatedAt.toISOString(),
+    }));
+
+    // Conversations data for AI access (who can receive messages)
+    const conversationPartners = conversations.map(c => ({
+      partnerId: c.partnerId,
+      partnerName: c.partnerName,
+      partnerEmail: c.partnerEmail,
+    }));
+
     return {
       allTasks,
       allEvents,
@@ -263,6 +285,8 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       allProjects,
       healthData,
       habitData,
+      notesData,
+      conversationPartners,
       overdueTasks: overdueTasks.slice(0, 5).map(t => ({
         title: t.title,
         category: String(t.category),
@@ -308,8 +332,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       totalContracts: activeContracts.length,
       totalProjects: activeProjects.length,
       totalHabits: habits.length,
+      totalNotes: notes.length,
     };
-  }, [tasks, events, contacts, contracts, projects, healthMetrics, todaySummary, weeklyData, healthConnected, habits, habitLogs]);
+  }, [tasks, events, contacts, contracts, projects, healthMetrics, todaySummary, weeklyData, healthConnected, habits, habitLogs, notes, conversations]);
 
   // OpenAI Realtime hook
   const {
@@ -414,6 +439,19 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     refetchContacts,
     refetchContracts,
     refetchProjects,
+    // Note operations
+    createNote,
+    updateNote,
+    deleteNote,
+    refetchNotes,
+    // Habit operations
+    createHabit,
+    logHabit,
+    deleteHabit,
+    refetchHabits,
+    // Message operations
+    sendDirectMessage,
+    refetchMessages,
   });
 
   // Update connection status based on state

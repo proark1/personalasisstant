@@ -41,6 +41,19 @@ interface UseOpenAIRealtimeOptions {
   refetchContacts?: () => void;
   refetchContracts?: () => void;
   refetchProjects?: () => void;
+  // Note operations
+  createNote?: (title?: string, content?: string, tags?: string[]) => Promise<any>;
+  updateNote?: (noteId: string, updates: any) => Promise<void>;
+  deleteNote?: (noteId: string, permanent?: boolean) => Promise<void>;
+  refetchNotes?: () => void;
+  // Habit operations  
+  createHabit?: (habit: any) => Promise<any>;
+  logHabit?: (habitId: string, date?: Date, count?: number) => Promise<void>;
+  deleteHabit?: (habitId: string) => Promise<void>;
+  refetchHabits?: () => void;
+  // Message operations
+  sendDirectMessage?: (recipientId: string, content: string, attachments?: any[]) => Promise<any>;
+  refetchMessages?: () => void;
 }
 
 // Fuzzy match helper for any items with a name field
@@ -60,6 +73,49 @@ function fuzzyMatchContact(query: string, contacts: any[]): any[] {
       .filter(Boolean).join(' ').toLowerCase();
     return searchable.includes(q) || q.split(' ').every(word => searchable.includes(word));
   }).slice(0, 5);
+}
+
+// Family relationship mapping for voice commands like "my wife", "my mom"
+const FAMILY_RELATIONSHIP_MAP: Record<string, string[]> = {
+  'wife': ['spouse', 'wife', 'partner'],
+  'husband': ['spouse', 'husband', 'partner'],
+  'spouse': ['spouse', 'wife', 'husband', 'partner'],
+  'partner': ['partner', 'spouse', 'girlfriend', 'boyfriend'],
+  'mom': ['mother', 'mom', 'parent'],
+  'mother': ['mother', 'mom', 'parent'],
+  'dad': ['father', 'dad', 'parent'],
+  'father': ['father', 'dad', 'parent'],
+  'sister': ['sister', 'sibling'],
+  'brother': ['brother', 'sibling'],
+  'son': ['son', 'child'],
+  'daughter': ['daughter', 'child'],
+  'child': ['child', 'son', 'daughter'],
+  'grandma': ['grandmother', 'grandma', 'grandparent'],
+  'grandmother': ['grandmother', 'grandma', 'grandparent'],
+  'grandpa': ['grandfather', 'grandpa', 'grandparent'],
+  'grandfather': ['grandfather', 'grandpa', 'grandparent'],
+};
+
+// Resolve contact by name OR family relationship (e.g., "my wife")
+function resolveContactByQuery(query: string, contacts: any[]): any[] {
+  const q = query.toLowerCase().trim();
+  
+  // Check if it's a family relationship query (e.g., "my wife", "wife", "mom")
+  const withoutMy = q.replace(/^my\s+/, '').trim();
+  const relationshipVariants = FAMILY_RELATIONSHIP_MAP[withoutMy];
+  
+  if (relationshipVariants) {
+    // Find contact by family relationship
+    const matches = contacts.filter(c => {
+      if (!c.familyRelationship) return false;
+      const rel = c.familyRelationship.toLowerCase();
+      return relationshipVariants.some(variant => rel.includes(variant));
+    });
+    if (matches.length > 0) return matches;
+  }
+  
+  // Fall back to fuzzy name matching
+  return fuzzyMatchContact(query, contacts);
 }
 
 // Parse natural language date/time for events
@@ -126,6 +182,16 @@ export function useOpenAIRealtime({
   refetchContacts,
   refetchContracts,
   refetchProjects,
+  createNote,
+  updateNote,
+  deleteNote,
+  refetchNotes,
+  createHabit,
+  logHabit,
+  deleteHabit,
+  refetchHabits,
+  sendDirectMessage,
+  refetchMessages,
 }: UseOpenAIRealtimeOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -968,6 +1034,202 @@ export function useOpenAIRealtime({
           }
           break;
         }
+
+        // ==================== NOTE HANDLERS ====================
+        case 'create_note': {
+          if (createNote) {
+            const title = args.title || 'Untitled';
+            const content = args.content || '';
+            const tags = args.tags || [];
+            const newNote = await createNote(title, content, tags);
+            if (newNote) {
+              result = { success: true, message: `Created note "${title}"` };
+              refetchNotes?.();
+            } else {
+              result = { success: false, message: 'Failed to create note' };
+            }
+          } else {
+            result = { success: false, message: 'Note creation is not available' };
+          }
+          break;
+        }
+
+        case 'search_notes': {
+          const notesData = contextData?.notesData || [];
+          const query = (args.query || '').toLowerCase();
+          const matches = notesData.filter((n: any) => 
+            n.title.toLowerCase().includes(query) || 
+            n.contentPreview.toLowerCase().includes(query) ||
+            n.tags?.some((t: string) => t.toLowerCase().includes(query))
+          );
+          result = {
+            success: true,
+            message: matches.length > 0 ? `Found ${matches.length} note(s)` : 'No notes found',
+            notes: matches.slice(0, 10)
+          };
+          break;
+        }
+
+        case 'delete_note': {
+          const notesData = contextData?.notesData || [];
+          const query = (args.note_query || '').toLowerCase();
+          const matches = notesData.filter((n: any) => n.title.toLowerCase().includes(query));
+          
+          if (matches.length === 0) {
+            result = { success: false, message: `Could not find note matching "${args.note_query}"` };
+          } else if (matches.length === 1 && deleteNote) {
+            await deleteNote(matches[0].id);
+            result = { success: true, message: `Moved note "${matches[0].title}" to trash` };
+            refetchNotes?.();
+          } else {
+            result = { success: false, multiple_matches: true, message: `Found multiple notes. Please be more specific.` };
+          }
+          break;
+        }
+
+        // ==================== HABIT CREATION/LOG HANDLERS ====================
+        case 'create_habit': {
+          if (createHabit && args.name) {
+            const newHabit = await createHabit({
+              name: args.name,
+              description: args.description || null,
+              icon: args.icon || '✨',
+              color: args.color || '#3b82f6',
+              frequency: args.frequency || 'daily',
+              targetCount: args.target_count || 1,
+              daysOfWeek: args.days_of_week || [0, 1, 2, 3, 4, 5, 6],
+              reminderTime: null,
+              isActive: true,
+            });
+            if (newHabit) {
+              result = { success: true, message: `Created habit "${args.name}"` };
+              refetchHabits?.();
+            } else {
+              result = { success: false, message: 'Failed to create habit' };
+            }
+          } else {
+            result = { success: false, message: 'Please provide a habit name' };
+          }
+          break;
+        }
+
+        case 'log_habit': {
+          const habitData = contextData?.habitData;
+          if (!habitData?.habits?.length) {
+            result = { success: false, message: 'You have no habits set up yet.' };
+            break;
+          }
+          
+          const query = (args.habit_query || '').toLowerCase();
+          const matches = habitData.habits.filter((h: any) => h.name.toLowerCase().includes(query));
+          
+          if (matches.length === 0) {
+            result = { success: false, message: `Could not find habit matching "${args.habit_query}"` };
+          } else if (matches.length === 1 && logHabit) {
+            await logHabit(matches[0].id);
+            result = { success: true, message: `Logged "${matches[0].name}" as done!` };
+            refetchHabits?.();
+          } else {
+            result = { success: false, multiple_matches: true, message: `Found multiple habits: ${matches.slice(0, 3).map((h: any) => h.name).join(', ')}` };
+          }
+          break;
+        }
+
+        case 'delete_habit': {
+          const habitData = contextData?.habitData;
+          if (!habitData?.habits?.length) {
+            result = { success: false, message: 'You have no habits set up yet.' };
+            break;
+          }
+          
+          const query = (args.habit_query || '').toLowerCase();
+          const matches = habitData.habits.filter((h: any) => h.name.toLowerCase().includes(query));
+          
+          if (matches.length === 0) {
+            result = { success: false, message: `Could not find habit matching "${args.habit_query}"` };
+          } else if (matches.length === 1 && deleteHabit) {
+            await deleteHabit(matches[0].id);
+            result = { success: true, message: `Removed habit "${matches[0].name}"` };
+            refetchHabits?.();
+          } else {
+            result = { success: false, multiple_matches: true, message: `Found multiple habits. Please be more specific.` };
+          }
+          break;
+        }
+
+        // ==================== CHAT/MESSAGE HANDLERS ====================
+        case 'send_chat_message': {
+          if (!sendDirectMessage) {
+            result = { success: false, message: 'Messaging is not available' };
+            break;
+          }
+          
+          const recipientQuery = args.recipient_query || '';
+          const message = args.message || '';
+          
+          if (!message.trim()) {
+            result = { success: false, message: 'Please provide a message to send' };
+            break;
+          }
+          
+          // Resolve recipient by name or family relationship
+          const matches = resolveContactByQuery(recipientQuery, contacts);
+          
+          if (matches.length === 0) {
+            result = { success: false, message: `Could not find contact matching "${recipientQuery}"` };
+          } else if (matches.length === 1) {
+            const recipient = matches[0];
+            // Note: sendDirectMessage requires a user ID, not a contact ID
+            // For now, we'll indicate the message would be sent - actual implementation
+            // would require mapping contact to user accounts
+            result = { 
+              success: true, 
+              message: `Message "${message}" would be sent to ${recipient.name}. Note: This contact needs to have an account linked.`,
+              recipient: { name: recipient.name, email: recipient.email }
+            };
+          } else {
+            result = { 
+              success: false, 
+              multiple_matches: true, 
+              message: `Found multiple contacts: ${matches.slice(0, 3).map((c: any) => c.name).join(', ')}. Please be more specific.` 
+            };
+          }
+          break;
+        }
+
+        case 'initiate_call': {
+          const contactQuery = args.contact_query || '';
+          const callType = args.call_type || 'voice';
+          
+          // Resolve contact by name or family relationship
+          const matches = resolveContactByQuery(contactQuery, contacts);
+          
+          if (matches.length === 0) {
+            result = { success: false, message: `Could not find contact matching "${contactQuery}"` };
+          } else if (matches.length === 1) {
+            const contact = matches[0];
+            if (contact.phone) {
+              result = { 
+                success: true, 
+                message: `Ready to call ${contact.name} at ${contact.phone}`,
+                contact: { name: contact.name, phone: contact.phone },
+                callType
+              };
+            } else {
+              result = { 
+                success: false, 
+                message: `${contact.name} doesn't have a phone number saved` 
+              };
+            }
+          } else {
+            result = { 
+              success: false, 
+              multiple_matches: true, 
+              message: `Found multiple contacts: ${matches.slice(0, 3).map((c: any) => c.name).join(', ')}. Please be more specific.` 
+            };
+          }
+          break;
+        }
       }
     } catch (err) {
       console.error('Function call error:', err);
@@ -990,7 +1252,7 @@ export function useOpenAIRealtime({
     }
     
     return result;
-  }, [contextData, addTask, updateTask, trashTask, toggleTaskComplete, addContact, updateContact, deleteContact, markContacted, addEvent, updateEvent, deleteEvent, addContract, updateContract, deleteContract, addProject, updateProject, deleteProject, refetch, refetchContacts, refetchContracts, refetchProjects]);
+  }, [contextData, addTask, updateTask, trashTask, toggleTaskComplete, addContact, updateContact, deleteContact, markContacted, addEvent, updateEvent, deleteEvent, addContract, updateContract, deleteContract, addProject, updateProject, deleteProject, refetch, refetchContacts, refetchContracts, refetchProjects, createNote, deleteNote, refetchNotes, createHabit, logHabit, deleteHabit, refetchHabits, sendDirectMessage]);
 
   // Store latest context in refs to avoid reconnection on every context change
   const contextDataRef = useRef(contextData);
