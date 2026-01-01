@@ -4,25 +4,23 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ensure body background matches theme for safe area fill on iOS */
+/* iOS safe-area background: paint a full-screen backdrop behind the app */
 html, body {
   background-color: hsl(var(--background)) !important;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
 }
 
-/* Dark mode - use the actual background color value to ensure iOS safe area is filled */
-@media (prefers-color-scheme: dark) {
-  html, body {
-    background-color: hsl(222 47% 6%) !important;
-  }
+/* On iOS, the "viewport behind" can show through near the safe-area; this forces a solid backdrop */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-color: hsl(var(--background)) !important;
+  pointer-events: none;
+  z-index: -1;
 }
 
-/* For class-based dark mode */
-html.dark, html.dark body,
-.dark, .dark body {
-  background-color: hsl(222 47% 6%) !important;
-}
+
 
 @layer base {
   :root {
@@ -174,9 +172,12 @@ html.dark, html.dark body,
   
   #root {
     @apply bg-background text-foreground;
+    background-color: hsl(var(--background)) !important;
+    min-height: 100dvh;
     height: 100%;
     overflow: hidden;
   }
+
 
   /* Safe area for mobile devices */
   .safe-area-bottom {
