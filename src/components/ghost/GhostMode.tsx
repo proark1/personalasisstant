@@ -125,7 +125,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   } = useAssistantConversations();
   
   // Startup ideas for brainstorming
-  const { createIdea, updateIdea, ideas: startupIdeas } = useStartupIdeas();
+  const { createIdea, updateIdea, ideas: startupIdeas, fetchIdeas: refetchStartupIdeas } = useStartupIdeas();
   
   const currentConversationIdRef = useRef<string | null>(null);
   const isStartupBrainstormRef = useRef(false);
@@ -351,8 +351,18 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       totalProjects: activeProjects.length,
       totalHabits: habits.length,
       totalNotes: notes.length,
+      // Startup ideas data for AI
+      startupIdeas: startupIdeas.map(idea => ({
+        id: idea.id,
+        name: idea.name,
+        description: idea.description,
+        status: idea.status,
+        problem_statement: idea.problem_statement,
+        target_audience: idea.target_audience,
+        created_at: idea.created_at,
+      })),
     };
-  }, [tasks, events, contacts, contracts, projects, healthMetrics, todaySummary, weeklyData, healthConnected, habits, habitLogs, notes, conversations]);
+  }, [tasks, events, contacts, contracts, projects, healthMetrics, todaySummary, weeklyData, healthConnected, habits, habitLogs, notes, conversations, startupIdeas]);
 
   // OpenAI Realtime hook
   const {
@@ -495,6 +505,10 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     // Message operations
     sendDirectMessage,
     refetchMessages,
+    // Startup idea operations
+    createStartupIdea: createIdea,
+    updateStartupIdea: updateIdea,
+    refetchStartupIdeas,
   });
 
   // Update connection status based on state
