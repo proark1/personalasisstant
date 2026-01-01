@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ensure body background matches theme for safe area fill */
+html, body {
+  background-color: hsl(var(--background));
+}
+
+.dark html, .dark body, html.dark, body.dark {
+  background-color: hsl(222 47% 6%);
+}
+
 @layer base {
   :root {
     /* Light theme */

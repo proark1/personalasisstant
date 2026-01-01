@@ -101,12 +101,18 @@ export function useAssistantConversations() {
   const bufferMessage = useCallback((role: 'user' | 'assistant', content: string) => {
     if (content.trim()) {
       messageBufferRef.current.push({ role, content: content.trim() });
+      console.log('[useAssistantConversations] Buffered message:', role, content.trim().substring(0, 50) + '...', 'Buffer size:', messageBufferRef.current.length);
     }
   }, []);
 
   // Save buffered messages to database
   const saveBufferedMessages = useCallback(async (conversationId: string) => {
-    if (messageBufferRef.current.length === 0) return;
+    console.log('[useAssistantConversations] saveBufferedMessages called with', messageBufferRef.current.length, 'messages for conversation', conversationId);
+    
+    if (messageBufferRef.current.length === 0) {
+      console.log('[useAssistantConversations] No messages in buffer to save');
+      return;
+    }
 
     try {
       const messages = messageBufferRef.current.map((msg, index) => ({
@@ -116,11 +122,18 @@ export function useAssistantConversations() {
         timestamp: new Date(Date.now() + index).toISOString(),
       }));
 
+      console.log('[useAssistantConversations] Saving messages to DB:', messages);
+
       const { error } = await supabase
         .from('assistant_messages')
         .insert(messages);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useAssistantConversations] DB error saving messages:', error);
+        throw error;
+      }
+      
+      console.log('[useAssistantConversations] Messages saved successfully');
       messageBufferRef.current = [];
     } catch (error) {
       console.error('Error saving messages:', error);
