@@ -513,6 +513,118 @@ serve(async (req) => {
           },
           required: []
         }
+      },
+
+      // ==================== NOTE TOOLS ====================
+      {
+        type: "function",
+        name: "create_note",
+        description: "Create a new note. Use when user wants to write down, note, or remember something. Good for quick thoughts, ideas, or anything the user wants to save.",
+        parameters: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "Note title (optional, will use 'Untitled' if not provided)" },
+            content: { type: "string", description: "Note content/body - what the user wants to save" },
+            tags: { type: "array", items: { type: "string" }, description: "Optional tags to organize the note" }
+          },
+          required: ["content"]
+        }
+      },
+      {
+        type: "function",
+        name: "search_notes",
+        description: "Search for notes by title, content, or tags. Use when user wants to find a note they created.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search term - note title, content keyword, or tag" }
+          },
+          required: ["query"]
+        }
+      },
+      {
+        type: "function",
+        name: "delete_note",
+        description: "Move a note to trash. Use when user wants to delete or remove a note.",
+        parameters: {
+          type: "object",
+          properties: {
+            note_query: { type: "string", description: "Note title to search for" }
+          },
+          required: ["note_query"]
+        }
+      },
+
+      // ==================== HABIT CREATION TOOLS ====================
+      {
+        type: "function",
+        name: "create_habit",
+        description: "Create a new habit to track. Use when user wants to start tracking a new habit or daily routine.",
+        parameters: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Habit name (e.g., 'Drink 8 glasses of water', 'Meditate', 'Exercise')" },
+            description: { type: "string", description: "Optional description of the habit" },
+            icon: { type: "string", description: "Emoji icon for the habit (e.g., '💧', '🧘', '🏃')" },
+            frequency: { type: "string", enum: ["daily", "weekly", "custom"], description: "How often the habit should be done" },
+            target_count: { type: "number", description: "How many times per day/week to complete (default 1)" }
+          },
+          required: ["name"]
+        }
+      },
+      {
+        type: "function",
+        name: "log_habit",
+        description: "Mark a habit as completed/done for today. Use when user says they did their habit.",
+        parameters: {
+          type: "object",
+          properties: {
+            habit_query: { type: "string", description: "Habit name to search for" }
+          },
+          required: ["habit_query"]
+        }
+      },
+      {
+        type: "function",
+        name: "delete_habit",
+        description: "Remove/deactivate a habit. Use when user wants to stop tracking a habit.",
+        parameters: {
+          type: "object",
+          properties: {
+            habit_query: { type: "string", description: "Habit name to search for" }
+          },
+          required: ["habit_query"]
+        }
+      },
+
+      // ==================== CHAT/MESSAGE TOOLS ====================
+      {
+        type: "function",
+        name: "send_chat_message",
+        description: "Send a direct message/chat to a contact. Supports family relationships like 'my wife', 'my mom', etc. Use when user wants to message someone.",
+        parameters: {
+          type: "object",
+          properties: {
+            recipient_query: { type: "string", description: "Contact name OR family relationship (e.g., 'John', 'my wife', 'mom')" },
+            message: { type: "string", description: "Message content to send" }
+          },
+          required: ["recipient_query", "message"]
+        }
+      },
+
+      // ==================== CALL TOOLS ====================
+      {
+        type: "function",
+        name: "initiate_call",
+        description: "Start a voice or video call to a contact. Supports family relationships like 'my wife', 'my husband', 'my mom'. Use when user says 'call [someone]'.",
+        parameters: {
+          type: "object",
+          properties: {
+            contact_query: { type: "string", description: "Contact name OR family relationship (e.g., 'John Smith', 'my wife', 'mom')" },
+            call_type: { type: "string", enum: ["voice", "video"], description: "Type of call (default voice)" }
+          },
+          required: ["contact_query"]
+        }
       }
     ];
 
@@ -576,7 +688,7 @@ function buildSystemPrompt(userProfile: any, contextData: any): string {
     hour12: true
   });
 
-  let prompt = `You are a powerful, friendly personal assistant with FULL access to the user's productivity platform. You can manage their tasks, calendar events, contacts, contracts, and projects through voice commands.
+  let prompt = `You are a powerful, friendly personal assistant with FULL access to the user's productivity platform. You can manage their tasks, calendar events, contacts, contracts, projects, notes, habits, and communications through voice commands.
 
 Current date and time: ${timeString}
 
@@ -591,6 +703,7 @@ Current date and time: ${timeString}
 - Create, update, and delete contacts
 - Mark contacts as contacted (resets follow-up timer)
 - See who is due for follow-up
+- UNDERSTAND FAMILY RELATIONSHIPS: "my wife", "my husband", "my mom", "my dad" etc.
 
 ### Calendar/Events
 - Create, update, and delete calendar events
@@ -614,9 +727,26 @@ Current date and time: ${timeString}
 - Answer questions about fitness trends and activity levels
 - Compare health metrics across different time periods
 
+### Notes
+- CREATE notes when user wants to save thoughts, ideas, or information
+- Search notes by title, content, or tags
+- Delete notes when requested
+
 ### Habits
 - View habit tracking data and streaks
-- Provide summaries of habit completion rates
+- CREATE new habits to track (e.g., "drink water", "meditate", "exercise")
+- LOG habits as completed when user says they did something
+- Delete habits when requested
+
+### Calls & Messaging
+- INITIATE CALLS to contacts (supports family relationships like "call my wife")
+- SEND CHAT MESSAGES to contacts (supports family relationships)
+
+## Family Relationship Understanding:
+When the user says "my wife", "my husband", "my mom", "my dad", "my sister", etc., you can find the corresponding contact based on their saved family relationship. For example:
+- "Call my wife" → finds contact with spouse/wife relationship
+- "Send a message to my mom" → finds contact with mother relationship
+- "Text my husband hello" → finds spouse contact and sends message
 
 ## Important Guidelines:
 1. Use fuzzy matching when searching - partial names work
@@ -628,6 +758,8 @@ Current date and time: ${timeString}
 7. For dates, understand natural language: "tomorrow", "next monday", "in 3 days"
 8. When creating events, default to 1 hour duration if not specified
 9. For health data, always use the get_health_summary or specific health tools - you have FULL access to the user's health data
+10. For notes, USE create_note when user wants to save anything - don't say you can't!
+11. For habits, USE create_habit and log_habit - these are fully functional
 
 ## Conversation Style:
 - Warm and encouraging
