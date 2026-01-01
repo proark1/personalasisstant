@@ -530,7 +530,7 @@ export function MobileLayout({
       </main>
 
       {/* Bottom Tab Bar */}
-      <nav className="border-t border-border bg-background shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav className="border-t border-border shrink-0 bg-card">
         <div className="h-14 flex items-center justify-around px-2">
           {bottomTabs.map((tab) => (
             <button
@@ -545,7 +545,7 @@ export function MobileLayout({
               )}
             >
               {tab.isCenter ? (
-                <div className="w-12 h-12 -mt-4 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg border-4 border-background">
+                <div className="w-12 h-12 -mt-4 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg border-4 border-card">
                   <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </div>
               ) : (
@@ -554,6 +554,8 @@ export function MobileLayout({
             </button>
           ))}
         </div>
+        {/* Safe area bottom fill */}
+        <div className="bg-card" style={{ height: 'env(safe-area-inset-bottom)' }} />
       </nav>
 
       {/* ADHD Support Overlays */}

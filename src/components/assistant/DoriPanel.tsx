@@ -33,17 +33,8 @@ export function DoriPanel({
   contacts = EMPTY_CONTACTS,
 }: DoriPanelProps) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('voice');
+  const [mode, setMode] = useState<Mode>('text');
   const [showHistory, setShowHistory] = useState(false);
-  const hasAutoStarted = useRef(false);
-
-  // Auto-start voice mode on first render
-  useEffect(() => {
-    if (!hasAutoStarted.current) {
-      hasAutoStarted.current = true;
-      onVoiceMode();
-    }
-  }, [onVoiceMode]);
   const [input, setInput] = useState('');
   const [contactSuggestions, setContactSuggestions] = useState<ContactSuggestion[]>([]);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
