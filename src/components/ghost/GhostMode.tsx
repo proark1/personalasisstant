@@ -14,6 +14,8 @@ import { useAppleHealth } from '@/hooks/useAppleHealth';
 import { useHabits } from '@/hooks/useHabits';
 import { useNotes } from '@/hooks/useNotes';
 import { useDirectMessages } from '@/hooks/useDirectMessages';
+import { useAssistantConversations } from '@/hooks/useAssistantConversations';
+import { useStartupIdeas } from '@/hooks/useStartupIdeas';
 import type { AssistantPersonality } from '@/types/flux';
 import {
   Mic,
@@ -111,8 +113,24 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const { habits, logs: habitLogs, createHabit, logHabit, deleteHabit, refetch: refetchHabits } = useHabits(userId);
   const { notes, createNote, updateNote, deleteNote, refetch: refetchNotes } = useNotes(userId);
   const { sendMessage: sendDirectMessage, conversations, refetch: refetchMessages } = useDirectMessages(userId || null);
+  
+  // Conversation history tracking
+  const { 
+    startConversation, 
+    bufferMessage, 
+    saveBufferedMessages, 
+    endConversation,
+    linkToStartupIdea,
+    updateConversationTitle,
+  } = useAssistantConversations();
+  
+  // Startup ideas for brainstorming
+  const { createIdea, updateIdea, ideas: startupIdeas } = useStartupIdeas();
+  
+  const currentConversationIdRef = useRef<string | null>(null);
+  const isStartupBrainstormRef = useRef(false);
+  const pendingStartupIdeaRef = useRef<{ name: string; description?: string } | null>(null);
 
-  // Prepare context data for the AI
   const contextData = useMemo(() => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
@@ -359,9 +377,20 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
           onClose();
           return;
         }
-        // Add user transcript to history
+        
+        // Detect startup brainstorming keywords
+        const startupKeywords = ['startup', 'business idea', 'new idea', 'startup idea', 'venture', 'company idea', 'brainstorm'];
+        if (startupKeywords.some(kw => lower.includes(kw))) {
+          isStartupBrainstormRef.current = true;
+          if (currentConversationIdRef.current) {
+            updateConversationTitle(currentConversationIdRef.current, 'Startup Brainstorm');
+          }
+        }
+        
+        // Add user transcript to history and buffer for saving
         if (text.trim()) {
           setTranscriptHistory(prev => [...prev, { role: 'user', text: text.trim(), timestamp: new Date() }]);
+          bufferMessage('user', text.trim());
         }
         setTimeout(() => setDisplayTranscript(''), 3000);
       }
@@ -402,9 +431,23 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         setConnectionStatus('speaking');
       } else if (isConnected) {
         setConnectionStatus('connected');
-        // Add AI response to history when done speaking
+        // Add AI response to history and buffer when done speaking
         if (aiResponseRef.current.trim()) {
           setTranscriptHistory(prev => [...prev, { role: 'assistant', text: aiResponseRef.current.trim(), timestamp: new Date() }]);
+          bufferMessage('assistant', aiResponseRef.current.trim());
+          
+          // Check if AI mentioned creating a startup idea
+          const responseText = aiResponseRef.current.toLowerCase();
+          if (isStartupBrainstormRef.current && (responseText.includes('startup') || responseText.includes('idea'))) {
+            // Try to extract a name from the conversation
+            const ideaMatch = responseText.match(/(?:called|named|called it|name it)\s+["']?([^"'\n.]+)["']?/i);
+            if (ideaMatch) {
+              pendingStartupIdeaRef.current = { 
+                name: ideaMatch[1].trim(),
+                description: aiResponseRef.current.substring(0, 500),
+              };
+            }
+          }
         }
         setTimeout(() => {
           aiResponseRef.current = '';
@@ -482,6 +525,11 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     setAiResponse('');
     setDisplayTranscript('');
     
+    // Start a new conversation record
+    const conversationId = await startConversation(false, 'Voice Chat');
+    currentConversationIdRef.current = conversationId;
+    isStartupBrainstormRef.current = false;
+    
     try {
       await connect();
     } catch (err) {
@@ -496,14 +544,44 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       });
       setTimeout(() => setConnectionStatus('disconnected'), 4000);
     }
-  }, [connect, isConnected, buttonCooldown, toast]);
+  }, [connect, isConnected, buttonCooldown, toast, startConversation]);
 
-  const handleEndSession = useCallback(() => {
+  const handleEndSession = useCallback(async () => {
     isConnectingRef.current = false;
     setButtonCooldown(false);
     disconnect();
     setConnectionStatus('disconnected');
-  }, [disconnect]);
+    
+    // Save conversation history
+    if (currentConversationIdRef.current) {
+      // Save all buffered messages
+      await saveBufferedMessages(currentConversationIdRef.current);
+      
+      // Generate a summary from the transcript history
+      const summary = transcriptHistory.length > 0 
+        ? transcriptHistory.slice(0, 3).map(t => t.text.substring(0, 50)).join(' | ')
+        : undefined;
+      
+      await endConversation(currentConversationIdRef.current, summary);
+      
+      // If we detected a startup brainstorm and have pending idea data, create the idea
+      if (isStartupBrainstormRef.current && pendingStartupIdeaRef.current) {
+        const idea = await createIdea({
+          name: pendingStartupIdeaRef.current.name,
+          description: pendingStartupIdeaRef.current.description,
+          status: 'brainstorming',
+          notes: transcriptHistory.map(t => `${t.role}: ${t.text}`).join('\n'),
+        });
+        
+        if (idea && currentConversationIdRef.current) {
+          await linkToStartupIdea(currentConversationIdRef.current, idea.id);
+        }
+        pendingStartupIdeaRef.current = null;
+      }
+      
+      currentConversationIdRef.current = null;
+    }
+  }, [disconnect, saveBufferedMessages, endConversation, transcriptHistory, createIdea, linkToStartupIdea]);
 
   // Handle escape key
   useEffect(() => {

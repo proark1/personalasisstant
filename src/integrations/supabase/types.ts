@@ -245,6 +245,85 @@ export type Database = {
         }
         Relationships: []
       }
+      assistant_conversations: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          is_startup_brainstorm: boolean | null
+          related_startup_id: string | null
+          started_at: string
+          summary: string | null
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          is_startup_brainstorm?: boolean | null
+          related_startup_id?: string | null
+          started_at?: string
+          summary?: string | null
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          is_startup_brainstorm?: boolean | null
+          related_startup_id?: string | null
+          started_at?: string
+          summary?: string | null
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_startup_idea"
+            columns: ["related_startup_id"]
+            isOneToOne: false
+            referencedRelation: "startup_ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+          timestamp: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+          timestamp?: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auto_actions_log: {
         Row: {
           action_data: Json
@@ -3593,6 +3672,74 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      startup_ideas: {
+        Row: {
+          ai_insights: Json | null
+          business_model: string | null
+          competitive_advantage: string | null
+          created_at: string
+          description: string | null
+          id: string
+          key_features: Json | null
+          name: string
+          notes: string | null
+          problem_statement: string | null
+          status: string | null
+          tags: string[] | null
+          target_audience: string | null
+          unique_value_proposition: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          ai_insights?: Json | null
+          business_model?: string | null
+          competitive_advantage?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          key_features?: Json | null
+          name: string
+          notes?: string | null
+          problem_statement?: string | null
+          status?: string | null
+          tags?: string[] | null
+          target_audience?: string | null
+          unique_value_proposition?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          ai_insights?: Json | null
+          business_model?: string | null
+          competitive_advantage?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          key_features?: Json | null
+          name?: string
+          notes?: string | null
+          problem_statement?: string | null
+          status?: string | null
+          tags?: string[] | null
+          target_audience?: string | null
+          unique_value_proposition?: string | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "startup_ideas_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "startup_workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       startup_metrics: {
         Row: {

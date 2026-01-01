@@ -625,6 +625,55 @@ serve(async (req) => {
           },
           required: ["contact_query"]
         }
+      },
+
+      // ==================== STARTUP BRAINSTORMING TOOLS ====================
+      {
+        type: "function",
+        name: "brainstorm_startup",
+        description: "Help the user brainstorm and develop a startup idea. Use this when the user wants to discuss a new business, startup, venture, or company idea. This triggers a structured brainstorming session.",
+        parameters: {
+          type: "object",
+          properties: {
+            idea_name: { type: "string", description: "A name or title for the startup idea" },
+            problem_statement: { type: "string", description: "The problem this startup solves" },
+            target_audience: { type: "string", description: "Who this startup serves" },
+            initial_thoughts: { type: "string", description: "Any initial ideas or context provided by the user" }
+          },
+          required: ["idea_name"]
+        }
+      },
+      {
+        type: "function",
+        name: "save_startup_idea",
+        description: "Save a startup idea that was discussed during brainstorming. Use this when the user wants to save or capture the current startup discussion for later review.",
+        parameters: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Name of the startup idea" },
+            description: { type: "string", description: "Brief description of the idea" },
+            problem_statement: { type: "string", description: "The problem being solved" },
+            target_audience: { type: "string", description: "Target customers/users" },
+            unique_value_proposition: { type: "string", description: "What makes this unique" },
+            key_features: { type: "array", items: { type: "string" }, description: "Main features or capabilities" },
+            business_model: { type: "string", description: "How it will make money" },
+            competitive_advantage: { type: "string", description: "Competitive differentiators" },
+            next_steps: { type: "string", description: "Suggested next steps" }
+          },
+          required: ["name", "description"]
+        }
+      },
+      {
+        type: "function",
+        name: "list_startup_ideas",
+        description: "List the user's saved startup ideas. Use when user wants to see their previous startup brainstorms or continue working on an idea.",
+        parameters: {
+          type: "object",
+          properties: {
+            status: { type: "string", enum: ["brainstorming", "researching", "validating", "building", "launched", "all"], description: "Filter by idea status (default: all)" }
+          },
+          required: []
+        }
       }
     ];
 
@@ -742,6 +791,13 @@ Current date and time: ${timeString}
 - INITIATE CALLS to contacts (supports family relationships like "call my wife")
 - SEND CHAT MESSAGES to contacts (supports family relationships)
 
+### Startup Brainstorming
+- BRAINSTORM new startup/business ideas with the user through structured questions
+- Help develop ideas by asking about problem, target audience, unique value, business model, etc.
+- SAVE startup ideas for later review and continuation
+- LIST previous startup ideas the user has discussed
+- When brainstorming, be a helpful co-founder: ask probing questions, suggest improvements, identify potential challenges
+
 ## Family Relationship Understanding:
 When the user says "my wife", "my husband", "my mom", "my dad", "my sister", etc., you can find the corresponding contact based on their saved family relationship. For example:
 - "Call my wife" → finds contact with spouse/wife relationship
@@ -760,6 +816,18 @@ When the user says "my wife", "my husband", "my mom", "my dad", "my sister", etc
 9. For health data, always use the get_health_summary or specific health tools - you have FULL access to the user's health data
 10. For notes, USE create_note when user wants to save anything - don't say you can't!
 11. For habits, USE create_habit and log_habit - these are fully functional
+12. ALL CONVERSATIONS ARE AUTOMATICALLY SAVED - the user can review them later in their conversation history
+
+## Startup Brainstorming Guidelines:
+When the user wants to discuss a new startup or business idea:
+1. Start with "brainstorm_startup" to initiate the session
+2. Ask probing questions one at a time: What problem are you solving? Who is your target customer? How is this different from existing solutions?
+3. Provide constructive feedback and suggestions
+4. Challenge assumptions respectfully
+5. Help identify potential revenue models
+6. Point out potential challenges and how to address them
+7. When the user seems ready to save, use "save_startup_idea" to capture everything discussed
+8. Let them know they can continue the discussion anytime by asking about their startup ideas
 
 ## Conversation Style:
 - Warm and encouraging
