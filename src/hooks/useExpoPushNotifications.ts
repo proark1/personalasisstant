@@ -79,11 +79,16 @@ export function useExpoPushNotifications() {
   const requestPermission = async (): Promise<boolean> => {
     if (!isNative) {
       // For web, use browser notifications
-      if ('Notification' in window) {
-        const permission = await Notification.requestPermission();
+      const BrowserNotification = (typeof window !== 'undefined'
+        ? (window as any).Notification
+        : undefined) as any;
+
+      if (typeof BrowserNotification?.requestPermission === 'function') {
+        const permission = await BrowserNotification.requestPermission();
         setPermissionStatus(permission === 'granted' ? 'granted' : 'denied');
         return permission === 'granted';
       }
+
       return false;
     }
 

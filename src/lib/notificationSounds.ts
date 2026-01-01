@@ -143,18 +143,22 @@ export function setupServiceWorkerListener(
 export async function requestNotificationPermission(): Promise<boolean> {
   if (Capacitor.isNativePlatform()) return false;
 
-  if (!('Notification' in window)) {
+  const BrowserNotification = (typeof window !== 'undefined'
+    ? (window as any).Notification
+    : undefined) as any;
+
+  if (!BrowserNotification) {
     return false;
   }
 
-  if (Notification.permission === 'granted') {
+  if (BrowserNotification.permission === 'granted') {
     // Also register service worker for push notifications
     await registerServiceWorker();
     return true;
   }
 
-  if (Notification.permission !== 'denied') {
-    const permission = await Notification.requestPermission();
+  if (BrowserNotification.permission !== 'denied' && typeof BrowserNotification.requestPermission === 'function') {
+    const permission = await BrowserNotification.requestPermission();
     if (permission === 'granted') {
       await registerServiceWorker();
     }
@@ -168,11 +172,15 @@ export function showDesktopNotification(
   title: string,
   options?: NotificationOptions
 ): Notification | null {
-  if (!('Notification' in window) || Notification.permission !== 'granted') {
+  const BrowserNotification = (typeof window !== 'undefined'
+    ? (window as any).Notification
+    : undefined) as any;
+
+  if (!BrowserNotification || BrowserNotification.permission !== 'granted') {
     return null;
   }
-  
-  return new Notification(title, {
+
+  return new BrowserNotification(title, {
     icon: '/pwa-192x192.svg',
     ...options,
   });

@@ -44,18 +44,22 @@ export function useTaskNotifications({
       return permissionGranted.current;
     }
 
-    if (!('Notification' in window)) {
+    const BrowserNotification = (typeof window !== 'undefined'
+      ? (window as any).Notification
+      : undefined) as any;
+
+    if (!BrowserNotification) {
       console.log('Browser does not support notifications');
       return false;
     }
 
-    if (Notification.permission === 'granted') {
+    if (BrowserNotification.permission === 'granted') {
       permissionGranted.current = true;
       return true;
     }
 
-    if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission();
+    if (BrowserNotification.permission !== 'denied' && typeof BrowserNotification.requestPermission === 'function') {
+      const permission = await BrowserNotification.requestPermission();
       permissionGranted.current = permission === 'granted';
       return permissionGranted.current;
     }
@@ -183,7 +187,13 @@ export function useTaskNotifications({
       scheduleLocalNotification(title, body, new Date(), { taskId: task.id });
     } else {
       // Use web notification on desktop
-      const notification = new Notification(title, {
+      const BrowserNotification = (typeof window !== 'undefined'
+        ? (window as any).Notification
+        : undefined) as any;
+
+      if (!BrowserNotification) return;
+
+      const notification = new BrowserNotification(title, {
         body,
         icon: '/favicon.ico',
         tag: `${task.id}-${notificationKey}`,

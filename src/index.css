@@ -164,11 +164,7 @@ body::before {
   }
 
   /* iOS Safari scroll fix - allow nested scrolling in iframes/web views */
-  @supports (-webkit-touch-callout: none) {
-    body {
-      position: relative;
-    }
-  }
+  /* NOTE: keep body fixed to ensure the entire safe-area is painted (prevents white bars). */
   
   #root {
     @apply bg-background text-foreground;

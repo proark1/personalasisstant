@@ -114,8 +114,12 @@ export function useRealtimeNotifications(userId: string | undefined) {
 
   // Request browser notification permission
   const requestPermission = useCallback(async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission();
+    const BrowserNotification = (typeof window !== 'undefined'
+      ? (window as any).Notification
+      : undefined) as any;
+
+    if (BrowserNotification?.permission === 'default' && typeof BrowserNotification.requestPermission === 'function') {
+      await BrowserNotification.requestPermission();
     }
   }, []);
 
@@ -144,8 +148,12 @@ export function useRealtimeNotifications(userId: string | undefined) {
 
   // Show browser notification
   const showBrowserNotification = useCallback((notification: UserNotification) => {
-    if (Notification.permission === 'granted') {
-      new Notification(notification.title, {
+    const BrowserNotification = (typeof window !== 'undefined'
+      ? (window as any).Notification
+      : undefined) as any;
+
+    if (BrowserNotification?.permission === 'granted') {
+      new BrowserNotification(notification.title, {
         body: notification.message,
         icon: '/pwa-192x192.svg',
         tag: notification.id,
