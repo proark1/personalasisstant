@@ -54,6 +54,10 @@ interface UseOpenAIRealtimeOptions {
   // Message operations
   sendDirectMessage?: (recipientId: string, content: string, attachments?: any[]) => Promise<any>;
   refetchMessages?: () => void;
+  // Startup idea operations
+  createStartupIdea?: (input: any) => Promise<any>;
+  updateStartupIdea?: (id: string, updates: any) => Promise<boolean>;
+  refetchStartupIdeas?: () => void;
 }
 
 // Fuzzy match helper for any items with a name field
@@ -192,6 +196,9 @@ export function useOpenAIRealtime({
   refetchHabits,
   sendDirectMessage,
   refetchMessages,
+  createStartupIdea,
+  updateStartupIdea,
+  refetchStartupIdeas,
 }: UseOpenAIRealtimeOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -1230,6 +1237,87 @@ export function useOpenAIRealtime({
           }
           break;
         }
+
+        // ==================== STARTUP BRAINSTORMING HANDLERS ====================
+        case 'brainstorm_startup': {
+          // This is a conversational trigger - acknowledge and continue discussion
+          result = { 
+            success: true, 
+            message: `Starting brainstorm for "${args.idea_name}". I'll help you develop this idea.`,
+            idea: {
+              name: args.idea_name,
+              problem_statement: args.problem_statement,
+              target_audience: args.target_audience,
+              initial_thoughts: args.initial_thoughts
+            }
+          };
+          break;
+        }
+
+        case 'save_startup_idea': {
+          if (createStartupIdea && args.name) {
+            const newIdea = await createStartupIdea({
+              name: args.name,
+              description: args.description,
+              problem_statement: args.problem_statement,
+              target_audience: args.target_audience,
+              unique_value_proposition: args.unique_value_proposition,
+              key_features: args.key_features || [],
+              business_model: args.business_model,
+              competitive_advantage: args.competitive_advantage,
+              status: 'brainstorming',
+              notes: args.next_steps,
+              tags: [],
+              ai_insights: {},
+            });
+            if (newIdea) {
+              result = { 
+                success: true, 
+                message: `Saved startup idea "${args.name}". You can view and continue working on it in the Startup Workspace.`,
+                idea: newIdea
+              };
+              refetchStartupIdeas?.();
+            } else {
+              result = { success: false, message: 'Failed to save startup idea' };
+            }
+          } else {
+            result = { success: false, message: 'Please provide at least a name for the startup idea' };
+          }
+          break;
+        }
+
+        case 'list_startup_ideas': {
+          const startupIdeas = contextData?.startupIdeas || [];
+          const statusFilter = args.status || 'all';
+          
+          let filtered = startupIdeas;
+          if (statusFilter !== 'all') {
+            filtered = startupIdeas.filter((idea: any) => idea.status === statusFilter);
+          }
+          
+          if (filtered.length === 0) {
+            result = { 
+              success: true, 
+              message: statusFilter === 'all' 
+                ? 'You have no saved startup ideas yet. Would you like to brainstorm a new one?'
+                : `No startup ideas with status "${statusFilter}".`,
+              ideas: []
+            };
+          } else {
+            const ideaList = filtered.slice(0, 5).map((i: any) => i.name).join(', ');
+            result = { 
+              success: true, 
+              message: `You have ${filtered.length} startup idea(s): ${ideaList}`,
+              ideas: filtered.slice(0, 10).map((i: any) => ({
+                name: i.name,
+                description: i.description,
+                status: i.status,
+                createdAt: i.created_at
+              }))
+            };
+          }
+          break;
+        }
       }
     } catch (err) {
       console.error('Function call error:', err);
@@ -1252,7 +1340,7 @@ export function useOpenAIRealtime({
     }
     
     return result;
-  }, [contextData, addTask, updateTask, trashTask, toggleTaskComplete, addContact, updateContact, deleteContact, markContacted, addEvent, updateEvent, deleteEvent, addContract, updateContract, deleteContract, addProject, updateProject, deleteProject, refetch, refetchContacts, refetchContracts, refetchProjects, createNote, deleteNote, refetchNotes, createHabit, logHabit, deleteHabit, refetchHabits, sendDirectMessage]);
+  }, [contextData, addTask, updateTask, trashTask, toggleTaskComplete, addContact, updateContact, deleteContact, markContacted, addEvent, updateEvent, deleteEvent, addContract, updateContract, deleteContract, addProject, updateProject, deleteProject, refetch, refetchContacts, refetchContracts, refetchProjects, createNote, deleteNote, refetchNotes, createHabit, logHabit, deleteHabit, refetchHabits, sendDirectMessage, createStartupIdea, updateStartupIdea, refetchStartupIdeas]);
 
   // Store latest context in refs to avoid reconnection on every context change
   const contextDataRef = useRef(contextData);
