@@ -8,7 +8,8 @@ import { Contact } from '@/hooks/useContacts';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { findRelevantContacts, ContactSuggestion } from '@/lib/contactSuggestions';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Send, User, Bot, Mic, MicOff, MessageSquare, Users, X } from 'lucide-react';
+import { ConversationHistoryPanel } from './ConversationHistoryPanel';
+import { Send, User, Bot, Mic, MicOff, MessageSquare, Users, X, History } from 'lucide-react';
 import { format } from 'date-fns';
 import doriFish from '@/assets/dori-fish.png';
 
@@ -33,6 +34,7 @@ export function DoriPanel({
 }: DoriPanelProps) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('voice');
+  const [showHistory, setShowHistory] = useState(false);
   const hasAutoStarted = useRef(false);
 
   // Auto-start voice mode on first render
@@ -107,6 +109,11 @@ export function DoriPanel({
     setMode(newMode);
   };
 
+  // Show conversation history panel
+  if (showHistory) {
+    return <ConversationHistoryPanel onClose={() => setShowHistory(false)} />;
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -116,34 +123,46 @@ export function DoriPanel({
           <h3 className="font-semibold text-sm">Dori</h3>
         </div>
         
-        {/* Mode Toggle */}
-        <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
+        <div className="flex items-center gap-2">
+          {/* History Button */}
           <Button
-            variant={mode === 'text' ? 'secondary' : 'ghost'}
-            size="sm"
-            className={cn(
-              "gap-1.5 h-7",
-              isMobile ? "px-2" : "px-2",
-              mode === 'text' && "bg-background shadow-sm"
-            )}
-            onClick={() => setMode('text')}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setShowHistory(true)}
           >
-            <MessageSquare className="w-3.5 h-3.5" />
-            {!isMobile && <span className="text-xs">Text</span>}
+            <History className="w-4 h-4" />
           </Button>
-          <Button
-            variant={mode === 'voice' ? 'secondary' : 'ghost'}
-            size="sm"
-            className={cn(
-              "gap-1.5 h-7",
-              isMobile ? "px-2" : "px-2",
-              mode === 'voice' && "bg-background shadow-sm"
-            )}
-            onClick={() => handleModeSwitch('voice')}
-          >
-            <Mic className="w-3.5 h-3.5" />
-            {!isMobile && <span className="text-xs">Voice</span>}
-          </Button>
+
+          {/* Mode Toggle */}
+          <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
+            <Button
+              variant={mode === 'text' ? 'secondary' : 'ghost'}
+              size="sm"
+              className={cn(
+                "gap-1.5 h-7",
+                isMobile ? "px-2" : "px-2",
+                mode === 'text' && "bg-background shadow-sm"
+              )}
+              onClick={() => setMode('text')}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              {!isMobile && <span className="text-xs">Text</span>}
+            </Button>
+            <Button
+              variant={mode === 'voice' ? 'secondary' : 'ghost'}
+              size="sm"
+              className={cn(
+                "gap-1.5 h-7",
+                isMobile ? "px-2" : "px-2",
+                mode === 'voice' && "bg-background shadow-sm"
+              )}
+              onClick={() => handleModeSwitch('voice')}
+            >
+              <Mic className="w-3.5 h-3.5" />
+              {!isMobile && <span className="text-xs">Voice</span>}
+            </Button>
+          </div>
         </div>
       </div>
 
