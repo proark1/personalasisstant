@@ -42,8 +42,12 @@ export function useNotifications() {
     }
 
     // Show browser notification if permitted (check if Notification API exists first for iOS compatibility)
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification(notification.title, {
+    const BrowserNotification = (typeof window !== 'undefined'
+      ? (window as any).Notification
+      : undefined) as any;
+
+    if (BrowserNotification?.permission === 'granted') {
+      new BrowserNotification(notification.title, {
         body: notification.message,
         icon: '/pwa-192x192.svg',
       });
@@ -70,8 +74,12 @@ export function useNotifications() {
 
   // Request notification permission
   const requestPermission = useCallback(async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission();
+    const BrowserNotification = (typeof window !== 'undefined'
+      ? (window as any).Notification
+      : undefined) as any;
+
+    if (BrowserNotification?.permission === 'default' && typeof BrowserNotification.requestPermission === 'function') {
+      await BrowserNotification.requestPermission();
     }
   }, []);
 

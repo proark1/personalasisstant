@@ -61,9 +61,13 @@ export function useAppNotifications() {
       const delay = options.scheduledAt.getTime() - Date.now();
       if (delay > 0 && delay < 7 * 24 * 60 * 60 * 1000) { // Max 7 days
         setTimeout(() => {
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(options.title, { 
-              body: options.body, 
+          const BrowserNotification = (typeof window !== 'undefined'
+            ? (window as any).Notification
+            : undefined) as any;
+
+          if (BrowserNotification?.permission === 'granted') {
+            new BrowserNotification(options.title, {
+              body: options.body,
               icon: '/pwa-192x192.svg',
               tag: options.id?.toString(),
             });

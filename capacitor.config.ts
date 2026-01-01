@@ -11,6 +11,8 @@ const config: CapacitorConfig = {
   appId: 'com.darai.app',
   appName: 'DarAI',
   webDir: 'dist',
+  // Ensure the native WebView background matches the app (prevents white safe-area bars on iOS)
+  backgroundColor: '#000000',
   ios: {
     contentInset: 'automatic',
     allowsLinkPreview: true,
