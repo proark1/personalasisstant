@@ -4,11 +4,10 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { 
-  Calendar, Moon, Hand, RotateCcw, Check, Star, Compass, BookOpen,
+  Calendar, Moon, Compass, BookOpen,
   RefreshCw, MapPin, ChevronLeft, ChevronRight, Search, Loader2, 
   Volume2, VolumeX, Pause, Play, ZoomIn, ZoomOut, Heart, Clock, GraduationCap
 } from 'lucide-react';
@@ -565,13 +564,6 @@ const DUAS: Dua[] = [
 
 export function IslamEnhancedPanel() {
   const {
-    ramadanDays,
-    toggleFasting,
-    toggleTaraweeh,
-    dhikrLogs,
-    dhikrTypes,
-    incrementDhikr,
-    resetDhikr,
     hijriToday,
     islamicEvents,
     loading: islamicLoading,
@@ -608,20 +600,6 @@ export function IslamEnhancedPanel() {
     onEnd: () => setCurrentPlayingAyah(null),
     onError: () => setCurrentPlayingAyah(null)
   });
-
-  // Calculate Ramadan stats
-  const fastingDays = ramadanDays.filter(d => d.fasting_completed).length;
-  const taraweehDays = ramadanDays.filter(d => d.taraweeh_completed).length;
-
-  const getDhikrProgress = (type: string) => {
-    const log = dhikrLogs.find(d => d.dhikr_type === type);
-    if (!log) return { count: 0, target: dhikrTypes.find(t => t.id === type)?.defaultTarget || 33, percentage: 0 };
-    return {
-      count: log.completed_count,
-      target: log.target_count,
-      percentage: Math.min(100, (log.completed_count / log.target_count) * 100),
-    };
-  };
 
   const upcomingEvents = islamicEvents.filter(e => e.date >= new Date()).slice(0, 5);
 
@@ -813,26 +791,10 @@ export function IslamEnhancedPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-3 grid grid-cols-9">
+        <TabsList className="mx-4 mt-3 grid grid-cols-7">
           <TabsTrigger value="prayer" className="gap-1 text-xs px-1">
             <Clock className="w-3 h-3" />
             <span className="hidden sm:inline">Prayer</span>
-          </TabsTrigger>
-          <TabsTrigger value="hadith" className="gap-1 text-xs px-1">
-            <BookOpen className="w-3 h-3" />
-            <span className="hidden sm:inline">Hadith</span>
-          </TabsTrigger>
-          <TabsTrigger value="ramadan" className="gap-1 text-xs px-1">
-            <Star className="w-3 h-3" />
-            <span className="hidden sm:inline">Ramadan</span>
-          </TabsTrigger>
-          <TabsTrigger value="dhikr" className="gap-1 text-xs px-1">
-            <Hand className="w-3 h-3" />
-            <span className="hidden sm:inline">Dhikr</span>
-          </TabsTrigger>
-          <TabsTrigger value="duas" className="gap-1 text-xs px-1">
-            <Heart className="w-3 h-3" />
-            <span className="hidden sm:inline">Duas</span>
           </TabsTrigger>
           <TabsTrigger value="qibla" className="gap-1 text-xs px-1">
             <Compass className="w-3 h-3" />
@@ -845,6 +807,14 @@ export function IslamEnhancedPanel() {
           <TabsTrigger value="hifz" className="gap-1 text-xs px-1">
             <GraduationCap className="w-3 h-3" />
             <span className="hidden sm:inline">Hifz</span>
+          </TabsTrigger>
+          <TabsTrigger value="hadith" className="gap-1 text-xs px-1">
+            <BookOpen className="w-3 h-3" />
+            <span className="hidden sm:inline">Hadith</span>
+          </TabsTrigger>
+          <TabsTrigger value="duas" className="gap-1 text-xs px-1">
+            <Heart className="w-3 h-3" />
+            <span className="hidden sm:inline">Duas</span>
           </TabsTrigger>
           <TabsTrigger value="calendar" className="gap-1 text-xs px-1">
             <Calendar className="w-3 h-3" />
@@ -865,114 +835,6 @@ export function IslamEnhancedPanel() {
         {/* Hifz Tracker */}
         <TabsContent value="hifz" className="flex-1 mt-0">
           <HifzTrackerTab />
-        </TabsContent>
-
-        {/* Ramadan Tracker */}
-        <TabsContent value="ramadan" className="flex-1 mt-0">
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <Card className="p-4 text-center bg-gradient-to-br from-emerald-500/20 to-teal-500/20">
-                  <p className="text-3xl font-bold text-emerald-600">{fastingDays}/30</p>
-                  <p className="text-sm text-muted-foreground">Fasting Days</p>
-                </Card>
-                <Card className="p-4 text-center bg-gradient-to-br from-amber-500/20 to-orange-500/20">
-                  <p className="text-3xl font-bold text-amber-600">{taraweehDays}/30</p>
-                  <p className="text-sm text-muted-foreground">Taraweeh Prayers</p>
-                </Card>
-              </div>
-              <Card className="p-4">
-                <h3 className="font-medium mb-3">Track Your Ramadan</h3>
-                <div className="grid grid-cols-6 gap-2">
-                  {Array.from({ length: 30 }, (_, i) => {
-                    const day = i + 1;
-                    const dayData = ramadanDays.find(d => d.day_number === day);
-                    return (
-                      <div key={day} className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            "w-full h-10 flex flex-col p-1",
-                            dayData?.fasting_completed && "bg-emerald-500/20 text-emerald-600"
-                          )}
-                          onClick={() => toggleFasting(day)}
-                        >
-                          <span className="text-xs font-medium">{day}</span>
-                          {dayData?.fasting_completed && <Check className="w-3 h-3" />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            "w-full h-6 mt-0.5",
-                            dayData?.taraweeh_completed && "bg-amber-500/20 text-amber-600"
-                          )}
-                          onClick={() => toggleTaraweeh(day)}
-                        >
-                          <Moon className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-emerald-500/30 rounded" />
-                    Fasting
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-amber-500/30 rounded" />
-                    Taraweeh
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </ScrollArea>
-        </TabsContent>
-
-        {/* Dhikr Counter */}
-        <TabsContent value="dhikr" className="flex-1 mt-0">
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-3">
-              {dhikrTypes.map((dhikr) => {
-                const progress = getDhikrProgress(dhikr.id);
-                const isComplete = progress.count >= progress.target;
-                return (
-                  <Card
-                    key={dhikr.id}
-                    className={cn(
-                      "p-4 cursor-pointer transition-all",
-                      isComplete && "border-emerald-500/50 bg-emerald-500/10"
-                    )}
-                    onClick={() => !isComplete && incrementDhikr(dhikr.id)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="font-arabic text-xl">{dhikr.arabic}</p>
-                        <p className="text-sm text-muted-foreground">{dhikr.english}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={cn("text-2xl font-bold", isComplete && "text-emerald-600")}>
-                          {progress.count}/{progress.target}
-                        </p>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={(e) => { e.stopPropagation(); resetDhikr(dhikr.id); }}
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    <Progress value={progress.percentage} className="h-2" />
-                    {isComplete && <Badge className="mt-2 bg-emerald-500">Complete! 🤲</Badge>}
-                  </Card>
-                );
-              })}
-            </div>
-          </ScrollArea>
         </TabsContent>
 
         {/* Duas */}
