@@ -294,25 +294,65 @@ export function useAppleHealth() {
       logHealthDebug('steps_error', { error: (e as any)?.message || String(e) });
     }
 
-    // Fetch heart rate (latest sample)
+    // Fetch heart rate (aggregated by day for average)
     try {
-      const heartRateData = await Health.queryLatestSample({
-        dataType: 'heart-rate'
+      const heartRateData = await Health.queryAggregated({
+        dataType: 'heart-rate',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
       });
 
-      if (heartRateData?.value) {
-        const date = new Date().toISOString().split('T')[0];
-        metricsToInsert.push({
-          user_id: user.id,
-          metric_type: 'heart_rate',
-          value: Math.round(heartRateData.value),
-          unit: 'bpm',
-          recorded_at: `${date}T12:00:00.000Z`,
-          source: 'apple_health',
-        });
+      logHealthDebug('heart_rate_response', { count: heartRateData?.aggregatedData?.length || 0, raw: heartRateData });
+
+      if (heartRateData?.aggregatedData) {
+        for (const bucket of heartRateData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'heart_rate',
+              value: Math.round(bucket.value),
+              unit: 'bpm',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
       }
     } catch (e) {
-      console.log('Heart rate data not available:', e);
+      logHealthDebug('heart_rate_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch active minutes (exercise time aggregated by day)
+    try {
+      const activeData = await Health.queryAggregated({
+        dataType: 'exercise-time',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      logHealthDebug('active_minutes_response', { count: activeData?.aggregatedData?.length || 0 });
+
+      if (activeData?.aggregatedData) {
+        for (const bucket of activeData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            // Value is in minutes
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'active_minutes',
+              value: Math.round(bucket.value),
+              unit: 'min',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('active_minutes_error', { error: (e as any)?.message || String(e) });
     }
 
     // Fetch active energy burned (calories) - aggregated by day
@@ -354,14 +394,28 @@ export function useAppleHealth() {
         bucket: 'day'
       });
 
-      logHealthDebug('sleep_response', { count: sleepData?.aggregatedData?.length || 0 });
+      logHealthDebug('sleep_response', { count: sleepData?.aggregatedData?.length || 0, raw: sleepData });
 
       if (sleepData?.aggregatedData) {
         for (const bucket of sleepData.aggregatedData) {
           if (bucket.value && bucket.value > 0) {
             const date = new Date(bucket.startDate).toISOString().split('T')[0];
-            // Sleep is returned in minutes, convert to hours
-            const hours = bucket.value / 60;
+            // Sleep value from HealthKit: check if value seems like minutes or hours
+            // If value > 24, it's likely in minutes; if > 1440, it's likely in seconds
+            let hours: number;
+            if (bucket.value > 1440) {
+              // Value is in seconds
+              hours = bucket.value / 3600;
+            } else if (bucket.value > 24) {
+              // Value is in minutes
+              hours = bucket.value / 60;
+            } else {
+              // Value is already in hours
+              hours = bucket.value;
+            }
+            // Cap at reasonable max (24 hours)
+            hours = Math.min(hours, 24);
+            
             metricsToInsert.push({
               user_id: user.id,
               metric_type: 'sleep_hours',
