@@ -21,7 +21,7 @@ import {
   Flame,
   StickyNote,
   BarChart3,
-  Home,
+  Utensils,
   Brain,
   Moon,
   Building2,
@@ -244,8 +244,8 @@ export function Sidebar({
             )}
             onClick={() => handlePanelClick('family')}
           >
-            <Home className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">Cooking</span>}
+            <Utensils className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">{t('nav.cooking')}</span>}
           </Button>
 
           {/* Islam */}

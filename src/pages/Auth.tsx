@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Sparkles, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { signIn, signUp } = useAuth();
+  const { t } = useLanguage();
   
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -27,13 +29,13 @@ export default function Auth() {
         if (error) {
           toast({
             variant: 'destructive',
-            title: 'Login Failed',
+            title: t('auth.loginFailed'),
             description: error.message,
           });
         } else {
           toast({
-            title: 'Welcome back!',
-            description: 'Successfully logged in.',
+            title: t('auth.welcomeBack'),
+            description: t('auth.successLogin'),
           });
           navigate('/');
         }
@@ -43,20 +45,20 @@ export default function Auth() {
           if (error.message.includes('already registered')) {
             toast({
               variant: 'destructive',
-              title: 'Account Exists',
-              description: 'This email is already registered. Please log in.',
+              title: t('auth.accountExists'),
+              description: t('auth.emailAlreadyRegistered'),
             });
           } else {
             toast({
               variant: 'destructive',
-              title: 'Sign Up Failed',
+              title: t('auth.signUpFailed'),
               description: error.message,
             });
           }
         } else {
           toast({
-            title: 'Account Created!',
-            description: 'You can now start using DarAI.',
+            title: t('auth.accountCreated'),
+            description: t('auth.startUsingApp'),
           });
           navigate('/');
         }
@@ -82,14 +84,14 @@ export default function Auth() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">Display Name</label>
+                <label className="text-sm font-medium text-foreground">{t('auth.displayName')}</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Your name"
+                    placeholder={t('auth.yourName')}
                     className="pl-12 h-12 text-base"
                   />
                 </div>
@@ -97,7 +99,7 @@ export default function Auth() {
             )}
 
             <div className="space-y-3">
-              <label className="text-sm font-medium text-foreground">Email</label>
+              <label className="text-sm font-medium text-foreground">{t('auth.email')}</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -112,7 +114,7 @@ export default function Auth() {
             </div>
 
             <div className="space-y-3">
-              <label className="text-sm font-medium text-foreground">Password</label>
+              <label className="text-sm font-medium text-foreground">{t('auth.password')}</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -132,7 +134,7 @@ export default function Auth() {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  {isLogin ? 'Sign In' : 'Create Account'}
+                  {isLogin ? t('auth.signIn') : t('auth.createAccount')}
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -145,7 +147,7 @@ export default function Auth() {
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
-              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+              {isLogin ? t('auth.dontHaveAccount') : t('auth.alreadyHaveAccount')}
             </button>
           </div>
         </div>

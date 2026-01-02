@@ -23,6 +23,7 @@ import { TechNewsPanel } from '../news/TechNewsPanel';
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
 
 import { useNotifications } from '@/hooks/useNotifications';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Task, CalendarEvent, ChatMessage, UserSettings, Project } from '@/types/flux';
 import { SidebarFilter } from './Sidebar';
 import { 
@@ -36,7 +37,6 @@ import {
   Briefcase,
   User,
   Users,
-  Home,
   StickyNote,
   Flame,
   BookUser,
@@ -116,6 +116,7 @@ export function MobileLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<string>('all');
   
+  const { t } = useLanguage();
   const { 
     notifications, 
     markRead, 
@@ -181,7 +182,7 @@ export function MobileLayout({
                 {/* Navigation */}
                 <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
                   {/* Main section label */}
-                  <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">Main</span>
+                  <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">{t('nav.main')}</span>
                   
                   {/* Dori AI Assistant */}
                   <Button
@@ -193,7 +194,7 @@ export function MobileLayout({
                     }}
                   >
                     <Sparkles className="w-5 h-5 shrink-0" />
-                    <span>Dori</span>
+                    <span>{t('nav.dori')}</span>
                   </Button>
 
                   {/* Calendar (includes Focus & Tasks) */}
@@ -206,7 +207,7 @@ export function MobileLayout({
                     }}
                   >
                     <Calendar className="w-5 h-5 shrink-0" />
-                    <span>Calendar</span>
+                    <span>{t('nav.calendar')}</span>
                   </Button>
 
                   {/* Social (Chat + Calls) */}
@@ -219,7 +220,7 @@ export function MobileLayout({
                     }}
                   >
                     <MessageCircle className="w-5 h-5 shrink-0" />
-                    <span>Social</span>
+                    <span>{t('nav.social')}</span>
                   </Button>
 
                   {/* Dashboard */}
@@ -232,10 +233,10 @@ export function MobileLayout({
                     }}
                   >
                     <LayoutDashboard className="w-5 h-5 shrink-0" />
-                    <span>Dashboard</span>
+                    <span>{t('nav.dashboard')}</span>
                   </Button>
 
-                  {/* Family Hub */}
+                  {/* Cooking */}
                   <Button
                     variant={activeTab === 'family' ? 'secondary' : 'ghost'}
                     className="w-full justify-start gap-3"
@@ -244,8 +245,8 @@ export function MobileLayout({
                       setSidebarOpen(false);
                     }}
                   >
-                    <Home className="w-5 h-5 shrink-0" />
-                    <span>Family Hub</span>
+                    <Utensils className="w-5 h-5 shrink-0" />
+                    <span>{t('nav.cooking')}</span>
                   </Button>
 
                   {/* Islam */}
@@ -258,7 +259,7 @@ export function MobileLayout({
                     }}
                   >
                     <Moon className="w-5 h-5 shrink-0" />
-                    <span>Islam</span>
+                    <span>{t('nav.islam')}</span>
                   </Button>
 
                   {/* Properties */}
@@ -271,7 +272,7 @@ export function MobileLayout({
                     }}
                   >
                     <Building2 className="w-5 h-5 shrink-0" />
-                    <span>Properties</span>
+                    <span>{t('nav.properties')}</span>
                   </Button>
 
                   {/* Startups */}
@@ -284,7 +285,7 @@ export function MobileLayout({
                     }}
                   >
                     <Briefcase className="w-5 h-5 shrink-0" />
-                    <span>Startups</span>
+                    <span>{t('nav.startups')}</span>
                   </Button>
 
                   {/* Tech News */}
@@ -297,11 +298,11 @@ export function MobileLayout({
                     }}
                   >
                     <Newspaper className="w-5 h-5 shrink-0" />
-                    <span>Tech News</span>
+                    <span>{t('nav.news')}</span>
                   </Button>
 
                   {/* Productivity section */}
-                  <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block mt-4">Productivity</span>
+                  <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block mt-4">{t('nav.productivity')}</span>
 
                   {/* Notes */}
                   <Button
@@ -313,7 +314,7 @@ export function MobileLayout({
                     }}
                   >
                     <StickyNote className="w-5 h-5 shrink-0" />
-                    <span>Notes</span>
+                    <span>{t('nav.notes')}</span>
                   </Button>
 
                   {/* Habits */}
@@ -326,7 +327,7 @@ export function MobileLayout({
                     }}
                   >
                     <Flame className="w-5 h-5 shrink-0" />
-                    <span>Habits</span>
+                    <span>{t('nav.habits')}</span>
                   </Button>
 
                   {/* Contacts */}
@@ -339,7 +340,7 @@ export function MobileLayout({
                     }}
                   >
                     <BookUser className="w-5 h-5 shrink-0" />
-                    <span>Contacts</span>
+                    <span>{t('nav.contacts')}</span>
                   </Button>
 
                   {/* Contracts */}
@@ -352,7 +353,7 @@ export function MobileLayout({
                     }}
                   >
                     <FileText className="w-5 h-5 shrink-0" />
-                    <span>Contracts</span>
+                    <span>{t('nav.contracts')}</span>
                   </Button>
                 </nav>
 
@@ -367,7 +368,7 @@ export function MobileLayout({
                     }}
                   >
                     <Settings className="w-5 h-5 shrink-0" />
-                    <span>Settings</span>
+                    <span>{t('nav.settings')}</span>
                   </Button>
 
                   {onSignOut && (
@@ -380,7 +381,7 @@ export function MobileLayout({
                       }}
                     >
                       <LogOut className="w-5 h-5 shrink-0" />
-                      <span>Sign Out</span>
+                      <span>{t('nav.signOut')}</span>
                     </Button>
                   )}
                 </div>
