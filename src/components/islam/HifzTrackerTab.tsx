@@ -1,34 +1,41 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Slider } from '@/components/ui/slider';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { 
-  Search, BookOpen, Check, Clock, AlertCircle, Play, RotateCcw,
-  ChevronDown, ChevronUp, Target, Trophy, Calendar
+  Search, BookOpen, Check, Clock, AlertCircle, Play, Pause, RotateCcw,
+  ChevronLeft, ChevronRight, Target, Trophy, Calendar, Volume2, VolumeX,
+  Eye, EyeOff, Repeat, Star, Brain, Zap, ArrowRight, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, differenceInDays } from 'date-fns';
 
 interface Surah {
   number: number;
   name: string;
   englishName: string;
   numberOfAyahs: number;
+}
+
+interface Ayah {
+  number: number;
+  text: string;
+  numberInSurah: number;
+  audio?: string;
 }
 
 interface HifzProgress {
@@ -43,23 +50,26 @@ interface HifzProgress {
   started_at: string | null;
   completed_at: string | null;
   notes: string | null;
+  revision_count?: number;
+  ease_factor?: number;
+  next_review_date?: string | null;
 }
 
-// All 114 Surahs with their details
+// All 114 Surahs
 const SURAHS: Surah[] = [
   { number: 1, name: 'الفاتحة', englishName: 'Al-Fatiha', numberOfAyahs: 7 },
   { number: 2, name: 'البقرة', englishName: 'Al-Baqarah', numberOfAyahs: 286 },
-  { number: 3, name: 'آل عمران', englishName: 'Ali \'Imran', numberOfAyahs: 200 },
+  { number: 3, name: 'آل عمران', englishName: "Ali 'Imran", numberOfAyahs: 200 },
   { number: 4, name: 'النساء', englishName: 'An-Nisa', numberOfAyahs: 176 },
-  { number: 5, name: 'المائدة', englishName: 'Al-Ma\'idah', numberOfAyahs: 120 },
-  { number: 6, name: 'الأنعام', englishName: 'Al-An\'am', numberOfAyahs: 165 },
-  { number: 7, name: 'الأعراف', englishName: 'Al-A\'raf', numberOfAyahs: 206 },
+  { number: 5, name: 'المائدة', englishName: "Al-Ma'idah", numberOfAyahs: 120 },
+  { number: 6, name: 'الأنعام', englishName: "Al-An'am", numberOfAyahs: 165 },
+  { number: 7, name: 'الأعراف', englishName: "Al-A'raf", numberOfAyahs: 206 },
   { number: 8, name: 'الأنفال', englishName: 'Al-Anfal', numberOfAyahs: 75 },
   { number: 9, name: 'التوبة', englishName: 'At-Tawbah', numberOfAyahs: 129 },
   { number: 10, name: 'يونس', englishName: 'Yunus', numberOfAyahs: 109 },
   { number: 11, name: 'هود', englishName: 'Hud', numberOfAyahs: 123 },
   { number: 12, name: 'يوسف', englishName: 'Yusuf', numberOfAyahs: 111 },
-  { number: 13, name: 'الرعد', englishName: 'Ar-Ra\'d', numberOfAyahs: 43 },
+  { number: 13, name: 'الرعد', englishName: "Ar-Ra'd", numberOfAyahs: 43 },
   { number: 14, name: 'إبراهيم', englishName: 'Ibrahim', numberOfAyahs: 52 },
   { number: 15, name: 'الحجر', englishName: 'Al-Hijr', numberOfAyahs: 99 },
   { number: 16, name: 'النحل', englishName: 'An-Nahl', numberOfAyahs: 128 },
@@ -69,10 +79,10 @@ const SURAHS: Surah[] = [
   { number: 20, name: 'طه', englishName: 'Ta-Ha', numberOfAyahs: 135 },
   { number: 21, name: 'الأنبياء', englishName: 'Al-Anbiya', numberOfAyahs: 112 },
   { number: 22, name: 'الحج', englishName: 'Al-Hajj', numberOfAyahs: 78 },
-  { number: 23, name: 'المؤمنون', englishName: 'Al-Mu\'minun', numberOfAyahs: 118 },
+  { number: 23, name: 'المؤمنون', englishName: "Al-Mu'minun", numberOfAyahs: 118 },
   { number: 24, name: 'النور', englishName: 'An-Nur', numberOfAyahs: 64 },
   { number: 25, name: 'الفرقان', englishName: 'Al-Furqan', numberOfAyahs: 77 },
-  { number: 26, name: 'الشعراء', englishName: 'Ash-Shu\'ara', numberOfAyahs: 227 },
+  { number: 26, name: 'الشعراء', englishName: "Ash-Shu'ara", numberOfAyahs: 227 },
   { number: 27, name: 'النمل', englishName: 'An-Naml', numberOfAyahs: 93 },
   { number: 28, name: 'القصص', englishName: 'Al-Qasas', numberOfAyahs: 88 },
   { number: 29, name: 'العنكبوت', englishName: 'Al-Ankabut', numberOfAyahs: 69 },
@@ -102,13 +112,13 @@ const SURAHS: Surah[] = [
   { number: 53, name: 'النجم', englishName: 'An-Najm', numberOfAyahs: 62 },
   { number: 54, name: 'القمر', englishName: 'Al-Qamar', numberOfAyahs: 55 },
   { number: 55, name: 'الرحمن', englishName: 'Ar-Rahman', numberOfAyahs: 78 },
-  { number: 56, name: 'الواقعة', englishName: 'Al-Waqi\'ah', numberOfAyahs: 96 },
+  { number: 56, name: 'الواقعة', englishName: "Al-Waqi'ah", numberOfAyahs: 96 },
   { number: 57, name: 'الحديد', englishName: 'Al-Hadid', numberOfAyahs: 29 },
   { number: 58, name: 'المجادلة', englishName: 'Al-Mujadila', numberOfAyahs: 22 },
   { number: 59, name: 'الحشر', englishName: 'Al-Hashr', numberOfAyahs: 24 },
   { number: 60, name: 'الممتحنة', englishName: 'Al-Mumtahanah', numberOfAyahs: 13 },
   { number: 61, name: 'الصف', englishName: 'As-Saf', numberOfAyahs: 14 },
-  { number: 62, name: 'الجمعة', englishName: 'Al-Jumu\'ah', numberOfAyahs: 11 },
+  { number: 62, name: 'الجمعة', englishName: "Al-Jumu'ah", numberOfAyahs: 11 },
   { number: 63, name: 'المنافقون', englishName: 'Al-Munafiqun', numberOfAyahs: 11 },
   { number: 64, name: 'التغابن', englishName: 'At-Taghabun', numberOfAyahs: 18 },
   { number: 65, name: 'الطلاق', englishName: 'At-Talaq', numberOfAyahs: 12 },
@@ -116,7 +126,7 @@ const SURAHS: Surah[] = [
   { number: 67, name: 'الملك', englishName: 'Al-Mulk', numberOfAyahs: 30 },
   { number: 68, name: 'القلم', englishName: 'Al-Qalam', numberOfAyahs: 52 },
   { number: 69, name: 'الحاقة', englishName: 'Al-Haqqah', numberOfAyahs: 52 },
-  { number: 70, name: 'المعارج', englishName: 'Al-Ma\'arij', numberOfAyahs: 44 },
+  { number: 70, name: 'المعارج', englishName: "Al-Ma'arij", numberOfAyahs: 44 },
   { number: 71, name: 'نوح', englishName: 'Nuh', numberOfAyahs: 28 },
   { number: 72, name: 'الجن', englishName: 'Al-Jinn', numberOfAyahs: 28 },
   { number: 73, name: 'المزمل', englishName: 'Al-Muzzammil', numberOfAyahs: 20 },
@@ -125,7 +135,7 @@ const SURAHS: Surah[] = [
   { number: 76, name: 'الإنسان', englishName: 'Al-Insan', numberOfAyahs: 31 },
   { number: 77, name: 'المرسلات', englishName: 'Al-Mursalat', numberOfAyahs: 50 },
   { number: 78, name: 'النبأ', englishName: 'An-Naba', numberOfAyahs: 40 },
-  { number: 79, name: 'النازعات', englishName: 'An-Nazi\'at', numberOfAyahs: 46 },
+  { number: 79, name: 'النازعات', englishName: "An-Nazi'at", numberOfAyahs: 46 },
   { number: 80, name: 'عبس', englishName: 'Abasa', numberOfAyahs: 42 },
   { number: 81, name: 'التكوير', englishName: 'At-Takwir', numberOfAyahs: 29 },
   { number: 82, name: 'الانفطار', englishName: 'Al-Infitar', numberOfAyahs: 19 },
@@ -133,7 +143,7 @@ const SURAHS: Surah[] = [
   { number: 84, name: 'الانشقاق', englishName: 'Al-Inshiqaq', numberOfAyahs: 25 },
   { number: 85, name: 'البروج', englishName: 'Al-Buruj', numberOfAyahs: 22 },
   { number: 86, name: 'الطارق', englishName: 'At-Tariq', numberOfAyahs: 17 },
-  { number: 87, name: 'الأعلى', englishName: 'Al-A\'la', numberOfAyahs: 19 },
+  { number: 87, name: 'الأعلى', englishName: "Al-A'la", numberOfAyahs: 19 },
   { number: 88, name: 'الغاشية', englishName: 'Al-Ghashiyah', numberOfAyahs: 26 },
   { number: 89, name: 'الفجر', englishName: 'Al-Fajr', numberOfAyahs: 30 },
   { number: 90, name: 'البلد', englishName: 'Al-Balad', numberOfAyahs: 20 },
@@ -147,13 +157,13 @@ const SURAHS: Surah[] = [
   { number: 98, name: 'البينة', englishName: 'Al-Bayyinah', numberOfAyahs: 8 },
   { number: 99, name: 'الزلزلة', englishName: 'Az-Zalzalah', numberOfAyahs: 8 },
   { number: 100, name: 'العاديات', englishName: 'Al-Adiyat', numberOfAyahs: 11 },
-  { number: 101, name: 'القارعة', englishName: 'Al-Qari\'ah', numberOfAyahs: 11 },
+  { number: 101, name: 'القارعة', englishName: "Al-Qari'ah", numberOfAyahs: 11 },
   { number: 102, name: 'التكاثر', englishName: 'At-Takathur', numberOfAyahs: 8 },
   { number: 103, name: 'العصر', englishName: 'Al-Asr', numberOfAyahs: 3 },
   { number: 104, name: 'الهمزة', englishName: 'Al-Humazah', numberOfAyahs: 9 },
   { number: 105, name: 'الفيل', englishName: 'Al-Fil', numberOfAyahs: 5 },
   { number: 106, name: 'قريش', englishName: 'Quraysh', numberOfAyahs: 4 },
-  { number: 107, name: 'الماعون', englishName: 'Al-Ma\'un', numberOfAyahs: 7 },
+  { number: 107, name: 'الماعون', englishName: "Al-Ma'un", numberOfAyahs: 7 },
   { number: 108, name: 'الكوثر', englishName: 'Al-Kawthar', numberOfAyahs: 3 },
   { number: 109, name: 'الكافرون', englishName: 'Al-Kafirun', numberOfAyahs: 6 },
   { number: 110, name: 'النصر', englishName: 'An-Nasr', numberOfAyahs: 3 },
@@ -163,18 +173,35 @@ const SURAHS: Surah[] = [
   { number: 114, name: 'الناس', englishName: 'An-Nas', numberOfAyahs: 6 },
 ];
 
-const TOTAL_AYAHS = SURAHS.reduce((sum, s) => sum + s.numberOfAyahs, 0); // 6236 total ayahs
+const TOTAL_AYAHS = SURAHS.reduce((sum, s) => sum + s.numberOfAyahs, 0);
 
-type FilterStatus = 'all' | 'not_started' | 'in_progress' | 'memorized' | 'needs_revision';
+// Spaced repetition intervals (in days) based on SM-2 algorithm
+const getNextReviewInterval = (revisionCount: number, easeFactor: number = 2.5): number => {
+  if (revisionCount === 0) return 1;
+  if (revisionCount === 1) return 3;
+  return Math.round(getNextReviewInterval(revisionCount - 1, easeFactor) * easeFactor);
+};
+
+type ViewMode = 'overview' | 'practice' | 'review';
+type FilterStatus = 'all' | 'not_started' | 'in_progress' | 'memorized' | 'due_review';
 
 export function HifzTrackerTab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [ayahSlider, setAyahSlider] = useState(0);
+  const [practiceDialogOpen, setPracticeDialogOpen] = useState(false);
+  
+  // Practice mode state
+  const [practiceAyahs, setPracticeAyahs] = useState<Ayah[]>([]);
+  const [currentAyahIndex, setCurrentAyahIndex] = useState(0);
+  const [showAyah, setShowAyah] = useState(false);
+  const [practiceLoading, setPracticeLoading] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [repeatCount, setRepeatCount] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch progress data
   const { data: progressData = [], isLoading } = useQuery({
@@ -193,13 +220,10 @@ export function HifzTrackerTab() {
 
   // Upsert progress mutation
   const updateProgress = useMutation({
-    mutationFn: async ({ surah, memorizedAyahs }: { surah: Surah; memorizedAyahs: number }) => {
+    mutationFn: async ({ surah, updates }: { surah: Surah; updates: Partial<HifzProgress> }) => {
       if (!user?.id) throw new Error('Not authenticated');
       
-      const status = memorizedAyahs === 0 ? 'not_started' 
-        : memorizedAyahs >= surah.numberOfAyahs ? 'memorized' 
-        : 'in_progress';
-      
+      const existing = progressData.find(p => p.surah_number === surah.number);
       const now = new Date().toISOString();
       
       const { error } = await supabase
@@ -210,43 +234,20 @@ export function HifzTrackerTab() {
           surah_name: surah.englishName,
           surah_name_arabic: surah.name,
           total_ayahs: surah.numberOfAyahs,
-          memorized_ayahs: memorizedAyahs,
-          status,
-          started_at: memorizedAyahs > 0 ? now : null,
-          completed_at: status === 'memorized' ? now : null,
-          last_revised_at: memorizedAyahs > 0 ? now : null,
+          memorized_ayahs: updates.memorized_ayahs ?? existing?.memorized_ayahs ?? 0,
+          status: updates.status ?? existing?.status ?? 'not_started',
+          started_at: updates.started_at ?? existing?.started_at ?? (updates.memorized_ayahs ? now : null),
+          completed_at: updates.completed_at ?? existing?.completed_at,
+          last_revised_at: updates.last_revised_at ?? existing?.last_revised_at,
+          notes: updates.notes ?? existing?.notes,
         }, { onConflict: 'user_id,surah_number' });
       
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hifz-progress'] });
-      toast.success('Progress updated');
-      setDialogOpen(false);
     },
     onError: () => toast.error('Failed to update progress'),
-  });
-
-  // Mark as revised mutation
-  const markRevised = useMutation({
-    mutationFn: async (surahNumber: number) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      
-      const { error } = await supabase
-        .from('quran_hifz_progress')
-        .update({ 
-          last_revised_at: new Date().toISOString(),
-          status: 'memorized'
-        })
-        .eq('user_id', user.id)
-        .eq('surah_number', surahNumber);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['hifz-progress'] });
-      toast.success('Marked as revised');
-    },
   });
 
   // Calculate statistics
@@ -254,27 +255,39 @@ export function HifzTrackerTab() {
     const memorizedAyahs = progressData.reduce((sum, p) => sum + p.memorized_ayahs, 0);
     const memorizedSurahs = progressData.filter(p => p.status === 'memorized').length;
     const inProgress = progressData.filter(p => p.status === 'in_progress').length;
-    const needsRevision = progressData.filter(p => {
+    
+    // Calculate surahs due for review (spaced repetition)
+    const dueForReview = progressData.filter(p => {
       if (p.status !== 'memorized' || !p.last_revised_at) return false;
-      const daysSinceRevision = (Date.now() - new Date(p.last_revised_at).getTime()) / (1000 * 60 * 60 * 24);
-      return daysSinceRevision > 7; // Needs revision if more than 7 days
+      const daysSinceRevision = differenceInDays(new Date(), new Date(p.last_revised_at));
+      const interval = getNextReviewInterval(p.revision_count || 1, p.ease_factor || 2.5);
+      return daysSinceRevision >= interval;
+    });
+    
+    // Today's streak calculation
+    const todayProgress = progressData.filter(p => {
+      if (!p.last_revised_at) return false;
+      const today = new Date();
+      const lastRevised = new Date(p.last_revised_at);
+      return today.toDateString() === lastRevised.toDateString();
     }).length;
     
     return {
       memorizedAyahs,
       memorizedSurahs,
       inProgress,
-      needsRevision,
+      dueForReview: dueForReview.length,
+      todayProgress,
       totalPercentage: ((memorizedAyahs / TOTAL_AYAHS) * 100).toFixed(1),
+      juzCompleted: Math.floor(memorizedAyahs / 200), // Approximate juz calculation
     };
   }, [progressData]);
 
-  // Get progress for a surah
   const getProgress = (surahNumber: number): HifzProgress | undefined => {
     return progressData.find(p => p.surah_number === surahNumber);
   };
 
-  // Filter and search surahs
+  // Filter surahs
   const filteredSurahs = useMemo(() => {
     return SURAHS.filter(surah => {
       const matchesSearch = searchQuery === '' ||
@@ -286,214 +299,535 @@ export function HifzTrackerTab() {
       
       const progress = getProgress(surah.number);
       if (filterStatus === 'not_started') return matchesSearch && !progress;
-      if (filterStatus === 'needs_revision') {
+      if (filterStatus === 'due_review') {
         if (!progress || progress.status !== 'memorized' || !progress.last_revised_at) return false;
-        const daysSinceRevision = (Date.now() - new Date(progress.last_revised_at).getTime()) / (1000 * 60 * 60 * 24);
-        return matchesSearch && daysSinceRevision > 7;
+        const daysSinceRevision = differenceInDays(new Date(), new Date(progress.last_revised_at));
+        return matchesSearch && daysSinceRevision >= 7;
       }
       return matchesSearch && progress?.status === filterStatus;
     });
   }, [searchQuery, filterStatus, progressData]);
 
+  // Surahs recommended for beginner (short surahs from Juz Amma)
+  const recommendedSurahs = SURAHS.filter(s => s.number >= 103).reverse();
+
+  // Fetch surah ayahs for practice
+  const fetchSurahAyahs = async (surahNumber: number) => {
+    setPracticeLoading(true);
+    try {
+      const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/ar.alafasy`);
+      const data = await response.json();
+      if (data.code === 200) {
+        setPracticeAyahs(data.data.ayahs);
+        setCurrentAyahIndex(0);
+        setShowAyah(false);
+      }
+    } catch (error) {
+      toast.error('Failed to load surah');
+    } finally {
+      setPracticeLoading(false);
+    }
+  };
+
+  const startPractice = (surah: Surah) => {
+    setSelectedSurah(surah);
+    fetchSurahAyahs(surah.number);
+    setPracticeDialogOpen(true);
+    setRepeatCount(0);
+  };
+
+  const playCurrentAyah = () => {
+    const ayah = practiceAyahs[currentAyahIndex];
+    if (!ayah?.audio) return;
+    
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    
+    const audio = new Audio(ayah.audio);
+    audioRef.current = audio;
+    
+    audio.onplay = () => setIsPlaying(true);
+    audio.onended = () => {
+      setIsPlaying(false);
+      setRepeatCount(prev => prev + 1);
+    };
+    audio.onerror = () => setIsPlaying(false);
+    
+    audio.play().catch(console.error);
+  };
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setIsPlaying(false);
+  };
+
+  const nextAyah = () => {
+    if (currentAyahIndex < practiceAyahs.length - 1) {
+      setCurrentAyahIndex(prev => prev + 1);
+      setShowAyah(false);
+      setRepeatCount(0);
+    }
+  };
+
+  const prevAyah = () => {
+    if (currentAyahIndex > 0) {
+      setCurrentAyahIndex(prev => prev - 1);
+      setShowAyah(false);
+      setRepeatCount(0);
+    }
+  };
+
+  const markSurahMemorized = async () => {
+    if (!selectedSurah) return;
+    
+    await updateProgress.mutateAsync({
+      surah: selectedSurah,
+      updates: {
+        memorized_ayahs: selectedSurah.numberOfAyahs,
+        status: 'memorized',
+        completed_at: new Date().toISOString(),
+        last_revised_at: new Date().toISOString(),
+      }
+    });
+    
+    toast.success(`🎉 ${selectedSurah.englishName} marked as memorized!`);
+    setPracticeDialogOpen(false);
+  };
+
+  const markAsRevised = async (surah: Surah) => {
+    const progress = getProgress(surah.number);
+    
+    await updateProgress.mutateAsync({
+      surah,
+      updates: {
+        last_revised_at: new Date().toISOString(),
+        status: 'memorized',
+      }
+    });
+    
+    toast.success(`✓ ${surah.englishName} revised`);
+  };
+
   const getStatusBadge = (surah: Surah) => {
     const progress = getProgress(surah.number);
-    if (!progress) return <Badge variant="outline" className="text-xs">Not Started</Badge>;
+    if (!progress) return <Badge variant="outline" className="text-xs">Start</Badge>;
     
     if (progress.status === 'memorized') {
       const daysSinceRevision = progress.last_revised_at 
-        ? (Date.now() - new Date(progress.last_revised_at).getTime()) / (1000 * 60 * 60 * 24)
+        ? differenceInDays(new Date(), new Date(progress.last_revised_at))
         : 999;
       
-      if (daysSinceRevision > 7) {
-        return <Badge variant="destructive" className="text-xs gap-1"><AlertCircle className="w-3 h-3" />Revise</Badge>;
+      if (daysSinceRevision >= 7) {
+        return <Badge variant="destructive" className="text-xs gap-1"><AlertCircle className="w-3 h-3" />Review</Badge>;
       }
-      return <Badge className="text-xs bg-emerald-500 gap-1"><Check className="w-3 h-3" />Memorized</Badge>;
+      return <Badge className="text-xs bg-emerald-500 gap-1"><Check className="w-3 h-3" />Done</Badge>;
     }
     
     if (progress.status === 'in_progress') {
-      return <Badge variant="secondary" className="text-xs gap-1"><Play className="w-3 h-3" />{progress.memorized_ayahs}/{progress.total_ayahs}</Badge>;
+      const pct = Math.round((progress.memorized_ayahs / progress.total_ayahs) * 100);
+      return <Badge variant="secondary" className="text-xs">{pct}%</Badge>;
     }
     
-    return <Badge variant="outline" className="text-xs">Not Started</Badge>;
+    return <Badge variant="outline" className="text-xs">Start</Badge>;
   };
 
-  const openSurahDialog = (surah: Surah) => {
-    setSelectedSurah(surah);
-    const progress = getProgress(surah.number);
-    setAyahSlider(progress?.memorized_ayahs || 0);
-    setDialogOpen(true);
-  };
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) audioRef.current.pause();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
-      {/* Statistics */}
+      {/* Statistics Header */}
       <div className="p-4 border-b border-border space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="p-4 text-center bg-gradient-to-br from-emerald-500/20 to-teal-500/20">
-            <Trophy className="w-6 h-6 mx-auto text-emerald-600 mb-1" />
-            <p className="text-2xl font-bold text-emerald-600">{stats.memorizedSurahs}/114</p>
-            <p className="text-xs text-muted-foreground">Surahs Memorized</p>
+        <div className="grid grid-cols-3 gap-2">
+          <Card className="p-3 text-center bg-gradient-to-br from-emerald-500/20 to-teal-500/20">
+            <Trophy className="w-5 h-5 mx-auto text-emerald-600 mb-1" />
+            <p className="text-xl font-bold text-emerald-600">{stats.memorizedSurahs}</p>
+            <p className="text-[10px] text-muted-foreground">Surahs</p>
           </Card>
-          <Card className="p-4 text-center bg-gradient-to-br from-primary/20 to-primary/10">
-            <Target className="w-6 h-6 mx-auto text-primary mb-1" />
-            <p className="text-2xl font-bold text-primary">{stats.totalPercentage}%</p>
-            <p className="text-xs text-muted-foreground">{stats.memorizedAyahs.toLocaleString()} Ayahs</p>
+          <Card className="p-3 text-center bg-gradient-to-br from-primary/20 to-primary/10">
+            <Target className="w-5 h-5 mx-auto text-primary mb-1" />
+            <p className="text-xl font-bold text-primary">{stats.totalPercentage}%</p>
+            <p className="text-[10px] text-muted-foreground">{stats.memorizedAyahs} Ayahs</p>
           </Card>
-        </div>
-
-        <div className="flex gap-2">
-          <Card className="flex-1 p-3 text-center">
-            <p className="text-lg font-semibold text-amber-600">{stats.inProgress}</p>
-            <p className="text-xs text-muted-foreground">In Progress</p>
-          </Card>
-          <Card className="flex-1 p-3 text-center">
-            <p className="text-lg font-semibold text-rose-600">{stats.needsRevision}</p>
-            <p className="text-xs text-muted-foreground">Need Revision</p>
+          <Card className="p-3 text-center bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+            <Repeat className="w-5 h-5 mx-auto text-amber-600 mb-1" />
+            <p className="text-xl font-bold text-amber-600">{stats.dueForReview}</p>
+            <p className="text-[10px] text-muted-foreground">Due Review</p>
           </Card>
         </div>
 
-        <Progress value={parseFloat(stats.totalPercentage)} className="h-2" />
+        {/* Quick Actions */}
+        {stats.dueForReview > 0 && (
+          <Button 
+            className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90"
+            onClick={() => setFilterStatus('due_review')}
+          >
+            <Brain className="w-4 h-4" />
+            Review {stats.dueForReview} Surah{stats.dueForReview > 1 ? 's' : ''} Now
+          </Button>
+        )}
       </div>
 
-      {/* Search and Filter */}
-      <div className="p-4 space-y-3 border-b border-border">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search surahs..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {(['all', 'in_progress', 'memorized', 'needs_revision', 'not_started'] as FilterStatus[]).map((status) => (
-            <Button
-              key={status}
-              variant={filterStatus === status ? "default" : "outline"}
-              size="sm"
-              className="whitespace-nowrap"
-              onClick={() => setFilterStatus(status)}
-            >
-              {status === 'all' ? 'All' : status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </Button>
-          ))}
-        </div>
-      </div>
+      {/* Tabs */}
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="flex-1 flex flex-col">
+        <TabsList className="mx-4 mt-3 grid grid-cols-3">
+          <TabsTrigger value="overview" className="text-xs gap-1">
+            <BookOpen className="w-3 h-3" />
+            Surahs
+          </TabsTrigger>
+          <TabsTrigger value="practice" className="text-xs gap-1">
+            <Zap className="w-3 h-3" />
+            Quick Start
+          </TabsTrigger>
+          <TabsTrigger value="review" className="text-xs gap-1">
+            <Brain className="w-3 h-3" />
+            Review
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Surah List */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-2">
-          {filteredSurahs.map((surah) => {
-            const progress = getProgress(surah.number);
-            const percentage = progress ? (progress.memorized_ayahs / progress.total_ayahs) * 100 : 0;
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="flex-1 mt-0 flex flex-col">
+          <div className="px-4 py-3 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search surahs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
             
-            return (
-              <Card
-                key={surah.number}
-                className="p-3 cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => openSurahDialog(surah)}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary">
-                    {surah.number}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium truncate">{surah.englishName}</p>
-                      {getStatusBadge(surah)}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-arabic text-muted-foreground">{surah.name}</p>
-                      <p className="text-xs text-muted-foreground">{surah.numberOfAyahs} ayahs</p>
-                    </div>
-                    {percentage > 0 && percentage < 100 && (
-                      <Progress value={percentage} className="h-1 mt-1" />
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {(['all', 'in_progress', 'memorized', 'due_review', 'not_started'] as FilterStatus[]).map(status => (
+                <Button
+                  key={status}
+                  variant={filterStatus === status ? 'default' : 'outline'}
+                  size="sm"
+                  className="text-xs whitespace-nowrap"
+                  onClick={() => setFilterStatus(status)}
+                >
+                  {status === 'all' && 'All'}
+                  {status === 'in_progress' && `Learning (${stats.inProgress})`}
+                  {status === 'memorized' && `Done (${stats.memorizedSurahs})`}
+                  {status === 'due_review' && `Review (${stats.dueForReview})`}
+                  {status === 'not_started' && 'New'}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <ScrollArea className="flex-1">
+            <div className="px-4 pb-20 space-y-2">
+              {filteredSurahs.map(surah => {
+                const progress = getProgress(surah.number);
+                const isMemorized = progress?.status === 'memorized';
+                const needsReview = isMemorized && progress?.last_revised_at && 
+                  differenceInDays(new Date(), new Date(progress.last_revised_at)) >= 7;
+                
+                return (
+                  <Card 
+                    key={surah.number}
+                    className={cn(
+                      "p-3 cursor-pointer transition-all hover:shadow-md",
+                      isMemorized && !needsReview && "border-emerald-500/30 bg-emerald-500/5",
+                      needsReview && "border-amber-500/50 bg-amber-500/10"
                     )}
-                  </div>
+                    onClick={() => startPractice(surah)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold",
+                        isMemorized ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                      )}>
+                        {surah.number}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{surah.englishName}</span>
+                          <span className="font-arabic text-muted-foreground">{surah.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{surah.numberOfAyahs} ayahs</span>
+                          {progress?.last_revised_at && (
+                            <span>• Revised {formatDistanceToNow(new Date(progress.last_revised_at), { addSuffix: true })}</span>
+                          )}
+                        </div>
+                        {progress && progress.status === 'in_progress' && (
+                          <Progress 
+                            value={(progress.memorized_ayahs / progress.total_ayahs) * 100} 
+                            className="h-1 mt-1"
+                          />
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(surah)}
+                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        {/* Quick Start Tab - Beginner Friendly */}
+        <TabsContent value="practice" className="flex-1 mt-0">
+          <ScrollArea className="h-full">
+            <div className="p-4 space-y-4">
+              <Card className="p-4 bg-gradient-to-br from-primary/10 to-primary/5">
+                <h3 className="font-semibold flex items-center gap-2 mb-2">
+                  <Star className="w-4 h-4 text-amber-500" />
+                  Recommended for Beginners
+                </h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Start with these short surahs from Juz Amma. They're perfect for building your foundation.
+                </p>
+                <div className="space-y-2">
+                  {recommendedSurahs.slice(0, 5).map(surah => {
+                    const progress = getProgress(surah.number);
+                    const isMemorized = progress?.status === 'memorized';
+                    
+                    return (
+                      <Button
+                        key={surah.number}
+                        variant={isMemorized ? "secondary" : "outline"}
+                        className="w-full justify-between h-auto py-3"
+                        onClick={() => startPractice(surah)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-arabic">{surah.name}</span>
+                          <span className="text-sm">{surah.englishName}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{surah.numberOfAyahs} ayahs</span>
+                          {isMemorized ? (
+                            <Check className="w-4 h-4 text-emerald-500" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                        </div>
+                      </Button>
+                    );
+                  })}
                 </div>
-                {progress?.last_revised_at && progress.status === 'memorized' && (
-                  <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    Last revised {formatDistanceToNow(new Date(progress.last_revised_at), { addSuffix: true })}
-                  </div>
-                )}
               </Card>
-            );
-          })}
-        </div>
-      </ScrollArea>
 
-      {/* Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                {selectedSurah?.number}
-              </span>
-              {selectedSurah?.englishName}
-              <span className="font-arabic text-muted-foreground">{selectedSurah?.name}</span>
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedSurah && (
-            <div className="space-y-6 pt-4">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Ayahs Memorized</span>
-                  <span className="text-sm font-bold">{ayahSlider} / {selectedSurah.numberOfAyahs}</span>
+              <Card className="p-4">
+                <h3 className="font-semibold flex items-center gap-2 mb-3">
+                  <Brain className="w-4 h-4 text-primary" />
+                  Memorization Tips
+                </h3>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>• <strong>Listen first:</strong> Play each ayah 3-5 times before reading</p>
+                  <p>• <strong>Repeat aloud:</strong> Recite along with the audio</p>
+                  <p>• <strong>Small chunks:</strong> Learn 1-3 ayahs at a time</p>
+                  <p>• <strong>Daily review:</strong> Revise what you memorized yesterday</p>
+                  <p>• <strong>Pray with it:</strong> Use memorized surahs in your prayers</p>
                 </div>
-                <Slider
-                  value={[ayahSlider]}
-                  onValueChange={([v]) => setAyahSlider(v)}
-                  max={selectedSurah.numberOfAyahs}
-                  step={1}
-                  className="mb-2"
-                />
-                <Progress value={(ayahSlider / selectedSurah.numberOfAyahs) * 100} className="h-2" />
-              </div>
+              </Card>
+            </div>
+          </ScrollArea>
+        </TabsContent>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setAyahSlider(0)}
-                >
-                  <RotateCcw className="w-4 h-4 mr-1" />
-                  Reset
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setAyahSlider(selectedSurah.numberOfAyahs)}
-                >
-                  <Check className="w-4 h-4 mr-1" />
-                  Complete
-                </Button>
-              </div>
-
-              <Button
-                className="w-full"
-                onClick={() => updateProgress.mutate({ surah: selectedSurah, memorizedAyahs: ayahSlider })}
-                disabled={updateProgress.isPending}
-              >
-                Save Progress
-              </Button>
-
-              {getProgress(selectedSurah.number)?.status === 'memorized' && (
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => {
-                    markRevised.mutate(selectedSurah.number);
-                    setDialogOpen(false);
-                  }}
-                >
-                  <Calendar className="w-4 h-4 mr-1" />
-                  Mark as Revised Today
-                </Button>
+        {/* Review Tab */}
+        <TabsContent value="review" className="flex-1 mt-0">
+          <ScrollArea className="h-full">
+            <div className="p-4 space-y-4">
+              {stats.dueForReview > 0 ? (
+                <>
+                  <Card className="p-4 bg-amber-500/10 border-amber-500/30">
+                    <h3 className="font-semibold flex items-center gap-2 mb-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      {stats.dueForReview} Surah{stats.dueForReview > 1 ? 's' : ''} Due for Review
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Review these surahs to strengthen your memorization using spaced repetition.
+                    </p>
+                  </Card>
+                  
+                  {progressData
+                    .filter(p => {
+                      if (p.status !== 'memorized' || !p.last_revised_at) return false;
+                      return differenceInDays(new Date(), new Date(p.last_revised_at)) >= 7;
+                    })
+                    .map(p => {
+                      const surah = SURAHS.find(s => s.number === p.surah_number)!;
+                      const daysSince = differenceInDays(new Date(), new Date(p.last_revised_at!));
+                      
+                      return (
+                        <Card key={p.id} className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{p.surah_name}</span>
+                                <span className="font-arabic text-muted-foreground">{p.surah_name_arabic}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Last reviewed {daysSince} days ago
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="outline" onClick={() => startPractice(surah)}>
+                                <Play className="w-3 h-3 mr-1" />
+                                Practice
+                              </Button>
+                              <Button size="sm" onClick={() => markAsRevised(surah)}>
+                                <Check className="w-3 h-3 mr-1" />
+                                Done
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                </>
+              ) : (
+                <Card className="p-8 text-center">
+                  <Check className="w-12 h-12 mx-auto text-emerald-500 mb-3" />
+                  <h3 className="font-semibold mb-1">All Caught Up!</h3>
+                  <p className="text-sm text-muted-foreground">
+                    No surahs need reviewing right now. Keep memorizing!
+                  </p>
+                </Card>
               )}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
+
+      {/* Practice Dialog */}
+      <Dialog open={practiceDialogOpen} onOpenChange={setPracticeDialogOpen}>
+        <DialogContent className="max-w-lg h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-4 pb-2 border-b border-border shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <span>{selectedSurah?.englishName}</span>
+                <span className="font-arabic text-muted-foreground">{selectedSurah?.name}</span>
+              </DialogTitle>
+            </div>
+            {practiceAyahs.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Ayah {currentAyahIndex + 1} of {practiceAyahs.length}</span>
+                <Progress 
+                  value={((currentAyahIndex + 1) / practiceAyahs.length) * 100} 
+                  className="h-1 flex-1"
+                />
+              </div>
+            )}
+          </DialogHeader>
+
+          {practiceLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+          ) : practiceAyahs.length > 0 ? (
+            <div className="flex-1 flex flex-col p-4 overflow-hidden">
+              {/* Ayah Display */}
+              <div className="flex-1 flex items-center justify-center">
+                <div 
+                  className={cn(
+                    "text-center transition-all duration-300 cursor-pointer p-6 rounded-xl",
+                    showAyah ? "bg-muted/50" : "bg-primary/10 hover:bg-primary/20"
+                  )}
+                  onClick={() => setShowAyah(!showAyah)}
+                >
+                  {showAyah ? (
+                    <p className="font-arabic text-3xl leading-loose" dir="rtl">
+                      {practiceAyahs[currentAyahIndex]?.text}
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <EyeOff className="w-12 h-12 mx-auto text-primary" />
+                      <p className="text-muted-foreground">Tap to reveal ayah</p>
+                      <p className="text-xs text-muted-foreground">
+                        Try to recite from memory first!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Repeat Counter */}
+              {repeatCount > 0 && (
+                <div className="text-center py-2">
+                  <Badge variant="secondary">
+                    <Repeat className="w-3 h-3 mr-1" />
+                    Repeated {repeatCount} time{repeatCount > 1 ? 's' : ''}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Controls */}
+              <div className="space-y-3 pt-4 border-t border-border">
+                <div className="flex items-center justify-center gap-4">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={prevAyah}
+                    disabled={currentAyahIndex === 0}
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </Button>
+                  
+                  <Button
+                    size="lg"
+                    className="w-16 h-16 rounded-full"
+                    onClick={isPlaying ? stopAudio : playCurrentAyah}
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-6 h-6" />
+                    ) : (
+                      <Volume2 className="w-6 h-6" />
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={nextAyah}
+                    disabled={currentAyahIndex === practiceAyahs.length - 1}
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </Button>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowAyah(!showAyah)}
+                  >
+                    {showAyah ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                    {showAyah ? 'Hide' : 'Show'}
+                  </Button>
+                  
+                  {currentAyahIndex === practiceAyahs.length - 1 && (
+                    <Button 
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600"
+                      onClick={markSurahMemorized}
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Mark Complete
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <p className="text-muted-foreground">No ayahs loaded</p>
             </div>
           )}
         </DialogContent>
