@@ -234,7 +234,7 @@ export function Sidebar({
             {!collapsed && <span className="text-sm">{t('nav.dashboard')}</span>}
           </Button>
 
-          {/* Family Hub */}
+          {/* Cooking */}
           <Button
             variant={activePanel === 'family' ? 'secondary' : 'ghost'}
             className={cn(
@@ -245,7 +245,7 @@ export function Sidebar({
             onClick={() => handlePanelClick('family')}
           >
             <Home className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.family')}</span>}
+            {!collapsed && <span className="text-sm">Cooking</span>}
           </Button>
 
           {/* Islam */}

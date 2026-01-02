@@ -8,7 +8,7 @@ import { TeamChatPanel } from '../chat/TeamChatPanel';
 import { CalendarHubPanel } from '../calendar/CalendarHubPanel';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { SettingsPanelContent } from '../settings/SettingsPanelContent';
-import { FamilyPanel } from '../family/FamilyPanel';
+import { CookingPanel } from '../cooking/CookingPanel';
 import { DashboardPanel } from '../dashboard/DashboardPanel';
 import { HealthHubPanel } from '../health/HealthHubPanel';
 import { ContactsPanel } from '../contacts/ContactsPanel';
@@ -44,7 +44,8 @@ import {
   Heart,
   Moon,
   Building2,
-  Newspaper
+  Newspaper,
+  Utensils
 } from 'lucide-react';
 import { BrainDumpFAB } from '@/components/capture/BrainDumpFAB';
 import { DoriNotificationIcon } from '@/components/assistant/DoriNotificationIcon';
@@ -127,10 +128,10 @@ export function MobileLayout({
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
-  // Bottom nav: Calendar, Family, Dori (center), Health, Islam, Social
+  // Bottom nav: Calendar, Cooking, Dori (center), Health, Islam, Social
   const bottomTabs = [
     { id: 'calendar' as Tab, icon: Calendar },
-    { id: 'family' as Tab, icon: Home },
+    { id: 'family' as Tab, icon: Utensils }, // Changed to Cooking icon
     { id: 'dori' as const, icon: Sparkles, isCenter: true },
     { id: 'health' as Tab, icon: Heart },
     { id: 'islam' as Tab, icon: Moon },
@@ -464,7 +465,7 @@ export function MobileLayout({
           "h-full",
           activeTab === 'family' ? 'block' : 'hidden'
         )}>
-          <FamilyPanel />
+          <CookingPanel />
         </div>
         <div className={cn(
           "h-full overflow-y-auto",
