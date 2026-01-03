@@ -131,7 +131,7 @@ export function AssistantOutreachBubble() {
                   </Button>
                 </div>
               </div>
-              <ScrollArea className="max-h-72">
+              <ScrollArea className="max-h-72 overflow-y-auto">
                 <CardContent className="p-2 space-y-2">
                   {reminders.slice(0, 5).map((reminder) => (
                     <motion.div
@@ -139,10 +139,9 @@ export function AssistantOutreachBubble() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       className={cn(
-                        "p-3 rounded-lg transition-colors cursor-pointer",
+                        "p-3 rounded-lg transition-colors",
                         reminder.read_at ? "bg-muted/30" : "bg-primary/10 border border-primary/20"
                       )}
-                      onClick={() => handleSpeakReminder(reminder)}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
@@ -160,6 +159,77 @@ export function AssistantOutreachBubble() {
                           <p className="text-xs text-muted-foreground/60 mt-1">
                             {format(new Date(reminder.scheduled_for), 'h:mm a')}
                           </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            {reminder.action_type && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Navigate based on action type
+                                  const metadata = reminder.metadata || {};
+                                  if (reminder.action_type === 'task' && metadata.task_id) {
+                                    window.location.href = `/?tab=tasks&task=${metadata.task_id}`;
+                                  } else if (reminder.action_type === 'contact' && metadata.contact_id) {
+                                    window.location.href = `/?tab=contacts&contact=${metadata.contact_id}`;
+                                  } else if (reminder.action_type === 'habit') {
+                                    window.location.href = `/?tab=habits`;
+                                  } else if (reminder.action_type === 'event') {
+                                    window.location.href = `/?tab=calendar`;
+                                  } else if (reminder.trigger_entity_type === 'task') {
+                                    window.location.href = `/?tab=tasks`;
+                                  } else if (reminder.trigger_entity_type === 'contact') {
+                                    window.location.href = `/?tab=contacts`;
+                                  } else if (reminder.trigger_entity_type === 'habit') {
+                                    window.location.href = `/?tab=habits`;
+                                  }
+                                  dismissReminder(reminder.id);
+                                  setIsExpanded(false);
+                                }}
+                              >
+                                {reminder.action_type === 'task' || reminder.trigger_entity_type === 'task' ? 'View Task' : 
+                                 reminder.action_type === 'contact' || reminder.trigger_entity_type === 'contact' ? 'View Contact' :
+                                 reminder.action_type === 'habit' || reminder.trigger_entity_type === 'habit' ? 'Track Habit' :
+                                 reminder.action_type === 'event' ? 'View Event' : 'Take Action'}
+                              </Button>
+                            )}
+                            {!reminder.action_type && reminder.trigger_entity_type && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (reminder.trigger_entity_type === 'task') {
+                                    window.location.href = `/?tab=tasks`;
+                                  } else if (reminder.trigger_entity_type === 'contact') {
+                                    window.location.href = `/?tab=contacts`;
+                                  } else if (reminder.trigger_entity_type === 'habit') {
+                                    window.location.href = `/?tab=habits`;
+                                  }
+                                  dismissReminder(reminder.id);
+                                  setIsExpanded(false);
+                                }}
+                              >
+                                {reminder.trigger_entity_type === 'task' ? 'View Tasks' : 
+                                 reminder.trigger_entity_type === 'contact' ? 'View Contacts' :
+                                 reminder.trigger_entity_type === 'habit' ? 'View Habits' : 'Open'}
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSpeakReminder(reminder);
+                              }}
+                            >
+                              <Volume2 className="w-3 h-3 mr-1" />
+                              Listen
+                            </Button>
+                          </div>
                         </div>
                         <Button
                           variant="ghost"
