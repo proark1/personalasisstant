@@ -5,6 +5,7 @@ import { CalendarEvent, Task } from '@/types/flux';
 import { expandRecurringItems } from '@/lib/recurrenceExpander';
 import { EditTaskModal } from '@/components/tasks/EditTaskModal';
 import { usePublicHolidays, PublicHoliday } from '@/hooks/usePublicHolidays';
+import { useIslamicHolidays, IslamicHoliday } from '@/hooks/useIslamicHolidays';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -14,7 +15,8 @@ import {
   Maximize2,
   Minimize2,
   Plus,
-  Flag
+  Flag,
+  Moon
 } from 'lucide-react';
 import { 
   format, 
@@ -49,7 +51,7 @@ interface CalendarViewProps {
 
 interface CalendarItem {
   id: string;
-  type: 'event' | 'task' | 'holiday';
+  type: 'event' | 'task' | 'holiday' | 'islamic';
   title: string;
   date: Date;
   endTime?: Date;
@@ -64,6 +66,7 @@ interface CalendarItem {
   };
   countryCode?: string;
   countryName?: string;
+  islamicHoliday?: IslamicHoliday;
 }
 
 export function CalendarView({ 
@@ -85,6 +88,9 @@ export function CalendarView({
   
   // Fetch public holidays
   const { holidays } = usePublicHolidays();
+  
+  // Fetch Islamic holidays
+  const { holidays: islamicHolidays } = useIslamicHolidays();
 
   // Calculate date range based on view mode
   const { rangeStart, rangeEnd, days } = useMemo(() => {
@@ -140,6 +146,18 @@ export function CalendarView({
       });
     });
 
+    // Add Islamic holidays
+    islamicHolidays.forEach(holiday => {
+      const holidayDate = parseISO(holiday.date);
+      items.push({
+        id: `islamic-${holiday.id}`,
+        type: 'islamic',
+        title: holiday.name,
+        date: holidayDate,
+        islamicHoliday: holiday,
+      });
+    });
+
     expandedTasks.forEach(task => {
       if (task.dueDate) {
         const originalTask = tasks.find(t => t.id === task.id.split('-instance-')[0]);
@@ -170,7 +188,7 @@ export function CalendarView({
     });
 
     return items;
-  }, [tasks, events, rangeStart, rangeEnd, holidays]);
+  }, [tasks, events, rangeStart, rangeEnd, holidays, islamicHolidays]);
 
   // Group items by date
   const itemsByDate = useMemo(() => {
@@ -213,11 +231,11 @@ export function CalendarView({
   };
 
   const handleItemClick = (item: CalendarItem) => {
-    if (item.type === 'holiday') return; // Holidays are not clickable
+    if (item.type === 'holiday' || item.type === 'islamic') return; // Holidays are not clickable
     if (item.type === 'task' && item.originalTask) {
       setEditingTask(item.originalTask);
     } else if (onItemClick) {
-      onItemClick({ type: item.type, id: item.id.split('-instance-')[0] });
+      onItemClick({ type: item.type as 'event' | 'task', id: item.id.split('-instance-')[0] });
     }
   };
 
@@ -293,22 +311,27 @@ export function CalendarView({
           {dayItems.slice(0, viewMode === 'week' ? 10 : 3).map((item) => (
             <button
               key={`${item.type}-${item.id}-${item.date.getTime()}`}
-              onClick={() => item.type !== 'holiday' && handleItemClick(item)}
+              onClick={() => (item.type !== 'holiday' && item.type !== 'islamic') && handleItemClick(item)}
               className={cn(
                 "w-full text-left text-[10px] px-1 py-0.5 rounded truncate border transition-colors flex items-center gap-1",
                 item.type === 'event' 
                   ? "bg-primary/20 text-primary border-primary/30 hover:bg-primary/30"
                   : item.type === 'holiday'
                   ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 cursor-default"
+                  : item.type === 'islamic'
+                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 cursor-default"
                   : priorityColors[item.priority || 'medium'],
                 item.completed && "opacity-50 line-through",
                 item.isRecurrenceInstance && "border-dashed",
                 item.sharedByOwner && "ring-1 ring-primary/50"
               )}
-              title={`${item.title}${item.isRecurrenceInstance ? ' (recurring)' : ''}${item.sharedByOwner ? ` • Shared by ${item.sharedByOwner.display_name || item.sharedByOwner.email}` : ''}`}
+              title={`${item.title}${item.type === 'islamic' && item.islamicHoliday ? ` - ${item.islamicHoliday.description}` : ''}${item.isRecurrenceInstance ? ' (recurring)' : ''}${item.sharedByOwner ? ` • Shared by ${item.sharedByOwner.display_name || item.sharedByOwner.email}` : ''}`}
             >
               {item.type === 'holiday' && (
                 <Flag className="w-2.5 h-2.5 shrink-0" />
+              )}
+              {item.type === 'islamic' && (
+                <Moon className="w-2.5 h-2.5 shrink-0" />
               )}
               {item.sharedByOwner && (
                 <span className="w-3 h-3 rounded-full bg-primary/30 text-[6px] flex items-center justify-center font-medium shrink-0">

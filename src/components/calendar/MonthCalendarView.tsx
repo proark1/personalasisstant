@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarEvent, Task } from '@/types/flux';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePublicHolidays } from '@/hooks/usePublicHolidays';
+import { useIslamicHolidays, IslamicHoliday } from '@/hooks/useIslamicHolidays';
 import { expandRecurringItems } from '@/lib/recurrenceExpander';
 import { 
   ChevronLeft, 
@@ -12,7 +13,8 @@ import {
   Circle,
   Calendar as CalendarIcon,
   Plus,
-  Flag
+  Flag,
+  Moon
 } from 'lucide-react';
 import { 
   format, 
@@ -80,9 +82,13 @@ export function MonthCalendarView({
     country_name: string;
     country_code: string;
   } | null>(null);
+  const [selectedIslamicHoliday, setSelectedIslamicHoliday] = useState<IslamicHoliday | null>(null);
   
   // Fetch public holidays
   const { holidays } = usePublicHolidays();
+  
+  // Fetch Islamic holidays
+  const { holidays: islamicHolidays } = useIslamicHolidays();
 
   // Calculate days based on view mode
   const days = useMemo(() => {
@@ -156,6 +162,19 @@ export function MonthCalendarView({
     });
     return map;
   }, [holidays]);
+
+  // Group Islamic holidays by date
+  const islamicHolidaysByDate = useMemo(() => {
+    const map = new Map<string, IslamicHoliday[]>();
+    islamicHolidays.forEach(holiday => {
+      const dateKey = holiday.date;
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(holiday);
+    });
+    return map;
+  }, [islamicHolidays]);
 
   const navigate = (direction: 'prev' | 'next') => {
     if (viewMode === 'week') {
@@ -317,9 +336,10 @@ export function MonthCalendarView({
             const dayTasks = tasksByDate.get(dateKey) || [];
             const dayEvents = eventsByDate.get(dateKey) || [];
             const dayHolidays = holidaysByDate.get(dateKey) || [];
+            const dayIslamicHolidays = islamicHolidaysByDate.get(dateKey) || [];
             const isCurrentDay = isToday(day);
             const isCurrentMonth = isSameMonth(day, currentDate);
-            const hasItems = dayTasks.length > 0 || dayEvents.length > 0 || dayHolidays.length > 0;
+            const totalItems = dayTasks.length + dayEvents.length + dayHolidays.length + dayIslamicHolidays.length;
 
             return (
               <div
@@ -361,6 +381,22 @@ export function MonthCalendarView({
                       title={`${holiday.name} (${holiday.country_name})`}
                     >
                       <Flag className="w-2 h-2 shrink-0" />
+                      <span className="truncate">{holiday.name}</span>
+                    </div>
+                  ))}
+
+                  {/* Islamic Holidays */}
+                  {dayIslamicHolidays.slice(0, viewMode === 'week' ? 2 : 1).map((holiday) => (
+                    <div
+                      key={holiday.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedIslamicHoliday(holiday);
+                      }}
+                      className="px-1 py-0.5 text-[9px] bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded truncate flex items-center gap-0.5 cursor-pointer hover:bg-amber-500/30 transition-colors"
+                      title={`${holiday.name} - ${holiday.local_name}`}
+                    >
+                      <Moon className="w-2 h-2 shrink-0" />
                       <span className="truncate">{holiday.name}</span>
                     </div>
                   ))}
@@ -421,9 +457,9 @@ export function MonthCalendarView({
                   })}
 
                   {/* More indicator */}
-                  {(dayTasks.length + dayEvents.length + dayHolidays.length > (viewMode === 'week' ? 5 : 2)) && (
+                  {totalItems > (viewMode === 'week' ? 5 : 2) && (
                     <div className="text-[8px] text-muted-foreground px-1">
-                      +{(dayTasks.length + dayEvents.length + dayHolidays.length) - (viewMode === 'week' ? 5 : 2)} more
+                      +{totalItems - (viewMode === 'week' ? 5 : 2)} more
                     </div>
                   )}
                 </div>
@@ -561,6 +597,86 @@ export function MonthCalendarView({
 
               <div className="flex justify-end pt-2">
                 <Button variant="outline" onClick={() => setSelectedHoliday(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Islamic Holiday Details Dialog */}
+      <Dialog open={!!selectedIslamicHoliday} onOpenChange={(open) => !open && setSelectedIslamicHoliday(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Moon className="w-5 h-5 text-amber-500" />
+              Islamic Event
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedIslamicHoliday && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1">
+                <p className="text-lg font-semibold">{selectedIslamicHoliday.name}</p>
+                <p className="text-sm text-amber-600 dark:text-amber-400 font-arabic">
+                  {selectedIslamicHoliday.local_name}
+                </p>
+              </div>
+
+              <div className="grid gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                  <span>{format(parseISO(selectedIslamicHoliday.date), 'EEEE, MMMM d, yyyy', { locale: dateLocale })}</span>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm">{selectedIslamicHoliday.description}</p>
+              </div>
+
+              {/* Actions */}
+              {selectedIslamicHoliday.actions && selectedIslamicHoliday.actions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Recommended Actions:</p>
+                  <ul className="space-y-1">
+                    {selectedIslamicHoliday.actions.map((action, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm">
+                        <span className="text-amber-500 mt-0.5">•</span>
+                        <span>{action}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Special Prayer */}
+              {selectedIslamicHoliday.specialPrayer && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">Special Prayer:</p>
+                  <p className="text-sm">{selectedIslamicHoliday.specialPrayer}</p>
+                </div>
+              )}
+
+              {/* Dua */}
+              {selectedIslamicHoliday.dua && (
+                <div className="space-y-2 p-3 bg-primary/5 border border-primary/10 rounded-lg">
+                  <p className="text-sm font-medium">Recommended Dua:</p>
+                  <p className="text-lg font-arabic text-right leading-relaxed text-amber-600 dark:text-amber-400">
+                    {selectedIslamicHoliday.dua.arabic}
+                  </p>
+                  <p className="text-sm italic text-muted-foreground">
+                    {selectedIslamicHoliday.dua.transliteration}
+                  </p>
+                  <p className="text-sm">
+                    {selectedIslamicHoliday.dua.translation}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <Button variant="outline" onClick={() => setSelectedIslamicHoliday(null)}>
                   Close
                 </Button>
               </div>
