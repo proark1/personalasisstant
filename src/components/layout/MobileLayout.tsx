@@ -111,7 +111,7 @@ export function MobileLayout({
   onUpdateSettings,
   onUpdateNotifications,
 }: MobileLayoutProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('chat');
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [filter, setFilter] = useState<SidebarFilter>('all');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<string>('all');
