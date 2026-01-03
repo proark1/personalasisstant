@@ -76,7 +76,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening }: AudioVisu
       const minDim = Math.min(width, height);
 
       ctx.clearRect(0, 0, width, height);
-      time += 0.012;
+      time += 0.004;
 
       // Theme colors
       const baseHue = isSpeaking ? 270 : isListening ? 187 : 220;
