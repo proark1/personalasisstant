@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,14 +6,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { 
   Search, Heart, Copy, Share2, BookOpen, RefreshCw,
-  ChevronDown, ChevronUp, Volume2
+  ChevronDown, ChevronUp, Volume2, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 
 interface Hadith {
   id: number;
@@ -150,7 +149,9 @@ export function HadithTab() {
   const [selectedCollection, setSelectedCollection] = useState('All');
   const [selectedChapter, setSelectedChapter] = useState('All');
   const [expandedHadith, setExpandedHadith] = useState<number | null>(null);
-  const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech();
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [loadingAudioId, setLoadingAudioId] = useState<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch favorites
   const { data: favorites = [] } = useQuery({
@@ -257,11 +258,61 @@ export function HadithTab() {
     }
   };
 
-  const playArabic = (text: string) => {
-    if (isSpeaking) {
-      stopSpeech();
-    } else {
-      speak(text);
+  const playArabic = async (hadithId: number, text: string) => {
+    // If already playing this hadith, stop it
+    if (isPlayingAudio && loadingAudioId === hadithId) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setIsPlayingAudio(false);
+      setLoadingAudioId(null);
+      return;
+    }
+    
+    // Stop any existing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    
+    setLoadingAudioId(hadithId);
+    
+    try {
+      // Call edge function for Arabic TTS
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text, voice: 'alloy' }
+      });
+      
+      if (error) throw error;
+      
+      if (!data?.audioContent) {
+        throw new Error('No audio content received');
+      }
+      
+      // Play the audio
+      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+      audioRef.current = audio;
+      
+      audio.onplay = () => setIsPlayingAudio(true);
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        setLoadingAudioId(null);
+        audioRef.current = null;
+      };
+      audio.onerror = () => {
+        setIsPlayingAudio(false);
+        setLoadingAudioId(null);
+        audioRef.current = null;
+        toast.error('Failed to play audio');
+      };
+      
+      await audio.play();
+    } catch (error) {
+      console.error('TTS error:', error);
+      setIsPlayingAudio(false);
+      setLoadingAudioId(null);
+      toast.error('Failed to generate audio');
     }
   };
 
@@ -383,11 +434,16 @@ export function HadithTab() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          playArabic(hadith.arabic);
+                          playArabic(hadith.id, hadith.arabic);
                         }}
+                        disabled={loadingAudioId === hadith.id && !isPlayingAudio}
                       >
-                        <Volume2 className="w-4 h-4 mr-1" />
-                        {isSpeaking ? 'Stop' : 'Listen'}
+                        {loadingAudioId === hadith.id && !isPlayingAudio ? (
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        ) : (
+                          <Volume2 className="w-4 h-4 mr-1" />
+                        )}
+                        {loadingAudioId === hadith.id && isPlayingAudio ? 'Stop' : 'Listen'}
                       </Button>
                       <Button
                         variant="outline"

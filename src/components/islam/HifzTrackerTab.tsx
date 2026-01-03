@@ -12,6 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   Search, BookOpen, Check, Clock, AlertCircle, Play, Pause, RotateCcw,
   ChevronLeft, ChevronRight, Target, Trophy, Calendar, Volume2, VolumeX,
@@ -201,6 +208,7 @@ export function HifzTrackerTab() {
   const [practiceLoading, setPracticeLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [repeatCount, setRepeatCount] = useState(0);
+  const [targetRepeatCount, setTargetRepeatCount] = useState(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch progress data
@@ -350,7 +358,27 @@ export function HifzTrackerTab() {
     audio.onplay = () => setIsPlaying(true);
     audio.onended = () => {
       setIsPlaying(false);
-      setRepeatCount(prev => prev + 1);
+      setRepeatCount(prev => {
+        const newCount = prev + 1;
+        // Auto-repeat if we haven't reached target
+        if (newCount < targetRepeatCount) {
+          setTimeout(() => {
+            if (audioRef.current) {
+              audioRef.current.currentTime = 0;
+              audioRef.current.play().catch(console.error);
+            } else {
+              // Recreate audio if needed
+              const newAudio = new Audio(ayah.audio);
+              audioRef.current = newAudio;
+              newAudio.onplay = () => setIsPlaying(true);
+              newAudio.onended = audio.onended;
+              newAudio.onerror = () => setIsPlaying(false);
+              newAudio.play().catch(console.error);
+            }
+          }, 500);
+        }
+        return newCount;
+      });
     };
     audio.onerror = () => setIsPlaying(false);
     
@@ -468,7 +496,7 @@ export function HifzTrackerTab() {
         {stats.dueForReview > 0 && (
           <Button 
             className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90"
-            onClick={() => setFilterStatus('due_review')}
+            onClick={() => setViewMode('review')}
           >
             <Brain className="w-4 h-4" />
             Review {stats.dueForReview} Surah{stats.dueForReview > 1 ? 's' : ''} Now
@@ -760,14 +788,12 @@ export function HifzTrackerTab() {
               </div>
 
               {/* Repeat Counter */}
-              {repeatCount > 0 && (
-                <div className="text-center py-2">
-                  <Badge variant="secondary">
-                    <Repeat className="w-3 h-3 mr-1" />
-                    Repeated {repeatCount} time{repeatCount > 1 ? 's' : ''}
-                  </Badge>
-                </div>
-              )}
+              <div className="text-center py-2">
+                <Badge variant="secondary">
+                  <Repeat className="w-3 h-3 mr-1" />
+                  {repeatCount}/{targetRepeatCount} repeats
+                </Badge>
+              </div>
 
               {/* Controls */}
               <div className="space-y-3 pt-4 border-t border-border">
@@ -792,6 +818,23 @@ export function HifzTrackerTab() {
                       <Volume2 className="w-6 h-6" />
                     )}
                   </Button>
+                  
+                  {/* Repeat selector */}
+                  <Select
+                    value={targetRepeatCount.toString()}
+                    onValueChange={(v) => setTargetRepeatCount(parseInt(v))}
+                  >
+                    <SelectTrigger className="w-20">
+                      <Repeat className="w-3 h-3 mr-1" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1x</SelectItem>
+                      <SelectItem value="3">3x</SelectItem>
+                      <SelectItem value="5">5x</SelectItem>
+                      <SelectItem value="10">10x</SelectItem>
+                    </SelectContent>
+                  </Select>
                   
                   <Button
                     variant="outline"
