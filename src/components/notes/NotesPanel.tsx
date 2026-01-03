@@ -200,9 +200,8 @@ export function NotesPanel({ userId }: NotesPanelProps) {
                 <Mic className="w-4 h-4" />
               )}
             </Button>
-            <Button onClick={handleCreateNote} size="sm" className="gap-1">
+            <Button onClick={handleCreateNote} size="icon" title={t('notes.newNote')}>
               <Plus className="w-4 h-4" />
-              {t('notes.newNote')}
             </Button>
           </div>
         </div>

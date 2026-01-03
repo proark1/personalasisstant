@@ -941,18 +941,27 @@ export function IslamEnhancedPanel() {
     }
   };
 
+  // Helper function to strip HTML tags for plain text storage
+  const stripHtml = (html: string): string => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
   const handleBookmarkToggle = async (ayah: Ayah) => {
     if (!selectedSurah) return;
     
     if (isBookmarked(selectedSurah.number, ayah.numberInSurah)) {
       await removeBookmarkByAyah(selectedSurah.number, ayah.numberInSurah);
     } else {
+      // Strip HTML tags from ayah text for clean storage
+      const plainText = stripHtml(ayah.text);
       await addBookmark(
         selectedSurah.number,
         selectedSurah.name,
         selectedSurah.englishName,
         ayah.numberInSurah,
-        ayah.text
+        plainText
       );
     }
   };

@@ -763,12 +763,11 @@ export function TaskList({
               </Button>
               <Button 
                 variant="ghost" 
-                size="sm" 
-                className="gap-1"
+                size="icon" 
                 onClick={() => setIsAdding(true)}
+                title={t('common.add')}
               >
                 <Plus className="w-4 h-4" />
-                {t('common.add')}
               </Button>
             </>
           )}
