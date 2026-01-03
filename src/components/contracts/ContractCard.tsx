@@ -14,9 +14,10 @@ import {
   Eye,
   MoreVertical,
   CalendarPlus,
-  Sparkles
+  Sparkles,
+  BellOff
 } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, isFuture } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { ContractHealthBadge } from './ContractHealthScore';
@@ -36,6 +37,7 @@ interface ContractCardProps {
   onPreviewDocument?: (contract: Contract) => void;
   onSyncToCalendar?: (contract: Contract) => void;
   onScanDocument?: (contract: Contract) => void;
+  onSnoozeReminder?: (contract: Contract) => void;
   isSelected?: boolean;
   onSelectChange?: (selected: boolean) => void;
   showBulkSelect?: boolean;
@@ -49,6 +51,7 @@ export function ContractCard({
   onPreviewDocument,
   onSyncToCalendar,
   onScanDocument,
+  onSnoozeReminder,
   isSelected,
   onSelectChange,
   showBulkSelect
@@ -68,7 +71,10 @@ export function ContractCard({
     : null;
 
   const isRenewalSoon = daysUntilRenewal !== null && daysUntilRenewal >= 0 && daysUntilRenewal <= 30;
-  const isCancellationSoon = daysUntilCancellation !== null && daysUntilCancellation >= 0 && daysUntilCancellation <= 14;
+  
+  // Check if reminder is snoozed
+  const isReminderSnoozed = contract.reminderSnoozedUntil && isFuture(contract.reminderSnoozedUntil);
+  const isCancellationSoon = !isReminderSnoozed && daysUntilCancellation !== null && daysUntilCancellation >= 0 && daysUntilCancellation <= 14;
 
   const formatCost = () => {
     if (!contract.costAmount) return null;
@@ -170,6 +176,16 @@ export function ContractCard({
               </div>
             )}
 
+            {/* Snoozed indicator */}
+            {isReminderSnoozed && contract.reminderSnoozedUntil && (
+              <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                <BellOff className="h-3 w-3" />
+                <span>
+                  Reminders snoozed until {format(contract.reminderSnoozedUntil, 'MMM d, yyyy')}
+                </span>
+              </div>
+            )}
+
             {contract.notes && (
               <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{contract.notes}</p>
             )}
@@ -235,6 +251,12 @@ export function ContractCard({
                   <DropdownMenuItem onClick={() => onSyncToCalendar(contract)}>
                     <CalendarPlus className="h-4 w-4 mr-2" />
                     Add to Calendar
+                  </DropdownMenuItem>
+                )}
+                {onSnoozeReminder && contract.autoRenews && contract.renewalDate && (
+                  <DropdownMenuItem onClick={() => onSnoozeReminder(contract)}>
+                    <BellOff className="h-4 w-4 mr-2" />
+                    {isReminderSnoozed ? 'Update Snooze' : 'Snooze Reminders'}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />

@@ -22,6 +22,7 @@ export interface Contract {
   notes?: string;
   documentUrl?: string;
   isActive: boolean;
+  reminderSnoozedUntil?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -77,6 +78,7 @@ export function useContracts(userId: string | undefined) {
     notes: row.notes || undefined,
     documentUrl: row.document_url || undefined,
     isActive: row.is_active ?? true,
+    reminderSnoozedUntil: row.reminder_snoozed_until ? new Date(row.reminder_snoozed_until) : undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   });
@@ -214,6 +216,8 @@ export function useContracts(userId: string | undefined) {
 
     return contracts.filter(c => {
       if (!c.isActive || !c.renewalDate || !c.autoRenews) return false;
+      // Skip if reminder is snoozed
+      if (c.reminderSnoozedUntil && c.reminderSnoozedUntil > now) return false;
       const cancellationDate = new Date(c.renewalDate);
       cancellationDate.setDate(cancellationDate.getDate() - c.cancellationNoticeDays);
       return cancellationDate >= now && cancellationDate <= threshold;
@@ -223,6 +227,25 @@ export function useContracts(userId: string | undefined) {
       return { ...c, cancellationDeadline: cancellationDate };
     });
   }, [contracts]);
+
+  // Snooze contract reminders
+  const snoozeReminder = useCallback(async (id: string, months: number): Promise<boolean> => {
+    const snoozedUntil = new Date();
+    snoozedUntil.setMonth(snoozedUntil.getMonth() + months);
+
+    const { error } = await supabase
+      .from('contracts')
+      .update({ reminder_snoozed_until: snoozedUntil.toISOString() })
+      .eq('id', id);
+
+    if (!error) {
+      setContracts(prev => prev.map(c =>
+        c.id === id ? { ...c, reminderSnoozedUntil: snoozedUntil, updatedAt: new Date() } : c
+      ));
+      return true;
+    }
+    return false;
+  }, []);
 
   // Calculate monthly cost
   const monthlyCost = useMemo(() => {
@@ -273,6 +296,7 @@ export function useContracts(userId: string | undefined) {
     addContract,
     updateContract,
     deleteContract,
+    snoozeReminder,
     getExpiringContracts,
     getCancellationDeadlines,
     monthlyCost,

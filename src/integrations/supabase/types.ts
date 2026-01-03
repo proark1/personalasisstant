@@ -743,6 +743,7 @@ export type Database = {
           name: string
           notes: string | null
           provider: string | null
+          reminder_snoozed_until: string | null
           renewal_date: string | null
           start_date: string | null
           updated_at: string | null
@@ -765,6 +766,7 @@ export type Database = {
           name: string
           notes?: string | null
           provider?: string | null
+          reminder_snoozed_until?: string | null
           renewal_date?: string | null
           start_date?: string | null
           updated_at?: string | null
@@ -787,6 +789,7 @@ export type Database = {
           name?: string
           notes?: string | null
           provider?: string | null
+          reminder_snoozed_until?: string | null
           renewal_date?: string | null
           start_date?: string | null
           updated_at?: string | null

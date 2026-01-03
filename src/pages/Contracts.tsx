@@ -15,6 +15,7 @@ export default function ContractsPage() {
     addContract,
     updateContract,
     deleteContract,
+    snoozeReminder,
     monthlyCost,
     yearlyCost,
     contractsByCategory,
@@ -49,6 +50,7 @@ export default function ContractsPage() {
           onAdd={addContract}
           onUpdate={updateContract}
           onDelete={deleteContract}
+          onSnooze={snoozeReminder}
           getExpiringContracts={getExpiringContracts}
           getCancellationDeadlines={getCancellationDeadlines}
         />

@@ -5,6 +5,7 @@ import { AddEditContractDialog } from './AddEditContractDialog';
 import { CancellationEmailDialog } from './CancellationEmailDialog';
 import { DocumentPreviewDialog } from './DocumentPreviewDialog';
 import { ContractTimeline } from './ContractTimeline';
+import { SnoozeReminderDialog } from './SnoozeReminderDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +59,7 @@ interface ContractManagerProps {
   onAdd: (data: ContractInput) => Promise<Contract | null>;
   onUpdate: (id: string, data: Partial<ContractInput>) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
+  onSnooze: (id: string, months: number) => Promise<boolean>;
   getExpiringContracts: (withinDays?: number) => Contract[];
   getCancellationDeadlines: (withinDays?: number) => (Contract & { cancellationDeadline: Date })[];
 }
@@ -71,6 +73,7 @@ export function ContractManager({
   onAdd,
   onUpdate,
   onDelete,
+  onSnooze,
   getExpiringContracts,
   getCancellationDeadlines,
 }: ContractManagerProps) {
@@ -92,6 +95,7 @@ export function ContractManager({
   const [selectedContracts, setSelectedContracts] = useState<Set<string>>(new Set());
   const [showBulkSelect, setShowBulkSelect] = useState(false);
   const [syncingToCalendar, setSyncingToCalendar] = useState(false);
+  const [snoozeContract, setSnoozeContract] = useState<Contract | null>(null);
 
   // Hooks
   const { syncToCalendar, syncAllToCalendar } = useSmartContractReminders({
@@ -191,6 +195,24 @@ export function ContractManager({
     if (!contract.documentUrl) return;
     const firstDoc = contract.documentUrl.split(',')[0];
     setPreviewDocument({ path: firstDoc, name: contract.name });
+  };
+
+  const handleSnooze = async (months: number) => {
+    if (!snoozeContract) return;
+    const success = await onSnooze(snoozeContract.id, months);
+    if (success) {
+      toast({
+        title: 'Reminders snoozed',
+        description: `You won't be reminded about ${snoozeContract.name} for ${months} month${months > 1 ? 's' : ''}`
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Snooze failed',
+        description: 'Could not snooze reminders'
+      });
+    }
+    setSnoozeContract(null);
   };
 
   const handleBulkDelete = async () => {
@@ -556,6 +578,7 @@ export function ContractManager({
                       onPreviewDocument={handlePreviewDocument}
                       onSyncToCalendar={handleSyncToCalendar}
                       onScanDocument={handleScanDocument}
+                      onSnoozeReminder={setSnoozeContract}
                       isSelected={selectedContracts.has(contract.id)}
                       onSelectChange={(selected) => {
                         const newSet = new Set(selectedContracts);
@@ -599,6 +622,14 @@ export function ContractManager({
         onOpenChange={(open) => !open && setPreviewDocument(null)}
         documentPath={previewDocument?.path || null}
         contractName={previewDocument?.name}
+      />
+
+      {/* Snooze Reminder Dialog */}
+      <SnoozeReminderDialog
+        open={!!snoozeContract}
+        onOpenChange={(open) => !open && setSnoozeContract(null)}
+        contractName={snoozeContract?.name || ''}
+        onSnooze={handleSnooze}
       />
 
       {/* Delete Confirmation */}

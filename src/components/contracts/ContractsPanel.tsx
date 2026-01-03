@@ -13,6 +13,7 @@ export function ContractsPanel({ userId }: ContractsPanelProps) {
     addContract,
     updateContract,
     deleteContract,
+    snoozeReminder,
     monthlyCost,
     yearlyCost,
     contractsByCategory,
@@ -39,6 +40,7 @@ export function ContractsPanel({ userId }: ContractsPanelProps) {
         onAdd={addContract}
         onUpdate={updateContract}
         onDelete={deleteContract}
+        onSnooze={snoozeReminder}
         getExpiringContracts={getExpiringContracts}
         getCancellationDeadlines={getCancellationDeadlines}
       />
