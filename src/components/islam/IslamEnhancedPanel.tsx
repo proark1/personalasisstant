@@ -597,6 +597,10 @@ export function IslamEnhancedPanel() {
   const [showSurahList, setShowSurahList] = useState(true);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [fontSize, setFontSize] = useState(28);
+  const [tajweedEnabled, setTajweedEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('quran-tajweed-enabled');
+    return saved === 'true';
+  });
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentPlayingAyah, setCurrentPlayingAyah] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -709,10 +713,12 @@ export function IslamEnhancedPanel() {
     }
   };
 
-  const fetchSurah = async (surahNumber: number) => {
+  const fetchSurah = async (surahNumber: number, useTajweed: boolean = tajweedEnabled) => {
     setQuranLoading(true);
     try {
-      const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/ar.alafasy`);
+      // Use tajweed edition if enabled, otherwise use standard Arabic with audio
+      const edition = useTajweed ? 'quran-tajweed' : 'ar.alafasy';
+      const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/${edition}`);
       const data = await response.json();
       if (data.code === 200) {
         setSelectedSurah(data.data);
@@ -723,6 +729,16 @@ export function IslamEnhancedPanel() {
       toast.error('Failed to load surah');
     } finally {
       setQuranLoading(false);
+    }
+  };
+
+  // Toggle Tajweed and refetch current surah
+  const toggleTajweed = async () => {
+    const newValue = !tajweedEnabled;
+    setTajweedEnabled(newValue);
+    localStorage.setItem('quran-tajweed-enabled', newValue.toString());
+    if (selectedSurah) {
+      await fetchSurah(selectedSurah.number, newValue);
     }
   };
 
@@ -1238,6 +1254,15 @@ export function IslamEnhancedPanel() {
                     <p className="text-xs text-muted-foreground font-arabic">{selectedSurah?.name}</p>
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button 
+                      variant={tajweedEnabled ? "secondary" : "ghost"} 
+                      size="sm" 
+                      className="text-xs h-8 px-2"
+                      onClick={toggleTajweed}
+                      title="Toggle Tajweed color coding"
+                    >
+                      {tajweedEnabled ? '🎨' : '📖'}
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => setFontSize(Math.max(18, fontSize - 2))}>
                       <ZoomOut className="w-4 h-4" />
                     </Button>
@@ -1246,6 +1271,20 @@ export function IslamEnhancedPanel() {
                     </Button>
                   </div>
                 </div>
+                
+                {/* Tajweed Legend */}
+                {tajweedEnabled && (
+                  <div className="px-3 py-2 border-b border-border bg-muted/50">
+                    <p className="text-xs font-medium mb-1">Tajweed Colors:</p>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ backgroundColor: '#AAAAAA' }} /> Ghunnah</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500" /> Qalqalah</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500" /> Idgham</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500" /> Ikhfa</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500" /> Madd</span>
+                    </div>
+                  </div>
+                )}
 
                 {quranLoading ? (
                   <div className="flex-1 flex items-center justify-center">
@@ -1295,13 +1334,22 @@ export function IslamEnhancedPanel() {
                                 )}
                               </Button>
                             </div>
-                            <p
-                              className="flex-1 font-arabic text-right leading-loose"
-                              style={{ fontSize: `${fontSize}px` }}
-                              dir="rtl"
-                            >
-                              {ayah.text}
-                            </p>
+                            {tajweedEnabled ? (
+                              <p
+                                className="flex-1 font-arabic text-right leading-loose tajweed-text"
+                                style={{ fontSize: `${fontSize}px` }}
+                                dir="rtl"
+                                dangerouslySetInnerHTML={{ __html: ayah.text }}
+                              />
+                            ) : (
+                              <p
+                                className="flex-1 font-arabic text-right leading-loose"
+                                style={{ fontSize: `${fontSize}px` }}
+                                dir="rtl"
+                              >
+                                {ayah.text}
+                              </p>
+                            )}
                           </div>
                         </Card>
                       ))}
@@ -1366,22 +1414,28 @@ export function IslamEnhancedPanel() {
                   <span className="w-2 h-2 rounded-full bg-purple-500 mr-1" />
                   Remembrance
                 </Badge>
+                <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 mr-1" />
+                  Historical
+                </Badge>
               </div>
               
               <h3 className="font-medium">Upcoming Islamic Events</h3>
               <div className="space-y-2">
                 {upcomingEvents.map((event, idx) => {
-                  const typeColors = {
+                  const typeColors: Record<string, string> = {
                     major: 'border-l-primary bg-primary/5',
                     fasting: 'border-l-emerald-500 bg-emerald-500/5',
                     sunnah: 'border-l-amber-500 bg-amber-500/5',
                     remembrance: 'border-l-purple-500 bg-purple-500/5',
+                    historical: 'border-l-blue-500 bg-blue-500/5',
                   };
-                  const typeBadgeColors = {
+                  const typeBadgeColors: Record<string, string> = {
                     major: 'bg-primary/10 text-primary border-primary/30',
                     fasting: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
                     sunnah: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
                     remembrance: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
+                    historical: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
                   };
                   const eventType = event.type || 'major';
                   

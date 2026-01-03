@@ -27,7 +27,7 @@ export interface IslamicEvent {
   date: Date;
   hijriDate: string;
   description?: string;
-  type?: 'major' | 'fasting' | 'sunnah' | 'remembrance';
+  type?: 'major' | 'fasting' | 'sunnah' | 'remembrance' | 'historical';
 }
 
 const DHIKR_TYPES = [
@@ -65,6 +65,7 @@ function getIslamicEvents(year: number): IslamicEvent[] {
     { name: 'Isra and Mi\'raj', date: new Date(year, 1, 7), hijriDate: '27 Rajab', description: 'The Night Journey and Ascension of Prophet Muhammad ﷺ', type: 'major' },
     { name: 'Shab-e-Barat', date: new Date(year, 1, 24), hijriDate: '15 Sha\'ban', description: 'Night of Forgiveness - seek repentance and pray', type: 'remembrance' },
     { name: 'Ramadan Begins', date: new Date(year, 2, 10), hijriDate: '1 Ramadan', description: 'Start of the blessed month of fasting', type: 'major' },
+    { name: 'Last 10 Nights Begin', date: new Date(year, 2, 30), hijriDate: '21 Ramadan', description: 'Seek Laylat al-Qadr in the odd nights', type: 'major' },
     { name: 'Laylat al-Qadr (21st)', date: new Date(year, 2, 31), hijriDate: '21 Ramadan', description: 'Possible Night of Power - pray and seek forgiveness', type: 'major' },
     { name: 'Laylat al-Qadr (23rd)', date: new Date(year, 3, 2), hijriDate: '23 Ramadan', description: 'Possible Night of Power - pray and seek forgiveness', type: 'major' },
     { name: 'Laylat al-Qadr (25th)', date: new Date(year, 3, 4), hijriDate: '25 Ramadan', description: 'Possible Night of Power - pray and seek forgiveness', type: 'major' },
@@ -77,15 +78,29 @@ function getIslamicEvents(year: number): IslamicEvent[] {
     { name: 'Eid al-Adha', date: new Date(year, 5, 16), hijriDate: '10 Dhu al-Hijjah', description: 'Festival of Sacrifice', type: 'major' },
     { name: 'Days of Tashreeq', date: new Date(year, 5, 17), hijriDate: '11-13 Dhu al-Hijjah', description: 'Days of eating, drinking, and remembering Allah (fasting prohibited)', type: 'remembrance' },
     { name: 'Islamic New Year', date: new Date(year, 6, 7), hijriDate: '1 Muharram', description: 'Start of the new Hijri year', type: 'major' },
+    { name: 'First 10 Days of Muharram', date: new Date(year, 6, 8), hijriDate: '1-10 Muharram', description: 'Sacred month - increase fasting and good deeds', type: 'remembrance' },
     { name: 'Fasting 9th Muharram', date: new Date(year, 6, 15), hijriDate: '9 Muharram', description: 'Recommended to fast with Ashura', type: 'fasting' },
     { name: 'Day of Ashura', date: new Date(year, 6, 16), hijriDate: '10 Muharram', description: 'Fasting expiates sins of previous year', type: 'fasting' },
     { name: 'Fasting 11th Muharram', date: new Date(year, 6, 17), hijriDate: '11 Muharram', description: 'Can fast with Ashura as alternative to 9th', type: 'fasting' },
     { name: 'Mawlid al-Nabi', date: new Date(year, 8, 15), hijriDate: '12 Rabi\' al-Awwal', description: 'Birth of Prophet Muhammad ﷺ', type: 'major' },
+    
+    // Historical Events
+    { name: 'Battle of Badr', date: new Date(year, 2, 27), hijriDate: '17 Ramadan', description: 'First major battle in Islam - decisive victory', type: 'historical' },
+    { name: 'Conquest of Makkah', date: new Date(year, 3, 1), hijriDate: '20 Ramadan', description: 'The Prophet ﷺ entered Makkah peacefully in 8 AH', type: 'historical' },
+    { name: 'Treaty of Hudaybiyyah', date: new Date(year, 4, 1), hijriDate: 'Dhu al-Qi\'dah', description: 'Historic peace treaty between Muslims and Quraysh', type: 'historical' },
+    { name: 'Hijra Anniversary', date: new Date(year, 8, 1), hijriDate: '1 Rabi\' al-Awwal', description: 'The Prophet\'s migration from Makkah to Madinah', type: 'historical' },
+    
     // Sunnah Fasting Days
     { name: 'White Days (Ayyam al-Beed)', date: new Date(year, 0, 15), hijriDate: '13-15 Monthly', description: 'Sunnah: Fast the 13th, 14th, 15th of each lunar month', type: 'sunnah' },
     { name: 'Monday & Thursday Fasting', date: new Date(year, 0, 1), hijriDate: 'Every Week', description: 'Sunnah: Prophet ﷺ used to fast Mondays and Thursdays', type: 'sunnah' },
     { name: 'Fasting in Sha\'ban', date: new Date(year, 1, 15), hijriDate: 'Sha\'ban', description: 'Prophet ﷺ fasted most of Sha\'ban in preparation for Ramadan', type: 'sunnah' },
     { name: 'Fasting in Muharram', date: new Date(year, 6, 10), hijriDate: 'Muharram', description: 'Best month for voluntary fasting after Ramadan', type: 'sunnah' },
+    { name: 'Fasting in Rajab', date: new Date(year, 0, 20), hijriDate: 'Rajab', description: 'One of the sacred months - voluntary fasting recommended', type: 'sunnah' },
+    { name: 'Day of Jumu\'ah', date: new Date(year, 0, 3), hijriDate: 'Every Friday', description: 'Best day of the week - attend Jumu\'ah prayer and make dua', type: 'remembrance' },
+    
+    // Sacred Months Reminders
+    { name: 'Rajab Begins', date: new Date(year, 0, 15), hijriDate: '1 Rajab', description: 'One of the four sacred months - increase worship', type: 'remembrance' },
+    { name: 'Dhul Qa\'dah Begins', date: new Date(year, 4, 15), hijriDate: '1 Dhu al-Qi\'dah', description: 'Sacred month - avoid fighting and disputes', type: 'remembrance' },
   ];
   
   return events.sort((a, b) => a.date.getTime() - b.date.getTime());

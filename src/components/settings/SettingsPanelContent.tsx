@@ -50,6 +50,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { useStatusBar } from '@/hooks/useStatusBar';
 import { useToast } from '@/hooks/use-toast';
 import { useBiometricAuth } from '@/hooks/useBiometricAuth';
+import { usePrayerNotificationSettings } from '@/hooks/usePrayerNotificationSettings';
 
 interface SettingsPanelContentProps {
   settings: UserSettings;
@@ -329,6 +330,7 @@ export function SettingsPanelContent({
   const { toast } = useToast();
   const biometricAuth = useBiometricAuth();
   const keyboardShortcuts = useKeyboardShortcutsPanel();
+  const prayerNotifications = usePrayerNotificationSettings();
   const [activeTab, setActiveTab] = useState<'general' | 'proactive' | 'team' | 'ai' | 'info'>('general');
   
   // Sync status bar color with theme
@@ -595,6 +597,69 @@ export function SettingsPanelContent({
                   step={5}
                   className="w-full"
                 />
+            </div>
+
+            {/* Islamic Settings Section */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <Moon className="w-4 h-4" />
+                Islamic
+              </h3>
+              
+              {/* Prayer Time Notifications */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-500/10">
+                    <Bell className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Prayer Time Notifications</p>
+                    <p className="text-xs text-muted-foreground">
+                      Get notified before each salah
+                    </p>
+                  </div>
+                </div>
+                {prayerNotifications.notificationPermission !== 'granted' ? (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={async () => {
+                      const granted = await prayerNotifications.requestPermission();
+                      if (granted) {
+                        prayerNotifications.updateSettings({ enabled: true });
+                        toast({ title: 'Prayer notifications enabled!' });
+                      }
+                    }}
+                  >
+                    Enable
+                  </Button>
+                ) : (
+                  <Switch
+                    checked={prayerNotifications.settings.enabled}
+                    onCheckedChange={(checked) => prayerNotifications.updateSettings({ enabled: checked })}
+                  />
+                )}
+              </div>
+
+              {/* Adhan Audio */}
+              {prayerNotifications.isEnabled && (
+                <div className="flex items-center justify-between pl-11">
+                  <div>
+                    <p className="font-medium text-sm">Play Adhan</p>
+                    <p className="text-xs text-muted-foreground">
+                      Play call to prayer at salah time
+                    </p>
+                  </div>
+                  <Switch
+                    checked={prayerNotifications.settings.adhanEnabled}
+                    onCheckedChange={(checked) => prayerNotifications.updateSettings({ adhanEnabled: checked })}
+                  />
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground pl-11">
+                Configure detailed prayer settings in the Islamic tab
+              </p>
             </div>
 
             {/* Security Section */}

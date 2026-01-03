@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
@@ -11,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Clock, MapPin, RefreshCw, Bell, BellOff, Sun, Sunrise, Sunset, Moon as MoonIcon, Check } from 'lucide-react';
+import { Clock, MapPin, RefreshCw, Bell, BellOff, Sun, Sunrise, Sunset, Moon as MoonIcon, Check, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +33,17 @@ interface PrayerNotificationSettings {
   enabled: boolean;
   prayers: Record<string, boolean>;
   minutesBefore: number;
+  adhanEnabled: boolean;
+  adhanStyle: 'makkah' | 'madinah' | 'alaqsa';
+  adhanVolume: number;
 }
+
+// Adhan audio URLs - using Islamcan.com free Adhan audio
+const ADHAN_AUDIO_URLS: Record<string, string> = {
+  makkah: 'https://www.islamcan.com/audio/adhan/azan1.mp3',
+  madinah: 'https://www.islamcan.com/audio/adhan/azan2.mp3',
+  alaqsa: 'https://www.islamcan.com/audio/adhan/azan8.mp3',
+};
 
 const CALCULATION_METHODS: CalculationMethod[] = [
   { id: 2, name: 'ISNA', description: 'Islamic Society of North America' },
@@ -52,6 +63,9 @@ const DEFAULT_NOTIFICATION_SETTINGS: PrayerNotificationSettings = {
   enabled: false,
   prayers: { Fajr: true, Dhuhr: true, Asr: true, Maghrib: true, Isha: true },
   minutesBefore: 5,
+  adhanEnabled: false,
+  adhanStyle: 'makkah',
+  adhanVolume: 70,
 };
 
 export function PrayerTimesTab() {
@@ -69,10 +83,15 @@ export function PrayerTimesTab() {
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [notificationSettings, setNotificationSettings] = useState<PrayerNotificationSettings>(() => {
     const saved = localStorage.getItem('prayer-notifications');
-    return saved ? JSON.parse(saved) : DEFAULT_NOTIFICATION_SETTINGS;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { ...DEFAULT_NOTIFICATION_SETTINGS, ...parsed };
+    }
+    return DEFAULT_NOTIFICATION_SETTINGS;
   });
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const adhanAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Check notification permission on mount
   useEffect(() => {
@@ -104,6 +123,40 @@ export function PrayerTimesTab() {
     }
   };
 
+  // Play Adhan audio
+  const playAdhan = useCallback((prayerName: string) => {
+    if (!notificationSettings.adhanEnabled) return;
+    
+    // Stop any existing audio
+    if (adhanAudioRef.current) {
+      adhanAudioRef.current.pause();
+      adhanAudioRef.current = null;
+    }
+    
+    const adhanUrl = ADHAN_AUDIO_URLS[notificationSettings.adhanStyle];
+    const audio = new Audio(adhanUrl);
+    audio.volume = notificationSettings.adhanVolume / 100;
+    adhanAudioRef.current = audio;
+    
+    audio.play().catch(error => {
+      console.error('Failed to play Adhan:', error);
+      // Fallback toast notification
+      toast.info(`🕌 It's time for ${prayerName} prayer`);
+    });
+    
+    audio.onended = () => {
+      adhanAudioRef.current = null;
+    };
+  }, [notificationSettings.adhanEnabled, notificationSettings.adhanStyle, notificationSettings.adhanVolume]);
+
+  // Stop Adhan
+  const stopAdhan = useCallback(() => {
+    if (adhanAudioRef.current) {
+      adhanAudioRef.current.pause();
+      adhanAudioRef.current = null;
+    }
+  }, []);
+
   // Schedule notifications for prayers
   useEffect(() => {
     if (!notificationSettings.enabled || notificationPermission !== 'granted' || prayerTimes.length === 0) {
@@ -120,6 +173,7 @@ export function PrayerTimesTab() {
       
       if (timeUntilNotification > 0 && timeUntilNotification < 24 * 60 * 60 * 1000) {
         return setTimeout(() => {
+          // Show browser notification
           new Notification(`${prayer.name} Prayer`, {
             body: minutesBefore > 0 
               ? `${prayer.name} (${prayer.arabicName}) prayer time in ${minutesBefore} minutes at ${prayer.time}`
@@ -127,6 +181,11 @@ export function PrayerTimesTab() {
             icon: '/icons/icon-192.png',
             tag: `prayer-${prayer.name}`,
           });
+          
+          // Play Adhan if enabled and it's prayer time (not a reminder before)
+          if (minutesBefore === 0 && notificationSettings.adhanEnabled) {
+            playAdhan(prayer.name);
+          }
         }, timeUntilNotification);
       }
       return null;
@@ -136,15 +195,22 @@ export function PrayerTimesTab() {
     
     prayerTimes.forEach(prayer => {
       if (prayer.name !== 'Sunrise' && notificationSettings.prayers[prayer.name]) {
-        const timeout = scheduleNotification(prayer, notificationSettings.minutesBefore);
-        if (timeout) timeouts.push(timeout);
+        // Schedule reminder before prayer
+        if (notificationSettings.minutesBefore > 0) {
+          const reminderTimeout = scheduleNotification(prayer, notificationSettings.minutesBefore);
+          if (reminderTimeout) timeouts.push(reminderTimeout);
+        }
+        // Schedule notification at prayer time (with Adhan)
+        const prayerTimeout = scheduleNotification(prayer, 0);
+        if (prayerTimeout) timeouts.push(prayerTimeout);
       }
     });
 
     return () => {
       timeouts.forEach(t => t && clearTimeout(t));
+      stopAdhan();
     };
-  }, [prayerTimes, notificationSettings, notificationPermission]);
+  }, [prayerTimes, notificationSettings, notificationPermission, playAdhan, stopAdhan]);
 
   const getPrayerIcon = (name: string) => {
     switch (name) {
@@ -459,6 +525,71 @@ export function PrayerTimesTab() {
                         <SelectItem value="15">15 min</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  
+                  {/* Adhan Settings */}
+                  <div className="pt-3 mt-3 border-t space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Volume2 className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Play Adhan</span>
+                      </div>
+                      <Switch
+                        checked={notificationSettings.adhanEnabled}
+                        onCheckedChange={(checked) =>
+                          setNotificationSettings(prev => ({ ...prev, adhanEnabled: checked }))
+                        }
+                      />
+                    </div>
+                    
+                    {notificationSettings.adhanEnabled && (
+                      <>
+                        <div className="space-y-2">
+                          <span className="text-xs text-muted-foreground">Adhan Style</span>
+                          <Select
+                            value={notificationSettings.adhanStyle}
+                            onValueChange={(val: 'makkah' | 'madinah' | 'alaqsa') =>
+                              setNotificationSettings(prev => ({ ...prev, adhanStyle: val }))
+                            }
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="makkah">Makkah</SelectItem>
+                              <SelectItem value="madinah">Madinah</SelectItem>
+                              <SelectItem value="alaqsa">Al-Aqsa</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Volume</span>
+                            <span className="text-xs font-medium">{notificationSettings.adhanVolume}%</span>
+                          </div>
+                          <Slider
+                            value={[notificationSettings.adhanVolume]}
+                            onValueChange={([val]) =>
+                              setNotificationSettings(prev => ({ ...prev, adhanVolume: val }))
+                            }
+                            min={10}
+                            max={100}
+                            step={10}
+                          />
+                        </div>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-xs"
+                          onClick={() => playAdhan('Test')}
+                        >
+                          <Volume2 className="w-3 h-3 mr-1" />
+                          Test Adhan
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
