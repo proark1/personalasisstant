@@ -22,11 +22,12 @@ interface DhikrLog {
   log_date: string;
 }
 
-interface IslamicEvent {
+export interface IslamicEvent {
   name: string;
   date: Date;
   hijriDate: string;
   description?: string;
+  type?: 'major' | 'fasting' | 'sunnah' | 'remembrance';
 }
 
 const DHIKR_TYPES = [
@@ -60,14 +61,22 @@ function getHijriDate(date: Date): { year: number; month: number; day: number; m
 function getIslamicEvents(year: number): IslamicEvent[] {
   // These are approximate - real dates depend on moon sighting
   const events: IslamicEvent[] = [
-    { name: 'Ramadan Begins', date: new Date(year, 2, 10), hijriDate: '1 Ramadan', description: 'Start of the blessed month of fasting' },
-    { name: 'Laylat al-Qadr', date: new Date(year, 3, 5), hijriDate: '27 Ramadan', description: 'Night of Power - better than a thousand months' },
-    { name: 'Eid al-Fitr', date: new Date(year, 3, 9), hijriDate: '1 Shawwal', description: 'Festival of Breaking the Fast' },
-    { name: 'Day of Arafah', date: new Date(year, 5, 15), hijriDate: '9 Dhu al-Hijjah', description: 'The best day for fasting outside Ramadan' },
-    { name: 'Eid al-Adha', date: new Date(year, 5, 16), hijriDate: '10 Dhu al-Hijjah', description: 'Festival of Sacrifice' },
-    { name: 'Islamic New Year', date: new Date(year, 6, 7), hijriDate: '1 Muharram', description: 'Start of the new Hijri year' },
-    { name: 'Day of Ashura', date: new Date(year, 6, 16), hijriDate: '10 Muharram', description: 'Day of fasting and remembrance' },
-    { name: 'Mawlid al-Nabi', date: new Date(year, 8, 15), hijriDate: '12 Rabi\' al-Awwal', description: 'Birth of Prophet Muhammad ﷺ' },
+    // Major Events
+    { name: 'Isra and Mi\'raj', date: new Date(year, 1, 7), hijriDate: '27 Rajab', description: 'The Night Journey and Ascension of Prophet Muhammad ﷺ', type: 'major' },
+    { name: 'Shab-e-Barat', date: new Date(year, 1, 24), hijriDate: '15 Sha\'ban', description: 'Night of Forgiveness - seek repentance and pray', type: 'remembrance' },
+    { name: 'Ramadan Begins', date: new Date(year, 2, 10), hijriDate: '1 Ramadan', description: 'Start of the blessed month of fasting', type: 'major' },
+    { name: 'Last 10 Nights Begin', date: new Date(year, 3, 1), hijriDate: '21 Ramadan', description: 'Seek Laylat al-Qadr in the odd nights', type: 'major' },
+    { name: 'Laylat al-Qadr (approx)', date: new Date(year, 3, 5), hijriDate: '27 Ramadan', description: 'Night of Power - better than a thousand months', type: 'major' },
+    { name: 'Eid al-Fitr', date: new Date(year, 3, 9), hijriDate: '1 Shawwal', description: 'Festival of Breaking the Fast', type: 'major' },
+    { name: '6 Days of Shawwal Begin', date: new Date(year, 3, 10), hijriDate: '2 Shawwal', description: 'Fasting 6 days equals fasting a whole year', type: 'fasting' },
+    { name: 'Day of Arafah', date: new Date(year, 5, 15), hijriDate: '9 Dhu al-Hijjah', description: 'The best day for fasting outside Ramadan', type: 'fasting' },
+    { name: 'Eid al-Adha', date: new Date(year, 5, 16), hijriDate: '10 Dhu al-Hijjah', description: 'Festival of Sacrifice', type: 'major' },
+    { name: 'Days of Tashreeq', date: new Date(year, 5, 17), hijriDate: '11-13 Dhu al-Hijjah', description: 'Days of eating, drinking and remembering Allah', type: 'remembrance' },
+    { name: 'Islamic New Year', date: new Date(year, 6, 7), hijriDate: '1 Muharram', description: 'Start of the new Hijri year', type: 'major' },
+    { name: 'Day of Ashura', date: new Date(year, 6, 16), hijriDate: '10 Muharram', description: 'Day of fasting and remembrance', type: 'fasting' },
+    { name: 'Mawlid al-Nabi', date: new Date(year, 8, 15), hijriDate: '12 Rabi\' al-Awwal', description: 'Birth of Prophet Muhammad ﷺ', type: 'major' },
+    // White Days - 13, 14, 15 of each Islamic month (showing one example)
+    { name: 'White Days (Ayyam al-Beed)', date: new Date(year, 0, 15), hijriDate: '13-15 Monthly', description: 'Sunnah fasting on the 13th, 14th, 15th of each lunar month', type: 'sunnah' },
   ];
   
   return events.sort((a, b) => a.date.getTime() - b.date.getTime());

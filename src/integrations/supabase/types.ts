@@ -2997,6 +2997,42 @@ export type Database = {
         }
         Relationships: []
       }
+      quran_bookmarks: {
+        Row: {
+          ayah_number: number
+          ayah_text: string
+          created_at: string
+          id: string
+          note: string | null
+          surah_english_name: string
+          surah_name: string
+          surah_number: number
+          user_id: string
+        }
+        Insert: {
+          ayah_number: number
+          ayah_text: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          surah_english_name: string
+          surah_name: string
+          surah_number: number
+          user_id: string
+        }
+        Update: {
+          ayah_number?: number
+          ayah_text?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          surah_english_name?: string
+          surah_name?: string
+          surah_number?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       quran_hifz_progress: {
         Row: {
           completed_at: string | null

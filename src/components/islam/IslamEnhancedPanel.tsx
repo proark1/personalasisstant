@@ -5,17 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Calendar, Moon, Compass, BookOpen,
   RefreshCw, MapPin, ChevronLeft, ChevronRight, Search, Loader2, 
-  Volume2, VolumeX, Pause, Play, ZoomIn, ZoomOut, Heart, Clock, GraduationCap
+  Volume2, VolumeX, Pause, Play, ZoomIn, ZoomOut, Heart, Clock, GraduationCap,
+  Bookmark, BookmarkCheck, X
 } from 'lucide-react';
 import { useIslamicFeatures } from '@/hooks/useIslamicFeatures';
+import { useQuranBookmarks } from '@/hooks/useQuranBookmarks';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { useTextToSpeech } from '@/hooks/useTextToSpeech';
+import { supabase } from '@/integrations/supabase/client';
 import { PrayerTimesTab } from './PrayerTimesTab';
 import { HadithTab } from './HadithTab';
 import { HifzTrackerTab } from './HifzTrackerTab';
@@ -568,6 +570,8 @@ export function IslamEnhancedPanel() {
     islamicEvents,
     loading: islamicLoading,
   } = useIslamicFeatures();
+  
+  const { bookmarks, isBookmarked, addBookmark, removeBookmarkByAyah, updateBookmarkNote, getBookmark } = useQuranBookmarks();
 
   const [activeTab, setActiveTab] = useState('prayer');
   const [duaCategory, setDuaCategory] = useState<string>('all');
@@ -591,15 +595,18 @@ export function IslamEnhancedPanel() {
   const [quranLoading, setQuranLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSurahList, setShowSurahList] = useState(true);
+  const [showBookmarks, setShowBookmarks] = useState(false);
   const [fontSize, setFontSize] = useState(28);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentPlayingAyah, setCurrentPlayingAyah] = useState<number | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const { speak, stop: stopSpeech } = useTextToSpeech({
-    onEnd: () => setCurrentPlayingAyah(null),
-    onError: () => setCurrentPlayingAyah(null)
-  });
+  // Dua audio state
+  const [duaLoading, setDuaLoading] = useState<string | null>(null);
+  const [playingDua, setPlayingDua] = useState<string | null>(null);
+  const duaAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const upcomingEvents = islamicEvents.filter(e => e.date >= new Date()).slice(0, 5);
 
@@ -736,16 +743,86 @@ export function IslamEnhancedPanel() {
       audio.onerror = () => { setIsPlayingAudio(false); setCurrentPlayingAyah(null); };
       audio.play().catch(console.error);
     } else {
-      speak(ayah.text);
-      setCurrentPlayingAyah(ayah.numberInSurah);
+      // Fallback: use edge function for TTS
+      playArabicTTS(ayah.text, ayah.numberInSurah);
+    }
+  };
+
+  const playArabicTTS = async (text: string, ayahNumber: number) => {
+    setCurrentPlayingAyah(ayahNumber);
+    try {
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text, voice: 'alloy' }
+      });
+      if (error) throw error;
+      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+      audioRef.current = audio;
+      audio.onended = () => setCurrentPlayingAyah(null);
+      await audio.play();
+    } catch (error) {
+      console.error('TTS error:', error);
+      setCurrentPlayingAyah(null);
     }
   };
 
   const stopAudio = () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    stopSpeech();
+    if (duaAudioRef.current) { duaAudioRef.current.pause(); duaAudioRef.current = null; }
     setIsPlayingAudio(false);
     setCurrentPlayingAyah(null);
+    setPlayingDua(null);
+  };
+
+  const playDuaAudio = async (dua: Dua) => {
+    // Stop if already playing this dua
+    if (playingDua === dua.id) {
+      if (duaAudioRef.current) duaAudioRef.current.pause();
+      setPlayingDua(null);
+      return;
+    }
+    
+    setDuaLoading(dua.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text: dua.arabic, voice: 'alloy' }
+      });
+      
+      if (error) throw error;
+      
+      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+      duaAudioRef.current = audio;
+      audio.onended = () => setPlayingDua(null);
+      await audio.play();
+      setPlayingDua(dua.id);
+    } catch (error) {
+      console.error('Dua TTS error:', error);
+      toast.error('Failed to play audio');
+    } finally {
+      setDuaLoading(null);
+    }
+  };
+
+  const handleBookmarkToggle = async (ayah: Ayah) => {
+    if (!selectedSurah) return;
+    
+    if (isBookmarked(selectedSurah.number, ayah.numberInSurah)) {
+      await removeBookmarkByAyah(selectedSurah.number, ayah.numberInSurah);
+    } else {
+      await addBookmark(
+        selectedSurah.number,
+        selectedSurah.name,
+        selectedSurah.englishName,
+        ayah.numberInSurah,
+        ayah.text
+      );
+    }
+  };
+
+  const navigateToBookmark = async (bookmark: { surah_number: number; ayah_number: number }) => {
+    await fetchSurah(bookmark.surah_number);
+    const pageIndex = Math.floor((bookmark.ayah_number - 1) / AYAHS_PER_PAGE) * AYAHS_PER_PAGE;
+    setCurrentAyahIndex(pageIndex);
+    setShowBookmarks(false);
   };
 
   useEffect(() => {
@@ -900,13 +977,20 @@ export function IslamEnhancedPanel() {
                           variant="outline"
                           size="sm"
                           className="w-full"
+                          disabled={duaLoading === dua.id}
                           onClick={(e) => {
                             e.stopPropagation();
-                            speak(dua.arabic);
+                            playDuaAudio(dua);
                           }}
                         >
-                          <Volume2 className="w-4 h-4 mr-2" />
-                          Listen
+                          {duaLoading === dua.id ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : playingDua === dua.id ? (
+                            <VolumeX className="w-4 h-4 mr-2" />
+                          ) : (
+                            <Volume2 className="w-4 h-4 mr-2" />
+                          )}
+                          {playingDua === dua.id ? 'Stop' : 'Listen'}
                         </Button>
                       </div>
                     )}
@@ -987,17 +1071,134 @@ export function IslamEnhancedPanel() {
         {/* Quran Reader */}
         <TabsContent value="quran" className="flex-1 mt-0">
           <div className="flex flex-col h-full">
-            {showSurahList ? (
+            {showBookmarks ? (
+              <>
+                <div className="p-3 border-b border-border flex items-center justify-between">
+                  <Button variant="ghost" size="sm" onClick={() => setShowBookmarks(false)}>
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Back
+                  </Button>
+                  <p className="font-medium">Bookmarks ({bookmarks.length})</p>
+                  <div className="w-16" />
+                </div>
+                <ScrollArea className="flex-1">
+                  <div className="p-4 space-y-3">
+                    {bookmarks.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Bookmark className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p>No bookmarks yet</p>
+                        <p className="text-sm">Tap the bookmark icon on any ayah to save it</p>
+                      </div>
+                    ) : (
+                      bookmarks.map((bookmark) => (
+                        <Card key={bookmark.id} className="p-4">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                              <Badge variant="secondary" className="mb-1">
+                                {bookmark.surah_english_name} · Ayah {bookmark.ayah_number}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground font-arabic">
+                                {bookmark.surah_name}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => removeBookmarkByAyah(bookmark.surah_number, bookmark.ayah_number)}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <p className="font-arabic text-lg text-right leading-loose mb-3" dir="rtl">
+                            {bookmark.ayah_text}
+                          </p>
+                          {editingNoteId === bookmark.id ? (
+                            <div className="space-y-2">
+                              <Textarea
+                                value={noteText}
+                                onChange={(e) => setNoteText(e.target.value)}
+                                placeholder="Add a note..."
+                                className="min-h-[60px]"
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    updateBookmarkNote(bookmark.id, noteText);
+                                    setEditingNoteId(null);
+                                  }}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditingNoteId(null)}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigateToBookmark(bookmark)}
+                              >
+                                <BookOpen className="w-4 h-4 mr-1" />
+                                Go to Ayah
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setNoteText(bookmark.note || '');
+                                  setEditingNoteId(bookmark.id);
+                                }}
+                              >
+                                {bookmark.note ? 'Edit Note' : 'Add Note'}
+                              </Button>
+                            </div>
+                          )}
+                          {bookmark.note && editingNoteId !== bookmark.id && (
+                            <p className="text-sm text-muted-foreground mt-2 italic">
+                              Note: {bookmark.note}
+                            </p>
+                          )}
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </>
+            ) : showSurahList ? (
               <>
                 <div className="p-4 border-b border-border">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search surahs..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9"
-                    />
+                  <div className="flex gap-2 mb-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search surahs..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowBookmarks(true)}
+                      className="relative"
+                    >
+                      <Bookmark className="w-4 h-4" />
+                      {bookmarks.length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                          {bookmarks.length}
+                        </span>
+                      )}
+                    </Button>
                   </div>
                 </div>
                 <ScrollArea className="flex-1">
@@ -1076,6 +1277,21 @@ export function IslamEnhancedPanel() {
                                   <Pause className="w-4 h-4" />
                                 ) : (
                                   <Play className="w-4 h-4" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                  "h-8 w-8",
+                                  selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) && "text-amber-500"
+                                )}
+                                onClick={() => handleBookmarkToggle(ayah)}
+                              >
+                                {selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) ? (
+                                  <BookmarkCheck className="w-4 h-4" />
+                                ) : (
+                                  <Bookmark className="w-4 h-4" />
                                 )}
                               </Button>
                             </div>
