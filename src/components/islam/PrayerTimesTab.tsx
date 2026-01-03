@@ -12,9 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Clock, MapPin, RefreshCw, Bell, BellOff, Sun, Sunrise, Sunset, Moon as MoonIcon, Check, Volume2 } from 'lucide-react';
+import { Clock, MapPin, RefreshCw, Bell, BellOff, Sun, Sunrise, Sunset, Moon as MoonIcon, Check, Volume2, ExternalLink, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 interface PrayerTime {
   name: string;
@@ -68,6 +70,53 @@ const DEFAULT_NOTIFICATION_SETTINGS: PrayerNotificationSettings = {
   adhanVolume: 70,
 };
 
+// Check if we're in a context where notifications are supported
+const checkNotificationSupport = (): { supported: boolean; reason?: string } => {
+  const isNative = Capacitor.isNativePlatform();
+  
+  // Native apps always support notifications via Capacitor
+  if (isNative) {
+    return { supported: true };
+  }
+  
+  // Check if running in an iframe (e.g., Lovable preview)
+  try {
+    if (window.self !== window.top) {
+      return { 
+        supported: false, 
+        reason: 'Notifications require opening the app in a new tab. The preview window has limited permissions.' 
+      };
+    }
+  } catch (e) {
+    // Cross-origin iframe check failed - we're in an iframe
+    return { 
+      supported: false, 
+      reason: 'Notifications require opening the app in a new tab.' 
+    };
+  }
+  
+  // Check if Notification API exists
+  if (!('Notification' in window)) {
+    // Check for iOS Safari/PWA limitations
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    if (isIOS) {
+      return { 
+        supported: false, 
+        reason: 'iOS requires installing this app as a PWA (Add to Home Screen) or native app for notifications.' 
+      };
+    }
+    
+    return { 
+      supported: false, 
+      reason: 'Your browser does not support notifications.' 
+    };
+  }
+  
+  return { supported: true };
+};
+
 export function PrayerTimesTab() {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTime[]>([]);
   const [loading, setLoading] = useState(false);
@@ -91,14 +140,30 @@ export function PrayerTimesTab() {
   });
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [notificationSupport, setNotificationSupport] = useState<{ supported: boolean; reason?: string }>({ supported: true });
   const adhanAudioRef = useRef<HTMLAudioElement | null>(null);
+  const isNative = Capacitor.isNativePlatform();
 
-  // Check notification permission on mount
+  // Check notification support and permission on mount
   useEffect(() => {
-    if ('Notification' in window) {
+    const support = checkNotificationSupport();
+    setNotificationSupport(support);
+    
+    if (isNative) {
+      // Check Capacitor local notification permission
+      LocalNotifications.checkPermissions().then(result => {
+        if (result.display === 'granted') {
+          setNotificationPermission('granted');
+        } else if (result.display === 'denied') {
+          setNotificationPermission('denied');
+        } else {
+          setNotificationPermission('default');
+        }
+      });
+    } else if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
     }
-  }, []);
+  }, [isNative]);
 
   // Save notification settings
   useEffect(() => {
@@ -107,19 +172,35 @@ export function PrayerTimesTab() {
 
   // Request notification permission
   const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      toast.error('Notifications not supported in this browser');
+    const support = checkNotificationSupport();
+    
+    if (!support.supported) {
+      toast.error(support.reason || 'Notifications not supported');
       return;
     }
     
-    const permission = await Notification.requestPermission();
-    setNotificationPermission(permission);
-    
-    if (permission === 'granted') {
-      toast.success('Prayer notifications enabled!');
-      setNotificationSettings(prev => ({ ...prev, enabled: true }));
-    } else if (permission === 'denied') {
-      toast.error('Notification permission denied');
+    if (isNative) {
+      // Use Capacitor for native apps
+      const result = await LocalNotifications.requestPermissions();
+      if (result.display === 'granted') {
+        setNotificationPermission('granted');
+        toast.success('Prayer notifications enabled!');
+        setNotificationSettings(prev => ({ ...prev, enabled: true }));
+      } else {
+        setNotificationPermission('denied');
+        toast.error('Notification permission denied');
+      }
+    } else {
+      // Use browser API
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      
+      if (permission === 'granted') {
+        toast.success('Prayer notifications enabled!');
+        setNotificationSettings(prev => ({ ...prev, enabled: true }));
+      } else if (permission === 'denied') {
+        toast.error('Notification permission denied');
+      }
     }
   };
 
@@ -163,7 +244,38 @@ export function PrayerTimesTab() {
       return;
     }
 
-    const scheduleNotification = (prayer: PrayerTime, minutesBefore: number) => {
+    const scheduleNativeNotification = async (prayer: PrayerTime, minutesBefore: number) => {
+      const [hours, minutes] = prayer.time.split(':').map(Number);
+      const now = new Date();
+      const prayerTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+      const notifyTime = new Date(prayerTime.getTime() - minutesBefore * 60 * 1000);
+      
+      const timeUntilNotification = notifyTime.getTime() - now.getTime();
+      
+      if (timeUntilNotification > 0 && timeUntilNotification < 24 * 60 * 60 * 1000) {
+        // Generate unique ID for this notification
+        const notificationId = Date.now() + Math.floor(Math.random() * 1000);
+        
+        await LocalNotifications.schedule({
+          notifications: [{
+            id: notificationId,
+            title: `${prayer.name} Prayer`,
+            body: minutesBefore > 0 
+              ? `${prayer.name} (${prayer.arabicName}) prayer time in ${minutesBefore} minutes at ${prayer.time}`
+              : `It's time for ${prayer.name} (${prayer.arabicName}) prayer`,
+            schedule: { at: notifyTime },
+            sound: undefined, // Use default sound
+            smallIcon: 'ic_stat_prayer',
+            largeIcon: 'ic_launcher',
+          }]
+        });
+        
+        return notificationId;
+      }
+      return null;
+    };
+
+    const scheduleBrowserNotification = (prayer: PrayerTime, minutesBefore: number) => {
       const [hours, minutes] = prayer.time.split(':').map(Number);
       const now = new Date();
       const prayerTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
@@ -192,25 +304,37 @@ export function PrayerTimesTab() {
     };
 
     const timeouts: (NodeJS.Timeout | null)[] = [];
+    const scheduledNativeIds: number[] = [];
     
     prayerTimes.forEach(prayer => {
       if (prayer.name !== 'Sunrise' && notificationSettings.prayers[prayer.name]) {
-        // Schedule reminder before prayer
-        if (notificationSettings.minutesBefore > 0) {
-          const reminderTimeout = scheduleNotification(prayer, notificationSettings.minutesBefore);
-          if (reminderTimeout) timeouts.push(reminderTimeout);
+        if (isNative) {
+          // Use Capacitor LocalNotifications for native apps
+          if (notificationSettings.minutesBefore > 0) {
+            scheduleNativeNotification(prayer, notificationSettings.minutesBefore);
+          }
+          scheduleNativeNotification(prayer, 0);
+        } else {
+          // Use browser notifications for web
+          if (notificationSettings.minutesBefore > 0) {
+            const reminderTimeout = scheduleBrowserNotification(prayer, notificationSettings.minutesBefore);
+            if (reminderTimeout) timeouts.push(reminderTimeout);
+          }
+          const prayerTimeout = scheduleBrowserNotification(prayer, 0);
+          if (prayerTimeout) timeouts.push(prayerTimeout);
         }
-        // Schedule notification at prayer time (with Adhan)
-        const prayerTimeout = scheduleNotification(prayer, 0);
-        if (prayerTimeout) timeouts.push(prayerTimeout);
       }
     });
 
     return () => {
       timeouts.forEach(t => t && clearTimeout(t));
+      // Cancel native notifications when component unmounts or settings change
+      if (isNative && scheduledNativeIds.length > 0) {
+        LocalNotifications.cancel({ notifications: scheduledNativeIds.map(id => ({ id })) });
+      }
       stopAdhan();
     };
-  }, [prayerTimes, notificationSettings, notificationPermission, playAdhan, stopAdhan]);
+  }, [prayerTimes, notificationSettings, notificationPermission, playAdhan, stopAdhan, isNative]);
 
   const getPrayerIcon = (name: string) => {
     switch (name) {
@@ -463,7 +587,11 @@ export function PrayerTimesTab() {
               )}
               <span className="font-medium text-sm">Prayer Notifications</span>
             </div>
-            {notificationPermission !== 'granted' ? (
+            {!notificationSupport.supported ? (
+              <Badge variant="secondary" className="text-xs">
+                Limited
+              </Badge>
+            ) : notificationPermission !== 'granted' ? (
               <Button size="sm" variant="outline" onClick={requestNotificationPermission}>
                 Enable
               </Button>
@@ -476,6 +604,31 @@ export function PrayerTimesTab() {
               />
             )}
           </div>
+          
+          {/* Show guidance if notifications aren't supported in current context */}
+          {!notificationSupport.supported && notificationSupport.reason && (
+            <div className="mb-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                <div className="space-y-2">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {notificationSupport.reason}
+                  </p>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-7 text-xs gap-1"
+                    onClick={() => {
+                      window.open(window.location.href, '_blank');
+                    }}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Open in New Tab
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           
           {notificationSettings.enabled && notificationPermission === 'granted' && (
             <>

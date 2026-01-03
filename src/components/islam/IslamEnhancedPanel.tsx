@@ -10,7 +10,7 @@ import {
   Calendar, Moon, Compass, BookOpen,
   RefreshCw, MapPin, ChevronLeft, ChevronRight, Search, Loader2, 
   Volume2, VolumeX, Pause, Play, ZoomIn, ZoomOut, Heart, Clock, GraduationCap,
-  Bookmark, BookmarkCheck, X
+  Bookmark, BookmarkCheck, X, FileText, LayoutGrid
 } from 'lucide-react';
 import { useIslamicFeatures } from '@/hooks/useIslamicFeatures';
 import { useQuranBookmarks } from '@/hooks/useQuranBookmarks';
@@ -601,6 +601,10 @@ export function IslamEnhancedPanel() {
     const saved = localStorage.getItem('quran-tajweed-enabled');
     return saved === 'true';
   });
+  const [quranViewMode, setQuranViewMode] = useState<'cards' | 'page'>(() => {
+    const saved = localStorage.getItem('quran-view-mode');
+    return (saved as 'cards' | 'page') || 'cards';
+  });
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentPlayingAyah, setCurrentPlayingAyah] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -812,6 +816,19 @@ export function IslamEnhancedPanel() {
     if (selectedSurah) {
       await fetchSurah(selectedSurah.number, newValue);
     }
+  };
+
+  // Toggle Quran view mode
+  const toggleViewMode = () => {
+    const newMode = quranViewMode === 'cards' ? 'page' : 'cards';
+    setQuranViewMode(newMode);
+    localStorage.setItem('quran-view-mode', newMode);
+  };
+
+  // Convert Arabic numeral to Arabic-Indic numeral for ayah numbers
+  const toArabicIndic = (num: number): string => {
+    const arabicIndic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return num.toString().split('').map(d => arabicIndic[parseInt(d)]).join('');
   };
 
   const playAyahAudio = (ayah: Ayah) => {
@@ -1399,6 +1416,15 @@ export function IslamEnhancedPanel() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Button 
+                      variant={quranViewMode === 'page' ? "secondary" : "ghost"} 
+                      size="sm" 
+                      className="text-xs h-8 px-2"
+                      onClick={toggleViewMode}
+                      title={quranViewMode === 'cards' ? 'Switch to Full Page View' : 'Switch to Cards View'}
+                    >
+                      {quranViewMode === 'cards' ? <FileText className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+                    </Button>
+                    <Button 
                       variant={tajweedEnabled ? "secondary" : "ghost"} 
                       size="sm" 
                       className="text-xs h-8 px-2"
@@ -1434,7 +1460,91 @@ export function IslamEnhancedPanel() {
                   <div className="flex-1 flex items-center justify-center">
                     <Loader2 className="w-8 h-8 animate-spin" />
                   </div>
+                ) : quranViewMode === 'page' ? (
+                  /* Full Page / Continuous View */
+                  <ScrollArea className="flex-1">
+                    <div className="p-4">
+                      {/* Surah Bismillah (except for Al-Fatiha and At-Tawbah) */}
+                      {selectedSurah && selectedSurah.number !== 1 && selectedSurah.number !== 9 && (
+                        <div className="text-center mb-6">
+                          <p className="font-arabic text-2xl text-primary">
+                            بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Decorative header */}
+                      <Card className="p-4 mb-4 bg-gradient-to-br from-primary/10 via-background to-primary/5 border-primary/20">
+                        <div className="text-center">
+                          <p className="font-arabic text-3xl mb-2">{selectedSurah?.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {selectedSurah?.englishName} • {selectedSurah?.englishNameTranslation}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {selectedSurah?.ayahs.length} Ayahs • {selectedSurah?.revelationType}
+                          </p>
+                        </div>
+                      </Card>
+                      
+                      {/* Continuous flowing text */}
+                      <div 
+                        className="p-6 bg-gradient-to-b from-muted/30 to-muted/10 rounded-xl border border-border/50"
+                        dir="rtl"
+                      >
+                        <p 
+                          className="font-arabic leading-[2.5] text-right"
+                          style={{ fontSize: `${fontSize}px` }}
+                        >
+                          {selectedSurah?.ayahs.map((ayah, index) => (
+                            <span
+                              key={ayah.numberInSurah}
+                              className={cn(
+                                "cursor-pointer hover:bg-primary/10 rounded transition-colors inline",
+                                currentPlayingAyah === ayah.numberInSurah && "bg-primary/20 text-primary"
+                              )}
+                              onClick={() => currentPlayingAyah === ayah.numberInSurah ? stopAudio() : playAyahAudio(ayah)}
+                            >
+                              {tajweedEnabled ? (
+                                <span dangerouslySetInnerHTML={{ __html: ayah.text }} />
+                              ) : (
+                                ayah.text
+                              )}
+                              {/* Decorative ayah number marker */}
+                              <span 
+                                className="inline-flex items-center justify-center mx-1 text-primary/80"
+                                style={{ fontSize: `${fontSize * 0.6}px` }}
+                              >
+                                ﴿{toArabicIndic(ayah.numberInSurah)}﴾
+                              </span>
+                              {' '}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
+                      
+                      {/* Floating audio indicator */}
+                      {currentPlayingAyah !== null && (
+                        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50">
+                          <Card className="px-4 py-2 bg-primary text-primary-foreground shadow-lg flex items-center gap-2">
+                            <Volume2 className="w-4 h-4 animate-pulse" />
+                            <span className="text-sm font-medium">
+                              Playing Ayah {currentPlayingAyah}
+                            </span>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-primary-foreground hover:text-primary-foreground/80"
+                              onClick={stopAudio}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </Card>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
                 ) : (
+                  /* Cards View (existing) */
                   <ScrollArea className="flex-1">
                     <div className="p-4 space-y-4">
                       {currentPageAyahs.map((ayah) => (
@@ -1501,7 +1611,8 @@ export function IslamEnhancedPanel() {
                   </ScrollArea>
                 )}
 
-                {selectedSurah && totalPages > 1 && (
+                {/* Pagination - only show for cards view */}
+                {selectedSurah && totalPages > 1 && quranViewMode === 'cards' && (
                   <div className="p-3 border-t border-border flex items-center justify-between">
                     <Button
                       variant="outline"
