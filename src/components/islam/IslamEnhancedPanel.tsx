@@ -612,7 +612,7 @@ export function IslamEnhancedPanel() {
   const [playingDua, setPlayingDua] = useState<string | null>(null);
   const duaAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const upcomingEvents = islamicEvents.filter(e => e.date >= new Date()).slice(0, 5);
+  const upcomingEvents = islamicEvents.filter(e => e.date >= new Date());
 
   // Qibla calculations
   const calculateQibla = (lat: number, lng: number): number => {
