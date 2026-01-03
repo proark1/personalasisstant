@@ -1347,24 +1347,75 @@ export function IslamEnhancedPanel() {
                   {hijriToday.day} {hijriToday.monthName} {hijriToday.year} هـ
                 </p>
               </Card>
+              
+              {/* Event Type Legend */}
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="bg-primary/10 border-primary/30 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-primary mr-1" />
+                  Major
+                </Badge>
+                <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1" />
+                  Fasting
+                </Badge>
+                <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 mr-1" />
+                  Sunnah
+                </Badge>
+                <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-purple-500 mr-1" />
+                  Remembrance
+                </Badge>
+              </div>
+              
               <h3 className="font-medium">Upcoming Islamic Events</h3>
               <div className="space-y-2">
-                {upcomingEvents.map((event, idx) => (
-                  <Card key={idx} className="p-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium">{event.name}</p>
-                        <p className="text-sm text-muted-foreground">{event.description}</p>
+                {upcomingEvents.map((event, idx) => {
+                  const typeColors = {
+                    major: 'border-l-primary bg-primary/5',
+                    fasting: 'border-l-emerald-500 bg-emerald-500/5',
+                    sunnah: 'border-l-amber-500 bg-amber-500/5',
+                    remembrance: 'border-l-purple-500 bg-purple-500/5',
+                  };
+                  const typeBadgeColors = {
+                    major: 'bg-primary/10 text-primary border-primary/30',
+                    fasting: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+                    sunnah: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+                    remembrance: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
+                  };
+                  const eventType = event.type || 'major';
+                  
+                  return (
+                    <Card 
+                      key={idx} 
+                      className={cn(
+                        "p-3 border-l-4",
+                        typeColors[eventType]
+                      )}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium">{event.name}</p>
+                            <Badge 
+                              variant="outline" 
+                              className={cn("text-xs capitalize", typeBadgeColors[eventType])}
+                            >
+                              {eventType}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{event.description}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <Badge variant="outline">{event.hijriDate}</Badge>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            ~{format(event.date, 'MMM d, yyyy')}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <Badge variant="outline">{event.hijriDate}</Badge>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ~{format(event.date, 'MMM d, yyyy')}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           </ScrollArea>

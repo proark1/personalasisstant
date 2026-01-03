@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -10,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Clock, MapPin, RefreshCw, Bell, Sun, Sunrise, Sunset, Moon as MoonIcon } from 'lucide-react';
+import { Clock, MapPin, RefreshCw, Bell, BellOff, Sun, Sunrise, Sunset, Moon as MoonIcon, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,12 @@ interface CalculationMethod {
   description: string;
 }
 
+interface PrayerNotificationSettings {
+  enabled: boolean;
+  prayers: Record<string, boolean>;
+  minutesBefore: number;
+}
+
 const CALCULATION_METHODS: CalculationMethod[] = [
   { id: 2, name: 'ISNA', description: 'Islamic Society of North America' },
   { id: 3, name: 'MWL', description: 'Muslim World League' },
@@ -41,6 +48,12 @@ const CALCULATION_METHODS: CalculationMethod[] = [
   { id: 13, name: 'Turkey', description: 'Diyanet İşleri Başkanlığı, Turkey' },
 ];
 
+const DEFAULT_NOTIFICATION_SETTINGS: PrayerNotificationSettings = {
+  enabled: false,
+  prayers: { Fajr: true, Dhuhr: true, Asr: true, Maghrib: true, Isha: true },
+  minutesBefore: 5,
+};
+
 export function PrayerTimesTab() {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTime[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,6 +67,84 @@ export function PrayerTimesTab() {
   const [hijriDate, setHijriDate] = useState<string>('');
   const [gregorianDate, setGregorianDate] = useState<string>('');
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [notificationSettings, setNotificationSettings] = useState<PrayerNotificationSettings>(() => {
+    const saved = localStorage.getItem('prayer-notifications');
+    return saved ? JSON.parse(saved) : DEFAULT_NOTIFICATION_SETTINGS;
+  });
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+
+  // Check notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  // Save notification settings
+  useEffect(() => {
+    localStorage.setItem('prayer-notifications', JSON.stringify(notificationSettings));
+  }, [notificationSettings]);
+
+  // Request notification permission
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      toast.error('Notifications not supported in this browser');
+      return;
+    }
+    
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+    
+    if (permission === 'granted') {
+      toast.success('Prayer notifications enabled!');
+      setNotificationSettings(prev => ({ ...prev, enabled: true }));
+    } else if (permission === 'denied') {
+      toast.error('Notification permission denied');
+    }
+  };
+
+  // Schedule notifications for prayers
+  useEffect(() => {
+    if (!notificationSettings.enabled || notificationPermission !== 'granted' || prayerTimes.length === 0) {
+      return;
+    }
+
+    const scheduleNotification = (prayer: PrayerTime, minutesBefore: number) => {
+      const [hours, minutes] = prayer.time.split(':').map(Number);
+      const now = new Date();
+      const prayerTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+      const notifyTime = new Date(prayerTime.getTime() - minutesBefore * 60 * 1000);
+      
+      const timeUntilNotification = notifyTime.getTime() - now.getTime();
+      
+      if (timeUntilNotification > 0 && timeUntilNotification < 24 * 60 * 60 * 1000) {
+        return setTimeout(() => {
+          new Notification(`${prayer.name} Prayer`, {
+            body: minutesBefore > 0 
+              ? `${prayer.name} (${prayer.arabicName}) prayer time in ${minutesBefore} minutes at ${prayer.time}`
+              : `It's time for ${prayer.name} (${prayer.arabicName}) prayer`,
+            icon: '/icons/icon-192.png',
+            tag: `prayer-${prayer.name}`,
+          });
+        }, timeUntilNotification);
+      }
+      return null;
+    };
+
+    const timeouts: (NodeJS.Timeout | null)[] = [];
+    
+    prayerTimes.forEach(prayer => {
+      if (prayer.name !== 'Sunrise' && notificationSettings.prayers[prayer.name]) {
+        const timeout = scheduleNotification(prayer, notificationSettings.minutesBefore);
+        if (timeout) timeouts.push(timeout);
+      }
+    });
+
+    return () => {
+      timeouts.forEach(t => t && clearTimeout(t));
+    };
+  }, [prayerTimes, notificationSettings, notificationPermission]);
 
   const getPrayerIcon = (name: string) => {
     switch (name) {
@@ -295,11 +386,94 @@ export function PrayerTimesTab() {
           )}
         </div>
 
+        {/* Prayer Notifications */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {notificationSettings.enabled && notificationPermission === 'granted' ? (
+                <Bell className="w-4 h-4 text-primary" />
+              ) : (
+                <BellOff className="w-4 h-4 text-muted-foreground" />
+              )}
+              <span className="font-medium text-sm">Prayer Notifications</span>
+            </div>
+            {notificationPermission !== 'granted' ? (
+              <Button size="sm" variant="outline" onClick={requestNotificationPermission}>
+                Enable
+              </Button>
+            ) : (
+              <Switch
+                checked={notificationSettings.enabled}
+                onCheckedChange={(checked) => 
+                  setNotificationSettings(prev => ({ ...prev, enabled: checked }))
+                }
+              />
+            )}
+          </div>
+          
+          {notificationSettings.enabled && notificationPermission === 'granted' && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-between text-xs h-8 mb-2"
+                onClick={() => setShowNotificationSettings(!showNotificationSettings)}
+              >
+                <span>Configure prayers</span>
+                <Badge variant="secondary" className="text-xs">
+                  {Object.values(notificationSettings.prayers).filter(Boolean).length}/5
+                </Badge>
+              </Button>
+              
+              {showNotificationSettings && (
+                <div className="space-y-2 pt-2 border-t">
+                  {['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map((prayer) => (
+                    <div key={prayer} className="flex items-center justify-between">
+                      <span className="text-sm">{prayer}</span>
+                      <Switch
+                        checked={notificationSettings.prayers[prayer] ?? true}
+                        onCheckedChange={(checked) =>
+                          setNotificationSettings(prev => ({
+                            ...prev,
+                            prayers: { ...prev.prayers, [prayer]: checked }
+                          }))
+                        }
+                      />
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-sm">Notify before</span>
+                    <Select
+                      value={notificationSettings.minutesBefore.toString()}
+                      onValueChange={(val) =>
+                        setNotificationSettings(prev => ({ ...prev, minutesBefore: parseInt(val) }))
+                      }
+                    >
+                      <SelectTrigger className="w-24 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">At time</SelectItem>
+                        <SelectItem value="5">5 min</SelectItem>
+                        <SelectItem value="10">10 min</SelectItem>
+                        <SelectItem value="15">15 min</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+
         {/* Prayer Times List */}
         <Card className="divide-y divide-border">
           {prayerTimes.map((prayer) => {
             const isNext = prayer.name === nextPrayerName;
             const isSunrise = prayer.name === 'Sunrise';
+            const hasNotification = notificationSettings.enabled && 
+                                   notificationSettings.prayers[prayer.name] && 
+                                   notificationPermission === 'granted';
             return (
               <div
                 key={prayer.name}
@@ -317,6 +491,9 @@ export function PrayerTimesTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {hasNotification && !isSunrise && (
+                    <Bell className="w-3 h-3 text-muted-foreground" />
+                  )}
                   <span className={cn("text-lg font-semibold", isNext && "text-primary")}>
                     {prayer.time}
                   </span>
