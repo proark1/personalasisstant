@@ -24,6 +24,9 @@ body::before {
 
 @layer base {
   :root {
+    /* Quran font variable - can be changed dynamically */
+    --quran-font: 'Amiri';
+    
     /* Light theme */
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;

@@ -3084,6 +3084,72 @@ export type Database = {
         }
         Relationships: []
       }
+      quran_reading_goals: {
+        Row: {
+          created_at: string
+          daily_ayahs_goal: number
+          daily_pages_goal: number | null
+          daily_surahs_goal: number | null
+          id: string
+          reminder_enabled: boolean | null
+          reminder_time: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_ayahs_goal?: number
+          daily_pages_goal?: number | null
+          daily_surahs_goal?: number | null
+          id?: string
+          reminder_enabled?: boolean | null
+          reminder_time?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_ayahs_goal?: number
+          daily_pages_goal?: number | null
+          daily_surahs_goal?: number | null
+          id?: string
+          reminder_enabled?: boolean | null
+          reminder_time?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      quran_reading_progress: {
+        Row: {
+          ayah_number: number
+          created_at: string
+          id: string
+          read_at: string
+          session_id: string | null
+          surah_number: number
+          user_id: string
+        }
+        Insert: {
+          ayah_number: number
+          created_at?: string
+          id?: string
+          read_at?: string
+          session_id?: string | null
+          surah_number: number
+          user_id: string
+        }
+        Update: {
+          ayah_number?: number
+          created_at?: string
+          id?: string
+          read_at?: string
+          session_id?: string | null
+          surah_number?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       ramadan_tracker: {
         Row: {
           created_at: string

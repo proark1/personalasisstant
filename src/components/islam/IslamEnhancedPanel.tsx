@@ -6,14 +6,22 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   Calendar, Moon, Compass, BookOpen,
   RefreshCw, MapPin, ChevronLeft, ChevronRight, Search, Loader2, 
   Volume2, VolumeX, Pause, Play, ZoomIn, ZoomOut, Heart, Clock, GraduationCap,
-  Bookmark, BookmarkCheck, X, FileText, LayoutGrid
+  Bookmark, BookmarkCheck, X, FileText, LayoutGrid, TrendingUp, Type, CheckCircle2
 } from 'lucide-react';
 import { useIslamicFeatures } from '@/hooks/useIslamicFeatures';
 import { useQuranBookmarks } from '@/hooks/useQuranBookmarks';
+import { useQuranReadingProgress } from '@/hooks/useQuranReadingProgress';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -21,6 +29,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { PrayerTimesTab } from './PrayerTimesTab';
 import { HadithTab } from './HadithTab';
 import { HifzTrackerTab } from './HifzTrackerTab';
+import { QuranProgressPanel } from './QuranProgressPanel';
+
+// Arabic font options
+const QURAN_FONTS = [
+  { id: 'amiri', name: 'Amiri', fontFamily: 'Amiri, serif', description: 'Classic Naskh style' },
+  { id: 'naskh', name: 'Noto Naskh', fontFamily: '"Noto Naskh Arabic", serif', description: 'Modern Naskh' },
+  { id: 'scheherazade', name: 'Scheherazade', fontFamily: '"Scheherazade New", serif', description: 'Traditional Naskh' },
+  { id: 'lateef', name: 'Lateef', fontFamily: 'Lateef, serif', description: 'Nastaliq style' },
+];
 
 interface QiblaData {
   direction: number;
@@ -572,10 +589,12 @@ export function IslamEnhancedPanel() {
   } = useIslamicFeatures();
   
   const { bookmarks, isBookmarked, addBookmark, removeBookmarkByAyah, updateBookmarkNote, getBookmark } = useQuranBookmarks();
+  const { markAyahAsRead, isAyahRead, getSurahProgress, todayAyahsRead, goal, todayGoalProgress } = useQuranReadingProgress();
 
   const [activeTab, setActiveTab] = useState('prayer');
   const [duaCategory, setDuaCategory] = useState<string>('all');
   const [expandedDua, setExpandedDua] = useState<string | null>(null);
+  const [showProgressPanel, setShowProgressPanel] = useState(false);
 
   const duaCategories = ['all', ...Array.from(new Set(DUAS.map(d => d.category)))];
   const filteredDuas = duaCategory === 'all' ? DUAS : DUAS.filter(d => d.category === duaCategory);
@@ -605,6 +624,9 @@ export function IslamEnhancedPanel() {
     const saved = localStorage.getItem('quran-view-mode');
     return (saved as 'cards' | 'page') || 'cards';
   });
+  const [selectedFont, setSelectedFont] = useState<string>(() => {
+    return localStorage.getItem('quran-font') || 'amiri';
+  });
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentPlayingAyah, setCurrentPlayingAyah] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -617,6 +639,17 @@ export function IslamEnhancedPanel() {
   const duaAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const upcomingEvents = islamicEvents.filter(e => e.date >= new Date());
+
+  // Get current font family
+  const currentFontFamily = QURAN_FONTS.find(f => f.id === selectedFont)?.fontFamily || 'Amiri, serif';
+
+  // Change font handler
+  const handleFontChange = (fontId: string) => {
+    setSelectedFont(fontId);
+    localStorage.setItem('quran-font', fontId);
+    // Update CSS variable
+    document.documentElement.style.setProperty('--quran-font', QURAN_FONTS.find(f => f.id === fontId)?.fontFamily.split(',')[0].replace(/"/g, '') || 'Amiri');
+  };
 
   // Qibla calculations
   const calculateQibla = (lat: number, lng: number): number => {
@@ -1350,10 +1383,44 @@ export function IslamEnhancedPanel() {
                   </div>
                 </ScrollArea>
               </>
+            ) : showProgressPanel ? (
+              <>
+                <div className="p-3 border-b border-border flex items-center justify-between">
+                  <Button variant="ghost" size="sm" onClick={() => setShowProgressPanel(false)}>
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Back
+                  </Button>
+                  <p className="font-medium">Reading Progress</p>
+                  <div className="w-16" />
+                </div>
+                <ScrollArea className="flex-1">
+                  <QuranProgressPanel />
+                </ScrollArea>
+              </>
             ) : showSurahList ? (
               <>
-                <div className="p-4 border-b border-border">
-                  <div className="flex gap-2 mb-3">
+                <div className="p-4 border-b border-border space-y-3">
+                  {/* Daily Progress Mini Card */}
+                  <Card 
+                    className="p-3 bg-gradient-to-r from-primary/10 to-emerald-500/10 border-primary/20 cursor-pointer hover:bg-primary/15 transition-colors"
+                    onClick={() => setShowProgressPanel(true)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium">Today's Progress</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold">{todayAyahsRead}/{goal?.daily_ayahs_goal || 10}</span>
+                        {goal && todayAyahsRead >= goal.daily_ayahs_goal && (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        )}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </Card>
+
+                  <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
@@ -1377,29 +1444,70 @@ export function IslamEnhancedPanel() {
                       )}
                     </Button>
                   </div>
+                  
+                  {/* Font Selector */}
+                  <div className="flex items-center gap-2">
+                    <Type className="w-4 h-4 text-muted-foreground" />
+                    <Select value={selectedFont} onValueChange={handleFontChange}>
+                      <SelectTrigger className="flex-1 h-9">
+                        <SelectValue placeholder="Select font" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {QURAN_FONTS.map((font) => (
+                          <SelectItem key={font.id} value={font.id}>
+                            <div className="flex flex-col">
+                              <span style={{ fontFamily: font.fontFamily }}>{font.name}</span>
+                              <span className="text-xs text-muted-foreground">{font.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="p-2 space-y-1">
-                    {filteredSurahs.map((surah) => (
-                      <Card
-                        key={surah.number}
-                        className="p-3 cursor-pointer hover:bg-accent transition-colors"
-                        onClick={() => fetchSurah(surah.number)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="text-sm font-bold">{surah.number}</span>
+                    {filteredSurahs.map((surah) => {
+                      const progress = getSurahProgress(surah.number, surah.numberOfAyahs);
+                      return (
+                        <Card
+                          key={surah.number}
+                          className="p-3 cursor-pointer hover:bg-accent transition-colors"
+                          onClick={() => fetchSurah(surah.number)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "w-10 h-10 rounded-full flex items-center justify-center",
+                              progress.percentage === 100 
+                                ? "bg-emerald-500/20 text-emerald-600" 
+                                : progress.percentage > 0 
+                                  ? "bg-primary/10" 
+                                  : "bg-muted"
+                            )}>
+                              {progress.percentage === 100 ? (
+                                <CheckCircle2 className="w-5 h-5" />
+                              ) : (
+                                <span className="text-sm font-bold">{surah.number}</span>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium">{surah.englishName}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-muted-foreground">
+                                  {surah.englishNameTranslation} · {surah.numberOfAyahs} ayahs
+                                </p>
+                                {progress.percentage > 0 && progress.percentage < 100 && (
+                                  <Badge variant="secondary" className="text-xs h-5">
+                                    {progress.read}/{progress.total}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-lg" style={{ fontFamily: currentFontFamily }}>{surah.name}</p>
                           </div>
-                          <div className="flex-1">
-                            <p className="font-medium">{surah.englishName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {surah.englishNameTranslation} · {surah.numberOfAyahs} ayahs
-                            </p>
-                          </div>
-                          <p className="font-arabic text-lg">{surah.name}</p>
-                        </div>
-                      </Card>
-                    ))}
+                        </Card>
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               </>
@@ -1492,33 +1600,50 @@ export function IslamEnhancedPanel() {
                         dir="rtl"
                       >
                         <p 
-                          className="font-arabic leading-[2.5] text-right"
-                          style={{ fontSize: `${fontSize}px` }}
+                          className="leading-[2.5] text-right"
+                          style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }}
                         >
-                          {selectedSurah?.ayahs.map((ayah, index) => (
-                            <span
-                              key={ayah.numberInSurah}
-                              className={cn(
-                                "cursor-pointer hover:bg-primary/10 rounded transition-colors inline",
-                                currentPlayingAyah === ayah.numberInSurah && "bg-primary/20 text-primary"
-                              )}
-                              onClick={() => currentPlayingAyah === ayah.numberInSurah ? stopAudio() : playAyahAudio(ayah)}
-                            >
-                              {tajweedEnabled ? (
-                                <span dangerouslySetInnerHTML={{ __html: ayah.text }} />
-                              ) : (
-                                ayah.text
-                              )}
-                              {/* Decorative ayah number marker */}
-                              <span 
-                                className="inline-flex items-center justify-center mx-1 text-primary/80"
-                                style={{ fontSize: `${fontSize * 0.6}px` }}
+                          {selectedSurah?.ayahs.map((ayah, index) => {
+                            const ayahIsRead = selectedSurah && isAyahRead(selectedSurah.number, ayah.numberInSurah);
+                            return (
+                              <span
+                                key={ayah.numberInSurah}
+                                className={cn(
+                                  "cursor-pointer hover:bg-primary/10 rounded transition-colors inline",
+                                  currentPlayingAyah === ayah.numberInSurah && "bg-primary/20 text-primary",
+                                  ayahIsRead && "opacity-70"
+                                )}
+                                onClick={() => {
+                                  if (currentPlayingAyah === ayah.numberInSurah) {
+                                    stopAudio();
+                                  } else {
+                                    playAyahAudio(ayah);
+                                    // Mark as read when played
+                                    if (selectedSurah) {
+                                      markAyahAsRead(selectedSurah.number, ayah.numberInSurah);
+                                    }
+                                  }
+                                }}
                               >
-                                ﴿{toArabicIndic(ayah.numberInSurah)}﴾
+                                {tajweedEnabled ? (
+                                  <span dangerouslySetInnerHTML={{ __html: ayah.text }} />
+                                ) : (
+                                  ayah.text
+                                )}
+                                {/* Decorative ayah number marker */}
+                                <span 
+                                  className={cn(
+                                    "inline-flex items-center justify-center mx-1",
+                                    ayahIsRead ? "text-emerald-500" : "text-primary/80"
+                                  )}
+                                  style={{ fontSize: `${fontSize * 0.6}px` }}
+                                >
+                                  ﴿{toArabicIndic(ayah.numberInSurah)}﴾
+                                </span>
+                                {' '}
                               </span>
-                              {' '}
-                            </span>
-                          ))}
+                            );
+                          })}
                         </p>
                       </div>
                       
@@ -1547,66 +1672,86 @@ export function IslamEnhancedPanel() {
                   /* Cards View (existing) */
                   <ScrollArea className="flex-1">
                     <div className="p-4 space-y-4">
-                      {currentPageAyahs.map((ayah) => (
-                        <Card
-                          key={ayah.numberInSurah}
-                          className={cn(
-                            "p-4 transition-all",
-                            currentPlayingAyah === ayah.numberInSurah && "ring-2 ring-primary bg-primary/5"
-                          )}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex flex-col items-center gap-1">
-                              <Badge variant="outline" className="w-8 h-8 rounded-full p-0 flex items-center justify-center">
-                                {ayah.numberInSurah}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => currentPlayingAyah === ayah.numberInSurah ? stopAudio() : playAyahAudio(ayah)}
-                              >
-                                {currentPlayingAyah === ayah.numberInSurah ? (
-                                  <Pause className="w-4 h-4" />
-                                ) : (
-                                  <Play className="w-4 h-4" />
-                                )}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className={cn(
-                                  "h-8 w-8",
-                                  selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) && "text-amber-500"
-                                )}
-                                onClick={() => handleBookmarkToggle(ayah)}
-                              >
-                                {selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) ? (
-                                  <BookmarkCheck className="w-4 h-4" />
-                                ) : (
-                                  <Bookmark className="w-4 h-4" />
-                                )}
-                              </Button>
-                            </div>
-                            {tajweedEnabled ? (
-                              <p
-                                className="flex-1 font-arabic text-right leading-loose tajweed-text"
-                                style={{ fontSize: `${fontSize}px` }}
-                                dir="rtl"
-                                dangerouslySetInnerHTML={{ __html: ayah.text }}
-                              />
-                            ) : (
-                              <p
-                                className="flex-1 font-arabic text-right leading-loose"
-                                style={{ fontSize: `${fontSize}px` }}
-                                dir="rtl"
-                              >
-                                {ayah.text}
-                              </p>
+                      {currentPageAyahs.map((ayah) => {
+                        const ayahIsRead = selectedSurah && isAyahRead(selectedSurah.number, ayah.numberInSurah);
+                        return (
+                          <Card
+                            key={ayah.numberInSurah}
+                            className={cn(
+                              "p-4 transition-all",
+                              currentPlayingAyah === ayah.numberInSurah && "ring-2 ring-primary bg-primary/5",
+                              ayahIsRead && "border-emerald-500/30 bg-emerald-500/5"
                             )}
-                          </div>
-                        </Card>
-                      ))}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex flex-col items-center gap-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn(
+                                    "w-8 h-8 rounded-full p-0 flex items-center justify-center",
+                                    ayahIsRead && "border-emerald-500 text-emerald-600"
+                                  )}
+                                >
+                                  {ayahIsRead ? <CheckCircle2 className="w-4 h-4" /> : ayah.numberInSurah}
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    if (currentPlayingAyah === ayah.numberInSurah) {
+                                      stopAudio();
+                                    } else {
+                                      playAyahAudio(ayah);
+                                      // Mark as read when played
+                                      if (selectedSurah) {
+                                        markAyahAsRead(selectedSurah.number, ayah.numberInSurah);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  {currentPlayingAyah === ayah.numberInSurah ? (
+                                    <Pause className="w-4 h-4" />
+                                  ) : (
+                                    <Play className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    "h-8 w-8",
+                                    selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) && "text-amber-500"
+                                  )}
+                                  onClick={() => handleBookmarkToggle(ayah)}
+                                >
+                                  {selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) ? (
+                                    <BookmarkCheck className="w-4 h-4" />
+                                  ) : (
+                                    <Bookmark className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </div>
+                              {tajweedEnabled ? (
+                                <p
+                                  className="flex-1 text-right leading-loose tajweed-text"
+                                  style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }}
+                                  dir="rtl"
+                                  dangerouslySetInnerHTML={{ __html: ayah.text }}
+                                />
+                              ) : (
+                                <p
+                                  className="flex-1 text-right leading-loose"
+                                  style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }}
+                                  dir="rtl"
+                                >
+                                  {ayah.text}
+                                </p>
+                              )}
+                            </div>
+                          </Card>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 )}
