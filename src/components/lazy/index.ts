@@ -25,6 +25,7 @@ export const LazyDashboard = lazyWithRetry(() => import('@/pages/Dashboard'));
 export const LazyContactsPage = lazyWithRetry(() => import('@/pages/ContactsPage'));
 export const LazyContractsPage = lazyWithRetry(() => import('@/pages/Contracts'));
 export const LazyNotFound = lazyWithRetry(() => import('@/pages/NotFound'));
+export const LazyOnboarding = lazyWithRetry(() => import('@/pages/Onboarding'));
 
 // ============================================
 // FEATURE CHUNKS - Lazy loaded by feature area

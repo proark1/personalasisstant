@@ -19,6 +19,7 @@ import {
   LazyContactsPage,
   LazyContractsPage,
   LazyNotFound,
+  LazyOnboarding,
   PageFallback,
 } from "@/components/lazy";
 
@@ -119,6 +120,14 @@ function AppContent() {
           <Route
             path="/reset-password"
             element={<LazyResetPassword />}
+          />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <LazyOnboarding />
+              </ProtectedRoute>
+            }
           />
           <Route path="*" element={<LazyNotFound />} />
         </Routes>

@@ -35,17 +35,21 @@ import {
   Sparkles,
   TrendingUp,
   Shield,
-  Loader2
+  Loader2,
+  Keyboard,
+  Fingerprint
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SpaceMembersPanel } from './SpaceMembersPanel';
 import { NotificationSettingsPanel } from './NotificationSettingsPanel';
 import { ProactiveSettingsPanel } from './ProactiveSettingsPanel';
+import { KeyboardShortcutsPanel, useKeyboardShortcutsPanel } from './KeyboardShortcutsPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useStatusBar } from '@/hooks/useStatusBar';
 import { useToast } from '@/hooks/use-toast';
+import { useBiometricAuth } from '@/hooks/useBiometricAuth';
 
 interface SettingsPanelContentProps {
   settings: UserSettings;
@@ -323,6 +327,8 @@ export function SettingsPanelContent({
   const { language, setLanguage, t } = useLanguage();
   const { profile, isLoading: profileLoading, updateProfile } = useUserProfile();
   const { toast } = useToast();
+  const biometricAuth = useBiometricAuth();
+  const keyboardShortcuts = useKeyboardShortcutsPanel();
   const [activeTab, setActiveTab] = useState<'general' | 'proactive' | 'team' | 'ai' | 'info'>('general');
   
   // Sync status bar color with theme
@@ -589,7 +595,49 @@ export function SettingsPanelContent({
                   step={5}
                   className="w-full"
                 />
+            </div>
+
+            {/* Security Section */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Security
+              </h3>
+              
+              {/* Biometric Auth */}
+              {biometricAuth.isAvailable && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Fingerprint className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{biometricAuth.getBiometryLabel()}</p>
+                      <p className="text-xs text-muted-foreground">Require biometric to unlock app</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={biometricAuth.isEnabled}
+                    onCheckedChange={biometricAuth.setEnabled}
+                  />
+                </div>
+              )}
+
+              {/* Keyboard Shortcuts */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Keyboard className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Keyboard Shortcuts</p>
+                    <p className="text-xs text-muted-foreground">Press ? to see all shortcuts</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => keyboardShortcuts.setOpen(true)}>
+                  View
+                </Button>
               </div>
+            </div>
             </div>
 
             {/* Defaults Section */}
@@ -729,6 +777,12 @@ export function SettingsPanelContent({
         )}
         </div>
       </ScrollArea>
+      
+      {/* Keyboard Shortcuts Dialog */}
+      <KeyboardShortcutsPanel 
+        open={keyboardShortcuts.open} 
+        onOpenChange={keyboardShortcuts.setOpen} 
+      />
     </div>
   );
 }

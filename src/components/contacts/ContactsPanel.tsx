@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useContacts, Contact, ContactType, PersonalTier, BusinessLevel, FamilyRelationship, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
+import { PullToRefresh } from '@/components/shared/PullToRefresh';
+import { ContactCardSkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -359,10 +361,25 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     );
   };
 
+  const handleRefresh = useCallback(async () => {
+    // Refetch contacts - the hook handles this internally
+    window.location.reload();
+  }, []);
+
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-pulse text-primary">Loading...</div>
+      <div className="h-full flex flex-col p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-bold">Contacts</h1>
+            <p className="text-sm text-muted-foreground">Manage your network</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <ContactCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -540,19 +557,21 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
           </TabsTrigger>
         </TabsList>
 
-        <ScrollArea className="flex-1">
-          <div className="space-y-2 pr-4">
-            {displayContacts.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No contacts found
-              </div>
-            ) : (
-              displayContacts.map(contact => (
-                <ContactCard key={contact.id} contact={contact} />
-              ))
-            )}
-          </div>
-        </ScrollArea>
+        <PullToRefresh onRefresh={handleRefresh} className="flex-1">
+          <ScrollArea className="h-full">
+            <div className="space-y-2 pr-4">
+              {displayContacts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No contacts found
+                </div>
+              ) : (
+                displayContacts.map(contact => (
+                  <ContactCard key={contact.id} contact={contact} />
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </PullToRefresh>
       </Tabs>
 
       {/* Delete Confirmation */}

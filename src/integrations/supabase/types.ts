@@ -2634,6 +2634,8 @@ export type Database = {
           last_session_at: string | null
           location_city: string | null
           location_country: string | null
+          onboarding_completed: boolean | null
+          onboarding_preferences: Json | null
           preferred_work_hours: string | null
           public_key: string | null
           role: string | null
@@ -2656,6 +2658,8 @@ export type Database = {
           last_session_at?: string | null
           location_city?: string | null
           location_country?: string | null
+          onboarding_completed?: boolean | null
+          onboarding_preferences?: Json | null
           preferred_work_hours?: string | null
           public_key?: string | null
           role?: string | null
@@ -2678,6 +2682,8 @@ export type Database = {
           last_session_at?: string | null
           location_city?: string | null
           location_country?: string | null
+          onboarding_completed?: boolean | null
+          onboarding_preferences?: Json | null
           preferred_work_hours?: string | null
           public_key?: string | null
           role?: string | null
