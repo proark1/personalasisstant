@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { CalendarEvent, Task, Project } from '@/types/flux';
 import { TodayFocusPanel } from '../focus/TodayFocusPanel';
 import { TaskList } from '../tasks/TaskList';
 import { MonthCalendarView } from './MonthCalendarView';
+import { PullToRefresh } from '../shared/PullToRefresh';
 import { SidebarFilter } from '../layout/Sidebar';
 import { Zap, CheckSquare, Calendar } from 'lucide-react';
 import { QuickAddButton } from '../tasks/QuickAddButton';
-
 interface CalendarHubPanelProps {
   userId: string;
+  onRefresh?: () => Promise<void>;
   tasks: Task[];
   events: CalendarEvent[];
   filter: SidebarFilter;
@@ -51,6 +52,7 @@ export function CalendarHubPanel({
   onImportEvents,
   onShareTask,
   onShareEvent,
+  onRefresh,
 }: CalendarHubPanelProps) {
   const [activeView, setActiveView] = useState<HubView>('focus');
 
@@ -86,40 +88,45 @@ export function CalendarHubPanel({
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className={cn("h-full", activeView === 'focus' ? 'block' : 'hidden')}>
-          <TodayFocusPanel
-            tasks={tasks}
-            events={events}
-            onToggleComplete={onToggleTaskComplete}
-          />
+      {/* Content with Pull-to-Refresh */}
+      <PullToRefresh 
+        onRefresh={onRefresh || (async () => {})} 
+        className="flex-1 overflow-hidden"
+      >
+        <div className="h-full">
+          <div className={cn("h-full", activeView === 'focus' ? 'block' : 'hidden')}>
+            <TodayFocusPanel
+              tasks={tasks}
+              events={events}
+              onToggleComplete={onToggleTaskComplete}
+            />
+          </div>
+          <div className={cn("h-full", activeView === 'tasks' ? 'block' : 'hidden')}>
+            <TaskList
+              tasks={tasks}
+              filter={filter}
+              onFilterChange={onFilterChange}
+              onToggleComplete={onToggleTaskComplete}
+              onDeleteTask={onDeleteTask}
+              onDeleteTasks={onDeleteTasks}
+              onAddTask={onAddTask}
+              onUpdateTask={onUpdateTask}
+              onReorderTasks={onReorderTasks}
+              onShareTask={onShareTask}
+              compactMode={true}
+            />
+          </div>
+          <div className={cn("h-full", activeView === 'calendar' ? 'block' : 'hidden')}>
+            <MonthCalendarView
+              events={events}
+              tasks={tasks}
+              onToggleTaskComplete={onToggleTaskComplete}
+              onUpdateTask={onUpdateTask}
+              onAddTask={onAddTask}
+            />
+          </div>
         </div>
-        <div className={cn("h-full", activeView === 'tasks' ? 'block' : 'hidden')}>
-          <TaskList
-            tasks={tasks}
-            filter={filter}
-            onFilterChange={onFilterChange}
-            onToggleComplete={onToggleTaskComplete}
-            onDeleteTask={onDeleteTask}
-            onDeleteTasks={onDeleteTasks}
-            onAddTask={onAddTask}
-            onUpdateTask={onUpdateTask}
-            onReorderTasks={onReorderTasks}
-            onShareTask={onShareTask}
-            compactMode={true}
-          />
-        </div>
-        <div className={cn("h-full", activeView === 'calendar' ? 'block' : 'hidden')}>
-          <MonthCalendarView
-            events={events}
-            tasks={tasks}
-            onToggleTaskComplete={onToggleTaskComplete}
-            onUpdateTask={onUpdateTask}
-            onAddTask={onAddTask}
-          />
-        </div>
-      </div>
+      </PullToRefresh>
     </div>
   );
 }

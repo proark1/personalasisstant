@@ -13,7 +13,10 @@ import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
 import { getRecurrenceDescription } from '@/lib/recurrence';
 import { EditTaskModal } from './EditTaskModal';
 import { TaskTagBadges } from './TaskTagBadges';
+import { SwipeableTaskItem } from './SwipeableTaskItem';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useHaptics } from '@/hooks/useHaptics';
+import { useCelebration } from '@/hooks/useCelebration';
 import { 
   DndContext, 
   closestCenter, 
@@ -442,6 +445,8 @@ export function TaskList({
 }: TaskListProps) {
   const { t, language } = useLanguage();
   const dateLocale = language === 'de' ? de : enUS;
+  const { vibrate } = useHaptics();
+  const { celebrate } = useCelebration();
   const [isAdding, setIsAdding] = useState(false);
   const [addingSubtaskFor, setAddingSubtaskFor] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -788,20 +793,41 @@ export function TaskList({
             <div className="space-y-1">
               {incompleteTasks.map(task => (
                 <div key={task.id}>
-                <SortableTaskItem
-                    task={task}
-                    subtasks={subtasksByParent[task.id] || []}
-                    isSelectMode={isSelectMode}
-                    selectedTasks={selectedTasks}
-                    toggleSelectTask={toggleSelectTask}
-                    onToggleComplete={onToggleComplete}
-                    onDeleteTask={onDeleteTask}
-                    onShareTask={onShareTask}
-                    onUpdateTask={onUpdateTask}
-                    onEditTask={setEditingTask}
-                    onAddSubtask={handleAddSubtask}
-                    compactMode={compactMode}
-                  />
+                  <SwipeableTaskItem
+                    onComplete={() => {
+                      vibrate('success');
+                      celebrate({ type: task.priority === 'high' ? 'highPriorityComplete' : 'taskComplete' });
+                      onToggleComplete(task.id);
+                    }}
+                    onDelete={() => {
+                      vibrate('warning');
+                      onDeleteTask(task.id);
+                    }}
+                    isCompleted={task.completed}
+                    disabled={isSelectMode}
+                  >
+                    <SortableTaskItem
+                      task={task}
+                      subtasks={subtasksByParent[task.id] || []}
+                      isSelectMode={isSelectMode}
+                      selectedTasks={selectedTasks}
+                      toggleSelectTask={toggleSelectTask}
+                      onToggleComplete={(id) => {
+                        vibrate('success');
+                        const t = tasks.find(t => t.id === id);
+                        if (t && !t.completed) {
+                          celebrate({ type: t.priority === 'high' ? 'highPriorityComplete' : 'taskComplete' });
+                        }
+                        onToggleComplete(id);
+                      }}
+                      onDeleteTask={onDeleteTask}
+                      onShareTask={onShareTask}
+                      onUpdateTask={onUpdateTask}
+                      onEditTask={setEditingTask}
+                      onAddSubtask={handleAddSubtask}
+                      compactMode={compactMode}
+                    />
+                  </SwipeableTaskItem>
                   {addingSubtaskFor === task.id && <AddTaskForm parentId={task.id} />}
                 </div>
               ))}
