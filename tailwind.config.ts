@@ -16,6 +16,11 @@ export default {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
+        arabic: ['var(--quran-font)', 'Amiri', 'serif'],
+        'arabic-amiri': ['Amiri', 'serif'],
+        'arabic-naskh': ['"Noto Naskh Arabic"', 'serif'],
+        'arabic-scheherazade': ['"Scheherazade New"', 'serif'],
+        'arabic-lateef': ['Lateef', 'serif'],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -129,8 +129,9 @@ export function MobileLayout({
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
-  // Bottom nav: Calendar, Cooking, Dori (center), Health, Islam, Social
+  // Bottom nav: Notes, Calendar, Cooking, Dori (center), Health, Islam, Social
   const bottomTabs = [
+    { id: 'notes' as Tab, icon: StickyNote },
     { id: 'calendar' as Tab, icon: Calendar },
     { id: 'family' as Tab, icon: Utensils }, // Changed to Cooking icon
     { id: 'dori' as const, icon: Sparkles, isCenter: true },
