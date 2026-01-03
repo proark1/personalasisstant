@@ -164,6 +164,20 @@ export function Sidebar({
             <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">{t('nav.main')}</span>
           )}
           
+          {/* Dashboard */}
+          <Button
+            variant={activePanel === 'dashboard' ? 'secondary' : 'ghost'}
+            className={cn(
+              "w-full h-9 gap-3",
+              collapsed ? "justify-center px-0" : "justify-start",
+              activePanel === 'dashboard' && "bg-sidebar-accent text-sidebar-primary font-medium"
+            )}
+            onClick={() => handlePanelClick('dashboard')}
+          >
+            <LayoutDashboard className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">{t('nav.dashboard')}</span>}
+          </Button>
+
           {/* AI Assistant */}
           <Button
             variant={activePanel === 'assistant' ? 'secondary' : 'ghost'}
@@ -218,20 +232,6 @@ export function Sidebar({
           >
             <Calendar className="w-4 h-4 shrink-0" />
             {!collapsed && <span className="text-sm">{t('nav.calendar')}</span>}
-          </Button>
-
-          {/* Dashboard */}
-          <Button
-            variant={activePanel === 'dashboard' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'dashboard' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('dashboard')}
-          >
-            <LayoutDashboard className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.dashboard')}</span>}
           </Button>
 
           {/* Cooking */}

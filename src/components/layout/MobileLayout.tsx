@@ -185,6 +185,19 @@ export function MobileLayout({
                   {/* Main section label */}
                   <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">{t('nav.main')}</span>
                   
+                  {/* Dashboard */}
+                  <Button
+                    variant={activeTab === 'dashboard' ? 'secondary' : 'ghost'}
+                    className="w-full justify-start gap-3"
+                    onClick={() => {
+                      setActiveTab('dashboard');
+                      setSidebarOpen(false);
+                    }}
+                  >
+                    <LayoutDashboard className="w-5 h-5 shrink-0" />
+                    <span>{t('nav.dashboard')}</span>
+                  </Button>
+
                   {/* Dori AI Assistant */}
                   <Button
                     variant={activeTab === 'chat' ? 'secondary' : 'ghost'}
@@ -222,19 +235,6 @@ export function MobileLayout({
                   >
                     <MessageCircle className="w-5 h-5 shrink-0" />
                     <span>{t('nav.social')}</span>
-                  </Button>
-
-                  {/* Dashboard */}
-                  <Button
-                    variant={activeTab === 'dashboard' ? 'secondary' : 'ghost'}
-                    className="w-full justify-start gap-3"
-                    onClick={() => {
-                      setActiveTab('dashboard');
-                      setSidebarOpen(false);
-                    }}
-                  >
-                    <LayoutDashboard className="w-5 h-5 shrink-0" />
-                    <span>{t('nav.dashboard')}</span>
                   </Button>
 
                   {/* Cooking */}
