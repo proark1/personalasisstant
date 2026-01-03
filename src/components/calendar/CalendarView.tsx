@@ -4,6 +4,12 @@ import { Button } from '@/components/ui/button';
 import { CalendarEvent, Task } from '@/types/flux';
 import { expandRecurringItems } from '@/lib/recurrenceExpander';
 import { EditTaskModal } from '@/components/tasks/EditTaskModal';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { usePublicHolidays, PublicHoliday } from '@/hooks/usePublicHolidays';
 import { useIslamicHolidays, IslamicHoliday } from '@/hooks/useIslamicHolidays';
 import { 
@@ -85,6 +91,7 @@ export function CalendarView({
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTaskDate, setNewTaskDate] = useState<Date | null>(null);
+  const [selectedIslamicHoliday, setSelectedIslamicHoliday] = useState<IslamicHoliday | null>(null);
   
   // Fetch public holidays
   const { holidays } = usePublicHolidays();
@@ -231,7 +238,11 @@ export function CalendarView({
   };
 
   const handleItemClick = (item: CalendarItem) => {
-    if (item.type === 'holiday' || item.type === 'islamic') return; // Holidays are not clickable
+    if (item.type === 'holiday') return; // Public holidays are not clickable
+    if (item.type === 'islamic' && item.islamicHoliday) {
+      setSelectedIslamicHoliday(item.islamicHoliday);
+      return;
+    }
     if (item.type === 'task' && item.originalTask) {
       setEditingTask(item.originalTask);
     } else if (onItemClick) {
@@ -311,7 +322,7 @@ export function CalendarView({
           {dayItems.slice(0, viewMode === 'week' ? 10 : 3).map((item) => (
             <button
               key={`${item.type}-${item.id}-${item.date.getTime()}`}
-              onClick={() => (item.type !== 'holiday' && item.type !== 'islamic') && handleItemClick(item)}
+              onClick={() => item.type !== 'holiday' && handleItemClick(item)}
               className={cn(
                 "w-full text-left text-[10px] px-1 py-0.5 rounded truncate border transition-colors flex items-center gap-1",
                 item.type === 'event' 
@@ -319,7 +330,7 @@ export function CalendarView({
                   : item.type === 'holiday'
                   ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 cursor-default"
                   : item.type === 'islamic'
-                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 cursor-default"
+                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/30 cursor-pointer"
                   : priorityColors[item.priority || 'medium'],
                 item.completed && "opacity-50 line-through",
                 item.isRecurrenceInstance && "border-dashed",
@@ -471,6 +482,86 @@ export function CalendarView({
           }}
         />
       )}
+
+      {/* Islamic Holiday Details Dialog */}
+      <Dialog open={!!selectedIslamicHoliday} onOpenChange={(open) => !open && setSelectedIslamicHoliday(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Moon className="w-5 h-5 text-amber-500" />
+              Islamic Event
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedIslamicHoliday && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1">
+                <p className="text-lg font-semibold">{selectedIslamicHoliday.name}</p>
+                <p className="text-sm text-amber-600 dark:text-amber-400 font-arabic">
+                  {selectedIslamicHoliday.local_name}
+                </p>
+              </div>
+
+              <div className="grid gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                  <span>{format(parseISO(selectedIslamicHoliday.date), 'EEEE, MMMM d, yyyy')}</span>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm">{selectedIslamicHoliday.description}</p>
+              </div>
+
+              {/* Actions */}
+              {selectedIslamicHoliday.actions && selectedIslamicHoliday.actions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Recommended Actions:</p>
+                  <ul className="space-y-1">
+                    {selectedIslamicHoliday.actions.map((action, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm">
+                        <span className="text-amber-500 mt-0.5">•</span>
+                        <span>{action}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Special Prayer */}
+              {selectedIslamicHoliday.specialPrayer && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">Special Prayer:</p>
+                  <p className="text-sm">{selectedIslamicHoliday.specialPrayer}</p>
+                </div>
+              )}
+
+              {/* Dua */}
+              {selectedIslamicHoliday.dua && (
+                <div className="space-y-2 p-3 bg-primary/5 border border-primary/10 rounded-lg">
+                  <p className="text-sm font-medium">Recommended Dua:</p>
+                  <p className="text-lg font-arabic text-right leading-relaxed text-amber-600 dark:text-amber-400">
+                    {selectedIslamicHoliday.dua.arabic}
+                  </p>
+                  <p className="text-sm italic text-muted-foreground">
+                    {selectedIslamicHoliday.dua.transliteration}
+                  </p>
+                  <p className="text-sm">
+                    {selectedIslamicHoliday.dua.translation}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <Button variant="outline" onClick={() => setSelectedIslamicHoliday(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
