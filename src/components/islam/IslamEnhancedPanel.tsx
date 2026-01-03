@@ -712,6 +712,55 @@ export function IslamEnhancedPanel() {
       console.error('Failed to fetch surahs:', error);
     }
   };
+  // Parse tajweed markup to HTML with colors
+  const parseTajweedMarkup = (text: string): string => {
+    // The API uses a custom markup format like [m[text], [h:num[text], [n[text], etc.
+    // Each letter represents a tajweed rule:
+    // g = Ghunnah (gray), q = Qalqalah (red), m = Madd (orange)
+    // n = Ikhfa (blue), i = Idgham (green), h = Hamza/other, f = Ikhfa, etc.
+    
+    const tajweedColors: Record<string, string> = {
+      'g': '#AAAAAA', // Ghunnah - gray
+      'q': '#DD0000', // Qalqalah - red  
+      'i': '#169200', // Idgham - green
+      'f': '#169200', // Ikhfa related to Idgham - green
+      'n': '#26BFFC', // Ikhfa/Noon rules - blue
+      'm': '#FF7E1E', // Madd - orange
+      'o': '#FF7E1E', // Madd obligatory - orange
+      'u': '#FF7E1E', // Madd permissible - orange
+      'a': '#9400A8', // Qalb - purple
+      's': '#169200', // Idgham shafawi - green
+      'l': '#AAAAAA', // Lam rules - gray
+      'h': '#AAAAAA', // Hamza wasl - gray
+      'c': '#AAAAAA', // Other rules - gray
+      'w': '#AAAAAA', // Waqf rules - gray
+      'p': '#26BFFC', // Ikhfa - blue
+    };
+    
+    // Replace all tajweed markup patterns with colored spans
+    let result = text;
+    
+    // Pattern: [letter:number[content] or [letter[content]
+    // The closing is just ] or sometimes the text continues
+    
+    // First, handle patterns like [letter:number[content]
+    result = result.replace(/\[([a-z]):?\d*\[([^\]]*)\]/gi, (match, rule, content) => {
+      const color = tajweedColors[rule.toLowerCase()] || '#AAAAAA';
+      return `<span style="color:${color}">${content}</span>`;
+    });
+    
+    // Handle remaining simple patterns [letter[content]
+    result = result.replace(/\[([a-z])\[([^\]]*)\]/gi, (match, rule, content) => {
+      const color = tajweedColors[rule.toLowerCase()] || '#AAAAAA';
+      return `<span style="color:${color}">${content}</span>`;
+    });
+    
+    // Clean up any remaining brackets that weren't matched
+    result = result.replace(/\[[a-z]:?\d*\[/gi, '');
+    result = result.replace(/\]/g, '');
+    
+    return result;
+  };
 
   const fetchSurah = async (surahNumber: number, useTajweed: boolean = tajweedEnabled) => {
     setQuranLoading(true);
@@ -721,6 +770,13 @@ export function IslamEnhancedPanel() {
       const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/${edition}`);
       const data = await response.json();
       if (data.code === 200) {
+        // If tajweed enabled, parse the markup into colored HTML
+        if (useTajweed && data.data.ayahs) {
+          data.data.ayahs = data.data.ayahs.map((ayah: Ayah) => ({
+            ...ayah,
+            text: parseTajweedMarkup(ayah.text)
+          }));
+        }
         setSelectedSurah(data.data);
         setCurrentAyahIndex(0);
         setShowSurahList(false);
