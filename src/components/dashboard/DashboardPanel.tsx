@@ -178,15 +178,15 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4">
+    <div className="h-full overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4">
       {/* Daily Check-in Prompt */}
       <CheckinPrompt />
 
       {/* Header with XP and What Now */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold">{t('dashboard.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
+          <h1 className="text-lg md:text-xl font-bold">{t('dashboard.title')}</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <XPDisplay variant="compact" />
@@ -195,64 +195,64 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4">
         <Card className="glass-panel-solid">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">{t('dashboard.thisWeek')}</CardTitle>
-            <CheckCircle2 className="w-4 h-4 text-primary" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:pb-2">
+            <CardTitle className="text-[10px] md:text-xs font-medium">{t('dashboard.thisWeek')}</CardTitle>
+            <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 text-primary" />
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">{stats.completedThisWeek}</div>
-            <p className="text-xs text-muted-foreground">{t('dashboard.tasksCompleted')}</p>
+          <CardContent className="p-3 pt-0">
+            <div className="text-xl md:text-2xl font-bold">{stats.completedThisWeek}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">{t('dashboard.tasksCompleted')}</p>
           </CardContent>
         </Card>
 
         <Card className="glass-panel-solid">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">{t('dashboard.thisMonth')}</CardTitle>
-            <TrendingUp className="w-4 h-4 text-primary" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:pb-2">
+            <CardTitle className="text-[10px] md:text-xs font-medium">{t('dashboard.thisMonth')}</CardTitle>
+            <TrendingUp className="w-3 h-3 md:w-4 md:h-4 text-primary" />
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">{stats.completedThisMonth}</div>
-            <p className="text-xs text-muted-foreground">{t('dashboard.tasksCompleted')}</p>
+          <CardContent className="p-3 pt-0">
+            <div className="text-xl md:text-2xl font-bold">{stats.completedThisMonth}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">{t('dashboard.tasksCompleted')}</p>
           </CardContent>
         </Card>
 
         <Card className="glass-panel-solid">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">{t('dashboard.streak')}</CardTitle>
-            <Flame className="w-4 h-4 text-warning" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:pb-2">
+            <CardTitle className="text-[10px] md:text-xs font-medium">{t('dashboard.streak')}</CardTitle>
+            <Flame className="w-3 h-3 md:w-4 md:h-4 text-warning" />
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">{stats.streak}</div>
-            <p className="text-xs text-muted-foreground">{t('dashboard.consecutiveDays')}</p>
+          <CardContent className="p-3 pt-0">
+            <div className="text-xl md:text-2xl font-bold">{stats.streak}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">{t('dashboard.consecutiveDays')}</p>
           </CardContent>
         </Card>
 
         <Card className="glass-panel-solid">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">{t('dashboard.peakHours')}</CardTitle>
-            <Zap className="w-4 h-4 text-warning" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:pb-2">
+            <CardTitle className="text-[10px] md:text-xs font-medium">{t('dashboard.peakHours')}</CardTitle>
+            <Zap className="w-3 h-3 md:w-4 md:h-4 text-warning" />
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-lg font-bold">{stats.peakHourLabel}</div>
-            <p className="text-xs text-muted-foreground">{t('dashboard.mostProductive')}</p>
+          <CardContent className="p-3 pt-0">
+            <div className="text-sm md:text-lg font-bold">{stats.peakHourLabel}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">{t('dashboard.mostProductive')}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">
         <Card className="glass-panel-solid">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Target className="w-4 h-4 text-primary" />
+          <CardHeader className="p-3 pb-2">
+            <CardTitle className="flex items-center gap-2 text-xs md:text-sm">
+              <Target className="w-3 h-3 md:w-4 md:h-4 text-primary" />
               {t('dashboard.categoryBreakdown')}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="w-28 h-28">
+          <CardContent className="p-3 pt-0">
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="w-20 h-20 md:w-28 md:h-28 shrink-0">
                 {categoryData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -260,8 +260,8 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
                         data={categoryData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={30}
-                        outerRadius={50}
+                        innerRadius={20}
+                        outerRadius={35}
                         paddingAngle={5}
                         dataKey="value"
                       >
@@ -277,20 +277,20 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
                   </div>
                 )}
               </div>
-              <div className="space-y-2 flex-1">
+              <div className="space-y-1.5 md:space-y-2 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary" />
-                  <span className="text-xs">{t('dashboard.business')}: {stats.businessTasks}</span>
+                  <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                  <span className="text-[10px] md:text-xs truncate">{t('dashboard.business')}: {stats.businessTasks}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-accent" />
-                  <span className="text-xs">{t('dashboard.personal')}: {stats.personalTasks}</span>
+                  <div className="w-2 h-2 rounded-full bg-accent shrink-0" />
+                  <span className="text-[10px] md:text-xs truncate">{t('dashboard.personal')}: {stats.personalTasks}</span>
                 </div>
-                <div className="pt-2 border-t">
-                  <p className="text-xs text-muted-foreground">{t('dashboard.completionRate')}</p>
+                <div className="pt-1.5 md:pt-2 border-t">
+                  <p className="text-[10px] md:text-xs text-muted-foreground">{t('dashboard.completionRate')}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Progress value={completionRate} className="h-1.5 flex-1" />
-                    <span className="text-xs font-medium">{completionRate}%</span>
+                    <Progress value={completionRate} className="h-1 md:h-1.5 flex-1" />
+                    <span className="text-[10px] md:text-xs font-medium">{completionRate}%</span>
                   </div>
                 </div>
               </div>
@@ -299,24 +299,24 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
         </Card>
 
         <Card className="glass-panel-solid">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Clock className="w-4 h-4 text-primary" />
+          <CardHeader className="p-3 pb-2">
+            <CardTitle className="flex items-center gap-2 text-xs md:text-sm">
+              <Clock className="w-3 h-3 md:w-4 md:h-4 text-primary" />
               {t('dashboard.productivityByHour')}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-28">
+          <CardContent className="p-3 pt-0">
+            <div className="h-24 md:h-28">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.hourlyData.filter((_, i) => i >= 6 && i <= 22)}>
-                  <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={2} />
-                  <YAxis tick={{ fontSize: 9 }} />
+                  <XAxis dataKey="hour" tick={{ fontSize: 8 }} interval={3} />
+                  <YAxis tick={{ fontSize: 8 }} width={20} />
                   <Tooltip 
                     contentStyle={{ 
                       background: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
-                      fontSize: '12px',
+                      fontSize: '11px',
                     }}
                   />
                   <Bar dataKey="tasks" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
