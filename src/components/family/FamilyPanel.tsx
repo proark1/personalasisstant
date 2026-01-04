@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, ListTodo, ShoppingCart, Utensils, Heart, FolderOpen, Wallet } from 'lucide-react';
+import { Users, ListTodo, ShoppingCart, Utensils, Heart, FolderOpen, Wallet, Sparkles, BookOpen, Baby } from 'lucide-react';
 import { HouseholdTasksList } from './HouseholdTasksList';
 import { ShoppingListsPanel } from './ShoppingListsPanel';
 import { MealPlanningPanel } from './MealPlanningPanel';
 import { HealthTrackingPanel } from './HealthTrackingPanel';
 import { DocumentStoragePanel } from './DocumentStoragePanel';
 import { BudgetTrackingPanel } from './BudgetTrackingPanel';
+import { FamilyActivityFinder } from './FamilyActivityFinder';
+import { HomeworkHelper } from './HomeworkHelper';
+import { ParentingCoach } from './ParentingCoach';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export function FamilyPanel() {
@@ -46,6 +49,15 @@ export function FamilyPanel() {
             <TabsTrigger value="docs" className="p-2">
               <FolderOpen className="h-5 w-5" />
             </TabsTrigger>
+            <TabsTrigger value="activities" className="p-2" title="AI Activity Finder">
+              <Sparkles className="h-5 w-5" />
+            </TabsTrigger>
+            <TabsTrigger value="homework" className="p-2" title="Homework Helper">
+              <BookOpen className="h-5 w-5" />
+            </TabsTrigger>
+            <TabsTrigger value="parenting" className="p-2" title="Parenting Coach">
+              <Baby className="h-5 w-5" />
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -71,6 +83,15 @@ export function FamilyPanel() {
             </TabsContent>
             <TabsContent value="docs" className="mt-0">
               <DocumentStoragePanel />
+            </TabsContent>
+            <TabsContent value="activities" className="mt-0">
+              <FamilyActivityFinder />
+            </TabsContent>
+            <TabsContent value="homework" className="mt-0">
+              <HomeworkHelper />
+            </TabsContent>
+            <TabsContent value="parenting" className="mt-0">
+              <ParentingCoach />
             </TabsContent>
           </div>
         </div>
