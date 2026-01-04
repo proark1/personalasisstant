@@ -16,14 +16,21 @@ interface NoteData {
   tags?: string[];
 }
 
+interface ShoppingItemData {
+  name: string;
+  quantity?: number;
+  category?: string;
+}
+
 interface ToolCall {
-  tool: 'manage_task' | 'schedule_event' | 'suggest_contacts' | 'create_meeting_plan' | 'create_note';
+  tool: 'manage_task' | 'schedule_event' | 'suggest_contacts' | 'create_meeting_plan' | 'create_note' | 'add_shopping_item';
   action?: 'add' | 'update' | 'delete' | 'complete';
   task?: Partial<Task>;
   event?: Partial<CalendarEvent>;
   criteria?: { location?: string; type?: string; keywords?: string[] };
   plan?: { city?: string; contacts?: string[]; dates?: string[] };
   note?: NoteData;
+  shoppingItem?: ShoppingItemData;
 }
 
 interface RelevantContact {
@@ -50,6 +57,39 @@ interface HealthData {
   appointments?: { title: string; date: string; provider?: string; type?: string; isCompleted: boolean }[];
   vaccinations?: { name: string; date: string; nextDose?: string }[];
   metrics?: { type: string; value: number; unit: string; date: string; source: string }[];
+}
+
+interface FamilyMemberContext {
+  id: string;
+  name: string;
+  relationship: string;
+  age: number | null;
+  school: string | null;
+  grade: string | null;
+  teacherName: string | null;
+  teacherContact: string | null;
+  kindergarten: string | null;
+  kindergartenTeacher: string | null;
+  activities: { name: string; schedule: string; location?: string }[];
+  allergies: string[];
+  medicalNotes: string | null;
+  livesWithUser: boolean;
+}
+
+interface FamilyEvent {
+  title: string;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+  relatedMember: string | null;
+}
+
+interface FamilyContextData {
+  members: FamilyMemberContext[];
+  todayEvents: FamilyEvent[];
+  tomorrowEvents: FamilyEvent[];
+  upcomingBirthdays: { member: string; date: string; age: number }[];
+  shoppingLists: { name: string; itemCount: number }[];
 }
 
 export function useAIChat() {
@@ -164,6 +204,21 @@ export function useAIChat() {
       }
     }
 
+    // Parse add_shopping_item tool calls
+    const shoppingMatches = content.matchAll(
+      /<tool>add_shopping_item<\/tool>\s*<item>(\{[\s\S]*?\})<\/item>/g
+    );
+    for (const match of shoppingMatches) {
+      try {
+        const itemData = JSON.parse(match[1]);
+        console.log('[useAIChat] Parsed shopping item data:', itemData);
+        toolCalls.push({ tool: 'add_shopping_item', shoppingItem: itemData });
+        cleanContent = cleanContent.replace(match[0], '');
+      } catch (e) {
+        console.error('Failed to parse shopping item tool call:', e);
+      }
+    }
+
     console.log('[useAIChat] Parse complete. Total tool calls found:', toolCalls.length, toolCalls.map(tc => tc.tool));
     return { cleanContent: cleanContent.trim(), toolCalls };
   };
@@ -184,6 +239,8 @@ export function useAIChat() {
     relevantContracts,
     contextSummary,
     healthData,
+    // Family context
+    familyContext,
   }: {
     messages: Message[];
     tasks?: Task[];
@@ -200,6 +257,8 @@ export function useAIChat() {
     relevantContracts?: RelevantContract[];
     contextSummary?: string;
     healthData?: HealthData;
+    // Family context
+    familyContext?: FamilyContextData;
   }) => {
     setIsStreaming(true);
     setError(null);
@@ -274,6 +333,10 @@ export function useAIChat() {
 
       if (healthData) {
         payload.healthData = healthData;
+      }
+
+      if (familyContext && familyContext.members.length > 0) {
+        payload.familyContext = familyContext;
       }
 
       const resp = await fetch(CHAT_URL, {

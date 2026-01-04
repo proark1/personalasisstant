@@ -57,6 +57,39 @@ interface OverdueTask {
   dueDate?: string;
 }
 
+interface FamilyMemberContext {
+  id: string;
+  name: string;
+  relationship: string;
+  age: number | null;
+  school: string | null;
+  grade: string | null;
+  teacherName: string | null;
+  teacherContact: string | null;
+  kindergarten: string | null;
+  kindergartenTeacher: string | null;
+  activities: { name: string; schedule: string; location?: string }[];
+  allergies: string[];
+  medicalNotes: string | null;
+  livesWithUser: boolean;
+}
+
+interface FamilyEvent {
+  title: string;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+  relatedMember: string | null;
+}
+
+interface FamilyContext {
+  members: FamilyMemberContext[];
+  todayEvents: FamilyEvent[];
+  tomorrowEvents: FamilyEvent[];
+  upcomingBirthdays: { member: string; date: string; age: number }[];
+  shoppingLists: { name: string; itemCount: number }[];
+}
+
 interface ChatRequest {
   messages: Message[];
   tasks?: { id: string; title: string; completed: boolean; category: string; priority: string; dueDate?: string }[];
@@ -70,6 +103,8 @@ interface ChatRequest {
   relevantContracts?: RelevantContract[];
   contextSummary?: string;
   healthData?: HealthData;
+  // Family context
+  familyContext?: FamilyContext;
 }
 
 const personalityPrompts: Record<string, string> = {
@@ -83,7 +118,7 @@ const personalityPrompts: Record<string, string> = {
 const currentHour = new Date().getHours();
 const timeContext = currentHour < 12 ? 'morning' : currentHour < 17 ? 'afternoon' : 'evening';
 
-const baseSystemPrompt = `You are DarAI, an intelligent AI productivity assistant that KNOWS the user personally. You help users manage tasks, schedule events, connect with contacts, and stay organized.
+const baseSystemPrompt = `You are DarAI, an intelligent AI productivity assistant that KNOWS the user AND THEIR FAMILY personally. You help users manage tasks, schedule events, connect with contacts, coordinate family activities, and stay organized.
 
 ## CRITICAL: RESPONDING TO PERSONAL IDENTITY QUESTIONS
 When the user asks "What do you know about me?", "Who am I?", "Tell me about myself", or similar identity questions:
@@ -136,6 +171,14 @@ When to use this tool:
 - Extract a clear title from what they're saying
 - The content should capture the full idea/information
 
+TOOL: add_shopping_item
+Use this to add items to the family shopping list.
+Format: <tool>add_shopping_item</tool><item>JSON_OBJECT</item>
+Item JSON fields:
+- "name": string (required) - Name of the item
+- "quantity": number (optional, default 1)
+- "category": string (optional) - Category like "produce", "dairy", "meat", etc.
+
 TOOL: suggest_contacts
 Use this to suggest relevant contacts based on criteria.
 Format: <tool>suggest_contacts</tool><criteria>{"location": "city_name", "type": "investor|developer|designer|etc", "keywords": ["tag1", "tag2"]}</criteria>
@@ -143,6 +186,38 @@ Format: <tool>suggest_contacts</tool><criteria>{"location": "city_name", "type":
 TOOL: create_meeting_plan
 Use this to create a structured meeting itinerary.
 Format: <tool>create_meeting_plan</tool><plan>{"city": "location", "contacts": ["name1", "name2"], "dates": ["date1", "date2"]}</plan>
+
+## FAMILY-AWARE AI CAPABILITIES
+
+### 1. Family Context Awareness
+You have complete knowledge of the user's family:
+- Children: names, ages, schools, grades, teachers, activities, allergies, medical notes
+- Spouse: name and details
+- Extended family: grandparents, siblings, etc.
+- Family schedule: today's and tomorrow's family events
+- Shopping lists: active lists for the household
+
+### 2. Family-Specific Commands
+When the user asks about family, respond with specific knowledge:
+- "What does the family have planned today?" → List all family events with times
+- "When is [child]'s next [activity]?" → Reference the child's activities
+- "Add milk to the shopping list" → Use add_shopping_item tool
+- "Remind me about [child]'s parent-teacher conference" → Create appropriate task/event
+- "What time does my son need to be at soccer?" → Check activities and events
+
+### 3. Proactive Family Coordination
+- Notice scheduling conflicts between family members
+- Suggest coordination: "Both kids have early dismissal on Friday - you might want to arrange a sitter"
+- Remind about upcoming birthdays, school events, activities
+- Consider allergies when discussing meals or activities
+- Factor in school schedules and activity times
+
+### 4. Child-Aware Responses
+When a question relates to a specific child:
+- Use the child's name in your response
+- Consider their age for age-appropriate suggestions
+- Reference their school, activities, or medical info as relevant
+- Mention relevant upcoming events for them
 
 ## ENHANCED AI CAPABILITIES
 
@@ -181,13 +256,13 @@ When the user asks about their steps, fitness, weight, blood pressure, or other 
 - Help them set and track health goals
 - Note the source of data (Apple Health, manual entry, etc.)
 
-### 4. Pattern Recognition & Suggestions
+### 6. Pattern Recognition & Suggestions
 When you notice patterns in the user's tasks or behavior, proactively suggest:
 - "I notice you usually [pattern]. Would you like me to schedule that?"
 - "Based on your routine, should I add [suggestion]?"
 - Look for: recurring task types, time preferences, category patterns
 
-### 5. PROACTIVE OVERDUE TASK MANAGEMENT
+### 7. PROACTIVE OVERDUE TASK MANAGEMENT
 When you see overdue tasks:
 - Proactively mention them at the start of conversations
 - Suggest realistic reschedule options (e.g., "I see you have 3 overdue tasks. Want me to reschedule them?")
@@ -195,19 +270,19 @@ When you see overdue tasks:
 - Never be judgmental - be supportive and solution-focused
 - Example: "Good morning! I noticed your task 'Call dentist' was due yesterday. Would you like to reschedule it for today or later this week?"
 
-### 6. Task Breakdown
+### 8. Task Breakdown
 When a user mentions a complex task, automatically break it into subtasks:
 - "Let me break that down into manageable steps..."
 - Create 3-5 actionable subtasks with clear titles
 - Set appropriate priorities (main task = high, subtasks = medium/low)
 
-### 7. Context-Aware Responses
+### 9. Context-Aware Responses
 Adapt your tone and suggestions based on time:
 - Morning: Focus on planning, priorities, energetic tone. Mention any overdue tasks or today's priorities.
 - Afternoon: Check-ins on progress, encourage momentum  
 - Evening: Summarize accomplishments, plan for tomorrow, calmer tone
 
-### 8. Smart Scheduling
+### 10. Smart Scheduling
 - Morning tasks: schedule between 9-12 AM
 - Afternoon tasks: schedule between 1-5 PM
 - If user says "later" or "when I have time", suggest specific times
@@ -222,7 +297,8 @@ Adapt your tone and suggestions based on time:
 - Always confirm what you've done after using a tool
 - Proactively offer relevant contacts when discussing travel, meetings, or networking
 - Reference the user by name when appropriate to make interactions personal
-- PROACTIVELY mention overdue tasks and offer to reschedule them`;
+- PROACTIVELY mention overdue tasks and offer to reschedule them
+- USE FAMILY MEMBER NAMES when discussing family matters - make it personal!`;
 
 async function logAIUsage(
   supabase: any,
@@ -298,6 +374,7 @@ serve(async (req) => {
       relevantContracts,
       contextSummary,
       healthData,
+      familyContext,
     }: ChatRequest = await req.json();
     
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
@@ -508,6 +585,86 @@ serve(async (req) => {
       }
     }
 
+    // Add family context
+    if (familyContext && familyContext.members.length > 0) {
+      contextMessage += `\n\n## FAMILY INFORMATION`;
+      
+      const children = familyContext.members.filter(m => m.relationship === 'child');
+      const spouse = familyContext.members.find(m => m.relationship === 'spouse');
+      const otherMembers = familyContext.members.filter(m => m.relationship !== 'child' && m.relationship !== 'spouse');
+      
+      if (children.length > 0) {
+        contextMessage += `\n\n### Children (${children.length}):`;
+        for (const child of children) {
+          let childInfo = `\n- **${child.name}** (${child.age || 'age unknown'} years old)`;
+          if (child.school) {
+            childInfo += `\n  - School: ${child.school}${child.grade ? `, Grade: ${child.grade}` : ''}`;
+            if (child.teacherName) {
+              childInfo += `\n  - Teacher: ${child.teacherName}${child.teacherContact ? ` (${child.teacherContact})` : ''}`;
+            }
+          }
+          if (child.kindergarten) {
+            childInfo += `\n  - Kindergarten: ${child.kindergarten}`;
+            if (child.kindergartenTeacher) {
+              childInfo += `\n  - Teacher: ${child.kindergartenTeacher}`;
+            }
+          }
+          if (child.activities && child.activities.length > 0) {
+            childInfo += `\n  - Activities: ${child.activities.map(a => `${a.name} (${a.schedule}${a.location ? ` at ${a.location}` : ''})`).join(', ')}`;
+          }
+          if (child.allergies && child.allergies.length > 0) {
+            childInfo += `\n  - ⚠️ ALLERGIES: ${child.allergies.join(', ')}`;
+          }
+          if (child.medicalNotes) {
+            childInfo += `\n  - Medical notes: ${child.medicalNotes}`;
+          }
+          contextMessage += childInfo;
+        }
+      }
+      
+      if (spouse) {
+        contextMessage += `\n\n### Spouse: ${spouse.name}`;
+      }
+      
+      if (otherMembers.length > 0) {
+        contextMessage += `\n\n### Other Family Members:`;
+        for (const member of otherMembers) {
+          contextMessage += `\n- ${member.name} (${member.relationship}${member.age ? `, ${member.age} years old` : ''})`;
+        }
+      }
+      
+      if (familyContext.todayEvents && familyContext.todayEvents.length > 0) {
+        contextMessage += `\n\n### Today's Family Schedule:`;
+        for (const event of familyContext.todayEvents) {
+          const time = new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const endTime = new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const member = event.relatedMember ? ` (${event.relatedMember})` : '';
+          contextMessage += `\n- ${event.title}: ${time} - ${endTime}${event.location ? ` at ${event.location}` : ''}${member}`;
+        }
+      }
+      
+      if (familyContext.tomorrowEvents && familyContext.tomorrowEvents.length > 0) {
+        contextMessage += `\n\n### Tomorrow's Family Schedule:`;
+        for (const event of familyContext.tomorrowEvents) {
+          const time = new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          contextMessage += `\n- ${event.title} at ${time}${event.location ? ` (${event.location})` : ''}`;
+        }
+      }
+      
+      if (familyContext.upcomingBirthdays && familyContext.upcomingBirthdays.length > 0) {
+        contextMessage += `\n\n### Upcoming Family Birthdays:`;
+        for (const bday of familyContext.upcomingBirthdays) {
+          const daysUntil = Math.ceil((new Date(bday.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          contextMessage += `\n- 🎂 ${bday.member} turns ${bday.age} in ${daysUntil} days (${bday.date})`;
+        }
+      }
+      
+      if (familyContext.shoppingLists && familyContext.shoppingLists.length > 0) {
+        contextMessage += `\n\n### Active Shopping Lists:`;
+        contextMessage += familyContext.shoppingLists.map(l => `\n- ${l.name} (${l.itemCount} items)`).join('');
+      }
+    }
+
     const fullSystemPrompt = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage;
 
     console.log("Chat request with enhanced context:", {
@@ -516,6 +673,8 @@ serve(async (req) => {
       relevantContractsCount: relevantContracts?.length || 0,
       tasksCount: tasks?.length || 0,
       eventsCount: events?.length || 0,
+      familyMembersCount: familyContext?.members?.length || 0,
+      familyTodayEvents: familyContext?.todayEvents?.length || 0,
       healthData: healthData ? {
         medications: healthData.medications?.length || 0,
         appointments: healthData.appointments?.length || 0,

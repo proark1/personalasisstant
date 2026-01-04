@@ -59,3 +59,9 @@ verify_jwt = false
 
 [functions.generate-cancellation-email]
 verify_jwt = false
+
+[functions.family-assistant]
+verify_jwt = false
+
+[functions.health-insights]
+verify_jwt = false
