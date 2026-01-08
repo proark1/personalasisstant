@@ -54,7 +54,7 @@ export function AddMealPlanDialog({
   const handleSubmit = async () => {
     if (!recipeId && !customMealName.trim()) return;
 
-    const result = await addMealPlan({
+    console.log('Adding meal plan:', {
       recipe_id: recipeId || null,
       meal_date: format(selectedDate, 'yyyy-MM-dd'),
       meal_type: mealType,
@@ -63,9 +63,25 @@ export function AddMealPlanDialog({
       servings: parseInt(servings) || 4,
     });
 
-    if (result) {
-      onSuccess?.();
+    try {
+      const result = await addMealPlan({
+        recipe_id: recipeId || null,
+        meal_date: format(selectedDate, 'yyyy-MM-dd'),
+        meal_type: mealType,
+        custom_meal_name: customMealName.trim() || null,
+        notes: notes.trim() || null,
+        servings: parseInt(servings) || 4,
+      });
+
+      console.log('Add meal result:', result);
+
+      if (result) {
+        onSuccess?.();
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
     }
+    
     resetForm();
     onOpenChange(false);
   };
