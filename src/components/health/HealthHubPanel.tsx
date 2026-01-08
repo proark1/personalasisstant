@@ -35,6 +35,13 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarIcon,
+  Wind,
+  Gauge,
+  ArrowUpDown,
+  Mountain,
+  Brain,
+  Ruler,
+  Percent,
 } from 'lucide-react';
 import { format, parseISO, subDays, addDays, isSameDay, startOfDay } from 'date-fns';
 
@@ -88,6 +95,18 @@ export function HealthHubPanel() {
       heartRateAvg: getLatest('heart_rate') || 0,
       weight: getLatest('weight'),
       waterIntake: sumMetric('water_intake'),
+      // Enhanced metrics
+      restingHeartRate: getLatest('resting_heart_rate'),
+      hrv: getLatest('hrv'),
+      respiratoryRate: getLatest('respiratory_rate'),
+      bloodOxygen: getLatest('blood_oxygen'),
+      bloodPressureSystolic: getLatest('blood_pressure_systolic'),
+      bloodPressureDiastolic: getLatest('blood_pressure_diastolic'),
+      distance: sumMetric('distance'),
+      flightsClimbed: sumMetric('flights_climbed'),
+      bodyFat: getLatest('body_fat'),
+      mindfulnessMinutes: sumMetric('mindfulness_minutes'),
+      height: getLatest('height'),
     };
   }, [healthMetrics, selectedDate]);
 
@@ -331,7 +350,7 @@ export function HealthHubPanel() {
                 </Card>
               </div>
 
-              {/* Quick Stats */}
+              {/* Quick Stats - Basic */}
               <div className="grid grid-cols-3 gap-2">
                 <Card>
                   <CardContent className="p-3 text-center">
@@ -361,6 +380,104 @@ export function HealthHubPanel() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Enhanced Metrics from Apple Watch */}
+              {(selectedDateSummary.restingHeartRate || selectedDateSummary.hrv || 
+                selectedDateSummary.bloodOxygen || selectedDateSummary.distance ||
+                selectedDateSummary.flightsClimbed || selectedDateSummary.respiratoryRate) && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Apple className="w-4 h-4" />
+                      Apple Watch Metrics
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-3">
+                      {selectedDateSummary.restingHeartRate && (
+                        <div className="text-center p-2 rounded-lg bg-muted/50">
+                          <Heart className="w-4 h-4 mx-auto text-pink-500 mb-1" />
+                          <p className="text-sm font-semibold">{selectedDateSummary.restingHeartRate}</p>
+                          <p className="text-xs text-muted-foreground">Resting HR</p>
+                        </div>
+                      )}
+                      {selectedDateSummary.hrv && (
+                        <div className="text-center p-2 rounded-lg bg-muted/50">
+                          <Gauge className="w-4 h-4 mx-auto text-purple-500 mb-1" />
+                          <p className="text-sm font-semibold">{selectedDateSummary.hrv}</p>
+                          <p className="text-xs text-muted-foreground">HRV (ms)</p>
+                        </div>
+                      )}
+                      {selectedDateSummary.bloodOxygen && (
+                        <div className="text-center p-2 rounded-lg bg-muted/50">
+                          <Wind className="w-4 h-4 mx-auto text-blue-500 mb-1" />
+                          <p className="text-sm font-semibold">{selectedDateSummary.bloodOxygen}%</p>
+                          <p className="text-xs text-muted-foreground">SpO2</p>
+                        </div>
+                      )}
+                      {selectedDateSummary.respiratoryRate && (
+                        <div className="text-center p-2 rounded-lg bg-muted/50">
+                          <Wind className="w-4 h-4 mx-auto text-teal-500 mb-1" />
+                          <p className="text-sm font-semibold">{selectedDateSummary.respiratoryRate}</p>
+                          <p className="text-xs text-muted-foreground">Breaths/min</p>
+                        </div>
+                      )}
+                      {selectedDateSummary.distance && selectedDateSummary.distance > 0 && (
+                        <div className="text-center p-2 rounded-lg bg-muted/50">
+                          <ArrowUpDown className="w-4 h-4 mx-auto text-green-500 mb-1" />
+                          <p className="text-sm font-semibold">{selectedDateSummary.distance.toFixed(1)}</p>
+                          <p className="text-xs text-muted-foreground">km</p>
+                        </div>
+                      )}
+                      {selectedDateSummary.flightsClimbed && selectedDateSummary.flightsClimbed > 0 && (
+                        <div className="text-center p-2 rounded-lg bg-muted/50">
+                          <Mountain className="w-4 h-4 mx-auto text-amber-500 mb-1" />
+                          <p className="text-sm font-semibold">{selectedDateSummary.flightsClimbed}</p>
+                          <p className="text-xs text-muted-foreground">Floors</p>
+                        </div>
+                      )}
+                      {selectedDateSummary.mindfulnessMinutes && selectedDateSummary.mindfulnessMinutes > 0 && (
+                        <div className="text-center p-2 rounded-lg bg-muted/50">
+                          <Brain className="w-4 h-4 mx-auto text-indigo-500 mb-1" />
+                          <p className="text-sm font-semibold">{selectedDateSummary.mindfulnessMinutes}</p>
+                          <p className="text-xs text-muted-foreground">Mindful min</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Blood Pressure if available */}
+                    {selectedDateSummary.bloodPressureSystolic && selectedDateSummary.bloodPressureDiastolic && (
+                      <div className="mt-3 p-3 rounded-lg bg-muted/50 text-center">
+                        <p className="text-sm text-muted-foreground mb-1">Blood Pressure</p>
+                        <p className="text-xl font-semibold">
+                          {selectedDateSummary.bloodPressureSystolic}/{selectedDateSummary.bloodPressureDiastolic}
+                        </p>
+                        <p className="text-xs text-muted-foreground">mmHg</p>
+                      </div>
+                    )}
+
+                    {/* Body Composition */}
+                    {(selectedDateSummary.bodyFat || selectedDateSummary.height) && (
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        {selectedDateSummary.height && (
+                          <div className="text-center p-2 rounded-lg bg-muted/50">
+                            <Ruler className="w-4 h-4 mx-auto text-gray-500 mb-1" />
+                            <p className="text-sm font-semibold">{selectedDateSummary.height} cm</p>
+                            <p className="text-xs text-muted-foreground">Height</p>
+                          </div>
+                        )}
+                        {selectedDateSummary.bodyFat && (
+                          <div className="text-center p-2 rounded-lg bg-muted/50">
+                            <Percent className="w-4 h-4 mx-auto text-orange-500 mb-1" />
+                            <p className="text-sm font-semibold">{selectedDateSummary.bodyFat}%</p>
+                            <p className="text-xs text-muted-foreground">Body Fat</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Alerts */}
               {(refillNeeded.length > 0 || upcomingAppointments.length > 0) && (
@@ -398,16 +515,26 @@ export function HealthHubPanel() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {healthMetrics.slice(0, 8).map(metric => (
+                    {healthMetrics.slice(0, 10).map(metric => (
                       <div key={metric.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           {metric.metric_type === 'steps' && <Footprints className="w-3 h-3 text-primary" />}
                           {metric.metric_type === 'calories' && <Flame className="w-3 h-3 text-orange-500" />}
                           {metric.metric_type === 'heart_rate' && <Heart className="w-3 h-3 text-red-500" />}
+                          {metric.metric_type === 'resting_heart_rate' && <Heart className="w-3 h-3 text-pink-500" />}
+                          {metric.metric_type === 'hrv' && <Gauge className="w-3 h-3 text-purple-500" />}
                           {metric.metric_type === 'sleep_hours' && <Moon className="w-3 h-3 text-purple-500" />}
                           {metric.metric_type === 'weight' && <Scale className="w-3 h-3 text-blue-500" />}
                           {metric.metric_type === 'water_intake' && <Droplets className="w-3 h-3 text-blue-400" />}
-                          <span className="capitalize">{metric.metric_type.replace('_', ' ')}</span>
+                          {metric.metric_type === 'blood_oxygen' && <Wind className="w-3 h-3 text-blue-500" />}
+                          {metric.metric_type === 'respiratory_rate' && <Wind className="w-3 h-3 text-teal-500" />}
+                          {metric.metric_type === 'distance' && <ArrowUpDown className="w-3 h-3 text-green-500" />}
+                          {metric.metric_type === 'flights_climbed' && <Mountain className="w-3 h-3 text-amber-500" />}
+                          {metric.metric_type === 'mindfulness_minutes' && <Brain className="w-3 h-3 text-indigo-500" />}
+                          {metric.metric_type === 'body_fat' && <Percent className="w-3 h-3 text-orange-500" />}
+                          {metric.metric_type === 'height' && <Ruler className="w-3 h-3 text-gray-500" />}
+                          {metric.metric_type.includes('blood_pressure') && <Activity className="w-3 h-3 text-red-400" />}
+                          <span className="capitalize">{metric.metric_type.replace(/_/g, ' ')}</span>
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <span className="font-medium text-foreground">
@@ -458,16 +585,38 @@ export function HealthHubPanel() {
                   </div>
                   <div className="grid grid-cols-3 gap-4 text-center text-sm">
                     <div>
-                      <p className="font-medium">60</p>
+                      <p className="font-medium">{todaySummary?.restingHeartRate || '--'}</p>
                       <p className="text-xs text-muted-foreground">Resting</p>
                     </div>
                     <div>
-                      <p className="font-medium">85</p>
+                      <p className="font-medium">{todaySummary?.heartRateAvg || '--'}</p>
                       <p className="text-xs text-muted-foreground">Average</p>
                     </div>
                     <div>
-                      <p className="font-medium">145</p>
-                      <p className="text-xs text-muted-foreground">Peak</p>
+                      <p className="font-medium">{todaySummary?.hrv || '--'}</p>
+                      <p className="text-xs text-muted-foreground">HRV (ms)</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Blood Oxygen & Respiratory */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wind className="w-4 h-4 text-blue-500" />
+                    Oxygen & Breathing
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center py-4">
+                      <p className="text-3xl font-bold">{todaySummary?.bloodOxygen?.toFixed(1) || '--'}</p>
+                      <p className="text-muted-foreground text-sm">SpO2 %</p>
+                    </div>
+                    <div className="text-center py-4">
+                      <p className="text-3xl font-bold">{todaySummary?.respiratoryRate?.toFixed(1) || '--'}</p>
+                      <p className="text-muted-foreground text-sm">Breaths/min</p>
                     </div>
                   </div>
                 </CardContent>
@@ -477,17 +626,27 @@ export function HealthHubPanel() {
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <Scale className="w-4 h-4 text-blue-500" />
-                    Weight
+                    Body Composition
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-4xl font-bold">{todaySummary?.weight?.toFixed(1) || '--'}</p>
-                    <p className="text-muted-foreground">kg</p>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="py-2">
+                      <p className="text-2xl font-bold">{todaySummary?.weight?.toFixed(1) || '--'}</p>
+                      <p className="text-xs text-muted-foreground">Weight (kg)</p>
+                    </div>
+                    <div className="py-2">
+                      <p className="text-2xl font-bold">{todaySummary?.height || '--'}</p>
+                      <p className="text-xs text-muted-foreground">Height (cm)</p>
+                    </div>
+                    <div className="py-2">
+                      <p className="text-2xl font-bold">{todaySummary?.bodyFat?.toFixed(1) || '--'}</p>
+                      <p className="text-xs text-muted-foreground">Body Fat %</p>
+                    </div>
                   </div>
                   <Button 
                     variant="outline" 
-                    className="w-full"
+                    className="w-full mt-4"
                     onClick={() => setShowAddMetricDialog(true)}
                   >
                     <Plus className="w-4 h-4 mr-2" />

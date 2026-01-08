@@ -22,6 +22,7 @@ interface HealthInsightsRequest {
     waterIntake: number;
     activeMinutes: number;
   };
+  userAge?: number;
 }
 
 serve(async (req) => {
@@ -30,7 +31,7 @@ serve(async (req) => {
   }
 
   try {
-    const { metrics, goals } = await req.json() as HealthInsightsRequest;
+    const { metrics, goals, userAge } = await req.json() as HealthInsightsRequest;
 
     if (!metrics || metrics.length === 0) {
       return new Response(
@@ -46,23 +47,31 @@ serve(async (req) => {
     }
 
     // Aggregate metrics by type
-    const aggregated: Record<string, { total: number; count: number; latest: number }> = {};
+    const aggregated: Record<string, { total: number; count: number; latest: number; min: number; max: number }> = {};
     
     for (const metric of metrics) {
       if (!aggregated[metric.metric_type]) {
-        aggregated[metric.metric_type] = { total: 0, count: 0, latest: metric.value };
+        aggregated[metric.metric_type] = { 
+          total: 0, 
+          count: 0, 
+          latest: metric.value,
+          min: metric.value,
+          max: metric.value
+        };
       }
       aggregated[metric.metric_type].total += metric.value;
       aggregated[metric.metric_type].count += 1;
       aggregated[metric.metric_type].latest = metric.value;
+      aggregated[metric.metric_type].min = Math.min(aggregated[metric.metric_type].min, metric.value);
+      aggregated[metric.metric_type].max = Math.max(aggregated[metric.metric_type].max, metric.value);
     }
 
-    const prompt = `You are a health insights AI assistant. Based on the following health data from the last 24 hours, provide 2-4 personalized insights that include recommendations, warnings, or positive feedback.
+    const prompt = `You are a health insights AI assistant with expertise in analyzing Apple Watch and health data. Based on the following health data from the last 24 hours, provide 3-5 personalized insights that include recommendations, warnings, or positive feedback.
 
 Health Data (last 24 hours):
 ${Object.entries(aggregated).map(([type, data]) => {
   const avg = data.total / data.count;
-  return `- ${type.replace('_', ' ')}: total=${data.total.toFixed(1)}, average=${avg.toFixed(1)}, latest=${data.latest}`;
+  return `- ${type.replace(/_/g, ' ')}: total=${data.total.toFixed(1)}, average=${avg.toFixed(1)}, latest=${data.latest}, min=${data.min}, max=${data.max}`;
 }).join('\n')}
 
 Health Goals:
@@ -71,17 +80,28 @@ Health Goals:
 - Sleep goal: ${goals.sleepHours} hours
 - Water intake goal: ${goals.waterIntake} glasses
 - Active minutes goal: ${goals.activeMinutes} minutes
+${userAge ? `\nUser age: ${userAge} years old` : ''}
+
+ENHANCED METRICS CONTEXT:
+- HRV (Heart Rate Variability): Higher is better. Low HRV (<20ms) indicates stress/poor recovery. Optimal range: 50-100ms.
+- Resting Heart Rate: Lower is typically better for cardiovascular fitness. Athletes: 40-60 bpm. Average adult: 60-80 bpm.
+- Blood Oxygen (SpO2): Normal range 95-100%. Below 92% is concerning.
+- Respiratory Rate: Normal adult range 12-20 breaths/min. During sleep, 12-16 is normal.
+- Body Fat: Healthy ranges vary by gender and age. Men: 10-20%, Women: 18-28%.
 
 Respond with a JSON array of insights. Each insight should have:
 - type: "warning" (for health concerns), "recommendation" (for improvement tips), "success" (for goals met), or "info" (general health tip)
 - title: A short title (max 6 words)
-- message: A personalized message (max 50 words)
+- message: A personalized message (max 60 words)
 
 Focus on:
 1. Goal progress (are they meeting their goals?)
-2. Any concerning patterns (low activity, poor sleep, etc.)
-3. Positive reinforcement for achievements
-4. Actionable recommendations
+2. HRV and stress/recovery analysis if data available
+3. Cardiovascular health (heart rate trends, blood oxygen)
+4. Sleep quality insights
+5. Any concerning patterns (low SpO2, high resting HR, low HRV)
+6. Positive reinforcement for achievements
+7. Actionable recommendations for improvement
 
 Respond ONLY with a valid JSON array, no other text.`;
 

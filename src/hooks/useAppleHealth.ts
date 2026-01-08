@@ -25,6 +25,18 @@ export interface DailyHealthSummary {
   heartRateAvg: number;
   weight?: number;
   waterIntake: number;
+  // Enhanced metrics from Apple Watch
+  restingHeartRate?: number;
+  hrv?: number;                    // Heart Rate Variability (ms)
+  respiratoryRate?: number;        // Breaths per minute
+  bloodOxygen?: number;            // SpO2 percentage
+  bloodPressureSystolic?: number;
+  bloodPressureDiastolic?: number;
+  distance?: number;               // km
+  flightsClimbed?: number;         // Floors
+  bodyFat?: number;                // Percentage
+  mindfulnessMinutes?: number;
+  height?: number;                 // cm
 }
 
 const isNative = Capacitor.isNativePlatform();
@@ -163,6 +175,18 @@ export function useAppleHealth() {
         heartRateAvg: getLatestMetricForDay(todayMetrics, 'heart_rate') || 0,
         weight: getLatestMetricForDay(todayMetrics, 'weight'),
         waterIntake: sumMetricForDay(todayMetrics, 'water_intake'),
+        // Enhanced metrics
+        restingHeartRate: getLatestMetricForDay(todayMetrics, 'resting_heart_rate'),
+        hrv: getLatestMetricForDay(todayMetrics, 'hrv'),
+        respiratoryRate: getLatestMetricForDay(todayMetrics, 'respiratory_rate'),
+        bloodOxygen: getLatestMetricForDay(todayMetrics, 'blood_oxygen'),
+        bloodPressureSystolic: getLatestMetricForDay(todayMetrics, 'blood_pressure_systolic'),
+        bloodPressureDiastolic: getLatestMetricForDay(todayMetrics, 'blood_pressure_diastolic'),
+        distance: sumMetricForDay(todayMetrics, 'distance'),
+        flightsClimbed: sumMetricForDay(todayMetrics, 'flights_climbed'),
+        bodyFat: getLatestMetricForDay(todayMetrics, 'body_fat'),
+        mindfulnessMinutes: sumMetricForDay(todayMetrics, 'mindfulness_minutes'),
+        height: getLatestMetricForDay(todayMetrics, 'height'),
       });
       
       // Calculate weekly data
@@ -183,6 +207,18 @@ export function useAppleHealth() {
           heartRateAvg: getLatestMetricForDay(dayMetrics, 'heart_rate') || 0,
           weight: getLatestMetricForDay(dayMetrics, 'weight'),
           waterIntake: sumMetricForDay(dayMetrics, 'water_intake'),
+          // Enhanced metrics
+          restingHeartRate: getLatestMetricForDay(dayMetrics, 'resting_heart_rate'),
+          hrv: getLatestMetricForDay(dayMetrics, 'hrv'),
+          respiratoryRate: getLatestMetricForDay(dayMetrics, 'respiratory_rate'),
+          bloodOxygen: getLatestMetricForDay(dayMetrics, 'blood_oxygen'),
+          bloodPressureSystolic: getLatestMetricForDay(dayMetrics, 'blood_pressure_systolic'),
+          bloodPressureDiastolic: getLatestMetricForDay(dayMetrics, 'blood_pressure_diastolic'),
+          distance: sumMetricForDay(dayMetrics, 'distance'),
+          flightsClimbed: sumMetricForDay(dayMetrics, 'flights_climbed'),
+          bodyFat: getLatestMetricForDay(dayMetrics, 'body_fat'),
+          mindfulnessMinutes: sumMetricForDay(dayMetrics, 'mindfulness_minutes'),
+          height: getLatestMetricForDay(dayMetrics, 'height'),
         });
       }
       
@@ -217,15 +253,35 @@ export function useAppleHealth() {
         return false;
       }
 
-      // Request authorization for health data types
+      // Request authorization for all available health data types
       await Health.requestHealthPermissions({
         permissions: [
+          // Basic metrics (existing)
           'READ_STEPS',
           'READ_HEART_RATE', 
           'READ_ACTIVE_CALORIES',
           'READ_BASAL_CALORIES',
           'READ_WEIGHT',
-          'READ_SLEEP'
+          'READ_SLEEP',
+          // Enhanced vitals
+          'READ_RESTING_HEART_RATE',
+          'READ_HRV',
+          'READ_RESPIRATORY_RATE',
+          'READ_OXYGEN_SATURATION',
+          'READ_BLOOD_PRESSURE',
+          'READ_BLOOD_GLUCOSE',
+          'READ_BODY_TEMPERATURE',
+          // Body composition
+          'READ_HEIGHT',
+          'READ_BODY_FAT',
+          // Activity
+          'READ_DISTANCE',
+          'READ_FLOORS_CLIMBED',
+          'READ_TOTAL_CALORIES',
+          // Mindfulness
+          'READ_MINDFULNESS',
+          // Workouts
+          'READ_WORKOUTS',
         ]
       });
 
@@ -450,6 +506,313 @@ export function useAppleHealth() {
       }
     } catch (e) {
       console.log('Weight data not available:', e);
+    }
+
+    // ============ ENHANCED HEALTH DATA TYPES ============
+
+    // Fetch resting heart rate (aggregated by day)
+    try {
+      const restingHRData = await Health.queryAggregated({
+        dataType: 'resting-heart-rate',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (restingHRData?.aggregatedData) {
+        for (const bucket of restingHRData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'resting_heart_rate',
+              value: Math.round(bucket.value),
+              unit: 'bpm',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('resting_hr_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch HRV (Heart Rate Variability)
+    try {
+      const hrvData = await Health.queryAggregated({
+        dataType: 'hrv',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (hrvData?.aggregatedData) {
+        for (const bucket of hrvData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'hrv',
+              value: Math.round(bucket.value),
+              unit: 'ms',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('hrv_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch Blood Oxygen (SpO2)
+    try {
+      const oxygenData = await Health.queryAggregated({
+        dataType: 'oxygen-saturation',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (oxygenData?.aggregatedData) {
+        for (const bucket of oxygenData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            // Value is typically 0-1 (percentage as decimal), convert to percentage
+            const percentage = bucket.value > 1 ? bucket.value : bucket.value * 100;
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'blood_oxygen',
+              value: Math.round(percentage * 10) / 10,
+              unit: '%',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('blood_oxygen_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch Respiratory Rate
+    try {
+      const respiratoryData = await Health.queryAggregated({
+        dataType: 'respiratory-rate',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (respiratoryData?.aggregatedData) {
+        for (const bucket of respiratoryData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'respiratory_rate',
+              value: Math.round(bucket.value * 10) / 10,
+              unit: 'br/min',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('respiratory_rate_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch Distance (walking/running)
+    try {
+      const distanceData = await Health.queryAggregated({
+        dataType: 'distance',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (distanceData?.aggregatedData) {
+        for (const bucket of distanceData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            // Value is typically in meters, convert to km
+            const km = bucket.value > 1000 ? bucket.value / 1000 : bucket.value;
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'distance',
+              value: Math.round(km * 100) / 100,
+              unit: 'km',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('distance_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch Flights Climbed (floors/stairs)
+    try {
+      const flightsData = await Health.queryAggregated({
+        dataType: 'floors-climbed',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (flightsData?.aggregatedData) {
+        for (const bucket of flightsData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'flights_climbed',
+              value: Math.round(bucket.value),
+              unit: 'floors',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('flights_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch Body Fat Percentage
+    try {
+      const bodyFatData = await Health.queryAggregated({
+        dataType: 'body-fat',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (bodyFatData?.aggregatedData) {
+        for (const bucket of bodyFatData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            // Value is typically 0-1 (percentage as decimal)
+            const percentage = bucket.value > 1 ? bucket.value : bucket.value * 100;
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'body_fat',
+              value: Math.round(percentage * 10) / 10,
+              unit: '%',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('body_fat_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch Height
+    try {
+      const heightData = await Health.queryHeight();
+      if (heightData?.value && heightData.value > 0) {
+        const date = heightData.timestamp 
+          ? new Date(heightData.timestamp).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0];
+        metricsToInsert.push({
+          user_id: user.id,
+          metric_type: 'height',
+          value: Math.round(heightData.value * 100) / 100,
+          unit: heightData.unit || 'cm',
+          recorded_at: `${date}T12:00:00.000Z`,
+          source: 'apple_health',
+        });
+      }
+    } catch (e) {
+      console.log('Height data not available:', e);
+    }
+
+    // Fetch Mindfulness Minutes
+    try {
+      const mindfulnessData = await Health.queryAggregated({
+        dataType: 'mindfulness',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (mindfulnessData?.aggregatedData) {
+        for (const bucket of mindfulnessData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'mindfulness_minutes',
+              value: Math.round(bucket.value),
+              unit: 'min',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('mindfulness_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch Blood Pressure (if available)
+    try {
+      const bpData = await Health.queryAggregated({
+        dataType: 'blood-pressure-systolic',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (bpData?.aggregatedData) {
+        for (const bucket of bpData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'blood_pressure_systolic',
+              value: Math.round(bucket.value),
+              unit: 'mmHg',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('bp_systolic_error', { error: (e as any)?.message || String(e) });
+    }
+
+    try {
+      const bpDiastolicData = await Health.queryAggregated({
+        dataType: 'blood-pressure-diastolic',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      if (bpDiastolicData?.aggregatedData) {
+        for (const bucket of bpDiastolicData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'blood_pressure_diastolic',
+              value: Math.round(bucket.value),
+              unit: 'mmHg',
+              recorded_at: `${date}T12:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('bp_diastolic_error', { error: (e as any)?.message || String(e) });
     }
 
     logHealthDebug('metrics_to_insert', { 
