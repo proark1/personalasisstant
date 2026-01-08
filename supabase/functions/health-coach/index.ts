@@ -31,6 +31,220 @@ interface HealthCoachRequest {
   goals?: Record<string, number>;
 }
 
+interface SleepAnalysis {
+  avgDuration: number;
+  avgDurationLastWeek: number;
+  durationTrend: 'improving' | 'declining' | 'stable';
+  sleepDebt: number; // hours below goal accumulated
+  avgRemMinutes: number;
+  avgDeepMinutes: number;
+  avgCoreMinutes: number;
+  remPercentage: number;
+  deepPercentage: number;
+  avgAwakeMinutes: number;
+  avgEfficiency: number;
+  consistencyScore: number; // 0-100 based on bedtime/waketime variation
+  optimalBedtime: string | null;
+  insights: string[];
+  recommendations: string[];
+}
+
+function analyzeSleep(metrics: HealthMetric[], checkins: DailyCheckin[], goals: Record<string, number>): SleepAnalysis {
+  const now = new Date();
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const sleepGoal = goals.sleep || 7.5;
+
+  // Get sleep data by date
+  const sleepByDate: Record<string, {
+    hours: number;
+    remMinutes?: number;
+    deepMinutes?: number;
+    coreMinutes?: number;
+    awakeMinutes?: number;
+    inBedMinutes?: number;
+  }> = {};
+
+  metrics.forEach(m => {
+    const date = m.recorded_at.split('T')[0];
+    if (!sleepByDate[date]) sleepByDate[date] = { hours: 0 };
+    
+    switch (m.metric_type) {
+      case 'sleep_hours':
+        sleepByDate[date].hours = m.value;
+        break;
+      case 'sleep_rem_minutes':
+        sleepByDate[date].remMinutes = m.value;
+        break;
+      case 'sleep_deep_minutes':
+        sleepByDate[date].deepMinutes = m.value;
+        break;
+      case 'sleep_core_minutes':
+        sleepByDate[date].coreMinutes = m.value;
+        break;
+      case 'sleep_awake_minutes':
+        sleepByDate[date].awakeMinutes = m.value;
+        break;
+      case 'sleep_in_bed_minutes':
+        sleepByDate[date].inBedMinutes = m.value;
+        break;
+    }
+  });
+
+  // Also include checkin sleep data
+  checkins.forEach(c => {
+    if (c.sleep_hours) {
+      if (!sleepByDate[c.checkin_date]) sleepByDate[c.checkin_date] = { hours: 0 };
+      if (!sleepByDate[c.checkin_date].hours) {
+        sleepByDate[c.checkin_date].hours = c.sleep_hours;
+      }
+    }
+  });
+
+  const dates = Object.keys(sleepByDate).sort();
+  
+  // This week's data
+  const thisWeekDates = dates.filter(d => new Date(d) >= oneWeekAgo);
+  const lastWeekDates = dates.filter(d => new Date(d) >= twoWeeksAgo && new Date(d) < oneWeekAgo);
+
+  // Calculate averages
+  const thisWeekHours = thisWeekDates.map(d => sleepByDate[d].hours).filter(h => h > 0);
+  const lastWeekHours = lastWeekDates.map(d => sleepByDate[d].hours).filter(h => h > 0);
+
+  const avgDuration = thisWeekHours.length > 0 
+    ? thisWeekHours.reduce((a, b) => a + b, 0) / thisWeekHours.length 
+    : 0;
+  const avgDurationLastWeek = lastWeekHours.length > 0 
+    ? lastWeekHours.reduce((a, b) => a + b, 0) / lastWeekHours.length 
+    : avgDuration;
+
+  // Duration trend
+  let durationTrend: 'improving' | 'declining' | 'stable' = 'stable';
+  if (avgDuration > avgDurationLastWeek + 0.3) durationTrend = 'improving';
+  else if (avgDuration < avgDurationLastWeek - 0.3) durationTrend = 'declining';
+
+  // Sleep debt calculation
+  const sleepDebt = thisWeekHours.reduce((debt, hours) => {
+    return debt + Math.max(0, sleepGoal - hours);
+  }, 0);
+
+  // Sleep stages averages (from this week)
+  const thisWeekData = thisWeekDates.map(d => sleepByDate[d]);
+  const remMinutes = thisWeekData.filter(d => d.remMinutes).map(d => d.remMinutes!);
+  const deepMinutes = thisWeekData.filter(d => d.deepMinutes).map(d => d.deepMinutes!);
+  const coreMinutes = thisWeekData.filter(d => d.coreMinutes).map(d => d.coreMinutes!);
+  const awakeMinutes = thisWeekData.filter(d => d.awakeMinutes).map(d => d.awakeMinutes!);
+  const inBedMinutes = thisWeekData.filter(d => d.inBedMinutes).map(d => d.inBedMinutes!);
+
+  const avgRemMinutes = remMinutes.length > 0 ? remMinutes.reduce((a, b) => a + b, 0) / remMinutes.length : 0;
+  const avgDeepMinutes = deepMinutes.length > 0 ? deepMinutes.reduce((a, b) => a + b, 0) / deepMinutes.length : 0;
+  const avgCoreMinutes = coreMinutes.length > 0 ? coreMinutes.reduce((a, b) => a + b, 0) / coreMinutes.length : 0;
+  const avgAwakeMinutes = awakeMinutes.length > 0 ? awakeMinutes.reduce((a, b) => a + b, 0) / awakeMinutes.length : 0;
+
+  // Calculate percentages (of total sleep time)
+  const totalSleepMinutes = avgDuration * 60;
+  const remPercentage = totalSleepMinutes > 0 ? (avgRemMinutes / totalSleepMinutes) * 100 : 0;
+  const deepPercentage = totalSleepMinutes > 0 ? (avgDeepMinutes / totalSleepMinutes) * 100 : 0;
+
+  // Sleep efficiency
+  const avgInBedMinutes = inBedMinutes.length > 0 ? inBedMinutes.reduce((a, b) => a + b, 0) / inBedMinutes.length : 0;
+  const avgEfficiency = avgInBedMinutes > 0 ? (totalSleepMinutes / avgInBedMinutes) * 100 : 0;
+
+  // Consistency score (based on sleep duration variation)
+  const stdDev = thisWeekHours.length > 1 
+    ? Math.sqrt(thisWeekHours.reduce((sum, h) => sum + Math.pow(h - avgDuration, 2), 0) / thisWeekHours.length)
+    : 0;
+  const consistencyScore = Math.max(0, Math.min(100, 100 - (stdDev * 20)));
+
+  // Generate insights
+  const insights: string[] = [];
+  const recommendations: string[] = [];
+
+  // Duration insights
+  if (avgDuration < 6) {
+    insights.push(`You're averaging only ${avgDuration.toFixed(1)} hours of sleep - significantly below the recommended 7-9 hours`);
+    recommendations.push('Try going to bed 30 minutes earlier tonight');
+  } else if (avgDuration < 7) {
+    insights.push(`At ${avgDuration.toFixed(1)} hours average, you're slightly short on sleep`);
+    recommendations.push('Even 15-20 more minutes could improve your energy');
+  } else if (avgDuration >= 7.5) {
+    insights.push(`Great sleep duration at ${avgDuration.toFixed(1)} hours average!`);
+  }
+
+  // Sleep debt
+  if (sleepDebt >= 5) {
+    insights.push(`You've accumulated ${sleepDebt.toFixed(1)} hours of sleep debt this week`);
+    recommendations.push('Consider a catch-up sleep session this weekend');
+  }
+
+  // Trend insights
+  if (durationTrend === 'declining') {
+    insights.push(`Sleep duration declining from ${avgDurationLastWeek.toFixed(1)}h last week to ${avgDuration.toFixed(1)}h this week`);
+  } else if (durationTrend === 'improving') {
+    insights.push(`Sleep improving! Up from ${avgDurationLastWeek.toFixed(1)}h to ${avgDuration.toFixed(1)}h average`);
+  }
+
+  // REM insights (optimal is 20-25% of total sleep)
+  if (avgRemMinutes > 0) {
+    if (remPercentage < 15) {
+      insights.push(`Your REM sleep (${remPercentage.toFixed(0)}%) is below optimal (20-25%)`);
+      recommendations.push('Avoid alcohol and heavy meals close to bedtime to improve REM');
+    } else if (remPercentage >= 20 && remPercentage <= 25) {
+      insights.push(`Excellent REM sleep at ${remPercentage.toFixed(0)}% of your night`);
+    }
+  }
+
+  // Deep sleep insights (optimal is 15-20%)
+  if (avgDeepMinutes > 0) {
+    if (deepPercentage < 10) {
+      insights.push(`Deep sleep (${deepPercentage.toFixed(0)}%) is lower than ideal (15-20%)`);
+      recommendations.push('Regular exercise can increase deep sleep - but not too close to bedtime');
+    } else if (deepPercentage >= 15) {
+      insights.push(`Strong deep sleep at ${deepPercentage.toFixed(0)}% - great for physical recovery`);
+    }
+  }
+
+  // Efficiency insights
+  if (avgEfficiency > 0 && avgEfficiency < 85) {
+    insights.push(`Sleep efficiency at ${avgEfficiency.toFixed(0)}% could be improved`);
+    recommendations.push("If you can't fall asleep within 20 minutes, get up briefly and return when sleepy");
+  } else if (avgEfficiency >= 90) {
+    insights.push(`Excellent sleep efficiency at ${avgEfficiency.toFixed(0)}%`);
+  }
+
+  // Awake time insights
+  if (avgAwakeMinutes > 30) {
+    insights.push(`You're waking up for ${Math.round(avgAwakeMinutes)} minutes on average during the night`);
+    recommendations.push('Keep your room cool (65-68°F) and dark to reduce nighttime wakeups');
+  }
+
+  // Consistency insights
+  if (consistencyScore < 60) {
+    insights.push('Your sleep schedule is inconsistent - this can affect sleep quality');
+    recommendations.push('Try to maintain consistent bed and wake times, even on weekends');
+  } else if (consistencyScore >= 80) {
+    insights.push('Great sleep consistency - regular schedules improve sleep quality');
+  }
+
+  return {
+    avgDuration,
+    avgDurationLastWeek,
+    durationTrend,
+    sleepDebt,
+    avgRemMinutes,
+    avgDeepMinutes,
+    avgCoreMinutes,
+    remPercentage,
+    deepPercentage,
+    avgAwakeMinutes,
+    avgEfficiency,
+    consistencyScore,
+    optimalBedtime: null, // Could be calculated based on wake time patterns
+    insights,
+    recommendations
+  };
+}
+
 function calculateTrends(metrics: HealthMetric[]) {
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -70,8 +284,8 @@ function calculateTrends(metrics: HealthMetric[]) {
       const percentChange = lastWeekAvg > 0 ? ((thisWeekAvg - lastWeekAvg) / lastWeekAvg) * 100 : 0;
 
       // Determine if improving based on metric type
-      const higherIsBetter = ['steps', 'exercise_minutes', 'hrv', 'sleep_hours', 'water_glasses', 'blood_oxygen'].includes(metric);
-      const lowerIsBetter = ['resting_heart_rate', 'stress_level'].includes(metric);
+      const higherIsBetter = ['steps', 'exercise_minutes', 'hrv', 'sleep_hours', 'water_glasses', 'blood_oxygen', 'sleep_rem_minutes', 'sleep_deep_minutes'].includes(metric);
+      const lowerIsBetter = ['resting_heart_rate', 'stress_level', 'sleep_awake_minutes'].includes(metric);
 
       let trend: 'improving' | 'declining' | 'stable' = 'stable';
       if (Math.abs(percentChange) > 5) {
@@ -210,6 +424,39 @@ function findCorrelations(metrics: HealthMetric[], checkins: DailyCheckin[]) {
     }
   }
 
+  // Check deep sleep vs next-day energy
+  let goodDeepSleepEnergy: number[] = [];
+  let badDeepSleepEnergy: number[] = [];
+
+  for (let i = 0; i < dates.length - 1; i++) {
+    const today = metricsByDate[dates[i]];
+    const tomorrow = metricsByDate[dates[i + 1]];
+    const checkin = checkins.find(c => c.checkin_date === dates[i + 1]);
+    const energyMap: Record<string, number> = { low: 1, medium: 2, high: 3 };
+    const energy = checkin?.energy_level ? energyMap[checkin.energy_level] : null;
+    
+    if (today.sleep_deep_minutes && energy !== null) {
+      if (today.sleep_deep_minutes >= 60) {
+        goodDeepSleepEnergy.push(energy);
+      } else if (today.sleep_deep_minutes < 45) {
+        badDeepSleepEnergy.push(energy);
+      }
+    }
+  }
+
+  if (goodDeepSleepEnergy.length >= 3 && badDeepSleepEnergy.length >= 3) {
+    const avgGoodDeep = goodDeepSleepEnergy.reduce((a, b) => a + b, 0) / goodDeepSleepEnergy.length;
+    const avgBadDeep = badDeepSleepEnergy.reduce((a, b) => a + b, 0) / badDeepSleepEnergy.length;
+    
+    if (avgGoodDeep > avgBadDeep + 0.3) {
+      correlations.push({
+        finding: "More deep sleep leads to higher energy levels the next day",
+        confidence: avgGoodDeep - avgBadDeep > 0.5 ? 'high' : 'medium',
+        suggestion: "Exercise regularly and avoid late caffeine to maximize deep sleep"
+      });
+    }
+  }
+
   return correlations;
 }
 
@@ -240,10 +487,16 @@ function calculateWeeklyScore(metrics: HealthMetric[], checkins: DailyCheckin[],
     }
   }
 
-  // Sleep score
-  const sleepData = weekCheckins.filter(c => c.sleep_hours);
-  if (sleepData.length > 0) {
-    const avgSleep = sleepData.reduce((a, b) => a + (b.sleep_hours || 0), 0) / sleepData.length;
+  // Sleep score (enhanced with stages)
+  const sleepData = weekMetrics.filter(m => m.metric_type === 'sleep_hours');
+  const sleepCheckins = weekCheckins.filter(c => c.sleep_hours);
+  const allSleepHours = [
+    ...sleepData.map(m => m.value),
+    ...sleepCheckins.map(c => c.sleep_hours!)
+  ];
+  
+  if (allSleepHours.length > 0) {
+    const avgSleep = allSleepHours.reduce((a, b) => a + b, 0) / allSleepHours.length;
     const sleepGoal = goals.sleep || 7.5;
     
     if (avgSleep >= sleepGoal) {
@@ -255,6 +508,30 @@ function calculateWeeklyScore(metrics: HealthMetric[], checkins: DailyCheckin[],
     } else {
       score -= 10;
       improvements.push(`Significant sleep debt - averaging only ${avgSleep.toFixed(1)} hours`);
+    }
+  }
+
+  // Deep sleep bonus
+  const deepSleepData = weekMetrics.filter(m => m.metric_type === 'sleep_deep_minutes');
+  if (deepSleepData.length > 0) {
+    const avgDeep = deepSleepData.reduce((a, b) => a + b.value, 0) / deepSleepData.length;
+    if (avgDeep >= 60) {
+      score += 5;
+      highlights.push(`Strong deep sleep averaging ${Math.round(avgDeep)} minutes`);
+    }
+  }
+
+  // REM sleep bonus
+  const remSleepData = weekMetrics.filter(m => m.metric_type === 'sleep_rem_minutes');
+  if (remSleepData.length > 0) {
+    const avgRem = remSleepData.reduce((a, b) => a + b.value, 0) / remSleepData.length;
+    const totalSleep = allSleepHours.length > 0 ? allSleepHours.reduce((a, b) => a + b, 0) / allSleepHours.length * 60 : 0;
+    const remPct = totalSleep > 0 ? (avgRem / totalSleep) * 100 : 0;
+    if (remPct >= 20 && remPct <= 25) {
+      score += 5;
+      highlights.push(`Optimal REM sleep at ${remPct.toFixed(0)}%`);
+    } else if (remPct < 15 && remPct > 0) {
+      improvements.push(`REM sleep below optimal at ${remPct.toFixed(0)}%`);
     }
   }
 
@@ -317,6 +594,9 @@ serve(async (req) => {
     // Find correlations
     const correlations = findCorrelations(metrics, checkins);
     
+    // Analyze sleep specifically
+    const sleepAnalysis = analyzeSleep(metrics, checkins, goals);
+    
     // Calculate weekly score
     const { score: weeklyScore, highlights, improvements } = calculateWeeklyScore(metrics, checkins, goals);
 
@@ -326,6 +606,24 @@ serve(async (req) => {
     ).join('\n');
 
     const correlationSummary = correlations.map(c => c.finding).join('\n');
+
+    // Sleep-specific context
+    const sleepContext = `
+SLEEP ANALYSIS:
+- Average Duration: ${sleepAnalysis.avgDuration.toFixed(1)} hours (goal: ${goals.sleep || 7.5}h)
+- Duration Trend: ${sleepAnalysis.durationTrend} (was ${sleepAnalysis.avgDurationLastWeek.toFixed(1)}h last week)
+- Sleep Debt This Week: ${sleepAnalysis.sleepDebt.toFixed(1)} hours
+- Consistency Score: ${sleepAnalysis.consistencyScore.toFixed(0)}/100
+${sleepAnalysis.avgRemMinutes > 0 ? `- REM Sleep: ${Math.round(sleepAnalysis.avgRemMinutes)} min avg (${sleepAnalysis.remPercentage.toFixed(0)}%)` : ''}
+${sleepAnalysis.avgDeepMinutes > 0 ? `- Deep Sleep: ${Math.round(sleepAnalysis.avgDeepMinutes)} min avg (${sleepAnalysis.deepPercentage.toFixed(0)}%)` : ''}
+${sleepAnalysis.avgAwakeMinutes > 0 ? `- Awake Time: ${Math.round(sleepAnalysis.avgAwakeMinutes)} min avg` : ''}
+${sleepAnalysis.avgEfficiency > 0 ? `- Sleep Efficiency: ${sleepAnalysis.avgEfficiency.toFixed(0)}%` : ''}
+
+SLEEP INSIGHTS:
+${sleepAnalysis.insights.join('\n')}
+
+SLEEP RECOMMENDATIONS:
+${sleepAnalysis.recommendations.join('\n')}`;
 
     // Recent data summary
     const now = new Date();
@@ -348,9 +646,12 @@ IMPORTANT RULES:
 - Consider the time of day for relevant suggestions
 - Keep responses concise but meaningful
 - Use the user's actual data to personalize advice
+- Pay special attention to sleep data and provide specific sleep improvement advice
 
 Current time: ${timeOfDay}
 Weekly Health Score: ${weeklyScore}/100
+
+${sleepContext}
 
 TREND DATA:
 ${trendSummary || 'Limited trend data available'}
@@ -374,11 +675,11 @@ ${Object.entries(goals).map(([k, v]) => `${k}: ${v}`).join(', ') || 'No specific
     const userPrompt = userQuestion || 
       `Based on my health data, provide:
 1. TODAY'S FOCUS: What should I prioritize today based on my trends and the time of day?
-2. KEY INSIGHT: The most important observation from my recent data
+2. SLEEP INSIGHT: The most important observation about my sleep patterns and how to improve
 3. QUICK WIN: One simple action I can take right now to improve my health
 4. WEEKLY OUTLOOK: Brief assessment of how my week is going
 
-Keep it personal and actionable. Reference my actual numbers.`;
+Keep it personal and actionable. Reference my actual numbers, especially sleep data.`;
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -397,7 +698,7 @@ Keep it personal and actionable. Reference my actual numbers.`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_tokens: 800,
+        max_tokens: 1000,
       }),
     });
 
@@ -430,6 +731,7 @@ Keep it personal and actionable. Reference my actual numbers.`;
       weeklyScore,
       highlights,
       improvements,
+      sleepAnalysis,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -16,6 +16,24 @@ export interface Correlation {
   suggestion: string;
 }
 
+export interface SleepAnalysis {
+  avgDuration: number;
+  avgDurationLastWeek: number;
+  durationTrend: 'improving' | 'declining' | 'stable';
+  sleepDebt: number;
+  avgRemMinutes: number;
+  avgDeepMinutes: number;
+  avgCoreMinutes: number;
+  remPercentage: number;
+  deepPercentage: number;
+  avgAwakeMinutes: number;
+  avgEfficiency: number;
+  consistencyScore: number;
+  optimalBedtime: string | null;
+  insights: string[];
+  recommendations: string[];
+}
+
 export interface HealthCoachResponse {
   advice: string;
   trends: TrendData[];
@@ -23,6 +41,7 @@ export interface HealthCoachResponse {
   weeklyScore: number;
   highlights: string[];
   improvements: string[];
+  sleepAnalysis?: SleepAnalysis;
 }
 
 export function useHealthCoach() {

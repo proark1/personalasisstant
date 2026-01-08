@@ -37,6 +37,15 @@ export interface DailyHealthSummary {
   bodyFat?: number;                // Percentage
   mindfulnessMinutes?: number;
   height?: number;                 // cm
+  // Enhanced sleep data
+  sleepStartTime?: string;         // ISO timestamp when sleep started
+  sleepEndTime?: string;           // ISO timestamp when woke up
+  sleepRemMinutes?: number;        // REM sleep duration
+  sleepDeepMinutes?: number;       // Deep sleep duration
+  sleepCoreMinutes?: number;       // Core/light sleep duration
+  sleepAwakeMinutes?: number;      // Time awake during night
+  sleepEfficiency?: number;        // Percentage (sleep time / bed time)
+  sleepInBedMinutes?: number;      // Total time in bed
 }
 
 const isNative = Capacitor.isNativePlatform();
@@ -187,6 +196,13 @@ export function useAppleHealth() {
         bodyFat: getLatestMetricForDay(todayMetrics, 'body_fat'),
         mindfulnessMinutes: sumMetricForDay(todayMetrics, 'mindfulness_minutes'),
         height: getLatestMetricForDay(todayMetrics, 'height'),
+        // Enhanced sleep data
+        sleepRemMinutes: getLatestMetricForDay(todayMetrics, 'sleep_rem_minutes'),
+        sleepDeepMinutes: getLatestMetricForDay(todayMetrics, 'sleep_deep_minutes'),
+        sleepCoreMinutes: getLatestMetricForDay(todayMetrics, 'sleep_core_minutes'),
+        sleepAwakeMinutes: getLatestMetricForDay(todayMetrics, 'sleep_awake_minutes'),
+        sleepInBedMinutes: getLatestMetricForDay(todayMetrics, 'sleep_in_bed_minutes'),
+        sleepEfficiency: getLatestMetricForDay(todayMetrics, 'sleep_efficiency'),
       });
       
       // Calculate weekly data
@@ -219,6 +235,13 @@ export function useAppleHealth() {
           bodyFat: getLatestMetricForDay(dayMetrics, 'body_fat'),
           mindfulnessMinutes: sumMetricForDay(dayMetrics, 'mindfulness_minutes'),
           height: getLatestMetricForDay(dayMetrics, 'height'),
+          // Enhanced sleep data
+          sleepRemMinutes: getLatestMetricForDay(dayMetrics, 'sleep_rem_minutes'),
+          sleepDeepMinutes: getLatestMetricForDay(dayMetrics, 'sleep_deep_minutes'),
+          sleepCoreMinutes: getLatestMetricForDay(dayMetrics, 'sleep_core_minutes'),
+          sleepAwakeMinutes: getLatestMetricForDay(dayMetrics, 'sleep_awake_minutes'),
+          sleepInBedMinutes: getLatestMetricForDay(dayMetrics, 'sleep_in_bed_minutes'),
+          sleepEfficiency: getLatestMetricForDay(dayMetrics, 'sleep_efficiency'),
         });
       }
       
@@ -485,6 +508,163 @@ export function useAppleHealth() {
       }
     } catch (e) {
       logHealthDebug('sleep_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Fetch sleep stages: REM, Deep, Core (iOS 16+)
+    // REM Sleep
+    try {
+      const remData = await Health.queryAggregated({
+        dataType: 'sleep-rem',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      logHealthDebug('sleep_rem_response', { count: remData?.aggregatedData?.length || 0 });
+
+      if (remData?.aggregatedData) {
+        for (const bucket of remData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            // Value could be in minutes or seconds
+            const minutes = bucket.value > 500 ? bucket.value / 60 : bucket.value;
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'sleep_rem_minutes',
+              value: Math.round(minutes),
+              unit: 'min',
+              recorded_at: `${date}T00:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('sleep_rem_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Deep Sleep
+    try {
+      const deepData = await Health.queryAggregated({
+        dataType: 'sleep-deep',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      logHealthDebug('sleep_deep_response', { count: deepData?.aggregatedData?.length || 0 });
+
+      if (deepData?.aggregatedData) {
+        for (const bucket of deepData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            const minutes = bucket.value > 500 ? bucket.value / 60 : bucket.value;
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'sleep_deep_minutes',
+              value: Math.round(minutes),
+              unit: 'min',
+              recorded_at: `${date}T00:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('sleep_deep_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Core Sleep (Light Sleep)
+    try {
+      const coreData = await Health.queryAggregated({
+        dataType: 'sleep-core',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      logHealthDebug('sleep_core_response', { count: coreData?.aggregatedData?.length || 0 });
+
+      if (coreData?.aggregatedData) {
+        for (const bucket of coreData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            const minutes = bucket.value > 500 ? bucket.value / 60 : bucket.value;
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'sleep_core_minutes',
+              value: Math.round(minutes),
+              unit: 'min',
+              recorded_at: `${date}T00:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('sleep_core_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Awake time during sleep
+    try {
+      const awakeData = await Health.queryAggregated({
+        dataType: 'sleep-awake',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      logHealthDebug('sleep_awake_response', { count: awakeData?.aggregatedData?.length || 0 });
+
+      if (awakeData?.aggregatedData) {
+        for (const bucket of awakeData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            const minutes = bucket.value > 500 ? bucket.value / 60 : bucket.value;
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'sleep_awake_minutes',
+              value: Math.round(minutes),
+              unit: 'min',
+              recorded_at: `${date}T00:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('sleep_awake_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Time in bed
+    try {
+      const inBedData = await Health.queryAggregated({
+        dataType: 'sleep-in-bed',
+        startDate: syncStartDate.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day'
+      });
+
+      logHealthDebug('sleep_in_bed_response', { count: inBedData?.aggregatedData?.length || 0 });
+
+      if (inBedData?.aggregatedData) {
+        for (const bucket of inBedData.aggregatedData) {
+          if (bucket.value && bucket.value > 0) {
+            const date = new Date(bucket.startDate).toISOString().split('T')[0];
+            const minutes = bucket.value > 500 ? bucket.value / 60 : bucket.value;
+            metricsToInsert.push({
+              user_id: user.id,
+              metric_type: 'sleep_in_bed_minutes',
+              value: Math.round(minutes),
+              unit: 'min',
+              recorded_at: `${date}T00:00:00.000Z`,
+              source: 'apple_health',
+            });
+          }
+        }
+      }
+    } catch (e) {
+      logHealthDebug('sleep_in_bed_error', { error: (e as any)?.message || String(e) });
     }
 
     // Fetch weight (latest sample)
