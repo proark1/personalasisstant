@@ -108,8 +108,49 @@ export function HealthHubPanel() {
       bodyFat: getLatest('body_fat'),
       mindfulnessMinutes: sumMetric('mindfulness_minutes'),
       height: getLatest('height'),
+      // Enhanced sleep data
+      sleepRemMinutes: getLatest('sleep_rem_minutes'),
+      sleepDeepMinutes: getLatest('sleep_deep_minutes'),
+      sleepCoreMinutes: getLatest('sleep_core_minutes'),
+      sleepAwakeMinutes: getLatest('sleep_awake_minutes'),
+      sleepInBedMinutes: getLatest('sleep_in_bed_minutes'),
+      sleepEfficiency: getLatest('sleep_efficiency'),
     };
   }, [healthMetrics, selectedDate]);
+
+  // Calculate weekly sleep data for trends
+  const weeklySleepData = useMemo(() => {
+    const data: Array<{
+      date: string;
+      sleepHours: number;
+      remMinutes?: number;
+      deepMinutes?: number;
+      coreMinutes?: number;
+      awakeMinutes?: number;
+      efficiency?: number;
+    }> = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = subDays(new Date(), i);
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const dayMetrics = healthMetrics.filter(m => m.recorded_at.startsWith(dateStr));
+      
+      const getLatest = (type: string) => 
+        dayMetrics.find(m => m.metric_type === type)?.value;
+      
+      data.push({
+        date: dateStr,
+        sleepHours: getLatest('sleep_hours') || 0,
+        remMinutes: getLatest('sleep_rem_minutes'),
+        deepMinutes: getLatest('sleep_deep_minutes'),
+        coreMinutes: getLatest('sleep_core_minutes'),
+        awakeMinutes: getLatest('sleep_awake_minutes'),
+        efficiency: getLatest('sleep_efficiency'),
+      });
+    }
+    
+    return data;
+  }, [healthMetrics]);
 
   const isToday = isSameDay(selectedDate, new Date());
 
@@ -182,14 +223,18 @@ export function HealthHubPanel() {
       {/* Tabs - Mobile Optimized */}
       <div className="border-b border-border shrink-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full h-12 p-1 bg-transparent grid grid-cols-4 gap-1">
+          <TabsList className="w-full h-12 p-1 bg-transparent grid grid-cols-6 gap-1">
             <TabsTrigger value="coach" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
               <Brain className="w-4 h-4" />
-              <span className="hidden xs:inline">AI Coach</span>
+              <span className="hidden xs:inline">AI</span>
             </TabsTrigger>
             <TabsTrigger value="overview" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
               <Activity className="w-4 h-4" />
               <span className="hidden xs:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="sleep" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+              <Moon className="w-4 h-4" />
+              <span className="hidden xs:inline">Sleep</span>
             </TabsTrigger>
             <TabsTrigger value="vitals" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
               <Heart className="w-4 h-4" />
@@ -212,6 +257,259 @@ export function HealthHubPanel() {
         <div className="flex-1 overflow-hidden">
           <HealthCoachPanel />
         </div>
+      )}
+
+      {/* Sleep Tab */}
+      {activeTab === 'sleep' && (
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-4 pb-20">
+            {/* Last Night's Sleep */}
+            <Card className="bg-gradient-to-br from-purple-500/10 to-indigo-500/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Moon className="w-4 h-4" />
+                  Last Night's Sleep
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-3xl font-bold">
+                      {selectedDateSummary.sleepHours.toFixed(1)}h
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      of {healthGoals.sleepHours}h goal
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {selectedDateSummary.sleepEfficiency && (
+                      <div>
+                        <p className="text-lg font-semibold">{selectedDateSummary.sleepEfficiency.toFixed(0)}%</p>
+                        <p className="text-xs text-muted-foreground">Efficiency</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Progress 
+                  value={getProgress(selectedDateSummary.sleepHours, healthGoals.sleepHours)} 
+                  className="h-2"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Sleep Stages */}
+            {(selectedDateSummary.sleepRemMinutes || selectedDateSummary.sleepDeepMinutes || selectedDateSummary.sleepCoreMinutes) && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Sleep Stages</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {selectedDateSummary.sleepRemMinutes && (
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-purple-500" />
+                            REM
+                          </span>
+                          <span className="text-sm font-medium">
+                            {Math.floor(selectedDateSummary.sleepRemMinutes / 60)}h {selectedDateSummary.sleepRemMinutes % 60}m
+                          </span>
+                        </div>
+                        <Progress 
+                          value={(selectedDateSummary.sleepRemMinutes / (selectedDateSummary.sleepHours * 60)) * 100} 
+                          className="h-2 bg-purple-100"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {((selectedDateSummary.sleepRemMinutes / (selectedDateSummary.sleepHours * 60)) * 100).toFixed(0)}% of sleep (optimal: 20-25%)
+                        </p>
+                      </div>
+                    )}
+                    
+                    {selectedDateSummary.sleepDeepMinutes && (
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-600" />
+                            Deep
+                          </span>
+                          <span className="text-sm font-medium">
+                            {Math.floor(selectedDateSummary.sleepDeepMinutes / 60)}h {selectedDateSummary.sleepDeepMinutes % 60}m
+                          </span>
+                        </div>
+                        <Progress 
+                          value={(selectedDateSummary.sleepDeepMinutes / (selectedDateSummary.sleepHours * 60)) * 100} 
+                          className="h-2 bg-blue-100"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {((selectedDateSummary.sleepDeepMinutes / (selectedDateSummary.sleepHours * 60)) * 100).toFixed(0)}% of sleep (optimal: 15-20%)
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedDateSummary.sleepCoreMinutes && (
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-cyan-500" />
+                            Core
+                          </span>
+                          <span className="text-sm font-medium">
+                            {Math.floor(selectedDateSummary.sleepCoreMinutes / 60)}h {selectedDateSummary.sleepCoreMinutes % 60}m
+                          </span>
+                        </div>
+                        <Progress 
+                          value={(selectedDateSummary.sleepCoreMinutes / (selectedDateSummary.sleepHours * 60)) * 100} 
+                          className="h-2 bg-cyan-100"
+                        />
+                      </div>
+                    )}
+
+                    {selectedDateSummary.sleepAwakeMinutes && selectedDateSummary.sleepAwakeMinutes > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-orange-400" />
+                            Awake
+                          </span>
+                          <span className="text-sm font-medium">
+                            {selectedDateSummary.sleepAwakeMinutes}m
+                          </span>
+                        </div>
+                        <Progress 
+                          value={(selectedDateSummary.sleepAwakeMinutes / (selectedDateSummary.sleepInBedMinutes || selectedDateSummary.sleepHours * 60)) * 100} 
+                          className="h-2 bg-orange-100"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Weekly Sleep Trend */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  This Week
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {weeklySleepData.map((day, i) => {
+                    const dayLabel = format(parseISO(day.date), 'EEE');
+                    const isCurrentDay = isSameDay(parseISO(day.date), new Date());
+                    return (
+                      <div key={i} className={cn("flex items-center gap-2", isCurrentDay && "bg-muted/50 rounded-lg p-2 -mx-2")}>
+                        <span className="text-xs w-8 text-muted-foreground">{dayLabel}</span>
+                        <div className="flex-1">
+                          <Progress 
+                            value={getProgress(day.sleepHours, healthGoals.sleepHours)} 
+                            className="h-3"
+                          />
+                        </div>
+                        <span className={cn(
+                          "text-xs font-medium w-12 text-right",
+                          day.sleepHours >= healthGoals.sleepHours ? "text-green-600" : 
+                          day.sleepHours >= 6 ? "text-yellow-600" : "text-red-600"
+                        )}>
+                          {day.sleepHours > 0 ? `${day.sleepHours.toFixed(1)}h` : '--'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Weekly Average */}
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Weekly Average</span>
+                    <span className="text-lg font-semibold">
+                      {(weeklySleepData.filter(d => d.sleepHours > 0).reduce((sum, d) => sum + d.sleepHours, 0) / 
+                        Math.max(1, weeklySleepData.filter(d => d.sleepHours > 0).length)).toFixed(1)}h
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sleep Quality Metrics */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Sleep Quality</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <Clock className="w-5 h-5 mx-auto text-purple-500 mb-1" />
+                    <p className="text-lg font-semibold">
+                      {selectedDateSummary.sleepInBedMinutes 
+                        ? `${Math.floor(selectedDateSummary.sleepInBedMinutes / 60)}h ${selectedDateSummary.sleepInBedMinutes % 60}m`
+                        : '--'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Time in Bed</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <Percent className="w-5 h-5 mx-auto text-green-500 mb-1" />
+                    <p className="text-lg font-semibold">
+                      {selectedDateSummary.sleepEfficiency 
+                        ? `${selectedDateSummary.sleepEfficiency.toFixed(0)}%`
+                        : '--'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Efficiency</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <AlertCircle className="w-5 h-5 mx-auto text-orange-500 mb-1" />
+                    <p className="text-lg font-semibold">
+                      {selectedDateSummary.sleepAwakeMinutes 
+                        ? `${selectedDateSummary.sleepAwakeMinutes}m`
+                        : '--'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Awake Time</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <Gauge className="w-5 h-5 mx-auto text-blue-500 mb-1" />
+                    <p className="text-lg font-semibold">
+                      {selectedDateSummary.hrv || '--'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">HRV (ms)</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sleep Tips */}
+            <Card className="bg-muted/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Brain className="w-4 h-4" />
+                  Sleep Tips
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    Keep a consistent sleep schedule, even on weekends
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    Avoid screens 1 hour before bedtime
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    Keep your room cool (65-68°F / 18-20°C)
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    Limit caffeine after 2pm
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        </ScrollArea>
       )}
 
       {/* Content */}
