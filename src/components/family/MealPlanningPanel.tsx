@@ -5,16 +5,17 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, ChevronRight, Plus, BookOpen, ShoppingCart, Utensils } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay } from 'date-fns';
+import { ChevronLeft, ChevronRight, Plus, BookOpen, ShoppingCart, Utensils, Trash2, GripVertical, Sunrise, Sun, Moon, Apple } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, isToday as isDateToday } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
 import { AddRecipeDialog } from './AddRecipeDialog';
 import { AddMealPlanDialog } from './AddMealPlanDialog';
 import { RecipesList } from './RecipesList';
-import { MealCard } from './MealCard';
 import { LanguageSwitcher } from '@/components/settings/LanguageSwitcher';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import {
   DndContext,
   DragEndEvent,
@@ -25,38 +26,101 @@ import {
   useSensors,
   useDroppable,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-const mealTypeIcons: Record<string, string> = {
-  breakfast: '🌅',
-  lunch: '☀️',
-  dinner: '🌙',
-  snack: '🍎',
-};
-
-const mealTypeColors: Record<string, string> = {
-  breakfast: 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30',
-  lunch: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-  dinner: 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-500/30',
-  snack: 'bg-pink-500/20 text-pink-700 dark:text-pink-400 border-pink-500/30',
+const mealTypeConfig: Record<string, { icon: React.ReactNode; gradient: string; label: string }> = {
+  breakfast: { 
+    icon: <Sunrise className="h-3 w-3" />, 
+    gradient: 'from-amber-500/20 to-orange-500/20 border-amber-500/30',
+    label: 'Breakfast'
+  },
+  lunch: { 
+    icon: <Sun className="h-3 w-3" />, 
+    gradient: 'from-emerald-500/20 to-teal-500/20 border-emerald-500/30',
+    label: 'Lunch'
+  },
+  dinner: { 
+    icon: <Moon className="h-3 w-3" />, 
+    gradient: 'from-indigo-500/20 to-purple-500/20 border-indigo-500/30',
+    label: 'Dinner'
+  },
+  snack: { 
+    icon: <Apple className="h-3 w-3" />, 
+    gradient: 'from-pink-500/20 to-rose-500/20 border-pink-500/30',
+    label: 'Snack'
+  },
 };
 
 const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
-interface DroppableMealSlotProps {
-  day: Date;
-  mealType: string;
-  children: React.ReactNode;
-  isOver: boolean;
+interface DraggableMealItemProps {
+  meal: MealPlan;
+  onDelete: (e: React.MouseEvent, mealId: string) => void;
 }
 
-function DroppableMealSlot({ day, mealType, children, isOver }: DroppableMealSlotProps) {
+function DraggableMealItem({ meal, onDelete }: DraggableMealItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: meal.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const config = mealTypeConfig[meal.meal_type];
+  const mealName = meal.recipe?.name || meal.custom_meal_name || 'Unnamed';
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs",
+        "bg-gradient-to-r border",
+        config.gradient,
+        isDragging && "opacity-50 shadow-lg ring-2 ring-primary"
+      )}
+    >
+      <button 
+        {...attributes} 
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-60 transition-opacity"
+      >
+        <GripVertical className="h-3 w-3" />
+      </button>
+      <span className="flex-1 font-medium truncate">{mealName}</span>
+      <button
+        onClick={(e) => onDelete(e, meal.id)}
+        className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+      >
+        <Trash2 className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
+interface MealSlotProps {
+  day: Date;
+  mealType: string;
+  meals: MealPlan[];
+  onDelete: (e: React.MouseEvent, mealId: string) => void;
+}
+
+function MealSlot({ day, mealType, meals, onDelete }: MealSlotProps) {
   const { t } = useLanguage();
-  const { setNodeRef, isOver: slotIsOver } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: `${format(day, 'yyyy-MM-dd')}_${mealType}`,
     data: { date: day, mealType },
   });
 
+  const config = mealTypeConfig[mealType];
   const mealTypeTranslations: Record<string, string> = {
     breakfast: 'mealType.breakfast',
     lunch: 'mealType.lunch',
@@ -67,20 +131,28 @@ function DroppableMealSlot({ day, mealType, children, isOver }: DroppableMealSlo
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[50px] rounded-md transition-all ${
-        slotIsOver 
-          ? 'ring-2 ring-primary bg-primary/10 scale-[1.02]' 
-          : 'bg-muted/30'
-      }`}
+      className={cn(
+        "min-h-[44px] rounded-lg transition-all p-1.5",
+        isOver 
+          ? "ring-2 ring-primary bg-primary/10 scale-[1.02]" 
+          : "bg-muted/40 hover:bg-muted/60"
+      )}
     >
-      <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-        <span>{mealTypeIcons[mealType]}</span>
+      <div className="flex items-center gap-1 mb-1 text-[10px] font-medium text-muted-foreground">
+        {config.icon}
         <span>{t(mealTypeTranslations[mealType])}</span>
       </div>
-      <div className="px-1 pb-1 space-y-1">
-        {children}
-        {slotIsOver && (
-          <div className="text-[10px] text-center text-primary py-1 border border-dashed border-primary/50 rounded">
+      <div className="space-y-1">
+        <SortableContext
+          items={meals.map(m => m.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {meals.map((meal) => (
+            <DraggableMealItem key={meal.id} meal={meal} onDelete={onDelete} />
+          ))}
+        </SortableContext>
+        {isOver && meals.length === 0 && (
+          <div className="text-[10px] text-center text-primary py-2 border border-dashed border-primary/50 rounded-md">
             {t('meals.dropHere')}
           </div>
         )}
@@ -89,87 +161,88 @@ function DroppableMealSlot({ day, mealType, children, isOver }: DroppableMealSlo
   );
 }
 
-interface DroppableDayProps {
+interface DayColumnProps {
   day: Date;
   meals: MealPlan[];
-  isToday: boolean;
-  isPast: boolean;
   onDelete: (e: React.MouseEvent, mealId: string) => void;
   onAddMeal: (day: Date) => void;
 }
 
-function DroppableDay({ day, meals, isToday, isPast, onDelete, onAddMeal }: DroppableDayProps) {
-  const { t, language } = useLanguage();
+function DayColumn({ day, meals, onDelete, onAddMeal }: DayColumnProps) {
+  const { language } = useLanguage();
   const { isOver, setNodeRef } = useDroppable({
     id: format(day, 'yyyy-MM-dd'),
     data: { date: day },
   });
 
   const locale = language === 'de' ? de : enUS;
+  const isToday = isDateToday(day);
+  const isPast = day < new Date() && !isToday;
 
   const getMealsForType = (mealType: string) => {
     return meals.filter(m => m.meal_type === mealType);
   };
 
   return (
-    <Card
+    <div
       ref={setNodeRef}
-      className={`p-2 min-h-[200px] sm:min-h-[280px] transition-all ${
-        isToday 
-          ? 'ring-2 ring-primary bg-primary/5' 
-          : isPast 
-            ? 'opacity-60' 
-            : 'hover:shadow-md'
-      } ${isOver ? 'ring-2 ring-accent bg-accent/10' : ''}`}
+      className={cn(
+        "flex flex-col rounded-xl border transition-all overflow-hidden",
+        isToday && "ring-2 ring-primary border-primary/50",
+        isPast && "opacity-50",
+        isOver && "ring-2 ring-accent",
+        !isToday && !isPast && "hover:border-primary/30 hover:shadow-md"
+      )}
     >
-      <div className="text-center mb-2 pb-2 border-b">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+      {/* Day Header */}
+      <div className={cn(
+        "px-3 py-2 text-center border-b",
+        isToday 
+          ? "bg-primary/10" 
+          : "bg-muted/30"
+      )}>
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {format(day, 'EEE', { locale })}
         </div>
-        <div className={`text-lg font-bold ${isToday ? 'text-primary' : ''}`}>
+        <div className={cn(
+          "text-xl font-bold",
+          isToday ? "text-primary" : "text-foreground"
+        )}>
           {format(day, 'd')}
         </div>
+        {isToday && (
+          <Badge variant="default" className="text-[9px] px-1.5 py-0 mt-0.5">
+            Today
+          </Badge>
+        )}
       </div>
-      
-      <div className="space-y-1">
-        {mealTypes.map((mealType) => {
-          const typeMeals = getMealsForType(mealType);
-          return (
-            <DroppableMealSlot
-              key={mealType}
-              day={day}
-              mealType={mealType}
-              isOver={isOver}
-            >
-              <SortableContext
-                items={typeMeals.map(m => m.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {typeMeals.map((meal) => (
-                  <MealCard
-                    key={meal.id}
-                    meal={meal}
-                    onDelete={onDelete}
-                    mealTypeColors={mealTypeColors}
-                    mealTypeIcons={mealTypeIcons}
-                  />
-                ))}
-              </SortableContext>
-            </DroppableMealSlot>
-          );
-        })}
+
+      {/* Meal Slots */}
+      <div className="flex-1 p-2 space-y-1.5 bg-background">
+        {mealTypes.map((mealType) => (
+          <MealSlot
+            key={mealType}
+            day={day}
+            mealType={mealType}
+            meals={getMealsForType(mealType)}
+            onDelete={onDelete}
+          />
+        ))}
       </div>
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        className="w-full h-6 text-xs border-dashed border hover:bg-accent mt-2"
-        onClick={() => onAddMeal(day)}
-      >
-        <Plus className="h-3 w-3 mr-1" />
-        {t('meals.addMeal')}
-      </Button>
-    </Card>
+
+      {/* Add Button */}
+      <div className="p-2 pt-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full h-7 text-xs border border-dashed hover:bg-primary/5 hover:border-primary/50 hover:text-primary"
+          onClick={() => onAddMeal(day)}
+        >
+          <Plus className="h-3 w-3 mr-1" />
+          Add
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -241,7 +314,6 @@ export function MealPlanningPanel() {
 
     const overId = over.id as string;
     
-    // Check if dropped on a meal type slot (format: date_mealType)
     if (overId.includes('_')) {
       const [newDate, newMealType] = overId.split('_');
       const hasChanges = meal.meal_date !== newDate || meal.meal_type !== newMealType;
@@ -253,7 +325,6 @@ export function MealPlanningPanel() {
         });
       }
     } else {
-      // Dropped on day card (keep same meal type)
       if (meal.meal_date === overId) return;
       await updateMealPlan(meal.id, { meal_date: overId });
     }
@@ -310,12 +381,12 @@ export function MealPlanningPanel() {
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <TabsList>
-            <TabsTrigger value="planner" className="flex items-center gap-2">
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="planner" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Utensils className="h-4 w-4" />
               {t('nav.weekPlanner')}
             </TabsTrigger>
-            <TabsTrigger value="recipes" className="flex items-center gap-2">
+            <TabsTrigger value="recipes" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <BookOpen className="h-4 w-4" />
               {t('nav.recipes')}
             </TabsTrigger>
@@ -324,45 +395,60 @@ export function MealPlanningPanel() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             {activeTab === 'planner' && (
-              <Button onClick={handleGenerateShoppingList} variant="outline" size="sm">
-                <ShoppingCart className="h-4 w-4 mr-2" />
+              <Button onClick={handleGenerateShoppingList} variant="outline" size="sm" className="gap-2">
+                <ShoppingCart className="h-4 w-4" />
                 <span className="hidden sm:inline">{t('meals.generateShoppingList')}</span>
               </Button>
             )}
             {activeTab === 'recipes' && (
-              <Button onClick={() => setShowAddRecipeDialog(true)} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button onClick={() => setShowAddRecipeDialog(true)} size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
                 {t('meals.addRecipe')}
               </Button>
             )}
           </div>
         </div>
 
-        <TabsContent value="planner" className="mt-4">
+        <TabsContent value="planner" className="mt-4 space-y-4">
           {/* Week Navigation */}
-          <Card className="p-4 mb-4">
+          <Card className="p-4 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 border-primary/20">
             <div className="flex items-center justify-between">
-              <Button variant="ghost" size="icon" onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
+                className="hover:bg-primary/10"
+              >
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <div className="text-center">
-                <h3 className="text-lg font-semibold">
-                  {format(weekStart, 'd. MMM', { locale })} - {format(weekEnd, 'd. MMM yyyy', { locale })}
+                <h3 className="text-lg font-bold tracking-tight">
+                  {format(weekStart, 'd MMM', { locale })} — {format(weekEnd, 'd MMM yyyy', { locale })}
                 </h3>
-                <p className="text-sm text-muted-foreground">
-                  {totalMealsThisWeek} {totalMealsThisWeek !== 1 ? t('meals.mealsPlanned') : t('meals.mealPlanned')}
-                </p>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <Badge variant="secondary" className="text-xs">
+                    {totalMealsThisWeek} {totalMealsThisWeek !== 1 ? t('meals.mealsPlanned') : t('meals.mealPlanned')}
+                  </Badge>
+                </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+                className="hover:bg-primary/10"
+              >
                 <ChevronRight className="h-5 w-5" />
               </Button>
             </div>
           </Card>
 
-          {/* Week Grid with DnD */}
+          {/* Week Grid */}
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+                <span className="text-sm text-muted-foreground">Loading meals...</span>
+              </div>
             </div>
           ) : (
             <DndContext
@@ -370,35 +456,28 @@ export function MealPlanningPanel() {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
-                {days.map((day) => {
-                  const meals = getMealsForDay(day);
-                  const isToday = isSameDay(day, new Date());
-                  const isPast = day < new Date() && !isToday;
-                  
-                  return (
-                    <DroppableDay
-                      key={day.toISOString()}
-                      day={day}
-                      meals={meals}
-                      isToday={isToday}
-                      isPast={isPast}
-                      onDelete={handleDeleteMeal}
-                      onAddMeal={handleAddMeal}
-                    />
-                  );
-                })}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                {days.map((day) => (
+                  <DayColumn
+                    key={day.toISOString()}
+                    day={day}
+                    meals={getMealsForDay(day)}
+                    onDelete={handleDeleteMeal}
+                    onAddMeal={handleAddMeal}
+                  />
+                ))}
               </div>
 
               <DragOverlay>
                 {activeDragMeal && (
-                  <div className={`text-xs p-2 rounded-lg border ${mealTypeColors[activeDragMeal.meal_type]} shadow-lg opacity-90`}>
-                    <div className="flex items-center gap-1 mb-1">
-                      <span>{mealTypeIcons[activeDragMeal.meal_type]}</span>
-                      <span className="font-medium capitalize">{activeDragMeal.meal_type}</span>
-                    </div>
-                    <div className="font-medium truncate">
-                      {activeDragMeal.recipe?.name || activeDragMeal.custom_meal_name || 'Unnamed'}
+                  <div className={cn(
+                    "px-3 py-2 rounded-lg border shadow-xl",
+                    "bg-gradient-to-r",
+                    mealTypeConfig[activeDragMeal.meal_type].gradient
+                  )}>
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      {mealTypeConfig[activeDragMeal.meal_type].icon}
+                      <span>{activeDragMeal.recipe?.name || activeDragMeal.custom_meal_name || 'Unnamed'}</span>
                     </div>
                   </div>
                 )}
