@@ -34,13 +34,22 @@ export function DoriPanel({
   contacts = EMPTY_CONTACTS,
 }: DoriPanelProps) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('text');
+  const [mode, setMode] = useState<Mode>('voice');
   const [showHistory, setShowHistory] = useState(false);
   const [input, setInput] = useState('');
   const [contactSuggestions, setContactSuggestions] = useState<ContactSuggestion[]>([]);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastFinalTranscriptRef = useRef<string>('');
+  const hasAutoTriggeredVoice = useRef(false);
+
+  // Auto-trigger voice mode on mount
+  useEffect(() => {
+    if (!hasAutoTriggeredVoice.current) {
+      hasAutoTriggeredVoice.current = true;
+      onVoiceMode();
+    }
+  }, [onVoiceMode]);
 
   // Voice recognition for text input
   const {

@@ -739,7 +739,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             <div className="flex items-center gap-3">
               <Loader2 className="w-6 h-6 animate-spin text-ghost-primary" />
               <p className="text-lg text-ghost-primary">
-                Connecting to AI...
+                Calling Dori...
               </p>
             </div>
           ) : connectionStatus === 'error' ? (
