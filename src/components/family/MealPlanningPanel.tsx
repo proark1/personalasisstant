@@ -13,7 +13,7 @@ import { de, enUS } from 'date-fns/locale';
 import { AddRecipeDialog } from './AddRecipeDialog';
 import { AddMealPlanDialog } from './AddMealPlanDialog';
 import { RecipesList } from './RecipesList';
-import { LanguageSwitcher } from '@/components/settings/LanguageSwitcher';
+
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
@@ -393,7 +393,6 @@ export function MealPlanningPanel() {
           </TabsList>
           
           <div className="flex items-center gap-2">
-            <LanguageSwitcher />
             {activeTab === 'planner' && (
               <Button onClick={handleGenerateShoppingList} variant="outline" size="sm" className="gap-2">
                 <ShoppingCart className="h-4 w-4" />
