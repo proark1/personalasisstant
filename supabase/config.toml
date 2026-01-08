@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.health-insights]
 verify_jwt = false
+
+[functions.health-coach]
+verify_jwt = false

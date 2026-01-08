@@ -14,6 +14,7 @@ import { AddHealthMetricDialog } from './AddHealthMetricDialog';
 import { HealthTrackingPanel } from '@/components/family/HealthTrackingPanel';
 import { AgeBasedCheckupsPanel } from './AgeBasedCheckupsPanel';
 import { HealthInsightsCard } from './HealthInsightsCard';
+import { HealthCoachPanel } from './HealthCoachPanel';
 import {
   Activity,
   Heart,
@@ -46,7 +47,7 @@ import {
 import { format, parseISO, subDays, addDays, isSameDay, startOfDay } from 'date-fns';
 
 export function HealthHubPanel() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('coach');
   const [showAddMetricDialog, setShowAddMetricDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -182,6 +183,10 @@ export function HealthHubPanel() {
       <div className="border-b border-border shrink-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full h-12 p-1 bg-transparent grid grid-cols-4 gap-1">
+            <TabsTrigger value="coach" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+              <Brain className="w-4 h-4" />
+              <span className="hidden xs:inline">AI Coach</span>
+            </TabsTrigger>
             <TabsTrigger value="overview" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
               <Activity className="w-4 h-4" />
               <span className="hidden xs:inline">Overview</span>
@@ -201,6 +206,13 @@ export function HealthHubPanel() {
           </TabsList>
         </Tabs>
       </div>
+
+      {/* AI Coach Tab - Full height without ScrollArea wrapper */}
+      {activeTab === 'coach' && (
+        <div className="flex-1 overflow-hidden">
+          <HealthCoachPanel />
+        </div>
+      )}
 
       {/* Content */}
       <ScrollArea className="flex-1">
