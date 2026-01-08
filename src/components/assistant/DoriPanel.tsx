@@ -41,15 +41,6 @@ export function DoriPanel({
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastFinalTranscriptRef = useRef<string>('');
-  const hasAutoTriggeredVoice = useRef(false);
-
-  // Auto-trigger voice mode on mount
-  useEffect(() => {
-    if (!hasAutoTriggeredVoice.current) {
-      hasAutoTriggeredVoice.current = true;
-      onVoiceMode();
-    }
-  }, [onVoiceMode]);
 
   // Voice recognition for text input
   const {
