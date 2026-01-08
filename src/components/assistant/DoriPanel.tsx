@@ -53,6 +53,11 @@ export function DoriPanel({
     continuous: false,
   });
 
+  // Auto-trigger voice mode on mount
+  useEffect(() => {
+    onVoiceMode();
+  }, []);
+
   // Handle final transcripts from voice recognition
   useEffect(() => {
     if (!transcript || isListening) return;
