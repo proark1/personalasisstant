@@ -21,6 +21,7 @@ import { useHealthTracking } from '@/hooks/useHealthTracking';
 import { useAppleHealth } from '@/hooks/useAppleHealth';
 import { useFamilyEvents } from '@/hooks/useFamilyEvents';
 import { useNotes } from '@/hooks/useNotes';
+import { useWakeWordDetection } from '@/hooks/useWakeWordDetection';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
@@ -241,6 +242,15 @@ const Index = () => {
   const weeklyStats = useMemo(() => getWeeklyStats(tasks), [getWeeklyStats, tasks]);
 
   const sendLockRef = useRef(false);
+
+  // Wake word detection - "Hey Dori" opens voice mode
+  const { isListening: isWakeWordListening } = useWakeWordDetection({
+    enabled: mode === 'standard', // Only listen when not already in voice mode
+    onWakeWordDetected: useCallback(() => {
+      console.log('[WakeWord] "Hey Dori" detected, opening voice mode');
+      setMode('ghost');
+    }, []),
+  });
 
   // Handle escape key to exit ghost mode
   useEffect(() => {
