@@ -343,6 +343,139 @@ export function useAppleHealth() {
       source: string;
     }> = [];
 
+    // First, try queryLatestSample for key metrics (more reliable on iOS)
+    // This ensures we get at least today's latest readings
+    const today = now.toISOString().split('T')[0];
+    
+    // Get latest steps
+    try {
+      const latestSteps = await Health.querySteps();
+      logHealthDebug('latest_steps', { raw: latestSteps });
+      if (latestSteps?.value && latestSteps.value > 0) {
+        const date = latestSteps.timestamp 
+          ? new Date(latestSteps.timestamp).toISOString().split('T')[0]
+          : today;
+        metricsToInsert.push({
+          user_id: user.id,
+          metric_type: 'steps',
+          value: Math.round(latestSteps.value),
+          unit: 'steps',
+          recorded_at: `${date}T12:00:00.000Z`,
+          source: 'apple_health',
+        });
+      }
+    } catch (e) {
+      logHealthDebug('latest_steps_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Get latest heart rate
+    try {
+      const latestHR = await Health.queryHeartRate();
+      logHealthDebug('latest_hr', { raw: latestHR });
+      if (latestHR?.value && latestHR.value > 0) {
+        const date = latestHR.timestamp 
+          ? new Date(latestHR.timestamp).toISOString().split('T')[0]
+          : today;
+        metricsToInsert.push({
+          user_id: user.id,
+          metric_type: 'heart_rate',
+          value: Math.round(latestHR.value),
+          unit: 'bpm',
+          recorded_at: `${date}T12:00:00.000Z`,
+          source: 'apple_health',
+        });
+      }
+    } catch (e) {
+      logHealthDebug('latest_hr_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Get latest weight
+    try {
+      const latestWeight = await Health.queryWeight();
+      logHealthDebug('latest_weight', { raw: latestWeight });
+      if (latestWeight?.value && latestWeight.value > 0) {
+        const date = latestWeight.timestamp 
+          ? new Date(latestWeight.timestamp).toISOString().split('T')[0]
+          : today;
+        metricsToInsert.push({
+          user_id: user.id,
+          metric_type: 'weight',
+          value: Math.round(latestWeight.value * 10) / 10,
+          unit: latestWeight.unit || 'kg',
+          recorded_at: `${date}T12:00:00.000Z`,
+          source: 'apple_health',
+        });
+      }
+    } catch (e) {
+      logHealthDebug('latest_weight_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Get latest height
+    try {
+      const latestHeight = await Health.queryHeight();
+      logHealthDebug('latest_height', { raw: latestHeight });
+      if (latestHeight?.value && latestHeight.value > 0) {
+        const date = latestHeight.timestamp 
+          ? new Date(latestHeight.timestamp).toISOString().split('T')[0]
+          : today;
+        metricsToInsert.push({
+          user_id: user.id,
+          metric_type: 'height',
+          value: Math.round(latestHeight.value * 100) / 100,
+          unit: latestHeight.unit || 'cm',
+          recorded_at: `${date}T12:00:00.000Z`,
+          source: 'apple_health',
+        });
+      }
+    } catch (e) {
+      logHealthDebug('latest_height_error', { error: (e as any)?.message || String(e) });
+    }
+
+    // Get latest samples for other data types
+    const latestSampleTypes: Array<{ type: string; metricType: string; unit: string }> = [
+      { type: 'active-calories', metricType: 'calories', unit: 'kcal' },
+      { type: 'resting-heart-rate', metricType: 'resting_heart_rate', unit: 'bpm' },
+      { type: 'hrv', metricType: 'hrv', unit: 'ms' },
+      { type: 'respiratory-rate', metricType: 'respiratory_rate', unit: 'brpm' },
+      { type: 'oxygen-saturation', metricType: 'blood_oxygen', unit: '%' },
+      { type: 'body-fat', metricType: 'body_fat', unit: '%' },
+      { type: 'flights-climbed', metricType: 'flights_climbed', unit: 'floors' },
+      { type: 'distance', metricType: 'distance', unit: 'km' },
+      { type: 'exercise-time', metricType: 'active_minutes', unit: 'min' },
+      { type: 'mindfulness', metricType: 'mindfulness_minutes', unit: 'min' },
+      { type: 'sleep', metricType: 'sleep_hours', unit: 'hours' },
+    ];
+
+    for (const { type, metricType, unit } of latestSampleTypes) {
+      try {
+        const sample = await Health.queryLatestSample({ dataType: type as any });
+        logHealthDebug(`latest_${type}`, { raw: sample });
+        if (sample?.value && sample.value > 0) {
+          let value = sample.value;
+          // Convert units as needed
+          if (type === 'oxygen-saturation' && value <= 1) value = value * 100;
+          if (type === 'body-fat' && value <= 1) value = value * 100;
+          if (type === 'distance' && value > 1000) value = value / 1000; // m to km
+          if (type === 'sleep') value = value / 60; // minutes to hours
+          
+          const date = sample.timestamp 
+            ? new Date(sample.timestamp).toISOString().split('T')[0]
+            : today;
+          metricsToInsert.push({
+            user_id: user.id,
+            metric_type: metricType,
+            value: Math.round(value * 100) / 100,
+            unit,
+            recorded_at: `${date}T12:00:00.000Z`,
+            source: 'apple_health',
+          });
+        }
+      } catch (e) {
+        logHealthDebug(`latest_${type}_error`, { error: (e as any)?.message || String(e) });
+      }
+    }
+
+    // Now also try aggregated queries for historical data
     // Fetch steps (aggregated by day)
     try {
       const stepsData = await Health.queryAggregated({
@@ -1019,7 +1152,21 @@ export function useAppleHealth() {
 
       toast.success(`Synced ${metricsToInsert.length} health records from last ${daysBack} days`);
     } else {
-      toast.info('No health data found to sync. Check Apple Health permissions.');
+      // No data found - provide more helpful guidance
+      logHealthDebug('no_data_found', { 
+        message: 'No metrics collected from any data type',
+        hint: 'User may need to grant permissions in Apple Health app'
+      });
+      toast.error(
+        'No health data found. Please open the Apple Health app → Sharing → Apps → DarAI, and enable all permissions.',
+        { duration: 8000 }
+      );
+      // Try to open Apple Health settings
+      try {
+        await Health.openAppleHealthSettings();
+      } catch (e) {
+        logHealthDebug('open_settings_error', { error: (e as any)?.message || String(e) });
+      }
     }
 
     await fetchHealthMetrics();
