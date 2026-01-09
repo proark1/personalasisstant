@@ -62,6 +62,7 @@ interface ContractManagerProps {
   onSnooze: (id: string, months: number) => Promise<boolean>;
   getExpiringContracts: (withinDays?: number) => Contract[];
   getCancellationDeadlines: (withinDays?: number) => (Contract & { cancellationDeadline: Date })[];
+  onShareContract?: (contractId: string, contractName: string) => void;
 }
 
 export function ContractManager({
@@ -76,6 +77,7 @@ export function ContractManager({
   onSnooze,
   getExpiringContracts,
   getCancellationDeadlines,
+  onShareContract,
 }: ContractManagerProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
@@ -574,6 +576,7 @@ export function ContractManager({
                       contract={contract}
                       onEdit={handleEdit}
                       onDelete={setDeleteContract}
+                      onShare={onShareContract ? (c) => onShareContract(c.id, c.name) : undefined}
                       onGenerateEmail={setEmailDialogContract}
                       onPreviewDocument={handlePreviewDocument}
                       onSyncToCalendar={handleSyncToCalendar}

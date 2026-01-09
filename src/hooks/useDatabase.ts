@@ -477,7 +477,7 @@ export function useDatabase(userId: string | undefined) {
 
   // Sharing operations
   const shareItem = useCallback(async (
-    itemType: 'task' | 'event',
+    itemType: 'task' | 'event' | 'contract' | 'contact',
     itemId: string,
     shareWithEmail: string,
     permission: 'view' | 'edit' = 'view'
@@ -527,7 +527,7 @@ export function useDatabase(userId: string | undefined) {
     return { error: null };
   }, [userId]);
 
-  const getSharedWith = useCallback(async (itemType: 'task' | 'event', itemId: string) => {
+  const getSharedWith = useCallback(async (itemType: 'task' | 'event' | 'contract' | 'contact', itemId: string) => {
     // Fetch shared items first
     const { data: sharedItems } = await supabase
       .from('shared_items')
