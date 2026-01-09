@@ -94,6 +94,17 @@ const loadHealthKitPlugin = async () => {
   return !!Health;
 };
 
+export interface HealthDebugInfo {
+  platform: string;
+  isNative: boolean;
+  pluginLoaded: boolean;
+  isHealthAvailable: boolean | null;
+  lastSyncResult: 'success' | 'no_data' | 'error' | null;
+  lastError: string | null;
+  metricsCollected: number;
+  dataTypes: string[];
+}
+
 export function useAppleHealth() {
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
@@ -102,13 +113,26 @@ export function useAppleHealth() {
   const [todaySummary, setTodaySummary] = useState<DailyHealthSummary | null>(null);
   const [weeklyData, setWeeklyData] = useState<DailyHealthSummary[]>([]);
   const [pluginLoaded, setPluginLoaded] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<HealthDebugInfo>({
+    platform: Capacitor.getPlatform(),
+    isNative,
+    pluginLoaded: false,
+    isHealthAvailable: null,
+    lastSyncResult: null,
+    lastError: null,
+    metricsCollected: 0,
+    dataTypes: [],
+  });
 
   const isAvailable = isIOS;
 
   // Load plugin on mount
   useEffect(() => {
     if (isAvailable) {
-      loadHealthKitPlugin().then(setPluginLoaded);
+      loadHealthKitPlugin().then((loaded) => {
+        setPluginLoaded(loaded);
+        setDebugInfo(prev => ({ ...prev, pluginLoaded: loaded }));
+      });
     }
   }, [isAvailable]);
 
@@ -1151,22 +1175,32 @@ export function useAppleHealth() {
       if (error) throw error;
 
       toast.success(`Synced ${metricsToInsert.length} health records from last ${daysBack} days`);
+      setDebugInfo(prev => ({ 
+        ...prev, 
+        lastSyncResult: 'success',
+        lastError: null,
+        metricsCollected: metricsToInsert.length,
+        dataTypes: [...new Set(metricsToInsert.map(m => m.metric_type))],
+      }));
     } else {
       // No data found - provide more helpful guidance
       logHealthDebug('no_data_found', { 
         message: 'No metrics collected from any data type',
         hint: 'User may need to grant permissions in Apple Health app'
       });
+      
+      setDebugInfo(prev => ({ 
+        ...prev, 
+        lastSyncResult: 'no_data',
+        lastError: 'No readable health data. Check permissions in Apple Health app.',
+        metricsCollected: 0,
+        dataTypes: [],
+      }));
+      
       toast.error(
-        'No health data found. Please open the Apple Health app → Sharing → Apps → DarAI, and enable all permissions.',
-        { duration: 8000 }
+        'No health data found. Enable permissions in: Health app → Sharing → Apps → DarAI → Turn on all categories.',
+        { duration: 10000 }
       );
-      // Try to open Apple Health settings
-      try {
-        await Health.openAppleHealthSettings();
-      } catch (e) {
-        logHealthDebug('open_settings_error', { error: (e as any)?.message || String(e) });
-      }
     }
 
     await fetchHealthMetrics();
@@ -1253,6 +1287,20 @@ export function useAppleHealth() {
     fetchHealthMetrics();
   }, [fetchHealthMetrics]);
 
+  // Function to open iOS Settings (app settings page, not Health permissions)
+  const openAppSettings = useCallback(async () => {
+    if (!Health) {
+      toast.error('Plugin not loaded');
+      return;
+    }
+    try {
+      await Health.openAppleHealthSettings();
+    } catch (e) {
+      logHealthDebug('open_settings_error', { error: (e as any)?.message || String(e) });
+      toast.error('Could not open settings. Go to Settings → Apps → Health → Access and Devices → DarAI manually.');
+    }
+  }, []);
+
   return {
     isAvailable,
     isConnected,
@@ -1260,10 +1308,12 @@ export function useAppleHealth() {
     healthMetrics,
     todaySummary,
     weeklyData,
+    debugInfo,
     requestAppleHealthPermission,
     syncAppleHealth,
     addManualMetric,
     deleteMetric,
+    openAppSettings,
     refetch: fetchHealthMetrics,
   };
 }

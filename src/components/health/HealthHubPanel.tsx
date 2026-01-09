@@ -7,7 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useAppleHealth, DailyHealthSummary } from '@/hooks/useAppleHealth';
+import { useAppleHealth, DailyHealthSummary, HealthDebugInfo } from '@/hooks/useAppleHealth';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useHealthTracking } from '@/hooks/useHealthTracking';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { AddHealthMetricDialog } from './AddHealthMetricDialog';
@@ -43,6 +44,10 @@ import {
   Brain,
   Ruler,
   Percent,
+  Settings,
+  ChevronDown,
+  Info,
+  ExternalLink,
 } from 'lucide-react';
 import { format, parseISO, subDays, addDays, isSameDay, startOfDay } from 'date-fns';
 
@@ -51,6 +56,8 @@ export function HealthHubPanel() {
   const [showAddMetricDialog, setShowAddMetricDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
   
   const {
     isAvailable,
@@ -59,9 +66,11 @@ export function HealthHubPanel() {
     todaySummary,
     weeklyData,
     healthMetrics,
+    debugInfo,
     requestAppleHealthPermission,
     syncAppleHealth,
     addManualMetric,
+    openAppSettings,
   } = useAppleHealth();
   
   const {
@@ -192,7 +201,10 @@ export function HealthHubPanel() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={requestAppleHealthPermission}
+                onClick={() => {
+                  setShowSetupGuide(true);
+                  requestAppleHealthPermission();
+                }}
                 disabled={isLoading}
               >
                 <Apple className="w-4 h-4 mr-2" />
@@ -218,6 +230,112 @@ export function HealthHubPanel() {
             </Button>
           </div>
         </div>
+        
+        {/* Apple Health Setup Guide */}
+        {isAvailable && showSetupGuide && (
+          <Collapsible open={showSetupGuide} onOpenChange={setShowSetupGuide} className="mt-3">
+            <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                      How to Enable Apple Health Permissions
+                    </p>
+                    <ol className="text-xs text-blue-800 dark:text-blue-200 space-y-1.5 list-decimal list-inside">
+                      <li>Open the <strong>Health</strong> app on your iPhone</li>
+                      <li>Tap your profile icon (top right) → <strong>Apps</strong></li>
+                      <li>Find and tap <strong>DarAI</strong></li>
+                      <li>Toggle <strong>ON</strong> all data categories you want to share</li>
+                      <li>Return here and tap <strong>Sync</strong></li>
+                    </ol>
+                    <p className="text-xs text-blue-600 dark:text-blue-300 mt-2 italic">
+                      Note: Permissions are NOT in iOS Settings → DarAI. They're only in the Health app.
+                    </p>
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={openAppSettings}
+                        className="text-xs h-7"
+                      >
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Open App Settings
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowSetupGuide(false)}
+                        className="text-xs h-7"
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Collapsible>
+        )}
+        
+        {/* Debug Info (collapsible) */}
+        {isAvailable && (
+          <Collapsible open={showDebugInfo} onOpenChange={setShowDebugInfo} className="mt-2">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-6 px-2">
+                <Settings className="w-3 h-3 mr-1" />
+                Debug Info
+                <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform", showDebugInfo && "rotate-180")} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Card className="mt-2 bg-muted/50">
+                <CardContent className="p-3 text-xs font-mono space-y-1">
+                  <div className="flex justify-between">
+                    <span>Platform:</span>
+                    <span>{debugInfo.platform}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Native:</span>
+                    <span>{debugInfo.isNative ? '✅' : '❌'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Plugin Loaded:</span>
+                    <span>{debugInfo.pluginLoaded ? '✅' : '❌'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Last Sync:</span>
+                    <span className={cn(
+                      debugInfo.lastSyncResult === 'success' && 'text-green-600',
+                      debugInfo.lastSyncResult === 'no_data' && 'text-yellow-600',
+                      debugInfo.lastSyncResult === 'error' && 'text-red-600',
+                    )}>
+                      {debugInfo.lastSyncResult || 'Not synced'}
+                    </span>
+                  </div>
+                  {debugInfo.metricsCollected > 0 && (
+                    <div className="flex justify-between">
+                      <span>Metrics:</span>
+                      <span>{debugInfo.metricsCollected}</span>
+                    </div>
+                  )}
+                  {debugInfo.dataTypes.length > 0 && (
+                    <div className="pt-1 border-t">
+                      <span className="text-muted-foreground">Types: </span>
+                      <span className="break-all">{debugInfo.dataTypes.join(', ')}</span>
+                    </div>
+                  )}
+                  {debugInfo.lastError && (
+                    <div className="pt-1 border-t text-red-600">
+                      <span>Error: </span>
+                      <span>{debugInfo.lastError}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </header>
 
       {/* Tabs - Mobile Optimized */}
