@@ -34,9 +34,12 @@ import {
   Sparkles,
   Waves,
   Orbit,
+  Zap,
+  Flame,
+  Hexagon,
 } from 'lucide-react';
 
-type BackgroundStyle = 'orbs' | 'matrix' | 'nebula';
+type BackgroundStyle = 'orbs' | 'matrix' | 'nebula' | 'aurora' | 'particles' | 'circuit';
 
 interface GhostModeProps {
   onClose: () => void;
@@ -75,13 +78,62 @@ function DebugTimingRow({
   );
 }
 
-// Helper to get time-based greeting
-function getTimeBasedGreeting(): string {
+// Helper to get varied AI greeting
+function getRandomGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning! How can I help you today?";
-  if (hour < 17) return "Good afternoon! What can I do for you?";
-  if (hour < 21) return "Good evening! How can I assist you?";
-  return "Hey there, night owl! What's on your mind?";
+  
+  const morningGreetings = [
+    "Good morning! Ready to make today amazing?",
+    "Rise and shine! What's on your mind?",
+    "Morning! Let's tackle the day together.",
+    "Hey there, early bird! How can I help?",
+    "Good morning! What would you like to accomplish today?",
+  ];
+  
+  const afternoonGreetings = [
+    "Good afternoon! What can I do for you?",
+    "Hey! Hope your day is going well. What's up?",
+    "Afternoon! Ready when you are.",
+    "Hi there! What's on your agenda?",
+    "Good to see you! How can I assist?",
+  ];
+  
+  const eveningGreetings = [
+    "Good evening! How can I help you tonight?",
+    "Hey! Winding down or just getting started?",
+    "Evening! What's on your mind?",
+    "Hi there! Ready to help with anything.",
+    "Good evening! Let's make the most of it.",
+  ];
+  
+  const nightGreetings = [
+    "Hey, night owl! What's keeping you up?",
+    "Burning the midnight oil? I'm here to help!",
+    "Late night session? Let's get productive!",
+    "Can't sleep? Let's chat about something.",
+    "Night mode activated! What do you need?",
+  ];
+  
+  const motivationalAddons = [
+    " Remember, you've got this! 💪",
+    " Every step forward counts.",
+    " Let's make magic happen! ✨",
+    " You're capable of amazing things.",
+    "",
+    "",
+    "",
+  ];
+  
+  let greetings: string[];
+  if (hour < 12) greetings = morningGreetings;
+  else if (hour < 17) greetings = afternoonGreetings;
+  else if (hour < 21) greetings = eveningGreetings;
+  else greetings = nightGreetings;
+  
+  const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+  const addon = motivationalAddons[Math.floor(Math.random() * motivationalAddons.length)];
+  
+  return greeting + addon;
 }
 
 export function GhostMode({ onClose, onCommand, personality = 'balanced' }: GhostModeProps) {
@@ -462,8 +514,8 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         isConnectingRef.current = false;
         aiResponseRef.current = '';
         setDisplayTranscript('');
-        // Use time-based greeting
-        setAiResponse(getTimeBasedGreeting());
+        // Use varied greeting
+        setAiResponse(getRandomGreeting());
       } else if (status === 'disconnected') {
         isConnectingRef.current = false;
       } else if (status === 'error') {
@@ -697,36 +749,72 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
             size="icon"
             onClick={() => setBackgroundStyle('orbs')}
             className={cn(
-              "rounded-full w-8 h-8",
+              "rounded-full w-7 h-7",
               backgroundStyle === 'orbs' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
             )}
             title="Orbs"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-3.5 h-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setBackgroundStyle('matrix')}
             className={cn(
-              "rounded-full w-8 h-8",
+              "rounded-full w-7 h-7",
               backgroundStyle === 'matrix' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
             )}
             title="Matrix"
           >
-            <Waves className="w-4 h-4" />
+            <Waves className="w-3.5 h-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setBackgroundStyle('nebula')}
             className={cn(
-              "rounded-full w-8 h-8",
+              "rounded-full w-7 h-7",
               backgroundStyle === 'nebula' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
             )}
             title="Nebula"
           >
-            <Orbit className="w-4 h-4" />
+            <Orbit className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setBackgroundStyle('aurora')}
+            className={cn(
+              "rounded-full w-7 h-7",
+              backgroundStyle === 'aurora' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Aurora"
+          >
+            <Zap className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setBackgroundStyle('particles')}
+            className={cn(
+              "rounded-full w-7 h-7",
+              backgroundStyle === 'particles' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Particles"
+          >
+            <Flame className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setBackgroundStyle('circuit')}
+            className={cn(
+              "rounded-full w-7 h-7",
+              backgroundStyle === 'circuit' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Circuit"
+          >
+            <Hexagon className="w-3.5 h-3.5" />
           </Button>
         </div>
 
