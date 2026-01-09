@@ -377,7 +377,29 @@ export function useAppleHealth() {
     try {
       logHealthDebug('diagnostics_requestPermissions_start');
       const permResult = await Health.requestHealthPermissions({
-        permissions: ['READ_STEPS', 'READ_HEART_RATE'],
+        permissions: [
+          'READ_STEPS',
+          'READ_HEART_RATE', 
+          'READ_ACTIVE_CALORIES',
+          'READ_BASAL_CALORIES',
+          'READ_WEIGHT',
+          'READ_SLEEP',
+          'READ_RESTING_HEART_RATE',
+          'READ_HRV',
+          'READ_RESPIRATORY_RATE',
+          'READ_OXYGEN_SATURATION',
+          'READ_BLOOD_PRESSURE',
+          'READ_BLOOD_GLUCOSE',
+          'READ_BODY_TEMPERATURE',
+          'READ_HEIGHT',
+          'READ_BODY_FAT',
+          'READ_DISTANCE',
+          'READ_FLOORS_CLIMBED',
+          'READ_TOTAL_CALORIES',
+          'READ_MINDFULNESS',
+          'READ_WORKOUTS',
+          'READ_EXERCISE_TIME',
+        ],
       });
       logHealthDebug('diagnostics_requestPermissions_result', { permResult });
       newDebugInfo.permissionResult = JSON.stringify(permResult);
@@ -479,6 +501,8 @@ export function useAppleHealth() {
           'READ_MINDFULNESS',
           // Workouts
           'READ_WORKOUTS',
+          // Exercise time
+          'READ_EXERCISE_TIME',
         ]
       });
       
