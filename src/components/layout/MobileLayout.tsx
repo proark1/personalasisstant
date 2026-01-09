@@ -155,9 +155,7 @@ export function MobileLayout({
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden">
-      {/* Safe area top - painted with background color */}
-      <div className="shrink-0 safe-area-top" />
+    <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden safe-area-top">
       {/* Header */}
       <header className="h-14 px-4 flex items-center justify-between border-b border-border bg-background shrink-0">
         <div className="flex items-center gap-3">
@@ -407,8 +405,8 @@ export function MobileLayout({
         </div>
       </header>
 
-      {/* Content - with padding below header */}
-      <main className="flex-1 overflow-hidden relative pt-2">
+      {/* Content */}
+      <main className="flex-1 overflow-hidden relative">
         <div className={cn(
           "h-full",
           activeTab === 'chat' ? 'block' : 'hidden'
@@ -530,7 +528,7 @@ export function MobileLayout({
       </main>
 
       {/* Bottom Tab Bar */}
-      <nav className="border-t border-border shrink-0 bg-background">
+      <nav className="border-t border-border shrink-0 bg-background safe-area-bottom">
         <div className="h-14 flex items-center justify-around px-2">
           {bottomTabs.map((tab) => (
             <button
@@ -561,8 +559,6 @@ export function MobileLayout({
             </button>
           ))}
         </div>
-        {/* Safe area bottom - painted with background color */}
-        <div className="safe-area-bottom" />
       </nav>
 
       {/* ADHD Support Overlays */}
