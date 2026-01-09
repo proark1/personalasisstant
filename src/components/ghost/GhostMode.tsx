@@ -837,18 +837,32 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
           </Button>
         </div>
 
-        {/* Close button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => {
-            handleEndSession();
-            onClose();
-          }}
-          className="rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/70 text-foreground/70 hover:text-foreground"
-        >
-          <X className="w-5 h-5" />
-        </Button>
+        {/* Text mode and Close buttons */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTextMode(!textMode)}
+            className={cn(
+              "rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/70",
+              textMode ? "text-primary" : "text-foreground/70 hover:text-foreground"
+            )}
+            title={textMode ? "Switch to voice mode" : "Switch to text mode"}
+          >
+            <MessageSquare className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              handleEndSession();
+              onClose();
+            }}
+            className="rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/70 text-foreground/70 hover:text-foreground"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Debug Panel */}
