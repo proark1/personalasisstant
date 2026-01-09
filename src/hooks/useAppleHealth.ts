@@ -275,6 +275,46 @@ export function useAppleHealth() {
     }
   }, [user?.id]);
 
+  // Check if HealthKit capability is properly configured
+  const checkHealthKitSetup = useCallback(async (): Promise<{ available: boolean; reason?: string }> => {
+    if (!isIOS) {
+      return { available: false, reason: 'Not iOS device' };
+    }
+    
+    const loaded = await loadHealthKitPlugin();
+    if (!loaded || !Health) {
+      return { available: false, reason: 'HealthKit plugin not loaded. Rebuild app with native code.' };
+    }
+    
+    try {
+      const result = await Health.isHealthAvailable();
+      logHealthDebug('isHealthAvailable_result', { result });
+      
+      if (!result?.available) {
+        return { 
+          available: false, 
+          reason: 'HealthKit not available. Make sure HealthKit capability is enabled in Xcode (Target → Signing & Capabilities → + Capability → HealthKit).' 
+        };
+      }
+      
+      setDebugInfo(prev => ({ ...prev, isHealthAvailable: true }));
+      return { available: true };
+    } catch (error: any) {
+      const errorMsg = error?.message || String(error);
+      logHealthDebug('isHealthAvailable_error', { error: errorMsg });
+      
+      // Detect specific error patterns that indicate missing native config
+      if (errorMsg.includes('not implemented') || errorMsg.includes('not found') || errorMsg.includes('undefined')) {
+        return { 
+          available: false, 
+          reason: 'HealthKit not configured in Xcode. Open your iOS project in Xcode, add HealthKit capability, and rebuild.' 
+        };
+      }
+      
+      return { available: false, reason: errorMsg };
+    }
+  }, []);
+
   const requestAppleHealthPermission = useCallback(async () => {
     logHealthDebug('request_permission_click');
 
@@ -286,6 +326,11 @@ export function useAppleHealth() {
     const loaded = await loadHealthKitPlugin();
     if (!loaded || !Health) {
       toast.error('HealthKit plugin not available. Rebuild app with native code.');
+      setDebugInfo(prev => ({ 
+        ...prev, 
+        lastError: 'HealthKit plugin not loaded',
+        lastSyncResult: 'error' 
+      }));
       return false;
     }
     
@@ -294,14 +339,22 @@ export function useAppleHealth() {
       logHealthDebug('before_isHealthAvailable');
 
       // Check if HealthKit is available on this device
-      const { available } = await Health.isHealthAvailable();
-      if (!available) {
-        toast.error('HealthKit is not available on this device');
+      const setupCheck = await checkHealthKitSetup();
+      if (!setupCheck.available) {
+        toast.error(setupCheck.reason || 'HealthKit is not available');
+        setDebugInfo(prev => ({ 
+          ...prev, 
+          isHealthAvailable: false,
+          lastError: setupCheck.reason || 'HealthKit not available',
+          lastSyncResult: 'error' 
+        }));
         return false;
       }
 
+      logHealthDebug('before_requestHealthPermissions');
+      
       // Request authorization for all available health data types
-      await Health.requestHealthPermissions({
+      const permResult = await Health.requestHealthPermissions({
         permissions: [
           // Basic metrics (existing)
           'READ_STEPS',
@@ -331,22 +384,40 @@ export function useAppleHealth() {
           'READ_WORKOUTS',
         ]
       });
+      
+      logHealthDebug('requestHealthPermissions_result', { permResult });
 
       setIsConnected(true);
-      toast.success('Connected to Apple Health');
+      toast.success('Connected to Apple Health! Syncing data...');
       
       // Immediately sync data after connecting
       await syncAppleHealthInternal();
       
       return true;
     } catch (error: any) {
+      const errorMsg = error?.message || String(error);
       console.error('Error connecting to Apple Health:', error);
-      toast.error(error.message || 'Failed to connect to Apple Health');
+      logHealthDebug('requestPermission_error', { error: errorMsg });
+      
+      // Detect if this is a "no prompt shown" scenario (HealthKit entitlement missing)
+      if (errorMsg.includes('denied') || errorMsg.includes('not authorized')) {
+        toast.error('Health access denied. Check permissions in: Health app → Sharing → Apps → DarAI');
+      } else if (errorMsg.includes('not implemented') || errorMsg.includes('undefined')) {
+        toast.error('HealthKit not configured. Rebuild in Xcode with HealthKit capability enabled.');
+      } else {
+        toast.error(errorMsg || 'Failed to connect to Apple Health');
+      }
+      
+      setDebugInfo(prev => ({ 
+        ...prev, 
+        lastError: errorMsg,
+        lastSyncResult: 'error' 
+      }));
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [isAvailable]);
+  }, [isAvailable, checkHealthKitSetup]);
 
   const syncAppleHealthInternal = async (daysBack: number = 365) => {
     if (!Health || !user?.id) return;

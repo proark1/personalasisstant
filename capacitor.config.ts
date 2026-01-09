@@ -33,6 +33,11 @@ const config: CapacitorConfig = {
       iconColor: '#6366f1',
       sound: 'default',
     },
+    // HealthKit configuration - enables Apple Health integration
+    HealthKit: {
+      // This usage description appears in the Health permission prompt
+      NSHealthShareUsageDescription: 'DarAI needs access to your health data to display your steps, heart rate, sleep, and other wellness metrics in the Health Hub.',
+    },
   },
   ...(devServerUrl
     ? {
