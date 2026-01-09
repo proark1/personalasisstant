@@ -468,7 +468,26 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       // Check for voice commands to end session
       if (isFinal) {
         const lower = text.toLowerCase();
-        if (lower.includes('quit') || lower.includes('end session') || lower.includes('goodbye') || lower.includes('stop listening')) {
+        
+        // Expanded exit phrases for natural conversation endings
+        const exitPhrases = [
+          'goodbye', 'bye', 'bye bye', 'bye-bye',
+          'quit', 'let\'s quit', 'lets quit',
+          'end session', 'end this', 'end call', 'end the call',
+          'stop listening', 'stop now', 'stop this',
+          'that\'s all', 'that is all', 'thats all',
+          'i\'m done', 'im done', 'we\'re done', 'all done',
+          'close this', 'close dori',
+          'hang up', 'disconnect',
+          'talk to you later', 'see you later', 'catch you later',
+          'thanks that\'s it', 'thank you that\'s all', 'thanks bye',
+          'gotta go', 'got to go', 'i have to go',
+          'later', 'peace out', 'take care'
+        ];
+        
+        const shouldExit = exitPhrases.some(phrase => lower.includes(phrase));
+        
+        if (shouldExit) {
           handleEndSession();
           onClose();
           return;

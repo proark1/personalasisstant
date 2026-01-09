@@ -1520,6 +1520,22 @@ export function useOpenAIRealtime({
         dcIsOpenRef.current = true;
         setDebugTimings(prev => ({ ...prev, dataChannelOpen: performance.now() }));
         maybeSetConnected();
+        
+        // Trigger AI to greet the user first after connection is stable
+        setTimeout(() => {
+          if (dc.readyState === 'open') {
+            console.log('Triggering AI greeting...');
+            dc.send(JSON.stringify({
+              type: 'conversation.item.create',
+              item: {
+                type: 'message',
+                role: 'user',
+                content: [{ type: 'input_text', text: '[SESSION_START]' }]
+              }
+            }));
+            dc.send(JSON.stringify({ type: 'response.create' }));
+          }
+        }, 500);
       });
 
       dc.addEventListener('message', async (e) => {

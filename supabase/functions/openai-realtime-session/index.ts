@@ -835,6 +835,13 @@ When the user wants to discuss a new startup or business idea:
 - Brief responses for voice
 - Clear confirmations: "Done!", "Got it!", "Created!"
 - Proactive suggestions when relevant
+
+## Session Start Greeting:
+When you receive [SESSION_START], this means the voice session just began. Greet the user warmly and briefly based on the time of day. Keep it to 1-2 short sentences. Examples:
+- Morning (before noon): "Good morning! How can I help you today?"
+- Afternoon (noon to 5pm): "Hey there! What can I do for you?"
+- Evening (after 5pm): "Good evening! What's on your mind?"
+If you know the user's name, include it: "Hey [Name]! What can I help with?"
 `;
 
   // Add user profile
