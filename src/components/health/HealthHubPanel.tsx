@@ -58,6 +58,7 @@ export function HealthHubPanel() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [showSetupGuide, setShowSetupGuide] = useState(false);
+  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
   
   const {
     isAvailable,
@@ -71,6 +72,7 @@ export function HealthHubPanel() {
     syncAppleHealth,
     addManualMetric,
     openAppSettings,
+    runHealthKitDiagnostics,
   } = useAppleHealth();
   
   const {
@@ -291,6 +293,34 @@ export function HealthHubPanel() {
             <CollapsibleContent>
               <Card className="mt-2 bg-muted/50">
                 <CardContent className="p-3 text-xs font-mono space-y-1">
+                  {/* Verify Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mb-2 text-xs h-8"
+                    onClick={async () => {
+                      setIsRunningDiagnostics(true);
+                      try {
+                        await runHealthKitDiagnostics();
+                      } finally {
+                        setIsRunningDiagnostics(false);
+                      }
+                    }}
+                    disabled={isRunningDiagnostics}
+                  >
+                    {isRunningDiagnostics ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        Running Diagnostics...
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Verify HealthKit Setup
+                      </>
+                    )}
+                  </Button>
+
                   <div className="flex justify-between">
                     <span>Platform:</span>
                     <span>{debugInfo.platform}</span>
@@ -304,6 +334,10 @@ export function HealthHubPanel() {
                     <span>{debugInfo.pluginLoaded ? '✅' : '❌'}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span>HealthKit Available:</span>
+                    <span>{debugInfo.isHealthAvailable === null ? '❓' : debugInfo.isHealthAvailable ? '✅' : '❌'}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span>Last Sync:</span>
                     <span className={cn(
                       debugInfo.lastSyncResult === 'success' && 'text-green-600',
@@ -313,6 +347,33 @@ export function HealthHubPanel() {
                       {debugInfo.lastSyncResult || 'Not synced'}
                     </span>
                   </div>
+                  
+                  {debugInfo.diagnosticsRan && (
+                    <>
+                      <div className="pt-1 border-t mt-1">
+                        <span className="text-muted-foreground font-semibold">Diagnostics Results:</span>
+                      </div>
+                      {debugInfo.diagnosticsTimestamp && (
+                        <div className="flex justify-between">
+                          <span>Ran at:</span>
+                          <span className="text-muted-foreground">{new Date(debugInfo.diagnosticsTimestamp).toLocaleTimeString()}</span>
+                        </div>
+                      )}
+                      {debugInfo.permissionResult && (
+                        <div>
+                          <span className="text-muted-foreground">Permission Result: </span>
+                          <span className="break-all text-[10px]">{debugInfo.permissionResult}</span>
+                        </div>
+                      )}
+                      {debugInfo.sampleQueryResult && (
+                        <div>
+                          <span className="text-muted-foreground">Sample Query: </span>
+                          <span className="break-all text-[10px]">{debugInfo.sampleQueryResult}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
                   {debugInfo.metricsCollected > 0 && (
                     <div className="flex justify-between">
                       <span>Metrics:</span>

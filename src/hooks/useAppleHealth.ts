@@ -103,6 +103,11 @@ export interface HealthDebugInfo {
   lastError: string | null;
   metricsCollected: number;
   dataTypes: string[];
+  // Diagnostics fields
+  diagnosticsRan: boolean;
+  diagnosticsTimestamp: string | null;
+  permissionResult: string | null;
+  sampleQueryResult: string | null;
 }
 
 export function useAppleHealth() {
@@ -122,6 +127,10 @@ export function useAppleHealth() {
     lastError: null,
     metricsCollected: 0,
     dataTypes: [],
+    diagnosticsRan: false,
+    diagnosticsTimestamp: null,
+    permissionResult: null,
+    sampleQueryResult: null,
   });
 
   const isAvailable = isIOS;
@@ -314,6 +323,94 @@ export function useAppleHealth() {
       return { available: false, reason: errorMsg };
     }
   }, []);
+
+  // Run comprehensive HealthKit diagnostics
+  const runHealthKitDiagnostics = useCallback(async (): Promise<HealthDebugInfo> => {
+    logHealthDebug('diagnostics_start');
+    
+    const timestamp = new Date().toISOString();
+    let newDebugInfo: HealthDebugInfo = {
+      ...debugInfo,
+      diagnosticsRan: true,
+      diagnosticsTimestamp: timestamp,
+      lastError: null,
+    };
+
+    // Step 1: Check platform
+    if (!isIOS) {
+      newDebugInfo.lastError = 'Not running on iOS';
+      setDebugInfo(newDebugInfo);
+      return newDebugInfo;
+    }
+
+    // Step 2: Check plugin loaded
+    const loaded = await loadHealthKitPlugin();
+    newDebugInfo.pluginLoaded = loaded;
+    
+    if (!loaded || !Health) {
+      newDebugInfo.lastError = 'HealthKit plugin failed to load. Native module not bundled in this build.';
+      setDebugInfo(newDebugInfo);
+      return newDebugInfo;
+    }
+
+    // Step 3: Check if HealthKit is available (entitlement test)
+    try {
+      const availResult = await Health.isHealthAvailable();
+      logHealthDebug('diagnostics_isHealthAvailable', { availResult });
+      newDebugInfo.isHealthAvailable = availResult?.available ?? false;
+      
+      if (!availResult?.available) {
+        newDebugInfo.lastError = 'HealthKit not available. Check Xcode: Target → Signing & Capabilities → HealthKit enabled.';
+        setDebugInfo(newDebugInfo);
+        return newDebugInfo;
+      }
+    } catch (e: any) {
+      const errMsg = e?.message || String(e);
+      logHealthDebug('diagnostics_isHealthAvailable_error', { error: errMsg });
+      newDebugInfo.isHealthAvailable = false;
+      newDebugInfo.lastError = `isHealthAvailable threw: ${errMsg}`;
+      setDebugInfo(newDebugInfo);
+      return newDebugInfo;
+    }
+
+    // Step 4: Request permissions (minimal set)
+    try {
+      logHealthDebug('diagnostics_requestPermissions_start');
+      const permResult = await Health.requestHealthPermissions({
+        permissions: ['READ_STEPS', 'READ_HEART_RATE'],
+      });
+      logHealthDebug('diagnostics_requestPermissions_result', { permResult });
+      newDebugInfo.permissionResult = JSON.stringify(permResult);
+    } catch (e: any) {
+      const errMsg = e?.message || String(e);
+      logHealthDebug('diagnostics_requestPermissions_error', { error: errMsg });
+      newDebugInfo.permissionResult = `Error: ${errMsg}`;
+    }
+
+    // Step 5: Try a sample query
+    try {
+      logHealthDebug('diagnostics_querySteps_start');
+      const stepsResult = await Health.querySteps();
+      logHealthDebug('diagnostics_querySteps_result', { stepsResult });
+      newDebugInfo.sampleQueryResult = JSON.stringify(stepsResult);
+      
+      if (stepsResult?.value && stepsResult.value > 0) {
+        newDebugInfo.lastSyncResult = 'success';
+      } else {
+        newDebugInfo.lastSyncResult = 'no_data';
+        newDebugInfo.lastError = 'Query returned no data. Check Health app → Sharing → Apps → DarAI has categories enabled.';
+      }
+    } catch (e: any) {
+      const errMsg = e?.message || String(e);
+      logHealthDebug('diagnostics_querySteps_error', { error: errMsg });
+      newDebugInfo.sampleQueryResult = `Error: ${errMsg}`;
+      newDebugInfo.lastSyncResult = 'error';
+      newDebugInfo.lastError = `Query failed: ${errMsg}`;
+    }
+
+    setDebugInfo(newDebugInfo);
+    return newDebugInfo;
+  }, [debugInfo]);
 
   const requestAppleHealthPermission = useCallback(async () => {
     logHealthDebug('request_permission_click');
@@ -1385,6 +1482,7 @@ export function useAppleHealth() {
     addManualMetric,
     deleteMetric,
     openAppSettings,
+    runHealthKitDiagnostics,
     refetch: fetchHealthMetrics,
   };
 }
