@@ -739,9 +739,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   }, [transcriptHistory]);
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 z-50 flex flex-col animate-fade-in">
+    <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 z-50 flex flex-col animate-fade-in safe-area-all">
       {/* Header with background switcher and close button */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
+      <div className="absolute z-20 flex items-center justify-between" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)', left: '1rem', right: '1rem' }}>
         {/* Background style switcher */}
         <div className="flex items-center gap-1 bg-background/50 backdrop-blur-sm rounded-full p-1">
           <Button
@@ -971,7 +971,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
       </main>
 
       {/* Footer Controls */}
-      <footer className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center gap-4">
+      <footer className="absolute left-0 right-0 p-6 flex flex-col items-center gap-4" style={{ bottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {/* Text input when in text mode */}
         {textMode && isSessionActive && (
           <div className="w-full max-w-md flex gap-2 px-4">

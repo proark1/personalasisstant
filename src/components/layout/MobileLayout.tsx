@@ -407,9 +407,8 @@ export function MobileLayout({
         </div>
       </header>
 
-
-      {/* Content */}
-      <main className="flex-1 overflow-hidden relative">
+      {/* Content - with padding below header */}
+      <main className="flex-1 overflow-hidden relative pt-2">
         <div className={cn(
           "h-full",
           activeTab === 'chat' ? 'block' : 'hidden'
