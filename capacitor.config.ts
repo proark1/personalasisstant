@@ -15,6 +15,11 @@ const config: CapacitorConfig = {
     contentInset: 'automatic',
     allowsLinkPreview: true,
     preferredContentMode: 'mobile',
+    // HealthKit usage descriptions - ensures they're always in Info.plist
+    infoPlist: {
+      NSHealthShareUsageDescription: 'DarAI needs access to your health data to display your steps, heart rate, sleep, and other wellness metrics in the Health Hub.',
+      NSHealthUpdateUsageDescription: 'DarAI needs to save health data to help you track your wellness metrics.',
+    },
   },
   plugins: {
     Microphone: {
