@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useContacts, Contact, ContactType, PersonalTier, BusinessLevel, FamilyRelationship, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
+import { useItemSharing } from '@/hooks/useItemSharing';
 import { PullToRefresh } from '@/components/shared/PullToRefresh';
 import { ContactCardSkeleton } from '@/components/skeletons';
+import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   UserPlus, Trash2, Search, Users, Briefcase, 
   Phone, Mail, Building, Clock, Bell, MessageSquare, Check, Pencil,
-  Linkedin, Twitter, Globe, MapPin, Cake
+  Linkedin, Twitter, Globe, MapPin, Cake, Share2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, isPast, format } from 'date-fns';
@@ -121,6 +123,8 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     getContactsDue,
   } = useContacts(userId);
 
+  const { shareItem, getSharedWith, removeShare, getRecentContacts } = useItemSharing(userId);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -128,6 +132,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
   const [activeTab, setActiveTab] = useState<'personal' | 'business' | 'due'>('personal');
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
+  const [shareDialog, setShareDialog] = useState<{ id: string; name: string } | null>(null);
 
   const contactsDue = getContactsDue();
 
@@ -338,6 +343,14 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
             </div>
 
             <div className="flex gap-0.5 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => { e.stopPropagation(); setShareDialog({ id: contact.id, name: contact.name }); }}
+              >
+                <Share2 className="w-3 h-3" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -589,6 +602,20 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Share Dialog */}
+      {shareDialog && (
+        <ShareDialog
+          itemType="contact"
+          itemId={shareDialog.id}
+          itemTitle={shareDialog.name}
+          onShare={(email, permission) => shareItem('contact', shareDialog.id, email, permission)}
+          onGetSharedWith={() => getSharedWith('contact', shareDialog.id)}
+          onRemoveShare={removeShare}
+          onGetRecentContacts={getRecentContacts}
+          onClose={() => setShareDialog(null)}
+        />
+      )}
     </div>
   );
 }

@@ -15,7 +15,8 @@ import {
   MoreVertical,
   CalendarPlus,
   Sparkles,
-  BellOff
+  BellOff,
+  Share2
 } from 'lucide-react';
 import { format, differenceInDays, isFuture } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ interface ContractCardProps {
   contract: Contract;
   onEdit: (contract: Contract) => void;
   onDelete: (contract: Contract) => void;
+  onShare?: (contract: Contract) => void;
   onGenerateEmail?: (contract: Contract) => void;
   onPreviewDocument?: (contract: Contract) => void;
   onSyncToCalendar?: (contract: Contract) => void;
@@ -47,6 +49,7 @@ export function ContractCard({
   contract, 
   onEdit, 
   onDelete,
+  onShare,
   onGenerateEmail,
   onPreviewDocument,
   onSyncToCalendar,
@@ -257,6 +260,12 @@ export function ContractCard({
                   <DropdownMenuItem onClick={() => onSnoozeReminder(contract)}>
                     <BellOff className="h-4 w-4 mr-2" />
                     {isReminderSnoozed ? 'Update Snooze' : 'Snooze Reminders'}
+                  </DropdownMenuItem>
+                )}
+                {onShare && (
+                  <DropdownMenuItem onClick={() => onShare(contract)}>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />

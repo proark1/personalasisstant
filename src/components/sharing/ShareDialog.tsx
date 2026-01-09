@@ -13,7 +13,7 @@ interface Contact {
 }
 
 interface ShareDialogProps {
-  itemType: 'task' | 'event';
+  itemType: 'task' | 'event' | 'contract' | 'contact';
   itemId: string;
   itemTitle: string;
   onShare: (email: string, permission: 'view' | 'edit') => Promise<{ error: string | null }>;

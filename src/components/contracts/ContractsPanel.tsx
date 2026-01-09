@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { useContracts } from '@/hooks/useContracts';
+import { useItemSharing } from '@/hooks/useItemSharing';
 import { ContractManager } from './ContractManager';
+import { ShareDialog } from '@/components/sharing/ShareDialog';
 
 interface ContractsPanelProps {
   userId: string;
@@ -20,6 +23,10 @@ export function ContractsPanel({ userId }: ContractsPanelProps) {
     getExpiringContracts,
     getCancellationDeadlines,
   } = useContracts(userId);
+
+  const { shareItem, getSharedWith, removeShare, getRecentContacts } = useItemSharing(userId);
+
+  const [shareDialog, setShareDialog] = useState<{ id: string; name: string } | null>(null);
 
   if (loading) {
     return (
@@ -43,7 +50,21 @@ export function ContractsPanel({ userId }: ContractsPanelProps) {
         onSnooze={snoozeReminder}
         getExpiringContracts={getExpiringContracts}
         getCancellationDeadlines={getCancellationDeadlines}
+        onShareContract={(id, name) => setShareDialog({ id, name })}
       />
+
+      {shareDialog && (
+        <ShareDialog
+          itemType="contract"
+          itemId={shareDialog.id}
+          itemTitle={shareDialog.name}
+          onShare={(email, permission) => shareItem('contract', shareDialog.id, email, permission)}
+          onGetSharedWith={() => getSharedWith('contract', shareDialog.id)}
+          onRemoveShare={removeShare}
+          onGetRecentContacts={getRecentContacts}
+          onClose={() => setShareDialog(null)}
+        />
+      )}
     </div>
   );
 }
