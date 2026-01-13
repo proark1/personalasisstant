@@ -1,9 +1,15 @@
-import { Calendar, RefreshCw, Trash2, ExternalLink, Check, X, Loader2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Calendar, RefreshCw, Trash2, ExternalLink, Loader2, Upload, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useCalendarConnections, CalendarConnection } from '@/hooks/useCalendarConnections';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
+import { parseICS, validateICSFile } from '@/lib/icsParser';
 
 // Google Calendar icon SVG
 const GoogleCalendarIcon = () => (
@@ -117,6 +123,11 @@ function ConnectionCard({
 }
 
 export function CalendarConnectionsPanel() {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [calendarName, setCalendarName] = useState('');
+  
   const {
     connections,
     loading,
@@ -125,9 +136,74 @@ export function CalendarConnectionsPanel() {
     syncCalendar,
     disconnectCalendar,
     toggleSync,
+    refetch,
   } = useCalendarConnections();
 
   const hasGoogleConnection = connections.some(c => c.provider === 'google');
+
+  const handleICSImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!validateICSFile(file)) {
+      toast({
+        title: 'Invalid file',
+        description: 'Please select a valid .ics calendar file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const content = await file.text();
+      const events = parseICS(content);
+
+      if (events.length === 0) {
+        toast({
+          title: 'No events found',
+          description: 'The calendar file contains no events to import.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Get the calendar name from file name or user input
+      const name = calendarName.trim() || file.name.replace('.ics', '');
+
+      // Call the import-calendar edge function
+      const { data, error } = await supabase.functions.invoke('import-calendar', {
+        body: {
+          icsContent: content,
+          calendarName: name,
+          color: '#4285F4',
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Calendar imported',
+        description: `Successfully imported ${data.imported || events.length} events from "${name}".`,
+      });
+
+      // Reset and refresh
+      setCalendarName('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      refetch();
+    } catch (error: any) {
+      console.error('Error importing calendar:', error);
+      toast({
+        title: 'Import failed',
+        description: error.message || 'Failed to import calendar file.',
+        variant: 'destructive',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <Card>
@@ -137,7 +213,7 @@ export function CalendarConnectionsPanel() {
           Calendar Connections
         </CardTitle>
         <CardDescription>
-          Connect external calendars to sync events automatically
+          Connect external calendars or import ICS files to sync events
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -162,21 +238,64 @@ export function CalendarConnectionsPanel() {
               </div>
             )}
             
-            {!hasGoogleConnection && (
-              <Button
-                variant="outline"
-                onClick={connectGoogle}
-                className="w-full justify-start gap-3"
-              >
-                <GoogleCalendarIcon />
-                <span>Connect Google Calendar</span>
-                <ExternalLink className="h-4 w-4 ml-auto text-muted-foreground" />
-              </Button>
-            )}
+            <div className="space-y-3 pt-2">
+              {!hasGoogleConnection && (
+                <Button
+                  variant="outline"
+                  onClick={connectGoogle}
+                  className="w-full justify-start gap-3"
+                >
+                  <GoogleCalendarIcon />
+                  <span>Connect Google Calendar</span>
+                  <ExternalLink className="h-4 w-4 ml-auto text-muted-foreground" />
+                </Button>
+              )}
+
+              {/* ICS Import Section */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Calendar name (optional)"
+                    value={calendarName}
+                    onChange={(e) => setCalendarName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".ics,text/calendar"
+                    onChange={handleICSImport}
+                    className="hidden"
+                    id="ics-upload"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={importing}
+                    className="gap-2"
+                  >
+                    {importing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Import ICS
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Import events from an .ics file (Apple Calendar, Outlook, etc.)
+                </p>
+              </div>
+            </div>
 
             {connections.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No calendars connected yet. Connect your Google Calendar to sync events.
+              <p className="text-sm text-muted-foreground text-center py-2">
+                No calendars connected yet.
               </p>
             )}
           </>
