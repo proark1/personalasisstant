@@ -20,7 +20,7 @@ const loadStatusBar = async () => {
   return false;
 };
 
-export function useStatusBar(theme: 'dark' | 'light') {
+export function useStatusBar(theme: 'dark' | 'light' | 'colorful') {
   const updateStatusBar = useCallback(async (isDark: boolean) => {
     if (!Capacitor.isNativePlatform()) return;
 
@@ -47,6 +47,7 @@ export function useStatusBar(theme: 'dark' | 'light') {
   }, []);
 
   useEffect(() => {
+    // Colorful theme uses light status bar style
     updateStatusBar(theme === 'dark');
   }, [theme, updateStatusBar]);
 

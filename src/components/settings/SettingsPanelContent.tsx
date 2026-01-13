@@ -14,6 +14,7 @@ import {
   ListTodo, 
   Sun, 
   Moon,
+  Sparkles,
   Check,
   Users,
   Globe,
@@ -32,7 +33,6 @@ import {
   Bell,
   Search,
   MapPin,
-  Sparkles,
   TrendingUp,
   Shield,
   Loader2,
@@ -489,10 +489,10 @@ export function SettingsPanelContent({
               {/* Theme Toggle */}
               <div className="space-y-3">
                 <label className="text-sm font-medium">{t('settings.theme')}</label>
-                <div className="flex gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   <Button
                     variant={settings.theme === 'dark' ? 'secondary' : 'outline'}
-                    className="flex-1 gap-2"
+                    className="gap-2"
                     onClick={() => onUpdateSettings({ theme: 'dark' })}
                   >
                     <Moon className="w-4 h-4" />
@@ -500,11 +500,19 @@ export function SettingsPanelContent({
                   </Button>
                   <Button
                     variant={settings.theme === 'light' ? 'secondary' : 'outline'}
-                    className="flex-1 gap-2"
+                    className="gap-2"
                     onClick={() => onUpdateSettings({ theme: 'light' })}
                   >
                     <Sun className="w-4 h-4" />
                     {t('settings.light')}
+                  </Button>
+                  <Button
+                    variant={settings.theme === 'colorful' ? 'secondary' : 'outline'}
+                    className="gap-2"
+                    onClick={() => onUpdateSettings({ theme: 'colorful' })}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Colorful
                   </Button>
                 </div>
               </div>

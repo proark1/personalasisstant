@@ -133,6 +133,61 @@ body::before {
     --sidebar-border: 222 30% 15%;
     --sidebar-ring: 187 94% 43%;
   }
+
+  /* Colorful/Playful Theme - Vibrant and fun! */
+  .colorful {
+    --background: 280 60% 98%;
+    --foreground: 280 60% 15%;
+
+    --card: 300 50% 96%;
+    --card-foreground: 280 60% 15%;
+
+    --popover: 280 60% 98%;
+    --popover-foreground: 280 60% 15%;
+
+    --primary: 330 85% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 180 70% 85%;
+    --secondary-foreground: 180 70% 20%;
+
+    --muted: 260 40% 92%;
+    --muted-foreground: 260 30% 40%;
+
+    --accent: 45 95% 55%;
+    --accent-foreground: 45 95% 15%;
+
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 280 40% 85%;
+    --input: 280 40% 88%;
+    --ring: 330 85% 60%;
+
+    --radius: 1rem;
+
+    --glass: 280 50% 94%;
+    --glass-border: 280 40% 80%;
+    --glow-primary: 330 85% 60%;
+    --glow-accent: 45 95% 55%;
+    
+    --ghost-bg: 280 50% 94%;
+    --ghost-primary: 330 85% 60%;
+    --ghost-secondary: 180 70% 50%;
+
+    --success: 160 80% 45%;
+    --warning: 35 95% 55%;
+    --info: 200 90% 55%;
+
+    --sidebar-background: 300 45% 95%;
+    --sidebar-foreground: 280 60% 15%;
+    --sidebar-primary: 330 85% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 180 60% 88%;
+    --sidebar-accent-foreground: 180 60% 20%;
+    --sidebar-border: 280 40% 82%;
+    --sidebar-ring: 330 85% 60%;
+  }
 }
 
 @layer base {

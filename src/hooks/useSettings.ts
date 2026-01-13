@@ -20,7 +20,7 @@ export function useSettings() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     
     // Apply theme
-    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.remove('light', 'dark', 'colorful');
     document.documentElement.classList.add(settings.theme);
     
     // Apply color scheme via CSS custom properties
