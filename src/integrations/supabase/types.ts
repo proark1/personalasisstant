@@ -1028,6 +1028,8 @@ export type Database = {
           created_at: string
           description: string | null
           end_time: string
+          external_id: string | null
+          external_source: string | null
           id: string
           last_reminded_at: string | null
           location: string | null
@@ -1044,6 +1046,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           end_time: string
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           last_reminded_at?: string | null
           location?: string | null
@@ -1060,6 +1064,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           end_time?: string
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           last_reminded_at?: string | null
           location?: string | null
@@ -1074,41 +1080,53 @@ export type Database = {
       }
       external_calendar_connections: {
         Row: {
+          access_token: string | null
           calendar_id: string | null
           color: string | null
           created_at: string
+          external_calendar_id: string | null
           id: string
           last_synced_at: string | null
           name: string
           provider: string
+          refresh_token: string | null
           sync_enabled: boolean | null
           sync_token: string | null
+          token_expires_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          access_token?: string | null
           calendar_id?: string | null
           color?: string | null
           created_at?: string
+          external_calendar_id?: string | null
           id?: string
           last_synced_at?: string | null
           name: string
           provider?: string
+          refresh_token?: string | null
           sync_enabled?: boolean | null
           sync_token?: string | null
+          token_expires_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          access_token?: string | null
           calendar_id?: string | null
           color?: string | null
           created_at?: string
+          external_calendar_id?: string | null
           id?: string
           last_synced_at?: string | null
           name?: string
           provider?: string
+          refresh_token?: string | null
           sync_enabled?: boolean | null
           sync_token?: string | null
+          token_expires_at?: string | null
           updated_at?: string
           user_id?: string
         }

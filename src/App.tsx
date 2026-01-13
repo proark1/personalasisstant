@@ -11,6 +11,7 @@ import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 
 import { useMorningAutoPlay } from "@/hooks/useMorningAutoPlay";
 import Index from "@/pages/Index";
+import CalendarCallback from "@/pages/CalendarCallback";
 import {
   LazyAuth,
   LazyForgotPassword,
@@ -120,6 +121,14 @@ function AppContent() {
           <Route
             path="/reset-password"
             element={<LazyResetPassword />}
+          />
+          <Route
+            path="/auth/calendar-callback"
+            element={
+              <ProtectedRoute>
+                <CalendarCallback />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/onboarding"

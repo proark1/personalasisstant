@@ -44,6 +44,7 @@ import { SpaceMembersPanel } from './SpaceMembersPanel';
 import { NotificationSettingsPanel } from './NotificationSettingsPanel';
 import { ProactiveSettingsPanel } from './ProactiveSettingsPanel';
 import { KeyboardShortcutsPanel, useKeyboardShortcutsPanel } from './KeyboardShortcutsPanel';
+import { CalendarConnectionsPanel } from './CalendarConnectionsPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -472,6 +473,11 @@ export function SettingsPanelContent({
                   </Button>
                 </div>
               )}
+            </div>
+
+            {/* Calendar Connections Section */}
+            <div className="pt-4 border-t border-border">
+              <CalendarConnectionsPanel />
             </div>
 
             {/* Appearance Section */}
