@@ -238,13 +238,38 @@ export function PrayerTimesTab() {
     }
   }, []);
 
-  // Schedule notifications for prayers
+  // Listen for prayer notifications received in foreground (native) to trigger Adhan
+  useEffect(() => {
+    if (!isNative || !notificationSettings.adhanEnabled) return;
+
+    const handleNotificationReceived = LocalNotifications.addListener(
+      'localNotificationReceived',
+      (notification) => {
+        // Check if this is a prayer notification (contains "Prayer" in title)
+        if (notification.title?.includes('Prayer') && !notification.title?.includes('in')) {
+          // This is a "prayer time now" notification, play Adhan
+          const prayerName = notification.title.replace(' Prayer', '');
+          playAdhan(prayerName);
+        }
+      }
+    );
+
+    return () => {
+      handleNotificationReceived.then(listener => listener.remove());
+    };
+  }, [isNative, notificationSettings.adhanEnabled, playAdhan]);
+
+  // Schedule notifications for prayers with Adhan support
   useEffect(() => {
     if (!notificationSettings.enabled || notificationPermission !== 'granted' || prayerTimes.length === 0) {
       return;
     }
 
-    const scheduleNativeNotification = async (prayer: PrayerTime, minutesBefore: number) => {
+    // For native platforms, we need to also set up timers to play Adhan
+    // since LocalNotifications can't play custom audio files from URLs
+    const adhanTimers: NodeJS.Timeout[] = [];
+
+    const scheduleNativeNotificationWithAdhan = async (prayer: PrayerTime, minutesBefore: number) => {
       const [hours, minutes] = prayer.time.split(':').map(Number);
       const now = new Date();
       const prayerTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
@@ -264,11 +289,20 @@ export function PrayerTimesTab() {
               ? `${prayer.name} (${prayer.arabicName}) prayer time in ${minutesBefore} minutes at ${prayer.time}`
               : `It's time for ${prayer.name} (${prayer.arabicName}) prayer`,
             schedule: { at: notifyTime },
-            sound: undefined, // Use default sound
+            sound: 'default',
             smallIcon: 'ic_stat_prayer',
             largeIcon: 'ic_launcher',
           }]
         });
+
+        // Also schedule Adhan to play at prayer time (minutesBefore === 0)
+        // This works even when app is in foreground
+        if (minutesBefore === 0 && notificationSettings.adhanEnabled) {
+          const adhanTimer = setTimeout(() => {
+            playAdhan(prayer.name);
+          }, timeUntilNotification);
+          adhanTimers.push(adhanTimer);
+        }
         
         return notificationId;
       }
@@ -309,11 +343,11 @@ export function PrayerTimesTab() {
     prayerTimes.forEach(prayer => {
       if (prayer.name !== 'Sunrise' && notificationSettings.prayers[prayer.name]) {
         if (isNative) {
-          // Use Capacitor LocalNotifications for native apps
+          // Use Capacitor LocalNotifications for native apps with Adhan support
           if (notificationSettings.minutesBefore > 0) {
-            scheduleNativeNotification(prayer, notificationSettings.minutesBefore);
+            scheduleNativeNotificationWithAdhan(prayer, notificationSettings.minutesBefore);
           }
-          scheduleNativeNotification(prayer, 0);
+          scheduleNativeNotificationWithAdhan(prayer, 0);
         } else {
           // Use browser notifications for web
           if (notificationSettings.minutesBefore > 0) {
@@ -328,6 +362,7 @@ export function PrayerTimesTab() {
 
     return () => {
       timeouts.forEach(t => t && clearTimeout(t));
+      adhanTimers.forEach(t => clearTimeout(t));
       // Cancel native notifications when component unmounts or settings change
       if (isNative && scheduledNativeIds.length > 0) {
         LocalNotifications.cancel({ notifications: scheduledNativeIds.map(id => ({ id })) });

@@ -4,6 +4,7 @@ import { useDatabase } from '@/hooks/useDatabase';
 import { useSettings } from '@/hooks/useSettings';
 import { useAIChat } from '@/hooks/useAIChat';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
+import { useEventNotifications } from '@/hooks/useEventNotifications';
 import { useSharedItemsRealtime } from '@/hooks/useSharedItemsRealtime';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 import { useSpaceSharedData } from '@/hooks/useSpaceSharedData';
@@ -107,6 +108,13 @@ const Index = () => {
     defaultReminderMinutes: settings.notifications.reminderMinutesBefore,
     enabled: settings.notifications.taskReminders,
     adhdMode: settings.notifications.adhdMode,
+  });
+
+  // Event/Meeting notifications
+  useEventNotifications({
+    events,
+    defaultReminderMinutes: settings.notifications.reminderMinutesBefore,
+    enabled: settings.notifications.calendarAlerts,
   });
 
   // Tags system
