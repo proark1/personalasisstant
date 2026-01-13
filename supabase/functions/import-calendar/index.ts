@@ -17,33 +17,38 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
   // Get user from authorization header
   const authHeader = req.headers.get('authorization');
-  let userId: string | null = null;
-  
-  if (authHeader) {
-    try {
-      const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader } }
-      });
-      const { data: { user } } = await userClient.auth.getUser();
-      if (user) userId = user.id;
-    } catch (e) {
-      console.log('Could not get user from auth header');
-    }
-  }
-
-  if (!userId) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Authentication required' }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  
+  // Create client with user's auth header to validate token
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } }
+  });
+  
+  const { data: { user }, error: userError } = await userClient.auth.getUser();
+  
+  if (userError || !user) {
+    console.error('Auth error:', userError);
+    return new Response(JSON.stringify({ error: 'Authentication required' }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  
+  const userId = user.id;
+  
+  // Create service client for database operations
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
     const { icsContent, calendarName = 'Imported Calendar', color = '#3b82f6' }: ImportRequest = await req.json();
