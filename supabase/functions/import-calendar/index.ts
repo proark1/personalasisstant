@@ -31,12 +31,11 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   
   // Create client with user's auth header to validate token
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } }
-  });
-  
-  const { data: { user }, error: userError } = await userClient.auth.getUser();
-  
+  const userClient = createClient(supabaseUrl, supabaseAnonKey);
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: userError } = await userClient.auth.getUser(token);
+
   if (userError || !user) {
     console.error('Auth error:', userError);
     return new Response(JSON.stringify({ error: 'Authentication required' }), {
@@ -44,7 +43,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  
+
   const userId = user.id;
   
   // Create service client for database operations
