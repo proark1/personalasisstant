@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useWeeklyCoach } from '@/hooks/useWeeklyCoach';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,11 +22,14 @@ import {
   Sparkles
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 export function WeeklyCoachCard() {
   const { report, loading, generating, generateReport, markAsRead } = useWeeklyCoach();
+  const { t, language } = useLanguage();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const dateLocale = language === 'de' ? de : undefined;
 
   const handleOpenChange = (open: boolean) => {
     setDialogOpen(open);
@@ -40,7 +44,7 @@ export function WeeklyCoachCard() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Trophy className="w-4 h-4 text-primary" />
-            Weekly Coach
+            {t('weeklyCoach.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -56,10 +60,10 @@ export function WeeklyCoachCard() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Trophy className="w-4 h-4 text-primary" />
-            Weekly Coach
+            {t('weeklyCoach.title')}
             {report && !report.isRead && (
               <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">
-                New
+                {t('weeklyCoach.new')}
               </Badge>
             )}
           </CardTitle>
@@ -78,7 +82,7 @@ export function WeeklyCoachCard() {
           <div className="text-center py-4">
             <Sparkles className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground mb-3">
-              No weekly report yet
+              {t('weeklyCoach.noReport')}
             </p>
             <Button 
               variant="outline" 
@@ -86,7 +90,7 @@ export function WeeklyCoachCard() {
               onClick={() => generateReport()}
               disabled={generating}
             >
-              {generating ? 'Generating...' : 'Generate Report'}
+              {generating ? t('weeklyCoach.generating') : t('weeklyCoach.generate')}
             </Button>
           </div>
         ) : (
@@ -126,10 +130,10 @@ export function WeeklyCoachCard() {
                   
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">
-                      Week of {format(parseISO(report.weekStart), 'MMM d')}
+                      {t('weeklyCoach.weekOf')} {format(parseISO(report.weekStart), 'MMM d', { locale: dateLocale })}
                     </p>
                     <p className="text-xs text-muted-foreground line-clamp-2">
-                      {report.summaryText || `${report.tasksCompleted} tasks completed`}
+                      {report.summaryText || `${report.tasksCompleted} ${t('weeklyCoach.tasksCompleted')}`}
                     </p>
                   </div>
                   
@@ -142,10 +146,10 @@ export function WeeklyCoachCard() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Trophy className="w-5 h-5 text-primary" />
-                  Weekly Coach Report
+                  {t('weeklyCoach.report')}
                 </DialogTitle>
                 <p className="text-sm text-muted-foreground">
-                  {format(parseISO(report.weekStart), 'MMM d')} - {format(parseISO(report.weekEnd), 'MMM d, yyyy')}
+                  {format(parseISO(report.weekStart), 'MMM d', { locale: dateLocale })} - {format(parseISO(report.weekEnd), 'MMM d, yyyy', { locale: dateLocale })}
                 </p>
               </DialogHeader>
               
@@ -162,19 +166,19 @@ export function WeeklyCoachCard() {
                   <div className="grid grid-cols-3 gap-2">
                     <ScoreCard 
                       icon={Target} 
-                      label="Productivity" 
+                      label={t('weeklyCoach.productivity')} 
                       score={report.productivityScore || 0} 
                       color="primary"
                     />
                     <ScoreCard 
                       icon={Heart} 
-                      label="Wellbeing" 
+                      label={t('weeklyCoach.wellbeing')} 
                       score={report.wellbeingScore || 0} 
                       color="destructive"
                     />
                     <ScoreCard 
                       icon={Scale} 
-                      label="Balance" 
+                      label={t('weeklyCoach.balance')} 
                       score={report.balanceScore || 0} 
                       color="warning"
                     />
@@ -182,13 +186,13 @@ export function WeeklyCoachCard() {
                   
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-2">
-                    <StatItem icon={CheckCircle2} label="Tasks Completed" value={report.tasksCompleted} />
-                    <StatItem icon={Calendar} label="Focus Minutes" value={report.focusMinutes} />
+                    <StatItem icon={CheckCircle2} label={t('weeklyCoach.tasksCompleted')} value={report.tasksCompleted} />
+                    <StatItem icon={Calendar} label={t('weeklyCoach.focusMinutes')} value={report.focusMinutes} />
                   </div>
                   
                   {/* Wins */}
                   {report.wins.length > 0 && (
-                    <Section title="Wins" icon={CheckCircle2} iconColor="text-green-500">
+                    <Section title={t('weeklyCoach.wins')} icon={CheckCircle2} iconColor="text-green-500">
                       {report.wins.map((win, i) => (
                         <li key={i} className="text-sm">{win}</li>
                       ))}
@@ -197,7 +201,7 @@ export function WeeklyCoachCard() {
                   
                   {/* Improvements */}
                   {report.improvements.length > 0 && (
-                    <Section title="Areas to Improve" icon={AlertCircle} iconColor="text-amber-500">
+                    <Section title={t('weeklyCoach.areasToImprove')} icon={AlertCircle} iconColor="text-amber-500">
                       {report.improvements.map((item, i) => (
                         <li key={i} className="text-sm">{item}</li>
                       ))}
@@ -206,7 +210,7 @@ export function WeeklyCoachCard() {
                   
                   {/* Recommendations */}
                   {report.recommendations.length > 0 && (
-                    <Section title="Recommendations" icon={Lightbulb} iconColor="text-blue-500">
+                    <Section title={t('weeklyCoach.recommendations')} icon={Lightbulb} iconColor="text-blue-500">
                       {report.recommendations.map((rec, i) => (
                         <li key={i} className="text-sm">{rec}</li>
                       ))}
@@ -218,7 +222,7 @@ export function WeeklyCoachCard() {
                     <div className="space-y-2">
                       <h4 className="text-sm font-medium flex items-center gap-2">
                         <Target className="w-4 h-4 text-primary" />
-                        Goal Progress
+                        {t('weeklyCoach.goalProgress')}
                       </h4>
                       {Object.entries(report.goalProgress).map(([name, progress]) => (
                         <div key={name} className="space-y-1">

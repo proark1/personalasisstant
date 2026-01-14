@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useDayPrediction } from '@/hooks/useDayPrediction';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   Sun, 
   Cloud, 
@@ -13,35 +14,37 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const PREDICTION_CONFIG = {
+const getPredictionConfig = (t: (key: string) => string) => ({
   excellent: {
     icon: Sparkles,
     color: 'text-success',
     bgColor: 'bg-success/10',
-    label: 'Excellent Day Ahead',
+    label: t('dayPrediction.excellent'),
   },
   good: {
     icon: Sun,
     color: 'text-primary',
     bgColor: 'bg-primary/10',
-    label: 'Good Day Expected',
+    label: t('dayPrediction.good'),
   },
   moderate: {
     icon: Cloud,
     color: 'text-warning',
     bgColor: 'bg-warning/10',
-    label: 'Moderate Day',
+    label: t('dayPrediction.moderate'),
   },
   challenging: {
     icon: CloudRain,
     color: 'text-destructive',
     bgColor: 'bg-destructive/10',
-    label: 'Challenging Day',
+    label: t('dayPrediction.challenging'),
   },
-};
+});
 
 export function DayPredictionCard() {
   const { prediction, loading } = useDayPrediction();
+  const { t } = useLanguage();
+  const PREDICTION_CONFIG = getPredictionConfig(t);
 
   if (loading) {
     return (

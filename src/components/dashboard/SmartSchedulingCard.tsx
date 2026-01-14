@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSmartScheduling, SchedulingSuggestion } from '@/hooks/useSmartScheduling';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   Lightbulb, 
   Clock, 
@@ -34,6 +35,7 @@ function getConfidenceLevel(confidence: number): string {
 
 export function SmartSchedulingCard() {
   const { suggestions, patterns, loading } = useSmartScheduling();
+  const { t, language } = useLanguage();
 
   if (loading) {
     return (
@@ -52,17 +54,19 @@ export function SmartSchedulingCard() {
     return null;
   }
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = language === 'de' 
+    ? ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
     <Card className="glass-panel-solid border-accent/20">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Lightbulb className="w-4 h-4 text-accent" />
-          Smart Scheduling
+          {t('smartScheduling.title')}
           {suggestions.length > 0 && (
             <Badge variant="outline" className="ml-auto text-xs">
-              {suggestions.length} tips
+              {suggestions.length} {t('smartScheduling.tips')}
             </Badge>
           )}
         </CardTitle>
@@ -72,17 +76,17 @@ export function SmartSchedulingCard() {
         {patterns && patterns.peakHours.length > 0 && (
           <div className="p-3 rounded-lg bg-muted/50 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium">Your Productivity Profile</span>
+              <span className="text-xs font-medium">{t('smartScheduling.productivityProfile')}</span>
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <span className="text-muted-foreground">Peak Hours</span>
+                <span className="text-muted-foreground">{t('smartScheduling.peakHours')}</span>
                 <div className="font-medium text-primary">
                   {patterns.peakHours.slice(0, 2).map(h => `${h}:00`).join(', ')}
                 </div>
               </div>
               <div>
-                <span className="text-muted-foreground">Best Days</span>
+                <span className="text-muted-foreground">{t('smartScheduling.bestDays')}</span>
                 <div className="font-medium text-primary">
                   {patterns.bestDays.slice(0, 2).map(d => dayNames[d]).join(', ')}
                 </div>
@@ -131,7 +135,7 @@ export function SmartSchedulingCard() {
 
         {suggestions.length === 0 && patterns && (
           <p className="text-xs text-muted-foreground text-center py-2">
-            Keep completing tasks to get personalized scheduling suggestions!
+            {t('smartScheduling.keepCompleting')}
           </p>
         )}
       </CardContent>
