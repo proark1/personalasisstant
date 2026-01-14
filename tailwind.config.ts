@@ -109,6 +109,23 @@ export default {
           "0%, 100%": { transform: "scaleY(0.5)" },
           "50%": { transform: "scaleY(1.5)" },
         },
+        "shimmer": {
+          "100%": { transform: "translateX(100%)" },
+        },
+        "bounce-in": {
+          "0%": { opacity: "0", transform: "scale(0.3)" },
+          "50%": { transform: "scale(1.05)" },
+          "70%": { transform: "scale(0.9)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "slide-up-fade": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "press": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(0.97)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -116,6 +133,10 @@ export default {
         "spin-slow": "spin-slow 20s linear infinite",
         "pulse-ring": "pulse-ring 2s ease-in-out infinite",
         "wave": "wave 1s ease-in-out infinite",
+        "shimmer": "shimmer 1.5s infinite",
+        "bounce-in": "bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+        "slide-up-fade": "slide-up-fade 0.3s ease-out",
+        "press": "press 0.15s ease-out",
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
