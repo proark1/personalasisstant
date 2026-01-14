@@ -72,6 +72,11 @@ export default {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         info: "hsl(var(--info))",
+        chat: {
+          bg: "hsl(var(--chat-bg))",
+          outgoing: "hsl(var(--chat-outgoing))",
+          incoming: "hsl(var(--chat-incoming))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
