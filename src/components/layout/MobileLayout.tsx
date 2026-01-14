@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -24,6 +24,7 @@ import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
 
 import { useNotifications } from '@/hooks/useNotifications';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useHaptics } from '@/hooks/useHaptics';
 import { Task, CalendarEvent, ChatMessage, UserSettings, Project } from '@/types/flux';
 import { SidebarFilter } from './Sidebar';
 import { 
@@ -116,6 +117,7 @@ export function MobileLayout({
   const [activeWorkspace, setActiveWorkspace] = useState<string>('all');
   
   const { t } = useLanguage();
+  const { vibrate } = useHaptics();
   const { 
     notifications, 
     markRead, 
@@ -123,6 +125,16 @@ export function MobileLayout({
     deleteNotification, 
     clearAll 
   } = useNotifications();
+
+  const handleTabChange = useCallback((tab: Tab) => {
+    vibrate('light');
+    setActiveTab(tab);
+  }, [vibrate]);
+
+  const handleDoriPress = useCallback(() => {
+    vibrate('medium');
+    onVoiceMode();
+  }, [vibrate, onVoiceMode]);
 
   // Get tasks/events based on current filter
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
@@ -156,12 +168,12 @@ export function MobileLayout({
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden safe-area-top">
-      {/* Header */}
-      <header className="h-14 px-4 flex items-center justify-between border-b border-border bg-background shrink-0">
+      {/* Header - Enhanced with blur */}
+      <header className="h-14 px-4 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-lg shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="shrink-0">
+              <Button variant="ghost" size="icon" className="shrink-0 touch-target">
                 <Menu className="w-5 h-5" />
               </Button>
             </SheetTrigger>
@@ -170,7 +182,7 @@ export function MobileLayout({
                 {/* Logo */}
                 <div className="h-16 flex items-center px-4 border-b border-border">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
                       <Sparkles className="w-5 h-5 text-primary-foreground" />
                     </div>
                     <span className="font-semibold text-lg">DarAI</span>
@@ -387,13 +399,13 @@ export function MobileLayout({
             </SheetContent>
           </Sheet>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
               <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
             <span className="font-semibold">DarAI</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <DoriNotificationIcon />
           <NotificationCenter
             notifications={notifications}
@@ -527,37 +539,63 @@ export function MobileLayout({
 
       </main>
 
-      {/* Bottom Tab Bar */}
-      <nav className="border-t border-border shrink-0 bg-background safe-area-bottom">
-        <div className="h-14 flex items-center justify-around px-2">
-          {bottomTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                if (tab.isCenter) {
-                  // Open voice mode directly when clicking the assistant button
-                  onVoiceMode();
-                } else {
-                  setActiveTab(tab.id as Tab);
-                }
-              }}
-              className={cn(
-                "flex items-center justify-center w-12 h-12",
-                tab.isCenter ? "" : "",
-                !tab.isCenter && activeTab === tab.id 
-                  ? "text-primary" 
-                  : !tab.isCenter ? "text-muted-foreground hover:text-foreground" : ""
-              )}
-            >
-              {tab.isCenter ? (
-                <div className="w-12 h-12 -mt-4 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg border-4 border-background">
-                  <Sparkles className="w-5 h-5 text-primary-foreground" />
-                </div>
-              ) : (
-                <tab.icon className="w-6 h-6" />
-              )}
-            </button>
-          ))}
+      {/* Bottom Tab Bar - Enhanced Mobile UX */}
+      <nav className="border-t border-border shrink-0 bg-background/95 backdrop-blur-lg safe-area-bottom">
+        <div className="h-16 flex items-center justify-around px-1">
+          {bottomTabs.map((tab) => {
+            const isActive = !tab.isCenter && activeTab === tab.id;
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (tab.isCenter) {
+                    handleDoriPress();
+                  } else {
+                    handleTabChange(tab.id as Tab);
+                  }
+                }}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-0.5 w-14 h-14 rounded-xl",
+                  "touch-manipulation select-none",
+                  "transition-all duration-200 ease-out",
+                  "active:scale-90",
+                  tab.isCenter ? "" : "relative",
+                  isActive 
+                    ? "text-primary" 
+                    : !tab.isCenter ? "text-muted-foreground" : ""
+                )}
+              >
+                {tab.isCenter ? (
+                  <div className={cn(
+                    "w-14 h-14 -mt-6 rounded-full bg-gradient-to-br from-primary to-accent",
+                    "flex items-center justify-center",
+                    "shadow-lg shadow-primary/30 border-4 border-background",
+                    "transition-all duration-200 ease-out",
+                    "active:scale-95 active:shadow-primary/50",
+                    "animate-pulse-glow"
+                  )}>
+                    <Sparkles className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                ) : (
+                  <>
+                    <div className={cn(
+                      "relative p-1.5 rounded-lg transition-all duration-200",
+                      isActive && "bg-primary/10"
+                    )}>
+                      <tab.icon className={cn(
+                        "w-5 h-5 transition-transform duration-200",
+                        isActive && "scale-110"
+                      )} />
+                      {isActive && (
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                      )}
+                    </div>
+                  </>
+                )}
+              </button>
+            );
+          })}
         </div>
       </nav>
 
