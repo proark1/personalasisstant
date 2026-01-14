@@ -47,27 +47,12 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
       const today = format(new Date(), 'yyyy-MM-dd');
       const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
 
-      const [
-        checkinsResult,
-        tasksResult,
-        contactsResult,
-        eventsResult,
-        habitsResult,
-        habitLogsResult,
-      ] = await Promise.all([
-        // Check if checked in today
-        supabase.from('daily_checkins').select('id').eq('user_id', user.id).eq('checkin_date', today).limit(1),
-        // Count pending tasks
-        supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_completed', false),
-        // Count overdue contacts (last interaction > 30 days)
-        supabase.from('user_contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id).lt('last_contacted_at', format(addDays(new Date(), -30), 'yyyy-MM-dd')),
-        // Count upcoming events
-        supabase.from('events').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('start_time', today).lt('start_time', tomorrow),
-        // Get total habits
-        supabase.from('habits').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_active', true),
-        // Get habits logged today
-        supabase.from('habit_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('log_date', today),
-      ]);
+      const checkinsResult = await supabase.from('daily_checkins').select('id').eq('user_id', user.id).eq('checkin_date', today).limit(1);
+      const tasksResult = await supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('completed', false);
+      const contactsResult = await supabase.from('user_contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id).lt('last_contacted_at', format(addDays(new Date(), -30), 'yyyy-MM-dd'));
+      const eventsResult = await supabase.from('events').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('start_time', today).lt('start_time', tomorrow);
+      const habitsResult = await supabase.from('habits').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_active', true);
+      const habitLogsResult = await supabase.from('habit_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('log_date', today);
 
       setContextData({
         currentHour: new Date().getHours(),

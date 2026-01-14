@@ -91,17 +91,17 @@ export function useAutomationRules() {
     try {
       const { data, error } = await supabase
         .from('automation_rules')
-        .insert({
+        .insert([{
           user_id: user.id,
           name: input.name,
           description: input.description || null,
           trigger_type: input.triggerType,
-          trigger_config: input.triggerConfig || {},
+          trigger_config: (input.triggerConfig || {}) as Record<string, never>,
           condition_type: input.conditionType || null,
-          condition_config: input.conditionConfig || {},
+          condition_config: (input.conditionConfig || {}) as Record<string, never>,
           action_type: input.actionType,
-          action_config: input.actionConfig || {},
-        })
+          action_config: (input.actionConfig || {}) as Record<string, never>,
+        }])
         .select()
         .single();
 

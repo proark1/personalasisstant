@@ -102,16 +102,10 @@ export function useLifeScore() {
       const endOfDay = `${today}T23:59:59`;
 
       // Fetch today's data from various sources
-      const [tasksResult, habitsResult, focusResult, checkinsResult] = await Promise.all([
-        // Tasks completed today
-        supabase.from('tasks').select('id').eq('user_id', user.id).eq('is_completed', true).gte('completed_at', startOfDay).lte('completed_at', endOfDay),
-        // Habits logged today
-        supabase.from('habit_logs').select('id').eq('user_id', user.id).eq('log_date', today),
-        // Focus sessions today
-        supabase.from('focus_sessions').select('duration_minutes').eq('user_id', user.id).eq('is_completed', true).gte('started_at', startOfDay),
-        // Check-ins today
-        supabase.from('daily_checkins').select('mood, energy_level, sleep_hours').eq('user_id', user.id).eq('checkin_date', today),
-      ]);
+      const tasksResult = await supabase.from('tasks').select('id').eq('user_id', user.id).eq('completed', true);
+      const habitsResult = await supabase.from('habit_logs').select('id').eq('user_id', user.id).eq('log_date', today);
+      const focusResult = await supabase.from('focus_sessions').select('duration_minutes').eq('user_id', user.id).eq('is_completed', true).gte('started_at', startOfDay);
+      const checkinsResult = await supabase.from('daily_checkins').select('mood, energy_level, sleep_hours').eq('user_id', user.id).eq('checkin_date', today);
 
       const tasksCompleted = tasksResult.data?.length || 0;
       const habitsLogged = habitsResult.data?.length || 0;
@@ -135,21 +129,23 @@ export function useLifeScore() {
       );
 
       // Upsert today's score
+      const scoreData = {
+        user_id: user.id,
+        score_date: today,
+        overall_score: overallScore,
+        productivity_score: Math.round(productivityScore),
+        health_score: Math.round(healthScore),
+        relationships_score: Math.round(relationshipsScore),
+        spiritual_score: Math.round(spiritualScore),
+        family_score: Math.round(familyScore),
+        focus_minutes: focusMinutes,
+        tasks_completed: tasksCompleted,
+        habits_logged: habitsLogged,
+      };
+      
       const { data, error } = await supabase
         .from('life_scores')
-        .upsert({
-          user_id: user.id,
-          score_date: today,
-          overall_score: overallScore,
-          productivity_score: Math.round(productivityScore),
-          health_score: Math.round(healthScore),
-          relationships_score: Math.round(relationshipsScore),
-          spiritual_score: Math.round(spiritualScore),
-          family_score: Math.round(familyScore),
-          focus_minutes: focusMinutes,
-          tasks_completed: tasksCompleted,
-          habits_logged: habitsLogged,
-        }, { onConflict: 'user_id,score_date' })
+        .upsert(scoreData, { onConflict: 'user_id,score_date' })
         .select()
         .single();
 
