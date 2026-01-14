@@ -1409,8 +1409,8 @@ const translations: Record<Language, Record<string, string>> = {
     'xp.level': 'Level',
     'xp.totalXp': 'Gesamt-XP',
     'xp.dayStreak': 'Tage-Serie',
-    'xp.progressToLevel': 'Fortschritt zu Level',
-    'xp.thisWeek': 'Diese Woche XP',
+    'xp.progressTo': 'Fortschritt zu Level',
+    'xp.xpThisWeek': 'XP diese Woche',
     'xp.tasks': 'Aufgaben',
     'xp.focusMin': 'Fokus Min',
     'xp.habits': 'Gewohnheiten',
@@ -1418,6 +1418,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // What Now / AI Assistant
     'whatNow.title': 'Was soll ich jetzt tun?',
+    'whatNow.button': 'Was soll ich jetzt tun?',
     'whatNow.description': 'KI-gestützte Entscheidungshilfe basierend auf deinen Aufgaben, Terminen und Energie',
     'whatNow.analyzing': 'Analysiere deinen Kontext...',
     'whatNow.takeBreak': 'Mach eine Pause!',
@@ -1425,14 +1426,14 @@ const translations: Record<Language, Record<string, string>> = {
     'whatNow.startNow': 'Jetzt starten',
     'whatNow.orTryThese': 'Oder versuche diese:',
     'whatNow.noSuggestions': 'Keine Vorschläge verfügbar',
-    'whatNow.newSuggestion': 'Neuen Vorschlag holen',
+    'whatNow.getNew': 'Neuen Vorschlag holen',
 
     // Auto-Pilot
     'autoPilot.title': 'Auto-Pilot',
-    'autoPilot.subtitle': 'KI-Vorschläge zur Optimierung deines Tages',
-    'autoPilot.noActions': 'Keine ausstehenden Aktionen',
+    'autoPilot.description': 'KI-Vorschläge zur Optimierung deines Tages',
+    'autoPilot.noPending': 'Keine ausstehenden Aktionen',
     'autoPilot.scanning': 'Scanne...',
-    'autoPilot.scanForActions': 'Nach Aktionen suchen',
+    'autoPilot.scan': 'Nach Aktionen suchen',
     'autoPilot.approveAll': 'Alle genehmigen',
     'autoPilot.reschedule': 'Verschieben',
     'autoPilot.breakdown': 'Aufteilen',
@@ -1441,75 +1442,37 @@ const translations: Record<Language, Record<string, string>> = {
     'autoPilot.takeBreak': 'Pause machen',
 
     // Follow-ups
-    'followUp.title': 'Schnelle Nachfragen',
-    'followUp.taskCheckIn': 'Aufgaben-Check',
-    'followUp.eventFollowUp': 'Termin-Nachbereitung',
+    'followUp.title': 'Nachfassen',
+    'followUp.quick': 'Schnelle Nachfragen',
+    'followUp.taskCheckin': 'Aufgaben-Check',
+    'followUp.eventFollowup': 'Termin-Nachbereitung',
     'followUp.goalProgress': 'Ziel-Fortschritt',
     'followUp.habitReminder': 'Gewohnheits-Erinnerung',
     'followUp.dayInsight': 'Tages-Einblick',
     'followUp.done': 'Erledigt',
     'followUp.later': 'Später',
-    'followUp.moreFollowUps': 'weitere Nachfragen',
+    'followUp.about': 'Über',
+    'followUp.more': 'weitere Nachfragen',
 
     // Proactive Reminders
-    'proactive.title': 'Proaktive Erinnerungen',
-    'proactive.noReminders': 'Keine Erinnerungen gerade',
+    'proactiveReminders.title': 'Proaktive Erinnerungen',
+    'proactiveReminders.allCaughtUp': 'Alles erledigt! Gerade keine Erinnerungen.',
+    'proactiveReminders.more': 'weitere Erinnerungen',
 
-    // Day Prediction
-    'dayPrediction.title': 'Tagesvorhersage',
-    'dayPrediction.excellent': 'Ausgezeichnet',
-    'dayPrediction.good': 'Gut',
-    'dayPrediction.moderate': 'Moderat',
-    'dayPrediction.challenging': 'Herausfordernd',
-
-    // Weekly Coach
-    'weeklyCoach.title': 'Wochen-Coach',
-    'weeklyCoach.getAdvice': 'Rat holen',
-    'weeklyCoach.noAdvice': 'Noch keine Coaching-Tipps',
+    // Check-in
+    'checkin.morningPrompt': 'Starte deinen Tag mit einem kurzen Check-in, um deine Ziele zu setzen',
+    'checkin.eveningPrompt': 'Nimm dir einen Moment, um über deinen Tag zu reflektieren und morgen vorzubereiten',
+    'checkin.startCheckin': 'Check-in starten',
+    'checkin.startReflection': 'Reflexion starten',
 
     // Correlations
     'correlations.title': 'Lebens-Korrelationen',
-    'correlations.analyze': 'Analysieren',
-    'correlations.noData': 'Nicht genug Daten für Korrelationen',
-
-    // Smart Scheduling
-    'smartScheduling.title': 'Intelligente Planung',
-    'smartScheduling.suggestions': 'Terminvorschläge',
-
-    // Health Hub
-    'health.title': 'Gesundheit',
-    'health.metrics': 'Messwerte',
-    'health.sleep': 'Schlaf',
-    'health.steps': 'Schritte',
-    'health.water': 'Wasser',
-    'health.weight': 'Gewicht',
-    'health.heartRate': 'Herzfrequenz',
-    'health.bloodPressure': 'Blutdruck',
-    'health.addMetric': 'Messwert hinzufügen',
-
-    // Notifications
-    'notifications.title': 'Benachrichtigungen',
-    'notifications.markAllRead': 'Alle als gelesen markieren',
-    'notifications.noNotifications': 'Keine Benachrichtigungen',
-    'notifications.listen': 'Anhören',
-
-    // Check-in
-    'checkin.morningTitle': 'Guten Morgen! ☀️',
-    'checkin.eveningTitle': 'Guten Abend! 🌙',
-    'checkin.howDidItGo': 'Wie war dein Tag?',
-    'checkin.whatsYourFocus': 'Was ist dein Fokus heute?',
-    'checkin.energyLevel': 'Energielevel',
-    'checkin.mood': 'Stimmung',
-    'checkin.skipForNow': 'Jetzt überspringen',
-    'checkin.submit': 'Absenden',
-
-    // Automation Rules
-    'automation.title': 'Automatisierungsregeln',
-    'automation.addRule': 'Regel hinzufügen',
-    'automation.noRules': 'Keine Automatisierungsregeln',
-    'automation.trigger': 'Auslöser',
-    'automation.action': 'Aktion',
-    'automation.condition': 'Bedingung',
+    'correlations.description': 'KI-entdeckte Muster in deinen Lebensbereichen',
+    'correlations.noFound': 'Noch keine Korrelationen gefunden',
+    'correlations.analyzing': 'Analysiere...',
+    'correlations.analyze': 'Muster analysieren',
+    'correlations.confident': 'sicher',
+    'correlations.dataPoints': 'Datenpunkte',
 
     // Quick Actions
     'quickActions.addTask': 'Aufgabe',
@@ -1517,29 +1480,9 @@ const translations: Record<Language, Record<string, string>> = {
     'quickActions.askDori': 'Dori fragen',
     'quickActions.brainDump': 'Gedanken',
 
-    // Voice
-    'voice.listening': 'Ich höre zu...',
-    'voice.processing': 'Verarbeite...',
-    'voice.tapToSpeak': 'Tippen zum Sprechen',
-
     // Misc
     'misc.viewAll': 'Alle anzeigen',
-    'misc.seeMore': 'Mehr anzeigen',
-    'misc.collapse': 'Einklappen',
-    'misc.expand': 'Ausklappen',
     'misc.refresh': 'Aktualisieren',
-    'misc.retry': 'Erneut versuchen',
-    'misc.error': 'Fehler',
-    'misc.success': 'Erfolg',
-    'misc.warning': 'Warnung',
-    'misc.info': 'Info',
-    'misc.share': 'Teilen',
-    'misc.copy': 'Kopieren',
-    'misc.copied': 'Kopiert!',
-    'misc.download': 'Herunterladen',
-    'misc.upload': 'Hochladen',
-    'misc.export': 'Exportieren',
-    'misc.import': 'Importieren',
   },
 };
 

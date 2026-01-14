@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Task, CalendarEvent } from '@/types/flux';
 import { useDailyCheckins } from '@/hooks/useDailyCheckins';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Sparkles, Play, Clock, Brain, Coffee, Target, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -174,6 +175,8 @@ export function WhatNowButton({
     );
   }
 
+  const { t } = useLanguage();
+  
   return (
     <>
       <Button
@@ -186,7 +189,7 @@ export function WhatNowButton({
         )}
       >
         <Brain className="w-4 h-4" />
-        What should I do now?
+        {t('whatNow.button')}
       </Button>
       
       <WhatNowDialog 
@@ -218,16 +221,18 @@ function WhatNowDialog({
   onRefresh,
   onStartTask 
 }: WhatNowDialogProps) {
+  const { t } = useLanguage();
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            What Should I Do Now?
+            {t('whatNow.title')}
           </DialogTitle>
           <DialogDescription>
-            AI-powered decision helper based on your tasks, schedule, and energy
+            {t('whatNow.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -235,7 +240,7 @@ function WhatNowDialog({
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Analyzing your context...</p>
+              <p className="text-sm text-muted-foreground">{t('whatNow.analyzing')}</p>
             </div>
           ) : suggestion?.suggestedBreak ? (
             <Card className="p-6 bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
@@ -244,7 +249,7 @@ function WhatNowDialog({
                   <Coffee className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Take a Break!</h3>
+                  <h3 className="font-semibold text-lg">{t('whatNow.takeBreak')}</h3>
                   <p className="text-sm text-muted-foreground mt-1">
                     {suggestion.breakReason}
                   </p>
@@ -260,7 +265,7 @@ function WhatNowDialog({
                     <Target className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-primary font-medium uppercase tracking-wide">Do this now</p>
+                    <p className="text-xs text-primary font-medium uppercase tracking-wide">{t('whatNow.doThisNow')}</p>
                     <h3 className="font-semibold text-lg truncate">{suggestion.task.title}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{suggestion.reason}</p>
                     
@@ -271,7 +276,7 @@ function WhatNowDialog({
                         suggestion.task.priority === 'medium' ? "bg-amber-500/10 text-amber-600" :
                         "bg-green-500/10 text-green-600"
                       )}>
-                        {suggestion.task.priority}
+                        {t(`priority.${suggestion.task.priority}`)}
                       </span>
                     </div>
                   </div>
@@ -282,7 +287,7 @@ function WhatNowDialog({
                   className="w-full mt-4 gap-2"
                 >
                   <Play className="w-4 h-4" />
-                  Start Now
+                  {t('whatNow.startNow')}
                 </Button>
               </Card>
 
@@ -295,7 +300,7 @@ function WhatNowDialog({
               {/* Alternatives */}
               {suggestion.alternatives.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium mb-2 text-muted-foreground">Or try these:</p>
+                  <p className="text-sm font-medium mb-2 text-muted-foreground">{t('whatNow.orTryThese')}</p>
                   <div className="space-y-2">
                     {suggestion.alternatives.map(alt => (
                       <button
@@ -313,7 +318,7 @@ function WhatNowDialog({
             </>
           ) : (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">No suggestions available</p>
+              <p className="text-muted-foreground">{t('whatNow.noSuggestions')}</p>
             </div>
           )}
         </div>
@@ -321,7 +326,7 @@ function WhatNowDialog({
         <div className="flex justify-end">
           <Button variant="ghost" size="sm" onClick={onRefresh} className="gap-2">
             <RefreshCw className="w-4 h-4" />
-            Get new suggestion
+            {t('whatNow.getNew')}
           </Button>
         </div>
       </DialogContent>

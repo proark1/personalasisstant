@@ -1,4 +1,5 @@
 import { useAutoPilot } from '@/hooks/useAutoPilot';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,15 +27,8 @@ const ACTION_ICONS: Record<string, typeof Zap> = {
   suggest_break: Coffee,
 };
 
-const ACTION_LABELS: Record<string, string> = {
-  reschedule_task: 'Reschedule',
-  suggest_breakdown: 'Break Down',
-  create_shopping_list: 'Shopping List',
-  create_followup: 'Follow-up',
-  suggest_break: 'Take Break',
-};
-
 export function AutoPilotCard() {
+  const { t } = useLanguage();
   const { 
     actions, 
     loading, 
@@ -45,13 +39,24 @@ export function AutoPilotCard() {
     approveAll 
   } = useAutoPilot();
 
+  const getActionLabel = (actionType: string) => {
+    const labels: Record<string, string> = {
+      reschedule_task: t('autoPilot.reschedule'),
+      suggest_breakdown: t('autoPilot.breakdown'),
+      create_shopping_list: t('autoPilot.shoppingList'),
+      create_followup: t('autoPilot.followUp'),
+      suggest_break: t('autoPilot.takeBreak'),
+    };
+    return labels[actionType] || actionType;
+  };
+
   if (loading) {
     return (
       <Card className="glass-panel-solid">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Zap className="w-4 h-4 text-primary" />
-            Auto-Pilot
+            {t('autoPilot.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -67,7 +72,7 @@ export function AutoPilotCard() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Zap className="w-4 h-4 text-primary" />
-            Auto-Pilot
+            {t('autoPilot.title')}
             {actions.length > 0 && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                 {actions.length}
@@ -84,7 +89,7 @@ export function AutoPilotCard() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          AI-suggested actions to optimize your day
+          {t('autoPilot.description')}
         </p>
       </CardHeader>
       <CardContent>
@@ -92,7 +97,7 @@ export function AutoPilotCard() {
           <div className="text-center py-4">
             <Sparkles className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground mb-3">
-              No pending actions
+              {t('autoPilot.noPending')}
             </p>
             <Button 
               variant="outline" 
@@ -100,7 +105,7 @@ export function AutoPilotCard() {
               onClick={() => runAutoPilot()}
               disabled={running}
             >
-              {running ? 'Scanning...' : 'Scan for Actions'}
+              {running ? t('autoPilot.scanning') : t('autoPilot.scan')}
             </Button>
           </div>
         ) : (
@@ -114,13 +119,13 @@ export function AutoPilotCard() {
                 onClick={() => approveAll()}
               >
                 <CheckCheck className="w-4 h-4 mr-2" />
-                Approve All ({actions.length})
+                {t('autoPilot.approveAll')} ({actions.length})
               </Button>
             )}
             
             {actions.map((action) => {
               const Icon = ACTION_ICONS[action.actionType] || Zap;
-              const label = ACTION_LABELS[action.actionType] || action.actionType;
+              const label = getActionLabel(action.actionType);
               
               return (
                 <div

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useFollowUpQueue } from '@/hooks/useFollowUpQueue';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   MessageSquare, 
   CheckCircle2, 
@@ -24,17 +25,21 @@ const FOLLOW_UP_ICONS: Record<string, React.ReactNode> = {
   day_prediction: <MessageSquare className="w-4 h-4 text-primary" />,
 };
 
-const FOLLOW_UP_LABELS: Record<string, string> = {
-  stalled_task: 'Task Check-in',
-  post_event: 'Event Follow-up',
-  goal_check: 'Goal Progress',
-  habit_reminder: 'Habit Reminder',
-  day_prediction: 'Day Insight',
-};
-
 export function FollowUpCard() {
+  const { t } = useLanguage();
   const { dueFollowUps, completeFollowUp, dismissFollowUp, snoozeFollowUp, loading } = useFollowUpQueue();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const getFollowUpLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      stalled_task: t('followUp.taskCheckin'),
+      post_event: t('followUp.eventFollowup'),
+      goal_check: t('followUp.goalProgress'),
+      habit_reminder: t('followUp.habitReminder'),
+      day_prediction: t('followUp.dayInsight'),
+    };
+    return labels[type] || t('followUp.title');
+  };
 
   if (loading) {
     return (
@@ -58,7 +63,7 @@ export function FollowUpCard() {
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
           <MessageSquare className="w-4 h-4 text-primary" />
-          Quick Follow-ups
+          {t('followUp.quick')}
           <Badge variant="secondary" className="ml-auto">
             {dueFollowUps.length}
           </Badge>
@@ -81,14 +86,14 @@ export function FollowUpCard() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">
-                    {FOLLOW_UP_LABELS[followUp.follow_up_type] || 'Follow-up'}
+                    {getFollowUpLabel(followUp.follow_up_type)}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(followUp.check_at), { addSuffix: true })}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-1">
-                  {followUp.message_template || `About: ${followUp.context?.title || followUp.entity_type}`}
+                  {followUp.message_template || `${t('followUp.about')}: ${followUp.context?.title || followUp.entity_type}`}
                 </p>
               </div>
               <ChevronRight className={cn(
@@ -117,7 +122,7 @@ export function FollowUpCard() {
                     }}
                   >
                     <CheckCircle2 className="w-3 h-3 mr-1" />
-                    Done
+                    {t('followUp.done')}
                   </Button>
                   <Button
                     size="sm"
@@ -128,6 +133,7 @@ export function FollowUpCard() {
                     }}
                   >
                     <Clock className="w-3 h-3 mr-1" />
+                    {t('followUp.later')}
                     Later
                   </Button>
                   <Button
@@ -148,7 +154,7 @@ export function FollowUpCard() {
         
         {dueFollowUps.length > 3 && (
           <p className="text-xs text-muted-foreground text-center">
-            +{dueFollowUps.length - 3} more follow-ups
+            +{dueFollowUps.length - 3} {t('followUp.more')}
           </p>
         )}
       </CardContent>

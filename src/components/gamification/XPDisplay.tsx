@@ -1,4 +1,5 @@
 import { useGamification } from '@/hooks/useGamification';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { Flame, Star, Trophy, Zap } from 'lucide-react';
@@ -9,6 +10,7 @@ interface XPDisplayProps {
 }
 
 export function XPDisplay({ variant = 'compact', className }: XPDisplayProps) {
+  const { t } = useLanguage();
   const { userXP, getXPToNextLevel } = useGamification();
 
   if (!userXP) return null;
@@ -21,7 +23,7 @@ export function XPDisplay({ variant = 'compact', className }: XPDisplayProps) {
         {/* Level Badge */}
         <div className="flex items-center gap-1.5 bg-primary/10 px-2.5 py-1 rounded-full">
           <Star className="w-4 h-4 text-primary" />
-          <span className="text-sm font-bold text-primary">Lv.{userXP.current_level}</span>
+          <span className="text-sm font-bold text-primary">{t('xp.level')} {userXP.current_level}</span>
         </div>
         
         {/* Streak */}
@@ -50,8 +52,8 @@ export function XPDisplay({ variant = 'compact', className }: XPDisplayProps) {
             <span className="text-xl font-bold text-primary-foreground">{userXP.current_level}</span>
           </div>
           <div>
-            <p className="font-semibold">Level {userXP.current_level}</p>
-            <p className="text-sm text-muted-foreground">{userXP.total_xp} Total XP</p>
+            <p className="font-semibold">{t('xp.level')} {userXP.current_level}</p>
+            <p className="text-sm text-muted-foreground">{userXP.total_xp} {t('xp.totalXp')}</p>
           </div>
         </div>
         
@@ -60,7 +62,7 @@ export function XPDisplay({ variant = 'compact', className }: XPDisplayProps) {
             <Flame className="w-5 h-5 text-orange-500" />
             <div>
               <p className="text-lg font-bold text-orange-500">{userXP.current_streak}</p>
-              <p className="text-xs text-muted-foreground">day streak</p>
+              <p className="text-xs text-muted-foreground">{t('xp.dayStreak')}</p>
             </div>
           </div>
         )}
@@ -69,7 +71,7 @@ export function XPDisplay({ variant = 'compact', className }: XPDisplayProps) {
       {/* XP Progress */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Progress to Level {userXP.current_level + 1}</span>
+          <span className="text-muted-foreground">{t('xp.progressTo')} {userXP.current_level + 1}</span>
           <span className="font-medium">{progress.current}/{progress.needed} XP</span>
         </div>
         <Progress value={progress.percentage} className="h-2" />
@@ -80,22 +82,22 @@ export function XPDisplay({ variant = 'compact', className }: XPDisplayProps) {
         <div className="text-center">
           <Zap className="w-4 h-4 mx-auto text-yellow-500 mb-1" />
           <p className="text-lg font-bold">{userXP.weekly_xp}</p>
-          <p className="text-xs text-muted-foreground">XP this week</p>
+          <p className="text-xs text-muted-foreground">{t('xp.xpThisWeek')}</p>
         </div>
         <div className="text-center">
           <span className="text-lg">✓</span>
           <p className="text-lg font-bold">{userXP.weekly_tasks_completed}</p>
-          <p className="text-xs text-muted-foreground">Tasks</p>
+          <p className="text-xs text-muted-foreground">{t('xp.tasks')}</p>
         </div>
         <div className="text-center">
           <span className="text-lg">🧘</span>
           <p className="text-lg font-bold">{userXP.weekly_focus_minutes}</p>
-          <p className="text-xs text-muted-foreground">Focus min</p>
+          <p className="text-xs text-muted-foreground">{t('xp.focusMin')}</p>
         </div>
         <div className="text-center">
           <span className="text-lg">💪</span>
           <p className="text-lg font-bold">{userXP.weekly_habits_logged}</p>
-          <p className="text-xs text-muted-foreground">Habits</p>
+          <p className="text-xs text-muted-foreground">{t('xp.habits')}</p>
         </div>
       </div>
 
@@ -104,7 +106,7 @@ export function XPDisplay({ variant = 'compact', className }: XPDisplayProps) {
         <div className="pt-2 border-t">
           <p className="text-sm font-medium mb-2 flex items-center gap-2">
             <Trophy className="w-4 h-4" />
-            Badges ({userXP.badges.length})
+            {t('xp.badges')} ({userXP.badges.length})
           </p>
           <div className="flex flex-wrap gap-2">
             {userXP.badges.map(badge => (

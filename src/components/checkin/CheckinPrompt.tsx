@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useDailyCheckins } from '@/hooks/useDailyCheckins';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { DailyCheckinDialog } from './DailyCheckinDialog';
 import { Sun, Moon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,7 @@ interface CheckinPromptProps {
 }
 
 export function CheckinPrompt({ className }: CheckinPromptProps) {
+  const { t } = useLanguage();
   const { needsMorningCheckin, needsEveningCheckin, todayMorning, todayEvening } = useDailyCheckins();
   const [showMorning, setShowMorning] = useState(false);
   const [showEvening, setShowEvening] = useState(false);
@@ -42,14 +44,14 @@ export function CheckinPrompt({ className }: CheckinPromptProps) {
             </div>
             <div className="flex-1">
               <p className="text-sm text-muted-foreground">
-                Start your day with a quick check-in to set your intentions
+                {t('checkin.morningPrompt')}
               </p>
               <Button 
                 size="sm" 
                 className="mt-3 bg-amber-500 hover:bg-amber-600"
                 onClick={() => setShowMorning(true)}
               >
-                Start Check-in
+                {t('checkin.startCheckin')}
               </Button>
             </div>
             <button 
@@ -74,14 +76,14 @@ export function CheckinPrompt({ className }: CheckinPromptProps) {
             </div>
             <div className="flex-1">
               <p className="text-sm text-muted-foreground">
-                Take a moment to reflect on your day and set up tomorrow
+                {t('checkin.eveningPrompt')}
               </p>
               <Button 
                 size="sm" 
                 className="mt-3 bg-indigo-500 hover:bg-indigo-600"
                 onClick={() => setShowEvening(true)}
               >
-                Start Reflection
+                {t('checkin.startReflection')}
               </Button>
             </div>
             <button 

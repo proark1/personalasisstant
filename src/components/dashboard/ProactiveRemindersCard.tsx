@@ -1,4 +1,5 @@
 import { useProactiveReminders, ProactiveReminder } from '@/hooks/useProactiveReminders';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,6 +24,7 @@ interface ProactiveRemindersCardProps {
 }
 
 export function ProactiveRemindersCard({ onNavigate }: ProactiveRemindersCardProps) {
+  const { t } = useLanguage();
   const { 
     reminders, 
     unreadCount, 
@@ -39,7 +41,7 @@ export function ProactiveRemindersCard({ onNavigate }: ProactiveRemindersCardPro
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Brain className="w-4 h-4 text-primary" />
-            Proactive Reminders
+            {t('proactiveReminders.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -55,13 +57,13 @@ export function ProactiveRemindersCard({ onNavigate }: ProactiveRemindersCardPro
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Brain className="w-4 h-4 text-primary" />
-            Proactive Reminders
+            {t('proactiveReminders.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-6 text-muted-foreground">
             <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">All caught up! No reminders right now.</p>
+            <p className="text-sm">{t('proactiveReminders.allCaughtUp')}</p>
           </div>
         </CardContent>
       </Card>
@@ -74,7 +76,7 @@ export function ProactiveRemindersCard({ onNavigate }: ProactiveRemindersCardPro
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Brain className="w-4 h-4 text-primary" />
-            Proactive Reminders
+            {t('proactiveReminders.title')}
             {unreadCount > 0 && (
               <Badge variant="destructive" className="text-xs px-1.5 py-0">
                 {unreadCount}
@@ -101,7 +103,7 @@ export function ProactiveRemindersCard({ onNavigate }: ProactiveRemindersCardPro
         </ScrollArea>
         {reminders.length > 5 && (
           <p className="text-xs text-muted-foreground text-center pt-2">
-            +{reminders.length - 5} more reminders
+            +{reminders.length - 5} {t('proactiveReminders.more')}
           </p>
         )}
       </CardContent>

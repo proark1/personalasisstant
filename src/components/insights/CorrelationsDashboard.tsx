@@ -1,4 +1,5 @@
 import { useLifeCorrelations } from '@/hooks/useLifeCorrelations';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ const CORRELATION_COLORS: Record<string, string> = {
 };
 
 export function CorrelationsDashboard() {
+  const { t } = useLanguage();
   const { 
     correlations, 
     loading, 
@@ -52,7 +54,7 @@ export function CorrelationsDashboard() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Brain className="w-4 h-4 text-primary" />
-            Life Correlations
+            {t('correlations.title')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -69,7 +71,7 @@ export function CorrelationsDashboard() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Brain className="w-4 h-4 text-primary" />
-            Life Correlations
+            {t('correlations.title')}
           </CardTitle>
           <Button 
             variant="ghost" 
@@ -81,7 +83,7 @@ export function CorrelationsDashboard() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          AI-discovered patterns across your life domains
+          {t('correlations.description')}
         </p>
       </CardHeader>
       <CardContent>
@@ -89,7 +91,7 @@ export function CorrelationsDashboard() {
           <div className="text-center py-6">
             <Sparkles className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground mb-3">
-              No correlations found yet
+              {t('correlations.noFound')}
             </p>
             <Button 
               variant="outline" 
@@ -97,7 +99,7 @@ export function CorrelationsDashboard() {
               onClick={() => analyzeCorrelations()}
               disabled={analyzing}
             >
-              {analyzing ? 'Analyzing...' : 'Analyze Patterns'}
+              {analyzing ? t('correlations.analyzing') : t('correlations.analyze')}
             </Button>
           </div>
         ) : (
@@ -150,10 +152,10 @@ export function CorrelationsDashboard() {
                       )}
                       <div className="flex items-center gap-2 mt-2">
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                          {Math.round(correlation.confidenceScore * 100)}% confident
+                          {Math.round(correlation.confidenceScore * 100)}% {t('correlations.confident')}
                         </Badge>
                         <span className="text-[10px] text-muted-foreground">
-                          {correlation.dataPoints} data points
+                          {correlation.dataPoints} {t('correlations.dataPoints')}
                         </span>
                       </div>
                     </div>
