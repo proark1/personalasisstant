@@ -366,6 +366,60 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_rules: {
+        Row: {
+          action_config: Json | null
+          action_type: string
+          condition_config: Json | null
+          condition_type: string | null
+          created_at: string
+          description: string | null
+          execution_count: number | null
+          id: string
+          is_active: boolean | null
+          last_executed_at: string | null
+          name: string
+          trigger_config: Json | null
+          trigger_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_config?: Json | null
+          action_type: string
+          condition_config?: Json | null
+          condition_type?: string | null
+          created_at?: string
+          description?: string | null
+          execution_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_executed_at?: string | null
+          name: string
+          trigger_config?: Json | null
+          trigger_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_config?: Json | null
+          action_type?: string
+          condition_config?: Json | null
+          condition_type?: string | null
+          created_at?: string
+          description?: string | null
+          execution_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_executed_at?: string | null
+          name?: string
+          trigger_config?: Json | null
+          trigger_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       blocked_users: {
         Row: {
           blocked_id: string
@@ -553,6 +607,51 @@ export type Database = {
           started_at?: string | null
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      challenges: {
+        Row: {
+          badge_name: string | null
+          challenge_type: string
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          is_global: boolean | null
+          start_date: string | null
+          target_metric: string
+          target_value: number
+          title: string
+          xp_reward: number | null
+        }
+        Insert: {
+          badge_name?: string | null
+          challenge_type?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_global?: boolean | null
+          start_date?: string | null
+          target_metric: string
+          target_value?: number
+          title: string
+          xp_reward?: number | null
+        }
+        Update: {
+          badge_name?: string | null
+          challenge_type?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_global?: boolean | null
+          start_date?: string | null
+          target_metric?: string
+          target_value?: number
+          title?: string
+          xp_reward?: number | null
         }
         Relationships: []
       }
@@ -2128,6 +2227,57 @@ export type Database = {
         }
         Relationships: []
       }
+      life_scores: {
+        Row: {
+          created_at: string
+          family_score: number | null
+          focus_minutes: number | null
+          habits_logged: number | null
+          health_score: number | null
+          id: string
+          overall_score: number
+          productivity_score: number | null
+          relationships_score: number | null
+          score_date: string
+          spiritual_score: number | null
+          tasks_completed: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          family_score?: number | null
+          focus_minutes?: number | null
+          habits_logged?: number | null
+          health_score?: number | null
+          id?: string
+          overall_score?: number
+          productivity_score?: number | null
+          relationships_score?: number | null
+          score_date?: string
+          spiritual_score?: number | null
+          tasks_completed?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          family_score?: number | null
+          focus_minutes?: number | null
+          habits_logged?: number | null
+          health_score?: number | null
+          id?: string
+          overall_score?: number
+          productivity_score?: number | null
+          relationships_score?: number | null
+          score_date?: string
+          spiritual_score?: number | null
+          tasks_completed?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       location_triggers: {
         Row: {
           created_at: string
@@ -2237,6 +2387,39 @@ export type Database = {
           message_id?: string
           message_type?: string
           read_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mood_logs: {
+        Row: {
+          context_tags: string[] | null
+          created_at: string
+          energy_score: number
+          id: string
+          logged_at: string
+          mood_score: number
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          context_tags?: string[] | null
+          created_at?: string
+          energy_score: number
+          id?: string
+          logged_at?: string
+          mood_score: number
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          context_tags?: string[] | null
+          created_at?: string
+          energy_score?: number
+          id?: string
+          logged_at?: string
+          mood_score?: number
+          notes?: string | null
           user_id?: string
         }
         Relationships: []
@@ -4191,6 +4374,47 @@ export type Database = {
             columns: ["secondary_responsible_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_challenges: {
+        Row: {
+          challenge_id: string
+          completed_at: string | null
+          current_value: number | null
+          id: string
+          is_completed: boolean | null
+          joined_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          completed_at?: string | null
+          current_value?: number | null
+          id?: string
+          is_completed?: boolean | null
+          joined_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          completed_at?: string | null
+          current_value?: number | null
+          id?: string
+          is_completed?: boolean | null
+          joined_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_challenges_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
         ]
