@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { reconstructSender } from '@/lib/emailSender';
 import { Shield, ShieldAlert, ChevronRight, Archive, Star, Check, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
@@ -59,10 +60,11 @@ const SWIPE_THRESHOLD = 80;
 
 export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSnooze, selectMode, isSelected, onToggleSelect }: EmailCardProps) {
   const email = thread.latestEmail;
+  const sender = reconstructSender(email.from_name, email.from_email);
   const isPriority = email.priority_score <= 2 || email.is_important;
   const isThreat = email.is_spam || email.is_phishing;
   const timeAgo = formatDistanceToNow(new Date(email.received_at), { addSuffix: true });
-  const initials = getInitials(email.from_name, email.from_email);
+  const initials = getInitials(sender.name, sender.email);
   const swiping = useRef(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showActions, setShowActions] = useState(false);
@@ -166,7 +168,7 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
                 <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", sentimentDot[email.sentiment] || sentimentDot.neutral)} />
               )}
               <span className={cn("text-sm", !email.is_read ? "font-bold text-foreground" : "font-semibold text-muted-foreground")}>
-                {email.from_name || email.from_email}
+                {sender.name}
               </span>
               {thread.threadCount > 1 && (
                 <span className="text-[10px] font-medium bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 shrink-0">{thread.threadCount}</span>

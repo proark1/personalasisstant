@@ -273,9 +273,16 @@ async function processEmails(
     const getHeader = (name: string) => headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
 
     const fromRaw = getHeader('From');
-    const fromMatch = fromRaw.match(/^(?:"?(.+?)"?\s*)?<?([^>]+@[^>]+)>?$/);
-    const fromName = fromMatch?.[1]?.trim() || fromRaw;
-    const fromEmail = (fromMatch?.[2] || fromRaw).toLowerCase().trim();
+    let fromName = '';
+    let fromEmail = '';
+    const angleMatch = fromRaw.match(/^(.*?)\s*<([^>]+)>$/);
+    if (angleMatch) {
+      fromName = angleMatch[1].replace(/^"|"$/g, '').trim();
+      fromEmail = angleMatch[2].toLowerCase().trim();
+    } else {
+      fromEmail = fromRaw.toLowerCase().trim();
+      fromName = '';
+    }
     const toEmail = getHeader('To');
     const subject = getHeader('Subject');
     const dateStr = getHeader('Date');
