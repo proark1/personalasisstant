@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -24,18 +24,24 @@ export interface Email {
   user_archived: boolean;
   user_snoozed_until: string | null;
   is_important: boolean;
+  ai_summary: string | null;
+  ai_suggested_action: string | null;
+  is_spam: boolean;
+  is_phishing: boolean;
+  threat_reason: string | null;
+  sentiment: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type EmailCategory = 'all' | 'priority' | 'action_required' | 'waiting' | 'fyi' | 'newsletter' | 'promotion' | 'other';
+export type EmailView = 'smart' | 'all' | 'flagged';
 
 export function useEmails() {
   const { user } = useAuth();
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [filter, setFilter] = useState<EmailCategory>('all');
+  const [view, setView] = useState<EmailView>('smart');
 
   const fetchEmails = useCallback(async () => {
     if (!user) return;
@@ -71,13 +77,12 @@ export function useEmails() {
       });
 
       if (error) throw error;
-
       if (data?.error === 'no_gmail_connection') {
         toast.error('No Google account connected. Connect via Settings → Calendar.');
         return;
       }
       if (data?.error === 'gmail_scope_missing') {
-        toast.error('Gmail access not authorized. Please reconnect your Google account with Gmail permissions.');
+        toast.error('Gmail access not authorized. Please reconnect your Google account.');
         return;
       }
       if (data?.error) {
@@ -124,28 +129,63 @@ export function useEmails() {
     await updateEmail(emailId, { is_important: !email.is_important, priority_score: email.is_important ? 3 : 1 });
   }, [emails, updateEmail]);
 
-  const filteredEmails = emails.filter(e => {
-    if (filter === 'all') return true;
-    if (filter === 'priority') return e.priority_score <= 2 || e.is_important;
-    return e.category === filter;
-  });
+  const markAsRead = useCallback(async (emailId: string) => {
+    await updateEmail(emailId, { is_read: true });
+  }, [updateEmail]);
+
+  const reportSpam = useCallback(async (emailId: string) => {
+    await updateEmail(emailId, { user_archived: true, is_spam: true });
+    setEmails(prev => prev.filter(e => e.id !== emailId));
+    toast.success('Reported as spam');
+  }, [updateEmail]);
+
+  // Smart grouping
+  const grouped = useMemo(() => {
+    const clean = emails.filter(e => !e.is_spam && !e.is_phishing);
+    const flagged = emails.filter(e => e.is_spam || e.is_phishing);
+
+    const attention = clean.filter(e =>
+      e.category === 'action_required' || e.priority_score <= 2 || e.is_important || e.sentiment === 'urgent'
+    ).sort((a, b) => a.priority_score - b.priority_score);
+
+    const fyi = clean.filter(e =>
+      !attention.includes(e) && !['newsletter', 'promotion'].includes(e.category)
+    );
+
+    const lowPriority = clean.filter(e =>
+      ['newsletter', 'promotion'].includes(e.category)
+    );
+
+    return { attention, fyi, lowPriority, flagged };
+  }, [emails]);
+
+  const viewEmails = useMemo(() => {
+    if (view === 'smart') return null; // use grouped
+    if (view === 'flagged') return grouped.flagged;
+    return emails;
+  }, [view, emails, grouped]);
 
   const unreadCount = emails.filter(e => !e.is_read && !e.user_archived).length;
   const priorityCount = emails.filter(e => (e.priority_score <= 2 || e.is_important) && !e.is_read).length;
+  const flaggedCount = grouped.flagged.length;
 
   return {
-    emails: filteredEmails,
+    emails: viewEmails,
+    grouped,
     allEmails: emails,
     loading,
     syncing,
-    filter,
-    setFilter,
+    view,
+    setView,
     syncEmails,
     updateEmail,
     archiveEmail,
     markImportant,
+    markAsRead,
+    reportSpam,
     unreadCount,
     priorityCount,
+    flaggedCount,
     refetch: fetchEmails,
   };
 }

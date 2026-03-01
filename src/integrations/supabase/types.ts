@@ -4595,6 +4595,8 @@ export type Database = {
       }
       user_emails: {
         Row: {
+          ai_suggested_action: string | null
+          ai_summary: string | null
           body_preview: string | null
           category: string | null
           created_at: string
@@ -4604,14 +4606,18 @@ export type Database = {
           gmail_message_id: string
           id: string
           is_important: boolean | null
+          is_phishing: boolean | null
           is_read: boolean | null
+          is_spam: boolean | null
           is_starred: boolean | null
           matched_contact_id: string | null
           priority_score: number | null
           received_at: string
+          sentiment: string | null
           snippet: string | null
           subject: string | null
           thread_id: string | null
+          threat_reason: string | null
           to_email: string | null
           updated_at: string
           user_archived: boolean | null
@@ -4619,6 +4625,8 @@ export type Database = {
           user_snoozed_until: string | null
         }
         Insert: {
+          ai_suggested_action?: string | null
+          ai_summary?: string | null
           body_preview?: string | null
           category?: string | null
           created_at?: string
@@ -4628,14 +4636,18 @@ export type Database = {
           gmail_message_id: string
           id?: string
           is_important?: boolean | null
+          is_phishing?: boolean | null
           is_read?: boolean | null
+          is_spam?: boolean | null
           is_starred?: boolean | null
           matched_contact_id?: string | null
           priority_score?: number | null
           received_at?: string
+          sentiment?: string | null
           snippet?: string | null
           subject?: string | null
           thread_id?: string | null
+          threat_reason?: string | null
           to_email?: string | null
           updated_at?: string
           user_archived?: boolean | null
@@ -4643,6 +4655,8 @@ export type Database = {
           user_snoozed_until?: string | null
         }
         Update: {
+          ai_suggested_action?: string | null
+          ai_summary?: string | null
           body_preview?: string | null
           category?: string | null
           created_at?: string
@@ -4652,14 +4666,18 @@ export type Database = {
           gmail_message_id?: string
           id?: string
           is_important?: boolean | null
+          is_phishing?: boolean | null
           is_read?: boolean | null
+          is_spam?: boolean | null
           is_starred?: boolean | null
           matched_contact_id?: string | null
           priority_score?: number | null
           received_at?: string
+          sentiment?: string | null
           snippet?: string | null
           subject?: string | null
           thread_id?: string | null
+          threat_reason?: string | null
           to_email?: string | null
           updated_at?: string
           user_archived?: boolean | null

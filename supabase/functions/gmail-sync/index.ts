@@ -29,11 +29,28 @@ async function refreshAccessToken(refreshToken: string): Promise<{ access_token:
   return response.json();
 }
 
-async function categorizeWithAI(emails: { subject: string; from_name: string; from_email: string; snippet: string }[]): Promise<Record<string, { category: string; priority_boost: number }>> {
+interface EmailAnalysis {
+  index: number;
+  category: string;
+  priority_boost: number;
+  summary: string;
+  suggested_action: string;
+  is_spam: boolean;
+  is_phishing: boolean;
+  threat_reason: string;
+  sentiment: string;
+}
+
+async function analyzeWithAI(
+  emails: { subject: string; from_name: string; from_email: string; snippet: string }[],
+  contactContext: string
+): Promise<Record<string, EmailAnalysis>> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY || emails.length === 0) return {};
 
-  const emailSummaries = emails.map((e, i) => `${i}: From "${e.from_name}" <${e.from_email}> | Subject: "${e.subject}" | Preview: "${e.snippet?.slice(0, 80)}"`).join('\n');
+  const emailSummaries = emails.map((e, i) =>
+    `${i}: From "${e.from_name}" <${e.from_email}> | Subject: "${e.subject}" | Preview: "${e.snippet?.slice(0, 120)}"`
+  ).join('\n');
 
   try {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -47,15 +64,28 @@ async function categorizeWithAI(emails: { subject: string; from_name: string; fr
         messages: [
           {
             role: 'system',
-            content: 'You categorize emails. For each email index, return a category and priority_boost. Categories: action_required, waiting, fyi, newsletter, promotion, other. Priority_boost: 0 (normal), 1 (slightly important), 2 (important).'
+            content: `You are an email intelligence assistant for Asad Dar. He is co-founder of Medieval Empires (strategy game), OYA Play (AI game publisher), and Eleven Labs (Web3 growth agency). He is based in Germany and frequently travels to Dubai.
+
+Your job is to analyze each email and return structured data. For each email:
+
+1. **Category**: action_required, waiting, fyi, newsletter, promotion, spam, phishing, other
+2. **Priority boost**: 0 (normal), 1 (slightly important), 2 (important) — boost emails from known contacts, business partners, or related to his companies
+3. **Summary**: One concise sentence summarizing what this email needs or is about
+4. **Suggested action**: One of: "Reply needed", "Review", "Just FYI", "Can ignore", "Review attachment", "Urgent action", "Unsubscribe"
+5. **Spam detection**: Flag bulk unsolicited emails, suspicious offers, unknown mass senders
+6. **Phishing detection**: Flag emails with spoofed domains, urgency manipulation ("account suspended", "verify now"), suspicious links, requests for credentials or money
+7. **Threat reason**: If spam or phishing, explain why in one sentence. Empty string if clean.
+8. **Sentiment**: positive, neutral, urgent, warning
+
+${contactContext}`
           },
-          { role: 'user', content: `Categorize these emails:\n${emailSummaries}` }
+          { role: 'user', content: `Analyze these emails:\n${emailSummaries}` }
         ],
         tools: [{
           type: 'function',
           function: {
-            name: 'categorize_emails',
-            description: 'Categorize a batch of emails',
+            name: 'analyze_emails',
+            description: 'Analyze a batch of emails for categorization, safety, and suggested actions',
             parameters: {
               type: 'object',
               properties: {
@@ -65,10 +95,16 @@ async function categorizeWithAI(emails: { subject: string; from_name: string; fr
                     type: 'object',
                     properties: {
                       index: { type: 'number' },
-                      category: { type: 'string', enum: ['action_required', 'waiting', 'fyi', 'newsletter', 'promotion', 'other'] },
-                      priority_boost: { type: 'number', enum: [0, 1, 2] }
+                      category: { type: 'string', enum: ['action_required', 'waiting', 'fyi', 'newsletter', 'promotion', 'spam', 'phishing', 'other'] },
+                      priority_boost: { type: 'number', enum: [0, 1, 2] },
+                      summary: { type: 'string' },
+                      suggested_action: { type: 'string', enum: ['Reply needed', 'Review', 'Just FYI', 'Can ignore', 'Review attachment', 'Urgent action', 'Unsubscribe'] },
+                      is_spam: { type: 'boolean' },
+                      is_phishing: { type: 'boolean' },
+                      threat_reason: { type: 'string' },
+                      sentiment: { type: 'string', enum: ['positive', 'neutral', 'urgent', 'warning'] }
                     },
-                    required: ['index', 'category', 'priority_boost'],
+                    required: ['index', 'category', 'priority_boost', 'summary', 'suggested_action', 'is_spam', 'is_phishing', 'threat_reason', 'sentiment'],
                     additionalProperties: false
                   }
                 }
@@ -78,12 +114,12 @@ async function categorizeWithAI(emails: { subject: string; from_name: string; fr
             }
           }
         }],
-        tool_choice: { type: 'function', function: { name: 'categorize_emails' } },
+        tool_choice: { type: 'function', function: { name: 'analyze_emails' } },
       }),
     });
 
     if (!response.ok) {
-      console.error('AI categorization failed:', response.status);
+      console.error('AI analysis failed:', response.status);
       return {};
     }
 
@@ -92,13 +128,13 @@ async function categorizeWithAI(emails: { subject: string; from_name: string; fr
     if (!toolCall) return {};
 
     const parsed = JSON.parse(toolCall.function.arguments);
-    const map: Record<string, { category: string; priority_boost: number }> = {};
+    const map: Record<string, EmailAnalysis> = {};
     for (const r of parsed.results) {
-      map[String(r.index)] = { category: r.category, priority_boost: r.priority_boost };
+      map[String(r.index)] = r;
     }
     return map;
   } catch (e) {
-    console.error('AI categorization error:', e);
+    console.error('AI analysis error:', e);
     return {};
   }
 }
@@ -133,10 +169,9 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    // Use service role to access tokens (stored in external_calendar_connections)
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    // Find Google connection with Gmail scopes (we reuse calendar connection tokens)
+    // Find Google connection
     const { data: connections } = await adminClient
       .from('external_calendar_connections')
       .select('*')
@@ -145,7 +180,7 @@ serve(async (req) => {
       .limit(1);
 
     if (!connections || connections.length === 0) {
-      return new Response(JSON.stringify({ error: 'no_gmail_connection', message: 'No Google account connected. Please connect your Google account first.' }), {
+      return new Response(JSON.stringify({ error: 'no_gmail_connection', message: 'No Google account connected.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -153,31 +188,27 @@ serve(async (req) => {
     const connection = connections[0];
     let accessToken = connection.access_token;
 
-    // Check if token is expired and refresh
+    // Token refresh
     if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
       if (!connection.refresh_token) {
-        return new Response(JSON.stringify({ error: 'token_expired', message: 'Token expired and no refresh token available. Please reconnect.' }), {
+        return new Response(JSON.stringify({ error: 'token_expired', message: 'Token expired. Please reconnect.' }), {
           status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
       const refreshed = await refreshAccessToken(connection.refresh_token);
       if (!refreshed) {
-        return new Response(JSON.stringify({ error: 'refresh_failed', message: 'Failed to refresh token. Please reconnect.' }), {
+        return new Response(JSON.stringify({ error: 'refresh_failed', message: 'Failed to refresh token.' }), {
           status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
       accessToken = refreshed.access_token;
-      const newExpiry = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
-
       await adminClient
         .from('external_calendar_connections')
-        .update({ access_token: accessToken, token_expires_at: newExpiry })
+        .update({ access_token: accessToken, token_expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString() })
         .eq('id', connection.id);
     }
 
-    // Fetch recent emails from Gmail API
+    // Fetch emails from Gmail
     const { maxResults } = await req.json().catch(() => ({ maxResults: 30 }));
 
     const listResponse = await fetch(
@@ -188,16 +219,11 @@ serve(async (req) => {
     if (!listResponse.ok) {
       const errText = await listResponse.text();
       console.error('Gmail list failed:', listResponse.status, errText);
-      
       if (listResponse.status === 403) {
-        return new Response(JSON.stringify({ 
-          error: 'gmail_scope_missing', 
-          message: 'Gmail access not authorized. Please reconnect your Google account with Gmail permissions.' 
-        }), {
+        return new Response(JSON.stringify({ error: 'gmail_scope_missing', message: 'Gmail access not authorized.' }), {
           status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
       return new Response(JSON.stringify({ error: 'gmail_fetch_failed', message: 'Failed to fetch emails' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -212,10 +238,9 @@ serve(async (req) => {
       });
     }
 
-    // Fetch full message details in parallel (batch of 10)
+    // Fetch message details in parallel batches
     const batchSize = 10;
     const allMessages: any[] = [];
-
     for (let i = 0; i < messageIds.length; i += batchSize) {
       const batch = messageIds.slice(i, i + batchSize);
       const batchResults = await Promise.all(
@@ -231,7 +256,7 @@ serve(async (req) => {
       allMessages.push(...batchResults.filter(Boolean));
     }
 
-    // Get user's contacts for matching
+    // Get contacts for matching + AI context
     const { data: contacts } = await adminClient
       .from('user_contacts')
       .select('id, name, email, tier')
@@ -239,7 +264,8 @@ serve(async (req) => {
 
     const contactsByEmail = new Map<string, { id: string; name: string; tier: string }>();
     const contactDomains = new Map<string, { id: string; name: string; tier: string }>();
-    
+    const contactContextLines: string[] = [];
+
     if (contacts) {
       for (const c of contacts) {
         if (c.email) {
@@ -249,10 +275,18 @@ serve(async (req) => {
             contactDomains.set(domain, { id: c.id, name: c.name, tier: c.tier || 'acquaintance' });
           }
         }
+        // Build context for AI (limit to top contacts)
+        if (contactContextLines.length < 30) {
+          contactContextLines.push(`- ${c.name} (${c.tier || 'acquaintance'}): ${c.email || 'no email'}`);
+        }
       }
     }
 
-    // Get existing sender rules
+    const contactContext = contactContextLines.length > 0
+      ? `Known contacts (prioritize emails from these people):\n${contactContextLines.join('\n')}`
+      : '';
+
+    // Get sender rules
     const { data: senderRules } = await adminClient
       .from('email_sender_rules')
       .select('*')
@@ -269,9 +303,8 @@ serve(async (req) => {
       }
     }
 
-    // Parse messages and prepare for AI categorization
+    // Parse messages
     const parsedEmails: any[] = [];
-
     for (const msg of allMessages) {
       const headers = msg.payload?.headers || [];
       const getHeader = (name: string) => headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
@@ -284,29 +317,21 @@ serve(async (req) => {
       const subject = getHeader('Subject');
       const dateStr = getHeader('Date');
 
-      // Contact matching
       const directContact = contactsByEmail.get(fromEmail);
       const domain = fromEmail.split('@')[1];
       const domainContact = domain ? contactDomains.get(domain) : null;
       const matchedContact = directContact || domainContact;
 
-      // Priority based on contact tier
-      let priorityScore = 5; // default low
+      let priorityScore = 5;
       if (matchedContact) {
-        const tierPriority: Record<string, number> = {
-          family: 1, close_friend: 1, friend: 2, business: 3, acquaintance: 4,
-        };
+        const tierPriority: Record<string, number> = { family: 1, close_friend: 1, friend: 2, business: 3, acquaintance: 4 };
         priorityScore = tierPriority[matchedContact.tier] || 3;
       }
 
-      // Check sender rules
       const exactRule = rulesMap.get(fromEmail);
       const domainRule = domain ? rulesMap.get(`*@${domain}`) : null;
       const appliedRule = exactRule || domainRule;
-
-      if (appliedRule) {
-        if (appliedRule.default_priority) priorityScore = Math.min(priorityScore, appliedRule.default_priority);
-      }
+      if (appliedRule?.default_priority) priorityScore = Math.min(priorityScore, appliedRule.default_priority);
 
       parsedEmails.push({
         gmail_message_id: msg.id,
@@ -324,41 +349,53 @@ serve(async (req) => {
         priority_score: priorityScore,
         category: appliedRule?.default_category || 'other',
         user_archived: appliedRule?.auto_archive || false,
+        ai_summary: null,
+        ai_suggested_action: null,
+        is_spam: false,
+        is_phishing: false,
+        threat_reason: null,
+        sentiment: 'neutral',
       });
     }
 
-    // AI categorization for uncategorized emails
-    const needsCategorization = parsedEmails
-      .filter((e, i) => e.category === 'other' && !e.user_archived)
-      .slice(0, 20); // Limit AI calls
+    // AI analysis for emails that need it (limit to 20 for cost efficiency)
+    const needsAnalysis = parsedEmails
+      .filter((e) => !e.user_archived)
+      .slice(0, 20);
 
-    if (needsCategorization.length > 0) {
-      const aiResults = await categorizeWithAI(needsCategorization);
-      
-      // Map AI results back by finding their original index
-      const uncatIndexMap = new Map<number, number>();
-      let uncatIdx = 0;
+    if (needsAnalysis.length > 0) {
+      const aiResults = await analyzeWithAI(needsAnalysis, contactContext);
+
+      // Map AI results back
+      const analysisIndexMap = new Map<number, number>();
+      let aiIdx = 0;
       parsedEmails.forEach((e, i) => {
-        if (e.category === 'other' && !e.user_archived && uncatIdx < 20) {
-          uncatIndexMap.set(uncatIdx, i);
-          uncatIdx++;
+        if (!e.user_archived && aiIdx < 20) {
+          analysisIndexMap.set(aiIdx, i);
+          aiIdx++;
         }
       });
 
-      for (const [aiIdx, result] of Object.entries(aiResults)) {
-        const originalIdx = uncatIndexMap.get(parseInt(aiIdx));
+      for (const [aiIdxStr, result] of Object.entries(aiResults)) {
+        const originalIdx = analysisIndexMap.get(parseInt(aiIdxStr));
         if (originalIdx !== undefined) {
-          parsedEmails[originalIdx].category = result.category;
-          parsedEmails[originalIdx].priority_score = Math.max(1, parsedEmails[originalIdx].priority_score - result.priority_boost);
+          const e = parsedEmails[originalIdx];
+          e.category = result.category === 'spam' || result.category === 'phishing' ? e.category : result.category;
+          e.priority_score = Math.max(1, e.priority_score - result.priority_boost);
+          e.ai_summary = result.summary;
+          e.ai_suggested_action = result.suggested_action;
+          e.is_spam = result.is_spam;
+          e.is_phishing = result.is_phishing;
+          e.threat_reason = result.threat_reason || null;
+          e.sentiment = result.sentiment;
+          if (result.is_spam) e.category = 'spam';
+          if (result.is_phishing) e.category = 'phishing';
         }
       }
     }
 
-    // Upsert emails into database
-    const emailsToUpsert = parsedEmails.map(e => ({
-      user_id: userId,
-      ...e,
-    }));
+    // Upsert emails
+    const emailsToUpsert = parsedEmails.map(e => ({ user_id: userId, ...e }));
 
     const { error: upsertError } = await adminClient
       .from('user_emails')
@@ -371,14 +408,14 @@ serve(async (req) => {
       });
     }
 
-    // Create notifications for high-priority new emails (P1-P2)
+    // Notifications for high-priority new emails
     const highPriority = parsedEmails.filter(e => e.priority_score <= 2 && !e.is_read);
     for (const email of highPriority.slice(0, 5)) {
       await adminClient.from('user_notifications').insert({
         user_id: userId,
         type: 'email',
         title: `Priority Email from ${email.from_name}`,
-        message: email.subject || '(No subject)',
+        message: email.ai_summary || email.subject || '(No subject)',
         data: { email_id: email.gmail_message_id, from: email.from_email },
         read: false,
       }).then(() => {}).catch(() => {});

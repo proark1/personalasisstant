@@ -1,0 +1,8 @@
+
+ALTER TABLE public.user_emails 
+  ADD COLUMN IF NOT EXISTS ai_summary TEXT,
+  ADD COLUMN IF NOT EXISTS ai_suggested_action TEXT,
+  ADD COLUMN IF NOT EXISTS is_spam BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_phishing BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS threat_reason TEXT,
+  ADD COLUMN IF NOT EXISTS sentiment TEXT DEFAULT 'neutral';
