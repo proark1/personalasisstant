@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useEmails, EmailView, Email, EmailThread } from '@/hooks/useEmails';
 import { useGmailConnection } from '@/hooks/useGmailConnection';
 import { EmailCard } from './EmailCard';
@@ -121,6 +121,26 @@ export function EmailPanel() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeDraft, setComposeDraft] = useState<{ to?: string; subject?: string; body?: string; threadId?: string | null; gmailMessageId?: string | null }>({});
+
+  // Listen for compose-email events from AI (voice/text mode)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        setComposeDraft({
+          to: detail.to || '',
+          subject: detail.subject || '',
+          body: detail.body || '',
+          threadId: detail.threadId || null,
+          gmailMessageId: detail.gmailMessageId || null,
+        });
+        setComposeOpen(true);
+      }
+    };
+    window.addEventListener('compose-email', handler);
+    return () => window.removeEventListener('compose-email', handler);
+  }, []);
 
   // Pull-to-refresh
   const pullY = useMotionValue(0);
@@ -355,8 +375,16 @@ export function EmailPanel() {
 
       <ComposeEmailSheet
         open={composeOpen}
-        onOpenChange={setComposeOpen}
+        onOpenChange={(open) => {
+          setComposeOpen(open);
+          if (!open) setComposeDraft({});
+        }}
         onSend={composeEmail}
+        initialTo={composeDraft.to}
+        initialSubject={composeDraft.subject}
+        initialBody={composeDraft.body}
+        threadId={composeDraft.threadId}
+        gmailMessageId={composeDraft.gmailMessageId}
       />
     </div>
   );

@@ -252,10 +252,10 @@ export function useEmails() {
     }
   }, []);
 
-  const composeEmail = useCallback(async (to: string, subject: string, body: string): Promise<boolean> => {
+  const composeEmail = useCallback(async (to: string, subject: string, body: string, threadId?: string | null, gmailMessageId?: string | null): Promise<boolean> => {
     try {
       const { data, error } = await supabase.functions.invoke('gmail-send-reply', {
-        body: { to, subject, body },
+        body: { to, subject, body, threadId: threadId || null, gmailMessageId: gmailMessageId || null },
       });
       if (error) throw error;
       if (data?.error) { toast.error(data.error); return false; }

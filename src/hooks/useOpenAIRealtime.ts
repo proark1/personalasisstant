@@ -1367,7 +1367,6 @@ export function useOpenAIRealtime({
           const replyBody = args.reply_body || '';
           const allUnread = contextData?.unreadEmails || [];
           
-          // Fuzzy match email by sender name, subject, or snippet
           const matched = allUnread.find((e: any) =>
             (e.from?.toLowerCase().includes(emailQuery)) ||
             (e.subject?.toLowerCase().includes(emailQuery)) ||
@@ -1380,32 +1379,16 @@ export function useOpenAIRealtime({
           } else if (!matched.from_email) {
             result = { success: false, message: `Found the email from ${matched.from} but no reply address is available.` };
           } else {
-            try {
-              const { data: sessionData } = await supabase.auth.getSession();
-              const token = sessionData?.session?.access_token;
-              if (!token) {
-                result = { success: false, message: 'Not authenticated. Please log in first.' };
-                break;
+            window.dispatchEvent(new CustomEvent('compose-email', {
+              detail: {
+                to: matched.from_email,
+                subject: `Re: ${(matched.subject || '').replace(/^Re:\s*/i, '')}`,
+                body: replyBody,
+                threadId: matched.thread_id || null,
+                gmailMessageId: matched.gmail_message_id || null,
               }
-              const { data, error } = await supabase.functions.invoke('gmail-send-reply', {
-                body: {
-                  to: matched.from_email,
-                  subject: matched.subject || '',
-                  body: replyBody,
-                  threadId: matched.thread_id || null,
-                  gmailMessageId: matched.gmail_message_id || null,
-                },
-              });
-              if (error) {
-                console.error('Reply error:', error);
-                result = { success: false, message: `Failed to send reply: ${error.message}` };
-              } else {
-                result = { success: true, message: `Reply sent to ${matched.from} (${matched.from_email})` };
-              }
-            } catch (err: any) {
-              console.error('Reply exception:', err);
-              result = { success: false, message: `Error sending reply: ${err.message}` };
-            }
+            }));
+            result = { success: true, message: `I've prepared a draft reply to ${matched.from}. Please review and click Send.` };
           }
           break;
         }
@@ -1415,24 +1398,10 @@ export function useOpenAIRealtime({
           if (!to || !body) {
             result = { success: false, message: 'Recipient email and body are required.' };
           } else {
-            try {
-              const { data: sessionData } = await supabase.auth.getSession();
-              const token = sessionData?.session?.access_token;
-              if (!token) {
-                result = { success: false, message: 'Not authenticated. Please log in first.' };
-                break;
-              }
-              const { data, error } = await supabase.functions.invoke('gmail-send-reply', {
-                body: { to, subject: subject || '', body, threadId: null, gmailMessageId: null },
-              });
-              if (error) {
-                result = { success: false, message: `Failed to send email: ${error.message}` };
-              } else {
-                result = { success: true, message: `Email sent to ${to}` };
-              }
-            } catch (err: any) {
-              result = { success: false, message: `Error sending email: ${err.message}` };
-            }
+            window.dispatchEvent(new CustomEvent('compose-email', {
+              detail: { to, subject: subject || '', body, threadId: null, gmailMessageId: null }
+            }));
+            result = { success: true, message: `I've prepared a draft email to ${to}. Please review and click Send.` };
           }
           break;
         }
