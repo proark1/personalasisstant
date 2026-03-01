@@ -1318,6 +1318,49 @@ export function useOpenAIRealtime({
           }
           break;
         }
+
+        // ==================== EMAIL TOOLS ====================
+        case 'get_email_summary': {
+          const unread = contextData?.unreadEmails || [];
+          const total = contextData?.totalUnreadEmails || 0;
+          if (total === 0) {
+            result = { success: true, message: 'Your inbox is clear — no unread emails!' };
+          } else {
+            const topEmails = unread.slice(0, 5).map((e: any) => 
+              `• From ${e.from}: "${e.subject || '(no subject)'}"`
+            ).join('\n');
+            result = { 
+              success: true, 
+              message: `You have ${total} unread email(s). Here are the most recent:\n${topEmails}`,
+              unreadCount: total,
+              emails: unread.slice(0, 5)
+            };
+          }
+          break;
+        }
+
+        case 'search_emails': {
+          const query = (args.query || '').toLowerCase();
+          const allUnread = contextData?.unreadEmails || [];
+          const matches = allUnread.filter((e: any) => 
+            (e.subject?.toLowerCase().includes(query)) ||
+            (e.from?.toLowerCase().includes(query)) ||
+            (e.snippet?.toLowerCase().includes(query))
+          );
+          if (matches.length === 0) {
+            result = { success: true, message: `No emails found matching "${args.query}".` };
+          } else {
+            const emailList = matches.slice(0, 5).map((e: any) =>
+              `• From ${e.from}: "${e.subject || '(no subject)'}"`
+            ).join('\n');
+            result = { 
+              success: true, 
+              message: `Found ${matches.length} email(s) matching "${args.query}":\n${emailList}`,
+              emails: matches.slice(0, 5)
+            };
+          }
+          break;
+        }
       }
     } catch (err) {
       console.error('Function call error:', err);

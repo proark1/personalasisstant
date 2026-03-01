@@ -26,6 +26,9 @@ serve(async (req) => {
       hasHealthData: !!contextData?.healthData,
       healthMetricsCount: contextData?.healthData?.recentMetrics?.length || 0,
       habitCount: contextData?.habitData?.habits?.length || 0,
+      unreadEmails: contextData?.totalUnreadEmails || 0,
+      familyMembers: contextData?.familyMembers?.length || 0,
+      shoppingLists: contextData?.shoppingLists?.length || 0,
     });
 
     // Build comprehensive system prompt
@@ -674,7 +677,31 @@ serve(async (req) => {
           },
           required: []
         }
-      }
+      },
+
+      // ==================== EMAIL TOOLS ====================
+      {
+        type: "function",
+        name: "get_email_summary",
+        description: "Get a summary of the user's unread emails including count and top priority emails. Use when user asks about their inbox, emails, or messages.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: []
+        }
+      },
+      {
+        type: "function",
+        name: "search_emails",
+        description: "Search emails by sender name, subject, or keyword. Use when user asks about specific emails or emails from a specific person.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search term - sender name, subject keyword, or email content" }
+          },
+          required: ["query"]
+        }
+      },
     ];
 
     // Request ephemeral token from OpenAI
@@ -797,6 +824,12 @@ Current date and time: ${timeString}
 - SAVE startup ideas for later review and continuation
 - LIST previous startup ideas the user has discussed
 - When brainstorming, be a helpful co-founder: ask probing questions, suggest improvements, identify potential challenges
+
+### Email/Inbox
+- View unread emails and inbox summary
+- Search emails by sender, subject, or keyword
+- Summarize inbox status and priority emails
+- Help user understand what needs attention in their email
 
 ## Family Relationship Understanding:
 When the user says "my wife", "my husband", "my mom", "my dad", "my sister", etc., you can find the corresponding contact based on their saved family relationship. For example:
@@ -946,6 +979,61 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
       prompt += `\n### Projects:\n`;
       contextData.allProjects.slice(0, 10).forEach((p: any) => {
         prompt += `- "${p.name}"${p.description ? `: ${p.description}` : ''}\n`;
+      });
+    }
+
+    // Unread emails
+    if (contextData.unreadEmails?.length > 0) {
+      prompt += `\n### Unread Emails (${contextData.totalUnreadEmails || contextData.unreadEmails.length} total):\n`;
+      contextData.unreadEmails.forEach((e: any) => {
+        const time = new Date(e.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        prompt += `- From ${e.from}: "${e.subject || '(no subject)'}" (${time})${e.snippet ? ` — ${e.snippet.substring(0, 80)}` : ''}\n`;
+      });
+    } else if (contextData.totalUnreadEmails === 0) {
+      prompt += `\n### Email: Inbox is clear — no unread emails.\n`;
+    }
+
+    // Family members
+    if (contextData.familyMembers?.length > 0) {
+      prompt += `\n### Family Members:\n`;
+      contextData.familyMembers.forEach((m: any) => {
+        let info = `- **${m.name}** (${m.relationship}${m.age !== null ? `, ${m.age} years old` : ''})`;
+        if (m.school) info += ` — School: ${m.school}${m.grade ? `, Grade: ${m.grade}` : ''}`;
+        if (m.kindergarten) info += ` — Kindergarten: ${m.kindergarten}`;
+        if (m.activities?.length > 0) info += ` — Activities: ${m.activities.map((a: any) => `${a.name} (${a.schedule})`).join(', ')}`;
+        if (m.allergies?.length > 0) info += ` — ⚠️ Allergies: ${m.allergies.join(', ')}`;
+        prompt += info + '\n';
+      });
+    }
+
+    // Family schedule
+    if (contextData.familySchedule?.todayEvents?.length > 0) {
+      prompt += `\n### Today's Family Schedule:\n`;
+      contextData.familySchedule.todayEvents.forEach((e: any) => {
+        const time = new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        prompt += `- ${e.title} at ${time}${e.location ? ` (${e.location})` : ''}\n`;
+      });
+    }
+    if (contextData.familySchedule?.tomorrowEvents?.length > 0) {
+      prompt += `\n### Tomorrow's Family Schedule:\n`;
+      contextData.familySchedule.tomorrowEvents.forEach((e: any) => {
+        const time = new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        prompt += `- ${e.title} at ${time}${e.location ? ` (${e.location})` : ''}\n`;
+      });
+    }
+    if (contextData.familySchedule?.upcomingBirthdays?.length > 0) {
+      prompt += `\n### Upcoming Family Birthdays:\n`;
+      contextData.familySchedule.upcomingBirthdays.forEach((b: any) => {
+        const daysUntil = Math.ceil((new Date(b.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        prompt += `- ${b.member} turns ${b.age} in ${daysUntil} days\n`;
+      });
+    }
+
+    // Shopping lists
+    if (contextData.shoppingLists?.length > 0) {
+      prompt += `\n### Active Shopping Lists:\n`;
+      contextData.shoppingLists.forEach((l: any) => {
+        prompt += `- ${l.name}${l.dueDate ? ` (due ${l.dueDate})` : ''}\n`;
       });
     }
 
