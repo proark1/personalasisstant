@@ -1,87 +1,80 @@
 
-
-# Incremental Email Sync: Only Fetch New Emails
+# Add Email Reply/Compose to Voice Assistant
 
 ## Problem
 
-Currently, every sync fetches the latest 30 messages from Gmail, downloads metadata for all of them, runs AI analysis on up to 20, and upserts everything -- even emails already stored in the database. This is wasteful and slow.
+When you ask the voice assistant to reply to an email (e.g., "reply to the Eurowings email with thank you"), it fails because:
+
+1. **No reply tool exists** -- Voice mode only has `get_email_summary` and `search_emails`. There is no `reply_to_email` or `compose_email` tool registered with OpenAI.
+2. **Email context is incomplete** -- The email data sent to the assistant only includes `from` (display name), `subject`, `priority`, and `snippet`. It does NOT include `from_email` (the actual email address), `gmail_message_id`, or `thread_id` -- all of which are required to send a reply.
+3. **Fallback fails** -- Without a reply tool, the assistant likely tries `send_chat_message`, which looks up contacts by name -- and "Eurowings" is not a contact.
 
 ## Solution
 
-Use Gmail's History API for incremental sync. Gmail assigns a `historyId` to every message. By storing the last `historyId`, subsequent syncs only fetch changes (new messages, label changes) since that point.
+### 1. Add `from_email`, `gmail_message_id`, and `thread_id` to email context
 
-## Changes
+**File: `src/lib/smartPayloadBuilder.ts`**
 
-### 1. Database Migration: Add `gmail_history_id` column
-
-Add a `gmail_history_id` text column to `external_calendar_connections` to store the Gmail sync cursor per user's Google connection.
-
-```sql
-ALTER TABLE external_calendar_connections
-ADD COLUMN gmail_history_id text;
+Update the email summary mapping to include the reply-critical fields:
+```typescript
+payload.emailSummary = unread.map(e => ({
+  subject: e.subject || '(no subject)',
+  from: e.from_name || e.from_email,
+  from_email: e.from_email,           // NEW
+  gmail_message_id: e.gmail_message_id, // NEW
+  thread_id: e.thread_id,              // NEW
+  priority: ...,
+  snippet: ...,
+}));
 ```
 
-### 2. `supabase/functions/gmail-sync/index.ts` -- Incremental sync logic
+### 2. Register a `reply_to_email` tool with OpenAI
 
-**Current flow** (every sync):
-1. List 30 messages from INBOX
-2. Fetch metadata for all 30
-3. AI analyze up to 20
-4. Upsert all 30
+**File: `supabase/functions/openai-realtime-session/index.ts`**
 
-**New flow:**
-
-1. Check if `gmail_history_id` exists on the connection
-2. **If yes (incremental sync):**
-   - Call `GET /gmail/v1/users/me/history?startHistoryId={id}&historyTypes=messageAdded&labelId=INBOX`
-   - Extract only new message IDs from `messagesAdded`
-   - If no new messages, return early with `{ synced: 0 }`
-   - Fetch metadata only for new messages
-   - AI analyze only new messages
-   - Upsert only new messages
-   - If history is expired (404/invalid), fall back to full sync
-3. **If no (first sync / fallback):**
-   - Do current full sync (fetch latest 30)
-4. **After sync:** Get the latest `historyId` from Gmail profile and save it to the connection
-
-**Getting the historyId:**
-- Call `GET /gmail/v1/users/me/profile` which returns `{ historyId: "12345" }`
-- Store it in `external_calendar_connections.gmail_history_id`
-
-### 3. `src/hooks/useEmails.ts` -- Minor improvements
-
-- The client already loads emails from the database first (line 61-79), which is correct -- cached emails show instantly
-- Sync only fetches/processes new ones server-side
-- Add the new email count from sync response to show "3 new emails" instead of "Synced 30 emails"
-- Update toast message to reflect incremental behavior
-
-### 4. `useEmails.ts` -- Increase fetch limit
-
-Currently limited to 100 emails. Since all emails are now persisted in the cloud, increase to 200 or add pagination for older emails.
-
-## Technical Flow
-
-```text
-First sync:
-  Client -> gmail-sync -> Gmail API (list 30) -> AI analyze -> upsert -> save historyId
-
-Subsequent syncs:
-  Client -> gmail-sync -> Gmail History API (only changes) -> fetch new only -> AI analyze new only -> upsert new -> update historyId
-
-History expired (rare):
-  Client -> gmail-sync -> History API returns 404 -> fallback to full sync -> save new historyId
+Add a new tool after the existing email tools:
 ```
+reply_to_email:
+  - email_query: string (to identify which email, e.g., "Eurowings", "the flight email")
+  - reply_body: string (the reply content)
+```
+
+Also add a `compose_new_email` tool:
+```
+compose_new_email:
+  - to: string (recipient email address)
+  - subject: string
+  - body: string
+```
+
+### 3. Handle the new tools in the client
+
+**File: `src/hooks/useOpenAIRealtime.ts`**
+
+Add handler cases for `reply_to_email` and `compose_new_email`:
+
+- **reply_to_email**: Fuzzy-match the `email_query` against the email context data (by sender name or subject). Once matched, call `supabase.functions.invoke('gmail-send-reply')` with the matched email's `from_email`, `subject`, `thread_id`, and `gmail_message_id`.
+- **compose_new_email**: Call `supabase.functions.invoke('gmail-send-reply')` with the provided `to`, `subject`, and `body`.
+
+### 4. Pass `sendReply` / `composeEmail` to the hook
+
+**File: `src/pages/Index.tsx`**
+
+The `useEmails` hook already provides `sendReply` and `composeEmail` functions. Pass these (or the underlying Supabase function invocation) into `useOpenAIRealtime` options so the tool handlers can actually send emails.
 
 ## Files to Modify
 
-1. **Database migration** -- Add `gmail_history_id` column to `external_calendar_connections`
-2. **`supabase/functions/gmail-sync/index.ts`** -- Add History API logic, save/read historyId, skip already-synced emails
-3. **`src/hooks/useEmails.ts`** -- Update toast messages, increase fetch limit
+1. **`src/lib/smartPayloadBuilder.ts`** -- Add `from_email`, `gmail_message_id`, `thread_id` to email context
+2. **`supabase/functions/openai-realtime-session/index.ts`** -- Add `reply_to_email` and `compose_new_email` tool definitions
+3. **`src/hooks/useOpenAIRealtime.ts`** -- Add tool handler cases + accept email operation callbacks
+4. **`src/pages/Index.tsx`** -- Wire `sendReply`/`composeEmail` from `useEmails` into the voice assistant hook
 
-## Benefits
+## How It Will Work
 
-- Syncs complete in under 1 second when no new emails (vs 5-10s currently)
-- No redundant AI analysis calls (saves API credits)
-- All historical emails stay in cloud database permanently
-- Client loads instantly from database cache, sync only adds new ones
-
+1. User: "Do I have any important emails?"
+2. Assistant reads email summary, mentions Eurowings email
+3. User: "Reply with thank you"
+4. Assistant calls `reply_to_email(email_query="Eurowings", reply_body="Thank you!")`
+5. Client matches "Eurowings" against the email context, finds the email with `from_email`, `thread_id`, `gmail_message_id`
+6. Client calls `gmail-send-reply` edge function with those details
+7. Reply is sent as a proper Gmail thread reply
