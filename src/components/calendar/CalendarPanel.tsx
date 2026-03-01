@@ -390,23 +390,23 @@ export function CalendarPanel({
         </div>
 
         {item.attendees && item.attendees.length > 0 && (
-          <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
-            <Users className="w-3 h-3" />
-            <span>{item.attendees.join(', ')}</span>
+          <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground min-w-0">
+            <Users className="w-3 h-3 shrink-0" />
+            <span className="truncate">{item.attendees.join(', ')}</span>
           </div>
         )}
 
         {item.recurrenceRule && (
-          <div className="flex items-center gap-1 mt-1 text-xs text-primary">
-            <Repeat className="w-3 h-3" />
-            <span>{getRecurrenceDescription(item.recurrenceRule)}</span>
+          <div className="flex items-center gap-1 mt-1 text-xs text-primary min-w-0">
+            <Repeat className="w-3 h-3 shrink-0" />
+            <span className="truncate">{getRecurrenceDescription(item.recurrenceRule)}</span>
           </div>
         )}
 
         {item.sharedBy && (
-          <div className="flex items-center gap-1 mt-1.5 text-xs text-accent-foreground bg-accent/30 px-1.5 py-0.5 rounded w-fit">
-            <UserCircle className="w-3 h-3" />
-            <span>{t('calendar.sharedBy')} {item.sharedBy.displayName || item.sharedBy.email || 'someone'}</span>
+          <div className="flex items-center gap-1 mt-1.5 text-xs text-accent-foreground bg-accent/30 px-1.5 py-0.5 rounded w-fit max-w-full">
+            <UserCircle className="w-3 h-3 shrink-0" />
+            <span className="truncate">{t('calendar.sharedBy')} {item.sharedBy.displayName || item.sharedBy.email || 'someone'}</span>
           </div>
         )}
       </div>
@@ -465,7 +465,7 @@ export function CalendarPanel({
       </div>
 
       {/* Items List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6">
         {groupedItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-center">
             <Calendar className="w-10 h-10 text-muted-foreground/30 mb-2" />

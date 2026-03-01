@@ -197,7 +197,7 @@ export function EmailPanel() {
   const hasEmails = grouped.attention.length > 0 || grouped.fyi.length > 0 || grouped.lowPriority.length > 0;
 
   return (
-    <div className="h-full flex flex-col relative">
+    <div className="h-full flex flex-col relative overflow-hidden">
       {/* Header */}
       <div className="p-3 border-b border-border space-y-2">
         {selectMode ? (
