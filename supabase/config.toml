@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.gmail-sync]
 verify_jwt = false
+
+[functions.email-draft-reply]
+verify_jwt = false

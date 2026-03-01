@@ -1,20 +1,22 @@
 import { useState } from 'react';
-import { useEmails, EmailView, Email } from '@/hooks/useEmails';
+import { useEmails, EmailView, Email, EmailThread } from '@/hooks/useEmails';
 import { useGmailConnection } from '@/hooks/useGmailConnection';
 import { EmailCard } from './EmailCard';
 import { EmailDetailSheet } from './EmailDetailSheet';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw, Mail, Inbox, ShieldAlert, Loader2, PlugZap, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { RefreshCw, Mail, Inbox, ShieldAlert, Loader2, PlugZap, ChevronDown, ChevronRight, Sparkles, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-function EmailSection({ title, count, emails, defaultOpen = true, onSelect, icon: Icon }: {
+function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onArchive, onToggleImportant, icon: Icon }: {
   title: string;
   count: number;
-  emails: Email[];
+  threads: EmailThread[];
   defaultOpen?: boolean;
   onSelect: (email: Email) => void;
+  onArchive?: (id: string) => void;
+  onToggleImportant?: (id: string) => void;
   icon?: typeof Mail;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -36,8 +38,14 @@ function EmailSection({ title, count, emails, defaultOpen = true, onSelect, icon
       </button>
       {open && (
         <div className="space-y-0.5">
-          {emails.map(email => (
-            <EmailCard key={email.id} email={email} onSelect={onSelect} />
+          {threads.map(thread => (
+            <EmailCard
+              key={thread.latestEmail.id}
+              thread={thread}
+              onSelect={onSelect}
+              onArchive={onArchive}
+              onToggleImportant={onToggleImportant}
+            />
           ))}
         </div>
       )}
@@ -49,8 +57,8 @@ export function EmailPanel() {
   const { isConnected, loading: connectionLoading, connectGmail } = useGmailConnection();
   const {
     emails, grouped, loading, syncing, view, setView,
-    syncEmails, archiveEmail, markImportant, markAsRead, reportSpam,
-    unreadCount, priorityCount, flaggedCount,
+    syncEmails, archiveEmail, markImportant, markAsRead, reportSpam, snoozeEmail, createSenderRule,
+    unreadCount, priorityCount, flaggedCount, lastSyncTime,
   } = useEmails();
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -100,10 +108,15 @@ export function EmailPanel() {
               </span>
             )}
           </div>
-          <Button variant="ghost" size="sm" onClick={syncEmails} disabled={syncing} className="gap-1.5">
-            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Sync
-          </Button>
+          <div className="flex items-center gap-2">
+            {lastSyncTime && (
+              <span className="text-[10px] text-muted-foreground">{lastSyncTime}</span>
+            )}
+            <Button variant="ghost" size="sm" onClick={syncEmails} disabled={syncing} className="gap-1.5">
+              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Sync
+            </Button>
+          </div>
         </div>
 
         <Tabs value={view} onValueChange={(v) => setView(v as EmailView)}>
@@ -141,29 +154,47 @@ export function EmailPanel() {
               <EmailSection
                 title="Needs Your Attention"
                 count={grouped.attention.length}
-                emails={grouped.attention}
+                threads={grouped.attention}
                 onSelect={handleSelect}
+                onArchive={archiveEmail}
+                onToggleImportant={markImportant}
               />
               <EmailSection
                 title="FYI"
                 count={grouped.fyi.length}
-                emails={grouped.fyi}
+                threads={grouped.fyi}
                 onSelect={handleSelect}
+                onArchive={archiveEmail}
+                onToggleImportant={markImportant}
               />
               <EmailSection
                 title="Newsletters & Promotions"
                 count={grouped.lowPriority.length}
-                emails={grouped.lowPriority}
+                threads={grouped.lowPriority}
                 defaultOpen={false}
                 onSelect={handleSelect}
+                onArchive={archiveEmail}
+                onToggleImportant={markImportant}
               />
               {grouped.flagged.length > 0 && (
                 <EmailSection
                   title="⚠️ Flagged"
                   count={grouped.flagged.length}
-                  emails={grouped.flagged}
+                  threads={grouped.flagged}
                   onSelect={handleSelect}
+                  onArchive={archiveEmail}
+                  onToggleImportant={markImportant}
                   icon={ShieldAlert}
+                />
+              )}
+              {grouped.snoozed.length > 0 && (
+                <EmailSection
+                  title="Snoozed"
+                  count={grouped.snoozed.length}
+                  threads={grouped.snoozed}
+                  defaultOpen={false}
+                  onSelect={handleSelect}
+                  icon={Clock}
                 />
               )}
               {grouped.attention.length === 0 && grouped.fyi.length === 0 && grouped.lowPriority.length === 0 && (
@@ -177,8 +208,14 @@ export function EmailPanel() {
               )}
             </>
           ) : emails && emails.length > 0 ? (
-            emails.map(email => (
-              <EmailCard key={email.id} email={email} onSelect={handleSelect} />
+            emails.map(thread => (
+              <EmailCard
+                key={thread.latestEmail.id}
+                thread={thread}
+                onSelect={handleSelect}
+                onArchive={archiveEmail}
+                onToggleImportant={markImportant}
+              />
             ))
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
@@ -198,6 +235,8 @@ export function EmailPanel() {
         onArchive={archiveEmail}
         onToggleImportant={markImportant}
         onReportSpam={reportSpam}
+        onSnooze={snoozeEmail}
+        onCreateSenderRule={createSenderRule}
       />
     </div>
   );

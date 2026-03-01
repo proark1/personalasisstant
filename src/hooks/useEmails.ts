@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -34,7 +34,16 @@ export interface Email {
   updated_at: string;
 }
 
+export interface EmailThread {
+  latestEmail: Email;
+  threadCount: number;
+  allEmails: Email[];
+}
+
 export type EmailView = 'smart' | 'all' | 'flagged';
+
+const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const SYNC_KEY = 'email_last_sync';
 
 export function useEmails() {
   const { user } = useAuth();
@@ -42,6 +51,7 @@ export function useEmails() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [view, setView] = useState<EmailView>('smart');
+  const autoSyncDone = useRef(false);
 
   const fetchEmails = useCallback(async () => {
     if (!user) return;
@@ -68,6 +78,7 @@ export function useEmails() {
     fetchEmails();
   }, [fetchEmails]);
 
+  // Auto-sync if > 5 min since last sync
   const syncEmails = useCallback(async () => {
     if (!user || syncing) return;
     setSyncing(true);
@@ -90,6 +101,7 @@ export function useEmails() {
         return;
       }
 
+      localStorage.setItem(SYNC_KEY, Date.now().toString());
       toast.success(`Synced ${data?.synced || 0} emails`);
       await fetchEmails();
     } catch (e) {
@@ -99,6 +111,25 @@ export function useEmails() {
       setSyncing(false);
     }
   }, [user, syncing, fetchEmails]);
+
+  // Auto-sync on mount
+  useEffect(() => {
+    if (!user || autoSyncDone.current) return;
+    autoSyncDone.current = true;
+    const lastSync = parseInt(localStorage.getItem(SYNC_KEY) || '0');
+    if (Date.now() - lastSync > SYNC_INTERVAL) {
+      syncEmails();
+    }
+  }, [user, syncEmails]);
+
+  const lastSyncTime = useMemo(() => {
+    const ts = parseInt(localStorage.getItem(SYNC_KEY) || '0');
+    if (!ts) return null;
+    const diff = Date.now() - ts;
+    if (diff < 60_000) return 'just now';
+    if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    return `${Math.floor(diff / 3600_000)}h ago`;
+  }, [syncing]); // re-compute after sync
 
   const updateEmail = useCallback(async (emailId: string, updates: Partial<Email>) => {
     if (!user) return;
@@ -139,10 +170,83 @@ export function useEmails() {
     toast.success('Reported as spam');
   }, [updateEmail]);
 
+  const snoozeEmail = useCallback(async (emailId: string, until: Date) => {
+    await updateEmail(emailId, { user_snoozed_until: until.toISOString() });
+    setEmails(prev => prev.filter(e => e.id !== emailId));
+    toast.success(`Snoozed until ${until.toLocaleDateString()}`);
+  }, [updateEmail]);
+
+  const createSenderRule = useCallback(async (senderPattern: string, rule: { default_category?: string; default_priority?: number; auto_archive?: boolean }) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('email_sender_rules')
+        .upsert({
+          user_id: user.id,
+          sender_pattern: senderPattern,
+          ...rule,
+        } as any, { onConflict: 'user_id,sender_pattern' });
+
+      if (error) throw error;
+      toast.success(`Rule created for ${senderPattern}`);
+    } catch (e) {
+      console.error('Create sender rule error:', e);
+      toast.error('Failed to create rule');
+    }
+  }, [user]);
+
+  // Filter out snoozed emails
+  const activeEmails = useMemo(() => {
+    const now = new Date();
+    return emails.filter(e => {
+      if (e.user_snoozed_until) {
+        return new Date(e.user_snoozed_until) <= now;
+      }
+      return true;
+    });
+  }, [emails]);
+
+  const snoozedEmails = useMemo(() => {
+    const now = new Date();
+    return emails.filter(e => e.user_snoozed_until && new Date(e.user_snoozed_until) > now);
+  }, [emails]);
+
+  // Thread grouping
+  const groupByThread = useCallback((emailList: Email[]): EmailThread[] => {
+    const threadMap = new Map<string, Email[]>();
+    const noThread: Email[] = [];
+
+    for (const e of emailList) {
+      if (e.thread_id) {
+        const existing = threadMap.get(e.thread_id) || [];
+        existing.push(e);
+        threadMap.set(e.thread_id, existing);
+      } else {
+        noThread.push(e);
+      }
+    }
+
+    const threads: EmailThread[] = [];
+    for (const [, threadEmails] of threadMap) {
+      threadEmails.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
+      threads.push({
+        latestEmail: threadEmails[0],
+        threadCount: threadEmails.length,
+        allEmails: threadEmails,
+      });
+    }
+    for (const e of noThread) {
+      threads.push({ latestEmail: e, threadCount: 1, allEmails: [e] });
+    }
+
+    threads.sort((a, b) => new Date(b.latestEmail.received_at).getTime() - new Date(a.latestEmail.received_at).getTime());
+    return threads;
+  }, []);
+
   // Smart grouping
   const grouped = useMemo(() => {
-    const clean = emails.filter(e => !e.is_spam && !e.is_phishing);
-    const flagged = emails.filter(e => e.is_spam || e.is_phishing);
+    const clean = activeEmails.filter(e => !e.is_spam && !e.is_phishing);
+    const flagged = activeEmails.filter(e => e.is_spam || e.is_phishing);
 
     const attention = clean.filter(e =>
       e.category === 'action_required' || e.priority_score <= 2 || e.is_important || e.sentiment === 'urgent'
@@ -156,23 +260,29 @@ export function useEmails() {
       ['newsletter', 'promotion'].includes(e.category)
     );
 
-    return { attention, fyi, lowPriority, flagged };
-  }, [emails]);
+    return {
+      attention: groupByThread(attention),
+      fyi: groupByThread(fyi),
+      lowPriority: groupByThread(lowPriority),
+      flagged: groupByThread(flagged),
+      snoozed: groupByThread(snoozedEmails),
+    };
+  }, [activeEmails, snoozedEmails, groupByThread]);
 
   const viewEmails = useMemo(() => {
     if (view === 'smart') return null; // use grouped
-    if (view === 'flagged') return grouped.flagged;
-    return emails;
-  }, [view, emails, grouped]);
+    if (view === 'flagged') return groupByThread(activeEmails.filter(e => e.is_spam || e.is_phishing));
+    return groupByThread(activeEmails);
+  }, [view, activeEmails, groupByThread]);
 
-  const unreadCount = emails.filter(e => !e.is_read && !e.user_archived).length;
-  const priorityCount = emails.filter(e => (e.priority_score <= 2 || e.is_important) && !e.is_read).length;
+  const unreadCount = activeEmails.filter(e => !e.is_read && !e.user_archived).length;
+  const priorityCount = activeEmails.filter(e => (e.priority_score <= 2 || e.is_important) && !e.is_read).length;
   const flaggedCount = grouped.flagged.length;
 
   return {
     emails: viewEmails,
     grouped,
-    allEmails: emails,
+    allEmails: activeEmails,
     loading,
     syncing,
     view,
@@ -183,9 +293,12 @@ export function useEmails() {
     markImportant,
     markAsRead,
     reportSpam,
+    snoozeEmail,
+    createSenderRule,
     unreadCount,
     priorityCount,
     flaggedCount,
+    lastSyncTime,
     refetch: fetchEmails,
   };
 }

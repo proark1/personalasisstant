@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -35,6 +35,7 @@ import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useEmails } from '@/hooks/useEmails';
 
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
@@ -135,6 +136,7 @@ export function Sidebar({
   const [isAdmin, setIsAdmin] = useState(false);
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { unreadCount } = useEmails();
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -224,7 +226,7 @@ export function Sidebar({
 
           {/* Business */}
           <NavGroup title="Business" collapsed={collapsed}>
-            <NavItem icon={Mail} label={t('nav.email') || 'Email'} panel="email" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Mail} label={t('nav.email') || 'Email'} panel="email" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} badge={unreadCount || undefined} />
             <NavItem icon={BookUser} label={t('nav.contacts')} panel="contacts" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={FileText} label={t('nav.contracts')} panel="contracts" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Building2} label={t('nav.properties') || 'Properties'} panel="properties" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
