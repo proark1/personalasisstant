@@ -148,7 +148,7 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
           </div>
         ) : (
           <div className={cn(
-            "mt-0.5 shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold",
+            "mt-0.5 shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold",
             isThreat ? "bg-destructive/10 text-destructive" :
             isPriority ? "bg-primary/10 text-primary" :
             email.matched_contact_id ? "bg-accent text-accent-foreground" :

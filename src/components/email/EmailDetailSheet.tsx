@@ -72,11 +72,12 @@ function ThreadMessage({ email, body, bodyLoading }: { email: Email; body: strin
   return (
     <div className="border border-border rounded-xl overflow-hidden">
       <div className="flex items-center gap-3 p-3 bg-muted/30">
-        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[10px] font-semibold bg-muted text-muted-foreground">
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-semibold bg-muted text-muted-foreground">
           {getInitials(email.from_name, email.from_email)}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-foreground truncate">{email.from_name || email.from_email}</p>
+          <p className="text-xs font-semibold text-foreground">{email.from_name || email.from_email}</p>
+          <p className="text-[10px] text-muted-foreground">{email.from_email}</p>
           <p className="text-[10px] text-muted-foreground">{format(new Date(email.received_at), 'MMM d, h:mm a')}</p>
         </div>
       </div>
@@ -287,12 +288,12 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
 
           {/* Sender info */}
           <div className="flex items-center gap-3">
-            <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold", isPriority ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[10px] font-semibold", isPriority ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
               {getInitials(email.from_name, email.from_email)}
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">{email.from_name || email.from_email}</p>
-              <p className="text-xs text-muted-foreground truncate">{email.from_email}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">{email.from_name || email.from_email}</p>
+              <p className="text-xs text-muted-foreground">{email.from_email}</p>
             </div>
             <div className="ml-auto text-right shrink-0">
               <p className="text-xs text-muted-foreground">{format(new Date(email.received_at), 'MMM d, yyyy')}</p>
