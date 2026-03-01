@@ -146,6 +146,30 @@ export function EmailPanel() {
     setContractDialogOpen(true);
   };
 
+  const extractAmountFromText = (text: string): number | undefined => {
+    const match = text.match(/(\d+[.,]\d{2})\s*(?:EUR|USD|\$|€)/i)
+                || text.match(/[$€]\s*(\d+[.,]\d{2})/);
+    if (match) return parseFloat(match[1].replace(',', '.'));
+    return undefined;
+  };
+
+  const handleSaveEmailAsContract = (email: Email) => {
+    const providerName = email.from_name || email.from_email.split('@')[0];
+    const searchText = `${email.subject || ''} ${email.snippet || ''} ${email.body_preview || ''}`;
+    const amount = extractAmountFromText(searchText);
+
+    setContractPrefill({
+      name: providerName,
+      provider: providerName,
+      costAmount: amount,
+      costFrequency: 'monthly',
+      category: 'subscription',
+      autoRenews: true,
+    });
+    setContractDialogOpen(true);
+    setDetailOpen(false);
+  };
+
   const handleSaveContract = async (data: ContractInput) => {
     const result = await addContract(data);
     if (result) {
@@ -405,6 +429,7 @@ export function EmailPanel() {
         onFetchBody={fetchEmailBody}
         onSendReply={sendReply}
         onCategorize={categorizeEmail}
+        onSaveAsContract={handleSaveEmailAsContract}
       />
 
       <ComposeEmailSheet

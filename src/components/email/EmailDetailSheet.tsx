@@ -3,7 +3,7 @@ import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Archive, Star, StarOff, X, ExternalLink, ShieldAlert, Sparkles, Flag, Clock, Copy, Loader2, Ban, Send, AlertTriangle, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
+import { Archive, Star, StarOff, X, ExternalLink, ShieldAlert, Sparkles, Flag, Clock, Copy, Loader2, Ban, Send, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Receipt } from 'lucide-react';
 import { format, addHours, addDays, nextMonday, setHours, setMinutes } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +23,7 @@ interface EmailDetailSheetProps {
   onFetchBody?: (gmailMessageId: string) => Promise<string | null>;
   onSendReply?: (email: Email, body: string) => Promise<boolean>;
   onCategorize?: (emailId: string, priority: 'high' | 'medium' | 'low' | 'spam') => void;
+  onSaveAsContract?: (email: Email) => void;
 }
 
 const sentimentLabels: Record<string, { label: string; className: string }> = {
@@ -92,7 +93,7 @@ function ThreadMessage({ email, body, bodyLoading }: { email: Email; body: strin
   );
 }
 
-export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive, onToggleImportant, onReportSpam, onSnooze, onCreateSenderRule, onFetchBody, onSendReply, onCategorize }: EmailDetailSheetProps) {
+export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive, onToggleImportant, onReportSpam, onSnooze, onCreateSenderRule, onFetchBody, onSendReply, onCategorize, onSaveAsContract }: EmailDetailSheetProps) {
   const [showSnooze, setShowSnooze] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [fullBodies, setFullBodies] = useState<Record<string, string | null>>({});
@@ -261,6 +262,11 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { onReportSpam(email.id); onOpenChange(false); }}>
                 <Flag className="w-4 h-4 mr-1" />Spam
               </Button>
+              {onSaveAsContract && (
+                <Button variant="ghost" size="sm" onClick={() => onSaveAsContract(email)}>
+                  <Receipt className="w-4 h-4 mr-1" />Contract
+                </Button>
+              )}
             </div>
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}><X className="w-4 h-4" /></Button>
           </div>
