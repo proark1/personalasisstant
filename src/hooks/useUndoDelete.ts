@@ -1,75 +1,137 @@
 import { useState, useCallback, useRef } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
 
-interface DeletedItem<T> {
-  item: T;
-  type: 'task' | 'event';
-  restoreCallback: (item: T) => Promise<void>;
-}
-
-const UNDO_TIMEOUT = 5000; // 5 seconds
+const UNDO_TIMEOUT = 5000;
 
 export function useUndoDelete<T extends { id: string; title: string }>() {
-  const [pendingDelete, setPendingDelete] = useState<DeletedItem<T> | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [trashedIds, setTrashedIds] = useState<Set<string>>(new Set());
+  const timeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const pendingDeletesRef = useRef<Map<string, { deleteCallback: () => Promise<void> }>>(new Map());
 
-  const performDelete = useCallback(async (
+  const softDelete = useCallback(async (
     item: T,
     type: 'task' | 'event',
     deleteCallback: () => Promise<void>,
-    restoreCallback: (item: T) => Promise<void>
   ) => {
-    // Clear any pending delete
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+    const id = item.id;
 
-    // Store the item for potential undo
-    setPendingDelete({ item, type, restoreCallback });
+    const existingTimeout = timeoutsRef.current.get(id);
+    if (existingTimeout) clearTimeout(existingTimeout);
 
-    // Perform the actual delete
-    await deleteCallback();
+    setTrashedIds(prev => new Set(prev).add(id));
+    pendingDeletesRef.current.set(id, { deleteCallback });
 
-    // Show undo toast
-    const { dismiss } = toast({
+    const toastResult = toast({
       title: `${type === 'task' ? 'Task' : 'Event'} deleted`,
-      description: `"${item.title}" - Click Undo to restore`,
+      description: `"${item.title}" — Tap Undo to restore`,
       duration: UNDO_TIMEOUT,
     });
 
-    // Auto-dismiss after timeout
-    timeoutRef.current = setTimeout(() => {
-      setPendingDelete(null);
+    // Store undo handler so TaskList can call it
+    const undoHandler = () => {
+      const timeout = timeoutsRef.current.get(id);
+      if (timeout) clearTimeout(timeout);
+      timeoutsRef.current.delete(id);
+      pendingDeletesRef.current.delete(id);
+      setTrashedIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      toastResult.dismiss();
+      toast({
+        title: 'Restored',
+        description: `"${item.title}" has been restored`,
+        duration: 2000,
+      });
+    };
+
+    const timeout = setTimeout(async () => {
+      const pending = pendingDeletesRef.current.get(id);
+      if (pending) {
+        await pending.deleteCallback();
+        pendingDeletesRef.current.delete(id);
+      }
+      timeoutsRef.current.delete(id);
+      setTrashedIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }, UNDO_TIMEOUT);
 
-    return {
-      undo: async () => {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-        await restoreCallback(item);
-        setPendingDelete(null);
-        dismiss();
-        toast({
-          title: 'Restored',
-          description: `"${item.title}" has been restored`,
-        });
-      },
-      dismiss,
-    };
+    timeoutsRef.current.set(id, timeout);
+
+    return { undo: undoHandler, dismiss: toastResult.dismiss };
   }, []);
 
-  const cancelPendingDelete = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    setPendingDelete(null);
+  const softDeleteBulk = useCallback(async (
+    items: T[],
+    type: 'task' | 'event',
+    deleteCallback: () => Promise<void>,
+  ) => {
+    const ids = items.map(i => i.id);
+
+    setTrashedIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.add(id));
+      return next;
+    });
+
+    const bulkKey = ids.join(',');
+    pendingDeletesRef.current.set(bulkKey, { deleteCallback });
+
+    const toastResult = toast({
+      title: `${items.length} ${type}s deleted`,
+      description: `Tap Undo to restore`,
+      duration: UNDO_TIMEOUT,
+    });
+
+    const undoHandler = () => {
+      const timeout = timeoutsRef.current.get(bulkKey);
+      if (timeout) clearTimeout(timeout);
+      timeoutsRef.current.delete(bulkKey);
+      pendingDeletesRef.current.delete(bulkKey);
+      setTrashedIds(prev => {
+        const next = new Set(prev);
+        ids.forEach(id => next.delete(id));
+        return next;
+      });
+      toastResult.dismiss();
+      toast({
+        title: 'Restored',
+        description: `${items.length} ${type}s have been restored`,
+        duration: 2000,
+      });
+    };
+
+    const timeout = setTimeout(async () => {
+      const pending = pendingDeletesRef.current.get(bulkKey);
+      if (pending) {
+        await pending.deleteCallback();
+        pendingDeletesRef.current.delete(bulkKey);
+      }
+      timeoutsRef.current.delete(bulkKey);
+      setTrashedIds(prev => {
+        const next = new Set(prev);
+        ids.forEach(id => next.delete(id));
+        return next;
+      });
+    }, UNDO_TIMEOUT);
+
+    timeoutsRef.current.set(bulkKey, timeout);
+
+    return { undo: undoHandler, dismiss: toastResult.dismiss };
   }, []);
+
+  const isItemTrashed = useCallback((id: string) => {
+    return trashedIds.has(id);
+  }, [trashedIds]);
 
   return {
-    pendingDelete,
-    performDelete,
-    cancelPendingDelete,
+    trashedIds,
+    softDelete,
+    softDeleteBulk,
+    isItemTrashed,
   };
 }
