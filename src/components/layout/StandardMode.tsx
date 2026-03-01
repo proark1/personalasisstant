@@ -318,14 +318,15 @@ export function StandardMode({
         <div className="flex-1 overflow-hidden">
           <Suspense fallback={<PanelFallback />}>
             {fullscreenPanel === 'chat' && (
-              <ChatPanel 
-                messages={messages}
-                onSendMessage={onSendMessage}
-                isProcessing={isProcessing}
-                isFullscreen={true}
-                onToggleFullscreen={() => setFullscreenPanel(null)}
-                contacts={contacts}
-              />
+                  <ChatPanel 
+                    messages={messages}
+                    onSendMessage={onSendMessage}
+                    isProcessing={isProcessing}
+                    isFullscreen={true}
+                    onToggleFullscreen={() => setFullscreenPanel(null)}
+                    onVoiceMode={onVoiceMode}
+                    contacts={contacts}
+                  />
             )}
             {fullscreenPanel === 'tasks' && (
               <TaskList
@@ -415,6 +416,7 @@ export function StandardMode({
                     onSendMessage={onSendMessage}
                     isProcessing={isProcessing}
                     onToggleFullscreen={() => setFullscreenPanel('chat')}
+                    onVoiceMode={onVoiceMode}
                     contacts={contacts}
                   />
                 </div>
