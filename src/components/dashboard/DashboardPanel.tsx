@@ -9,6 +9,7 @@ import { FocusCard } from './FocusCard';
 import { StatPills } from './StatPills';
 import { TodayTimeline } from './TodayTimeline';
 import { SmartInsightCard } from './SmartInsightCard';
+import { QuickActionsBar } from './QuickActionsBar';
 import { StaggerContainer, StaggerItem } from '@/components/ui/page-transition';
 import { Task, TaskCategory } from '@/types/flux';
 import { isSameDay, subDays, startOfDay, isToday } from 'date-fns';
@@ -115,14 +116,14 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
 
   return (
     <div className="h-full overflow-y-auto p-3 md:p-4">
-      <StaggerContainer className="space-y-3 md:space-y-4">
+      <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         {/* Check-in prompt (only shows if needed) */}
-        <StaggerItem>
+        <StaggerItem className="col-span-full">
           <CheckinPrompt />
         </StaggerItem>
 
         {/* Hero greeting */}
-        <StaggerItem>
+        <StaggerItem className="col-span-full">
           <DashboardHero
             userName={profile?.display_name}
             tasks={tasks}
@@ -130,31 +131,32 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
         </StaggerItem>
 
         {/* Focus card - most important next action */}
-        <StaggerItem>
+        <StaggerItem className="md:col-span-2">
           <FocusCard
             tasks={tasks}
             onCompleteTask={handleCompleteTask}
           />
         </StaggerItem>
 
-        {/* Compact stat pills */}
-        <StaggerItem>
+        {/* Right column: stat pills + smart insight */}
+        <StaggerItem className="md:col-span-1 space-y-3 md:space-y-4">
           <StatPills
             streak={stats.streak}
             completedToday={stats.completedToday}
             completedThisWeek={stats.completedThisWeek}
             lifeScore={todayScore?.overallScore}
           />
+          <SmartInsightCard tasks={tasks} />
         </StaggerItem>
 
         {/* Today's timeline */}
-        <StaggerItem>
+        <StaggerItem className="md:col-span-2">
           <TodayTimeline tasks={tasks} />
         </StaggerItem>
 
-        {/* Smart rotating insight */}
-        <StaggerItem>
-          <SmartInsightCard tasks={tasks} />
+        {/* Quick actions */}
+        <StaggerItem className="md:col-span-1">
+          <QuickActionsBar />
         </StaggerItem>
       </StaggerContainer>
     </div>

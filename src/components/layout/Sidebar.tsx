@@ -14,7 +14,6 @@ import {
   BookUser,
   Target,
   CalendarCheck,
-  Search,
   Calendar,
   Settings,
   CheckSquare,
@@ -35,8 +34,7 @@ import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { BrainDumpFAB } from '@/components/capture/BrainDumpFAB';
-import { DoriNotificationIcon } from '@/components/assistant/DoriNotificationIcon';
+
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
 export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | null;
@@ -46,11 +44,9 @@ interface SidebarProps {
   onSignOut?: () => void;
   onOpenFocusTimer?: () => void;
   onOpenWeeklyReview?: () => void;
-  onOpenGlobalSearch?: () => void;
   onPanelChange?: (panel: ActivePanel) => void;
   onOpenTodayFocus?: () => void;
   activePanel?: ActivePanel;
-  notificationButton?: React.ReactNode;
 }
 
 interface NavItemProps {
@@ -130,11 +126,9 @@ export function Sidebar({
   onSignOut,
   onOpenFocusTimer,
   onOpenWeeklyReview,
-  onOpenGlobalSearch,
   onPanelChange,
   onOpenTodayFocus,
   activePanel,
-  notificationButton,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -170,26 +164,20 @@ export function Sidebar({
       >
         {/* Header */}
         <div className="h-14 flex items-center justify-between px-3 border-b border-sidebar-border">
-          {!collapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold text-foreground">DarAI</span>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-          )}
-          <div className="flex items-center gap-1">
-            {!collapsed && <DoriNotificationIcon />}
-            {!collapsed && notificationButton}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-8 w-8 text-muted-foreground hover:text-foreground", collapsed && "mx-auto")}
-              onClick={() => setCollapsed(!collapsed)}
-            >
-              {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-            </Button>
+            {!collapsed && <span className="font-semibold text-foreground">DarAI</span>}
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </Button>
         </div>
 
         {/* Today Focus CTA */}
@@ -208,27 +196,6 @@ export function Sidebar({
             </Button>
           </div>
         )}
-
-        {/* Quick Actions */}
-        <div className="px-2 pt-2">
-          <div className="flex items-center gap-1">
-            {onOpenGlobalSearch && (
-              <Button
-                variant="ghost"
-                className={cn(
-                  "flex-1 h-9 gap-3 text-muted-foreground hover:text-foreground",
-                  collapsed ? "justify-center px-0" : "justify-start"
-                )}
-                onClick={onOpenGlobalSearch}
-              >
-                <Search className="w-4 h-4 shrink-0" />
-                {!collapsed && <span className="text-sm">{t('nav.search')}</span>}
-                {!collapsed && <span className="ml-auto text-xs text-muted-foreground/60">⌘K</span>}
-              </Button>
-            )}
-            <BrainDumpFAB className="static bottom-auto right-auto" collapsed={collapsed} />
-          </div>
-        </div>
 
         <Separator className="my-2 mx-2" />
 

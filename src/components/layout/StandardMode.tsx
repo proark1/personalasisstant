@@ -5,10 +5,12 @@ import { RealtimeNotificationCenter } from '../notifications/RealtimeNotificatio
 import { useAuth } from '@/hooks/useAuth';
 import { Task, CalendarEvent, ChatMessage, Project, UserSettings } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
 import { List, Grid3X3, X, LayoutGrid, Activity } from 'lucide-react';
 import { PanelFallback } from '@/components/lazy/LazyLoader';
+import { ContextualHeader } from './ContextualHeader';
 import type { ActivityItem } from '@/hooks/useActivityFeed';
 import type { SearchResult, SearchFilters } from '@/hooks/useGlobalSearch';
 import type { Contact } from '@/hooks/useContacts';
@@ -157,6 +159,32 @@ export function StandardMode({
   const isMobile = useIsMobile();
   const { celebrate } = useCelebration();
   const { user } = useAuth();
+  const { t } = useLanguage();
+
+  const panelTitle = useMemo(() => {
+    const titles: Record<string, string> = {
+      dashboard: t('nav.dashboard'),
+      tasks: t('nav.tasks'),
+      calendar: t('nav.calendar'),
+      assistant: t('nav.assistant'),
+      social: t('nav.social'),
+      contacts: t('nav.contacts'),
+      contracts: t('nav.contracts'),
+      notes: t('nav.notes'),
+      habits: t('nav.habits'),
+      family: t('nav.cooking') || 'Cooking',
+      islam: t('nav.islam') || 'Islam',
+      health: t('nav.health') || 'Health',
+      properties: t('nav.properties') || 'Properties',
+      startups: t('nav.startups') || 'Startups',
+      news: t('nav.news') || 'Tech News',
+      settings: t('nav.settings'),
+      admin: t('nav.admin'),
+      projects: 'Projects',
+      activity: 'Activity',
+    };
+    return titles[activePanel || 'tasks'] || 'DarAI';
+  }, [activePanel, t]);
 
   // Wrapper for task completion with celebration
   const handleToggleTaskComplete = (id: string) => {
@@ -351,17 +379,23 @@ export function StandardMode({
         onSignOut={onSignOut}
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenWeeklyReview={onOpenWeeklyReview}
-        
-        onOpenGlobalSearch={() => setShowGlobalSearch(true)}
         onOpenTodayFocus={() => setShowTodayFocus(true)}
         onPanelChange={setActivePanel}
         activePanel={activePanel}
-        notificationButton={
-          <RealtimeNotificationCenter userId={user?.id} />
-        }
       />
       
       <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Desktop Content Header */}
+        <ContextualHeader
+          title={panelTitle}
+          onOpenSearch={() => setShowGlobalSearch(true)}
+          notifications={[]}
+          onMarkRead={() => {}}
+          onMarkAllRead={() => {}}
+          onDeleteNotification={() => {}}
+          onClearAll={() => {}}
+          rightSlot={<RealtimeNotificationCenter userId={user?.id} />}
+        />
 
         <div className="flex-1 flex overflow-hidden">
 

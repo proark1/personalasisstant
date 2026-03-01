@@ -12,6 +12,7 @@ interface ContextualHeaderProps {
   onMarkAllRead: () => void;
   onDeleteNotification: (id: string) => void;
   onClearAll: () => void;
+  rightSlot?: React.ReactNode;
 }
 
 export function ContextualHeader({
@@ -22,6 +23,7 @@ export function ContextualHeader({
   onMarkAllRead,
   onDeleteNotification,
   onClearAll,
+  rightSlot,
 }: ContextualHeaderProps) {
   return (
     <header className="h-14 px-4 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-lg shrink-0 sticky top-0 z-50">
@@ -40,6 +42,7 @@ export function ContextualHeader({
           onDelete={onDeleteNotification}
           onClearAll={onClearAll}
         />
+        {rightSlot}
       </div>
     </header>
   );
