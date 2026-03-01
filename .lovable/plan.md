@@ -1,127 +1,144 @@
 
-# Dashboard Redesign: Clean, Focused, World-Class
 
-## Problem
-The current dashboard renders 13+ cards in a single vertical scroll, creating information overload with no visual hierarchy. Every card looks identical, there's no clear focus point, and mobile users face endless scrolling.
+# Complete UI/UX Overhaul: Personal Assistant That Works For You
+
+## Core Problem
+
+The current interface has 15+ navigation items competing for attention, an odd bottom bar selection (Notes, Cooking, Islam as primary tabs), too many clicks to reach anything, and zero proactive intelligence surfacing. A personal assistant should anticipate, not wait.
 
 ## Design Philosophy
-**"Show less, mean more."** The dashboard should answer one question instantly: "What should I focus on right now?" Everything else is secondary and accessible on demand.
 
-## Architecture
+**"Zero-click intelligence, one-tap action."** The interface should proactively show what matters, and let you reach anything in 1-2 taps maximum.
+
+---
+
+## 1. Redesign Bottom Navigation (Mobile)
+
+Current bottom bar: Notes | Calendar | Cooking | **Dori** | Health | Islam | Social (7 items -- too many, wrong priorities)
+
+New bottom bar (5 items, the universal mobile standard):
 
 ```text
-+------------------------------------------+
-|  "Good morning, Ahmed"    [XP] [Dori]    |
-|  "You have 3 tasks today. Here's #1:"    |
-+------------------------------------------+
-|                                          |
-|  [Hero Focus Card - Next Task/Event]     |
-|  Big, prominent, actionable              |
-|                                          |
-+------------------------------------------+
-|  [Streak] [Tasks Done] [Life Score]      |
-|  Compact stat pills, single row          |
-+------------------------------------------+
-|                                          |
-|  Today's Timeline (max 5 items)          |
-|  Tasks + Events merged, time-ordered     |
-|                                          |
-+------------------------------------------+
-|  [Smart Insight Card] (1 card, rotating) |
-|  AI suggestion OR mood OR scheduling     |
-+------------------------------------------+
-|  [Quick Actions] (collapsed FAB style)   |
-+------------------------------------------+
+[Home]  [Calendar]  [*Dori*]  [Tasks]  [More]
 ```
 
-## Implementation Plan
+- **Home** = Dashboard (your proactive daily view)
+- **Calendar** = Calendar hub (includes events + schedule)
+- **Dori** (center, elevated) = AI assistant chat + voice
+- **Tasks** = Task list / Kanban (your most-used action area)
+- **More** = Opens a clean grid sheet with all other sections
 
-### 1. Create `DashboardHero` Component
-- Time-aware greeting ("Good morning/afternoon/evening, {name}")
-- One-line AI summary: "You have 3 tasks today. Your peak time starts in 2 hours."
-- XP badge and Dori button integrated into header
-- Uses `GlassCard` with gradient variant for visual prominence
+The "More" button opens a bottom sheet (using Vaul drawer) showing a 3-column icon grid of all secondary panels: Contacts, Contracts, Notes, Habits, Health, Cooking, Islam, Properties, Startups, News, Social, Settings. Each with icon + label. This means everything is 2 taps away max.
 
-### 2. Create `FocusCard` Component
-- Shows the single most important item right now (next task due, upcoming event, or overdue item)
-- Large, prominent design with action button ("Start", "Mark Done", "View")
-- If nothing urgent, shows encouraging message or AI suggestion
-- Uses `PageTransition` for entrance animation
+## 2. Redesign Header (Mobile)
 
-### 3. Redesign Stats as Compact Pill Row
-- Replace 4 separate stat cards with a single horizontal scroll row of compact "stat pills"
-- Each pill: icon + number + label, all in one line
-- Only show stats with meaningful data (hide zeros)
-- Streak gets fire emoji animation when active
+Current: Hamburger menu | DarAI logo | Notification icons
 
-### 4. Create `TodayTimeline` Component
-- Merge tasks and calendar events into a single chronological timeline
-- Max 5 items shown, "See all" link to calendar/tasks panel
-- Each item shows time, title, type badge (task/event), and priority dot
-- Clean, minimal list design -- no cards within cards
+New contextual header:
 
-### 5. Create `SmartInsightCard` (Single Rotating Insight)
-- Instead of showing DayPrediction + WeeklyCoach + MoodTracking + Challenges + AutoPilot + Correlations + SmartScheduling all at once...
-- Show ONE card that rotates between the most relevant insight
-- Priority logic: overdue items > AI suggestion > mood check-in > scheduling tip > weekly coach
-- Swipeable or auto-advances with dots indicator
-- "See all insights" link to a dedicated insights panel
+```text
+[Back/Menu]  "Dashboard" (context title)  [Search] [Notifications]
+```
 
-### 6. Move Heavy Content to "Insights" Sub-Panel
-- Move these to a secondary view (accessible via "See All Insights" or a dedicated panel):
-  - Charts (pie chart, bar chart)
-  - CorrelationsDashboard
-  - ChallengesPanel
-  - AutoPilotCard
-  - SmartSchedulingCard
-  - ContractCostWidget
-- These are "deep dive" content, not daily overview content
+- Shows current section name dynamically
+- Search icon opens Global Search (Cmd+K equivalent for mobile)
+- When in a sub-section, shows back arrow instead of menu
+- Profile avatar tap opens settings directly
 
-### 7. Refactor `DashboardPanel.tsx`
-- Simplify to render only:
-  1. `DashboardHero` (greeting + summary)
-  2. `FocusCard` (most important item)
-  3. Stat pills row
-  4. `TodayTimeline` (merged tasks + events)
-  5. `SmartInsightCard` (single rotating insight)
-  6. `CheckinPrompt` (only if not yet checked in today)
-- Apply `StaggerContainer` and `PageTransition` for entrance animations
-- Total scroll: max 2-3 screen heights on mobile
+## 3. Redesign Desktop Sidebar
 
-### 8. Progressive Disclosure for New Users
-- If user has 0 tasks: show onboarding-style empty state with Dori illustration and "Add your first task" CTA
-- If user has less than 5 tasks: hide charts and advanced insights
-- If user has 20+ completed tasks: show full insights access
+Current: 15+ flat items with no grouping hierarchy
 
-### 9. Add Motion and Delight
-- Use `StaggerContainer` for list items to fade in sequentially
-- Use `AnimatedCounter` for all stat numbers
-- Use `GlassCard` with `pressable` prop for interactive cards
-- Subtle parallax on hero section during scroll
-- Success checkmark animation when completing tasks from dashboard
+New grouped sidebar with collapsible sections:
 
-### 10. Apply `GlassCard` Design System
-- Replace all `Card` with `GlassCard` variants:
-  - Hero: `variant="gradient"` with `glow`
-  - Stats: `variant="default"`
-  - Focus card: `variant="elevated"` with `pressable`
-  - Insight: `variant="default"` with subtle border
+```text
+[DarAI Logo]              [Search] [Notifications]
 
-## Technical Details
+[Today Focus]  (gradient CTA button)
+
+--- My Day ---
+  Dashboard
+  Tasks  
+  Calendar
+
+--- Assistant ---
+  Dori AI
+  
+--- Life ---
+  Health
+  Habits
+  Cooking
+  Islam
+
+--- Business ---
+  Contacts
+  Contracts
+  Properties
+  Startups
+  News
+
+--- Tools ---
+  Notes
+  Social
+  
+[Settings]
+[Sign Out]
+```
+
+- Groups are collapsible with chevrons
+- Active item has clear highlight
+- Collapsed state shows only icons with tooltips
+- Badge counts on Tasks (pending) and Social (unread)
+
+## 4. "More" Bottom Sheet for Mobile
+
+Create a `MoreSheet` component using Vaul drawer:
+- Opens from bottom with spring animation
+- 3-column grid of icon+label buttons
+- Grouped: Life | Business | Tools
+- Each button navigates and closes the sheet
+- Recent/pinned items shown at top
+
+## 5. Proactive Dashboard Enhancements
+
+Add to the existing DashboardHero:
+- **Quick Actions Row**: Contextual action pills below the greeting (e.g., "Start focus session", "Call Ahmed back", "Review contract expiring tomorrow")
+- Uses the existing `QuickActionsBar` component but integrated into the hero
+- Weather + next prayer time as compact info chips in the hero
+
+## 6. Global Search Enhancement
+
+- Add search icon to mobile header (currently only in desktop sidebar)
+- Make it accessible via swipe-down gesture on dashboard
+- Show recent searches and suggested queries
+
+## 7. Remove Redundant Elements
+
+- Remove `QuickActionsFAB` on mobile (conflicts with bottom bar + Dori button)
+- Remove hamburger sidebar sheet on mobile (replaced by "More" bottom sheet)
+- Remove redundant DarAI logo from header (save space for context title)
+
+---
+
+## Technical Implementation
 
 ### Files to Create
-- `src/components/dashboard/DashboardHero.tsx` -- greeting + summary
-- `src/components/dashboard/FocusCard.tsx` -- hero next-action card
-- `src/components/dashboard/StatPills.tsx` -- compact horizontal stats
-- `src/components/dashboard/TodayTimeline.tsx` -- merged task+event timeline
-- `src/components/dashboard/SmartInsightCard.tsx` -- rotating single insight
+- `src/components/layout/MoreSheet.tsx` -- Bottom sheet with all secondary navigation items in a grid
+- `src/components/layout/ContextualHeader.tsx` -- Smart header that shows section name + search + notifications
 
 ### Files to Modify
-- `src/components/dashboard/DashboardPanel.tsx` -- major simplification, use new components
-- `src/contexts/LanguageContext.tsx` -- add new translation keys for greeting, focus card, timeline
+- `src/components/layout/MobileLayout.tsx` -- Major refactor: new 5-tab bottom nav, new header, integrate MoreSheet, remove hamburger sidebar
+- `src/components/layout/Sidebar.tsx` -- Reorganize into collapsible grouped sections with badges
+- `src/components/dashboard/DashboardPanel.tsx` -- Add QuickActionsBar to dashboard flow
+- `src/components/dashboard/DashboardHero.tsx` -- Add weather/prayer time chips and integrate quick actions
 
-### Files Unchanged (moved to secondary access)
-- All existing insight/chart components remain but are no longer rendered on the main dashboard scroll
+### Files Unchanged
+- All panel components (ContactsPanel, NotesPanel, etc.) remain untouched
+- Dashboard sub-components (FocusCard, StatPills, etc.) remain untouched
 
-## Result
-The dashboard goes from 13+ cards and 8-10 screens of scrolling to a focused 5-section layout that fits in 2-3 screens. Users instantly see what matters, feel welcomed, and can dive deeper on demand.
+### Key Patterns Used
+- Vaul drawer for the "More" sheet (already installed)
+- Framer Motion for sheet and tab transitions (already installed)
+- Haptic feedback on all navigation changes (existing useHaptics hook)
+- Existing GlassCard system for visual consistency
+
