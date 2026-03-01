@@ -4,14 +4,19 @@ import { useGmailConnection } from '@/hooks/useGmailConnection';
 import { EmailCard } from './EmailCard';
 import { EmailDetailSheet } from './EmailDetailSheet';
 import { ComposeEmailSheet } from './ComposeEmailSheet';
+import { RecurringPaymentDetector, DetectedPayment } from './RecurringPaymentDetector';
+import { AddEditContractDialog } from '@/components/contracts/AddEditContractDialog';
+import { useContracts, ContractInput } from '@/hooks/useContracts';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { RefreshCw, Mail, Inbox, ShieldAlert, Loader2, PlugZap, ChevronDown, ChevronRight, Sparkles, Clock, Search, X, CheckSquare, Archive, Eye, Flag, Plus, PartyPopper, Zap, CheckCheck } from 'lucide-react';
+import { RefreshCw, Mail, Inbox, ShieldAlert, Loader2, PlugZap, ChevronDown, ChevronRight, Sparkles, Clock, Search, X, CheckSquare, Archive, Eye, Flag, Plus, PartyPopper, Zap, CheckCheck, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { useToast } from '@/hooks/use-toast';
 
 function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onArchive, onToggleImportant, icon: Icon, selectMode, selectedIds, onToggleSelect }: {
   title: string;
@@ -107,6 +112,8 @@ function InboxZeroState() {
 }
 
 export function EmailPanel() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const { isConnected, loading: connectionLoading, connectGmail } = useGmailConnection();
   const {
     emails, grouped, loading, syncing, view, setView,
@@ -117,11 +124,35 @@ export function EmailPanel() {
     batchArchive, batchMarkRead, batchReportSpam,
     unreadCount, priorityCount, flaggedCount, lastSyncTime, handledToday,
   } = useEmails();
+  const { addContract } = useContracts(user?.id);
   const [selectedThread, setSelectedThread] = useState<EmailThread | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDraft, setComposeDraft] = useState<{ to?: string; subject?: string; body?: string; threadId?: string | null; gmailMessageId?: string | null }>({});
+  const [detectorOpen, setDetectorOpen] = useState(false);
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [contractPrefill, setContractPrefill] = useState<Partial<ContractInput> | null>(null);
+
+  const handleAddAsContract = (payment: DetectedPayment) => {
+    setContractPrefill({
+      name: payment.name,
+      provider: payment.provider,
+      costAmount: payment.amount > 0 ? payment.amount : undefined,
+      costFrequency: payment.frequency,
+      category: payment.category,
+      autoRenews: true,
+    });
+    setContractDialogOpen(true);
+  };
+
+  const handleSaveContract = async (data: ContractInput) => {
+    const result = await addContract(data);
+    if (result) {
+      toast({ title: 'Contract created', description: `${data.name} has been added to your contracts.` });
+    }
+    setContractPrefill(null);
+  };
 
   // Listen for compose-email events from AI (voice/text mode)
   useEffect(() => {
@@ -233,6 +264,9 @@ export function EmailPanel() {
                 )}
               </div>
               <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={() => setDetectorOpen(true)} title="Find Recurring Payments">
+                  <Receipt className="w-4 h-4" />
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => setSelectMode(true)}>
                   <CheckSquare className="w-4 h-4" />
                 </Button>
@@ -385,6 +419,22 @@ export function EmailPanel() {
         initialBody={composeDraft.body}
         threadId={composeDraft.threadId}
         gmailMessageId={composeDraft.gmailMessageId}
+      />
+
+      <RecurringPaymentDetector
+        open={detectorOpen}
+        onOpenChange={setDetectorOpen}
+        onAddAsContract={handleAddAsContract}
+      />
+
+      <AddEditContractDialog
+        open={contractDialogOpen}
+        onOpenChange={(open) => {
+          setContractDialogOpen(open);
+          if (!open) setContractPrefill(null);
+        }}
+        onSave={handleSaveContract}
+        prefill={contractPrefill}
       />
     </div>
   );

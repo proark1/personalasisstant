@@ -21,7 +21,7 @@ import { Contract, ContractInput, ContractCategory, CostFrequency, CONTRACT_CATE
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Upload, FileText, X, Loader2, ExternalLink } from 'lucide-react';
+import { Upload, FileText, X, Loader2, ExternalLink, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddEditContractDialogProps {
@@ -29,6 +29,7 @@ interface AddEditContractDialogProps {
   onOpenChange: (open: boolean) => void;
   contract?: Contract | null;
   onSave: (data: ContractInput) => void;
+  prefill?: Partial<ContractInput> | null;
 }
 
 export function AddEditContractDialog({
@@ -36,6 +37,7 @@ export function AddEditContractDialog({
   onOpenChange,
   contract,
   onSave,
+  prefill,
 }: AddEditContractDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -73,7 +75,6 @@ export function AddEditContractDialog({
       setContractNumber(contract.contractNumber || '');
       setNotes(contract.notes || '');
       setIsActive(contract.isActive);
-      // Parse existing documents - support both single URL and comma-separated URLs
       if (contract.documentUrl) {
         const urls = contract.documentUrl.split(',').map(u => u.trim()).filter(Boolean);
         setDocumentUrls(urls);
@@ -85,6 +86,23 @@ export function AddEditContractDialog({
         setDocumentUrls([]);
         setFileNames([]);
       }
+    } else if (prefill) {
+      // Pre-fill from detected payment
+      setName(prefill.name || '');
+      setCategory(prefill.category || 'other');
+      setProvider(prefill.provider || '');
+      setCostAmount(prefill.costAmount?.toString() || '');
+      setCostFrequency(prefill.costFrequency || 'monthly');
+      setStartDate('');
+      setEndDate('');
+      setRenewalDate('');
+      setCancellationNoticeDays('30');
+      setAutoRenews(prefill.autoRenews ?? true);
+      setContractNumber('');
+      setNotes('');
+      setDocumentUrls([]);
+      setFileNames([]);
+      setIsActive(true);
     } else {
       // Reset form
       setName('');
@@ -103,7 +121,7 @@ export function AddEditContractDialog({
       setFileNames([]);
       setIsActive(true);
     }
-  }, [contract, open]);
+  }, [contract, prefill, open]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -261,6 +279,13 @@ export function AddEditContractDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Prefill banner */}
+          {prefill && !contract && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm">
+              <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <span className="text-muted-foreground">Pre-filled from email analysis. Please review and adjust before saving.</span>
+            </div>
+          )}
           {/* Name & Category */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
