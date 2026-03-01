@@ -1,91 +1,99 @@
 
 
-# Email Hub — Priority Labels on Cards + Next-Level Improvements
+# Task Feature — World-Class UI/UX Upgrade
 
-## 1. Priority Labels on Email Cards
+## Current State Assessment
 
-Currently, the email card only shows small arrow icons (↑ → ↓) in the right column for priority. We'll replace those with clear, color-coded text labels that are immediately visible.
+The task system is functional but has several friction points:
+- **Deleting is destructive** — no undo, no confirmation, instant permanent delete
+- **No task completion animation** beyond confetti — the item just disappears
+- **Completed tasks section is flat** — no clear all, no auto-hide after time
+- **Empty state is minimal** — just text and a link
+- **No progress summary** at the top of the task list
+- **Swipe-to-delete has no undo** — accidentally swiping left permanently deletes
 
-**Changes to `EmailCard.tsx`:**
-- Replace the arrow-only priority indicators with labeled badges: "High Priority" (red), "Medium" (amber), "Low" (gray)
-- Show the email category as a chip too (e.g., "Action Required", "FYI", "Newsletter")
-- Move these into the bottom tags row alongside the existing AI action chip for a clean, scannable layout
+## What Changes
 
-**Result:** Each email card will show at a glance: AI suggested action + priority level + category — no need to open the email.
+### 1. Undo Delete with Toast (Critical Safety Net)
+
+When a task is deleted (via swipe, button, or bulk), show a 5-second "Undo" toast instead of permanently deleting immediately. The task is removed from the UI instantly (feels snappy) but can be restored with one tap.
+
+- Soft-delete pattern: mark as `trashed: true` in state, actually delete from DB after 5s
+- Toast shows task title + Undo button
+- Works for both single and bulk delete
+
+### 2. Task Completion Animation
+
+When completing a task, add a satisfying micro-animation:
+- The checkbox morphs to a filled circle with a scale-bounce
+- The task text gets a strikethrough animation (left to right wipe)
+- The row fades and slides down into the "Completed" section after a 600ms delay
+- This makes task completion feel rewarding and tangible
+
+### 3. Smart Task Stats Bar
+
+Replace the plain "X remaining" text in the header with a compact stats row:
+- Tasks remaining count (with animated counter)
+- Overdue count (red, only if > 0)
+- Completed today count
+- A thin progress bar showing % complete for the day
+
+### 4. Improved Completed Section
+
+- Auto-collapse completed tasks after 5 items (show "Show all X completed" toggle)
+- Add a "Clear completed" button to bulk-remove done tasks
+- Show completion time relative ("2 hours ago")
+
+### 5. Better Empty State
+
+When no tasks exist, show an encouraging animated illustration:
+- Checkmark animation (reuse existing success-checkmark component)
+- "Nothing on your plate" message
+- Quick-add prompt with category suggestions ("Add a personal task", "Add a work task")
+
+### 6. Inline Quick Edit
+
+- Tap on a task title to edit it inline (no modal needed for simple title changes)
+- Long-press opens the full edit modal
+- This reduces friction for the most common edit: renaming a task
+
+### 7. Swipe Gesture Improvements
+
+- Add haptic feedback threshold indicator (subtle color intensification as you approach the trigger point)
+- Show "Release to delete" / "Release to complete" text labels on the swipe backgrounds
+- Swipe-to-delete triggers the undo toast instead of permanent delete
 
 ---
 
-## 2. Read/Unread Visual Polish
-
-- Add a bold left-border accent on unread emails (blue bar, like native mail apps)
-- Make the unread-to-read transition animated (subtle fade)
-
----
-
-## 3. Quick Actions Row on Email Cards
-
-Instead of only swipe gestures (which aren't discoverable), add a visible quick-actions row that appears on hover (desktop) or long-press (mobile):
-- Archive, Mark Important, Snooze — all without opening the email
-
----
-
-## 4. Smart Auto-Categorize Nudge
-
-When archiving or marking spam, show a small inline prompt: "Always do this for emails from [domain]?" with Yes/No. This trains the sender rules passively as you triage.
-
----
-
-## 5. Email Stats Banner
-
-Add a compact stats bar at the top of the email panel showing:
-- Total unread count
-- Priority emails waiting
-- Emails handled today (archived/replied)
-
-This gives a sense of progress and inbox zero motivation.
-
----
-
-## 6. Pull-to-Refresh
-
-Add a pull-to-refresh gesture on the email list using framer-motion, triggering a sync. More natural than tapping the sync button.
-
----
-
-## 7. Empty State Improvements
-
-When inbox zero is reached, show a celebratory message ("All caught up!") with a subtle animation instead of a plain "No emails" message.
-
----
-
-## Technical Details
+## Technical Plan
 
 ### Files to Modify
 
-**`src/components/email/EmailCard.tsx`**
-- Replace the priority arrow column (lines 175-181) with labeled, color-coded priority badges in the tags row (lines 158-172)
-- Add category chip alongside existing action/threat chips
-- Add a left border accent for unread emails
-- Add hover quick-actions row (Archive, Star, Snooze buttons)
+**`src/components/tasks/TaskList.tsx`**
+- Add stats bar below the header showing: remaining, overdue, completed today, progress %
+- Implement undo-delete pattern: `trashedTasks` state + timeout-based actual deletion
+- Wrap `onDeleteTask` calls with undo toast logic
+- Collapse completed section to max 5 items with toggle
+- Add "Clear completed" button
+- Show relative time for completed tasks
+- Better empty state with category quick-add buttons
 
-**`src/components/email/EmailPanel.tsx`**
-- Add a stats banner below the header showing unread/priority/handled counts
-- Improve the empty state with an "All caught up!" message and confetti-style icon
-- Add pull-to-refresh via framer-motion drag on the scroll area
+**`src/components/tasks/SwipeableTaskItem.tsx`**
+- Add text labels ("Complete" / "Delete") on swipe action backgrounds
+- Add progressive color intensification as drag approaches threshold
+- Change delete action to trigger undo flow (via callback change)
 
-**`src/hooks/useEmails.ts`**
-- Track "handled today" count (archived + replied in current session)
-- Expose the count for the stats banner
+**`src/components/tasks/SortableTaskItem` (inside TaskList.tsx)**
+- Add inline title editing on tap (controlled input that activates on click)
+- Completion animation: framer-motion `AnimatePresence` with exit animation (slide + fade)
 
-**`src/components/email/EmailCard.tsx` — Priority label mapping:**
-```text
-priority_score 1-2  ->  "High Priority"  (red badge)
-priority_score 3    ->  "Medium"         (amber badge)  
-priority_score 4    ->  (no label, default)
-priority_score 5+   ->  "Low"            (gray badge)
-category            ->  Shown as chip: "Action Required", "FYI", "Newsletter", etc.
-```
+**`src/hooks/useUndoDelete.ts`**
+- Already exists but is unused — wire it into TaskList's delete flow
+- Extend to support bulk undo (array of items)
+
+**`src/components/calendar/CalendarHubPanel.tsx`**
+- Pass undo-delete handler down to TaskList
 
 ### No database changes needed
-All improvements are purely UI/UX and hook logic.
+All improvements are UI/UX and hook logic only.
 
