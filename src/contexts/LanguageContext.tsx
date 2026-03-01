@@ -523,7 +523,8 @@ const translations: Record<Language, Record<string, string>> = {
     'cooking.title': 'Cooking & Food',
     'cooking.subtitle': 'Plan your meals and manage recipes',
     'nav.cooking': 'Cooking',
-    
+    'nav.health': 'Health',
+    'nav.more': 'More',
     // Mobile Navigation
     'nav.dori': 'Dori',
     'nav.allTasks': 'All Tasks',
@@ -1300,7 +1301,8 @@ const translations: Record<Language, Record<string, string>> = {
     'cooking.title': 'Kochen & Essen',
     'cooking.subtitle': 'Plane deine Mahlzeiten und verwalte Rezepte',
     'nav.cooking': 'Kochen',
-    
+    'nav.health': 'Gesundheit',
+    'nav.more': 'Mehr',
     // Mobile Navigation
     'nav.dori': 'Dori',
     'nav.allTasks': 'Alle Aufgaben',

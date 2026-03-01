@@ -36,6 +36,7 @@ const IslamEnhancedPanel = lazy(() => import('../islam/IslamEnhancedPanel').then
 const PropertyPanel = lazy(() => import('../property/PropertyPanel').then(m => ({ default: m.PropertyPanel })));
 const StartupWorkspacePanel = lazy(() => import('../startup/StartupWorkspacePanel').then(m => ({ default: m.StartupWorkspacePanel })));
 const TechNewsPanel = lazy(() => import('../news/TechNewsPanel').then(m => ({ default: m.TechNewsPanel })));
+const HealthHubPanel = lazy(() => import('../health/HealthHubPanel').then(m => ({ default: m.HealthHubPanel })));
 const CallHistory = lazy(() => import('../calling/CallHistory').then(m => ({ default: m.CallHistory })));
 const SocialPanel = lazy(() => import('../social/SocialPanel').then(m => ({ default: m.SocialPanel })));
 const DashboardPanel = lazy(() => import('../dashboard/DashboardPanel').then(m => ({ default: m.DashboardPanel })));
@@ -619,6 +620,13 @@ export function StandardMode({
               {activePanel === 'news' && user?.id && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
                   <TechNewsPanel />
+                </div>
+              )}
+
+              {/* Health Panel */}
+              {activePanel === 'health' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <HealthHubPanel />
                 </div>
               )}
             </Suspense>

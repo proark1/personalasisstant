@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { 
-  LayoutDashboard, 
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import {
+  LayoutDashboard,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Sparkles,
   LogOut,
   BookUser,
@@ -22,11 +25,11 @@ import {
   StickyNote,
   BarChart3,
   Utensils,
-  Brain,
   Moon,
   Building2,
   Briefcase,
-  Newspaper
+  Newspaper,
+  Heart,
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,7 +39,7 @@ import { BrainDumpFAB } from '@/components/capture/BrainDumpFAB';
 import { DoriNotificationIcon } from '@/components/assistant/DoriNotificationIcon';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'islam' | 'properties' | 'startups' | 'news' | null;
+export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | null;
 
 interface SidebarProps {
   onEditProfile?: () => void;
@@ -50,8 +53,81 @@ interface SidebarProps {
   notificationButton?: React.ReactNode;
 }
 
-export function Sidebar({ 
-  onSignOut, 
+interface NavItemProps {
+  icon: React.ElementType;
+  label: string;
+  panel: ActivePanel;
+  activePanel?: ActivePanel;
+  collapsed: boolean;
+  onClick: (panel: ActivePanel) => void;
+  badge?: number;
+}
+
+function NavItem({ icon: Icon, label, panel, activePanel, collapsed, onClick, badge }: NavItemProps) {
+  const isActive = activePanel === panel;
+  const btn = (
+    <Button
+      variant={isActive ? 'secondary' : 'ghost'}
+      className={cn(
+        "w-full h-9 gap-3",
+        collapsed ? "justify-center px-0" : "justify-start",
+        isActive && "bg-sidebar-accent text-sidebar-primary font-medium"
+      )}
+      onClick={() => onClick(panel)}
+    >
+      <Icon className="w-4 h-4 shrink-0" />
+      {!collapsed && <span className="text-sm">{label}</span>}
+      {!collapsed && badge && badge > 0 ? (
+        <span className="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      ) : null}
+    </Button>
+  );
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{btn}</TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  return btn;
+}
+
+interface NavGroupProps {
+  title: string;
+  collapsed: boolean;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}
+
+function NavGroup({ title, collapsed, defaultOpen = true, children }: NavGroupProps) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  if (collapsed) {
+    return <div className="space-y-0.5">{children}</div>;
+  }
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-1.5 group cursor-pointer">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</span>
+        <ChevronDown className={cn(
+          "w-3 h-3 text-muted-foreground transition-transform duration-200",
+          !open && "-rotate-90"
+        )} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-0.5">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+export function Sidebar({
+  onSignOut,
   onOpenFocusTimer,
   onOpenWeeklyReview,
   onOpenGlobalSearch,
@@ -85,364 +161,151 @@ export function Sidebar({
   };
 
   return (
-    <aside 
-      className={cn(
-        "h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300",
-        collapsed ? "w-16" : "w-56"
-      )}
-    >
-      {/* Header with Logo */}
-      <div className="h-14 flex items-center justify-between px-3 border-b border-sidebar-border">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
+    <TooltipProvider delayDuration={0}>
+      <aside
+        className={cn(
+          "h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300",
+          collapsed ? "w-16" : "w-56"
+        )}
+      >
+        {/* Header */}
+        <div className="h-14 flex items-center justify-between px-3 border-b border-sidebar-border">
+          {!collapsed && (
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <span className="font-semibold text-foreground">DarAI</span>
             </div>
-            <span className="font-semibold text-foreground">DarAI</span>
+          )}
+          <div className="flex items-center gap-1">
+            {!collapsed && <DoriNotificationIcon />}
+            {!collapsed && notificationButton}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8 text-muted-foreground hover:text-foreground", collapsed && "mx-auto")}
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Today Focus CTA */}
+        {onOpenTodayFocus && (
+          <div className="px-2 pt-2">
+            <Button
+              variant="default"
+              className={cn(
+                "w-full gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90",
+                collapsed ? "justify-center px-0" : "justify-start"
+              )}
+              onClick={onOpenTodayFocus}
+            >
+              <Zap className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm font-medium">{t('nav.todayFocus')}</span>}
+            </Button>
           </div>
         )}
-        <div className="flex items-center gap-1">
-          {!collapsed && <DoriNotificationIcon />}
-          {!collapsed && notificationButton}
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className={cn("h-8 w-8 text-muted-foreground hover:text-foreground", collapsed && "mx-auto")}
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </Button>
-        </div>
-      </div>
 
-      {/* Today Focus Button - Prominent CTA */}
-      {onOpenTodayFocus && (
+        {/* Quick Actions */}
         <div className="px-2 pt-2">
-          <Button
-            variant="default"
-            className={cn(
-              "w-full gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90",
-              collapsed ? "justify-center px-0" : "justify-start"
+          <div className="flex items-center gap-1">
+            {onOpenGlobalSearch && (
+              <Button
+                variant="ghost"
+                className={cn(
+                  "flex-1 h-9 gap-3 text-muted-foreground hover:text-foreground",
+                  collapsed ? "justify-center px-0" : "justify-start"
+                )}
+                onClick={onOpenGlobalSearch}
+              >
+                <Search className="w-4 h-4 shrink-0" />
+                {!collapsed && <span className="text-sm">{t('nav.search')}</span>}
+                {!collapsed && <span className="ml-auto text-xs text-muted-foreground/60">⌘K</span>}
+              </Button>
             )}
-            onClick={onOpenTodayFocus}
-          >
-            <Zap className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm font-medium">{t('nav.todayFocus')}</span>}
-          </Button>
+            <BrainDumpFAB className="static bottom-auto right-auto" collapsed={collapsed} />
+          </div>
         </div>
-      )}
 
-      {/* Main Navigation */}
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {/* Quick Actions Row */}
-        <div className="flex items-center gap-1 mb-2">
-          {/* Search */}
-          {onOpenGlobalSearch && (
+        <Separator className="my-2 mx-2" />
+
+        {/* Navigation */}
+        <nav className="flex-1 px-2 space-y-2 overflow-y-auto pb-2">
+          {/* My Day */}
+          <NavGroup title="My Day" collapsed={collapsed}>
+            <NavItem icon={LayoutDashboard} label={t('nav.dashboard')} panel="dashboard" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={CheckSquare} label={t('nav.tasks')} panel="tasks" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Calendar} label={t('nav.calendar')} panel="calendar" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+          </NavGroup>
+
+          {/* Assistant */}
+          <NavGroup title="Assistant" collapsed={collapsed}>
+            <NavItem icon={Sparkles} label={t('nav.assistant')} panel="assistant" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+          </NavGroup>
+
+          {/* Life */}
+          <NavGroup title="Life" collapsed={collapsed}>
+            <NavItem icon={Heart} label={t('nav.health') || 'Health'} panel="health" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Flame} label={t('nav.habits')} panel="habits" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Utensils} label={t('nav.cooking') || 'Cooking'} panel="family" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Moon} label={t('nav.islam') || 'Islam'} panel="islam" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+          </NavGroup>
+
+          {/* Business */}
+          <NavGroup title="Business" collapsed={collapsed}>
+            <NavItem icon={BookUser} label={t('nav.contacts')} panel="contacts" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={FileText} label={t('nav.contracts')} panel="contracts" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Building2} label={t('nav.properties') || 'Properties'} panel="properties" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Briefcase} label={t('nav.startups') || 'Startups'} panel="startups" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Newspaper} label={t('nav.news') || 'Tech News'} panel="news" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+          </NavGroup>
+
+          {/* Tools */}
+          <NavGroup title="Tools" collapsed={collapsed}>
+            <NavItem icon={StickyNote} label={t('nav.notes')} panel="notes" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={MessageCircle} label={t('nav.social')} panel="social" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+          </NavGroup>
+
+          {/* Productivity actions */}
+          {(onOpenFocusTimer || onOpenWeeklyReview) && (
+            <>
+              <Separator className="my-1" />
+              {onOpenFocusTimer && (
+                <NavItem icon={Target} label={t('nav.focusMode')} panel={null} activePanel={activePanel} collapsed={collapsed} onClick={() => onOpenFocusTimer()} />
+              )}
+              {onOpenWeeklyReview && (
+                <NavItem icon={CalendarCheck} label={t('nav.weeklyReview')} panel={null} activePanel={activePanel} collapsed={collapsed} onClick={() => onOpenWeeklyReview()} />
+              )}
+            </>
+          )}
+        </nav>
+
+        {/* Footer */}
+        <div className="p-2 border-t border-sidebar-border space-y-0.5">
+          <NavItem icon={Settings} label={t('nav.settings')} panel="settings" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+
+          {isAdmin && (
+            <NavItem icon={BarChart3} label={t('nav.admin')} panel="admin" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+          )}
+
+          {onSignOut && (
             <Button
               variant="ghost"
               className={cn(
-                "flex-1 h-9 gap-3 text-muted-foreground hover:text-foreground",
+                "w-full h-9 gap-3 text-muted-foreground hover:text-destructive",
                 collapsed ? "justify-center px-0" : "justify-start"
               )}
-              onClick={onOpenGlobalSearch}
+              onClick={onSignOut}
             >
-              <Search className="w-4 h-4 shrink-0" />
-              {!collapsed && <span className="text-sm">{t('nav.search')}</span>}
-              {!collapsed && <span className="ml-auto text-xs text-muted-foreground/60">⌘K</span>}
+              <LogOut className="w-4 h-4 shrink-0" />
+              {!collapsed && <span className="text-sm">{t('nav.signOut')}</span>}
             </Button>
           )}
-          
-          {/* Brain Dump / Quick Note */}
-          <BrainDumpFAB className="static bottom-auto right-auto" collapsed={collapsed} />
         </div>
-
-        <Separator className="my-2" />
-
-        {/* Main Views */}
-        <div className={cn("space-y-0.5", !collapsed && "mb-2")}>
-          {!collapsed && (
-            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">{t('nav.main')}</span>
-          )}
-          
-          {/* Dashboard */}
-          <Button
-            variant={activePanel === 'dashboard' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'dashboard' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('dashboard')}
-          >
-            <LayoutDashboard className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.dashboard')}</span>}
-          </Button>
-
-          {/* AI Assistant */}
-          <Button
-            variant={activePanel === 'assistant' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'assistant' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('assistant')}
-          >
-            <Sparkles className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.assistant')}</span>}
-          </Button>
-
-          {/* Tasks */}
-          <Button
-            variant={activePanel === 'tasks' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'tasks' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('tasks')}
-          >
-            <CheckSquare className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.tasks')}</span>}
-          </Button>
-
-          {/* Social (Chat + Calls) */}
-          <Button
-            variant={activePanel === 'social' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'social' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('social')}
-          >
-            <MessageCircle className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.social')}</span>}
-          </Button>
-          
-          {/* Calendar */}
-          <Button
-            variant={activePanel === 'calendar' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'calendar' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('calendar')}
-          >
-            <Calendar className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.calendar')}</span>}
-          </Button>
-
-          {/* Cooking */}
-          <Button
-            variant={activePanel === 'family' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'family' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('family')}
-          >
-            <Utensils className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.cooking')}</span>}
-          </Button>
-
-          {/* Islam */}
-          <Button
-            variant={activePanel === 'islam' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'islam' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('islam')}
-          >
-            <Moon className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.islam') || 'Islam'}</span>}
-          </Button>
-
-          {/* Properties */}
-          <Button
-            variant={activePanel === 'properties' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'properties' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('properties')}
-          >
-            <Building2 className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.properties') || 'Properties'}</span>}
-          </Button>
-
-          {/* Startups */}
-          <Button
-            variant={activePanel === 'startups' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'startups' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('startups')}
-          >
-            <Briefcase className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.startups') || 'Startups'}</span>}
-          </Button>
-
-          {/* Tech News */}
-          <Button
-            variant={activePanel === 'news' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'news' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('news')}
-          >
-            <Newspaper className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.news') || 'Tech News'}</span>}
-          </Button>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* Productivity */}
-        <div className={cn("space-y-0.5")}>
-          {!collapsed && (
-            <span className="text-xs font-medium text-muted-foreground px-3 py-1.5 block">{t('nav.productivity')}</span>
-          )}
-
-          {onOpenFocusTimer && (
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full h-9 gap-3",
-                collapsed ? "justify-center px-0" : "justify-start"
-              )}
-              onClick={onOpenFocusTimer}
-            >
-              <Target className="w-4 h-4 shrink-0" />
-              {!collapsed && <span className="text-sm">{t('nav.focusMode')}</span>}
-            </Button>
-          )}
-
-          {onOpenWeeklyReview && (
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full h-9 gap-3",
-                collapsed ? "justify-center px-0" : "justify-start"
-              )}
-              onClick={onOpenWeeklyReview}
-            >
-              <CalendarCheck className="w-4 h-4 shrink-0" />
-              {!collapsed && <span className="text-sm">{t('nav.weeklyReview')}</span>}
-            </Button>
-          )}
-
-          {/* Notes */}
-          <Button
-            variant={activePanel === 'notes' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'notes' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('notes')}
-          >
-            <StickyNote className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.notes')}</span>}
-          </Button>
-
-          {/* Habits */}
-          <Button
-            variant={activePanel === 'habits' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'habits' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('habits')}
-          >
-            <Flame className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.habits')}</span>}
-          </Button>
-
-          {/* Contacts */}
-          <Button
-            variant={activePanel === 'contacts' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'contacts' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('contacts')}
-          >
-            <BookUser className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.contacts')}</span>}
-          </Button>
-
-          {/* Contracts */}
-          <Button
-            variant={activePanel === 'contracts' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'contracts' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('contracts')}
-          >
-            <FileText className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.contracts')}</span>}
-          </Button>
-        </div>
-      </nav>
-
-      {/* Footer Actions */}
-      <div className="p-2 border-t border-sidebar-border space-y-0.5">
-        <Button
-          variant={activePanel === 'settings' ? 'secondary' : 'ghost'}
-          className={cn(
-            "w-full h-9 gap-3",
-            collapsed ? "justify-center px-0" : "justify-start",
-            activePanel === 'settings' && "bg-sidebar-accent text-sidebar-primary font-medium"
-          )}
-          onClick={() => handlePanelClick('settings')}
-        >
-          <Settings className="w-4 h-4 shrink-0" />
-          {!collapsed && <span className="text-sm">{t('nav.settings')}</span>}
-        </Button>
-
-        {isAdmin && (
-          <Button
-            variant={activePanel === 'admin' ? 'secondary' : 'ghost'}
-            className={cn(
-              "w-full h-9 gap-3",
-              collapsed ? "justify-center px-0" : "justify-start",
-              activePanel === 'admin' && "bg-sidebar-accent text-sidebar-primary font-medium"
-            )}
-            onClick={() => handlePanelClick('admin')}
-          >
-            <BarChart3 className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.admin')}</span>}
-          </Button>
-        )}
-
-        {onSignOut && (
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full h-9 gap-3 text-muted-foreground hover:text-destructive",
-              collapsed ? "justify-center px-0" : "justify-start"
-            )}
-            onClick={onSignOut}
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">{t('nav.signOut')}</span>}
-          </Button>
-        )}
-      </div>
-    </aside>
+      </aside>
+    </TooltipProvider>
   );
 }
