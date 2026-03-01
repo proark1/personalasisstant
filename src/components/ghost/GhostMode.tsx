@@ -16,6 +16,12 @@ import { useNotes } from '@/hooks/useNotes';
 import { useDirectMessages } from '@/hooks/useDirectMessages';
 import { useAssistantConversations } from '@/hooks/useAssistantConversations';
 import { useStartupIdeas } from '@/hooks/useStartupIdeas';
+import { useEmails } from '@/hooks/useEmails';
+import { useFamilyMembers } from '@/hooks/useFamilyMembers';
+import { useFamilyEvents } from '@/hooks/useFamilyEvents';
+import { useShoppingLists } from '@/hooks/useShoppingLists';
+import { useFamilyContext } from '@/hooks/useFamilyContext';
+import { useMealPlanning } from '@/hooks/useMealPlanning';
 import type { AssistantPersonality } from '@/types/flux';
 import {
   Mic,
@@ -184,6 +190,16 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   
   // Startup ideas for brainstorming
   const { createIdea, updateIdea, ideas: startupIdeas, fetchIdeas: refetchStartupIdeas } = useStartupIdeas();
+  
+  // Email data for voice context
+  const { allEmails: emailList, unreadCount: totalUnreadEmails } = useEmails();
+  
+  // Family data for voice context
+  const { members: familyMembers } = useFamilyMembers();
+  const { events: familyEvents } = useFamilyEvents();
+  const { lists: shoppingLists } = useShoppingLists();
+  const { mealPlans } = useMealPlanning();
+  const familyContext = useFamilyContext({ members: familyMembers, events: familyEvents, mealPlans, shoppingLists });
   
   const currentConversationIdRef = useRef<string | null>(null);
   const isStartupBrainstormRef = useRef(false);
@@ -447,8 +463,56 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         target_audience: idea.target_audience,
         created_at: idea.created_at,
       })),
+      // Email data for voice context
+      unreadEmails: emailList
+        .filter(e => !e.is_read)
+        .slice(0, 10)
+        .map(e => ({
+          subject: e.subject,
+          from: e.from_name || e.from_email,
+          snippet: e.snippet,
+          category: e.category,
+          priority: e.priority_score,
+          receivedAt: e.received_at,
+        })),
+      totalUnreadEmails,
+      // Family data for voice context
+      familyMembers: familyMembers.map(m => ({
+        name: m.name,
+        relationship: m.relationship,
+        age: m.birth_date ? Math.floor((Date.now() - new Date(m.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null,
+        school: m.attends_school ? m.school_name : null,
+        grade: m.school_grade,
+        kindergarten: m.attends_kindergarten ? m.kindergarten_name : null,
+        activities: (m.activities || []).map(a => ({ name: a.name, schedule: a.schedule, location: a.location })),
+        allergies: m.allergies || [],
+        medicalNotes: m.medical_notes,
+      })),
+      familySchedule: {
+        todayEvents: familyContext.schedule.todayEvents.map(e => ({
+          title: e.title,
+          startTime: e.start_time,
+          endTime: e.end_time,
+          location: e.location,
+        })),
+        tomorrowEvents: familyContext.schedule.tomorrowEvents.map(e => ({
+          title: e.title,
+          startTime: e.start_time,
+          location: e.location,
+        })),
+        upcomingBirthdays: familyContext.schedule.upcomingBirthdays,
+      },
+      // Shopping lists for voice context
+      shoppingLists: shoppingLists
+        .filter(l => !l.is_template && !l.is_completed)
+        .map(l => ({
+          id: l.id,
+          name: l.name,
+          category: l.category,
+          dueDate: l.due_date,
+        })),
     };
-  }, [tasks, events, contacts, contracts, projects, healthMetrics, todaySummary, weeklyData, healthConnected, habits, habitLogs, notes, conversations, startupIdeas]);
+  }, [tasks, events, contacts, contracts, projects, healthMetrics, todaySummary, weeklyData, healthConnected, habits, habitLogs, notes, conversations, startupIdeas, emailList, totalUnreadEmails, familyMembers, familyContext, shoppingLists]);
 
   // OpenAI Realtime hook
   const {
