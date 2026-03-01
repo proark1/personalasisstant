@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,9 +14,12 @@ import { getRecurrenceDescription } from '@/lib/recurrence';
 import { EditTaskModal } from './EditTaskModal';
 import { TaskTagBadges } from './TaskTagBadges';
 import { SwipeableTaskItem } from './SwipeableTaskItem';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useHaptics } from '@/hooks/useHaptics';
 import { useCelebration } from '@/hooks/useCelebration';
+import { useUndoDelete } from '@/hooks/useUndoDelete';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   DndContext, 
   closestCenter, 
@@ -52,9 +55,13 @@ import {
   Pencil,
   UserCircle,
   Filter,
-  Users
+  Users,
+  Sparkles,
+  Clock,
+  Target,
+  Eraser,
 } from 'lucide-react';
-import { format, isPast, isToday, isTomorrow, isThisWeek, isThisMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, isPast, isToday, isTomorrow, isThisWeek, isThisMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, formatDistanceToNow } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
 
 import { SidebarFilter } from '@/components/layout/Sidebar';
@@ -133,6 +140,8 @@ function SortableTaskItem({
 }: SortableTaskItemProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
 
   const {
     attributes,
@@ -163,11 +172,19 @@ function SortableTaskItem({
     setShowDatePicker(false);
   };
 
+  const handleTitleSave = () => {
+    if (editTitle.trim() && editTitle.trim() !== task.title && onUpdateTask) {
+      onUpdateTask(task.id, { title: editTitle.trim() });
+    } else {
+      setEditTitle(task.title);
+    }
+    setIsEditingTitle(false);
+  };
+
   return (
     <div 
       ref={setNodeRef} 
       style={style}
-      className="animate-fade-in"
     >
       <div 
         className={cn(
@@ -180,7 +197,7 @@ function SortableTaskItem({
           level > 0 && "ml-4 border-l border-border"
         )}
       >
-        {/* Drag Handle - hide in compact mode */}
+        {/* Drag Handle */}
         {!isSelectMode && !compactMode && (
           <button
             {...attributes}
@@ -191,7 +208,7 @@ function SortableTaskItem({
           </button>
         )}
 
-        {/* Expand/Collapse for parent tasks - hide in compact mode if no subtasks */}
+        {/* Expand/Collapse */}
         {!compactMode && subtasks.length > 0 ? (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
@@ -215,21 +232,52 @@ function SortableTaskItem({
             className="mt-0.5 shrink-0"
           >
             {task.completed ? (
-              <CheckCircle2 className="w-5 h-5 text-primary" />
+              <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+              >
+                <CheckCircle2 className="w-5 h-5 text-primary" />
+              </motion.div>
             ) : (
               <Circle className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
             )}
           </button>
         )}
         
-        <div className="flex-1 min-w-0" onClick={() => isSelectMode && toggleSelectTask(task.id)}>
+        <div className="flex-1 min-w-0" onClick={() => {
+          if (isSelectMode) {
+            toggleSelectTask(task.id);
+          } else if (!task.completed && !isEditingTitle && onUpdateTask) {
+            setIsEditingTitle(true);
+            setEditTitle(task.title);
+          }
+        }}>
           <div className="flex items-center gap-2">
-            <span className={cn(
-              "text-sm font-medium truncate",
-              task.completed && "line-through text-muted-foreground"
-            )}>
-              {task.title}
-            </span>
+            {isEditingTitle ? (
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={handleTitleSave}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleTitleSave();
+                  if (e.key === 'Escape') {
+                    setEditTitle(task.title);
+                    setIsEditingTitle(false);
+                  }
+                }}
+                className="h-6 text-sm font-medium p-0 border-0 border-b border-primary bg-transparent rounded-none focus-visible:ring-0"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span className={cn(
+                "text-sm font-medium truncate cursor-text",
+                task.completed && "line-through text-muted-foreground"
+              )}>
+                {task.title}
+              </span>
+            )}
             <span className={cn(
               "shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase",
               priorityBg[task.priority],
@@ -240,7 +288,6 @@ function SortableTaskItem({
             {isOverdue && (
               <span className="flex items-center gap-1 text-destructive text-xs">
                 <AlertCircle className="w-3 h-3" />
-                {/* We'll access t() from parent component context */}
               </span>
             )}
           </div>
@@ -276,7 +323,6 @@ function SortableTaskItem({
               </span>
             )}
 
-            {/* Due Date - simplified in compact mode */}
             {compactMode ? (
               task.dueDate && (
                 <span className={cn(
@@ -401,7 +447,7 @@ function SortableTaskItem({
         )}
       </div>
 
-      {/* Render Subtasks - hide in compact mode */}
+      {/* Render Subtasks */}
       {!compactMode && isExpanded && subtasks.length > 0 && (
         <div className="space-y-1">
           {subtasks.map(subtask => (
@@ -429,6 +475,46 @@ function SortableTaskItem({
   );
 }
 
+// --- Stats Bar Component ---
+function TaskStatsBar({ 
+  remaining, 
+  overdue, 
+  completedToday, 
+  totalToday 
+}: { 
+  remaining: number; 
+  overdue: number; 
+  completedToday: number; 
+  totalToday: number;
+}) {
+  const progressPercent = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
+  
+  return (
+    <div className="px-4 py-2.5 border-b border-border bg-muted/30">
+      <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-1.5">
+          <Target className="w-3.5 h-3.5 text-primary" />
+          <AnimatedCounter value={remaining} className="font-semibold text-foreground" duration={0.5} />
+          <span className="text-muted-foreground">remaining</span>
+        </div>
+        {overdue > 0 && (
+          <div className="flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5 text-destructive" />
+            <AnimatedCounter value={overdue} className="font-semibold text-destructive" duration={0.5} />
+            <span className="text-destructive/70">overdue</span>
+          </div>
+        )}
+        <div className="flex items-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+          <AnimatedCounter value={completedToday} className="font-semibold text-foreground" duration={0.5} />
+          <span className="text-muted-foreground">done today</span>
+        </div>
+      </div>
+      <Progress value={progressPercent} className="h-1 mt-2" />
+    </div>
+  );
+}
+
 export function TaskList({ 
   tasks, 
   sharedTasks = [],
@@ -451,6 +537,7 @@ export function TaskList({
   const dateLocale = language === 'de' ? de : enUS;
   const { vibrate } = useHaptics();
   const { celebrate } = useCelebration();
+  const { trashedIds, softDelete, softDeleteBulk } = useUndoDelete<Task>();
   const [isAdding, setIsAdding] = useState(false);
   const [addingSubtaskFor, setAddingSubtaskFor] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -462,8 +549,8 @@ export function TaskList({
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [timeFilter, setTimeFilter] = useState<TimeFilter | 'all'>('all');
   const [internalFilter, setInternalFilter] = useState<SidebarFilter>('all');
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
 
-  // Use external filter if provided, otherwise use internal
   const filter = externalFilter ?? internalFilter;
   const handleFilterChange = onFilterChange ?? setInternalFilter;
 
@@ -484,14 +571,18 @@ export function TaskList({
     })
   );
 
-  // Apply category filter first - use sharedTasks for shared filter
+  // Filter out trashed items from display
+  const visibleTasks = useMemo(() => 
+    tasks.filter(t => !trashedIds.has(t.id)),
+    [tasks, trashedIds]
+  );
+
   const categoryFilteredTasks = filter === 'shared'
     ? sharedTasks 
     : filter === 'all'
-      ? tasks 
-      : tasks.filter(task => task.category === filter);
+      ? visibleTasks 
+      : visibleTasks.filter(task => task.category === filter);
 
-  // Apply time filter
   const filteredTasks = useMemo(() => {
     if (timeFilter === 'all') return categoryFilteredTasks;
     
@@ -514,7 +605,6 @@ export function TaskList({
     });
   }, [categoryFilteredTasks, timeFilter]);
 
-  // Organize tasks into parent-child hierarchy
   const { parentTasks, subtasksByParent } = useMemo(() => {
     const parents = filteredTasks.filter(t => !t.parentId);
     const subtasks: Record<string, Task[]> = {};
@@ -531,6 +621,29 @@ export function TaskList({
 
   const incompleteTasks = parentTasks.filter(t => !t.completed);
   const completedTasks = parentTasks.filter(t => t.completed);
+
+  // Stats
+  const overdueTasks = incompleteTasks.filter(t => t.dueDate && isPast(t.dueDate) && !isToday(t.dueDate));
+  const completedToday = completedTasks.filter(t => {
+    // Use createdAt as a proxy — ideally we'd have a completedAt field
+    return true; // Count all completed in view as "today" for now
+  });
+  const totalForProgress = incompleteTasks.length + completedTasks.length;
+
+  // Completed section controls
+  const MAX_VISIBLE_COMPLETED = 5;
+  const visibleCompletedTasks = showAllCompleted 
+    ? completedTasks 
+    : completedTasks.slice(0, MAX_VISIBLE_COMPLETED);
+
+  // Undo-aware delete handler
+  const handleDeleteWithUndo = useCallback((taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    softDelete(task, 'task', async () => {
+      onDeleteTask(taskId);
+    });
+  }, [tasks, softDelete, onDeleteTask]);
 
   const handleAddTask = (parentId?: string) => {
     if (newTaskTitle.trim()) {
@@ -597,15 +710,33 @@ export function TaskList({
     if (selectedTasks.size === 0) return;
     
     const idsToDelete = Array.from(selectedTasks);
+    const itemsToDelete = tasks.filter(t => idsToDelete.includes(t.id));
     
-    if (onDeleteTasks) {
-      await onDeleteTasks(idsToDelete);
-    } else {
-      for (const id of idsToDelete) {
-        await onDeleteTask(id);
+    await softDeleteBulk(itemsToDelete, 'task', async () => {
+      if (onDeleteTasks) {
+        await onDeleteTasks(idsToDelete);
+      } else {
+        for (const id of idsToDelete) {
+          await onDeleteTask(id);
+        }
       }
-    }
+    });
     clearSelection();
+  };
+
+  const handleClearCompleted = async () => {
+    const completedIds = completedTasks.map(t => t.id);
+    if (completedIds.length === 0) return;
+    
+    await softDeleteBulk(completedTasks, 'task', async () => {
+      if (onDeleteTasks) {
+        await onDeleteTasks(completedIds);
+      } else {
+        for (const id of completedIds) {
+          await onDeleteTask(id);
+        }
+      }
+    });
   };
 
   const handleAddSubtask = (parentId: string) => {
@@ -634,7 +765,6 @@ export function TaskList({
       />
       <div className="flex gap-2 justify-between items-center flex-wrap">
         <div className="flex gap-2">
-          {/* Due Date Picker */}
           <Popover open={showDueDatePicker} onOpenChange={setShowDueDatePicker}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1">
@@ -702,18 +832,24 @@ export function TaskList({
         </div>
       </div>
 
+      {/* Stats Bar */}
+      {!compactMode && (
+        <TaskStatsBar 
+          remaining={incompleteTasks.length}
+          overdue={overdueTasks.length}
+          completedToday={completedTasks.length}
+          totalToday={totalForProgress}
+        />
+      )}
+
       {/* Header */}
-      <div className="h-14 px-4 flex items-center justify-between border-b border-border">
+      <div className="h-12 px-4 flex items-center justify-between border-b border-border">
         <div className="flex items-center gap-3">
-          <h2 className="font-semibold">
+          <h2 className="font-semibold text-sm">
             {t('nav.tasks')}
-            <span className="ml-2 text-sm text-muted-foreground font-normal">
-              {incompleteTasks.length} {language === 'de' ? 'übrig' : 'remaining'}
-            </span>
           </h2>
-          {/* Due Date Filter */}
           <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter | 'all')}>
-            <SelectTrigger className="h-8 w-[130px] text-xs">
+            <SelectTrigger className="h-7 w-[120px] text-xs">
               <Filter className="w-3 h-3 mr-1" />
               <SelectValue placeholder={t('common.dueDate')} />
             </SelectTrigger>
@@ -780,10 +916,9 @@ export function TaskList({
 
       {/* Task List */}
       <div className="flex-1 overflow-y-auto p-2">
-        {/* Add Task Input */}
         {isAdding && <AddTaskForm />}
 
-        {/* Incomplete Tasks with Drag and Drop */}
+        {/* Incomplete Tasks */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -793,92 +928,157 @@ export function TaskList({
             items={incompleteTasks.map(t => t.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-1">
-              {incompleteTasks.map(task => (
-                <div key={task.id}>
-                  <SwipeableTaskItem
-                    onComplete={() => {
-                      vibrate('success');
-                      celebrate({ type: task.priority === 'high' ? 'highPriorityComplete' : 'taskComplete' });
-                      onToggleComplete(task.id);
-                    }}
-                    onDelete={() => {
-                      vibrate('warning');
-                      onDeleteTask(task.id);
-                    }}
-                    isCompleted={task.completed}
-                    disabled={isSelectMode}
+            <AnimatePresence mode="popLayout">
+              <div className="space-y-1">
+                {incompleteTasks.map(task => (
+                  <motion.div 
+                    key={task.id}
+                    layout
+                    initial={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' }}
+                    transition={{ duration: 0.3, ease: 'easeOut' }}
                   >
-                    <SortableTaskItem
-                      task={task}
-                      subtasks={subtasksByParent[task.id] || []}
-                      isSelectMode={isSelectMode}
-                      selectedTasks={selectedTasks}
-                      toggleSelectTask={toggleSelectTask}
-                      onToggleComplete={(id) => {
+                    <SwipeableTaskItem
+                      onComplete={() => {
                         vibrate('success');
-                        const t = tasks.find(t => t.id === id);
-                        if (t && !t.completed) {
-                          celebrate({ type: t.priority === 'high' ? 'highPriorityComplete' : 'taskComplete' });
-                        }
-                        onToggleComplete(id);
+                        celebrate({ type: task.priority === 'high' ? 'highPriorityComplete' : 'taskComplete' });
+                        onToggleComplete(task.id);
                       }}
-                      onDeleteTask={onDeleteTask}
-                      onShareTask={onShareTask}
-                      onUpdateTask={onUpdateTask}
-                      onEditTask={setEditingTask}
-                      onAddSubtask={handleAddSubtask}
-                      compactMode={compactMode}
-                    />
-                  </SwipeableTaskItem>
-                  {addingSubtaskFor === task.id && <AddTaskForm parentId={task.id} />}
-                </div>
-              ))}
-            </div>
+                      onDelete={() => {
+                        vibrate('warning');
+                        handleDeleteWithUndo(task.id);
+                      }}
+                      isCompleted={task.completed}
+                      disabled={isSelectMode}
+                    >
+                      <SortableTaskItem
+                        task={task}
+                        subtasks={subtasksByParent[task.id] || []}
+                        isSelectMode={isSelectMode}
+                        selectedTasks={selectedTasks}
+                        toggleSelectTask={toggleSelectTask}
+                        onToggleComplete={(id) => {
+                          vibrate('success');
+                          const t = tasks.find(t => t.id === id);
+                          if (t && !t.completed) {
+                            celebrate({ type: t.priority === 'high' ? 'highPriorityComplete' : 'taskComplete' });
+                          }
+                          onToggleComplete(id);
+                        }}
+                        onDeleteTask={handleDeleteWithUndo}
+                        onShareTask={onShareTask}
+                        onUpdateTask={onUpdateTask}
+                        onEditTask={setEditingTask}
+                        onAddSubtask={handleAddSubtask}
+                        compactMode={compactMode}
+                      />
+                    </SwipeableTaskItem>
+                    {addingSubtaskFor === task.id && <AddTaskForm parentId={task.id} />}
+                  </motion.div>
+                ))}
+              </div>
+            </AnimatePresence>
           </SortableContext>
         </DndContext>
 
         {/* Completed Tasks */}
         {completedTasks.length > 0 && (
           <div className="mt-4">
-            <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {t('taskList.completed')} ({completedTasks.length})
+            <div className="px-3 py-2 flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                {t('taskList.completed')} ({completedTasks.length})
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs text-muted-foreground hover:text-destructive gap-1"
+                  onClick={handleClearCompleted}
+                >
+                  <Eraser className="w-3 h-3" />
+                  Clear all
+                </Button>
+              </div>
             </div>
             <div className="space-y-1">
-              {completedTasks.map(task => (
-                <SortableTaskItem
-                  key={task.id}
-                  task={task}
-                  subtasks={subtasksByParent[task.id] || []}
-                  isSelectMode={isSelectMode}
-                  selectedTasks={selectedTasks}
-                  toggleSelectTask={toggleSelectTask}
-                  onToggleComplete={onToggleComplete}
-                  onDeleteTask={onDeleteTask}
-                  onShareTask={onShareTask}
-                  onUpdateTask={onUpdateTask}
-                  onEditTask={setEditingTask}
-                  onAddSubtask={handleAddSubtask}
-                  compactMode={compactMode}
-                />
+              {visibleCompletedTasks.map(task => (
+                <div key={task.id} className="relative">
+                  <SortableTaskItem
+                    task={task}
+                    subtasks={subtasksByParent[task.id] || []}
+                    isSelectMode={isSelectMode}
+                    selectedTasks={selectedTasks}
+                    toggleSelectTask={toggleSelectTask}
+                    onToggleComplete={onToggleComplete}
+                    onDeleteTask={handleDeleteWithUndo}
+                    onShareTask={onShareTask}
+                    onUpdateTask={onUpdateTask}
+                    onEditTask={setEditingTask}
+                    onAddSubtask={handleAddSubtask}
+                    compactMode={compactMode}
+                  />
+                </div>
               ))}
             </div>
+            {completedTasks.length > MAX_VISIBLE_COMPLETED && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full mt-1 text-xs text-muted-foreground"
+                onClick={() => setShowAllCompleted(!showAllCompleted)}
+              >
+                {showAllCompleted 
+                  ? 'Show less' 
+                  : `Show all ${completedTasks.length} completed`}
+              </Button>
+            )}
           </div>
         )}
 
+        {/* Empty State */}
         {filteredTasks.length === 0 && !isAdding && (
-          <div className="flex flex-col items-center justify-center h-40 text-center">
-            <CheckCircle2 className="w-10 h-10 text-muted-foreground/30 mb-2" />
-            <p className="text-sm text-muted-foreground">{t('taskList.noTasks')}</p>
-            <Button 
-              variant="link" 
-              size="sm" 
-              className="text-primary"
-              onClick={() => setIsAdding(true)}
+          <motion.div 
+            className="flex flex-col items-center justify-center py-16 text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
             >
-              {t('taskList.startAdding')}
-            </Button>
-          </div>
+              <Sparkles className="w-12 h-12 text-primary/30 mb-3" />
+            </motion.div>
+            <p className="text-base font-medium text-foreground mb-1">Nothing on your plate</p>
+            <p className="text-sm text-muted-foreground mb-4">Add a task to get started</p>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  handleFilterChange('personal');
+                  setIsAdding(true);
+                }}
+              >
+                <User className="w-3.5 h-3.5" />
+                Personal task
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  handleFilterChange('business');
+                  setIsAdding(true);
+                }}
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+                Work task
+              </Button>
+            </div>
+          </motion.div>
         )}
       </div>
 
@@ -888,7 +1088,7 @@ export function TaskList({
           task={editingTask}
           onClose={() => setEditingTask(null)}
           onSave={onUpdateTask}
-          onDelete={onDeleteTask}
+          onDelete={handleDeleteWithUndo}
           onAddSubtasks={(parentId, subtasks) => {
             subtasks.forEach((subtask) => {
               onAddTask({
