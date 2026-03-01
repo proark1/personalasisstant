@@ -1,88 +1,100 @@
 
-# Contacts Feature -- UI/UX Overhaul and Scroll Fix
+# Unify Text Mode and Voice Mode: Full Feature Parity
 
-## Problems Identified
+## Problem
+Text mode (chat) and voice mode have diverged significantly. Voice mode has **far more capabilities** than text mode:
 
-1. **Scroll is broken**: The `ContactsPanel` (used on desktop sidebar) wraps `ScrollArea` with `h-full` inside a `PullToRefresh` inside `Tabs`, but the height chain is broken -- `ScrollArea` has no constrained height, so it just expands infinitely and never scrolls.
+### Voice mode CAN do but text mode CANNOT:
+- **Contacts**: Search, create, update, delete, mark contacted, get contacts due
+- **Contracts**: Search, create, update, delete, get costs, get expiring
+- **Projects**: Create, list, get status, add tasks to project, update, delete
+- **Habits**: Create, log as done, delete
+- **Health**: Get health summary, steps, sleep, calories, heart rate
+- **Email**: Get inbox summary, search emails
+- **Messaging**: Send chat messages to contacts
+- **Calls**: Initiate calls to contacts
+- **Startup brainstorming**: Brainstorm, save, list ideas
+- **Notes**: Search, delete (text can create but not search/delete)
+- **Tasks**: Search, get summaries, reschedule, edit (text can add/complete/delete but not search or reschedule)
 
-2. **Two duplicate implementations**: There's `ContactsPanel.tsx` (sidebar panel, 621 lines) AND `ContactsPage.tsx` (full page, 1060 lines). They share almost identical logic (form data, handlers, contact cards) but are maintained separately. The page version is richer (has table view, profile card dialog, email templates, network health, timeline tabs, import/export). The panel version is a stripped-down copy missing many features.
+### Text mode CAN do but voice mode already covers:
+- Add tasks, schedule events, create notes, add shopping items (voice has all these too)
 
-3. **No profile card on sidebar panel**: Clicking a contact in `ContactsPanel` opens the edit dialog directly, while `ContactsPage` opens the rich `ContactProfileCard` with interaction history, AI insights, and quick actions.
+**Root cause**: Text mode uses XML-tag-based tool markup parsed client-side, while voice mode uses OpenAI native function calling. The XML tool set was never expanded to match voice's tool set.
 
-4. **Refresh does a full page reload**: `handleRefresh` in `ContactsPanel` calls `window.location.reload()` instead of using the hook's `refetch()`.
+## Solution
+Add the missing tools to text mode by:
+1. Expanding the system prompt in `chat/index.ts` with new XML tool definitions
+2. Expanding the parser in `useAIChat.ts` to recognize the new XML tool tags
+3. Expanding the handler in `Index.tsx` to execute the new tool calls
 
-5. **Missing integration points**: Contacts are not connected to other features inline (tasks mentioning contacts, calendar showing contact follow-up reminders, family members linked to contacts).
+## Changes
 
----
+### 1. `supabase/functions/chat/index.ts` -- Add new XML tool definitions to system prompt
 
-## What Changes
+Add these new tool definitions alongside the existing ones (manage_task, schedule_event, create_note, add_shopping_item):
 
-### 1. Fix Scroll in ContactsPanel (Critical)
+- **manage_contact**: `<tool>manage_contact</tool><action>create|update|delete|mark_contacted|search</action><contact>JSON</contact>`
+  - Fields: name, email, phone, company, role, city, country, contactType, notes, query (for search/update/delete)
 
-Replace the broken height chain. The `ScrollArea` needs explicit height via `flex-1 min-h-0` pattern on its parent, and the `Tabs` content area needs `overflow-hidden` with a proper flex layout.
+- **manage_contract**: `<tool>manage_contract</tool><action>create|update|delete|search|get_costs</action><contract>JSON</contract>`
+  - Fields: name, provider, category, costAmount, costFrequency, renewalDate, autoRenews, notes, query
 
-- Root div: `h-full flex flex-col` (already correct)
-- Header + Search: fixed-height, flex-shrink-0
-- Tabs wrapper: `flex-1 flex flex-col min-h-0 overflow-hidden`
-- TabsContent: `flex-1 min-h-0`
-- ScrollArea: `h-full` inside the constrained container
-- Remove `PullToRefresh` wrapping (it breaks flex height chain) or fix its height passthrough
+- **manage_project**: `<tool>manage_project</tool><action>create|update|delete|list|get_status</action><project>JSON</project>`
+  - Fields: name, description, color, query
 
-### 2. Upgrade ContactsPanel to Match ContactsPage Features
+- **manage_habit**: `<tool>manage_habit</tool><action>create|log|delete|summary</action><habit>JSON</habit>`
+  - Fields: name, description, icon, frequency, targetCount, query
 
-Instead of maintaining two separate implementations, refactor `ContactsPanel` to include the best features from `ContactsPage`:
+- **manage_note** (extend existing create_note): `<tool>manage_note</tool><action>create|search|delete</action><note>JSON</note>`
+  - Fields: title, content, tags, query
 
-- Add `ContactProfileCard` dialog (click contact opens profile, not edit form)
-- Add card/table view toggle
-- Add Insights and Timeline tabs (compact versions)
-- Add Import/Export button in header
-- Add Email Template support
-- Use `refetch()` instead of `window.location.reload()` for pull-to-refresh
+- **compose_email**: `<tool>compose_email</tool><email>JSON</email>`
+  - Fields: to, subject, body (for drafting a reply or new email)
 
-### 3. Better Contact Cards
+- **get_summary**: `<tool>get_summary</tool><type>health|email|contacts_due|contract_costs|habits</type>`
+  - For read-only summaries that return data from context
 
-- Make cards more compact for the sidebar with key info visible at a glance
-- Show last contacted time prominently
-- Add quick-action buttons that appear on hover (desktop) or are always visible (mobile)
-- Add a small priority indicator for overdue contacts (pulsing dot)
+Also update the system prompt capabilities section to mention all these features.
 
-### 4. Auto-Link Contacts with Other Features
+### 2. `src/hooks/useAIChat.ts` -- Add parsers for new tool XML tags
 
-- When viewing a contact marked as "family", show a badge linking to Family Hub
-- When a contact has upcoming birthday, show inline reminder
-- Show task count if any tasks mention the contact's name in notes
+Add regex parsers for each new tool tag in `parseToolCalls()`:
+- `manage_contact` with action extraction
+- `manage_contract` with action extraction
+- `manage_project` with action extraction
+- `manage_habit` with action extraction
+- `manage_note` (update existing create_note to support actions)
+- `compose_email`
+- `get_summary`
 
----
+Update the `ToolCall` interface to include new tool types and their associated data shapes.
 
-## Technical Details
+### 3. `src/pages/Index.tsx` -- Add tool call handlers
 
-### File: `src/components/contacts/ContactsPanel.tsx`
+In the `onToolCall` handler (around line 553), add cases for:
+- `manage_contact`: Call addContact/updateContact/deleteContact/markContacted from useContacts
+- `manage_contract`: Call addContract/updateContract/deleteContract from useContracts
+- `manage_project`: Call addProject/updateProject/deleteProject from useProjects
+- `manage_habit`: Call createHabit/logHabit/deleteHabit (need to wire up habit hooks)
+- `manage_note`: Call createNote/deleteNote (search returns from context)
+- `compose_email`: Open compose sheet or draft email
+- `get_summary`: Return data from existing context (health, emails, contacts due, etc.)
 
-**Scroll fix:**
-- Change the Tabs wrapper from `className="flex-1 flex flex-col"` to `className="flex-1 flex flex-col min-h-0 overflow-hidden"`
-- Wrap each TabsContent in a container with `flex-1 min-h-0 overflow-hidden`
-- Either remove `PullToRefresh` or ensure it passes `className="flex-1 min-h-0 overflow-hidden h-full"` through
+Need to import and wire up hooks that aren't currently used in Index.tsx: useHabits (or the existing todayHabits data), useProjects, useContracts (check if already available).
 
-**Feature additions:**
-- Import `ContactProfileCard`, `ContactNetworkHealth`, `ContactTimeline`, `ContactImportExport`, `EmailTemplateDialog`
-- Add `selectedContact` state for profile card dialog
-- Change `ContactCard` `onClick` to open `ContactProfileCard` instead of edit dialog
-- Add edit button on card that opens edit dialog
-- Add `viewMode` state (cards/table) with toggle in header
-- Add 'insights' and 'timeline' tabs (5 tabs total matching ContactsPage)
-- Replace `window.location.reload()` with the hook's `refetch` function
-- Add `useContactInteractions` and `useSmartContactReminders` hooks
+### 4. `src/lib/smartPayloadBuilder.ts` -- No changes needed
+The smart payload builder already handles context injection for all data types. The text mode already receives contacts, contracts, emails, notes, habits, and family context when relevant keywords are detected.
 
-### File: `src/components/contacts/ContactProfileCard.tsx`
+## Files to Modify
+1. `supabase/functions/chat/index.ts` -- Add ~15 new tool definitions to system prompt
+2. `src/hooks/useAIChat.ts` -- Add ~7 new XML tag parsers + update ToolCall interface  
+3. `src/pages/Index.tsx` -- Add ~6 new tool call handlers in onToolCall callback
 
-Minor improvements:
-- Ensure the ScrollArea inside has proper height constraints
-- Add an "Edit" button in the header for quick access to edit dialog
-
-### File: `src/pages/ContactsPage.tsx`
-
-- After the panel is upgraded, redirect `/contacts` route to the main app with contacts panel active (or keep as a standalone page for direct URL access). No code duplication changes needed immediately -- we focus on making the panel great first.
-
-### No database changes needed
-
-All improvements are purely UI/component level.
+## Technical Notes
+- Text mode uses Gemini (via Lovable API) which handles XML tool tags well
+- The XML tag pattern is already proven with manage_task, schedule_event, create_note
+- All hooks (useContacts, useContracts, useProjects, useNotes, useHabits) are already imported or available in Index.tsx
+- Email compose will open the compose sheet UI rather than sending directly (matching the existing email UX)
+- Health summaries are read-only from context already present in the payload
+- No database changes needed -- all CRUD operations use existing hooks and tables
