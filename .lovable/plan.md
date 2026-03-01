@@ -1,105 +1,91 @@
 
 
-# Email Hub -- Full Reading Experience & Smart Categorization
+# Email Hub — Priority Labels on Cards + Next-Level Improvements
 
-## What Changes
+## 1. Priority Labels on Email Cards
 
-Two core upgrades plus several quality-of-life improvements that make the email tool feel like a complete, intelligent email client.
+Currently, the email card only shows small arrow icons (↑ → ↓) in the right column for priority. We'll replace those with clear, color-coded text labels that are immediately visible.
 
----
+**Changes to `EmailCard.tsx`:**
+- Replace the arrow-only priority indicators with labeled badges: "High Priority" (red), "Medium" (amber), "Low" (gray)
+- Show the email category as a chip too (e.g., "Action Required", "FYI", "Newsletter")
+- Move these into the bottom tags row alongside the existing AI action chip for a clean, scannable layout
 
-## 1. Full Email Body Visible on Open (No Toggle)
-
-Right now the email body loads but is hidden behind a "Show full email" button with a 200px max-height. We'll change this so the full email is immediately visible when you open an email -- no extra taps.
-
-**Changes:**
-- Remove the `showFullBody` toggle and `max-h-[200px]` constraint
-- Show the full HTML body directly in a clean, styled container
-- Add a proper loading skeleton while the body fetches
-- Sanitize HTML properly to prevent style bleed from email content (scope styles to the email container)
+**Result:** Each email card will show at a glance: AI suggested action + priority level + category — no need to open the email.
 
 ---
 
-## 2. Manual Priority Categorization (Trains the AI)
+## 2. Read/Unread Visual Polish
 
-When you open an email, you'll see priority buttons to manually categorize it. Your choices get saved as sender rules so the system learns over time.
-
-**How it works:**
-- Add a row of priority buttons in the detail sheet: **High**, **Medium**, **Low**, **Spam**
-- Tapping one updates the email's `priority_score` and `category` immediately
-- Also creates/updates a sender rule for that sender's domain (or exact email) so future emails from them are auto-categorized the same way
-- Visual feedback: the selected priority lights up with color coding (red = high, amber = medium, gray = low, destructive = spam)
-
-**Priority mapping:**
-- High Priority -> priority_score: 1, category: action_required
-- Medium Priority -> priority_score: 3, category: fyi
-- Low Priority -> priority_score: 5, category: newsletter
-- Spam -> is_spam: true, user_archived: true (removes from inbox)
+- Add a bold left-border accent on unread emails (blue bar, like native mail apps)
+- Make the unread-to-read transition animated (subtle fade)
 
 ---
 
-## 3. Additional Improvements
+## 3. Quick Actions Row on Email Cards
 
-### Compose New Email
-- Add a "Compose" floating button on the email panel
-- Opens a simple compose sheet with To, Subject, Body fields
-- AI can suggest subject lines based on body content
-- Sends via the existing Gmail API integration
-
-### Quick Category Chips on Email Cards
-- Show the current priority as a small colored dot on each card in the list
-- Users can see at a glance what they've already categorized
-
-### Undo Archive Toast
-- When archiving, show an undo toast (5 seconds) that lets you bring the email back
-
-### Thread View in Detail Sheet
-- When opening a threaded email (thread count > 1), show all messages in the conversation stacked vertically
-- Each message shows sender, timestamp, and body
-- Most recent message at top
+Instead of only swipe gestures (which aren't discoverable), add a visible quick-actions row that appears on hover (desktop) or long-press (mobile):
+- Archive, Mark Important, Snooze — all without opening the email
 
 ---
 
-## Technical Plan
+## 4. Smart Auto-Categorize Nudge
+
+When archiving or marking spam, show a small inline prompt: "Always do this for emails from [domain]?" with Yes/No. This trains the sender rules passively as you triage.
+
+---
+
+## 5. Email Stats Banner
+
+Add a compact stats bar at the top of the email panel showing:
+- Total unread count
+- Priority emails waiting
+- Emails handled today (archived/replied)
+
+This gives a sense of progress and inbox zero motivation.
+
+---
+
+## 6. Pull-to-Refresh
+
+Add a pull-to-refresh gesture on the email list using framer-motion, triggering a sync. More natural than tapping the sync button.
+
+---
+
+## 7. Empty State Improvements
+
+When inbox zero is reached, show a celebratory message ("All caught up!") with a subtle animation instead of a plain "No emails" message.
+
+---
+
+## Technical Details
 
 ### Files to Modify
 
-**`src/components/email/EmailDetailSheet.tsx`**
-- Remove `showFullBody` state and the toggle button
-- Remove `max-h-[200px]` constraint on body container
-- Add scoped CSS wrapper for HTML email content (prevent style bleed)
-- Add loading skeleton while body fetches
-- Add priority categorization row: 4 buttons (High / Medium / Low / Spam)
-- Each button calls a new `onCategorize` callback
-- Show thread messages when thread has multiple emails
-- Add compose reply at bottom always visible (not hidden behind button)
-
-**`src/hooks/useEmails.ts`**
-- Add `categorizeEmail(emailId, priority)` function that:
-  - Updates the email's priority_score and category
-  - Creates a sender rule for the domain
-- Add `composeEmail(to, subject, body)` function
-- Add `undoArchive` with temporary state tracking
-- Pass thread's `allEmails` to detail sheet
+**`src/components/email/EmailCard.tsx`**
+- Replace the priority arrow column (lines 175-181) with labeled, color-coded priority badges in the tags row (lines 158-172)
+- Add category chip alongside existing action/threat chips
+- Add a left border accent for unread emails
+- Add hover quick-actions row (Archive, Star, Snooze buttons)
 
 **`src/components/email/EmailPanel.tsx`**
-- Pass thread object (not just latest email) to detail sheet
-- Add compose FAB button
-- Show undo toast on archive with restore action
+- Add a stats banner below the header showing unread/priority/handled counts
+- Improve the empty state with an "All caught up!" message and confetti-style icon
+- Add pull-to-refresh via framer-motion drag on the scroll area
 
-**`src/components/email/EmailCard.tsx`**
-- Add small priority indicator dot based on priority_score
+**`src/hooks/useEmails.ts`**
+- Track "handled today" count (archived + replied in current session)
+- Expose the count for the stats banner
 
-**`supabase/functions/gmail-send-reply/index.ts`**
-- Extend to support composing new emails (not just replies) by making threadId optional
+**`src/components/email/EmailCard.tsx` — Priority label mapping:**
+```text
+priority_score 1-2  ->  "High Priority"  (red badge)
+priority_score 3    ->  "Medium"         (amber badge)  
+priority_score 4    ->  (no label, default)
+priority_score 5+   ->  "Low"            (gray badge)
+category            ->  Shown as chip: "Action Required", "FYI", "Newsletter", etc.
+```
 
-### Database
-- No schema changes needed -- uses existing `email_sender_rules` table and `user_emails` columns
-
-### New Component
-**`src/components/email/ComposeEmailSheet.tsx`**
-- Drawer/sheet with To, Subject, Body fields
-- "AI Suggest Subject" button
-- Send button using gmail-send-reply function
-- Clean, minimal design matching the rest of the email UI
+### No database changes needed
+All improvements are purely UI/UX and hook logic.
 
