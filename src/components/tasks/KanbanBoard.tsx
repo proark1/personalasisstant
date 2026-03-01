@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Task, TaskStatus, Project } from '@/types/flux';
+import { Task, TaskStatus, TaskPriority, Project } from '@/types/flux';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,7 +36,8 @@ import {
   Minus,
   ArrowDownCircle,
   LayoutGrid,
-  List
+  List,
+  Trash2,
 } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 
@@ -72,9 +73,10 @@ interface SortableTaskCardProps {
   task: Task;
   projects?: Project[];
   onToggleComplete: (id: string) => void;
+  onDeleteTask?: (id: string) => void;
 }
 
-function SortableTaskCard({ task, projects, onToggleComplete }: SortableTaskCardProps) {
+function SortableTaskCard({ task, projects, onToggleComplete, onDeleteTask }: SortableTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -177,6 +179,14 @@ function SortableTaskCard({ task, projects, onToggleComplete }: SortableTaskCard
               </div>
             )}
 
+            {/* Overdue badge */}
+            {isOverdue && (
+              <Badge variant="destructive" className="text-[10px] h-4 px-1.5">
+                <AlertCircle className="w-3 h-3 mr-0.5" />
+                Overdue
+              </Badge>
+            )}
+
             {/* Shared indicator */}
             {task.sharedByOwner && (
               <Avatar className="w-5 h-5">
@@ -187,6 +197,19 @@ function SortableTaskCard({ task, projects, onToggleComplete }: SortableTaskCard
             )}
           </div>
         </div>
+
+        {/* Delete button */}
+        {onDeleteTask && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteTask(task.id);
+            }}
+            className="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -230,12 +253,16 @@ export function KanbanBoard({
   projects = [],
   onUpdateTask,
   onToggleComplete,
+  onDeleteTask,
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<'all' | TaskPriority>('all');
   
   const allTasks = useMemo(() => {
-    return [...tasks, ...sharedTasks].filter(t => !t.trashed);
-  }, [tasks, sharedTasks]);
+    const base = [...tasks, ...sharedTasks].filter(t => !t.trashed);
+    if (priorityFilter === 'all') return base;
+    return base.filter(t => t.priority === priorityFilter);
+  }, [tasks, sharedTasks, priorityFilter]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -345,13 +372,26 @@ export function KanbanBoard({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <h2 className="font-semibold flex items-center gap-2">
-          <LayoutGrid className="w-5 h-5 text-primary" />
-          Kanban Board
-        </h2>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{allTasks.length} tasks</span>
+      <div className="px-4 py-3 border-b border-border space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold flex items-center gap-2">
+            <LayoutGrid className="w-5 h-5 text-primary" />
+            Kanban Board
+          </h2>
+          <span className="text-sm text-muted-foreground">{allTasks.length} tasks</span>
+        </div>
+        <div className="flex gap-1">
+          {(['all', 'high', 'medium', 'low'] as const).map(p => (
+            <Button
+              key={p}
+              variant={priorityFilter === p ? 'secondary' : 'ghost'}
+              size="sm"
+              className={cn("h-6 px-2 text-xs capitalize", priorityFilter === p && "bg-background shadow-sm")}
+              onClick={() => setPriorityFilter(p)}
+            >
+              {p === 'all' ? 'All' : p}
+            </Button>
+          ))}
         </div>
       </div>
 
@@ -391,8 +431,9 @@ export function KanbanBoard({
                   >
                     <div className="p-2 space-y-2 min-h-[200px]">
                       {columnTasks.length === 0 ? (
-                        <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-                          Drop tasks here
+                        <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground gap-1">
+                          <span>No tasks here</span>
+                          <span className="text-xs">Drag tasks to move them</span>
                         </div>
                       ) : (
                         columnTasks.map(task => (
@@ -401,6 +442,7 @@ export function KanbanBoard({
                             task={task}
                             projects={projects}
                             onToggleComplete={onToggleComplete}
+                            onDeleteTask={onDeleteTask}
                           />
                         ))
                       )}

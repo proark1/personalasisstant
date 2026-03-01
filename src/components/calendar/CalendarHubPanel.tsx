@@ -9,6 +9,11 @@ import { PullToRefresh } from '../shared/PullToRefresh';
 import { SidebarFilter } from '../layout/Sidebar';
 import { Zap, CheckSquare, Calendar } from 'lucide-react';
 import { QuickAddButton } from '../tasks/QuickAddButton';
+import { TaskViewSwitcher, TaskView } from '../tasks/TaskViewSwitcher';
+import { PriorityBoardView } from '../tasks/PriorityBoardView';
+import { TimelineView } from '../tasks/TimelineView';
+import { KanbanBoard } from '../tasks/KanbanBoard';
+
 interface CalendarHubPanelProps {
   userId: string;
   onRefresh?: () => Promise<void>;
@@ -55,12 +60,62 @@ export function CalendarHubPanel({
   onRefresh,
 }: CalendarHubPanelProps) {
   const [activeView, setActiveView] = useState<HubView>('focus');
+  const [taskView, setTaskView] = useState<TaskView>('list');
 
   const views = [
     { id: 'focus' as HubView, icon: Zap, label: 'Focus' },
     { id: 'tasks' as HubView, icon: CheckSquare, label: 'Tasks' },
     { id: 'calendar' as HubView, icon: Calendar, label: 'Calendar' },
   ];
+
+  const renderTaskView = () => {
+    switch (taskView) {
+      case 'kanban':
+        return (
+          <KanbanBoard
+            tasks={tasks}
+            projects={projects}
+            onUpdateTask={onUpdateTask || (() => {})}
+            onToggleComplete={onToggleTaskComplete}
+            onDeleteTask={onDeleteTask}
+          />
+        );
+      case 'priority':
+        return (
+          <PriorityBoardView
+            tasks={tasks}
+            onToggleComplete={onToggleTaskComplete}
+            onDeleteTask={onDeleteTask}
+            onUpdateTask={onUpdateTask}
+          />
+        );
+      case 'timeline':
+        return (
+          <TimelineView
+            tasks={tasks}
+            onToggleComplete={onToggleTaskComplete}
+            onDeleteTask={onDeleteTask}
+            onUpdateTask={onUpdateTask}
+          />
+        );
+      default:
+        return (
+          <TaskList
+            tasks={tasks}
+            filter={filter}
+            onFilterChange={onFilterChange}
+            onToggleComplete={onToggleTaskComplete}
+            onDeleteTask={onDeleteTask}
+            onDeleteTasks={onDeleteTasks}
+            onAddTask={onAddTask}
+            onUpdateTask={onUpdateTask}
+            onReorderTasks={onReorderTasks}
+            onShareTask={onShareTask}
+            compactMode={true}
+          />
+        );
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -88,6 +143,13 @@ export function CalendarHubPanel({
         </div>
       </div>
 
+      {/* Task View Switcher - only shown in Tasks tab */}
+      {activeView === 'tasks' && (
+        <div className="px-4 py-1.5 border-b border-border shrink-0 flex justify-center">
+          <TaskViewSwitcher activeView={taskView} onViewChange={setTaskView} />
+        </div>
+      )}
+
       {/* Content with Pull-to-Refresh */}
       <PullToRefresh 
         onRefresh={onRefresh || (async () => {})} 
@@ -102,19 +164,7 @@ export function CalendarHubPanel({
             />
           </div>
           <div className={cn("h-full", activeView === 'tasks' ? 'block' : 'hidden')}>
-            <TaskList
-              tasks={tasks}
-              filter={filter}
-              onFilterChange={onFilterChange}
-              onToggleComplete={onToggleTaskComplete}
-              onDeleteTask={onDeleteTask}
-              onDeleteTasks={onDeleteTasks}
-              onAddTask={onAddTask}
-              onUpdateTask={onUpdateTask}
-              onReorderTasks={onReorderTasks}
-              onShareTask={onShareTask}
-              compactMode={true}
-            />
+            {renderTaskView()}
           </div>
           <div className={cn("h-full", activeView === 'calendar' ? 'block' : 'hidden')}>
             <MonthCalendarView

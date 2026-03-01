@@ -105,6 +105,12 @@ const priorityBg: Record<TaskPriority, string> = {
   low: 'bg-muted',
 };
 
+const priorityDotColor: Record<TaskPriority, string> = {
+  high: 'bg-destructive',
+  medium: 'bg-warning',
+  low: 'bg-muted-foreground/40',
+};
+
 interface SortableTaskItemProps {
   task: Task;
   subtasks: Task[];
@@ -254,6 +260,7 @@ function SortableTaskItem({
           }
         }}>
           <div className="flex items-center gap-2">
+            <div className={cn("w-2 h-2 rounded-full shrink-0", priorityDotColor[task.priority])} />
             {isEditingTitle ? (
               <Input
                 value={editTitle}
@@ -548,6 +555,7 @@ export function TaskList({
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [timeFilter, setTimeFilter] = useState<TimeFilter | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'default' | 'dueDate' | 'priority' | 'name'>('default');
   const [internalFilter, setInternalFilter] = useState<SidebarFilter>('all');
   const [showAllCompleted, setShowAllCompleted] = useState(false);
 
@@ -605,11 +613,35 @@ export function TaskList({
     });
   }, [categoryFilteredTasks, timeFilter]);
 
+  const sortedFilteredTasks = useMemo(() => {
+    const sorted = [...filteredTasks];
+    switch (sortBy) {
+      case 'dueDate':
+        sorted.sort((a, b) => {
+          if (a.dueDate && !b.dueDate) return -1;
+          if (!a.dueDate && b.dueDate) return 1;
+          if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          return 0;
+        });
+        break;
+      case 'priority':
+        sorted.sort((a, b) => {
+          const order: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
+          return order[a.priority] - order[b.priority];
+        });
+        break;
+      case 'name':
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+    }
+    return sorted;
+  }, [filteredTasks, sortBy]);
+
   const { parentTasks, subtasksByParent } = useMemo(() => {
-    const parents = filteredTasks.filter(t => !t.parentId);
+    const parents = sortedFilteredTasks.filter(t => !t.parentId);
     const subtasks: Record<string, Task[]> = {};
     
-    filteredTasks.forEach(task => {
+    sortedFilteredTasks.forEach(task => {
       if (task.parentId) {
         if (!subtasks[task.parentId]) subtasks[task.parentId] = [];
         subtasks[task.parentId].push(task);
@@ -617,7 +649,7 @@ export function TaskList({
     });
     
     return { parentTasks: parents, subtasksByParent: subtasks };
-  }, [filteredTasks]);
+  }, [sortedFilteredTasks]);
 
   const incompleteTasks = parentTasks.filter(t => !t.completed);
   const completedTasks = parentTasks.filter(t => t.completed);
@@ -844,12 +876,13 @@ export function TaskList({
 
       {/* Header */}
       <div className="h-12 px-4 flex items-center justify-between border-b border-border">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <h2 className="font-semibold text-sm">
             {t('nav.tasks')}
           </h2>
+          <span className="text-xs text-muted-foreground">({incompleteTasks.length})</span>
           <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter | 'all')}>
-            <SelectTrigger className="h-7 w-[120px] text-xs">
+            <SelectTrigger className="h-7 w-[100px] text-xs">
               <Filter className="w-3 h-3 mr-1" />
               <SelectValue placeholder={t('common.dueDate')} />
             </SelectTrigger>
@@ -859,6 +892,17 @@ export function TaskList({
               <SelectItem value="week">{t('time.week')}</SelectItem>
               <SelectItem value="month">{t('time.month')}</SelectItem>
               <SelectItem value="noDate">{t('time.noDate')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+            <SelectTrigger className="h-7 w-[100px] text-xs">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default</SelectItem>
+              <SelectItem value="dueDate">Due Date</SelectItem>
+              <SelectItem value="priority">Priority</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
             </SelectContent>
           </Select>
         </div>

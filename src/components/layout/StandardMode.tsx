@@ -9,6 +9,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
 import { List, Grid3X3, X, LayoutGrid, Activity } from 'lucide-react';
+import { TaskViewSwitcher, TaskView } from '../tasks/TaskViewSwitcher';
 import { PanelFallback } from '@/components/lazy/LazyLoader';
 import { ContextualHeader } from './ContextualHeader';
 import type { ActivityItem } from '@/hooks/useActivityFeed';
@@ -20,6 +21,8 @@ const ChatPanel = lazy(() => import('../chat/ChatPanel').then(m => ({ default: m
 const TeamChatPanel = lazy(() => import('../chat/TeamChatPanel').then(m => ({ default: m.TeamChatPanel })));
 const TaskList = lazy(() => import('../tasks/TaskList').then(m => ({ default: m.TaskList })));
 const KanbanBoard = lazy(() => import('../tasks/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
+const PriorityBoardView = lazy(() => import('../tasks/PriorityBoardView').then(m => ({ default: m.PriorityBoardView })));
+const TimelineView = lazy(() => import('../tasks/TimelineView').then(m => ({ default: m.TimelineView })));
 const CalendarPanel = lazy(() => import('../calendar/CalendarPanel').then(m => ({ default: m.CalendarPanel })));
 const CalendarView = lazy(() => import('../calendar/CalendarView').then(m => ({ default: m.CalendarView })));
 const FocusTimer = lazy(() => import('../focus/FocusTimer').then(m => ({ default: m.FocusTimer })));
@@ -149,7 +152,7 @@ export function StandardMode({
 }: StandardModeProps) {
   const [filter, setFilter] = useState<SidebarFilter>('all');
   const [calendarMode, setCalendarMode] = useState<'agenda' | 'grid'>('agenda');
-  const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban'>('list');
+  const [taskViewMode, setTaskViewMode] = useState<TaskView>('list');
   const [fullscreenPanel, setFullscreenPanel] = useState<FullscreenPanel>(null);
   const [showFocusTimer, setShowFocusTimer] = useState(false);
   const [showTodayFocus, setShowTodayFocus] = useState(false);
@@ -431,27 +434,10 @@ export function StandardMode({
                         }
                       }}
                     />
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant={taskViewMode === 'list' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        className="h-7 px-2"
-                        onClick={() => setTaskViewMode('list')}
-                      >
-                        <List className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant={taskViewMode === 'kanban' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        className="h-7 px-2"
-                        onClick={() => setTaskViewMode('kanban')}
-                      >
-                        <LayoutGrid className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <TaskViewSwitcher activeView={taskViewMode} onViewChange={setTaskViewMode} />
                   </div>
 
-                  {/* Tasks - List or Kanban view */}
+                  {/* Tasks - Multi-view */}
                   <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
                     {taskViewMode === 'kanban' ? (
                       <KanbanBoard
@@ -460,6 +446,21 @@ export function StandardMode({
                         projects={projects}
                         onUpdateTask={onUpdateTask || (() => {})}
                         onToggleComplete={handleToggleTaskComplete}
+                        onDeleteTask={onDeleteTask}
+                      />
+                    ) : taskViewMode === 'priority' ? (
+                      <PriorityBoardView
+                        tasks={displayTasks}
+                        onToggleComplete={handleToggleTaskComplete}
+                        onDeleteTask={onDeleteTask}
+                        onUpdateTask={onUpdateTask}
+                      />
+                    ) : taskViewMode === 'timeline' ? (
+                      <TimelineView
+                        tasks={displayTasks}
+                        onToggleComplete={handleToggleTaskComplete}
+                        onDeleteTask={onDeleteTask}
+                        onUpdateTask={onUpdateTask}
                       />
                     ) : (
                       <TaskList
