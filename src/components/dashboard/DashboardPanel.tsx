@@ -10,9 +10,12 @@ import { StatPills } from './StatPills';
 import { TodayTimeline } from './TodayTimeline';
 import { SmartInsightCard } from './SmartInsightCard';
 import { QuickActionsBar } from './QuickActionsBar';
+import { WeatherCard } from './WeatherCard';
+import { ContractAlertsCard } from './ContractAlertsCard';
+import { ContactRemindersCard } from './ContactRemindersCard';
 import { StaggerContainer, StaggerItem } from '@/components/ui/page-transition';
-import { Task, TaskCategory } from '@/types/flux';
-import { isSameDay, subDays, startOfDay, isToday } from 'date-fns';
+import { Task, TaskCategory, CalendarEvent } from '@/types/flux';
+import { isSameDay, subDays, startOfDay, endOfDay, isToday } from 'date-fns';
 
 interface DbTask {
   id: string;
@@ -28,10 +31,14 @@ interface DbTask {
 
 interface DashboardPanelProps {
   userId: string;
+  onNavigate?: (panel: string) => void;
 }
 
-export function DashboardPanel({ userId }: DashboardPanelProps) {
+export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [contractAlerts, setContractAlerts] = useState<any[]>([]);
+  const [overdueContacts, setOverdueContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { t } = useLanguage();
   const { profile } = useAuth();
@@ -40,14 +47,26 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
   useEffect(() => {
     if (!userId) return;
 
-    const fetchTasks = async () => {
-      const { data } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', userId);
+    const fetchAll = async () => {
+      const now = new Date();
 
-      if (data) {
-        setTasks(data.map((t: DbTask) => ({
+      // Fetch tasks, events, contracts, contacts in parallel
+      const [tasksRes, eventsRes, contractsRes, contactsRes] = await Promise.all([
+        supabase.from('tasks').select('*').eq('user_id', userId),
+        supabase.from('events').select('*').eq('user_id', userId)
+          .gte('start_time', startOfDay(now).toISOString())
+          .lte('start_time', endOfDay(now).toISOString()),
+        supabase.from('contracts').select('*').eq('user_id', userId)
+          .eq('is_active', true).not('renewal_date', 'is', null),
+        supabase.from('user_contacts').select('id, name, last_contacted_at')
+          .eq('user_id', userId)
+          .lt('last_contacted_at', subDays(now, 30).toISOString())
+          .order('last_contacted_at', { ascending: true })
+          .limit(3),
+      ]);
+
+      if (tasksRes.data) {
+        setTasks(tasksRes.data.map((t: DbTask) => ({
           id: t.id,
           title: t.title,
           description: t.description || undefined,
@@ -58,10 +77,36 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
           dueDate: t.due_date ? new Date(t.due_date) : undefined,
         })));
       }
+
+      if (eventsRes.data) {
+        setEvents(eventsRes.data.map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          startTime: new Date(e.start_time),
+          endTime: new Date(e.end_time),
+          description: e.description || undefined,
+          category: e.category || undefined,
+        })));
+      }
+
+      if (contractsRes.data) {
+        setContractAlerts(contractsRes.data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          renewalDate: c.renewal_date ? new Date(c.renewal_date) : null,
+          cancellationNoticeDays: c.cancellation_notice_days || 30,
+          autoRenews: c.auto_renews ?? true,
+        })));
+      }
+
+      if (contactsRes.data) {
+        setOverdueContacts(contactsRes.data);
+      }
+
       setLoading(false);
     };
 
-    fetchTasks();
+    fetchAll();
   }, [userId]);
 
   const stats = useMemo(() => {
@@ -117,45 +162,49 @@ export function DashboardPanel({ userId }: DashboardPanelProps) {
   return (
     <div className="h-full overflow-y-auto p-3 md:p-4">
       <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-        {/* Check-in prompt (only shows if needed) */}
         <StaggerItem className="col-span-full">
           <CheckinPrompt />
         </StaggerItem>
 
-        {/* Hero greeting */}
         <StaggerItem className="col-span-full">
-          <DashboardHero
-            userName={profile?.display_name}
-            tasks={tasks}
-          />
+          <DashboardHero userName={profile?.display_name} tasks={tasks} />
         </StaggerItem>
 
-        {/* Focus card - most important next action */}
         <StaggerItem className="md:col-span-2">
-          <FocusCard
-            tasks={tasks}
-            onCompleteTask={handleCompleteTask}
-          />
+          <FocusCard tasks={tasks} onCompleteTask={handleCompleteTask} />
         </StaggerItem>
 
-        {/* Right column: stat pills + smart insight */}
         <StaggerItem className="md:col-span-1 space-y-3 md:space-y-4">
+          <WeatherCard />
           <StatPills
             streak={stats.streak}
             completedToday={stats.completedToday}
             completedThisWeek={stats.completedThisWeek}
             lifeScore={todayScore?.overallScore}
           />
+        </StaggerItem>
+
+        <StaggerItem className="md:col-span-2">
+          <TodayTimeline tasks={tasks} events={events} onNavigate={onNavigate} />
+        </StaggerItem>
+
+        <StaggerItem className="md:col-span-1">
           <SmartInsightCard tasks={tasks} />
         </StaggerItem>
 
-        {/* Today's timeline */}
-        <StaggerItem className="md:col-span-2">
-          <TodayTimeline tasks={tasks} />
-        </StaggerItem>
+        {contractAlerts.length > 0 && (
+          <StaggerItem className="md:col-span-2">
+            <ContractAlertsCard contracts={contractAlerts} onNavigate={onNavigate} />
+          </StaggerItem>
+        )}
 
-        {/* Quick actions */}
-        <StaggerItem className="md:col-span-1">
+        {overdueContacts.length > 0 && (
+          <StaggerItem className="md:col-span-1">
+            <ContactRemindersCard contacts={overdueContacts} onNavigate={onNavigate} />
+          </StaggerItem>
+        )}
+
+        <StaggerItem className={contractAlerts.length === 0 && overdueContacts.length === 0 ? "md:col-span-1" : "col-span-full"}>
           <QuickActionsBar />
         </StaggerItem>
       </StaggerContainer>

@@ -252,7 +252,7 @@ const Index = () => {
     return streak;
   }, [tasks]);
 
-  const [showMorningDigest, setShowMorningDigest] = useState(true);
+  const [showMorningDigest, setShowMorningDigest] = useState(false);
   const [showWeeklyReview, setShowWeeklyReview] = useState(false);
   const [mode, setMode] = useState<AppMode>('standard');
   const [messages, setMessages] = useState<ChatMessage[]>([]);

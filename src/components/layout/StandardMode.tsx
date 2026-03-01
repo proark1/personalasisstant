@@ -546,7 +546,7 @@ export function StandardMode({
               {/* Dashboard Panel */}
               {activePanel === 'dashboard' && user?.id && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                  <DashboardPanel userId={user.id} />
+                  <DashboardPanel userId={user.id} onNavigate={(p) => setActivePanel(p as ActivePanel)} />
                 </div>
               )}
 
