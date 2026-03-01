@@ -702,6 +702,34 @@ serve(async (req) => {
           required: ["query"]
         }
       },
+      // ==================== EMAIL REPLY/COMPOSE TOOLS ====================
+      {
+        type: "function",
+        name: "reply_to_email",
+        description: "Reply to an email that the user has received. Use this when the user wants to respond to an email. The email_query is used to identify which email to reply to (match by sender name, subject, or keyword). The reply_body is the content of the reply.",
+        parameters: {
+          type: "object",
+          properties: {
+            email_query: { type: "string", description: "Identifier to match the email — sender name, subject keyword, or partial match (e.g., 'Eurowings', 'the flight email')" },
+            reply_body: { type: "string", description: "The reply message content" }
+          },
+          required: ["email_query", "reply_body"]
+        }
+      },
+      {
+        type: "function",
+        name: "compose_new_email",
+        description: "Compose and send a new email (not a reply). Use when the user wants to write a fresh email to someone. Requires the recipient email address.",
+        parameters: {
+          type: "object",
+          properties: {
+            to: { type: "string", description: "Recipient email address" },
+            subject: { type: "string", description: "Email subject line" },
+            body: { type: "string", description: "Email body content" }
+          },
+          required: ["to", "subject", "body"]
+        }
+      },
     ];
 
     // Request ephemeral token from OpenAI

@@ -39,7 +39,7 @@ interface SmartPayload {
   statsSummary?: string;
   relevantContacts?: { name: string; role?: string; company?: string; city?: string; country?: string; tags?: string[]; email?: string }[];
   relevantContracts?: { name: string; provider?: string; category: string; costAmount?: number; costFrequency?: string; renewalDate?: string }[];
-  emailSummary?: { subject: string; from: string; priority: string; snippet: string }[];
+  emailSummary?: { subject: string; from: string; from_email?: string; gmail_message_id?: string; thread_id?: string; priority: string; snippet: string }[];
   notesSummary?: { title: string; snippet: string; tags: string[] }[];
   habitsSummary?: HabitSummary[];
   familyContext?: {
@@ -180,6 +180,9 @@ export function buildSmartPayload({
       payload.emailSummary = unread.map(e => ({
         subject: e.subject || '(no subject)',
         from: e.from_name || e.from_email,
+        from_email: e.from_email || undefined,
+        gmail_message_id: e.gmail_message_id || undefined,
+        thread_id: e.thread_id || undefined,
         priority: e.priority_score <= 2 ? 'high' : e.priority_score <= 4 ? 'medium' : 'low',
         snippet: (e.snippet || '').slice(0, 80),
       }));

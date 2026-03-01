@@ -470,6 +470,9 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
         .map(e => ({
           subject: e.subject,
           from: e.from_name || e.from_email,
+          from_email: e.from_email,
+          gmail_message_id: e.gmail_message_id,
+          thread_id: e.thread_id,
           snippet: e.snippet,
           category: e.category,
           priority: e.priority_score,
