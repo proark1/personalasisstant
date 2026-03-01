@@ -30,8 +30,8 @@ import {
   LayoutDashboard,
   Calendar,
   Sparkles,
-  CheckSquare,
-  MoreHorizontal,
+  Mail,
+  Heart,
 } from 'lucide-react';
 
 interface MobileLayoutProps {
@@ -134,11 +134,7 @@ export function MobileLayout({
 
   const handleTabChange = useCallback((tab: Tab) => {
     vibrate('light');
-    if (tab === 'more') {
-      setMoreOpen(true);
-    } else {
-      setActiveTab(tab);
-    }
+    setActiveTab(tab);
   }, [vibrate]);
 
   const handleDoriPress = useCallback(() => {
@@ -157,8 +153,8 @@ export function MobileLayout({
     { id: 'dashboard' as const, icon: LayoutDashboard },
     { id: 'calendar' as const, icon: Calendar },
     { id: 'dori' as const, icon: Sparkles, isCenter: true },
-    { id: 'tasks' as const, icon: CheckSquare },
-    { id: 'more' as const, icon: MoreHorizontal },
+    { id: 'email' as const, icon: Mail },
+    { id: 'health' as const, icon: Heart },
   ];
 
   // Determine header title
@@ -169,6 +165,7 @@ export function MobileLayout({
       {/* Contextual Header */}
       <ContextualHeader
         title={headerTitle}
+        onOpenMenu={() => setMoreOpen(true)}
         notifications={notifications}
         onMarkRead={markRead}
         onMarkAllRead={markAllRead}

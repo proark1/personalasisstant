@@ -17,12 +17,13 @@ import {
   Settings,
   MoreHorizontal,
   Mail,
+  CheckSquare,
 } from 'lucide-react';
 
 export type MoreSheetPanel =
   | 'contacts' | 'contracts' | 'notes' | 'habits'
   | 'health' | 'family' | 'islam' | 'properties'
-  | 'startups' | 'news' | 'social' | 'settings' | 'email';
+  | 'startups' | 'news' | 'social' | 'settings' | 'email' | 'tasks';
 
 interface MoreSheetProps {
   open: boolean;
@@ -55,6 +56,7 @@ const sections = [
   {
     label: 'Tools',
     items: [
+      { id: 'tasks' as const, icon: CheckSquare, labelKey: 'nav.tasks' },
       { id: 'notes' as const, icon: StickyNote, labelKey: 'nav.notes' },
       { id: 'social' as const, icon: MessageCircle, labelKey: 'nav.social' },
       { id: 'settings' as const, icon: Settings, labelKey: 'nav.settings' },
