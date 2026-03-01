@@ -42,7 +42,7 @@ export interface EmailThread {
 
 export type EmailView = 'smart' | 'all' | 'flagged';
 
-const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const SYNC_INTERVAL = 5 * 60 * 1000;
 const SYNC_KEY = 'email_last_sync';
 
 export function useEmails() {
@@ -51,6 +51,9 @@ export function useEmails() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [view, setView] = useState<EmailView>('smart');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
   const autoSyncDone = useRef(false);
 
   const fetchEmails = useCallback(async () => {
@@ -64,7 +67,6 @@ export function useEmails() {
         .eq('user_archived', false)
         .order('received_at', { ascending: false })
         .limit(100);
-
       if (error) throw error;
       setEmails((data as unknown as Email[]) || []);
     } catch (e) {
@@ -74,33 +76,17 @@ export function useEmails() {
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchEmails();
-  }, [fetchEmails]);
+  useEffect(() => { fetchEmails(); }, [fetchEmails]);
 
-  // Auto-sync if > 5 min since last sync
   const syncEmails = useCallback(async () => {
     if (!user || syncing) return;
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('gmail-sync', {
-        body: { maxResults: 30 },
-      });
-
+      const { data, error } = await supabase.functions.invoke('gmail-sync', { body: { maxResults: 30 } });
       if (error) throw error;
-      if (data?.error === 'no_gmail_connection') {
-        toast.error('No Google account connected. Connect via Settings → Calendar.');
-        return;
-      }
-      if (data?.error === 'gmail_scope_missing') {
-        toast.error('Gmail access not authorized. Please reconnect your Google account.');
-        return;
-      }
-      if (data?.error) {
-        toast.error(data.message || 'Failed to sync emails');
-        return;
-      }
-
+      if (data?.error === 'no_gmail_connection') { toast.error('No Google account connected.'); return; }
+      if (data?.error === 'gmail_scope_missing') { toast.error('Gmail access not authorized.'); return; }
+      if (data?.error) { toast.error(data.message || 'Failed to sync emails'); return; }
       localStorage.setItem(SYNC_KEY, Date.now().toString());
       toast.success(`Synced ${data?.synced || 0} emails`);
       await fetchEmails();
@@ -112,14 +98,11 @@ export function useEmails() {
     }
   }, [user, syncing, fetchEmails]);
 
-  // Auto-sync on mount
   useEffect(() => {
     if (!user || autoSyncDone.current) return;
     autoSyncDone.current = true;
     const lastSync = parseInt(localStorage.getItem(SYNC_KEY) || '0');
-    if (Date.now() - lastSync > SYNC_INTERVAL) {
-      syncEmails();
-    }
+    if (Date.now() - lastSync > SYNC_INTERVAL) syncEmails();
   }, [user, syncEmails]);
 
   const lastSyncTime = useMemo(() => {
@@ -129,17 +112,12 @@ export function useEmails() {
     if (diff < 60_000) return 'just now';
     if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
     return `${Math.floor(diff / 3600_000)}h ago`;
-  }, [syncing]); // re-compute after sync
+  }, [syncing]);
 
   const updateEmail = useCallback(async (emailId: string, updates: Partial<Email>) => {
     if (!user) return;
     try {
-      const { error } = await supabase
-        .from('user_emails')
-        .update(updates as any)
-        .eq('id', emailId)
-        .eq('user_id', user.id);
-
+      const { error } = await supabase.from('user_emails').update(updates as any).eq('id', emailId).eq('user_id', user.id);
       if (error) throw error;
       setEmails(prev => prev.map(e => e.id === emailId ? { ...e, ...updates } : e));
     } catch (e) {
@@ -179,14 +157,7 @@ export function useEmails() {
   const createSenderRule = useCallback(async (senderPattern: string, rule: { default_category?: string; default_priority?: number; auto_archive?: boolean }) => {
     if (!user) return;
     try {
-      const { error } = await supabase
-        .from('email_sender_rules')
-        .upsert({
-          user_id: user.id,
-          sender_pattern: senderPattern,
-          ...rule,
-        } as any, { onConflict: 'user_id,sender_pattern' });
-
+      const { error } = await supabase.from('email_sender_rules').upsert({ user_id: user.id, sender_pattern: senderPattern, ...rule } as any, { onConflict: 'user_id,sender_pattern' });
       if (error) throw error;
       toast.success(`Rule created for ${senderPattern}`);
     } catch (e) {
@@ -195,15 +166,103 @@ export function useEmails() {
     }
   }, [user]);
 
-  // Filter out snoozed emails
+  // Fetch full email body
+  const fetchEmailBody = useCallback(async (gmailMessageId: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('gmail-fetch-email', { body: { messageId: gmailMessageId } });
+      if (error) throw error;
+      return data?.body || null;
+    } catch (e) {
+      console.error('Fetch body error:', e);
+      toast.error('Failed to load email body');
+      return null;
+    }
+  }, []);
+
+  // Send reply via Gmail
+  const sendReply = useCallback(async (email: Email, replyBody: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('gmail-send-reply', {
+        body: { to: email.from_email, subject: email.subject, body: replyBody, threadId: email.thread_id, gmailMessageId: email.gmail_message_id },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return false; }
+      toast.success('Reply sent!');
+      return true;
+    } catch (e) {
+      console.error('Send reply error:', e);
+      toast.error('Failed to send reply');
+      return false;
+    }
+  }, []);
+
+  // Batch operations
+  const batchArchive = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      await updateEmail(id, { user_archived: true });
+    }
+    setEmails(prev => prev.filter(e => !selectedIds.has(e.id)));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+    toast.success(`Archived ${ids.length} emails`);
+  }, [selectedIds, updateEmail]);
+
+  const batchMarkRead = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      await updateEmail(id, { is_read: true });
+    }
+    setSelectedIds(new Set());
+    setSelectMode(false);
+    toast.success(`Marked ${ids.length} as read`);
+  }, [selectedIds, updateEmail]);
+
+  const batchReportSpam = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      await updateEmail(id, { user_archived: true, is_spam: true });
+    }
+    setEmails(prev => prev.filter(e => !selectedIds.has(e.id)));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+    toast.success(`Reported ${ids.length} as spam`);
+  }, [selectedIds, updateEmail]);
+
+  const toggleSelect = useCallback((emailId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(emailId)) next.delete(emailId); else next.add(emailId);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback((emailList: Email[]) => {
+    setSelectedIds(new Set(emailList.map(e => e.id)));
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  }, []);
+
+  // Search filter
+  const filterBySearch = useCallback((emailList: Email[]): Email[] => {
+    if (!searchQuery.trim()) return emailList;
+    const q = searchQuery.toLowerCase();
+    return emailList.filter(e =>
+      (e.subject?.toLowerCase().includes(q)) ||
+      (e.from_name?.toLowerCase().includes(q)) ||
+      (e.from_email?.toLowerCase().includes(q)) ||
+      (e.ai_summary?.toLowerCase().includes(q)) ||
+      (e.snippet?.toLowerCase().includes(q))
+    );
+  }, [searchQuery]);
+
+  // Filter snoozed
   const activeEmails = useMemo(() => {
     const now = new Date();
-    return emails.filter(e => {
-      if (e.user_snoozed_until) {
-        return new Date(e.user_snoozed_until) <= now;
-      }
-      return true;
-    });
+    return emails.filter(e => { if (e.user_snoozed_until) return new Date(e.user_snoozed_until) <= now; return true; });
   }, [emails]);
 
   const snoozedEmails = useMemo(() => {
@@ -215,7 +274,6 @@ export function useEmails() {
   const groupByThread = useCallback((emailList: Email[]): EmailThread[] => {
     const threadMap = new Map<string, Email[]>();
     const noThread: Email[] = [];
-
     for (const e of emailList) {
       if (e.thread_id) {
         const existing = threadMap.get(e.thread_id) || [];
@@ -225,41 +283,24 @@ export function useEmails() {
         noThread.push(e);
       }
     }
-
     const threads: EmailThread[] = [];
     for (const [, threadEmails] of threadMap) {
       threadEmails.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
-      threads.push({
-        latestEmail: threadEmails[0],
-        threadCount: threadEmails.length,
-        allEmails: threadEmails,
-      });
+      threads.push({ latestEmail: threadEmails[0], threadCount: threadEmails.length, allEmails: threadEmails });
     }
-    for (const e of noThread) {
-      threads.push({ latestEmail: e, threadCount: 1, allEmails: [e] });
-    }
-
+    for (const e of noThread) threads.push({ latestEmail: e, threadCount: 1, allEmails: [e] });
     threads.sort((a, b) => new Date(b.latestEmail.received_at).getTime() - new Date(a.latestEmail.received_at).getTime());
     return threads;
   }, []);
 
-  // Smart grouping
+  // Smart grouping with search
   const grouped = useMemo(() => {
-    const clean = activeEmails.filter(e => !e.is_spam && !e.is_phishing);
-    const flagged = activeEmails.filter(e => e.is_spam || e.is_phishing);
-
-    const attention = clean.filter(e =>
-      e.category === 'action_required' || e.priority_score <= 2 || e.is_important || e.sentiment === 'urgent'
-    ).sort((a, b) => a.priority_score - b.priority_score);
-
-    const fyi = clean.filter(e =>
-      !attention.includes(e) && !['newsletter', 'promotion'].includes(e.category)
-    );
-
-    const lowPriority = clean.filter(e =>
-      ['newsletter', 'promotion'].includes(e.category)
-    );
-
+    const searched = filterBySearch(activeEmails);
+    const clean = searched.filter(e => !e.is_spam && !e.is_phishing);
+    const flagged = searched.filter(e => e.is_spam || e.is_phishing);
+    const attention = clean.filter(e => e.category === 'action_required' || e.priority_score <= 2 || e.is_important || e.sentiment === 'urgent').sort((a, b) => a.priority_score - b.priority_score);
+    const fyi = clean.filter(e => !attention.includes(e) && !['newsletter', 'promotion'].includes(e.category));
+    const lowPriority = clean.filter(e => ['newsletter', 'promotion'].includes(e.category));
     return {
       attention: groupByThread(attention),
       fyi: groupByThread(fyi),
@@ -267,38 +308,26 @@ export function useEmails() {
       flagged: groupByThread(flagged),
       snoozed: groupByThread(snoozedEmails),
     };
-  }, [activeEmails, snoozedEmails, groupByThread]);
+  }, [activeEmails, snoozedEmails, groupByThread, filterBySearch]);
 
   const viewEmails = useMemo(() => {
-    if (view === 'smart') return null; // use grouped
-    if (view === 'flagged') return groupByThread(activeEmails.filter(e => e.is_spam || e.is_phishing));
-    return groupByThread(activeEmails);
-  }, [view, activeEmails, groupByThread]);
+    const searched = filterBySearch(activeEmails);
+    if (view === 'smart') return null;
+    if (view === 'flagged') return groupByThread(searched.filter(e => e.is_spam || e.is_phishing));
+    return groupByThread(searched);
+  }, [view, activeEmails, groupByThread, filterBySearch]);
 
   const unreadCount = activeEmails.filter(e => !e.is_read && !e.user_archived).length;
   const priorityCount = activeEmails.filter(e => (e.priority_score <= 2 || e.is_important) && !e.is_read).length;
   const flaggedCount = grouped.flagged.length;
 
   return {
-    emails: viewEmails,
-    grouped,
-    allEmails: activeEmails,
-    loading,
-    syncing,
-    view,
-    setView,
-    syncEmails,
-    updateEmail,
-    archiveEmail,
-    markImportant,
-    markAsRead,
-    reportSpam,
-    snoozeEmail,
-    createSenderRule,
-    unreadCount,
-    priorityCount,
-    flaggedCount,
-    lastSyncTime,
-    refetch: fetchEmails,
+    emails: viewEmails, grouped, allEmails: activeEmails, loading, syncing, view, setView,
+    syncEmails, updateEmail, archiveEmail, markImportant, markAsRead, reportSpam, snoozeEmail, createSenderRule,
+    fetchEmailBody, sendReply,
+    searchQuery, setSearchQuery,
+    selectMode, setSelectMode, selectedIds, toggleSelect, selectAll, clearSelection,
+    batchArchive, batchMarkRead, batchReportSpam,
+    unreadCount, priorityCount, flaggedCount, lastSyncTime, refetch: fetchEmails,
   };
 }

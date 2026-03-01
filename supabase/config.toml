@@ -83,3 +83,9 @@ verify_jwt = false
 
 [functions.email-draft-reply]
 verify_jwt = false
+
+[functions.gmail-fetch-email]
+verify_jwt = false
+
+[functions.gmail-send-reply]
+verify_jwt = false
