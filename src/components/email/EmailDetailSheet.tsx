@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Email, EmailThread } from '@/hooks/useEmails';
+import { reconstructSender } from '@/lib/emailSender';
 
 interface EmailDetailSheetProps {
   thread: EmailThread | null;
@@ -69,15 +70,16 @@ function EmailBodySkeleton() {
 }
 
 function ThreadMessage({ email, body, bodyLoading }: { email: Email; body: string | null; bodyLoading: boolean }) {
+  const sender = reconstructSender(email.from_name, email.from_email);
   return (
     <div className="border border-border rounded-xl overflow-hidden">
       <div className="flex items-center gap-3 p-3 bg-muted/30">
         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-semibold bg-muted text-muted-foreground">
-          {getInitials(email.from_name, email.from_email)}
+          {getInitials(sender.name, sender.email)}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-foreground">{email.from_name || email.from_email}</p>
-          <p className="text-[10px] text-muted-foreground">{email.from_email}</p>
+          <p className="text-xs font-semibold text-foreground">{sender.name}</p>
+          <p className="text-[10px] text-muted-foreground">{sender.email}</p>
           <p className="text-[10px] text-muted-foreground">{format(new Date(email.received_at), 'MMM d, h:mm a')}</p>
         </div>
       </div>
@@ -127,6 +129,7 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
 
   if (!email) return null;
 
+  const mainSender = reconstructSender(email.from_name, email.from_email);
   const isPriority = email.priority_score <= 2 || email.is_important;
   const isThreat = email.is_spam || email.is_phishing;
   const sentimentInfo = sentimentLabels[email.sentiment || 'neutral'] || sentimentLabels.neutral;
@@ -289,11 +292,11 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
           {/* Sender info */}
           <div className="flex items-center gap-3">
             <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[10px] font-semibold", isPriority ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-              {getInitials(email.from_name, email.from_email)}
+              {getInitials(mainSender.name, mainSender.email)}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">{email.from_name || email.from_email}</p>
-              <p className="text-xs text-muted-foreground">{email.from_email}</p>
+              <p className="text-sm font-semibold text-foreground">{mainSender.name}</p>
+              <p className="text-xs text-muted-foreground">{mainSender.email}</p>
             </div>
             <div className="ml-auto text-right shrink-0">
               <p className="text-xs text-muted-foreground">{format(new Date(email.received_at), 'MMM d, yyyy')}</p>
@@ -338,7 +341,7 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
           {/* Reply Composer — always visible */}
           <div className="space-y-2 border border-border rounded-xl p-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Reply to {email.from_name || email.from_email}</span>
+              <span className="text-xs font-semibold text-muted-foreground">Reply to {mainSender.name}</span>
               <Button variant="ghost" size="sm" onClick={handleDraftReply} disabled={draftLoading} className="gap-1 text-xs">
                 {draftLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                 AI Draft
