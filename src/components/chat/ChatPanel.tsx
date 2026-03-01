@@ -7,7 +7,8 @@ import { ChatMessage } from '@/types/flux';
 import { Contact } from '@/hooks/useContacts';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { findRelevantContacts, ContactSuggestion } from '@/lib/contactSuggestions';
-import { Send, Sparkles, User, Bot, Search, Mic, MicOff, Maximize2, Minimize2, Users, X } from 'lucide-react';
+import { Send, Sparkles, User, Bot, Search, Mic, MicOff, Maximize2, Minimize2, Users, X, AudioLines } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 
 const EMPTY_CONTACTS: Contact[] = [];
@@ -18,6 +19,7 @@ interface ChatPanelProps {
   isProcessing: boolean;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  onVoiceMode?: () => void;
   contacts?: Contact[];
 }
 
@@ -27,6 +29,7 @@ export function ChatPanel({
   isProcessing,
   isFullscreen = false,
   onToggleFullscreen,
+  onVoiceMode,
   contacts = EMPTY_CONTACTS,
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
@@ -105,6 +108,22 @@ export function ChatPanel({
             <Search className="w-3 h-3" />
             <span>Search Grounded</span>
           </div>
+          {onVoiceMode && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="voice_mode"
+                    size="iconSm"
+                    onClick={onVoiceMode}
+                  >
+                    <AudioLines className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Voice Mode</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {onToggleFullscreen && (
             <Button
               variant="ghost"
