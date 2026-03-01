@@ -41,6 +41,7 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.properties': 'Properties',
     'nav.startups': 'Startups',
     'nav.news': 'Tech News',
+    'nav.email': 'Email',
     
     // Meal Planning
     'meals.generateShoppingList': 'Generate Shopping List',
@@ -524,7 +525,7 @@ const translations: Record<Language, Record<string, string>> = {
     'cooking.subtitle': 'Plan your meals and manage recipes',
     'nav.cooking': 'Cooking',
     'nav.health': 'Health',
-    'nav.more': 'More',
+     'nav.more': 'More',
     // Mobile Navigation
     'nav.dori': 'Dori',
     'nav.allTasks': 'All Tasks',
@@ -819,6 +820,7 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.properties': 'Immobilien',
     'nav.startups': 'Startups',
     'nav.news': 'Tech News',
+    'nav.email': 'E-Mail',
     
     // Meal Planning
     'meals.generateShoppingList': 'Einkaufsliste erstellen',

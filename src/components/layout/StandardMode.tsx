@@ -45,6 +45,7 @@ const DashboardPanel = lazy(() => import('../dashboard/DashboardPanel').then(m =
 const ContactsPanel = lazy(() => import('../contacts/ContactsPanel').then(m => ({ default: m.ContactsPanel })));
 const ContractsPanel = lazy(() => import('../contracts/ContractsPanel').then(m => ({ default: m.ContractsPanel })));
 const SettingsPanelContent = lazy(() => import('../settings/SettingsPanelContent').then(m => ({ default: m.SettingsPanelContent })));
+const EmailPanel = lazy(() => import('../email/EmailPanel').then(m => ({ default: m.EmailPanel })));
 
 interface StandardModeProps {
   tasks: Task[];
@@ -175,6 +176,7 @@ export function StandardMode({
       family: t('nav.cooking') || 'Cooking',
       islam: t('nav.islam') || 'Islam',
       health: t('nav.health') || 'Health',
+      email: t('nav.email') || 'Email',
       properties: t('nav.properties') || 'Properties',
       startups: t('nav.startups') || 'Startups',
       news: t('nav.news') || 'Tech News',
@@ -654,6 +656,13 @@ export function StandardMode({
               {activePanel === 'news' && user?.id && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
                   <TechNewsPanel />
+                </div>
+              )}
+
+              {/* Email Panel */}
+              {activePanel === 'email' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <EmailPanel />
                 </div>
               )}
 

@@ -17,6 +17,7 @@ import { PropertyPanel } from '../property/PropertyPanel';
 import { StartupWorkspacePanel } from '../startup/StartupWorkspacePanel';
 import { TechNewsPanel } from '../news/TechNewsPanel';
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
+import { EmailPanel } from '../email/EmailPanel';
 import { ContextualHeader } from './ContextualHeader';
 import { MoreSheet, MoreSheetPanel } from './MoreSheet';
 
@@ -66,7 +67,7 @@ interface MobileLayoutProps {
 type Tab = 'dashboard' | 'calendar' | 'chat' | 'tasks' | 'more'
   | 'social' | 'family' | 'health' | 'contacts' | 'contracts'
   | 'notes' | 'habits' | 'islam' | 'properties' | 'startups'
-  | 'news' | 'settings';
+  | 'news' | 'settings' | 'email';
 
 const tabTitles: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -85,6 +86,7 @@ const tabTitles: Record<string, string> = {
   startups: 'Startups',
   news: 'Tech News',
   settings: 'Settings',
+  email: 'Email',
 };
 
 export function MobileLayout({
@@ -272,6 +274,9 @@ export function MobileLayout({
         </div>
         <div className={cn("h-full overflow-y-auto", activeTab === 'news' ? 'block' : 'hidden')}>
           <TechNewsPanel />
+        </div>
+        <div className={cn("h-full overflow-y-auto", activeTab === 'email' ? 'block' : 'hidden')}>
+          <EmailPanel />
         </div>
       </main>
 

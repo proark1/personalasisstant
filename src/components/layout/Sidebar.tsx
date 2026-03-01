@@ -29,6 +29,7 @@ import {
   Briefcase,
   Newspaper,
   Heart,
+  Mail,
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,7 +38,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | null;
+export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | null;
 
 interface SidebarProps {
   onEditProfile?: () => void;
@@ -223,6 +224,7 @@ export function Sidebar({
 
           {/* Business */}
           <NavGroup title="Business" collapsed={collapsed}>
+            <NavItem icon={Mail} label={t('nav.email') || 'Email'} panel="email" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={BookUser} label={t('nav.contacts')} panel="contacts" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={FileText} label={t('nav.contracts')} panel="contracts" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Building2} label={t('nav.properties') || 'Properties'} panel="properties" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />

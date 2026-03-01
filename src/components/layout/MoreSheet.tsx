@@ -16,12 +16,13 @@ import {
   MessageCircle,
   Settings,
   MoreHorizontal,
+  Mail,
 } from 'lucide-react';
 
 export type MoreSheetPanel =
   | 'contacts' | 'contracts' | 'notes' | 'habits'
   | 'health' | 'family' | 'islam' | 'properties'
-  | 'startups' | 'news' | 'social' | 'settings';
+  | 'startups' | 'news' | 'social' | 'settings' | 'email';
 
 interface MoreSheetProps {
   open: boolean;
@@ -43,6 +44,7 @@ const sections = [
   {
     label: 'Business',
     items: [
+      { id: 'email' as const, icon: Mail, labelKey: 'nav.email' },
       { id: 'contacts' as const, icon: BookUser, labelKey: 'nav.contacts' },
       { id: 'contracts' as const, icon: FileText, labelKey: 'nav.contracts' },
       { id: 'properties' as const, icon: Building2, labelKey: 'nav.properties' },

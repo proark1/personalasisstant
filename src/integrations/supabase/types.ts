@@ -1120,6 +1120,42 @@ export type Database = {
         }
         Relationships: []
       }
+      email_sender_rules: {
+        Row: {
+          auto_archive: boolean | null
+          created_at: string
+          default_category: string | null
+          default_priority: number | null
+          id: string
+          learned_from_count: number | null
+          sender_pattern: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_archive?: boolean | null
+          created_at?: string
+          default_category?: string | null
+          default_priority?: number | null
+          id?: string
+          learned_from_count?: number | null
+          sender_pattern: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_archive?: boolean | null
+          created_at?: string
+          default_category?: string | null
+          default_priority?: number | null
+          id?: string
+          learned_from_count?: number | null
+          sender_pattern?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           attendees: string[] | null
@@ -4556,6 +4592,89 @@ export type Database = {
           website_url?: string | null
         }
         Relationships: []
+      }
+      user_emails: {
+        Row: {
+          body_preview: string | null
+          category: string | null
+          created_at: string
+          from_email: string
+          from_name: string | null
+          gmail_labels: string[] | null
+          gmail_message_id: string
+          id: string
+          is_important: boolean | null
+          is_read: boolean | null
+          is_starred: boolean | null
+          matched_contact_id: string | null
+          priority_score: number | null
+          received_at: string
+          snippet: string | null
+          subject: string | null
+          thread_id: string | null
+          to_email: string | null
+          updated_at: string
+          user_archived: boolean | null
+          user_id: string
+          user_snoozed_until: string | null
+        }
+        Insert: {
+          body_preview?: string | null
+          category?: string | null
+          created_at?: string
+          from_email: string
+          from_name?: string | null
+          gmail_labels?: string[] | null
+          gmail_message_id: string
+          id?: string
+          is_important?: boolean | null
+          is_read?: boolean | null
+          is_starred?: boolean | null
+          matched_contact_id?: string | null
+          priority_score?: number | null
+          received_at?: string
+          snippet?: string | null
+          subject?: string | null
+          thread_id?: string | null
+          to_email?: string | null
+          updated_at?: string
+          user_archived?: boolean | null
+          user_id: string
+          user_snoozed_until?: string | null
+        }
+        Update: {
+          body_preview?: string | null
+          category?: string | null
+          created_at?: string
+          from_email?: string
+          from_name?: string | null
+          gmail_labels?: string[] | null
+          gmail_message_id?: string
+          id?: string
+          is_important?: boolean | null
+          is_read?: boolean | null
+          is_starred?: boolean | null
+          matched_contact_id?: string | null
+          priority_score?: number | null
+          received_at?: string
+          snippet?: string | null
+          subject?: string | null
+          thread_id?: string | null
+          to_email?: string | null
+          updated_at?: string
+          user_archived?: boolean | null
+          user_id?: string
+          user_snoozed_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_emails_matched_contact_id_fkey"
+            columns: ["matched_contact_id"]
+            isOneToOne: false
+            referencedRelation: "user_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_notifications: {
         Row: {
