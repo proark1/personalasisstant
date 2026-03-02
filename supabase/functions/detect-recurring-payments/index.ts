@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const { data: emails, error: emailError } = await supabase
       .from("user_emails")
-      .select("id, subject, sender_name, sender_email, snippet, received_at")
+      .select("id, subject, from_name, from_email, snippet, received_at")
       .eq("user_id", userId)
       .eq("is_archived", false)
       .gte("received_at", sixMonthsAgo.toISOString())
@@ -96,8 +96,8 @@ serve(async (req) => {
 
     // Prepare email summaries for AI (limit to keep tokens low)
     const emailSummaries = relevantEmails.slice(0, 100).map((e: any) => ({
-      sender: e.sender_email || e.sender_name || "unknown",
-      senderName: e.sender_name || "",
+      sender: e.from_email || e.from_name || "unknown",
+      senderName: e.from_name || "",
       subject: e.subject || "",
       snippet: (e.snippet || "").slice(0, 120),
       date: e.received_at,
