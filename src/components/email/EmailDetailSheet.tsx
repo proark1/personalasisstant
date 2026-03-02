@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Archive, Star, StarOff, X, ExternalLink, ShieldAlert, Sparkles, Flag, Clock, Copy, Loader2, Ban, Send, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Receipt, CalendarPlus, UserPlus, User } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format, addHours, addDays, nextMonday, setHours, setMinutes } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -92,7 +93,7 @@ function ThreadMessage({ email, body, bodyLoading }: { email: Email; body: strin
         {bodyLoading ? (
           <EmailBodySkeleton />
         ) : body ? (
-          <div className="email-body-scoped text-sm text-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: body }} />
+          <div className="email-body-scoped text-sm text-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(body, { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'blockquote', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'img', 'hr', 'pre', 'code', 'b', 'i', 'sub', 'sup', 'dl', 'dt', 'dd'], ALLOWED_ATTR: ['href', 'class', 'style', 'src', 'alt', 'width', 'height', 'target', 'rel', 'colspan', 'rowspan'], ALLOW_DATA_ATTR: false }) }} />
         ) : (
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{email.snippet || email.body_preview || 'No content.'}</p>
         )}
@@ -381,7 +382,7 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
               {bodiesLoading.has(email.gmail_message_id) ? (
                 <EmailBodySkeleton />
               ) : fullBodies[email.gmail_message_id] ? (
-                <div className="email-body-scoped text-sm text-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: fullBodies[email.gmail_message_id]! }} />
+                <div className="email-body-scoped text-sm text-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(fullBodies[email.gmail_message_id]!, { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'blockquote', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'img', 'hr', 'pre', 'code', 'b', 'i', 'sub', 'sup', 'dl', 'dt', 'dd'], ALLOWED_ATTR: ['href', 'class', 'style', 'src', 'alt', 'width', 'height', 'target', 'rel', 'colspan', 'rowspan'], ALLOW_DATA_ATTR: false }) }} />
               ) : (
                 <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                   {email.snippet || email.body_preview || 'No preview available.'}
