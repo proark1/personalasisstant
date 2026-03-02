@@ -8,6 +8,7 @@ import { RecurringPaymentDetector, DetectedPayment } from './RecurringPaymentDet
 import { reconstructSender } from '@/lib/emailSender';
 import { AddEditContractDialog } from '@/components/contracts/AddEditContractDialog';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 import { useContracts, ContractInput } from '@/hooks/useContracts';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -135,6 +136,7 @@ export function EmailPanel() {
   const [detectorOpen, setDetectorOpen] = useState(false);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [contractPrefill, setContractPrefill] = useState<Partial<ContractInput> | null>(null);
+  const [contractExtracting, setContractExtracting] = useState(false);
 
   const handleAddAsContract = (payment: DetectedPayment) => {
     setContractPrefill({
@@ -179,19 +181,72 @@ export function EmailPanel() {
     return 'subscription';
   };
 
-  const handleSaveEmailAsContract = (email: Email) => {
-    const { name: senderName } = reconstructSender(email.from_name, email.from_email);
-    const providerName = senderName;
+  const handleSaveEmailAsContract = async (email: Email, bodyHtml?: string) => {
+    const { name: senderName, email: senderEmail } = reconstructSender(email.from_name, email.from_email);
     const searchText = `${email.subject || ''} ${email.snippet || ''} ${email.body_preview || ''}`;
+    const emailDate = email.received_at ? format(new Date(email.received_at), 'yyyy-MM-dd') : '';
+
+    // Build rich notes with full email content
+    const notesParts = [
+      '--- Created from Email ---',
+      `From: ${senderName} <${senderEmail}>`,
+      `Date: ${email.received_at ? format(new Date(email.received_at), 'PPP p') : 'Unknown'}`,
+      `Subject: ${email.subject || '(No subject)'}`,
+      '',
+      '--- Email Content ---',
+      email.snippet || email.body_preview || '(No content)',
+    ];
+    const richNotes = notesParts.join('\n');
+
+    // Try AI extraction first
+    setContractExtracting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-contract-from-email', {
+        body: {
+          from_name: senderName,
+          from_email: senderEmail,
+          subject: email.subject,
+          snippet: email.snippet,
+          body_preview: email.body_preview,
+          body_html: bodyHtml || null,
+          received_at: email.received_at,
+        },
+      });
+
+      if (!error && data?.extracted) {
+        const ai = data.extracted;
+        setContractPrefill({
+          name: ai.provider || senderName,
+          provider: ai.provider || senderName,
+          costAmount: ai.costAmount ?? undefined,
+          costFrequency: ai.costFrequency || 'monthly',
+          category: ai.category || 'subscription',
+          autoRenews: ai.autoRenews ?? true,
+          startDate: ai.startDate ? new Date(ai.startDate) : (emailDate ? new Date(emailDate) : undefined),
+          renewalDate: ai.renewalDate ? new Date(ai.renewalDate) : undefined,
+          endDate: ai.endDate ? new Date(ai.endDate) : undefined,
+          contractNumber: ai.contractNumber || undefined,
+          cancellationNoticeDays: ai.cancellationNoticeDays ?? 30,
+          notes: richNotes,
+        });
+        setContractDialogOpen(true);
+        setDetailOpen(false);
+        setContractExtracting(false);
+        return;
+      }
+    } catch (e) {
+      console.error('AI contract extraction failed, using fallback:', e);
+    }
+    setContractExtracting(false);
+
+    // Fallback to regex extraction
     const amount = extractAmountFromText(searchText);
     const contractNumber = extractContractNumber(searchText);
-    const category = detectCategory(`${providerName} ${searchText}`);
-    const emailDate = email.received_at ? format(new Date(email.received_at), 'yyyy-MM-dd') : '';
-    const notes = `Created from email: "${email.subject || '(No subject)'}" (received ${email.received_at ? format(new Date(email.received_at), 'PPP') : 'unknown date'})`;
+    const category = detectCategory(`${senderName} ${searchText}`);
 
     setContractPrefill({
-      name: providerName,
-      provider: providerName,
+      name: senderName,
+      provider: senderName,
       costAmount: amount,
       costFrequency: 'monthly',
       category: category as any,
@@ -199,7 +254,7 @@ export function EmailPanel() {
       startDate: emailDate ? new Date(emailDate) : undefined,
       renewalDate: emailDate ? new Date(emailDate) : undefined,
       contractNumber,
-      notes,
+      notes: richNotes,
     });
     setContractDialogOpen(true);
     setDetailOpen(false);
@@ -465,6 +520,7 @@ export function EmailPanel() {
         onSendReply={sendReply}
         onCategorize={categorizeEmail}
         onSaveAsContract={handleSaveEmailAsContract}
+        contractExtracting={contractExtracting}
       />
 
       <ComposeEmailSheet

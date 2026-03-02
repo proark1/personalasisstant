@@ -24,7 +24,8 @@ interface EmailDetailSheetProps {
   onFetchBody?: (gmailMessageId: string) => Promise<string | null>;
   onSendReply?: (email: Email, body: string) => Promise<boolean>;
   onCategorize?: (emailId: string, priority: 'high' | 'medium' | 'low' | 'spam') => void;
-  onSaveAsContract?: (email: Email) => void;
+  onSaveAsContract?: (email: Email, bodyHtml?: string) => void;
+  contractExtracting?: boolean;
 }
 
 const sentimentLabels: Record<string, { label: string; className: string }> = {
@@ -96,7 +97,7 @@ function ThreadMessage({ email, body, bodyLoading }: { email: Email; body: strin
   );
 }
 
-export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive, onToggleImportant, onReportSpam, onSnooze, onCreateSenderRule, onFetchBody, onSendReply, onCategorize, onSaveAsContract }: EmailDetailSheetProps) {
+export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive, onToggleImportant, onReportSpam, onSnooze, onCreateSenderRule, onFetchBody, onSendReply, onCategorize, onSaveAsContract, contractExtracting }: EmailDetailSheetProps) {
   const [showSnooze, setShowSnooze] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [fullBodies, setFullBodies] = useState<Record<string, string | null>>({});
@@ -267,8 +268,12 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
                 <Flag className="w-4 h-4 mr-1" />Spam
               </Button>
               {onSaveAsContract && (
-                <Button variant="ghost" size="sm" onClick={() => onSaveAsContract(email)}>
-                  <Receipt className="w-4 h-4 mr-1" />Contract
+                <Button variant="ghost" size="sm" onClick={() => {
+                  const bodyHtml = fullBodies[email.gmail_message_id] || undefined;
+                  onSaveAsContract(email, bodyHtml);
+                }} disabled={contractExtracting}>
+                  {contractExtracting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Receipt className="w-4 h-4 mr-1" />}
+                  {contractExtracting ? 'Extracting...' : 'Contract'}
                 </Button>
               )}
             </div>

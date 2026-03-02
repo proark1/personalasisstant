@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.detect-recurring-payments]
 verify_jwt = false
+
+[functions.extract-contract-from-email]
+verify_jwt = false
