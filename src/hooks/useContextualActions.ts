@@ -23,6 +23,10 @@ interface ContextData {
   habitsLoggedToday: number;
   totalHabits: number;
   prayersLoggedToday: number;
+  priorityEmailCount: number;
+  urgentContractName: string | null;
+  urgentContractDays: number;
+  meetingContactName: string | null;
 }
 
 export function useContextualActions(onNavigate?: (panel: string) => void) {
@@ -37,6 +41,10 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
     habitsLoggedToday: 0,
     totalHabits: 0,
     prayersLoggedToday: 0,
+    priorityEmailCount: 0,
+    urgentContractName: null,
+    urgentContractDays: 0,
+    meetingContactName: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -46,13 +54,35 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+      const sevenDaysFromNow = format(addDays(new Date(), 7), 'yyyy-MM-dd');
 
-      const checkinsResult = await supabase.from('daily_checkins').select('id').eq('user_id', user.id).eq('checkin_date', today).limit(1);
-      const tasksResult = await supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('completed', false);
-      const contactsResult = await supabase.from('user_contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id).lt('last_contacted_at', format(addDays(new Date(), -30), 'yyyy-MM-dd'));
-      const eventsResult = await supabase.from('events').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('start_time', today).lt('start_time', tomorrow);
-      const habitsResult = await supabase.from('habits').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_active', true);
-      const habitLogsResult = await supabase.from('habit_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('log_date', today);
+      const [checkinsResult, tasksResult, contactsResult, eventsResult, habitsResult, habitLogsResult, emailsResult, contractsResult] = await Promise.all([
+        supabase.from('daily_checkins').select('id').eq('user_id', user.id).eq('checkin_date', today).limit(1),
+        supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('completed', false),
+        supabase.from('user_contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id).lt('last_contacted_at', format(addDays(new Date(), -30), 'yyyy-MM-dd')),
+        supabase.from('events').select('id, title', { count: 'exact' }).eq('user_id', user.id).gte('start_time', today).lt('start_time', tomorrow),
+        supabase.from('habits').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_active', true),
+        supabase.from('habit_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('log_date', today),
+        supabase.from('user_emails').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_read', false).eq('user_archived', false).lte('priority_score', 2),
+        supabase.from('contracts').select('name, renewal_date').eq('user_id', user.id).eq('is_active', true).not('renewal_date', 'is', null).lte('renewal_date', sevenDaysFromNow).gte('renewal_date', today).order('renewal_date').limit(1),
+      ]);
+
+      // Find meeting-contact match
+      let meetingContactName: string | null = null;
+      if (eventsResult.data && eventsResult.data.length > 0) {
+        const contactsForMatch = await supabase.from('user_contacts').select('name').eq('user_id', user.id).limit(50);
+        if (contactsForMatch.data) {
+          for (const event of eventsResult.data) {
+            const match = contactsForMatch.data.find((c: any) => event.title?.toLowerCase().includes(c.name?.toLowerCase()));
+            if (match) { meetingContactName = match.name; break; }
+          }
+        }
+      }
+
+      const urgentContract = contractsResult.data?.[0];
+      const urgentContractDays = urgentContract?.renewal_date 
+        ? Math.max(0, Math.floor((new Date(urgentContract.renewal_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+        : 0;
 
       setContextData({
         currentHour: new Date().getHours(),
@@ -64,6 +94,10 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
         habitsLoggedToday: habitLogsResult.count || 0,
         totalHabits: habitsResult.count || 0,
         prayersLoggedToday: 0,
+        priorityEmailCount: emailsResult.count || 0,
+        urgentContractName: urgentContract?.name || null,
+        urgentContractDays,
+        meetingContactName,
       });
     } catch (error) {
       console.error('Error fetching context data:', error);
@@ -73,7 +107,7 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
   }, [user]);
 
   const actions = useMemo((): QuickAction[] => {
-    const { currentHour, hasCheckedInToday, pendingTaskCount, overdueContactCount, habitsLoggedToday, totalHabits, upcomingEventCount } = contextData;
+    const { currentHour, hasCheckedInToday, pendingTaskCount, overdueContactCount, habitsLoggedToday, totalHabits, upcomingEventCount, priorityEmailCount, urgentContractName, urgentContractDays, meetingContactName } = contextData;
     const navigate = onNavigate || (() => {});
     const allActions: QuickAction[] = [];
 
@@ -196,6 +230,45 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
         action: () => navigate('tasks'),
         priority: 92,
         description: 'Knock out small tasks',
+      });
+    }
+
+    // Cross-module: Priority emails
+    if (priorityEmailCount > 0) {
+      allActions.push({
+        id: 'priority-emails',
+        label: 'Priority Emails',
+        icon: 'Mail',
+        category: 'priority',
+        action: () => navigate('email'),
+        priority: 93,
+        description: `${priorityEmailCount} need${priorityEmailCount === 1 ? 's' : ''} attention`,
+      });
+    }
+
+    // Cross-module: Contract renewal
+    if (urgentContractName) {
+      allActions.push({
+        id: 'contract-review',
+        label: 'Review Contract',
+        icon: 'FileText',
+        category: 'priority',
+        action: () => navigate('contracts'),
+        priority: 91,
+        description: `${urgentContractName} renews in ${urgentContractDays}d`,
+      });
+    }
+
+    // Cross-module: Meeting prep with contact
+    if (meetingContactName) {
+      allActions.push({
+        id: 'meeting-prep',
+        label: `Prep: ${meetingContactName}`,
+        icon: 'Users',
+        category: 'priority',
+        action: () => navigate('contacts'),
+        priority: 89,
+        description: 'Prepare for meeting',
       });
     }
 

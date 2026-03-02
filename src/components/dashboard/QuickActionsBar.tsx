@@ -4,7 +4,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useContextualActions, QuickAction } from '@/hooks/useContextualActions';
 import { 
   Sun, Calendar, ListTodo, Timer, Zap, Check, CalendarPlus, 
-  BarChart, Users, Trophy, Brain, Sparkles, LucideIcon
+  BarChart, Users, Trophy, Brain, Sparkles, Mail, FileText, LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +21,8 @@ const iconMap: Record<string, LucideIcon> = {
   Trophy,
   Brain,
   Sparkles,
+  Mail,
+  FileText,
 };
 
 interface QuickActionsBarProps {

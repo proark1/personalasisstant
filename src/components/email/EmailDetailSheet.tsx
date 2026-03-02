@@ -3,7 +3,8 @@ import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Archive, Star, StarOff, X, ExternalLink, ShieldAlert, Sparkles, Flag, Clock, Copy, Loader2, Ban, Send, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Receipt } from 'lucide-react';
+import { Archive, Star, StarOff, X, ExternalLink, ShieldAlert, Sparkles, Flag, Clock, Copy, Loader2, Ban, Send, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Receipt, CalendarPlus, UserPlus, User } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format, addHours, addDays, nextMonday, setHours, setMinutes } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +27,9 @@ interface EmailDetailSheetProps {
   onCategorize?: (emailId: string, priority: 'high' | 'medium' | 'low' | 'spam') => void;
   onSaveAsContract?: (email: Email, bodyHtml?: string) => void;
   contractExtracting?: boolean;
+  onAddToCalendar?: (data: { title: string; description: string; date?: string }) => void;
+  onSaveAsContact?: (data: { name: string; email: string }) => void;
+  matchedContact?: { id: string; name: string; tier?: string; last_contacted_at?: string; relationship?: string } | null;
 }
 
 const sentimentLabels: Record<string, { label: string; className: string }> = {
@@ -97,7 +101,7 @@ function ThreadMessage({ email, body, bodyLoading }: { email: Email; body: strin
   );
 }
 
-export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive, onToggleImportant, onReportSpam, onSnooze, onCreateSenderRule, onFetchBody, onSendReply, onCategorize, onSaveAsContract, contractExtracting }: EmailDetailSheetProps) {
+export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive, onToggleImportant, onReportSpam, onSnooze, onCreateSenderRule, onFetchBody, onSendReply, onCategorize, onSaveAsContract, contractExtracting, onAddToCalendar, onSaveAsContact, matchedContact }: EmailDetailSheetProps) {
   const [showSnooze, setShowSnooze] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [fullBodies, setFullBodies] = useState<Record<string, string | null>>({});
@@ -276,9 +280,52 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
                   {contractExtracting ? 'Extracting...' : 'Contract'}
                 </Button>
               )}
+              {onAddToCalendar && (
+                <Button variant="ghost" size="sm" onClick={() => {
+                  onAddToCalendar({
+                    title: email.subject || 'Event from email',
+                    description: `From: ${mainSender.name} <${mainSender.email}>\n\n${email.snippet || ''}`,
+                    date: email.received_at,
+                  });
+                }}>
+                  <CalendarPlus className="w-4 h-4 mr-1" />Calendar
+                </Button>
+              )}
             </div>
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}><X className="w-4 h-4" /></Button>
           </div>
+
+          {/* Matched Contact Card */}
+          {matchedContact && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                  {matchedContact.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">{matchedContact.name}</p>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  {matchedContact.tier && <span className="capitalize">{matchedContact.tier}</span>}
+                  {matchedContact.relationship && <span>· {matchedContact.relationship}</span>}
+                  {matchedContact.last_contacted_at && <span>· Last contact {format(new Date(matchedContact.last_contacted_at), 'MMM d')}</span>}
+                </div>
+              </div>
+              <User className="w-4 h-4 text-primary shrink-0" />
+            </div>
+          )}
+
+          {/* Save as Contact (when no match) */}
+          {!matchedContact && !email.matched_contact_id && onSaveAsContact && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs gap-1.5"
+              onClick={() => onSaveAsContact({ name: mainSender.name || '', email: mainSender.email })}
+            >
+              <UserPlus className="w-3.5 h-3.5" />Save {mainSender.name || mainSender.email} as Contact
+            </Button>
+          )}
 
           {/* Snooze options */}
           {showSnooze && (

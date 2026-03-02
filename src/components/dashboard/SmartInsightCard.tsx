@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
-import { ChevronLeft, ChevronRight, Lightbulb, Brain, Heart, TrendingUp } from 'lucide-react';
+import { Lightbulb, Brain, TrendingUp, Mail, FileText, Users, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { differenceInDays } from 'date-fns';
 
 interface Insight {
   id: string;
@@ -14,16 +15,22 @@ interface Insight {
 
 interface SmartInsightCardProps {
   tasks?: any[];
+  emails?: any[];
+  contracts?: any[];
+  contacts?: any[];
+  events?: any[];
 }
 
-export function SmartInsightCard({ tasks = [] }: SmartInsightCardProps) {
+export function SmartInsightCard({ tasks = [], emails = [], contracts = [], contacts = [], events = [] }: SmartInsightCardProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const insights = useMemo<Insight[]>(() => {
     const result: Insight[] = [];
     const incompleteTasks = tasks.filter((t: any) => !t.completed && !t.trashed);
     const highPriority = incompleteTasks.filter((t: any) => t.priority === 'high');
+    const now = new Date();
 
+    // Task insights
     if (highPriority.length > 0) {
       result.push({
         id: 'priority',
@@ -34,7 +41,86 @@ export function SmartInsightCard({ tasks = [] }: SmartInsightCardProps) {
       });
     }
 
-    const hour = new Date().getHours();
+    // Email insights
+    const unreadEmails = emails.filter((e: any) => !e.is_read && !e.user_archived);
+    const priorityEmails = unreadEmails.filter((e: any) => e.priority_score <= 2);
+    if (priorityEmails.length > 0) {
+      const sender = priorityEmails[0].from_name || priorityEmails[0].from_email;
+      result.push({
+        id: 'priority-email',
+        icon: <Mail className="w-5 h-5" />,
+        title: 'Priority Email',
+        content: `${priorityEmails.length} priority email${priorityEmails.length > 1 ? 's' : ''} need${priorityEmails.length === 1 ? 's' : ''} attention. "${priorityEmails[0].subject}" from ${sender} is most urgent.`,
+        color: 'from-amber-500/10 to-primary/10',
+      });
+    } else if (unreadEmails.length > 3) {
+      result.push({
+        id: 'unread-emails',
+        icon: <Mail className="w-5 h-5" />,
+        title: 'Email Inbox',
+        content: `You have ${unreadEmails.length} unread emails. Consider a quick inbox sweep to stay on top of things.`,
+        color: 'from-amber-500/10 to-accent/10',
+      });
+    }
+
+    // Contract insights
+    const urgentContracts = contracts.filter((c: any) => {
+      if (!c.renewal_date) return false;
+      const days = differenceInDays(new Date(c.renewal_date), now);
+      return days >= 0 && days <= 7;
+    });
+    if (urgentContracts.length > 0) {
+      const c = urgentContracts[0];
+      const days = differenceInDays(new Date(c.renewal_date), now);
+      result.push({
+        id: 'contract-alert',
+        icon: <FileText className="w-5 h-5" />,
+        title: 'Contract Alert',
+        content: `"${c.name}" renews in ${days} day${days !== 1 ? 's' : ''}${c.cost_amount ? ` (${c.cost_amount}€)` : ''}. Review or cancel before it auto-renews.`,
+        color: 'from-destructive/10 to-amber-500/10',
+      });
+    }
+
+    // Contact insights
+    const overdueContacts = contacts.filter((c: any) => {
+      if (!c.last_contacted_at) return true;
+      return differenceInDays(now, new Date(c.last_contacted_at)) > 30;
+    });
+    if (overdueContacts.length > 0) {
+      const c = overdueContacts[0];
+      const days = c.last_contacted_at ? differenceInDays(now, new Date(c.last_contacted_at)) : null;
+      result.push({
+        id: 'contact-followup',
+        icon: <Users className="w-5 h-5" />,
+        title: 'Stay Connected',
+        content: days
+          ? `You haven't reached out to ${c.name} in ${days} days. A quick message can keep the relationship strong.`
+          : `It's been a while since you connected with ${c.name}. Consider reaching out.`,
+        color: 'from-emerald-500/10 to-primary/10',
+      });
+    }
+
+    // Calendar-contact correlation
+    if (events.length > 0 && contacts.length > 0) {
+      for (const event of events) {
+        const matchedContact = contacts.find((c: any) =>
+          event.title?.toLowerCase().includes(c.name?.toLowerCase())
+        );
+        if (matchedContact) {
+          result.push({
+            id: `meeting-${matchedContact.id}`,
+            icon: <Calendar className="w-5 h-5" />,
+            title: 'Meeting Prep',
+            content: `You have "${event.title}" coming up. Check ${matchedContact.name}'s latest emails and notes to prepare.`,
+            color: 'from-accent/10 to-primary/10',
+          });
+          break;
+        }
+      }
+    }
+
+    // Energy tip
+    const hour = now.getHours();
     if (hour >= 14 && hour <= 16) {
       result.push({
         id: 'energy',
@@ -45,6 +131,7 @@ export function SmartInsightCard({ tasks = [] }: SmartInsightCardProps) {
       });
     }
 
+    // Default insight
     result.push({
       id: 'motivate',
       icon: <Lightbulb className="w-5 h-5" />,
@@ -56,9 +143,8 @@ export function SmartInsightCard({ tasks = [] }: SmartInsightCardProps) {
     });
 
     return result;
-  }, [tasks]);
+  }, [tasks, emails, contracts, contacts, events]);
 
-  // Auto-advance every 8 seconds
   useEffect(() => {
     if (insights.length <= 1) return;
     const timer = setInterval(() => {
@@ -99,7 +185,6 @@ export function SmartInsightCard({ tasks = [] }: SmartInsightCardProps) {
           </motion.div>
         </AnimatePresence>
 
-        {/* Dots indicator */}
         {insights.length > 1 && (
           <div className="flex items-center justify-center gap-1.5 mt-3">
             {insights.map((_, i) => (

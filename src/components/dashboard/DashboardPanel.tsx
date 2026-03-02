@@ -9,6 +9,7 @@ import { FocusCard } from './FocusCard';
 import { StatPills } from './StatPills';
 import { TodayTimeline } from './TodayTimeline';
 import { SmartInsightCard } from './SmartInsightCard';
+import { DailyBriefingCard } from './DailyBriefingCard';
 import { QuickActionsBar } from './QuickActionsBar';
 import { WeatherCard } from './WeatherCard';
 import { ContractAlertsCard } from './ContractAlertsCard';
@@ -39,6 +40,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [contractAlerts, setContractAlerts] = useState<any[]>([]);
   const [overdueContacts, setOverdueContacts] = useState<any[]>([]);
+  const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { t } = useLanguage();
   const { profile } = useAuth();
@@ -51,7 +53,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
       const now = new Date();
 
       // Fetch tasks, events, contracts, contacts in parallel
-      const [tasksRes, eventsRes, contractsRes, contactsRes] = await Promise.all([
+      const [tasksRes, eventsRes, contractsRes, contactsRes, emailsRes] = await Promise.all([
         supabase.from('tasks').select('*').eq('user_id', userId),
         supabase.from('events').select('*').eq('user_id', userId)
           .gte('start_time', startOfDay(now).toISOString())
@@ -63,6 +65,12 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
           .lt('last_contacted_at', subDays(now, 30).toISOString())
           .order('last_contacted_at', { ascending: true })
           .limit(3),
+        supabase.from('user_emails').select('id, from_name, from_email, subject, priority_score, is_read, user_archived, category')
+          .eq('user_id', userId)
+          .eq('is_read', false)
+          .eq('user_archived', false)
+          .order('priority_score')
+          .limit(20),
       ]);
 
       if (tasksRes.data) {
@@ -101,6 +109,10 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
 
       if (contactsRes.data) {
         setOverdueContacts(contactsRes.data);
+      }
+
+      if (emailsRes.data) {
+        setEmails(emailsRes.data);
       }
 
       setLoading(false);
@@ -170,6 +182,10 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
           <DashboardHero userName={profile?.display_name} tasks={tasks} />
         </StaggerItem>
 
+        <StaggerItem className="col-span-full">
+          <DailyBriefingCard />
+        </StaggerItem>
+
         <StaggerItem className="md:col-span-2">
           <FocusCard tasks={tasks} onCompleteTask={handleCompleteTask} />
         </StaggerItem>
@@ -189,7 +205,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         </StaggerItem>
 
         <StaggerItem className="md:col-span-1">
-          <SmartInsightCard tasks={tasks} />
+          <SmartInsightCard tasks={tasks} emails={emails} contracts={contractAlerts} contacts={overdueContacts} events={events} />
         </StaggerItem>
 
         {contractAlerts.length > 0 && (
