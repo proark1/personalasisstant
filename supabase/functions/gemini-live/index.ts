@@ -417,7 +417,7 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY is not configured');
     }
 
-    const { action, personality = 'balanced', audio, text, userProfile, contextData } = await req.json() as LiveSessionRequest;
+    const { action, personality = 'balanced', audio, text, userProfile, contextData, memories } = await req.json() as LiveSessionRequest;
 
     console.log('=== GEMINI LIVE REQUEST ===');
     console.log('Action:', action);
