@@ -64,37 +64,30 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
 
   const loading = habitsLoading || goalsLoading;
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            {t('habits.habitsAndGoals')}
-          </h2>
-          <Button variant="ghost" size="icon" onClick={() => { refetchHabits(); refetchGoals(); }}>
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        {/* Today's Progress */}
-        {totalHabits > 0 && (
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-sm mb-1">
-              <span className="text-muted-foreground">{t('habits.todaysProgress')}</span>
-              <span className="font-medium">{completedHabits}/{totalHabits}</span>
-            </div>
-            <Progress value={habitProgress} className="h-2" />
-          </div>
-        )}
+  const progressExtra = totalHabits > 0 ? (
+    <div>
+      <div className="flex items-center justify-between text-sm mb-1">
+        <span className="text-muted-foreground">{t('habits.todaysProgress')}</span>
+        <span className="font-medium">{completedHabits}/{totalHabits}</span>
       </div>
+      <Progress value={habitProgress} className="h-2" />
+    </div>
+  ) : undefined;
 
-      {loading ? (
-        <div className="flex items-center justify-center h-48">
-          <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
+  return (
+    <PanelShell
+      icon={Target}
+      title={t('habits.habitsAndGoals')}
+      subtitle={totalHabits > 0 ? `${completedHabits}/${totalHabits} ${t('habits.todaysProgress')}` : undefined}
+      loading={loading}
+      actions={
+        <Button variant="ghost" size="icon" onClick={() => { refetchHabits(); refetchGoals(); }}>
+          <RefreshCw className="w-4 h-4" />
+        </Button>
+      }
+      headerExtra={progressExtra}
+      noPadding
+    >
         <Tabs defaultValue="habits" className="flex-1 flex flex-col">
           <TabsList className="mx-4 mt-3">
             <TabsTrigger value="habits" className="flex-1 gap-1">
