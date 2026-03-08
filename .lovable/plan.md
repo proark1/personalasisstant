@@ -1,148 +1,90 @@
 
-# Deep Module Interconnection + AI Daily Voice Briefing
 
-## Vision
-Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
+# Email Feature — UI/UX Overhaul
 
----
-
-## Feature 1: AI Daily Voice Briefing on Dashboard
-
-A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
-
-### New Edge Function: `daily-voice-briefing`
-- Accepts user_id and fetches cross-module data server-side:
-  - Pending tasks (count, top 3 by priority)
-  - Today's calendar events
-  - Unread email count + priority emails
-  - Contract alerts (upcoming renewals/cancellations)
-  - Contacts overdue for follow-up
-  - Habit completion status
-  - Yesterday's check-in mood/energy
-- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
-- Returns: `{ briefingText: string, highlights: [...] }`
-
-### New Component: `DailyBriefingCard`
-- Displayed prominently on the dashboard (below the hero)
-- Shows a text summary with key highlights as chips/badges
-- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
-- Auto-play option (respects existing morning auto-play setting)
-- Cached per day so it doesn't re-generate on every page load
-
-### Files
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add card)
+The email feature is functionally rich (AI analysis, swipe gestures, threading, contract extraction, recurring payment detection, snooze, sender rules) but doesn't use the app's design system and has several UX gaps.
 
 ---
 
-## Feature 2: Email-to-Calendar Integration
+## Issues Found
 
-When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
+1. **No design system usage** — EmailPanel, EmailCard, EmailDetailSheet all use raw divs/Cards instead of `GlassCard`, `PanelShell`, `staggerItem` animations. Feels like a different app.
 
-### Changes
-- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
-- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
-- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
+2. **No PanelShell wrapper** — The email panel has a custom header instead of the standardized `PanelShell` used everywhere else.
 
-### Files
-- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
-- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
-- `src/components/email/EmailCard.tsx` (date detection badge)
+3. **EmailCard lacks GlassCard** — Cards are plain divs with manual hover/active styles instead of `GlassCard pressable haptic="light"`.
 
----
+4. **EmailDetailSheet layout issues** — Actions bar is cluttered (Archive, Important, Snooze, Spam, Contract, Calendar all on one row). The "Archive & always archive" and "Open in Gmail" buttons at the bottom feel disconnected. Reply composer lacks visual hierarchy.
 
-## Feature 3: Email-to-Contact Linking
+5. **Loading state** — Uses a raw `animate-pulse` div instead of `PanelSkeleton`.
 
-Automatically link emails to existing contacts and surface contact context when reading emails.
+6. **Connect state** — The "Connect Gmail" empty state doesn't use `EmptyState` component.
 
-### Changes
-- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
-- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
-- Add a "Save as Contact" button when no match exists, pre-filling name and email
-- When viewing a contact profile, show their recent emails in the timeline
+7. **Compose sheet** — Missing CC/BCC fields. No rich text formatting hints.
 
-### Files
-- `src/components/email/EmailDetailSheet.tsx` (contact context card)
-- `src/components/contacts/ContactTimeline.tsx` (add email history section)
+8. **No "Sent" view** — Users can compose and reply but can't see their sent emails.
 
 ---
 
-## Feature 4: Smart Dashboard Insight Card (Cross-Module)
+## Plan
 
-Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
+### 1. Wrap EmailPanel in PanelShell
+Replace the custom header with `PanelShell` (icon: `Mail`, title: "Email"). Move sync button, search, and compose FAB into `actions`. This gives consistent padding, stagger animations, and header style.
 
-### Changes
-- Add email-based insights: "You have 3 unread priority emails from key contacts"
-- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
-- Add contact insights: "You haven't spoken to [Name] in 45 days"
-- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
-- Rotate through these insights automatically
+**File:** `src/components/email/EmailPanel.tsx`
 
-### Files
-- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
-- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
+### 2. EmailCard → GlassCard
+Replace the outer `motion.div` card with `GlassCard pressable haptic="light"`. Keep the swipe gesture logic (it's compatible since GlassCard extends motion.div). This adds glassmorphism, consistent hover/active states, and haptic feedback.
+
+**File:** `src/components/email/EmailCard.tsx`
+
+### 3. Loading skeleton → PanelSkeleton
+Replace the raw `animate-pulse` loading state with `PanelSkeleton` for visual consistency.
+
+**File:** `src/components/email/EmailPanel.tsx`
+
+### 4. Connect state → EmptyState
+Replace the custom "Connect Your Gmail" layout with the `EmptyState` component (icon: Mail, title, description, action button).
+
+**File:** `src/components/email/EmailPanel.tsx`
+
+### 5. EmailDetailSheet — Reorganize Actions
+Group actions into a cleaner 2-row layout:
+- **Row 1 (primary):** Archive, Star, Snooze, Reply — large tap targets
+- **Row 2 (secondary):** Contract, Calendar, Spam, Open in Gmail — smaller, outline style
+- Move the "always archive" rule into a collapsible "More" dropdown
+
+**File:** `src/components/email/EmailDetailSheet.tsx`
+
+### 6. Reply Composer Polish
+- Add `GlassCard` wrapper around the reply section
+- Make AI Draft button more prominent with a gradient accent
+- Add a "Quick replies" row with 3 smart suggestions based on email type (e.g., "Thanks!", "Got it, will review", "Let me get back to you")
+
+**File:** `src/components/email/EmailDetailSheet.tsx`
+
+### 7. Compose Sheet — Add CC/BCC Toggle
+Add a "CC/BCC" toggle that reveals additional recipient fields. This is expected in any email client.
+
+**File:** `src/components/email/ComposeEmailSheet.tsx`
+
+### 8. StatsBanner → GlassCard
+Wrap the stats banner in `GlassCard` with a subtle gradient for visual polish.
+
+**File:** `src/components/email/EmailPanel.tsx`
 
 ---
 
-## Feature 5: Contextual Quick Actions (Cross-Module)
+## Summary
 
-Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
+| # | Item | Effort | Impact |
+|---|------|--------|--------|
+| 1 | PanelShell wrapper | Small | High |
+| 2 | EmailCard → GlassCard | Small | High |
+| 3 | PanelSkeleton loading | Tiny | Medium |
+| 4 | EmptyState connect screen | Tiny | Medium |
+| 5 | Detail sheet action reorganization | Medium | High |
+| 6 | Reply composer polish + quick replies | Medium | High |
+| 7 | CC/BCC in compose | Small | Medium |
+| 8 | StatsBanner → GlassCard | Tiny | Small |
 
-### Changes
-- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
-- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
-- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
-- These actions appear in the QuickActionsBar on the dashboard
-
-### Files
-- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
-- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
-
----
-
-## Technical Details
-
-### Daily Voice Briefing Edge Function
-```text
-POST /daily-voice-briefing
-Body: { user_id }
-Response: {
-  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
-  highlights: [
-    { type: "task", label: "4 tasks, 1 overdue" },
-    { type: "email", label: "3 unread priority" },
-    { type: "contract", label: "Insurance renews in 5 days" },
-    { type: "contact", label: "Follow up with Ahmed" }
-  ]
-}
-```
-
-Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
-
-### Data Flow for Cross-Module Features
-```text
-Email sender --> match against user_contacts.email
-Email body --> AI extract --> calendar event / contract data
-Contact profile --> query user_emails WHERE from_email = contact.email
-Calendar event title --> fuzzy match against contact names
-Contract provider --> match against email senders
-```
-
-### Caching Strategy
-- Daily briefing: cached in localStorage with date key, regenerated once per day
-- Cross-module matches (email-contact): computed on render, lightweight DB queries
-- Smart insights: refreshed every 5 minutes (existing pattern)
-
-## Summary of Files Modified/Created
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
-- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
-- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
-- `src/components/email/EmailCard.tsx` (date badge)
-- `src/components/contacts/ContactTimeline.tsx` (email history)
-- `src/hooks/useContextualActions.ts` (cross-module actions)
-- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)
