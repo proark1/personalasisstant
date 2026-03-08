@@ -1,148 +1,93 @@
 
-# Deep Module Interconnection + AI Daily Voice Briefing
 
-## Vision
-Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
+# Round 3: Top 10 UI/UX Improvements
 
----
-
-## Feature 1: AI Daily Voice Briefing on Dashboard
-
-A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
-
-### New Edge Function: `daily-voice-briefing`
-- Accepts user_id and fetches cross-module data server-side:
-  - Pending tasks (count, top 3 by priority)
-  - Today's calendar events
-  - Unread email count + priority emails
-  - Contract alerts (upcoming renewals/cancellations)
-  - Contacts overdue for follow-up
-  - Habit completion status
-  - Yesterday's check-in mood/energy
-- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
-- Returns: `{ briefingText: string, highlights: [...] }`
-
-### New Component: `DailyBriefingCard`
-- Displayed prominently on the dashboard (below the hero)
-- Shows a text summary with key highlights as chips/badges
-- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
-- Auto-play option (respects existing morning auto-play setting)
-- Cached per day so it doesn't re-generate on every page load
-
-### Files
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add card)
+Based on reviewing the live app, screenshots, and code after Rounds 1 and 2.
 
 ---
 
-## Feature 2: Email-to-Calendar Integration
+## 1. FocusCard and Hero "Next Up" Are Redundant
+Both the Hero's "Next up" section and the FocusCard below it show the same overdue task ("Write to 10 investors..."). The user sees the identical task twice on the same screen with separate "Start Now" and "Mark Done" buttons.
 
-When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
-
-### Changes
-- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
-- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
-- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
-
-### Files
-- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
-- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
-- `src/components/email/EmailCard.tsx` (date detection badge)
+**Fix:** Remove FocusCard as a standalone component. The Hero's inline "Next up" section already handles this. Replace FocusCard's slot with a compact "Upcoming tasks" list (next 3 incomplete tasks, not the same one shown in Hero).
 
 ---
 
-## Feature 3: Email-to-Contact Linking
+## 2. StatPills Show "0 Today" — Feels Punishing
+When the user hasn't completed any tasks, a single pill shows "0 Today" with an empty progress bar. This is demotivating rather than encouraging.
 
-Automatically link emails to existing contacts and surface contact context when reading emails.
-
-### Changes
-- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
-- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
-- Add a "Save as Contact" button when no match exists, pre-filling name and email
-- When viewing a contact profile, show their recent emails in the timeline
-
-### Files
-- `src/components/email/EmailDetailSheet.tsx` (contact context card)
-- `src/components/contacts/ContactTimeline.tsx` (add email history section)
+**Fix:** When value is 0, show an encouraging micro-copy instead: "Start your first task!" with a play icon. Only show the numeric pill once value > 0. For streak = 0, hide the streak pill entirely (already done) — apply the same logic to "Today".
 
 ---
 
-## Feature 4: Smart Dashboard Insight Card (Cross-Module)
+## 3. Chat Header Says "Chat" — Should Say "Dori"
+The ContextualHeader displays "Chat" when on the Dori panel (from `tabTitles.chat = 'Dori AI'` but `t('nav.chat')` likely returns "Chat"). The Dori sub-header already shows the fish + "Dori", creating a double header that wastes 112px total.
 
-Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
-
-### Changes
-- Add email-based insights: "You have 3 unread priority emails from key contacts"
-- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
-- Add contact insights: "You haven't spoken to [Name] in 45 days"
-- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
-- Rotate through these insights automatically
-
-### Files
-- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
-- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
+**Fix:** Hide the ContextualHeader when on the chat panel (same pattern as dashboard). The DoriPanel already has its own complete header with the fish icon, history button, and voice mode button.
 
 ---
 
-## Feature 5: Contextual Quick Actions (Cross-Module)
+## 4. Dori Empty State Has Dead Space Below Input
+The chat input sits at the very bottom, but the empty state content (fish + suggestions) is centered in the middle, leaving a large empty gap between the suggestions and the input bar. The "What can Dori do?" section appears below the fold.
 
-Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
-
-### Changes
-- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
-- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
-- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
-- These actions appear in the QuickActionsBar on the dashboard
-
-### Files
-- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
-- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
+**Fix:** Move the empty state content lower, closer to the input area. Position suggestions just above the input as "quick reply chips" (like Google Assistant). The fish + greeting stays centered but with less top padding.
 
 ---
 
-## Technical Details
+## 5. Timeline Shows "00:00" for Tasks Without Specific Times
+Tasks without a specific due time display "00:00" in the timeline, which looks like midnight. This is misleading — the task has no time, not a midnight deadline.
 
-### Daily Voice Briefing Edge Function
-```text
-POST /daily-voice-briefing
-Body: { user_id }
-Response: {
-  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
-  highlights: [
-    { type: "task", label: "4 tasks, 1 overdue" },
-    { type: "email", label: "3 unread priority" },
-    { type: "contract", label: "Insurance renews in 5 days" },
-    { type: "contact", label: "Follow up with Ahmed" }
-  ]
-}
-```
+**Fix:** Show "All day" or "—" for tasks where the due time is exactly midnight/00:00 (which means no time was set). Only show HH:mm for tasks with explicit non-midnight times.
 
-Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
+---
 
-### Data Flow for Cross-Module Features
-```text
-Email sender --> match against user_contacts.email
-Email body --> AI extract --> calendar event / contract data
-Contact profile --> query user_emails WHERE from_email = contact.email
-Calendar event title --> fuzzy match against contact names
-Contract provider --> match against email senders
-```
+## 6. No Way to Access Settings or Profile from Dashboard
+The hamburger menu icon in the ContextualHeader opens the MoreSheet, but on the dashboard the header is hidden. The only way to reach Settings is: tap a non-dashboard tab → tap hamburger → scroll to Settings. That is 3+ taps for a frequently needed panel.
 
-### Caching Strategy
-- Daily briefing: cached in localStorage with date key, regenerated once per day
-- Cross-module matches (email-contact): computed on render, lightweight DB queries
-- Smart insights: refreshed every 5 minutes (existing pattern)
+**Fix:** Add a small avatar/profile icon in the top-right corner of the DashboardHero card that opens a mini profile popover or directly navigates to settings. Alternatively, add a settings gear to the QuickActionsBar.
 
-## Summary of Files Modified/Created
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
-- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
-- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
-- `src/components/email/EmailCard.tsx` (date badge)
-- `src/components/contacts/ContactTimeline.tsx` (email history)
-- `src/hooks/useContextualActions.ts` (cross-module actions)
-- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)
+---
+
+## 7. "Insights & Alerts" Accordion Has No Preview
+The collapsed accordion shows "Insights & Alerts" with a red dot, but the user has no idea what is inside. Is it 1 alert or 10? Is it urgent?
+
+**Fix:** Add a count badge next to the label: "Insights & Alerts (3)" or show a one-line preview of the most urgent alert below the trigger: "YouTube contract renews in 2 days".
+
+---
+
+## 8. QuickActions Buttons Look Like Tags, Not Actions
+The QuickActionsBar renders colored pill buttons ("Priority Emails", "Quick Wins", "Reach Out") that look like filter tags rather than actionable shortcuts. There is no visual distinction between a filter and an action.
+
+**Fix:** Add a leading "+" or action verb to make them obviously actionable. Use a consistent icon-first layout. Add subtle arrow/chevron to indicate they navigate somewhere. Consider renaming: "Priority Emails" → "Check Priority Emails →".
+
+---
+
+## 9. Bottom Nav Dori Button Blocks Content Behind It
+The center Dori button extends above the nav bar with `-mt-6`, creating a floating FAB. But it overlaps with the last timeline item on the dashboard when scrolled to the bottom. Content behind it is not tappable.
+
+**Fix:** Add `pb-8` (extra bottom padding) to the dashboard scroll container to ensure the last item is never hidden behind the floating Dori button. This is a simple safe-area fix.
+
+---
+
+## 10. Email Panel Has No Back/Home Button
+After navigating to the Email panel via the bottom tab, the header shows "E-Mail" with a hamburger menu. But there is no obvious "back" or "home" gesture. The hamburger opens MoreSheet (which is for navigating to other panels, not going back). Users may feel stuck.
+
+**Fix:** Replace the hamburger icon with a back arrow when navigating from a non-primary tab. Or better: since the bottom nav already handles navigation, remove the hamburger from the ContextualHeader entirely on mobile — it is redundant with the bottom nav + MoreSheet is accessible via long-press on any tab.
+
+---
+
+## Implementation Priority
+
+| # | Item | Effort | Impact |
+|---|------|--------|--------|
+| 1 | Remove FocusCard redundancy | Medium | High |
+| 2 | Hide chat ContextualHeader | Small | High |
+| 3 | Fix "00:00" timeline times | Small | High |
+| 4 | Add dashboard bottom padding | Small | Medium |
+| 5 | Insights accordion preview | Small | Medium |
+| 6 | StatPills zero-state messaging | Small | Medium |
+| 7 | Dashboard settings access | Small | Medium |
+| 8 | QuickActions visual clarity | Small | Medium |
+| 9 | Dori empty state positioning | Medium | Medium |
+| 10 | Remove redundant hamburger | Small | Low |
+
