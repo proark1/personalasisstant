@@ -88,6 +88,7 @@ interface LiveSessionRequest {
   text?: string;
   userProfile?: UserProfile;
   contextData?: ContextData;
+  memories?: { type: string; key: string; value: string; category?: string }[];
 }
 
 const personalityPrompts: Record<string, string> = {
@@ -416,7 +417,7 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY is not configured');
     }
 
-    const { action, personality = 'balanced', audio, text, userProfile, contextData } = await req.json() as LiveSessionRequest;
+    const { action, personality = 'balanced', audio, text, userProfile, contextData, memories } = await req.json() as LiveSessionRequest;
 
     console.log('=== GEMINI LIVE REQUEST ===');
     console.log('Action:', action);
@@ -511,6 +512,14 @@ serve(async (req) => {
     const userContext = buildUserContext(userProfile);
     const dataContext = buildDataContext(contextData);
     
+    let memoryContext = '';
+    if (memories && memories.length > 0) {
+      memoryContext = `\n\n## LONG-TERM MEMORY (Things you know about this user)\n`;
+      for (const mem of memories) {
+        memoryContext += `- [${mem.type}]${mem.category ? ` (${mem.category})` : ''} ${mem.key}: "${mem.value}"\n`;
+      }
+    }
+    
     const systemPrompt = `## CRITICAL RULES
 1. NEVER INVENT OR FABRICATE any names, companies, tasks, or facts
 2. ONLY USE the exact data provided below
@@ -518,7 +527,7 @@ serve(async (req) => {
 
 ${userContext}
 ${dataContext}
-
+${memoryContext}
 ---
 
 ## Your Role

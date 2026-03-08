@@ -29,6 +29,7 @@ import { useShoppingLists } from '@/hooks/useShoppingLists';
 import { useHabits } from '@/hooks/useHabits';
 import { useEmails } from '@/hooks/useEmails';
 import { buildSmartPayload } from '@/lib/smartPayloadBuilder';
+import { useAIMemory } from '@/hooks/useAIMemory';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
@@ -47,6 +48,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { settings, updateSettings, updateNotifications } = useSettings();
   const { streamChat, isStreaming } = useAIChat();
+  const { memories, getMemoriesForContext } = useAIMemory();
   
   const {
     tasks,
@@ -490,6 +492,7 @@ const Index = () => {
       }));
 
       const pendingTaskCount = tasks.filter(t => !t.completed).length;
+      const memoriesForContext = getMemoriesForContext();
       const smartPayload = buildSmartPayload({
         message: userText,
         userProfile: userProfile || undefined,
@@ -508,6 +511,7 @@ const Index = () => {
           unreadEmails: unreadEmailCount,
           activeHabits: todayHabits.length,
         },
+        memories: memoriesForContext,
       });
 
       await streamChat({
@@ -527,6 +531,7 @@ const Index = () => {
         emailSummary: smartPayload.emailSummary,
         notesSummary: smartPayload.notesSummary,
         habitsSummary: smartPayload.habitsSummary,
+        memories: smartPayload.memories,
         familyContext: smartPayload.familyContext ? {
           members: smartPayload.familyContext.members.map(m => ({
             id: '',

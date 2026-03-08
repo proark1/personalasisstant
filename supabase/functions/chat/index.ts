@@ -145,6 +145,8 @@ interface ChatRequest {
   emailSummary?: { subject: string; from: string; priority: string; snippet: string }[];
   notesSummary?: { title: string; snippet: string; tags: string[] }[];
   habitsSummary?: { name: string; streak: number; isCompletedToday: boolean; frequency: string }[];
+  // AI Memory
+  memories?: { type: string; key: string; value: string; category?: string }[];
 }
 
 const personalityPrompts: Record<string, string> = {
@@ -409,7 +411,27 @@ Adapt your tone and suggestions based on time:
 - Proactively offer relevant contacts when discussing travel, meetings, or networking
 - Reference the user by name when appropriate to make interactions personal
 - PROACTIVELY mention overdue tasks and offer to reschedule them
-- USE FAMILY MEMBER NAMES when discussing family matters - make it personal!`;
+- USE FAMILY MEMBER NAMES when discussing family matters - make it personal!
+
+## MEMORY MANAGEMENT
+
+TOOL: save_memory
+Use this to remember important facts, preferences, or patterns about the user for future conversations.
+Format: <tool>save_memory</tool><memory>JSON_OBJECT</memory>
+Fields:
+- "type": "preference" | "fact" | "pattern" | "goal" | "milestone"
+- "key": short unique key (snake_case, e.g. "morning_routine", "wife_name")
+- "value": what to remember (concise sentence)
+- "category": optional grouping ("health", "family", "work", "lifestyle", "food", "travel")
+
+WHEN TO USE save_memory:
+- User states a preference ("I like...", "I prefer...", "I always...", "I hate...")
+- User shares a personal fact ("My wife's name is...", "I work from...", "I'm allergic to...")
+- User mentions routines or patterns ("I usually...", "Every morning I...")
+- User sets or achieves a goal
+- User corrects you about something — save the correction
+
+IMPORTANT: Use save_memory naturally without telling the user you're saving it. Just acknowledge what they said and silently save it. Do NOT say "I'll remember that" — just do it.`;
 
 async function logAIUsage(
   supabase: any,
@@ -491,6 +513,8 @@ serve(async (req) => {
       emailSummary,
       notesSummary,
       habitsSummary,
+      // AI Memory
+      memories,
     }: ChatRequest = await req.json();
     
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
@@ -867,6 +891,15 @@ serve(async (req) => {
       contextMessage += `\nEncourage the user about their streaks and remind about incomplete habits.`;
     }
 
+    // Inject AI Memory into prompt
+    if (memories && memories.length > 0) {
+      contextMessage += `\n\n## LONG-TERM MEMORY (Things you've learned about this user from previous conversations)`;
+      contextMessage += `\nUse this knowledge naturally in your responses. Reference it when relevant.`;
+      for (const mem of memories) {
+        contextMessage += `\n- [${mem.type}]${mem.category ? ` (${mem.category})` : ''} ${mem.key}: "${mem.value}"`;
+      }
+    }
+
     const fullSystemPrompt = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage;
 
     console.log("Chat request with enhanced context:", {
@@ -948,8 +981,59 @@ serve(async (req) => {
       { personality, messageCount: messages.length }
     );
 
-    // Stream the response directly (already in OpenAI format)
-    return new Response(response.body, {
+    // Stream the response, but also collect it to parse save_memory tool calls
+    const reader = response.body!.getReader();
+    let fullResponseText = '';
+    
+    const stream = new ReadableStream({
+      async pull(controller) {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          // After stream ends, parse and persist any save_memory calls server-side
+          try {
+            const memoryRegex = /<tool>save_memory<\/tool>\s*<memory>(\{[\s\S]*?\})<\/memory>/g;
+            const memMatches = fullResponseText.matchAll(memoryRegex);
+            for (const match of memMatches) {
+              try {
+                const memData = JSON.parse(match[1]);
+                if (memData.key && memData.value && userId !== 'anonymous') {
+                  await supabaseAdmin.from('ai_memory').upsert({
+                    user_id: userId,
+                    memory_type: memData.type || 'fact',
+                    category: memData.category || null,
+                    key: memData.key,
+                    value: memData.value,
+                    source: 'chat',
+                  }, { onConflict: 'user_id,key' });
+                  console.log('Saved memory:', memData.key);
+                }
+              } catch (e) {
+                console.error('Failed to save memory:', e);
+              }
+            }
+          } catch (e) {
+            console.error('Memory parsing error:', e);
+          }
+          return;
+        }
+        // Collect text for memory extraction
+        const text = new TextDecoder().decode(value);
+        // Extract content from SSE data lines
+        for (const line of text.split('\n')) {
+          if (line.startsWith('data: ') && line.slice(6).trim() !== '[DONE]') {
+            try {
+              const parsed = JSON.parse(line.slice(6));
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) fullResponseText += content;
+            } catch {}
+          }
+        }
+        controller.enqueue(value);
+      }
+    });
+
+    return new Response(stream, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {

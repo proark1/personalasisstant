@@ -46,6 +46,7 @@ interface SmartPayload {
     members: { name: string; relationship: string; age: number | null; school?: string; activities: string[] }[];
     shoppingLists: { name: string; itemCount: number }[];
   };
+  memories?: { type: string; key: string; value: string; category?: string }[];
 }
 
 function matchesCategory(msg: string, keywords: string[]): boolean {
@@ -77,6 +78,7 @@ export function buildSmartPayload({
   familyMembers,
   shoppingLists,
   stats,
+  memories,
 }: {
   message: string;
   userProfile?: UserProfile | null;
@@ -88,6 +90,7 @@ export function buildSmartPayload({
   familyMembers?: FamilyMember[];
   shoppingLists?: ShoppingList[];
   stats?: { totalContacts: number; totalContracts: number; pendingTasks: number; upcomingEvents: number; unreadEmails: number; activeHabits: number };
+  memories?: { type: string; key: string; value: string; category?: string }[];
 }): SmartPayload {
   const lowerMsg = message.toLowerCase();
   const payload: SmartPayload = {};
@@ -218,6 +221,11 @@ export function buildSmartPayload({
         itemCount: 0, // We don't fetch item counts to save queries
       })),
     };
+  }
+
+  // Always include memories (Tier 1 — always-on)
+  if (memories && memories.length > 0) {
+    payload.memories = memories;
   }
 
   return payload;

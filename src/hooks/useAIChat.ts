@@ -407,6 +407,9 @@ export function useAIChat() {
       cleanContent = cleanContent.replace(match[0], '');
     }
 
+    // Strip save_memory tool calls from displayed content (handled server-side)
+    cleanContent = cleanContent.replace(/<tool>save_memory<\/tool>\s*<memory>\{[\s\S]*?\}<\/memory>/g, '');
+
     console.log('[useAIChat] Parse complete. Total tool calls found:', toolCalls.length, toolCalls.map(tc => tc.tool));
     return { cleanContent: cleanContent.trim(), toolCalls };
   };
@@ -434,6 +437,8 @@ export function useAIChat() {
     emailSummary,
     notesSummary,
     habitsSummary,
+    // AI Memory
+    memories,
   }: {
     messages: Message[];
     tasks?: Task[];
@@ -457,6 +462,8 @@ export function useAIChat() {
     emailSummary?: { subject: string; from: string; priority: string; snippet: string }[];
     notesSummary?: { title: string; snippet: string; tags: string[] }[];
     habitsSummary?: { name: string; streak: number; isCompletedToday: boolean; frequency: string }[];
+    // AI Memory
+    memories?: { type: string; key: string; value: string; category?: string }[];
   }) => {
     setIsStreaming(true);
     setError(null);
@@ -549,6 +556,11 @@ export function useAIChat() {
       }
       if (habitsSummary && habitsSummary.length > 0) {
         payload.habitsSummary = habitsSummary;
+      }
+
+      // AI Memory
+      if (memories && memories.length > 0) {
+        payload.memories = memories;
       }
 
       const resp = await fetch(CHAT_URL, {

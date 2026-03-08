@@ -1,90 +1,148 @@
 
+# Deep Module Interconnection + AI Daily Voice Briefing
 
-# Wave 6: AI Memory & "Handle Everything" Intelligence Upgrade
+## Vision
+Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
 
-## Analysis
+---
 
-The platform already has massive breadth (tasks, calendar, contacts, contracts, family, health, habits, email, notes, shopping). The AI assistant (Dori) can manage most of these via tools in both text and voice modes. However, three critical gaps prevent the "handle your whole life" vision:
+## Feature 1: AI Daily Voice Briefing on Dashboard
 
-1. **AI Memory is dead code** — `useAIMemory` hook exists, `ai_memory` table exists, but memories are never read, written, or injected into AI prompts. The assistant forgets everything between sessions. If the user says "I prefer morning meetings" or "my wife picks up the kids on Tuesdays", that knowledge is lost.
+A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
 
-2. **No automatic memory extraction** — The AI never learns from conversations. It should detect preferences, facts, and patterns from chat and save them automatically.
+### New Edge Function: `daily-voice-briefing`
+- Accepts user_id and fetches cross-module data server-side:
+  - Pending tasks (count, top 3 by priority)
+  - Today's calendar events
+  - Unread email count + priority emails
+  - Contract alerts (upcoming renewals/cancellations)
+  - Contacts overdue for follow-up
+  - Habit completion status
+  - Yesterday's check-in mood/energy
+- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
+- Returns: `{ briefingText: string, highlights: [...] }`
 
-3. **No memory recall in prompts** — Even if memories existed, neither the `chat` nor `gemini-live` edge functions receive or use them.
+### New Component: `DailyBriefingCard`
+- Displayed prominently on the dashboard (below the hero)
+- Shows a text summary with key highlights as chips/badges
+- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
+- Auto-play option (respects existing morning auto-play setting)
+- Cached per day so it doesn't re-generate on every page load
 
-## Plan
+### Files
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add card)
 
-### 1. Wire AI Memory into the Chat Flow (Client Side)
-**Files:** `src/components/layout/StandardMode.tsx` or wherever DoriPanel receives its props, plus the component that calls the chat function.
+---
 
-- Import `useAIMemory` and call `getMemoriesForContext()`
-- Pass memories as a new field in the chat request body alongside existing context
+## Feature 2: Email-to-Calendar Integration
 
-### 2. Inject Memories into Chat System Prompt (Edge Function)
-**File:** `supabase/functions/chat/index.ts`
+When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
 
-- Accept new `memories` field in `ChatRequest` interface
-- Add a `## LONG-TERM MEMORY` section to the system prompt containing the user's stored memories (preferences, facts, patterns, goals, milestones)
-- Instruct the AI to reference these memories naturally and to extract new ones
+### Changes
+- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
+- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
+- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
 
-### 3. Auto-Extract Memories from Conversations (Edge Function)
-**File:** `supabase/functions/chat/index.ts`
+### Files
+- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
+- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
+- `src/components/email/EmailCard.tsx` (date detection badge)
 
-- Add a new tool `save_memory` to the system prompt so the AI can proactively store facts
-- Tool format: `<tool>save_memory</tool><memory>{"type": "preference|fact|pattern|goal", "key": "short_key", "value": "what to remember"}</memory>`
-- Instruct the AI: "When the user shares personal preferences, routines, facts about their life, or recurring patterns, use save_memory to remember them for future conversations"
+---
 
-### 4. Parse & Persist Memory Tool Calls (Edge Function + Client)
-**File:** `supabase/functions/chat/index.ts` — parse `save_memory` tool calls from AI response and write to `ai_memory` table server-side (using service role client, since we already have it)
-**File:** Client-side — no changes needed if we save server-side
+## Feature 3: Email-to-Contact Linking
 
-### 5. Inject Memories into Voice Mode Too
-**File:** `supabase/functions/gemini-live/index.ts`
+Automatically link emails to existing contacts and surface contact context when reading emails.
 
-- Accept `memories` field in request
-- Add memory context to the system prompt, same pattern as chat
+### Changes
+- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
+- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
+- Add a "Save as Contact" button when no match exists, pre-filling name and email
+- When viewing a contact profile, show their recent emails in the timeline
 
-### 6. Pass Memories from Voice Mode Client
-**File:** `src/hooks/useGeminiLive.ts` (and/or the OpenAI realtime hook if that's the primary voice path)
+### Files
+- `src/components/email/EmailDetailSheet.tsx` (contact context card)
+- `src/components/contacts/ContactTimeline.tsx` (add email history section)
 
-- Accept memories in options, pass to edge function
+---
+
+## Feature 4: Smart Dashboard Insight Card (Cross-Module)
+
+Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
+
+### Changes
+- Add email-based insights: "You have 3 unread priority emails from key contacts"
+- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
+- Add contact insights: "You haven't spoken to [Name] in 45 days"
+- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
+- Rotate through these insights automatically
+
+### Files
+- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
+- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
+
+---
+
+## Feature 5: Contextual Quick Actions (Cross-Module)
+
+Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
+
+### Changes
+- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
+- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
+- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
+- These actions appear in the QuickActionsBar on the dashboard
+
+### Files
+- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
+- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
+
+---
 
 ## Technical Details
 
-### Memory Injection Format (added to system prompt)
-```
-## LONG-TERM MEMORY (Things you've learned about this user)
-- [preference] morning_meetings: "User prefers meetings before 11am"
-- [fact] wife_schedule: "Wife teaches evenings on Tue/Thu"
-- [pattern] energy_dip: "User reports low energy after 2pm"
-- [goal] health: "Wants to reach 10k steps daily"
-```
-
-### New Tool Definition (added to chat system prompt)
-```
-TOOL: save_memory
-Use to remember important facts, preferences, or patterns about the user.
-Format: <tool>save_memory</tool><memory>JSON_OBJECT</memory>
-Fields:
-- "type": "preference" | "fact" | "pattern" | "goal" | "milestone"
-- "key": short unique key (snake_case)
-- "value": what to remember
-- "category": optional grouping (e.g. "health", "family", "work")
-
-Use this when:
-- User states a preference ("I like...", "I prefer...", "I always...")
-- User shares a personal fact ("My wife's name is...", "I work from...")
-- You notice a behavioral pattern
-- User sets or achieves a goal
+### Daily Voice Briefing Edge Function
+```text
+POST /daily-voice-briefing
+Body: { user_id }
+Response: {
+  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
+  highlights: [
+    { type: "task", label: "4 tasks, 1 overdue" },
+    { type: "email", label: "3 unread priority" },
+    { type: "contract", label: "Insurance renews in 5 days" },
+    { type: "contact", label: "Follow up with Ahmed" }
+  ]
+}
 ```
 
-### Server-Side Memory Persistence
-In the response parsing section of `chat/index.ts`, detect `<tool>save_memory</tool>` blocks and upsert into `ai_memory` table using the service role client. This avoids any client-side complexity.
+Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
 
-## Files Modified Summary
-- `supabase/functions/chat/index.ts` — memory injection in prompt, save_memory tool, server-side persistence
-- `supabase/functions/gemini-live/index.ts` — memory injection in prompt
-- `src/hooks/useGeminiLive.ts` — pass memories to edge function
-- `src/components/layout/StandardMode.tsx` (or relevant parent) — wire useAIMemory, pass to chat
-- `src/lib/smartPayloadBuilder.ts` — add memories to smart payload
+### Data Flow for Cross-Module Features
+```text
+Email sender --> match against user_contacts.email
+Email body --> AI extract --> calendar event / contract data
+Contact profile --> query user_emails WHERE from_email = contact.email
+Calendar event title --> fuzzy match against contact names
+Contract provider --> match against email senders
+```
 
+### Caching Strategy
+- Daily briefing: cached in localStorage with date key, regenerated once per day
+- Cross-module matches (email-contact): computed on render, lightweight DB queries
+- Smart insights: refreshed every 5 minutes (existing pattern)
+
+## Summary of Files Modified/Created
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
+- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
+- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
+- `src/components/email/EmailCard.tsx` (date badge)
+- `src/components/contacts/ContactTimeline.tsx` (email history)
+- `src/hooks/useContextualActions.ts` (cross-module actions)
+- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)
