@@ -59,9 +59,9 @@ export function FollowUpCard() {
   }
 
   return (
-    <Card className="glass-panel-solid border-primary/20">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm">
+    <GlassCard className="border-primary/20">
+      <GlassCardHeader className="pb-2">
+        <div className="flex items-center gap-2 text-sm font-semibold">
           <MessageSquare className="w-4 h-4 text-primary" />
           {t('followUp.quick')}
           <Badge variant="secondary" className="ml-auto">
