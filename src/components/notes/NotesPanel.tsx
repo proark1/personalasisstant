@@ -4,8 +4,10 @@ import { NoteEditor } from './NoteEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
 import { Badge } from '@/components/ui/badge';
+import { PanelShell, staggerItem } from '@/components/ui/panel-shell';
+import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
