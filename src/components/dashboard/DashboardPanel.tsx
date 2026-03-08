@@ -183,10 +183,6 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         </StaggerItem>
 
         {/* Tier 2: Key actionable content */}
-        <StaggerItem className="md:col-span-2">
-          <FocusCard tasks={tasks} onCompleteTask={handleCompleteTask} />
-        </StaggerItem>
-
         <StaggerItem className="md:col-span-1 space-y-3 md:space-y-4">
           <WeatherCard />
           <StatPills
