@@ -1,148 +1,155 @@
 
-# Deep Module Interconnection + AI Daily Voice Briefing
 
-## Vision
-Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
+# World-Class UI/UX Polish Plan
 
----
+## Current State Assessment
 
-## Feature 1: AI Daily Voice Briefing on Dashboard
+The app already has strong foundations: glassmorphism cards, stagger animations, haptic feedback, a design token system, and the recently-added PanelShell/EmptyState/PanelSkeleton shared components. The remaining gaps are about **consistency, micro-interactions, transitions, and visual polish** rather than structural changes.
 
-A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
+## Areas to Address
 
-### New Edge Function: `daily-voice-briefing`
-- Accepts user_id and fetches cross-module data server-side:
-  - Pending tasks (count, top 3 by priority)
-  - Today's calendar events
-  - Unread email count + priority emails
-  - Contract alerts (upcoming renewals/cancellations)
-  - Contacts overdue for follow-up
-  - Habit completion status
-  - Yesterday's check-in mood/energy
-- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
-- Returns: `{ briefingText: string, highlights: [...] }`
+### 1. Panel Transition Animations (Currently Missing)
+When switching panels in both mobile and desktop, content simply shows/hides (`block`/`hidden`). There is no transition between panels. World-class apps (Linear, Notion, Arc) animate panel changes.
 
-### New Component: `DailyBriefingCard`
-- Displayed prominently on the dashboard (below the hero)
-- Shows a text summary with key highlights as chips/badges
-- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
-- Auto-play option (respects existing morning auto-play setting)
-- Cached per day so it doesn't re-generate on every page load
+**Fix:** Add `AnimatePresence` + `PageTransition` to panel switching in both `MobileLayout.tsx` and `StandardMode.tsx`. Use a subtle fade+slideUp (200ms) when panels mount instead of raw `display:block/hidden`.
 
-### Files
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add card)
+**Files:** `MobileLayout.tsx`, `StandardMode.tsx`
 
----
+### 2. Bottom Tab Bar Micro-Interactions (Mobile)
+The current bottom bar has `active:scale-90` and a dot indicator but no **spring animation** on the active indicator and no **icon morph**. World-class mobile apps animate the active indicator sliding between tabs.
 
-## Feature 2: Email-to-Calendar Integration
+**Fix:** Add a `motion.div` layoutId indicator that slides between tabs with a spring animation. Add a subtle icon bounce on tab change.
 
-When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
+**Files:** `MobileLayout.tsx`
 
-### Changes
-- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
-- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
-- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
+### 3. More Sheet Visual Upgrade
+The MoreSheet drawer uses basic grid buttons with minimal styling. No glassmorphism, no entrance animations per item, no visual hierarchy.
 
-### Files
-- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
-- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
-- `src/components/email/EmailCard.tsx` (date detection badge)
+**Fix:** Add stagger entrance animation to grid items. Use `GlassCard` styling for each item. Add subtle gradient background to active items.
 
----
+**Files:** `MoreSheet.tsx`
 
-## Feature 3: Email-to-Contact Linking
+### 4. Contextual Header Polish
+The header is functional but plain. No subtle gradient/blur fade at bottom edge, no animated title transitions when panels change.
 
-Automatically link emails to existing contacts and surface contact context when reading emails.
+**Fix:** Add `AnimatePresence` with `mode="wait"` on the title so it animates when switching panels. Add a subtle gradient fade at the bottom edge for scroll-under content effect.
 
-### Changes
-- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
-- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
-- Add a "Save as Contact" button when no match exists, pre-filling name and email
-- When viewing a contact profile, show their recent emails in the timeline
+**Files:** `ContextualHeader.tsx`
 
-### Files
-- `src/components/email/EmailDetailSheet.tsx` (contact context card)
-- `src/components/contacts/ContactTimeline.tsx` (add email history section)
+### 5. Dashboard Card Hover States (Desktop)
+Dashboard cards (`GlassCard`) have `interactive-lift` and `press-scale` but most dashboard cards don't use the `pressable` prop. On desktop, hovering over cards should feel responsive.
 
----
+**Fix:** Add `pressable` prop to interactive dashboard cards (FocusCard, TodayTimeline, WeatherCard, ContractAlertsCard, ContactRemindersCard). Add subtle border-glow on hover.
 
-## Feature 4: Smart Dashboard Insight Card (Cross-Module)
+**Files:** `FocusCard.tsx`, `TodayTimeline.tsx`, `WeatherCard.tsx`, `ContractAlertsCard.tsx`, `ContactRemindersCard.tsx`
 
-Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
+### 6. Scroll Progress Indicator
+No visual feedback when scrolling long panels. World-class apps show a thin progress bar or gradient fade.
 
-### Changes
-- Add email-based insights: "You have 3 unread priority emails from key contacts"
-- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
-- Add contact insights: "You haven't spoken to [Name] in 45 days"
-- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
-- Rotate through these insights automatically
+**Fix:** Add a thin `progress` line at the top of scrollable panel content that fills based on scroll position. Add top/bottom gradient fade masks on scroll areas.
 
-### Files
-- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
-- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
+**Files:** `PanelShell.tsx` (add scroll-aware fade masks), `index.css` (add scroll-fade-top/bottom utility)
 
----
+### 7. Auth Page Polish
+The auth page is clean but minimal. No entrance animation, no floating background elements, no brand personality.
 
-## Feature 5: Contextual Quick Actions (Cross-Module)
+**Fix:** Add floating gradient orbs in the background (subtle, animated). Add `motion.div` entrance animation to the form card. Add a subtle tagline below the logo.
 
-Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
+**Files:** `Auth.tsx`
 
-### Changes
-- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
-- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
-- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
-- These actions appear in the QuickActionsBar on the dashboard
+### 8. Loading State Improvements
+The `DashboardPanel` still uses `animate-pulse text-primary` instead of the new `PanelSkeleton`. Several panels use inconsistent loading.
 
-### Files
-- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
-- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
+**Fix:** Replace all remaining `animate-pulse` text loaders with `PanelSkeleton`. Ensure `DashboardPanel` uses a proper skeleton layout matching its grid structure.
+
+**Files:** `DashboardPanel.tsx`
+
+### 9. Sidebar Active State Enhancement (Desktop)
+The sidebar active state uses `bg-sidebar-accent` which is flat. World-class sidebars have a subtle animated indicator bar on the left edge.
+
+**Fix:** Add a `motion.div layoutId="sidebar-indicator"` that slides vertically to the active item with spring physics. Add a subtle left-edge accent bar (3px primary-colored).
+
+**Files:** `Sidebar.tsx`
+
+### 10. CalendarHubPanel Consistency
+The mobile CalendarHubPanel view switcher uses `bg-muted/50` segmented control but doesn't match the PanelShell header pattern used everywhere else.
+
+**Fix:** Wrap CalendarHubPanel in `PanelShell` with the view switcher as `headerExtra`. Standardizes header styling.
+
+**Files:** `CalendarHubPanel.tsx`
 
 ---
 
 ## Technical Details
 
-### Daily Voice Briefing Edge Function
+### Panel Transition Pattern
 ```text
-POST /daily-voice-briefing
-Body: { user_id }
-Response: {
-  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
-  highlights: [
-    { type: "task", label: "4 tasks, 1 overdue" },
-    { type: "email", label: "3 unread priority" },
-    { type: "contract", label: "Insurance renews in 5 days" },
-    { type: "contact", label: "Follow up with Ahmed" }
-  ]
+// Replace hidden/block toggling with:
+<AnimatePresence mode="wait">
+  {activeTab === 'dashboard' && (
+    <motion.div
+      key="dashboard"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.2 }}
+      className="h-full"
+    >
+      <DashboardPanel ... />
+    </motion.div>
+  )}
+</AnimatePresence>
+```
+
+### Sliding Tab Indicator
+```text
+// In bottom nav, add a shared layoutId indicator:
+{isActive && (
+  <motion.div
+    layoutId="tab-indicator"
+    className="absolute -bottom-1 w-5 h-0.5 rounded-full bg-primary"
+    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+  />
+)}
+```
+
+### Sidebar Active Indicator
+```text
+// Add sliding left-edge bar:
+{isActive && (
+  <motion.div
+    layoutId="sidebar-active"
+    className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-primary"
+    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+  />
+)}
+```
+
+### Scroll Fade Masks (CSS)
+```text
+.scroll-fade-top::before {
+  content: '';
+  position: sticky; top: 0; z-index: 10;
+  height: 16px; display: block;
+  background: linear-gradient(to bottom, hsl(var(--background)), transparent);
+  pointer-events: none;
 }
 ```
 
-Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
+## Files Modified Summary
+- `src/components/layout/MobileLayout.tsx` -- panel transitions, tab indicator
+- `src/components/layout/StandardMode.tsx` -- panel transitions
+- `src/components/layout/ContextualHeader.tsx` -- animated title, bottom fade
+- `src/components/layout/MoreSheet.tsx` -- stagger animations, glass styling
+- `src/components/layout/Sidebar.tsx` -- sliding active indicator
+- `src/components/dashboard/DashboardPanel.tsx` -- skeleton loading
+- `src/components/dashboard/FocusCard.tsx` -- pressable prop
+- `src/components/dashboard/TodayTimeline.tsx` -- pressable prop
+- `src/components/dashboard/WeatherCard.tsx` -- pressable prop
+- `src/components/dashboard/ContractAlertsCard.tsx` -- pressable prop
+- `src/components/dashboard/ContactRemindersCard.tsx` -- pressable prop
+- `src/components/calendar/CalendarHubPanel.tsx` -- PanelShell wrapper
+- `src/components/ui/panel-shell.tsx` -- scroll fade masks
+- `src/pages/Auth.tsx` -- entrance animations, floating orbs
+- `src/index.css` -- scroll-fade utility classes
 
-### Data Flow for Cross-Module Features
-```text
-Email sender --> match against user_contacts.email
-Email body --> AI extract --> calendar event / contract data
-Contact profile --> query user_emails WHERE from_email = contact.email
-Calendar event title --> fuzzy match against contact names
-Contract provider --> match against email senders
-```
-
-### Caching Strategy
-- Daily briefing: cached in localStorage with date key, regenerated once per day
-- Cross-module matches (email-contact): computed on render, lightweight DB queries
-- Smart insights: refreshed every 5 minutes (existing pattern)
-
-## Summary of Files Modified/Created
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
-- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
-- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
-- `src/components/email/EmailCard.tsx` (date badge)
-- `src/components/contacts/ContactTimeline.tsx` (email history)
-- `src/hooks/useContextualActions.ts` (cross-module actions)
-- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)
