@@ -11,23 +11,19 @@ import { FamilyActivityFinder } from './FamilyActivityFinder';
 import { HomeworkHelper } from './HomeworkHelper';
 import { ParentingCoach } from './ParentingCoach';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { PanelShell } from '@/components/ui/panel-shell';
 
 export function FamilyPanel() {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('tasks');
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-border">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          {t('family.title')}
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t('family.subtitle')}
-        </p>
-      </div>
-
+    <PanelShell
+      icon={Users}
+      title={t('family.title')}
+      subtitle={t('family.subtitle')}
+      noPadding
+    >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
         <div className="mx-4 mt-4 overflow-x-auto scrollbar-hide flex-shrink-0">
           <TabsList className="inline-flex min-w-max gap-1">
@@ -96,6 +92,6 @@ export function FamilyPanel() {
           </div>
         </div>
       </Tabs>
-    </div>
+    </PanelShell>
   );
 }

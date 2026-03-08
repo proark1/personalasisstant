@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,10 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, Building, MapPin, Plus, FileText, Wrench, CheckSquare, Loader2 } from 'lucide-react';
+import { Home, Building, MapPin, Plus, FileText, Wrench, CheckSquare } from 'lucide-react';
 import { useProperties, Property } from '@/hooks/useProperties';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { PanelShell } from '@/components/ui/panel-shell';
 
 export function PropertyPanel() {
   const {
@@ -47,69 +48,64 @@ export function PropertyPanel() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const addButton = (
+    <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+      <DialogTrigger asChild>
+        <Button size="sm"><Plus className="w-4 h-4 mr-1" /> Add</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add New Property</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Property Name</Label>
+            <Input
+              placeholder="e.g., Kayseri Apartment"
+              value={newProperty.name}
+              onChange={(e) => setNewProperty({ ...newProperty, name: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Type</Label>
+            <Select value={newProperty.property_type} onValueChange={(v) => setNewProperty({ ...newProperty, property_type: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="apartment">Apartment</SelectItem>
+                <SelectItem value="house">House</SelectItem>
+                <SelectItem value="land">Land</SelectItem>
+                <SelectItem value="commercial">Commercial</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>City</Label>
+              <Input placeholder="Kayseri" value={newProperty.city} onChange={(e) => setNewProperty({ ...newProperty, city: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Input value={newProperty.country} onChange={(e) => setNewProperty({ ...newProperty, country: e.target.value })} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+          <Button onClick={handleAddProperty}>Add Property</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Building className="w-5 h-5 text-primary" />
-          Property Management
-        </h2>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="w-4 h-4 mr-1" /> Add Property</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Property</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Property Name</Label>
-                <Input
-                  placeholder="e.g., Kayseri Apartment"
-                  value={newProperty.name}
-                  onChange={(e) => setNewProperty({ ...newProperty, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Select value={newProperty.property_type} onValueChange={(v) => setNewProperty({ ...newProperty, property_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="apartment">Apartment</SelectItem>
-                    <SelectItem value="house">House</SelectItem>
-                    <SelectItem value="land">Land</SelectItem>
-                    <SelectItem value="commercial">Commercial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>City</Label>
-                  <Input placeholder="Kayseri" value={newProperty.city} onChange={(e) => setNewProperty({ ...newProperty, city: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Country</Label>
-                  <Input value={newProperty.country} onChange={(e) => setNewProperty({ ...newProperty, country: e.target.value })} />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-              <Button onClick={handleAddProperty}>Add Property</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
+    <PanelShell
+      icon={Building}
+      title="Property Management"
+      loading={loading}
+      loadingVariant="cards"
+      actions={addButton}
+      noPadding
+    >
       <div className="flex flex-1 overflow-hidden">
         {/* Property List */}
         <div className="w-64 border-r border-border p-3 overflow-y-auto">
@@ -118,7 +114,7 @@ export function PropertyPanel() {
               <p className="text-sm text-muted-foreground text-center py-4">No properties yet</p>
             ) : (
               properties.map((property) => (
-                <Card
+                <GlassCard
                   key={property.id}
                   className={cn(
                     "p-3 cursor-pointer transition-all hover:border-primary/50",
@@ -134,7 +130,7 @@ export function PropertyPanel() {
                       <Badge variant="outline" className="text-xs mt-1 capitalize">{property.property_type}</Badge>
                     </div>
                   </div>
-                </Card>
+                </GlassCard>
               ))
             )}
           </div>
@@ -154,7 +150,7 @@ export function PropertyPanel() {
               <TabsContent value="overview" className="flex-1 mt-0">
                 <ScrollArea className="h-full">
                   <div className="p-4 space-y-4">
-                    <Card className="p-4">
+                    <GlassCard className="p-4">
                       <h3 className="font-semibold text-xl mb-2">{selectedPropertyData.name}</h3>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div><span className="text-muted-foreground">Type:</span> <span className="capitalize">{selectedPropertyData.property_type}</span></div>
@@ -163,7 +159,7 @@ export function PropertyPanel() {
                         {selectedPropertyData.purchase_date && <div><span className="text-muted-foreground">Purchased:</span> {format(new Date(selectedPropertyData.purchase_date), 'MMM yyyy')}</div>}
                       </div>
                       {selectedPropertyData.notes && <p className="mt-3 text-sm text-muted-foreground">{selectedPropertyData.notes}</p>}
-                    </Card>
+                    </GlassCard>
                   </div>
                 </ScrollArea>
               </TabsContent>
@@ -175,13 +171,13 @@ export function PropertyPanel() {
                       <p className="text-sm text-muted-foreground text-center py-8">No maintenance tasks</p>
                     ) : (
                       propertyMaintenance.map((task) => (
-                        <Card key={task.id} className="p-3 flex items-center justify-between">
+                        <GlassCard key={task.id} className="p-3 flex items-center justify-between">
                           <div>
                             <p className="font-medium">{task.title}</p>
                             {task.scheduled_date && <p className="text-xs text-muted-foreground">{format(new Date(task.scheduled_date), 'MMM d, yyyy')}</p>}
                           </div>
                           <Badge variant={task.status === 'completed' ? 'default' : 'outline'}>{task.status}</Badge>
-                        </Card>
+                        </GlassCard>
                       ))
                     )}
                   </div>
@@ -195,7 +191,7 @@ export function PropertyPanel() {
                       <p className="text-sm text-muted-foreground text-center py-8">No checklists</p>
                     ) : (
                       propertyChecklists.map((checklist) => (
-                        <Card key={checklist.id} className="p-4">
+                        <GlassCard key={checklist.id} className="p-4">
                           <h4 className="font-medium mb-3">{checklist.name}</h4>
                           <div className="space-y-2">
                             {checklist.items.map((item) => (
@@ -208,7 +204,7 @@ export function PropertyPanel() {
                               </div>
                             ))}
                           </div>
-                        </Card>
+                        </GlassCard>
                       ))
                     )}
                   </div>
@@ -232,6 +228,6 @@ export function PropertyPanel() {
           )}
         </div>
       </div>
-    </div>
+    </PanelShell>
   );
 }

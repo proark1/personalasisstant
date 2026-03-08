@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Briefcase, Gamepad, Brain, TrendingUp, Users, DollarSign, BarChart3, Loader2 } from 'lucide-react';
+import { Briefcase, Gamepad, Brain, TrendingUp, Users, DollarSign, BarChart3 } from 'lucide-react';
 import { useStartupWorkspaces } from '@/hooks/useStartupWorkspaces';
 import { cn } from '@/lib/utils';
+import { PanelShell } from '@/components/ui/panel-shell';
 
 const WORKSPACE_ICONS: Record<string, React.ReactNode> = {
   gaming: <Gamepad className="w-5 h-5" />,
@@ -26,44 +27,40 @@ export function StartupWorkspacePanel() {
   const currentWorkspace = workspaces.find(w => w.id === activeWorkspace);
   const workspaceMetrics = activeWorkspace ? getWorkspaceMetrics(activeWorkspace) : [];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const workspaceTabs = (
+    <div className="flex items-center gap-2 overflow-x-auto">
+      {workspaces.map((workspace) => (
+        <Button
+          key={workspace.id}
+          variant={activeWorkspace === workspace.id ? 'secondary' : 'ghost'}
+          size="sm"
+          className={cn("gap-2 shrink-0", activeWorkspace === workspace.id && "shadow-sm")}
+          style={{ borderColor: activeWorkspace === workspace.id ? workspace.color : undefined }}
+          onClick={() => setActiveWorkspace(workspace.id)}
+        >
+          <span style={{ color: workspace.color }}>
+            {WORKSPACE_ICONS[workspace.workspace_type] || WORKSPACE_ICONS.custom}
+          </span>
+          {workspace.name}
+        </Button>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Briefcase className="w-5 h-5 text-primary" />
-          Startup Workspaces
-        </h2>
-      </div>
-
-      {/* Workspace Tabs */}
-      <div className="flex items-center gap-2 p-3 border-b border-border overflow-x-auto">
-        {workspaces.map((workspace) => (
-          <Button
-            key={workspace.id}
-            variant={activeWorkspace === workspace.id ? 'secondary' : 'ghost'}
-            size="sm"
-            className={cn("gap-2 shrink-0", activeWorkspace === workspace.id && "shadow-sm")}
-            style={{ borderColor: activeWorkspace === workspace.id ? workspace.color : undefined }}
-            onClick={() => setActiveWorkspace(workspace.id)}
-          >
-            <span style={{ color: workspace.color }}>
-              {WORKSPACE_ICONS[workspace.workspace_type] || WORKSPACE_ICONS.custom}
-            </span>
-            {workspace.name}
-          </Button>
-        ))}
-      </div>
-
-      {/* Workspace Content */}
-      {currentWorkspace ? (
+    <PanelShell
+      icon={Briefcase}
+      title="Startup Workspaces"
+      loading={loading}
+      loadingVariant="cards"
+      headerExtra={workspaceTabs}
+      noPadding
+      empty={!currentWorkspace && !loading}
+      emptyIcon={Briefcase}
+      emptyTitle="Select a workspace"
+      emptyDescription="Choose a workspace to get started"
+    >
+      {currentWorkspace && (
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-6">
             {/* Header */}
@@ -86,25 +83,25 @@ export function StartupWorkspacePanel() {
 
             {/* Quick Stats Cards */}
             <div className="grid grid-cols-3 gap-3">
-              <Card className="p-4 text-center">
+              <GlassCard className="p-4 text-center">
                 <Users className="w-5 h-5 mx-auto mb-1 text-blue-500" />
                 <p className="text-2xl font-bold">-</p>
                 <p className="text-xs text-muted-foreground">Team Size</p>
-              </Card>
-              <Card className="p-4 text-center">
+              </GlassCard>
+              <GlassCard className="p-4 text-center">
                 <DollarSign className="w-5 h-5 mx-auto mb-1 text-green-500" />
                 <p className="text-2xl font-bold">-</p>
                 <p className="text-xs text-muted-foreground">MRR</p>
-              </Card>
-              <Card className="p-4 text-center">
+              </GlassCard>
+              <GlassCard className="p-4 text-center">
                 <BarChart3 className="w-5 h-5 mx-auto mb-1 text-purple-500" />
                 <p className="text-2xl font-bold">-</p>
                 <p className="text-xs text-muted-foreground">Growth</p>
-              </Card>
+              </GlassCard>
             </div>
 
             {/* Metrics */}
-            <Card className="p-4">
+            <GlassCard className="p-4">
               <h4 className="font-medium mb-3 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
                 Key Metrics
@@ -123,33 +120,21 @@ export function StartupWorkspacePanel() {
                   ))}
                 </div>
               )}
-            </Card>
+            </GlassCard>
 
             {/* Quick Actions */}
-            <Card className="p-4">
+            <GlassCard className="p-4">
               <h4 className="font-medium mb-3">Quick Actions</h4>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" className="justify-start">
-                  View Tasks
-                </Button>
-                <Button variant="outline" size="sm" className="justify-start">
-                  Team Notes
-                </Button>
-                <Button variant="outline" size="sm" className="justify-start">
-                  Contacts
-                </Button>
-                <Button variant="outline" size="sm" className="justify-start">
-                  Add Metric
-                </Button>
+                <Button variant="outline" size="sm" className="justify-start">View Tasks</Button>
+                <Button variant="outline" size="sm" className="justify-start">Team Notes</Button>
+                <Button variant="outline" size="sm" className="justify-start">Contacts</Button>
+                <Button variant="outline" size="sm" className="justify-start">Add Metric</Button>
               </div>
-            </Card>
+            </GlassCard>
           </div>
         </ScrollArea>
-      ) : (
-        <div className="flex items-center justify-center h-full text-muted-foreground">
-          <p>Select a workspace to get started</p>
-        </div>
       )}
-    </div>
+    </PanelShell>
   );
 }

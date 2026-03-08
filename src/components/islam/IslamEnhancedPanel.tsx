@@ -1003,13 +1003,13 @@ export function IslamEnhancedPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border">
+      <div className="px-3 md:px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Moon className="w-5 h-5 text-amber-500" />
-            Islamic Features
-          </h2>
-          <Badge variant="outline" className="font-arabic">
+          <div className="flex items-center gap-2 min-w-0">
+            <Moon className="w-5 h-5 text-primary shrink-0" />
+            <h2 className="text-lg font-semibold text-foreground truncate">Islamic Features</h2>
+          </div>
+          <Badge variant="outline" className="font-arabic shrink-0">
             {hijriToday.day} {hijriToday.monthName} {hijriToday.year}
           </Badge>
         </div>
