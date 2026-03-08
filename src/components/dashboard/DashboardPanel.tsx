@@ -6,7 +6,7 @@ import { useLifeScore } from '@/hooks/useLifeScore';
 import { useCelebration } from '@/hooks/useCelebration';
 import { CheckinPrompt } from '@/components/checkin/CheckinPrompt';
 import { DashboardHero } from './DashboardHero';
-import { FocusCard } from './FocusCard';
+
 import { StatPills } from './StatPills';
 import { TodayTimeline } from './TodayTimeline';
 import { SmartInsightCard } from './SmartInsightCard';
