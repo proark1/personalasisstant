@@ -59,9 +59,9 @@ export function SmartSchedulingCard() {
     : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <Card className="glass-panel-solid border-accent/20">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm">
+    <GlassCard className="border-accent/20">
+      <GlassCardHeader className="pb-2">
+        <div className="flex items-center gap-2 text-sm font-semibold">
           <Lightbulb className="w-4 h-4 text-accent" />
           {t('smartScheduling.title')}
           {suggestions.length > 0 && (
