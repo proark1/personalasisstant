@@ -1,148 +1,83 @@
 
-# Deep Module Interconnection + AI Daily Voice Briefing
 
-## Vision
-Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
+# Make Dori AI Assistant More Intelligent & Helpful
 
----
+## Current State
 
-## Feature 1: AI Daily Voice Briefing on Dashboard
+Dori is already feature-rich: 15+ tools (tasks, events, contacts, contracts, habits, notes, email, reminders, shopping, projects, web search, memory), streaming responses, smart context injection, Perplexity web search, and long-term memory. The model used is `google/gemini-2.5-flash`.
 
-A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
+## Issues Identified
 
-### New Edge Function: `daily-voice-briefing`
-- Accepts user_id and fetches cross-module data server-side:
-  - Pending tasks (count, top 3 by priority)
-  - Today's calendar events
-  - Unread email count + priority emails
-  - Contract alerts (upcoming renewals/cancellations)
-  - Contacts overdue for follow-up
-  - Habit completion status
-  - Yesterday's check-in mood/energy
-- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
-- Returns: `{ briefingText: string, highlights: [...] }`
+1. **Model too weak for complex reasoning** — Using `gemini-2.5-flash` which is optimized for speed, not intelligence. For a personal assistant that needs to reason about schedules, prioritize tasks, and give nuanced advice, a stronger model would dramatically improve quality.
 
-### New Component: `DailyBriefingCard`
-- Displayed prominently on the dashboard (below the hero)
-- Shows a text summary with key highlights as chips/badges
-- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
-- Auto-play option (respects existing morning auto-play setting)
-- Cached per day so it doesn't re-generate on every page load
+2. **Two-pass web search wastes tokens and adds latency** — The edge function does a non-streaming first pass to detect `<tool>web_search</tool>`, executes the search, then does a second streaming pass. This doubles AI calls for every web search query and adds 2-5 seconds of latency.
 
-### Files
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add card)
+3. **Tool calls parsed via brittle XML regex** — The client-side `useAIChat.ts` parses `<tool>...</tool><action>...</action><task>{...}</task>` via regex. This is fragile — partial JSON across SSE chunks can break parsing, and the AI sometimes formats XML slightly differently, causing missed tool calls.
+
+4. **No follow-up intelligence** — After executing a tool (e.g., creating a task), Dori doesn't proactively suggest next steps. Example: after adding "Prepare presentation", it should suggest "Would you like me to break this down into subtasks?"
+
+5. **Context window bloat** — The system prompt alone is ~4000 tokens before any user context. Health data, family data, events, tasks all get appended verbatim. A 50-metric health history adds ~1000 tokens even when the user asks "add milk to shopping list".
+
+6. **No conversation summarization for long sessions** — After 20 messages, the full history is sent. No summarization of older messages to save tokens.
+
+7. **Empty state suggestions are static** — Time-based suggestions ("Plan my morning") don't adapt to actual user data (e.g., if there are overdue tasks, the suggestion should be "You have 3 overdue tasks").
 
 ---
 
-## Feature 2: Email-to-Calendar Integration
+## Plan
 
-When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
+### 1. Upgrade to stronger model
+Change the chat edge function from `google/gemini-2.5-flash` to `google/gemini-3-flash-preview` — better reasoning, same speed tier, significantly more capable for complex multi-tool interactions and nuanced advice.
 
-### Changes
-- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
-- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
-- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
+**File:** `supabase/functions/chat/index.ts`
 
-### Files
-- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
-- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
-- `src/components/email/EmailCard.tsx` (date detection badge)
+### 2. Add follow-up suggestions after tool execution
+After Dori executes a tool call, inject follow-up prompts into the response. Add a `FOLLOW_UP_RULES` section to the system prompt:
+- After creating a task → suggest breakdown or scheduling
+- After creating an event → ask about reminders or invites
+- After noting overdue tasks → offer to reschedule
+- After health summary → suggest actionable next steps
 
----
+**File:** `supabase/functions/chat/index.ts` (system prompt addition)
 
-## Feature 3: Email-to-Contact Linking
+### 3. Smarter context injection — trim unused data
+Reduce context bloat by:
+- Limiting health metrics to top 5 most recent per type (not 50)
+- Only sending weekly trends when health-related keywords detected
+- Capping events to next 7 days by default (not 30)
+- Truncating the system prompt: merge redundant guideline sections
 
-Automatically link emails to existing contacts and surface contact context when reading emails.
+**File:** `supabase/functions/chat/index.ts`, `src/lib/smartPayloadBuilder.ts`
 
-### Changes
-- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
-- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
-- Add a "Save as Contact" button when no match exists, pre-filling name and email
-- When viewing a contact profile, show their recent emails in the timeline
+### 4. Conversation summarization for long sessions
+When conversation exceeds 12 messages, summarize older messages (messages 1-8) into a single context line before sending to the AI. This keeps token usage bounded while preserving continuity.
 
-### Files
-- `src/components/email/EmailDetailSheet.tsx` (contact context card)
-- `src/components/contacts/ContactTimeline.tsx` (add email history section)
+**File:** `src/pages/Index.tsx` (in `handleSendMessage` where `conversationMessages` is built)
 
----
+### 5. Dynamic empty state suggestions
+Replace static time-based suggestions with data-aware ones:
+- If overdue tasks exist → "I have X overdue tasks"
+- If unread emails → "Check my unread emails"
+- If habit streaks at risk → "How are my habits?"
+- If upcoming event today → "What's on my calendar?"
 
-## Feature 4: Smart Dashboard Insight Card (Cross-Module)
+**File:** `src/components/assistant/DoriPanel.tsx`
 
-Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
+### 6. Improve tool reliability with structured output
+Add a `tool_call_format` instruction to the system prompt that enforces consistent JSON formatting within tool tags. Add a retry/fallback in `useAIChat.ts` for partial JSON: if `JSON.parse` fails on a tool payload, attempt to fix common issues (trailing commas, missing braces) before giving up.
 
-### Changes
-- Add email-based insights: "You have 3 unread priority emails from key contacts"
-- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
-- Add contact insights: "You haven't spoken to [Name] in 45 days"
-- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
-- Rotate through these insights automatically
-
-### Files
-- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
-- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
+**File:** `src/hooks/useAIChat.ts`, `supabase/functions/chat/index.ts`
 
 ---
 
-## Feature 5: Contextual Quick Actions (Cross-Module)
+## Summary
 
-Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
+| # | Change | File(s) | Impact |
+|---|--------|---------|--------|
+| 1 | Upgrade model to gemini-3-flash-preview | `chat/index.ts` | High — better reasoning |
+| 2 | Follow-up suggestions after tool use | `chat/index.ts` | High — more helpful |
+| 3 | Trim context bloat | `chat/index.ts`, `smartPayloadBuilder.ts` | Medium — cost savings |
+| 4 | Conversation summarization | `Index.tsx` | Medium — long session quality |
+| 5 | Dynamic empty state | `DoriPanel.tsx` | Medium — better first impression |
+| 6 | Robust tool parsing | `useAIChat.ts`, `chat/index.ts` | Medium — fewer missed actions |
 
-### Changes
-- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
-- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
-- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
-- These actions appear in the QuickActionsBar on the dashboard
-
-### Files
-- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
-- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
-
----
-
-## Technical Details
-
-### Daily Voice Briefing Edge Function
-```text
-POST /daily-voice-briefing
-Body: { user_id }
-Response: {
-  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
-  highlights: [
-    { type: "task", label: "4 tasks, 1 overdue" },
-    { type: "email", label: "3 unread priority" },
-    { type: "contract", label: "Insurance renews in 5 days" },
-    { type: "contact", label: "Follow up with Ahmed" }
-  ]
-}
-```
-
-Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
-
-### Data Flow for Cross-Module Features
-```text
-Email sender --> match against user_contacts.email
-Email body --> AI extract --> calendar event / contract data
-Contact profile --> query user_emails WHERE from_email = contact.email
-Calendar event title --> fuzzy match against contact names
-Contract provider --> match against email senders
-```
-
-### Caching Strategy
-- Daily briefing: cached in localStorage with date key, regenerated once per day
-- Cross-module matches (email-contact): computed on render, lightweight DB queries
-- Smart insights: refreshed every 5 minutes (existing pattern)
-
-## Summary of Files Modified/Created
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
-- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
-- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
-- `src/components/email/EmailCard.tsx` (date badge)
-- `src/components/contacts/ContactTimeline.tsx` (email history)
-- `src/hooks/useContextualActions.ts` (cross-module actions)
-- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)
