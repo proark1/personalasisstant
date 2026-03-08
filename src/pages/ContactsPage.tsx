@@ -844,17 +844,17 @@ export default function Contacts() {
           </Dialog>
           </div>
         </div>
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <GlassCard className="mb-6">
+          <GlassCardHeader>
+            <GlassCardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
               Contact Relationship Manager
-            </CardTitle>
-            <CardDescription>
+            </GlassCardTitle>
+            <p className="text-sm text-muted-foreground">
               Manage your personal and business network with smart follow-up reminders
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </p>
+          </GlassCardHeader>
+          <GlassCardContent>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
