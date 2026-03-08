@@ -204,6 +204,10 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         </StaggerItem>
 
         <StaggerItem className="col-span-full">
+          <DashboardPrayerCard onNavigate={onNavigate} />
+        </StaggerItem>
+
+        <StaggerItem className="col-span-full">
           <TodayTimeline tasks={tasks} events={events} onNavigate={onNavigate} onCompleteTask={handleCompleteTask} />
         </StaggerItem>
 
