@@ -488,16 +488,6 @@ export function ContractManager({
           </GlassCardContent>
         </GlassCard>
       </div>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <Calendar className="h-4 w-4" />
-              {t('contracts.expiringSoon')}
-            </div>
-            <p className="text-2xl font-bold">{expiringContracts.length}</p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Search & Filter */}
       <div className="flex gap-3 items-center flex-wrap">
