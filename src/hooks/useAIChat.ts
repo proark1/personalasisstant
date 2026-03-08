@@ -70,8 +70,13 @@ interface EmailData {
   body?: string;
 }
 
+interface ReminderData {
+  message: string;
+  triggerAt: string;
+}
+
 interface ToolCall {
-  tool: 'manage_task' | 'schedule_event' | 'suggest_contacts' | 'create_meeting_plan' | 'create_note' | 'add_shopping_item' | 'manage_contact' | 'manage_contract' | 'manage_project' | 'manage_habit' | 'manage_note' | 'compose_email' | 'get_summary';
+  tool: 'manage_task' | 'schedule_event' | 'suggest_contacts' | 'create_meeting_plan' | 'create_note' | 'add_shopping_item' | 'manage_contact' | 'manage_contract' | 'manage_project' | 'manage_habit' | 'manage_note' | 'compose_email' | 'get_summary' | 'set_reminder';
   action?: string;
   task?: Partial<Task>;
   event?: Partial<CalendarEvent>;
@@ -85,6 +90,7 @@ interface ToolCall {
   habit?: HabitData;
   email?: EmailData;
   summaryType?: string;
+  reminder?: ReminderData;
 }
 
 interface RelevantContact {
