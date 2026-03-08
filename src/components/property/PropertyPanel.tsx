@@ -398,7 +398,7 @@ export function PropertyPanel() {
                             )}
                           </div>
                           {valueChange != null && (
-                            <div className={cn("mt-3 flex items-center gap-1 text-sm font-medium", valueChange >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500")}>
+                            <div className={cn("mt-3 flex items-center gap-1 text-sm font-medium", valueChange >= 0 ? "text-primary" : "text-destructive")}>
                               {valueChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                               {valueChange >= 0 ? '+' : ''}{formatCurrency(valueChange)} ({((valueChange / selectedPropertyData.purchase_price!) * 100).toFixed(1)}%)
                             </div>
