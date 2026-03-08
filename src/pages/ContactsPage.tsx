@@ -485,7 +485,7 @@ export default function Contacts() {
                 <TableRow 
                   key={contact.id} 
                   className="cursor-pointer"
-                  onClick={() => openEditDialog(contact)}
+                  onClick={() => setSelectedContact(contact)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2">
