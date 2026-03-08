@@ -67,9 +67,9 @@ export function DayPredictionCard() {
   const Icon = config.icon;
 
   return (
-    <Card className={cn("glass-panel-solid", config.bgColor)}>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-between text-sm">
+    <GlassCard className={config.bgColor}>
+      <GlassCardHeader className="pb-2">
+        <div className="flex items-center justify-between text-sm font-semibold">
           <div className="flex items-center gap-2">
             <Icon className={cn("w-4 h-4", config.color)} />
             <span>{config.label}</span>
