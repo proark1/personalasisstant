@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.extract-contract-from-email]
 verify_jwt = false
+
+[functions.web-search]
+verify_jwt = false
