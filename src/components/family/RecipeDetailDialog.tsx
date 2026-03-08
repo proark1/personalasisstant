@@ -240,18 +240,32 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
                             {category}
                           </h4>
                           <ul className="space-y-1.5">
-                            {ings.map((ing) => (
-                              <li key={ing.id} className="flex items-center gap-2 text-sm">
-                                <span className="w-2 h-2 rounded-full bg-primary/50" />
-                                <span>
-                                  {ing.quantity && (
-                                    <span className="font-medium">{ing.quantity}</span>
-                                  )}
-                                  {ing.unit && <span className="text-muted-foreground"> {ing.unit}</span>}
-                                  <span> {ing.name}</span>
-                                </span>
-                              </li>
-                            ))}
+                            {ings.map((ing) => {
+                              const isChecked = checkedIngredients.has(ing.id);
+                              return (
+                                <li
+                                  key={ing.id}
+                                  className="flex items-center gap-2.5 text-sm cursor-pointer select-none active:scale-[0.98] transition-transform"
+                                  onClick={() => {
+                                    setCheckedIngredients(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(ing.id)) next.delete(ing.id);
+                                      else next.add(ing.id);
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isChecked ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
+                                    {isChecked && <Check className="h-3 w-3 text-primary-foreground" />}
+                                  </span>
+                                  <span className={isChecked ? 'line-through text-muted-foreground' : ''}>
+                                    {ing.quantity && <span className="font-medium">{ing.quantity}</span>}
+                                    {ing.unit && <span className="text-muted-foreground"> {ing.unit}</span>}
+                                    <span> {ing.name}</span>
+                                  </span>
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       ))}

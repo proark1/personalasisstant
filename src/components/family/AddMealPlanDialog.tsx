@@ -30,7 +30,13 @@ export function AddMealPlanDialog({
   refetchRecipes,
 }: AddMealPlanDialogProps) {
   const { t, language } = useLanguage();
-  const [mealType, setMealType] = useState('dinner');
+  const [mealType, setMealType] = useState(() => {
+    const hour = new Date().getHours();
+    if (hour < 10) return 'breakfast';
+    if (hour < 14) return 'lunch';
+    if (hour < 18) return 'dinner';
+    return 'snack';
+  });
   const [recipeId, setRecipeId] = useState<string>('');
   const [customMealName, setCustomMealName] = useState('');
   const [servings, setServings] = useState('4');
