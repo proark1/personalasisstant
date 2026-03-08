@@ -13,6 +13,7 @@ import { useContracts, ContractInput } from '@/hooks/useContracts';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SectionHeader } from '@/components/ui/section-header';
 import { Input } from '@/components/ui/input';
 import { RefreshCw, Mail, Inbox, ShieldAlert, Loader2, PlugZap, ChevronDown, ChevronRight, Sparkles, Clock, Search, X, CheckSquare, Archive, Eye, Flag, Plus, PartyPopper, Zap, CheckCheck, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
