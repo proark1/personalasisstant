@@ -250,7 +250,7 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
     if (urgentContractName) {
       allActions.push({
         id: 'contract-review',
-        label: 'Review Contract',
+        label: 'Contract',
         icon: 'FileText',
         category: 'priority',
         action: () => navigate('contracts'),

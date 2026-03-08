@@ -53,7 +53,7 @@ const getActionLabel = (reminder: ProactiveReminder): string => {
 
 export function DoriNotificationIcon() {
   const navigate = useNavigate();
-  const { reminders, unreadCount, markAsRead, dismissReminder, snoozeReminder, completeReminder } = useProactiveReminders();
+  const { reminders, unreadCount, loading, markAsRead, dismissReminder, snoozeReminder, completeReminder } = useProactiveReminders();
   const [open, setOpen] = useState(false);
 
   const handleOpen = (isOpen: boolean) => {

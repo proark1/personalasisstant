@@ -11,14 +11,10 @@ export function WeatherCard() {
 
   if (error || !weather) {
     return (
-      <GlassCard>
-        <GlassCardContent className="p-3">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <CloudOff className="w-4 h-4 shrink-0" />
-            <span className="text-xs">Weather unavailable</span>
-          </div>
-        </GlassCardContent>
-      </GlassCard>
+      <div className="flex items-center gap-1.5 text-muted-foreground/60 px-1">
+        <CloudOff className="w-3.5 h-3.5 shrink-0" />
+        <span className="text-[11px]">Weather unavailable</span>
+      </div>
     );
   }
 

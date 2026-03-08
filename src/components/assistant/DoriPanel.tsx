@@ -154,7 +154,6 @@ export function DoriPanel({
       {/* Header */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-accent/5">
         <div className="flex items-center gap-2">
-          <img src={doriFish} alt="Dori" className="w-10 h-10 object-contain" />
           <h3 className="font-semibold text-sm">Dori</h3>
         </div>
         <div className="flex items-center gap-2">

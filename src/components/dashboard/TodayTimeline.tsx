@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Task, CalendarEvent } from '@/types/flux';
-import { Clock } from 'lucide-react';
+import { Clock, ChevronRight } from 'lucide-react';
 import { format, isToday, startOfDay, endOfDay, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 

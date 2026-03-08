@@ -46,8 +46,9 @@ export function useProactiveReminders() {
         return;
       }
 
-      setReminders((data || []) as ProactiveReminder[]);
-      setUnreadCount((data || []).filter(r => !r.read_at).length);
+      const activeReminders = ((data || []) as ProactiveReminder[]).filter(r => r.is_active && !r.action_taken);
+      setReminders(activeReminders);
+      setUnreadCount(activeReminders.filter(r => !r.read_at).length);
     } catch (err) {
       console.error('Failed to fetch proactive reminders:', err);
     } finally {
