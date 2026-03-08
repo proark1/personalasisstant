@@ -185,15 +185,21 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         </StaggerItem>
 
         {/* Tier 2: Key actionable content */}
-        <StaggerItem className="md:col-span-1 space-y-3 md:space-y-4">
-          <WeatherCard />
-          <StatPills
-            streak={stats.streak}
-            completedToday={stats.completedToday}
-            completedThisWeek={stats.completedThisWeek}
-            lifeScore={todayScore?.overallScore}
-            onNavigate={onNavigate}
-          />
+        <StaggerItem className="col-span-full">
+          <div className="flex items-center gap-3">
+            <div className="shrink-0">
+              <WeatherCard />
+            </div>
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <StatPills
+                streak={stats.streak}
+                completedToday={stats.completedToday}
+                completedThisWeek={stats.completedThisWeek}
+                lifeScore={todayScore?.overallScore}
+                onNavigate={onNavigate}
+              />
+            </div>
+          </div>
         </StaggerItem>
 
         <StaggerItem className="col-span-full">

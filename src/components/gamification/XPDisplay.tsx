@@ -19,26 +19,12 @@ export function XPDisplay({ variant = 'compact', className }: XPDisplayProps) {
 
   if (variant === 'compact') {
     return (
-      <div className={cn("flex items-center gap-3", className)}>
-        {/* Level Badge */}
+      <div className={cn("flex items-center gap-2", className)}>
         <div className="flex items-center gap-1.5 bg-primary/10 px-2.5 py-1 rounded-full">
-          <Star className="w-4 h-4 text-primary" />
-          <span className="text-sm font-bold text-primary">{t('xp.level')} {userXP.current_level}</span>
+          <Star className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-bold text-primary">{t('xp.level')} {userXP.current_level}</span>
         </div>
-        
-        {/* Streak */}
-        {userXP.current_streak > 0 && (
-          <div className="flex items-center gap-1 text-orange-500">
-            <Flame className="w-4 h-4" />
-            <span className="text-sm font-semibold">{userXP.current_streak}</span>
-          </div>
-        )}
-        
-        {/* XP Progress Mini */}
-        <div className="flex items-center gap-2">
-          <Progress value={progress.percentage} className="w-16 h-1.5" />
-          <span className="text-xs text-muted-foreground">{userXP.total_xp} XP</span>
-        </div>
+        <span className="text-xs text-muted-foreground">{userXP.total_xp} XP</span>
       </div>
     );
   }

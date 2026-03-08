@@ -60,8 +60,8 @@ export function DashboardHero({
   return (
     <GlassCard variant="gradient" glow className="overflow-hidden">
       <GlassCardContent className="p-4 md:p-5">
-        {/* Top: greeting + XP */}
-        <div className="flex items-start justify-between gap-3 mb-3">
+        {/* Top: greeting + settings */}
+        <div className="flex items-start justify-between gap-2 mb-1">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -71,19 +71,21 @@ export function DashboardHero({
             <h1 className="text-xl md:text-2xl font-bold text-gradient truncate">
               {greeting}
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">{summary}</p>
+            <p className="text-sm text-muted-foreground mt-0.5 whitespace-nowrap">{summary}</p>
           </motion.div>
-          <div className="flex items-center gap-2 shrink-0">
-            <XPDisplay variant="compact" />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full"
-              onClick={() => onNavigate?.('settings')}
-            >
-              <Settings className="w-4 h-4 text-muted-foreground" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full shrink-0"
+            onClick={() => onNavigate?.('settings')}
+          >
+            <Settings className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </div>
+
+        {/* XP row */}
+        <div className="mb-3">
+          <XPDisplay variant="compact" />
         </div>
 
         {/* Divider */}

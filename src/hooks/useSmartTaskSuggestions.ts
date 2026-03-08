@@ -39,39 +39,78 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
     }
 
     setLoading(true);
+    
+    // Build a local fallback from highest-priority overdue task
+    const buildLocalFallback = (): SmartSuggestion | null => {
+      const overdue = incompleteTasks
+        .filter(t => t.dueDate && t.dueDate < new Date())
+        .sort((a, b) => {
+          const prio = { high: 0, medium: 1, low: 2 };
+          return (prio[a.priority] ?? 1) - (prio[b.priority] ?? 1);
+        });
+      const pick = overdue[0] || incompleteTasks[0];
+      if (!pick) return null;
+      return {
+        recommendation: {
+          taskId: pick.id,
+          title: pick.title,
+          reason: overdue.length > 0 ? 'This is your top overdue task' : 'Your highest priority task',
+          estimatedMinutes: 15,
+          startTip: 'Just start with 2 minutes!',
+          energy: 'medium',
+        },
+        alternatives: [],
+        encouragement: "You've got this!",
+      };
+    };
+    
     try {
       // Fetch today's checkin for context
       const today = new Date().toISOString().split('T')[0];
-      const { data: checkinData } = await supabase
-        .from('daily_checkins')
-        .select('mood, energy_level, sleep_hours, main_focus')
-        .eq('user_id', user.id)
-        .eq('checkin_date', today)
-        .maybeSingle();
+      
+      // Race between AI call and 5s timeout
+      const aiPromise = (async () => {
+        const { data: checkinData } = await supabase
+          .from('daily_checkins')
+          .select('mood, energy_level, sleep_hours, main_focus')
+          .eq('user_id', user.id)
+          .eq('checkin_date', today)
+          .maybeSingle();
 
-      const response = await supabase.functions.invoke('ai-assistant', {
-        body: {
-          type: 'what_now',
-          tasks: incompleteTasks.slice(0, 15).map(t => ({
-            id: t.id,
-            title: t.title,
-            category: t.category,
-            priority: t.priority,
-            dueDate: t.dueDate,
-            completed: t.completed,
-          })),
-          events: events.slice(0, 10).map(e => ({
-            id: e.id,
-            title: e.title,
-            startTime: e.startTime,
-            endTime: e.endTime,
-          })),
-          checkin: checkinData,
-        },
-      });
+        return supabase.functions.invoke('ai-assistant', {
+          body: {
+            type: 'what_now',
+            tasks: incompleteTasks.slice(0, 15).map(t => ({
+              id: t.id, title: t.title, category: t.category,
+              priority: t.priority, dueDate: t.dueDate, completed: t.completed,
+            })),
+            events: events.slice(0, 10).map(e => ({
+              id: e.id, title: e.title, startTime: e.startTime, endTime: e.endTime,
+            })),
+            checkin: checkinData,
+          },
+        });
+      })();
+      
+      const timeoutPromise = new Promise<'timeout'>((resolve) =>
+        setTimeout(() => resolve('timeout'), 5000)
+      );
+      
+      const result = await Promise.race([aiPromise, timeoutPromise]);
+      
+      if (result === 'timeout') {
+        console.warn('Smart suggestion timed out, using local fallback');
+        const fallback = buildLocalFallback();
+        if (fallback) { setSuggestion(fallback); setLastFetched(new Date()); }
+        return;
+      }
+      
+      const response = result;
 
       if (response.error) {
         console.error('Smart suggestion error:', response.error);
+        const fallback = buildLocalFallback();
+        if (fallback) { setSuggestion(fallback); setLastFetched(new Date()); }
         return;
       }
 

@@ -281,6 +281,8 @@ export function MobileLayout({
         <PullToRefresh
           onRefresh={async () => {
             setRefreshKey(k => k + 1);
+            const { toast } = await import('sonner');
+            toast.success('Refreshed', { duration: 1500 });
           }}
           className="h-full"
         >

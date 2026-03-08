@@ -73,7 +73,9 @@ export function StatPills({
           {!(pill.value === 0 && pill.zeroLabel) && (
             <span className="text-[10px] text-muted-foreground">{pill.label}</span>
           )}
-          <MiniProgress value={pill.value} max={pill.max} color={pill.barColor} />
+          {!(pill.value === 0 && pill.zeroLabel) && (
+            <MiniProgress value={pill.value} max={pill.max} color={pill.barColor} />
+          )}
         </motion.button>
       ))}
     </motion.div>
