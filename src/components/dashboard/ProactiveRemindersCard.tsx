@@ -106,8 +106,8 @@ export function ProactiveRemindersCard({ onNavigate }: ProactiveRemindersCardPro
             +{reminders.length - 5} {t('proactiveReminders.more')}
           </p>
         )}
-      </CardContent>
-    </Card>
+      </GlassCardContent>
+    </GlassCard>
   );
 }
 

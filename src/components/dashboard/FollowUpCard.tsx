@@ -157,7 +157,7 @@ export function FollowUpCard() {
             +{dueFollowUps.length - 3} {t('followUp.more')}
           </p>
         )}
-      </CardContent>
-    </Card>
+      </GlassCardContent>
+    </GlassCard>
   );
 }

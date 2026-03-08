@@ -138,7 +138,7 @@ export function SmartSchedulingCard() {
             {t('smartScheduling.keepCompleting')}
           </p>
         )}
-      </CardContent>
-    </Card>
+      </GlassCardContent>
+    </GlassCard>
   );
 }

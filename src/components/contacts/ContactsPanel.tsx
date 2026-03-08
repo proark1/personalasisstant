@@ -428,8 +428,8 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </GlassCardContent>
+      </GlassCard>
     );
   };
 

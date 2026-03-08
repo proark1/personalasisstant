@@ -280,7 +280,7 @@ export function ContractCard({
             </DropdownMenu>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </GlassCardContent>
+    </GlassCard>
   );
 }

@@ -67,6 +67,7 @@ export function ContractsPanel({ userId }: ContractsPanelProps) {
           onClose={() => setShareDialog(null)}
         />
       )}
-    </div>
+      </div>
+    </PanelShell>
   );
 }
