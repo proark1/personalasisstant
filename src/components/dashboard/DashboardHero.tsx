@@ -4,7 +4,6 @@ import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
 import { XPDisplay } from '@/components/gamification/XPDisplay';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Task } from '@/types/flux';
