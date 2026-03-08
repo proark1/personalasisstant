@@ -1,95 +1,148 @@
 
+# Deep Module Interconnection + AI Daily Voice Briefing
 
-# Islam Feature Overhaul — Top 10 UI/UX Improvements
-
-The `IslamEnhancedPanel` is a 1922-line monolith with 7 tabs crammed into a single file. The feature is functional but has major UX problems: tabs are unreadable on mobile (7 icon-only columns), the panel doesn't use the design system (`GlassCard`, `PanelShell`, `EmptyState`), there's no "at a glance" dashboard, and the Duas/Calendar tabs are visually flat.
-
----
-
-## 1. Add an "Overview" Dashboard Tab as Default
-The panel opens to Prayer Times, but users need a quick glance at everything: next prayer countdown, today's Quran progress, Hijri date, daily hadith, and dhikr counter. Create a new `IslamOverviewTab.tsx` that shows all of this in a compact, scrollable card layout using `GlassCard`.
-
-**New file:** `src/components/islam/IslamOverviewTab.tsx`  
-**Modify:** `IslamEnhancedPanel.tsx` — add "Home" as the first tab, reduce to 5 tabs by merging Hifz into Quran.
+## Vision
+Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
 
 ---
 
-## 2. Fix Tab Bar — 7 Tabs Are Unreadable on Mobile
-The `grid-cols-7` TabsList shows only icons on mobile with `hidden sm:inline` labels. 7 tiny tap targets is unusable. Reduce to 5 tabs: **Home**, **Prayer**, **Quran** (absorb Hifz as a sub-tab), **Duas**, **More** (Qibla + Hadith + Calendar).
+## Feature 1: AI Daily Voice Briefing on Dashboard
 
-**File:** `IslamEnhancedPanel.tsx` — restructure tabs, create a "More" tab that contains Qibla, Hadith, and Calendar as sub-sections.
+A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
 
----
+### New Edge Function: `daily-voice-briefing`
+- Accepts user_id and fetches cross-module data server-side:
+  - Pending tasks (count, top 3 by priority)
+  - Today's calendar events
+  - Unread email count + priority emails
+  - Contract alerts (upcoming renewals/cancellations)
+  - Contacts overdue for follow-up
+  - Habit completion status
+  - Yesterday's check-in mood/energy
+- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
+- Returns: `{ briefingText: string, highlights: [...] }`
 
-## 3. Use Design System Components Throughout
-The panel uses raw `Card` from `@/components/ui/card` while other panels use `GlassCard`, `PanelShell`, `EmptyState`, and `staggerItem` animations. This makes Islam feel like a different app.
+### New Component: `DailyBriefingCard`
+- Displayed prominently on the dashboard (below the hero)
+- Shows a text summary with key highlights as chips/badges
+- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
+- Auto-play option (respects existing morning auto-play setting)
+- Cached per day so it doesn't re-generate on every page load
 
-**Files:** All Islam sub-components — replace `Card` with `GlassCard`, wrap main panel in `PanelShell`, add `motion` stagger animations, use `EmptyState` for zero states.
-
----
-
-## 4. Add Dhikr Counter to Overview/Home
-The `useIslamicFeatures` hook has full dhikr tracking (SubhanAllah, Alhamdulillah, Allahu Akbar, etc.) with database persistence, but it's not surfaced in any UI. Add an interactive dhikr counter with haptic feedback, circular progress rings, and daily targets.
-
-**New file:** `src/components/islam/DhikrCounter.tsx`  
-**Uses:** `useIslamicFeatures().dhikrLogs`, `incrementDhikr`, `DHIKR_TYPES`
-
----
-
-## 5. Improve Duas Tab — Add Search and Better Layout
-The Duas tab has 50+ duas organized by category, but the category pills are hard to scan, there's no search, and the expanded state uses a flat layout. Add search, improve the expansion animation, and show the Arabic text prominently even when collapsed.
-
-**File:** `IslamEnhancedPanel.tsx` — Duas tab section. Add search input, improve card layout to show Arabic preview when collapsed, add copy/share buttons on each dua.
-
----
-
-## 6. Improve Prayer Times with "Prayer Tracker" 
-Prayer times display well but there's no way to mark prayers as completed. Add a simple tap-to-check feature (local state + database) so users can track their daily salah completion with a visual progress indicator.
-
-**File:** `PrayerTimesTab.tsx` — add a check icon next to each prayer that persists via `useIslamicFeatures` or local storage, show completion count (e.g., "3/5 prayers").
+### Files
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add card)
 
 ---
 
-## 7. Quran Reader — Add Translation Toggle
-The Quran reader shows Arabic text only. Many users need English translation alongside. Add a toggle to show/hide English translation (fetched from `en.asad` or `en.sahih` edition via the same API).
+## Feature 2: Email-to-Calendar Integration
 
-**File:** `IslamEnhancedPanel.tsx` — Quran reading section. Add a translation toggle button, fetch translation edition in parallel, render below each ayah.
+When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
 
----
+### Changes
+- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
+- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
+- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
 
-## 8. Better Mobile Qibla UX
-The Qibla compass works but the location name shows raw coordinates ("21.42°, 39.83°") instead of a city name. The compass also lacks instructions for first-time users.
-
-**File:** `IslamEnhancedPanel.tsx` — Qibla section. Use reverse geocoding for the location name (already done in `PrayerTimesTab`), add a brief instruction text for first-time users.
-
----
-
-## 9. Calendar Tab — Add Countdown to Next Event
-The Islamic Calendar shows a flat list of upcoming events but doesn't highlight the nearest one or show a countdown. Add a prominent "Next Islamic Event" card at the top with days remaining.
-
-**File:** `IslamEnhancedPanel.tsx` — Calendar tab. Add a hero card for the next upcoming event with `differenceInDays` countdown.
+### Files
+- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
+- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
+- `src/components/email/EmailCard.tsx` (date detection badge)
 
 ---
 
-## 10. Wrap in PanelShell and Add Proper Header
-The panel uses a custom header with a Moon icon and Hijri badge. It should use `PanelShell` for consistency with every other panel in the app, including the standardized padding, stagger animations, and header format.
+## Feature 3: Email-to-Contact Linking
 
-**File:** `IslamEnhancedPanel.tsx` — wrap the entire panel content in `PanelShell` with the Moon icon, move Hijri badge into the subtitle area.
+Automatically link emails to existing contacts and surface contact context when reading emails.
+
+### Changes
+- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
+- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
+- Add a "Save as Contact" button when no match exists, pre-filling name and email
+- When viewing a contact profile, show their recent emails in the timeline
+
+### Files
+- `src/components/email/EmailDetailSheet.tsx` (contact context card)
+- `src/components/contacts/ContactTimeline.tsx` (add email history section)
 
 ---
 
-## Implementation Priority
+## Feature 4: Smart Dashboard Insight Card (Cross-Module)
 
-| # | Item | Effort | Impact |
-|---|------|--------|--------|
-| 1 | Overview/Home dashboard tab | Medium | High |
-| 2 | Fix tab bar (7→5 tabs) | Medium | High |
-| 3 | Design system adoption | Medium | High |
-| 4 | Dhikr counter | Medium | High |
-| 5 | Duas search + layout | Small | Medium |
-| 6 | Prayer tracker | Small | Medium |
-| 7 | Quran translation toggle | Medium | High |
-| 8 | Qibla location name fix | Small | Small |
-| 9 | Calendar next event countdown | Small | Medium |
-| 10 | PanelShell wrapper | Small | Medium |
+Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
 
+### Changes
+- Add email-based insights: "You have 3 unread priority emails from key contacts"
+- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
+- Add contact insights: "You haven't spoken to [Name] in 45 days"
+- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
+- Rotate through these insights automatically
+
+### Files
+- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
+- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
+
+---
+
+## Feature 5: Contextual Quick Actions (Cross-Module)
+
+Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
+
+### Changes
+- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
+- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
+- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
+- These actions appear in the QuickActionsBar on the dashboard
+
+### Files
+- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
+- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
+
+---
+
+## Technical Details
+
+### Daily Voice Briefing Edge Function
+```text
+POST /daily-voice-briefing
+Body: { user_id }
+Response: {
+  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
+  highlights: [
+    { type: "task", label: "4 tasks, 1 overdue" },
+    { type: "email", label: "3 unread priority" },
+    { type: "contract", label: "Insurance renews in 5 days" },
+    { type: "contact", label: "Follow up with Ahmed" }
+  ]
+}
+```
+
+Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
+
+### Data Flow for Cross-Module Features
+```text
+Email sender --> match against user_contacts.email
+Email body --> AI extract --> calendar event / contract data
+Contact profile --> query user_emails WHERE from_email = contact.email
+Calendar event title --> fuzzy match against contact names
+Contract provider --> match against email senders
+```
+
+### Caching Strategy
+- Daily briefing: cached in localStorage with date key, regenerated once per day
+- Cross-module matches (email-contact): computed on render, lightweight DB queries
+- Smart insights: refreshed every 5 minutes (existing pattern)
+
+## Summary of Files Modified/Created
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
+- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
+- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
+- `src/components/email/EmailCard.tsx` (date badge)
+- `src/components/contacts/ContactTimeline.tsx` (email history)
+- `src/hooks/useContextualActions.ts` (cross-module actions)
+- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)

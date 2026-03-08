@@ -14,22 +14,25 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { 
-  Calendar, Moon, Compass, BookOpen,
-  RefreshCw, MapPin, ChevronLeft, ChevronRight, Search, Loader2, 
+  Moon, BookOpen,
+  RefreshCw, ChevronLeft, ChevronRight, Search, Loader2, 
   Volume2, VolumeX, Pause, Play, ZoomIn, ZoomOut, Heart, Clock, GraduationCap,
-  Bookmark, BookmarkCheck, X, FileText, LayoutGrid, TrendingUp, Type, CheckCircle2
+  Bookmark, BookmarkCheck, X, FileText, LayoutGrid, TrendingUp, Type, CheckCircle2,
+  Home, MoreHorizontal
 } from 'lucide-react';
 import { useIslamicFeatures } from '@/hooks/useIslamicFeatures';
 import { useQuranBookmarks } from '@/hooks/useQuranBookmarks';
 import { useQuranReadingProgress } from '@/hooks/useQuranReadingProgress';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { PrayerTimesTab } from './PrayerTimesTab';
-import { HadithTab } from './HadithTab';
 import { HifzTrackerTab } from './HifzTrackerTab';
 import { QuranProgressPanel } from './QuranProgressPanel';
+import { IslamOverviewTab } from './IslamOverviewTab';
+import { IslamMoreTab } from './IslamMoreTab';
+import { IslamDuasTab } from './IslamDuasTab';
+import { PanelShell } from '@/components/ui/panel-shell';
 
 // Arabic font options
 const QURAN_FONTS = [
@@ -38,12 +41,6 @@ const QURAN_FONTS = [
   { id: 'scheherazade', name: 'Scheherazade', fontFamily: '"Scheherazade New", serif', description: 'Traditional Naskh' },
   { id: 'lateef', name: 'Lateef', fontFamily: 'Lateef, serif', description: 'Nastaliq style' },
 ];
-
-interface QiblaData {
-  direction: number;
-  latitude: number;
-  longitude: number;
-}
 
 interface Surah {
   number: number;
@@ -63,6 +60,11 @@ interface Ayah {
   audio?: string;
 }
 
+interface TranslationAyah {
+  numberInSurah: number;
+  text: string;
+}
+
 interface SurahDetail {
   number: number;
   name: string;
@@ -77,10 +79,6 @@ const isIOS = (): boolean => {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
 
-const isMobile = (): boolean => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
-
 interface Dua {
   id: string;
   category: string;
@@ -92,520 +90,114 @@ interface Dua {
 
 const DUAS: Dua[] = [
   // Daily
-  {
-    id: 'morning',
-    category: 'Daily',
-    title: 'Morning Dua',
-    arabic: 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ',
-    transliteration: "Asbahna wa asbahal mulku lillah, walhamdu lillah, la ilaha illallahu wahdahu la sharika lah",
-    translation: "We have reached the morning and at this very time all sovereignty belongs to Allah. All praise is for Allah. None has the right to be worshipped except Allah, alone, without partner."
-  },
-  {
-    id: 'evening',
-    category: 'Daily',
-    title: 'Evening Dua',
-    arabic: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ',
-    transliteration: "Amsayna wa amsal mulku lillah, walhamdu lillah, la ilaha illallahu wahdahu la sharika lah",
-    translation: "We have reached the evening and at this very time all sovereignty belongs to Allah. All praise is for Allah. None has the right to be worshipped except Allah, alone, without partner."
-  },
-  {
-    id: 'sleep',
-    category: 'Daily',
-    title: 'Before Sleeping',
-    arabic: 'بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا',
-    transliteration: "Bismika Allahumma amutu wa ahya",
-    translation: "In Your name O Allah, I die and I live."
-  },
-  {
-    id: 'waking',
-    category: 'Daily',
-    title: 'Upon Waking Up',
-    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ',
-    transliteration: "Alhamdu lillahil-lathee ahyana ba'da ma amatana wa ilayhin-nushoor",
-    translation: "Praise is to Allah Who gives us life after He has caused us to die and to Him is the return."
-  },
-  {
-    id: 'morning-protection',
-    category: 'Daily',
-    title: 'Morning Protection',
-    arabic: 'اللَّهُمَّ بِكَ أَصْبَحْنَا، وَبِكَ أَمْسَيْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ',
-    transliteration: "Allahumma bika asbahna, wa bika amsayna, wa bika nahya, wa bika namutu wa ilaykan-nushur",
-    translation: "O Allah, by Your leave we have reached the morning, by Your leave we have reached the evening, by Your leave we live and die, and to You is the resurrection."
-  },
+  { id: 'morning', category: 'Daily', title: 'Morning Dua', arabic: 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ', transliteration: "Asbahna wa asbahal mulku lillah, walhamdu lillah, la ilaha illallahu wahdahu la sharika lah", translation: "We have reached the morning and at this very time all sovereignty belongs to Allah. All praise is for Allah. None has the right to be worshipped except Allah, alone, without partner." },
+  { id: 'evening', category: 'Daily', title: 'Evening Dua', arabic: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ', transliteration: "Amsayna wa amsal mulku lillah, walhamdu lillah, la ilaha illallahu wahdahu la sharika lah", translation: "We have reached the evening and at this very time all sovereignty belongs to Allah. All praise is for Allah. None has the right to be worshipped except Allah, alone, without partner." },
+  { id: 'sleep', category: 'Daily', title: 'Before Sleeping', arabic: 'بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا', transliteration: "Bismika Allahumma amutu wa ahya", translation: "In Your name O Allah, I die and I live." },
+  { id: 'waking', category: 'Daily', title: 'Upon Waking Up', arabic: 'الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ', transliteration: "Alhamdu lillahil-lathee ahyana ba'da ma amatana wa ilayhin-nushoor", translation: "Praise is to Allah Who gives us life after He has caused us to die and to Him is the return." },
+  { id: 'morning-protection', category: 'Daily', title: 'Morning Protection', arabic: 'اللَّهُمَّ بِكَ أَصْبَحْنَا، وَبِكَ أَمْسَيْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ', transliteration: "Allahumma bika asbahna, wa bika amsayna, wa bika nahya, wa bika namutu wa ilaykan-nushur", translation: "O Allah, by Your leave we have reached the morning, by Your leave we have reached the evening, by Your leave we live and die, and to You is the resurrection." },
   // Food
-  {
-    id: 'food-before',
-    category: 'Food',
-    title: 'Before Eating',
-    arabic: 'بِسْمِ اللَّهِ وَعَلَى بَرَكَةِ اللَّهِ',
-    transliteration: "Bismillahi wa 'ala baraka-tillah",
-    translation: "In the name of Allah and with the blessings of Allah."
-  },
-  {
-    id: 'food-after',
-    category: 'Food',
-    title: 'After Eating',
-    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي أَطْعَمَنَا وَسَقَانَا وَجَعَلَنَا مُسْلِمِينَ',
-    transliteration: "Alhamdu lillahil-lathee at'amana wa saqana wa ja'alana muslimeen",
-    translation: "Praise be to Allah Who has fed us and given us drink and made us Muslims."
-  },
-  {
-    id: 'food-forget',
-    category: 'Food',
-    title: 'Forgot Bismillah',
-    arabic: 'بِسْمِ اللَّهِ أَوَّلَهُ وَآخِرَهُ',
-    transliteration: "Bismillahi awwalahu wa akhirah",
-    translation: "In the name of Allah at the beginning and at the end."
-  },
-  {
-    id: 'fasting-break',
-    category: 'Food',
-    title: 'Breaking Fast',
-    arabic: 'ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ',
-    transliteration: "Dhahaba-zama'u wab-tallatil-'urooqu wa thabatal-ajru in sha'Allah",
-    translation: "The thirst has gone, the veins are moistened and the reward is confirmed, if Allah wills."
-  },
+  { id: 'food-before', category: 'Food', title: 'Before Eating', arabic: 'بِسْمِ اللَّهِ وَعَلَى بَرَكَةِ اللَّهِ', transliteration: "Bismillahi wa 'ala baraka-tillah", translation: "In the name of Allah and with the blessings of Allah." },
+  { id: 'food-after', category: 'Food', title: 'After Eating', arabic: 'الْحَمْدُ لِلَّهِ الَّذِي أَطْعَمَنَا وَسَقَانَا وَجَعَلَنَا مُسْلِمِينَ', transliteration: "Alhamdu lillahil-lathee at'amana wa saqana wa ja'alana muslimeen", translation: "Praise be to Allah Who has fed us and given us drink and made us Muslims." },
+  { id: 'food-forget', category: 'Food', title: 'Forgot Bismillah', arabic: 'بِسْمِ اللَّهِ أَوَّلَهُ وَآخِرَهُ', transliteration: "Bismillahi awwalahu wa akhirah", translation: "In the name of Allah at the beginning and at the end." },
+  { id: 'fasting-break', category: 'Food', title: 'Breaking Fast', arabic: 'ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ', transliteration: "Dhahaba-zama'u wab-tallatil-'urooqu wa thabatal-ajru in sha'Allah", translation: "The thirst has gone, the veins are moistened and the reward is confirmed, if Allah wills." },
   // Travel
-  {
-    id: 'travel',
-    category: 'Travel',
-    title: 'Starting a Journey',
-    arabic: 'سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَٰذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ وَإِنَّا إِلَىٰ رَبِّنَا لَمُنْقَلِبُونَ',
-    transliteration: "Subhanal-lathee sakh-khara lana hatha wa ma kunna lahu muqrineen. Wa inna ila Rabbina lamunqaliboon",
-    translation: "Glory be to Him Who has subjected this to us, and we could never have it. And to our Lord we shall return."
-  },
-  {
-    id: 'travel-return',
-    category: 'Travel',
-    title: 'Returning from Journey',
-    arabic: 'آيِبُونَ تَائِبُونَ عَابِدُونَ لِرَبِّنَا حَامِدُونَ',
-    transliteration: "Ayibuna, ta'ibuna, 'abiduna, li Rabbina hamidun",
-    translation: "We return, repent, worship and praise our Lord."
-  },
+  { id: 'travel', category: 'Travel', title: 'Starting a Journey', arabic: 'سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَٰذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ وَإِنَّا إِلَىٰ رَبِّنَا لَمُنْقَلِبُونَ', transliteration: "Subhanal-lathee sakh-khara lana hatha wa ma kunna lahu muqrineen. Wa inna ila Rabbina lamunqaliboon", translation: "Glory be to Him Who has subjected this to us, and we could never have it. And to our Lord we shall return." },
+  { id: 'travel-return', category: 'Travel', title: 'Returning from Journey', arabic: 'آيِبُونَ تَائِبُونَ عَابِدُونَ لِرَبِّنَا حَامِدُونَ', transliteration: "Ayibuna, ta'ibuna, 'abiduna, li Rabbina hamidun", translation: "We return, repent, worship and praise our Lord." },
   // Home
-  {
-    id: 'home-leave',
-    category: 'Home',
-    title: 'Leaving Home',
-    arabic: 'بِسْمِ اللَّهِ تَوَكَّلْتُ عَلَى اللَّهِ وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
-    transliteration: "Bismillahi tawakkaltu 'alallahi wa la hawla wa la quwwata illa billah",
-    translation: "In the name of Allah, I place my trust in Allah, and there is no might nor power except with Allah."
-  },
-  {
-    id: 'home-enter',
-    category: 'Home',
-    title: 'Entering Home',
-    arabic: 'بِسْمِ اللَّهِ وَلَجْنَا، وَبِسْمِ اللَّهِ خَرَجْنَا، وَعَلَى اللَّهِ رَبِّنَا تَوَكَّلْنَا',
-    transliteration: "Bismillahi walajna, wa bismillahi kharajna, wa 'ala Allahi Rabbina tawakkalna",
-    translation: "In the name of Allah we enter, in the name of Allah we leave, and upon our Lord we place our trust."
-  },
-  {
-    id: 'new-home',
-    category: 'Home',
-    title: 'New Home',
-    arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ خَيْرَهَا وَخَيْرَ أَهْلِهَا وَخَيْرَ مَا فِيهَا، وَأَعُوذُ بِكَ مِنْ شَرِّهَا وَشَرِّ أَهْلِهَا وَشَرِّ مَا فِيهَا',
-    transliteration: "Allahumma inni as'aluka khayraha wa khayra ahlliha wa khayra ma fiha, wa a'udhu bika min sharriha wa sharri ahliha wa sharri ma fiha",
-    translation: "O Allah, I ask You for the good of it, the good of its people, and the good of what is in it. And I seek refuge with You from its evil, the evil of its people, and the evil of what is in it."
-  },
+  { id: 'home-leave', category: 'Home', title: 'Leaving Home', arabic: 'بِسْمِ اللَّهِ تَوَكَّلْتُ عَلَى اللَّهِ وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', transliteration: "Bismillahi tawakkaltu 'alallahi wa la hawla wa la quwwata illa billah", translation: "In the name of Allah, I place my trust in Allah, and there is no might nor power except with Allah." },
+  { id: 'home-enter', category: 'Home', title: 'Entering Home', arabic: 'بِسْمِ اللَّهِ وَلَجْنَا، وَبِسْمِ اللَّهِ خَرَجْنَا، وَعَلَى اللَّهِ رَبِّنَا تَوَكَّلْنَا', transliteration: "Bismillahi walajna, wa bismillahi kharajna, wa 'ala Allahi Rabbina tawakkalna", translation: "In the name of Allah we enter, in the name of Allah we leave, and upon our Lord we place our trust." },
   // Mosque
-  {
-    id: 'mosque-enter',
-    category: 'Mosque',
-    title: 'Entering Mosque',
-    arabic: 'اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ',
-    transliteration: "Allaahum-maf-tah lee abwaaba rahmatik",
-    translation: "O Allah, open for me the doors of Your mercy."
-  },
-  {
-    id: 'mosque-leave',
-    category: 'Mosque',
-    title: 'Leaving Mosque',
-    arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ',
-    transliteration: "Allaahumma innee as'aluka min fadlik",
-    translation: "O Allah, I ask You from Your favor."
-  },
+  { id: 'mosque-enter', category: 'Mosque', title: 'Entering Mosque', arabic: 'اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ', transliteration: "Allaahum-maf-tah lee abwaaba rahmatik", translation: "O Allah, open for me the doors of Your mercy." },
+  { id: 'mosque-leave', category: 'Mosque', title: 'Leaving Mosque', arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ', transliteration: "Allaahumma innee as'aluka min fadlik", translation: "O Allah, I ask You from Your favor." },
   // Distress
-  {
-    id: 'anxiety',
-    category: 'Distress',
-    title: 'For Anxiety & Worry',
-    arabic: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ',
-    transliteration: "Allahumma inni a'udhu bika minal-hammi wal-hazan",
-    translation: "O Allah, I seek refuge in You from anxiety and sorrow."
-  },
-  {
-    id: 'difficulty',
-    category: 'Distress',
-    title: 'In Times of Difficulty',
-    arabic: 'لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ',
-    transliteration: "La ilaha illa Anta, Subhanaka, inni kuntu minaz-zalimin",
-    translation: "There is no deity except You; exalted are You. Indeed, I have been of the wrongdoers."
-  },
-  {
-    id: 'distress-relief',
-    category: 'Distress',
-    title: 'For Relief from Distress',
-    arabic: 'لَا إِلَهَ إِلَّا اللَّهُ الْعَظِيمُ الْحَلِيمُ، لَا إِلَهَ إِلَّا اللَّهُ رَبُّ الْعَرْشِ الْعَظِيمِ',
-    transliteration: "La ilaha illallahul-'Atheemul-Haleem. La ilaha illallahu Rabbul-'Arshil-'Atheem",
-    translation: "There is no deity except Allah, the Magnificent, the Forbearing. There is no deity except Allah, Lord of the Magnificent Throne."
-  },
-  {
-    id: 'fear',
-    category: 'Distress',
-    title: 'When Afraid',
-    arabic: 'حَسْبِيَ اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ ۖ عَلَيْهِ تَوَكَّلْتُ ۖ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ',
-    transliteration: "Hasbiyallahu la ilaha illa Huwa, 'alayhi tawakkaltu, wa Huwa Rabbul-'Arshil-'Atheem",
-    translation: "Allah is sufficient for me; there is no deity except Him. On Him I have relied, and He is the Lord of the Great Throne."
-  },
-  {
-    id: 'anger',
-    category: 'Distress',
-    title: 'When Angry',
-    arabic: 'أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ',
-    transliteration: "A'udhu billahi minash-shaytanir-rajeem",
-    translation: "I seek refuge with Allah from Satan, the accursed."
-  },
+  { id: 'anxiety', category: 'Distress', title: 'For Anxiety & Worry', arabic: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ', transliteration: "Allahumma inni a'udhu bika minal-hammi wal-hazan", translation: "O Allah, I seek refuge in You from anxiety and sorrow." },
+  { id: 'difficulty', category: 'Distress', title: 'In Times of Difficulty', arabic: 'لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ', transliteration: "La ilaha illa Anta, Subhanaka, inni kuntu minaz-zalimin", translation: "There is no deity except You; exalted are You. Indeed, I have been of the wrongdoers." },
+  { id: 'fear', category: 'Distress', title: 'When Afraid', arabic: 'حَسْبِيَ اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ ۖ عَلَيْهِ تَوَكَّلْتُ ۖ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ', transliteration: "Hasbiyallahu la ilaha illa Huwa, 'alayhi tawakkaltu, wa Huwa Rabbul-'Arshil-'Atheem", translation: "Allah is sufficient for me; there is no deity except Him. On Him I have relied, and He is the Lord of the Great Throne." },
   // Forgiveness
-  {
-    id: 'forgiveness',
-    category: 'Forgiveness',
-    title: 'Seeking Forgiveness',
-    arabic: 'أَسْتَغْفِرُ اللَّهَ الَّذِي لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ وَأَتُوبُ إِلَيْهِ',
-    transliteration: "Astaghfirullaha-lathee la ilaha illa Huwal-Hayyul-Qayyoomu wa atoobu ilaih",
-    translation: "I seek the forgiveness of Allah, there is no deity except Him, the Living, the Sustainer, and I repent to Him."
-  },
-  {
-    id: 'sayyidul-istighfar',
-    category: 'Forgiveness',
-    title: 'Master of Forgiveness',
-    arabic: 'اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ',
-    transliteration: "Allahumma Anta Rabbi, la ilaha illa Anta, khalaqtani wa ana 'abduka, wa ana 'ala 'ahdika wa wa'dika mastata't",
-    translation: "O Allah, You are my Lord, there is no deity except You. You created me and I am Your servant, and I abide by Your covenant and promise as best I can."
-  },
+  { id: 'forgiveness', category: 'Forgiveness', title: 'Seeking Forgiveness', arabic: 'أَسْتَغْفِرُ اللَّهَ الَّذِي لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ وَأَتُوبُ إِلَيْهِ', transliteration: "Astaghfirullaha-lathee la ilaha illa Huwal-Hayyul-Qayyoomu wa atoobu ilaih", translation: "I seek the forgiveness of Allah, there is no deity except Him, the Living, the Sustainer, and I repent to Him." },
+  { id: 'sayyidul-istighfar', category: 'Forgiveness', title: 'Master of Forgiveness', arabic: 'اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ', transliteration: "Allahumma Anta Rabbi, la ilaha illa Anta, khalaqtani wa ana 'abduka, wa ana 'ala 'ahdika wa wa'dika mastata't", translation: "O Allah, You are my Lord, there is no deity except You. You created me and I am Your servant, and I abide by Your covenant and promise as best I can." },
   // Family
-  {
-    id: 'parents',
-    category: 'Family',
-    title: 'For Parents',
-    arabic: 'رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا',
-    transliteration: "Rabbir-hamhuma kama rabbayani sagheera",
-    translation: "My Lord, have mercy upon them as they brought me up when I was small."
-  },
-  {
-    id: 'children',
-    category: 'Family',
-    title: 'For Children',
-    arabic: 'رَبَّنَا هَبْ لَنَا مِنْ أَزْوَاجِنَا وَذُرِّيَّاتِنَا قُرَّةَ أَعْيُنٍ وَاجْعَلْنَا لِلْمُتَّقِينَ إِمَامًا',
-    transliteration: "Rabbana hab lana min azwajina wa thurriyyatina qurrata a'yunin waj'alna lil-muttaqeena imama",
-    translation: "Our Lord, grant us from among our wives and offspring comfort to our eyes and make us an example for the righteous."
-  },
-  {
-    id: 'spouse',
-    category: 'Family',
-    title: 'For Spouse',
-    arabic: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
-    transliteration: "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina 'adhaban-nar",
-    translation: "Our Lord, give us good in this world and good in the Hereafter, and protect us from the torment of the Fire."
-  },
-  {
-    id: 'newborn',
-    category: 'Family',
-    title: 'For Newborn',
-    arabic: 'أُعِيذُكَ بِكَلِمَاتِ اللَّهِ التَّامَّةِ مِنْ كُلِّ شَيْطَانٍ وَهَامَّةٍ، وَمِنْ كُلِّ عَيْنٍ لَامَّةٍ',
-    transliteration: "U'idhuka bikalimatillahi-tammati min kulli shaytanin wa hammah, wa min kulli 'aynin lammah",
-    translation: "I seek protection for you in the perfect words of Allah from every devil and every poisonous reptile, and from every evil eye."
-  },
+  { id: 'parents', category: 'Family', title: 'For Parents', arabic: 'رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا', transliteration: "Rabbir-hamhuma kama rabbayani sagheera", translation: "My Lord, have mercy upon them as they brought me up when I was small." },
+  { id: 'children', category: 'Family', title: 'For Children', arabic: 'رَبَّنَا هَبْ لَنَا مِنْ أَزْوَاجِنَا وَذُرِّيَّاتِنَا قُرَّةَ أَعْيُنٍ وَاجْعَلْنَا لِلْمُتَّقِينَ إِمَامًا', transliteration: "Rabbana hab lana min azwajina wa thurriyyatina qurrata a'yunin waj'alna lil-muttaqeena imama", translation: "Our Lord, grant us from among our wives and offspring comfort to our eyes and make us an example for the righteous." },
   // Knowledge
-  {
-    id: 'knowledge',
-    category: 'Knowledge',
-    title: 'For Knowledge',
-    arabic: 'رَبِّ زِدْنِي عِلْمًا',
-    transliteration: "Rabbi zidni 'ilma",
-    translation: "My Lord, increase me in knowledge."
-  },
-  {
-    id: 'understanding',
-    category: 'Knowledge',
-    title: 'For Understanding',
-    arabic: 'اللَّهُمَّ انْفَعْنِي بِمَا عَلَّمْتَنِي وَعَلِّمْنِي مَا يَنْفَعُنِي وَزِدْنِي عِلْمًا',
-    transliteration: "Allahum-manfa'ni bima 'allamtani wa 'allimni ma yanfa'uni wa zidni 'ilma",
-    translation: "O Allah, benefit me with what You have taught me, teach me what will benefit me, and increase me in knowledge."
-  },
-  {
-    id: 'studying',
-    category: 'Knowledge',
-    title: 'Before Studying',
-    arabic: 'اللَّهُمَّ افْتَحْ عَلَيْنَا حِكْمَتَكَ، وَانْشُرْ عَلَيْنَا رَحْمَتَكَ، يَا ذَا الْجَلَالِ وَالْإِكْرَامِ',
-    transliteration: "Allahumma-ftah 'alayna hikmataka, wanshur 'alayna rahmataka, ya Dhal-Jalali wal-Ikram",
-    translation: "O Allah, open to us Your wisdom and spread upon us Your mercy, O Possessor of Majesty and Honor."
-  },
-  // Weather
-  {
-    id: 'rain',
-    category: 'Weather',
-    title: 'When It Rains',
-    arabic: 'اللَّهُمَّ صَيِّبًا نَافِعًا',
-    transliteration: "Allahumma sayyiban nafi'an",
-    translation: "O Allah, may it be a beneficial rain."
-  },
-  {
-    id: 'thunder',
-    category: 'Weather',
-    title: 'Hearing Thunder',
-    arabic: 'سُبْحَانَ الَّذِي يُسَبِّحُ الرَّعْدُ بِحَمْدِهِ وَالْمَلَائِكَةُ مِنْ خِيفَتِهِ',
-    transliteration: "Subhanal-lathee yusabbihur-ra'du bihamdihi, wal-malaa'ikatu min kheefatih",
-    translation: "Glory be to Him Whom the thunder glorifies with His praise, and the angels from fear of Him."
-  },
-  {
-    id: 'wind',
-    category: 'Weather',
-    title: 'When Wind Blows',
-    arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ خَيْرَهَا وَخَيْرَ مَا فِيهَا وَخَيْرَ مَا أُرْسِلَتْ بِهِ، وَأَعُوذُ بِكَ مِنْ شَرِّهَا وَشَرِّ مَا فِيهَا وَشَرِّ مَا أُرْسِلَتْ بِهِ',
-    transliteration: "Allahumma inni as'aluka khayraha wa khayra ma fiha wa khayra ma ursilat bih, wa a'udhu bika min sharriha wa sharri ma fiha wa sharri ma ursilat bih",
-    translation: "O Allah, I ask You for its good, the good within it, and the good it was sent with. And I seek refuge with You from its evil, the evil within it, and the evil it was sent with."
-  },
+  { id: 'knowledge', category: 'Knowledge', title: 'For Knowledge', arabic: 'رَبِّ زِدْنِي عِلْمًا', transliteration: "Rabbi zidni 'ilma", translation: "My Lord, increase me in knowledge." },
   // Health
-  {
-    id: 'sick',
-    category: 'Health',
-    title: 'When Sick',
-    arabic: 'اللَّهُمَّ رَبَّ النَّاسِ أَذْهِبِ الْبَأْسَ، اشْفِهِ وَأَنْتَ الشَّافِي، لَا شِفَاءَ إِلَّا شِفَاؤُكَ، شِفَاءً لَا يُغَادِرُ سَقَمًا',
-    transliteration: "Allahumma Rabban-nas, adhhibil-ba's, washfihi wa Antash-Shafi, la shifa'a illa shifa'uka, shifa'an la yughadiru saqama",
-    translation: "O Allah, Lord of mankind, remove the affliction and heal, for You are the Healer. There is no healing except Your healing, a healing that leaves no disease behind."
-  },
-  {
-    id: 'visiting-sick',
-    category: 'Health',
-    title: 'Visiting the Sick',
-    arabic: 'لَا بَأْسَ طَهُورٌ إِنْ شَاءَ اللَّهُ',
-    transliteration: "La ba'sa, tahoorun in sha'Allah",
-    translation: "No harm, it will be a purification (for you), if Allah wills."
-  },
-  {
-    id: 'pain',
-    category: 'Health',
-    title: 'When in Pain',
-    arabic: 'أَعُوذُ بِعِزَّةِ اللَّهِ وَقُدْرَتِهِ مِنْ شَرِّ مَا أَجِدُ وَأُحَاذِرُ',
-    transliteration: "A'udhu bi'izzatillahi wa qudratihi min sharri ma ajidu wa uhadhir",
-    translation: "I seek refuge in Allah's might and power from the evil of what I feel and fear."
-  },
+  { id: 'sick', category: 'Health', title: 'When Sick', arabic: 'اللَّهُمَّ رَبَّ النَّاسِ أَذْهِبِ الْبَأْسَ، اشْفِهِ وَأَنْتَ الشَّافِي، لَا شِفَاءَ إِلَّا شِفَاؤُكَ، شِفَاءً لَا يُغَادِرُ سَقَمًا', transliteration: "Allahumma Rabban-nas, adhhibil-ba's, washfihi wa Antash-Shafi, la shifa'a illa shifa'uka, shifa'an la yughadiru saqama", translation: "O Allah, Lord of mankind, remove the affliction and heal, for You are the Healer. There is no healing except Your healing, a healing that leaves no disease behind." },
   // Protection
-  {
-    id: 'evil-eye',
-    category: 'Protection',
-    title: 'Against Evil Eye',
-    arabic: 'أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ',
-    transliteration: "A'udhu bikalimatillahi-tammati min sharri ma khalaq",
-    translation: "I seek refuge in the perfect words of Allah from the evil of that which He has created."
-  },
-  {
-    id: 'morning-evening-protection',
-    category: 'Protection',
-    title: 'Daily Protection',
-    arabic: 'بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ',
-    transliteration: "Bismillahil-lathee la yadurru ma'asmihi shay'un fil-ardi wa la fis-sama'i, wa Huwas-Samee'ul-'Aleem",
-    translation: "In the name of Allah, with Whose name nothing on earth or in heaven can cause harm, and He is the All-Hearing, the All-Knowing."
-  },
-  {
-    id: 'nightmares',
-    category: 'Protection',
-    title: 'After Bad Dream',
-    arabic: 'أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ، أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ غَضَبِهِ وَعِقَابِهِ وَشَرِّ عِبَادِهِ',
-    transliteration: "A'udhu billahi minash-shaytanir-rajeem. A'udhu bikalimatillahit-tammati min ghadabihi wa 'iqabihi wa sharri 'ibadihi",
-    translation: "I seek refuge with Allah from Satan the accursed. I seek refuge in the perfect words of Allah from His anger, His punishment, and the evil of His servants."
-  },
+  { id: 'evil-eye', category: 'Protection', title: 'Against Evil Eye', arabic: 'أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ', transliteration: "A'udhu bikalimatillahi-tammati min sharri ma khalaq", translation: "I seek refuge in the perfect words of Allah from the evil of that which He has created." },
+  { id: 'morning-evening-protection', category: 'Protection', title: 'Daily Protection', arabic: 'بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ', transliteration: "Bismillahil-lathee la yadurru ma'asmihi shay'un fil-ardi wa la fis-sama'i, wa Huwas-Samee'ul-'Aleem", translation: "In the name of Allah, with Whose name nothing on earth or in heaven can cause harm, and He is the All-Hearing, the All-Knowing." },
   // Gratitude
-  {
-    id: 'gratitude-blessing',
-    category: 'Gratitude',
-    title: 'For Blessings',
-    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي بِنِعْمَتِهِ تَتِمُّ الصَّالِحَاتُ',
-    transliteration: "Alhamdu lillahil-lathee bini'matihi tatimmus-salihat",
-    translation: "Praise is to Allah, by Whose favor good deeds are completed."
-  },
-  {
-    id: 'see-something-liked',
-    category: 'Gratitude',
-    title: 'Seeing Something Liked',
-    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي بِنِعْمَتِهِ تَتِمُّ الصَّالِحَاتُ',
-    transliteration: "Alhamdu lillahil-lathee bini'matihi tatimmus-salihat",
-    translation: "Praise is to Allah, by Whose favor good things are accomplished."
-  },
-  {
-    id: 'see-something-disliked',
-    category: 'Gratitude',
-    title: 'Seeing Something Disliked',
-    arabic: 'الْحَمْدُ لِلَّهِ عَلَى كُلِّ حَالٍ',
-    transliteration: "Alhamdu lillahi 'ala kulli hal",
-    translation: "Praise is to Allah in all circumstances."
-  },
+  { id: 'gratitude-blessing', category: 'Gratitude', title: 'For Blessings', arabic: 'الْحَمْدُ لِلَّهِ الَّذِي بِنِعْمَتِهِ تَتِمُّ الصَّالِحَاتُ', transliteration: "Alhamdu lillahil-lathee bini'matihi tatimmus-salihat", translation: "Praise is to Allah, by Whose favor good deeds are completed." },
   // Prayer
-  {
-    id: 'after-adhan',
-    category: 'Prayer',
-    title: 'After Adhan',
-    arabic: 'اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ وَالصَّلَاةِ الْقَائِمَةِ آتِ مُحَمَّدًا الْوَسِيلَةَ وَالْفَضِيلَةَ',
-    transliteration: "Allahumma Rabba hadhihid-da'watit-tammah, was-salatil-qa'imah, ati Muhammadanil-waseelata wal-fadeelah",
-    translation: "O Allah, Lord of this perfect call and established prayer, grant Muhammad the intercession and virtue."
-  },
-  {
-    id: 'between-sujood',
-    category: 'Prayer',
-    title: 'Between Prostrations',
-    arabic: 'رَبِّ اغْفِرْ لِي، رَبِّ اغْفِرْ لِي',
-    transliteration: "Rabbighfir li, Rabbighfir li",
-    translation: "My Lord, forgive me. My Lord, forgive me."
-  },
-  {
-    id: 'in-sujood',
-    category: 'Prayer',
-    title: 'In Prostration',
-    arabic: 'سُبْحَانَ رَبِّيَ الْأَعْلَى',
-    transliteration: "Subhana Rabbiyal-A'la",
-    translation: "Glory be to my Lord, the Most High."
-  },
-  {
-    id: 'after-tashahud',
-    category: 'Prayer',
-    title: 'After Tashahud',
-    arabic: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ جَهَنَّمَ، وَمِنْ عَذَابِ الْقَبْرِ، وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ، وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ',
-    transliteration: "Allahumma inni a'udhu bika min 'adhabi jahannam, wa min 'adhabil-qabr, wa min fitnatil-mahya wal-mamat, wa min sharri fitnatil-masihid-dajjal",
-    translation: "O Allah, I seek refuge with You from the torment of Hell, from the torment of the grave, from the trials of life and death, and from the evil of the trial of the False Messiah."
-  },
+  { id: 'after-adhan', category: 'Prayer', title: 'After Adhan', arabic: 'اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ وَالصَّلَاةِ الْقَائِمَةِ آتِ مُحَمَّدًا الْوَسِيلَةَ وَالْفَضِيلَةَ', transliteration: "Allahumma Rabba hadhihid-da'watit-tammah, was-salatil-qa'imah, ati Muhammadanil-waseelata wal-fadeelah", translation: "O Allah, Lord of this perfect call and established prayer, grant Muhammad the intercession and virtue." },
+  { id: 'in-sujood', category: 'Prayer', title: 'In Prostration', arabic: 'سُبْحَانَ رَبِّيَ الْأَعْلَى', transliteration: "Subhana Rabbiyal-A'la", translation: "Glory be to my Lord, the Most High." },
   // Patience
-  {
-    id: 'patience',
-    category: 'Patience',
-    title: 'For Patience',
-    arabic: 'رَبَّنَا أَفْرِغْ عَلَيْنَا صَبْرًا وَثَبِّتْ أَقْدَامَنَا وَانْصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ',
-    transliteration: "Rabbana afrigh 'alayna sabran wa thabbit aqdamana wansurna 'alal-qawmil-kafireen",
-    translation: "Our Lord, pour upon us patience and plant firmly our feet and give us victory over the disbelieving people."
-  },
-  {
-    id: 'calamity',
-    category: 'Patience',
-    title: 'Upon Calamity',
-    arabic: 'إِنَّا لِلَّهِ وَإِنَّا إِلَيْهِ رَاجِعُونَ، اللَّهُمَّ أْجُرْنِي فِي مُصِيبَتِي وَأَخْلِفْ لِي خَيْرًا مِنْهَا',
-    transliteration: "Inna lillahi wa inna ilayhi raji'un. Allahumma'jurni fi museebati wakhluf li khayran minha",
-    translation: "Indeed we belong to Allah, and indeed to Him we will return. O Allah, reward me in my calamity and replace it with something better."
-  },
+  { id: 'calamity', category: 'Patience', title: 'Upon Calamity', arabic: 'إِنَّا لِلَّهِ وَإِنَّا إِلَيْهِ رَاجِعُونَ، اللَّهُمَّ أْجُرْنِي فِي مُصِيبَتِي وَأَخْلِفْ لِي خَيْرًا مِنْهَا', transliteration: "Inna lillahi wa inna ilayhi raji'un. Allahumma'jurni fi museebati wakhluf li khayran minha", translation: "Indeed we belong to Allah, and indeed to Him we will return. O Allah, reward me in my calamity and replace it with something better." },
+  // Guidance
+  { id: 'istikhara', category: 'Guidance', title: 'Istikhara (Guidance)', arabic: 'اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ، وَأَسْتَقْدِرُكَ بِقُدْرَتِكَ، وَأَسْأَلُكَ مِنْ فَضْلِكَ الْعَظِيمِ', transliteration: "Allahumma inni astakhiruka bi'ilmika, wa astaqdiruka biqudratika, wa as'aluka min fadlikal-'atheem", translation: "O Allah, I seek Your guidance by virtue of Your knowledge, and I seek ability by virtue of Your power, and I ask You of Your great bounty." },
+  { id: 'steadfastness', category: 'Guidance', title: 'For Steadfastness', arabic: 'يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ', transliteration: "Ya Muqallibal-qulubi, thabbit qalbi 'ala deenika", translation: "O Turner of the hearts, make my heart firm upon Your religion." },
+  // Death
+  { id: 'deceased', category: 'Death', title: 'For the Deceased', arabic: 'اللَّهُمَّ اغْفِرْ لَهُ وَارْحَمْهُ وَعَافِهِ وَاعْفُ عَنْهُ', transliteration: "Allahummaghfir lahu warhamhu wa 'afihi wa'fu 'anhu", translation: "O Allah, forgive him, have mercy on him, grant him well-being, and pardon him." },
   // Misc
-  {
-    id: 'mirror',
-    category: 'Misc',
-    title: 'Looking in Mirror',
-    arabic: 'اللَّهُمَّ أَنْتَ حَسَّنْتَ خَلْقِي فَحَسِّنْ خُلُقِي',
-    transliteration: "Allahumma Anta hassanta khalqi fahassin khuluqi",
-    translation: "O Allah, You have made my creation good, so make my character good."
-  },
-  {
-    id: 'new-clothes',
-    category: 'Misc',
-    title: 'Wearing New Clothes',
-    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي كَسَانِي هَذَا وَرَزَقَنِيهِ مِنْ غَيْرِ حَوْلٍ مِنِّي وَلَا قُوَّةٍ',
-    transliteration: "Alhamdulillahil-lathee kasani hadha wa razaqaneehi min ghayri hawlin minni wa la quwwah",
-    translation: "Praise is to Allah Who has clothed me with this and provided it for me, with no power or might from myself."
-  },
-  {
-    id: 'sneezing',
-    category: 'Misc',
-    title: 'After Sneezing',
-    arabic: 'الْحَمْدُ لِلَّهِ',
-    transliteration: "Alhamdulillah",
-    translation: "Praise be to Allah."
-  },
-  {
-    id: 'sneezing-response',
-    category: 'Misc',
-    title: 'Response to Sneezer',
-    arabic: 'يَرْحَمُكَ اللَّهُ',
-    transliteration: "Yarhamukallah",
-    translation: "May Allah have mercy on you."
-  },
-  {
-    id: 'bathroom-enter',
-    category: 'Misc',
-    title: 'Entering Bathroom',
-    arabic: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ',
-    transliteration: "Allahumma inni a'udhu bika minal-khubuthi wal-khaba'ith",
-    translation: "O Allah, I seek refuge with You from male and female devils."
-  },
-  {
-    id: 'bathroom-exit',
-    category: 'Misc',
-    title: 'Leaving Bathroom',
-    arabic: 'غُفْرَانَكَ',
-    transliteration: "Ghufranaka",
-    translation: "I seek Your forgiveness."
-  },
-  {
-    id: 'istikhara',
-    category: 'Guidance',
-    title: 'Istikhara (Guidance)',
-    arabic: 'اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ، وَأَسْتَقْدِرُكَ بِقُدْرَتِكَ، وَأَسْأَلُكَ مِنْ فَضْلِكَ الْعَظِيمِ',
-    transliteration: "Allahumma inni astakhiruka bi'ilmika, wa astaqdiruka biqudratika, wa as'aluka min fadlikal-'atheem",
-    translation: "O Allah, I seek Your guidance by virtue of Your knowledge, and I seek ability by virtue of Your power, and I ask You of Your great bounty."
-  },
-  {
-    id: 'steadfastness',
-    category: 'Guidance',
-    title: 'For Steadfastness',
-    arabic: 'يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ',
-    transliteration: "Ya Muqallibal-qulubi, thabbit qalbi 'ala deenika",
-    translation: "O Turner of the hearts, make my heart firm upon Your religion."
-  },
-  {
-    id: 'good-end',
-    category: 'Guidance',
-    title: 'For Good Ending',
-    arabic: 'اللَّهُمَّ أَحْسِنْ عَاقِبَتَنَا فِي الْأُمُورِ كُلِّهَا، وَأَجِرْنَا مِنْ خِزْيِ الدُّنْيَا وَعَذَابِ الْآخِرَةِ',
-    transliteration: "Allahumma ahsin 'aqibatana fil-umuri kulliha, wa ajirna min khizyid-dunya wa 'adhaabil-akhirah",
-    translation: "O Allah, make our end good in all affairs, and protect us from the disgrace of this world and the punishment of the Hereafter."
-  },
-  {
-    id: 'deceased',
-    category: 'Death',
-    title: 'For the Deceased',
-    arabic: 'اللَّهُمَّ اغْفِرْ لَهُ وَارْحَمْهُ وَعَافِهِ وَاعْفُ عَنْهُ',
-    transliteration: "Allahummaghfir lahu warhamhu wa 'afihi wa'fu 'anhu",
-    translation: "O Allah, forgive him, have mercy on him, grant him well-being, and pardon him."
-  },
-  {
-    id: 'condolence',
-    category: 'Death',
-    title: 'Offering Condolence',
-    arabic: 'إِنَّ لِلَّهِ مَا أَخَذَ، وَلَهُ مَا أَعْطَى، وَكُلُّ شَيْءٍ عِنْدَهُ بِأَجَلٍ مُسَمًّى',
-    transliteration: "Inna lillahi ma akhadh, wa lahu ma a'ta, wa kullu shay'in 'indahu bi ajalin musamma",
-    translation: "To Allah belongs what He has taken, and to Him belongs what He has given. Everything with Him has an appointed time."
-  },
+  { id: 'mirror', category: 'Misc', title: 'Looking in Mirror', arabic: 'اللَّهُمَّ أَنْتَ حَسَّنْتَ خَلْقِي فَحَسِّنْ خُلُقِي', transliteration: "Allahumma Anta hassanta khalqi fahassin khuluqi", translation: "O Allah, You have made my creation good, so make my character good." },
+  { id: 'sneezing', category: 'Misc', title: 'After Sneezing', arabic: 'الْحَمْدُ لِلَّهِ', transliteration: "Alhamdulillah", translation: "Praise be to Allah." },
+  { id: 'bathroom-enter', category: 'Misc', title: 'Entering Bathroom', arabic: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ', transliteration: "Allahumma inni a'udhu bika minal-khubuthi wal-khaba'ith", translation: "O Allah, I seek refuge with You from male and female devils." },
 ];
+
+// Helper to parse tajweed markup
+function parseTajweedMarkup(text: string): string {
+  return text
+    .replace(/\[h\]/g, '<span class="tajweed-ham_wasl">')
+    .replace(/\[\/h\]/g, '</span>')
+    .replace(/\[s\]/g, '<span class="tajweed-silent">')
+    .replace(/\[\/s\]/g, '</span>')
+    .replace(/\[l\]/g, '<span class="tajweed-lpieces">')
+    .replace(/\[\/l\]/g, '</span>')
+    .replace(/\[n\]/g, '<span class="tajweed-normal">')
+    .replace(/\[\/n\]/g, '</span>')
+    .replace(/\[u\]/g, '<span class="tajweed-madda_permissible">')
+    .replace(/\[\/u\]/g, '</span>')
+    .replace(/\[i\]/g, '<span class="tajweed-ikhfaa">')
+    .replace(/\[\/i\]/g, '</span>')
+    .replace(/\[a\]/g, '<span class="tajweed-idghaam_no_ghunna">')
+    .replace(/\[\/a\]/g, '</span>')
+    .replace(/\[q\]/g, '<span class="tajweed-qalqala">')
+    .replace(/\[\/q\]/g, '</span>')
+    .replace(/\[m\]/g, '<span class="tajweed-madda_necessary">')
+    .replace(/\[\/m\]/g, '</span>')
+    .replace(/\[g\]/g, '<span class="tajweed-ghunna">')
+    .replace(/\[\/g\]/g, '</span>')
+    .replace(/\[o\]/g, '<span class="tajweed-madda_obligatory">')
+    .replace(/\[\/o\]/g, '</span>')
+    .replace(/\[d\]/g, '<span class="tajweed-idghaam_ghunna">')
+    .replace(/\[\/d\]/g, '</span>')
+    .replace(/\[b\]/g, '<span class="tajweed-iqlab">')
+    .replace(/\[\/b\]/g, '</span>')
+    .replace(/\[p\]/g, '<span class="tajweed-ikhfaa_shafawi">')
+    .replace(/\[\/p\]/g, '</span>');
+}
 
 export function IslamEnhancedPanel() {
   const {
     hijriToday,
     islamicEvents,
+    dhikrLogs,
+    dhikrTypes,
+    incrementDhikr,
+    resetDhikr,
     loading: islamicLoading,
   } = useIslamicFeatures();
   
   const { bookmarks, isBookmarked, addBookmark, removeBookmarkByAyah, updateBookmarkNote, getBookmark } = useQuranBookmarks();
   const { markAyahAsRead, isAyahRead, getSurahProgress, todayAyahsRead, goal, todayGoalProgress } = useQuranReadingProgress();
 
-  const [activeTab, setActiveTab] = useState('prayer');
-  const [duaCategory, setDuaCategory] = useState<string>('all');
-  const [expandedDua, setExpandedDua] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('home');
   const [showProgressPanel, setShowProgressPanel] = useState(false);
 
-  const duaCategories = ['all', ...Array.from(new Set(DUAS.map(d => d.category)))];
-  const filteredDuas = duaCategory === 'all' ? DUAS : DUAS.filter(d => d.category === duaCategory);
-  
-  // Qibla state
-  const [qiblaData, setQiblaData] = useState<QiblaData | null>(null);
-  const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [locationName, setLocationName] = useState<string>('');
-  const [compassPermission, setCompassPermission] = useState<'pending' | 'granted' | 'denied'>('pending');
-  const [loading, setLoading] = useState(false);
+  // Prayer countdown state (shared with overview)
+  const [nextPrayerName, setNextPrayerName] = useState<string | undefined>();
+  const [nextPrayerTime, setNextPrayerTime] = useState<string | undefined>();
+  const [countdown, setCountdown] = useState<string | undefined>();
 
   // Quran state
   const [surahs, setSurahs] = useState<Surah[]>([]);
@@ -631,257 +223,111 @@ export function IslamEnhancedPanel() {
   const [currentPlayingAyah, setCurrentPlayingAyah] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [translationAyahs, setTranslationAyahs] = useState<TranslationAyah[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Dua audio state
-  const [duaLoading, setDuaLoading] = useState<string | null>(null);
-  const [playingDua, setPlayingDua] = useState<string | null>(null);
-  const duaAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  const upcomingEvents = islamicEvents.filter(e => e.date >= new Date());
 
   // Get current font family
   const currentFontFamily = QURAN_FONTS.find(f => f.id === selectedFont)?.fontFamily || 'Amiri, serif';
 
-  // Change font handler
   const handleFontChange = (fontId: string) => {
     setSelectedFont(fontId);
     localStorage.setItem('quran-font', fontId);
-    // Update CSS variable
     document.documentElement.style.setProperty('--quran-font', QURAN_FONTS.find(f => f.id === fontId)?.fontFamily.split(',')[0].replace(/"/g, '') || 'Amiri');
   };
 
-  // Qibla calculations
-  const calculateQibla = (lat: number, lng: number): number => {
-    const meccaLat = 21.4225;
-    const meccaLng = 39.8262;
-    const phiK = (meccaLat * Math.PI) / 180;
-    const lambdaK = (meccaLng * Math.PI) / 180;
-    const phi = (lat * Math.PI) / 180;
-    const lambda = (lng * Math.PI) / 180;
-    const qibla = (180 / Math.PI) * Math.atan2(
-      Math.sin(lambdaK - lambda),
-      Math.cos(phi) * Math.tan(phiK) - Math.sin(phi) * Math.cos(lambdaK - lambda)
-    );
-    return (qibla + 360) % 360;
-  };
-
-  const requestCompassPermission = async () => {
-    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-      try {
-        const permission = await (DeviceOrientationEvent as any).requestPermission();
-        if (permission === 'granted') {
-          setCompassPermission('granted');
-          startCompassListener();
-        } else {
-          setCompassPermission('denied');
-          toast.error('Compass permission denied');
-        }
-      } catch (error) {
-        setCompassPermission('denied');
-      }
-    } else {
-      setCompassPermission('granted');
-      startCompassListener();
-    }
-  };
-
-  const startCompassListener = () => {
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      if (isIOS() && (event as any).webkitCompassHeading !== undefined) {
-        setDeviceHeading((event as any).webkitCompassHeading);
-      } else if (event.alpha !== null) {
-        setDeviceHeading(360 - event.alpha);
-      }
-    };
-    window.addEventListener('deviceorientation', handleOrientation, true);
-    return () => window.removeEventListener('deviceorientation', handleOrientation, true);
-  };
-
-  const getLocation = useCallback(() => {
-    setLocationError(null);
-    setLoading(true);
-    
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const direction = calculateQibla(latitude, longitude);
-          setQiblaData({ direction, latitude, longitude });
-          setLocationName(`${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`);
-          setLoading(false);
-          toast.success('Location updated');
-        },
-        (error) => {
-          setLocationError('Unable to get location');
-          setLoading(false);
-          setQiblaData({ direction: 0, latitude: 21.4225, longitude: 39.8262 });
-          setLocationName('Mecca (Default)');
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
-    } else {
-      setLocationError('Geolocation not supported');
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'qibla') {
-      if (!qiblaData) getLocation();
-      if (isIOS() && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        setCompassPermission('pending');
-      } else {
-        const cleanup = startCompassListener();
-        setCompassPermission('granted');
-        return cleanup;
-      }
-    }
-  }, [activeTab, getLocation, qiblaData]);
-
-  // Quran functions
   const fetchSurahs = async () => {
     try {
       const response = await fetch('https://api.alquran.cloud/v1/surah');
       const data = await response.json();
       if (data.code === 200) setSurahs(data.data);
-    } catch (error) {
-      console.error('Failed to fetch surahs:', error);
-    }
-  };
-  // Parse tajweed markup to HTML with colors
-  const parseTajweedMarkup = (text: string): string => {
-    // The API uses a custom markup format like [m[text], [h:num[text], [n[text], etc.
-    // Each letter represents a tajweed rule:
-    // g = Ghunnah (gray), q = Qalqalah (red), m = Madd (orange)
-    // n = Ikhfa (blue), i = Idgham (green), h = Hamza/other, f = Ikhfa, etc.
-    
-    const tajweedColors: Record<string, string> = {
-      'g': '#AAAAAA', // Ghunnah - gray
-      'q': '#DD0000', // Qalqalah - red  
-      'i': '#169200', // Idgham - green
-      'f': '#169200', // Ikhfa related to Idgham - green
-      'n': '#26BFFC', // Ikhfa/Noon rules - blue
-      'm': '#FF7E1E', // Madd - orange
-      'o': '#FF7E1E', // Madd obligatory - orange
-      'u': '#FF7E1E', // Madd permissible - orange
-      'a': '#9400A8', // Qalb - purple
-      's': '#169200', // Idgham shafawi - green
-      'l': '#AAAAAA', // Lam rules - gray
-      'h': '#AAAAAA', // Hamza wasl - gray
-      'c': '#AAAAAA', // Other rules - gray
-      'w': '#AAAAAA', // Waqf rules - gray
-      'p': '#26BFFC', // Ikhfa - blue
-    };
-    
-    // Replace all tajweed markup patterns with colored spans
-    let result = text;
-    
-    // Pattern: [letter:number[content] or [letter[content]
-    // The closing is just ] or sometimes the text continues
-    
-    // First, handle patterns like [letter:number[content]
-    result = result.replace(/\[([a-z]):?\d*\[([^\]]*)\]/gi, (match, rule, content) => {
-      const color = tajweedColors[rule.toLowerCase()] || '#AAAAAA';
-      return `<span style="color:${color}">${content}</span>`;
-    });
-    
-    // Handle remaining simple patterns [letter[content]
-    result = result.replace(/\[([a-z])\[([^\]]*)\]/gi, (match, rule, content) => {
-      const color = tajweedColors[rule.toLowerCase()] || '#AAAAAA';
-      return `<span style="color:${color}">${content}</span>`;
-    });
-    
-    // Clean up any remaining brackets that weren't matched
-    result = result.replace(/\[[a-z]:?\d*\[/gi, '');
-    result = result.replace(/\]/g, '');
-    
-    return result;
+    } catch { toast.error('Failed to load surahs'); }
   };
 
   const fetchSurah = async (surahNumber: number, useTajweed: boolean = tajweedEnabled) => {
     setQuranLoading(true);
     try {
-      // Always fetch audio from ar.alafasy edition
       const audioResponse = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/ar.alafasy`);
       const audioData = await audioResponse.json();
       
       if (useTajweed) {
-        // Fetch tajweed text separately
         const tajweedResponse = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/quran-tajweed`);
         const tajweedData = await tajweedResponse.json();
-        
         if (tajweedData.code === 200 && audioData.code === 200) {
-          // Merge: use tajweed text but audio from ar.alafasy
           const mergedAyahs = tajweedData.data.ayahs.map((ayah: Ayah, index: number) => ({
-            ...ayah,
-            text: parseTajweedMarkup(ayah.text),
-            audio: audioData.data.ayahs[index]?.audio || undefined
+            ...ayah, text: parseTajweedMarkup(ayah.text), audio: audioData.data.ayahs[index]?.audio || undefined
           }));
-          
-          setSelectedSurah({
-            ...tajweedData.data,
-            ayahs: mergedAyahs
-          });
+          setSelectedSurah({ ...tajweedData.data, ayahs: mergedAyahs });
           setCurrentAyahIndex(0);
           setShowSurahList(false);
         }
       } else {
-        // Use ar.alafasy directly (has both text and audio)
         if (audioData.code === 200) {
           setSelectedSurah(audioData.data);
           setCurrentAyahIndex(0);
           setShowSurahList(false);
         }
       }
-    } catch (error) {
-      toast.error('Failed to load surah');
-    } finally {
-      setQuranLoading(false);
+
+      // Fetch translation if enabled
+      if (showTranslation) {
+        fetchTranslation(surahNumber);
+      }
+    } catch { toast.error('Failed to load surah'); }
+    finally { setQuranLoading(false); }
+  };
+
+  const fetchTranslation = async (surahNumber: number) => {
+    try {
+      const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/en.sahih`);
+      const data = await res.json();
+      if (data.code === 200) {
+        setTranslationAyahs(data.data.ayahs.map((a: any) => ({ numberInSurah: a.numberInSurah, text: a.text })));
+      }
+    } catch { /* silent */ }
+  };
+
+  const toggleTranslation = () => {
+    const next = !showTranslation;
+    setShowTranslation(next);
+    if (next && selectedSurah && translationAyahs.length === 0) {
+      fetchTranslation(selectedSurah.number);
     }
   };
 
-  // Toggle Tajweed and refetch current surah
   const toggleTajweed = async () => {
     const newValue = !tajweedEnabled;
     setTajweedEnabled(newValue);
     localStorage.setItem('quran-tajweed-enabled', newValue.toString());
-    if (selectedSurah) {
-      await fetchSurah(selectedSurah.number, newValue);
-    }
+    if (selectedSurah) await fetchSurah(selectedSurah.number, newValue);
   };
 
-  // Toggle Quran view mode
   const toggleViewMode = () => {
     const newMode = quranViewMode === 'cards' ? 'page' : 'cards';
     setQuranViewMode(newMode);
     localStorage.setItem('quran-view-mode', newMode);
   };
 
-  // Convert Arabic numeral to Arabic-Indic numeral for ayah numbers
   const toArabicIndic = (num: number): string => {
-    const arabicIndic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-    return num.toString().split('').map(d => arabicIndic[parseInt(d)]).join('');
+    const ai = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return num.toString().split('').map(d => ai[parseInt(d)]).join('');
   };
 
   const playAyahAudio = (ayah: Ayah) => {
     if (audioRef.current) audioRef.current.pause();
-
     if (ayah.audio) {
       const audio = new Audio(ayah.audio);
       audioRef.current = audio;
       audio.onplay = () => { setIsPlayingAudio(true); setCurrentPlayingAyah(ayah.numberInSurah); };
       audio.onended = () => {
-        setIsPlayingAudio(false);
-        setCurrentPlayingAyah(null);
-        const currentIndex = selectedSurah?.ayahs.findIndex(a => a.numberInSurah === ayah.numberInSurah) || 0;
-        const nextAyah = selectedSurah?.ayahs[currentIndex + 1];
-        if (nextAyah?.audio) playAyahAudio(nextAyah);
+        setIsPlayingAudio(false); setCurrentPlayingAyah(null);
+        const idx = selectedSurah?.ayahs.findIndex(a => a.numberInSurah === ayah.numberInSurah) || 0;
+        const next = selectedSurah?.ayahs[idx + 1];
+        if (next?.audio) playAyahAudio(next);
       };
       audio.onerror = () => { setIsPlayingAudio(false); setCurrentPlayingAyah(null); };
       audio.play().catch(console.error);
     } else {
-      // Fallback: use edge function for TTS
       playArabicTTS(ayah.text, ayah.numberInSurah);
     }
   };
@@ -889,59 +335,21 @@ export function IslamEnhancedPanel() {
   const playArabicTTS = async (text: string, ayahNumber: number) => {
     setCurrentPlayingAyah(ayahNumber);
     try {
-      const { data, error } = await supabase.functions.invoke('text-to-speech', {
-        body: { text, voice: 'alloy' }
-      });
+      const { data, error } = await supabase.functions.invoke('text-to-speech', { body: { text, voice: 'alloy' } });
       if (error) throw error;
       const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
       audioRef.current = audio;
       audio.onended = () => setCurrentPlayingAyah(null);
       await audio.play();
-    } catch (error) {
-      console.error('TTS error:', error);
-      setCurrentPlayingAyah(null);
-    }
+    } catch { setCurrentPlayingAyah(null); }
   };
 
   const stopAudio = () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    if (duaAudioRef.current) { duaAudioRef.current.pause(); duaAudioRef.current = null; }
     setIsPlayingAudio(false);
     setCurrentPlayingAyah(null);
-    setPlayingDua(null);
   };
 
-  const playDuaAudio = async (dua: Dua) => {
-    // Stop if already playing this dua
-    if (playingDua === dua.id) {
-      if (duaAudioRef.current) duaAudioRef.current.pause();
-      setPlayingDua(null);
-      return;
-    }
-    
-    setDuaLoading(dua.id);
-    try {
-      // Use 'onyx' voice for Arabic male sound
-      const { data, error } = await supabase.functions.invoke('text-to-speech', {
-        body: { text: dua.arabic, voice: 'onyx' }
-      });
-      
-      if (error) throw error;
-      
-      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-      duaAudioRef.current = audio;
-      audio.onended = () => setPlayingDua(null);
-      await audio.play();
-      setPlayingDua(dua.id);
-    } catch (error) {
-      console.error('Dua TTS error:', error);
-      toast.error('Failed to play audio');
-    } finally {
-      setDuaLoading(null);
-    }
-  };
-
-  // Helper function to strip HTML tags for plain text storage
   const stripHtml = (html: string): string => {
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
@@ -950,26 +358,17 @@ export function IslamEnhancedPanel() {
 
   const handleBookmarkToggle = async (ayah: Ayah) => {
     if (!selectedSurah) return;
-    
     if (isBookmarked(selectedSurah.number, ayah.numberInSurah)) {
       await removeBookmarkByAyah(selectedSurah.number, ayah.numberInSurah);
     } else {
-      // Strip HTML tags from ayah text for clean storage
       const plainText = stripHtml(ayah.text);
-      await addBookmark(
-        selectedSurah.number,
-        selectedSurah.name,
-        selectedSurah.englishName,
-        ayah.numberInSurah,
-        plainText
-      );
+      await addBookmark(selectedSurah.number, selectedSurah.name, selectedSurah.englishName, ayah.numberInSurah, plainText);
     }
   };
 
   const navigateToBookmark = async (bookmark: { surah_number: number; ayah_number: number }) => {
     await fetchSurah(bookmark.surah_number);
-    const pageIndex = Math.floor((bookmark.ayah_number - 1) / AYAHS_PER_PAGE) * AYAHS_PER_PAGE;
-    setCurrentAyahIndex(pageIndex);
+    setCurrentAyahIndex(Math.floor((bookmark.ayah_number - 1) / AYAHS_PER_PAGE) * AYAHS_PER_PAGE);
     setShowBookmarks(false);
   };
 
@@ -981,310 +380,84 @@ export function IslamEnhancedPanel() {
     return () => { if (audioRef.current) audioRef.current.pause(); };
   }, []);
 
-  const filteredSurahs = surahs.filter(surah =>
-    surah.englishName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    surah.name.includes(searchQuery) ||
-    surah.number.toString() === searchQuery
+  const filteredSurahs = surahs.filter(s =>
+    s.englishName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.name.includes(searchQuery) || s.number.toString() === searchQuery
   );
 
   const AYAHS_PER_PAGE = 10;
   const totalPages = selectedSurah ? Math.ceil(selectedSurah.ayahs.length / AYAHS_PER_PAGE) : 0;
   const currentPage = Math.floor(currentAyahIndex / AYAHS_PER_PAGE);
-  const currentPageAyahs = selectedSurah?.ayahs.slice(
-    currentPage * AYAHS_PER_PAGE,
-    (currentPage + 1) * AYAHS_PER_PAGE
-  ) || [];
+  const currentPageAyahs = selectedSurah?.ayahs.slice(currentPage * AYAHS_PER_PAGE, (currentPage + 1) * AYAHS_PER_PAGE) || [];
 
-  const getQiblaRotation = (): number => {
-    if (!qiblaData) return 0;
-    if (deviceHeading !== null) return qiblaData.direction - deviceHeading;
-    return qiblaData.direction;
-  };
+  const getTranslation = (ayahNum: number) => translationAyahs.find(t => t.numberInSurah === ayahNum)?.text;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-3 md:px-4 py-3 border-b border-border shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <Moon className="w-5 h-5 text-primary shrink-0" />
-            <h2 className="text-lg font-semibold text-foreground truncate">Islamic Features</h2>
-          </div>
-          <Badge variant="outline" className="font-arabic shrink-0">
-            {hijriToday.day} {hijriToday.monthName} {hijriToday.year}
-          </Badge>
-        </div>
-      </div>
-
+    <PanelShell
+      icon={Moon}
+      title="Islamic Features"
+      subtitle={`${hijriToday.day} ${hijriToday.monthName} ${hijriToday.year} هـ`}
+      noPadding
+    >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-3 grid grid-cols-7">
+        <TabsList className="mx-3 md:mx-4 mt-2 grid grid-cols-5">
+          <TabsTrigger value="home" className="gap-1 text-xs px-1">
+            <Home className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Home</span>
+          </TabsTrigger>
           <TabsTrigger value="prayer" className="gap-1 text-xs px-1">
-            <Clock className="w-3 h-3" />
+            <Clock className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Prayer</span>
           </TabsTrigger>
-          <TabsTrigger value="qibla" className="gap-1 text-xs px-1">
-            <Compass className="w-3 h-3" />
-            <span className="hidden sm:inline">Qibla</span>
-          </TabsTrigger>
           <TabsTrigger value="quran" className="gap-1 text-xs px-1">
-            <BookOpen className="w-3 h-3" />
+            <BookOpen className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Quran</span>
           </TabsTrigger>
-          <TabsTrigger value="hifz" className="gap-1 text-xs px-1">
-            <GraduationCap className="w-3 h-3" />
-            <span className="hidden sm:inline">Hifz</span>
-          </TabsTrigger>
-          <TabsTrigger value="hadith" className="gap-1 text-xs px-1">
-            <BookOpen className="w-3 h-3" />
-            <span className="hidden sm:inline">Hadith</span>
-          </TabsTrigger>
           <TabsTrigger value="duas" className="gap-1 text-xs px-1">
-            <Heart className="w-3 h-3" />
+            <Heart className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Duas</span>
           </TabsTrigger>
-          <TabsTrigger value="calendar" className="gap-1 text-xs px-1">
-            <Calendar className="w-3 h-3" />
-            <span className="hidden sm:inline">Calendar</span>
+          <TabsTrigger value="more" className="gap-1 text-xs px-1">
+            <MoreHorizontal className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">More</span>
           </TabsTrigger>
         </TabsList>
 
+        {/* Home / Overview */}
+        <TabsContent value="home" className="flex-1 mt-0 overflow-y-auto">
+          <IslamOverviewTab
+            hijriToday={hijriToday}
+            islamicEvents={islamicEvents}
+            dhikrTypes={dhikrTypes}
+            dhikrLogs={dhikrLogs}
+            incrementDhikr={incrementDhikr}
+            resetDhikr={resetDhikr}
+            nextPrayerName={nextPrayerName}
+            nextPrayerTime={nextPrayerTime}
+            countdown={countdown}
+            onNavigate={setActiveTab}
+          />
+        </TabsContent>
+
         {/* Prayer Times */}
         <TabsContent value="prayer" className="flex-1 mt-0">
-          <PrayerTimesTab />
-        </TabsContent>
-
-        {/* Hadith Collection */}
-        <TabsContent value="hadith" className="flex-1 mt-0">
-          <HadithTab />
-        </TabsContent>
-
-        {/* Hifz Tracker */}
-        <TabsContent value="hifz" className="flex-1 mt-0">
-          <HifzTrackerTab />
+          <PrayerTimesTab
+            onPrayerUpdate={(name, time, cd) => {
+              setNextPrayerName(name);
+              setNextPrayerTime(time);
+              setCountdown(cd);
+            }}
+          />
         </TabsContent>
 
         {/* Duas */}
         <TabsContent value="duas" className="flex-1 mt-0">
-          <div className="flex flex-col h-full">
-            <div className="px-4 pt-3 pb-2">
-              <ScrollArea className="w-full">
-                <div className="flex gap-2 pb-2">
-                  {duaCategories.map((cat) => (
-                    <Button
-                      key={cat}
-                      variant={duaCategory === cat ? "default" : "outline"}
-                      size="sm"
-                      className="whitespace-nowrap"
-                      onClick={() => setDuaCategory(cat)}
-                    >
-                      {cat === 'all' ? 'All' : cat}
-                    </Button>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
-            <ScrollArea className="flex-1">
-              <div className="p-4 pt-2 space-y-3">
-                {filteredDuas.map((dua) => (
-                  <Card
-                    key={dua.id}
-                    className={cn(
-                      "p-4 cursor-pointer transition-all",
-                      expandedDua === dua.id && "ring-2 ring-primary"
-                    )}
-                    onClick={() => setExpandedDua(expandedDua === dua.id ? null : dua.id)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <Badge variant="secondary" className="mb-2 text-xs">
-                          {dua.category}
-                        </Badge>
-                        <p className="font-medium">{dua.title}</p>
-                      </div>
-                      <ChevronRight className={cn(
-                        "w-4 h-4 text-muted-foreground transition-transform",
-                        expandedDua === dua.id && "rotate-90"
-                      )} />
-                    </div>
-                    
-                    {expandedDua === dua.id && (
-                      <div className="mt-4 space-y-3">
-                        <div className="p-3 bg-primary/5 rounded-lg">
-                          <p className="font-arabic text-xl text-right leading-loose" dir="rtl">
-                            {dua.arabic}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-1">Transliteration</p>
-                          <p className="text-sm italic">{dua.transliteration}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-1">Translation</p>
-                          <p className="text-sm">{dua.translation}</p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          disabled={duaLoading === dua.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            playDuaAudio(dua);
-                          }}
-                        >
-                          {duaLoading === dua.id ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          ) : playingDua === dua.id ? (
-                            <VolumeX className="w-4 h-4 mr-2" />
-                          ) : (
-                            <Volume2 className="w-4 h-4 mr-2" />
-                          )}
-                          {playingDua === dua.id ? 'Stop' : 'Listen'}
-                        </Button>
-                      </div>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
+          <IslamDuasTab duas={DUAS} />
         </TabsContent>
 
-        {/* Qibla Compass */}
-        <TabsContent value="qibla" className="flex-1 mt-0">
-          <ScrollArea className="h-full">
-            <div className="p-4 flex flex-col items-center justify-center min-h-[400px]">
-              {locationError && (
-                <Card className="p-4 mb-4 bg-destructive/10 border-destructive/20">
-                  <p className="text-sm text-destructive">{locationError}</p>
-                </Card>
-              )}
-              
-              {compassPermission === 'pending' && isIOS() && (
-                <Button onClick={requestCompassPermission} className="mb-4">
-                  <Compass className="w-4 h-4 mr-2" />
-                  Enable Compass
-                </Button>
-              )}
-
-              {/* Premium Compass Design */}
-              <div className="relative w-72 h-72">
-                {/* Outer decorative ring */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-500/20 via-emerald-500/10 to-amber-500/20 p-1">
-                  <div className="w-full h-full rounded-full bg-background" />
-                </div>
-                
-                {/* Main compass body */}
-                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-card via-background to-card shadow-2xl border border-border/50">
-                  {/* Inner ring with degree markers */}
-                  <div className="absolute inset-4 rounded-full border border-border/30">
-                    {/* Degree marks */}
-                    {[...Array(72)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="absolute top-1/2 left-1/2 origin-center"
-                        style={{
-                          transform: `translate(-50%, -50%) rotate(${i * 5}deg)`,
-                        }}
-                      >
-                        <div 
-                          className={cn(
-                            "absolute left-1/2 -translate-x-1/2",
-                            i % 18 === 0 ? "w-0.5 h-3 bg-foreground/60 -top-[108px]" :
-                            i % 6 === 0 ? "w-0.5 h-2 bg-foreground/40 -top-[106px]" :
-                            "w-px h-1 bg-foreground/20 -top-[104px]"
-                          )}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Cardinal directions */}
-                  {[
-                    { dir: 'N', angle: 0, color: 'text-red-500 font-bold' },
-                    { dir: 'E', angle: 90, color: 'text-muted-foreground' },
-                    { dir: 'S', angle: 180, color: 'text-muted-foreground' },
-                    { dir: 'W', angle: 270, color: 'text-muted-foreground' },
-                  ].map(({ dir, angle, color }) => (
-                    <div
-                      key={dir}
-                      className="absolute top-1/2 left-1/2 origin-center"
-                      style={{ transform: `translate(-50%, -50%) rotate(${angle}deg)` }}
-                    >
-                      <span 
-                        className={cn("absolute left-1/2 -translate-x-1/2 -top-[85px] text-sm font-semibold", color)}
-                        style={{ transform: `rotate(-${angle}deg)` }}
-                      >
-                        {dir}
-                      </span>
-                    </div>
-                  ))}
-                  
-                  {/* Inner decorative circle */}
-                  <div className="absolute inset-[72px] rounded-full bg-gradient-to-br from-emerald-500/5 to-amber-500/5 border border-border/20" />
-                  
-                  {/* Center point */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-3 h-3 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30 z-10" />
-                  </div>
-                </div>
-                
-                {/* Qibla needle - smooth rotation */}
-                <div
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  style={{ 
-                    transform: `rotate(${getQiblaRotation()}deg)`,
-                    transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                >
-                  {/* Needle */}
-                  <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    {/* Kaaba icon */}
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-500/40 flex items-center justify-center border-2 border-emerald-400/50">
-                      <span className="text-lg">🕋</span>
-                    </div>
-                    {/* Needle body */}
-                    <div className="w-1 h-20 bg-gradient-to-b from-emerald-500 to-emerald-700/50 rounded-b-full shadow-lg" />
-                  </div>
-                  
-                  {/* Opposite end of needle */}
-                  <div className="absolute bottom-16 left-1/2 -translate-x-1/2">
-                    <div className="w-0.5 h-10 bg-gradient-to-t from-muted-foreground/20 to-transparent rounded-t-full" />
-                  </div>
-                </div>
-                
-                {/* Glow effect when compass is active */}
-                {deviceHeading !== null && (
-                  <div className="absolute inset-0 rounded-full bg-emerald-500/5 animate-pulse pointer-events-none" />
-                )}
-              </div>
-
-              <div className="mt-8 text-center space-y-3">
-                <div className="flex items-center gap-2 justify-center">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{locationName || 'Getting location...'}</span>
-                </div>
-                {qiblaData && (
-                  <div className="space-y-1">
-                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                      {qiblaData.direction.toFixed(1)}°
-                    </p>
-                    <p className="text-sm text-muted-foreground">from North</p>
-                  </div>
-                )}
-                {deviceHeading !== null && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Compass className="w-3 h-3" />
-                    Compass Active: {deviceHeading.toFixed(0)}°
-                  </Badge>
-                )}
-                <Button variant="outline" size="sm" onClick={getLocation} disabled={loading} className="mt-2">
-                  <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
-                  Refresh Location
-                </Button>
-              </div>
-            </div>
-          </ScrollArea>
+        {/* More: Qibla + Hadith + Calendar */}
+        <TabsContent value="more" className="flex-1 mt-0">
+          <IslamMoreTab hijriToday={hijriToday} islamicEvents={islamicEvents} />
         </TabsContent>
 
         {/* Quran Reader */}
@@ -1294,8 +467,7 @@ export function IslamEnhancedPanel() {
               <>
                 <div className="p-3 border-b border-border flex items-center justify-between">
                   <Button variant="ghost" size="sm" onClick={() => setShowBookmarks(false)}>
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Back
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Back
                   </Button>
                   <p className="font-medium">Bookmarks ({bookmarks.length})</p>
                   <div className="w-16" />
@@ -1309,82 +481,41 @@ export function IslamEnhancedPanel() {
                         <p className="text-sm">Tap the bookmark icon on any ayah to save it</p>
                       </div>
                     ) : (
-                      bookmarks.map((bookmark) => (
-                        <Card key={bookmark.id} className="p-4">
+                      bookmarks.map((bm) => (
+                        <Card key={bm.id} className="p-4">
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div>
                               <Badge variant="secondary" className="mb-1">
-                                {bookmark.surah_english_name} · Ayah {bookmark.ayah_number}
+                                {bm.surah_english_name} · Ayah {bm.ayah_number}
                               </Badge>
-                              <p className="text-xs text-muted-foreground font-arabic">
-                                {bookmark.surah_name}
-                              </p>
+                              <p className="text-xs text-muted-foreground font-arabic">{bm.surah_name}</p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive"
-                              onClick={() => removeBookmarkByAyah(bookmark.surah_number, bookmark.ayah_number)}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
+                              onClick={() => removeBookmarkByAyah(bm.surah_number, bm.ayah_number)}>
                               <X className="w-4 h-4" />
                             </Button>
                           </div>
-                          <p className="font-arabic text-lg text-right leading-loose mb-3" dir="rtl">
-                            {bookmark.ayah_text}
-                          </p>
-                          {editingNoteId === bookmark.id ? (
+                          <p className="font-arabic text-lg text-right leading-loose mb-3" dir="rtl">{bm.ayah_text}</p>
+                          {editingNoteId === bm.id ? (
                             <div className="space-y-2">
-                              <Textarea
-                                value={noteText}
-                                onChange={(e) => setNoteText(e.target.value)}
-                                placeholder="Add a note..."
-                                className="min-h-[60px]"
-                              />
+                              <Textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a note..." className="min-h-[60px]" />
                               <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    updateBookmarkNote(bookmark.id, noteText);
-                                    setEditingNoteId(null);
-                                  }}
-                                >
-                                  Save
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setEditingNoteId(null)}
-                                >
-                                  Cancel
-                                </Button>
+                                <Button size="sm" onClick={() => { updateBookmarkNote(bm.id, noteText); setEditingNoteId(null); }}>Save</Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingNoteId(null)}>Cancel</Button>
                               </div>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => navigateToBookmark(bookmark)}
-                              >
-                                <BookOpen className="w-4 h-4 mr-1" />
-                                Go to Ayah
+                              <Button variant="outline" size="sm" onClick={() => navigateToBookmark(bm)}>
+                                <BookOpen className="w-4 h-4 mr-1" /> Go to Ayah
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setNoteText(bookmark.note || '');
-                                  setEditingNoteId(bookmark.id);
-                                }}
-                              >
-                                {bookmark.note ? 'Edit Note' : 'Add Note'}
+                              <Button variant="ghost" size="sm" onClick={() => { setNoteText(bm.note || ''); setEditingNoteId(bm.id); }}>
+                                {bm.note ? 'Edit Note' : 'Add Note'}
                               </Button>
                             </div>
                           )}
-                          {bookmark.note && editingNoteId !== bookmark.id && (
-                            <p className="text-sm text-muted-foreground mt-2 italic">
-                              Note: {bookmark.note}
-                            </p>
+                          {bm.note && editingNoteId !== bm.id && (
+                            <p className="text-sm text-muted-foreground mt-2 italic">Note: {bm.note}</p>
                           )}
                         </Card>
                       ))
@@ -1396,8 +527,7 @@ export function IslamEnhancedPanel() {
               <>
                 <div className="p-3 border-b border-border flex items-center justify-between">
                   <Button variant="ghost" size="sm" onClick={() => setShowProgressPanel(false)}>
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Back
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Back
                   </Button>
                   <p className="font-medium">Reading Progress</p>
                   <div className="w-16" />
@@ -1409,11 +539,8 @@ export function IslamEnhancedPanel() {
             ) : showSurahList ? (
               <>
                 <div className="p-4 border-b border-border space-y-3">
-                  {/* Daily Progress Mini Card */}
-                  <Card 
-                    className="p-3 bg-gradient-to-r from-primary/10 to-emerald-500/10 border-primary/20 cursor-pointer hover:bg-primary/15 transition-colors"
-                    onClick={() => setShowProgressPanel(true)}
-                  >
+                  <Card className="p-3 bg-gradient-to-r from-primary/10 to-emerald-500/10 border-primary/20 cursor-pointer hover:bg-primary/15 transition-colors"
+                    onClick={() => setShowProgressPanel(true)}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-primary" />
@@ -1421,94 +548,70 @@ export function IslamEnhancedPanel() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold">{todayAyahsRead}/{goal?.daily_ayahs_goal || 10}</span>
-                        {goal && todayAyahsRead >= goal.daily_ayahs_goal && (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                        )}
+                        {goal && todayAyahsRead >= goal.daily_ayahs_goal && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       </div>
                     </div>
                   </Card>
-
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search surahs..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9"
-                      />
+                      <Input placeholder="Search surahs..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
                     </div>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowBookmarks(true)}
-                      className="relative"
-                    >
+                    <Button variant="outline" size="icon" onClick={() => setShowBookmarks(true)} className="relative">
                       <Bookmark className="w-4 h-4" />
                       {bookmarks.length > 0 && (
-                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                          {bookmarks.length}
-                        </span>
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">{bookmarks.length}</span>
                       )}
                     </Button>
                   </div>
-                  
-                  {/* Font Selector */}
-                  <div className="flex items-center gap-2">
-                    <Type className="w-4 h-4 text-muted-foreground" />
+                  {/* Hifz quick link */}
+                  <div className="flex gap-2">
                     <Select value={selectedFont} onValueChange={handleFontChange}>
                       <SelectTrigger className="flex-1 h-9">
                         <SelectValue placeholder="Select font" />
                       </SelectTrigger>
                       <SelectContent>
-                        {QURAN_FONTS.map((font) => (
-                          <SelectItem key={font.id} value={font.id}>
-                            <div className="flex flex-col">
-                              <span style={{ fontFamily: font.fontFamily }}>{font.name}</span>
-                              <span className="text-xs text-muted-foreground">{font.description}</span>
-                            </div>
+                        {QURAN_FONTS.map(f => (
+                          <SelectItem key={f.id} value={f.id}>
+                            <span style={{ fontFamily: f.fontFamily }}>{f.name}</span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <Button variant="outline" size="sm" className="gap-1 h-9" onClick={() => {
+                      // Show Hifz tracker inline
+                      setActiveTab('quran');
+                      setShowSurahList(false);
+                      setSelectedSurah(null);
+                    }}>
+                      <GraduationCap className="w-4 h-4" />
+                      Hifz
+                    </Button>
                   </div>
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="p-2 space-y-1">
-                    {filteredSurahs.map((surah) => {
+                    {filteredSurahs.map(surah => {
                       const progress = getSurahProgress(surah.number, surah.numberOfAyahs);
                       return (
-                        <Card
-                          key={surah.number}
-                          className="p-3 cursor-pointer hover:bg-accent transition-colors"
-                          onClick={() => fetchSurah(surah.number)}
-                        >
+                        <Card key={surah.number} className="p-3 cursor-pointer hover:bg-accent transition-colors"
+                          onClick={() => fetchSurah(surah.number)}>
                           <div className="flex items-center gap-3">
                             <div className={cn(
                               "w-10 h-10 rounded-full flex items-center justify-center",
-                              progress.percentage === 100 
-                                ? "bg-emerald-500/20 text-emerald-600" 
-                                : progress.percentage > 0 
-                                  ? "bg-primary/10" 
-                                  : "bg-muted"
+                              progress.percentage === 100 ? "bg-emerald-500/20 text-emerald-600" :
+                                progress.percentage > 0 ? "bg-primary/10" : "bg-muted"
                             )}>
-                              {progress.percentage === 100 ? (
-                                <CheckCircle2 className="w-5 h-5" />
-                              ) : (
-                                <span className="text-sm font-bold">{surah.number}</span>
-                              )}
+                              {progress.percentage === 100 ? <CheckCircle2 className="w-5 h-5" /> :
+                                <span className="text-sm font-bold">{surah.number}</span>}
                             </div>
                             <div className="flex-1">
                               <p className="font-medium">{surah.englishName}</p>
                               <div className="flex items-center gap-2">
-                                <p className="text-xs text-muted-foreground">
-                                  {surah.englishNameTranslation} · {surah.numberOfAyahs} ayahs
-                                </p>
+                                <p className="text-xs text-muted-foreground">{surah.englishNameTranslation} · {surah.numberOfAyahs} ayahs</p>
                                 {progress.percentage > 0 && progress.percentage < 100 && (
-                                  <Badge variant="secondary" className="text-xs h-5">
-                                    {progress.read}/{progress.total}
-                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs h-5">{progress.read}/{progress.total}</Badge>
                                 )}
                               </div>
                             </div>
@@ -1520,243 +623,135 @@ export function IslamEnhancedPanel() {
                   </div>
                 </ScrollArea>
               </>
+            ) : !selectedSurah ? (
+              /* Hifz Tracker inline */
+              <>
+                <div className="p-3 border-b border-border">
+                  <Button variant="ghost" size="sm" onClick={() => setShowSurahList(true)}>
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Surah List
+                  </Button>
+                </div>
+                <HifzTrackerTab />
+              </>
             ) : (
               <>
                 <div className="p-3 border-b border-border flex items-center justify-between">
                   <Button variant="ghost" size="sm" onClick={() => { setShowSurahList(true); stopAudio(); }}>
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Back
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Back
                   </Button>
                   <div className="text-center">
                     <p className="font-medium">{selectedSurah?.englishName}</p>
                     <p className="text-xs text-muted-foreground font-arabic">{selectedSurah?.name}</p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button 
-                      variant={quranViewMode === 'page' ? "secondary" : "ghost"} 
-                      size="sm" 
-                      className="text-xs h-8 px-2"
-                      onClick={toggleViewMode}
-                      title={quranViewMode === 'cards' ? 'Switch to Full Page View' : 'Switch to Cards View'}
-                    >
+                    <Button variant={quranViewMode === 'page' ? "secondary" : "ghost"} size="sm" className="text-xs h-8 px-2"
+                      onClick={toggleViewMode}>
                       {quranViewMode === 'cards' ? <FileText className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
                     </Button>
-                    <Button 
-                      variant={tajweedEnabled ? "secondary" : "ghost"} 
-                      size="sm" 
-                      className="text-xs h-8 px-2"
-                      onClick={toggleTajweed}
-                      title="Toggle Tajweed color coding"
-                    >
-                      {tajweedEnabled ? '🎨' : '📖'}
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setFontSize(Math.max(18, fontSize - 2))}>
-                      <ZoomOut className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setFontSize(Math.min(42, fontSize + 2))}>
+                    <Button variant={tajweedEnabled ? "secondary" : "ghost"} size="sm" className="text-xs h-8 px-2"
+                      onClick={toggleTajweed}>Tajweed</Button>
+                    <Button variant={showTranslation ? "secondary" : "ghost"} size="sm" className="text-xs h-8 px-2"
+                      onClick={toggleTranslation}>EN</Button>
+                    <Button variant="ghost" size="sm" className="text-xs h-8 px-2"
+                      onClick={() => setFontSize(Math.min(fontSize + 4, 48))}>
                       <ZoomIn className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-xs h-8 px-2"
+                      onClick={() => setFontSize(Math.max(fontSize - 4, 16))}>
+                      <ZoomOut className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-                
-                {/* Tajweed Legend */}
-                {tajweedEnabled && (
-                  <div className="px-3 py-2 border-b border-border bg-muted/50">
-                    <p className="text-xs font-medium mb-1">Tajweed Colors:</p>
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ backgroundColor: '#AAAAAA' }} /> Ghunnah</span>
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500" /> Qalqalah</span>
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500" /> Idgham</span>
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500" /> Ikhfa</span>
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500" /> Madd</span>
-                    </div>
-                  </div>
-                )}
 
-                {quranLoading ? (
-                  <div className="flex-1 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 animate-spin" />
-                  </div>
-                ) : quranViewMode === 'page' ? (
-                  /* Full Page / Continuous View */
+                {quranViewMode === 'page' ? (
                   <ScrollArea className="flex-1">
-                    <div className="p-4">
-                      {/* Surah Bismillah (except for Al-Fatiha and At-Tawbah) */}
-                      {selectedSurah && selectedSurah.number !== 1 && selectedSurah.number !== 9 && (
-                        <div className="text-center mb-6">
-                          <p className="font-arabic text-2xl text-primary">
-                            بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-                          </p>
-                        </div>
-                      )}
-                      
-                      {/* Decorative header */}
-                      <Card className="p-4 mb-4 bg-gradient-to-br from-primary/10 via-background to-primary/5 border-primary/20">
-                        <div className="text-center">
-                          <p className="font-arabic text-3xl mb-2">{selectedSurah?.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {selectedSurah?.englishName} • {selectedSurah?.englishNameTranslation}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {selectedSurah?.ayahs.length} Ayahs • {selectedSurah?.revelationType}
-                          </p>
-                        </div>
+                    <div className="p-4 space-y-4">
+                      <Card className="p-4 text-center">
+                        <p className="font-arabic text-2xl" style={{ fontFamily: currentFontFamily }}>{selectedSurah?.name}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{selectedSurah?.englishName} - {selectedSurah?.englishNameTranslation}</p>
                       </Card>
-                      
-                      {/* Continuous flowing text */}
-                      <div 
-                        className="p-6 bg-gradient-to-b from-muted/30 to-muted/10 rounded-xl border border-border/50"
-                        dir="rtl"
-                      >
-                        <p 
-                          className="leading-[2.5] text-right"
-                          style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }}
-                        >
-                          {selectedSurah?.ayahs.map((ayah, index) => {
+                      <div className="p-6 bg-gradient-to-b from-muted/30 to-muted/10 rounded-xl border border-border/50" dir="rtl">
+                        <p className="leading-[2.5] text-right" style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }}>
+                          {selectedSurah?.ayahs.map(ayah => {
                             const ayahIsRead = selectedSurah && isAyahRead(selectedSurah.number, ayah.numberInSurah);
                             return (
-                              <span
-                                key={ayah.numberInSurah}
-                                className={cn(
-                                  "cursor-pointer hover:bg-primary/10 rounded transition-colors inline",
+                              <span key={ayah.numberInSurah}
+                                className={cn("cursor-pointer hover:bg-primary/10 rounded transition-colors inline",
                                   currentPlayingAyah === ayah.numberInSurah && "bg-primary/20 text-primary",
-                                  ayahIsRead && "opacity-70"
-                                )}
+                                  ayahIsRead && "opacity-70")}
                                 onClick={() => {
-                                  if (currentPlayingAyah === ayah.numberInSurah) {
-                                    stopAudio();
-                                  } else {
-                                    playAyahAudio(ayah);
-                                    // Mark as read when played
-                                    if (selectedSurah) {
-                                      markAyahAsRead(selectedSurah.number, ayah.numberInSurah);
-                                    }
-                                  }
-                                }}
-                              >
-                                {tajweedEnabled ? (
-                                  <span dangerouslySetInnerHTML={{ __html: ayah.text }} />
-                                ) : (
-                                  ayah.text
-                                )}
-                                {/* Decorative ayah number marker */}
-                                <span 
-                                  className={cn(
-                                    "inline-flex items-center justify-center mx-1",
-                                    ayahIsRead ? "text-emerald-500" : "text-primary/80"
-                                  )}
-                                  style={{ fontSize: `${fontSize * 0.6}px` }}
-                                >
+                                  if (currentPlayingAyah === ayah.numberInSurah) stopAudio();
+                                  else { playAyahAudio(ayah); if (selectedSurah) markAyahAsRead(selectedSurah.number, ayah.numberInSurah); }
+                                }}>
+                                {tajweedEnabled ? <span dangerouslySetInnerHTML={{ __html: ayah.text }} /> : ayah.text}
+                                <span className={cn("inline-flex items-center justify-center mx-1", ayahIsRead ? "text-emerald-500" : "text-primary/80")}
+                                  style={{ fontSize: `${fontSize * 0.6}px` }}>
                                   ﴿{toArabicIndic(ayah.numberInSurah)}﴾
-                                </span>
-                                {' '}
+                                </span>{' '}
                               </span>
                             );
                           })}
                         </p>
                       </div>
-                      
-                      {/* Floating audio indicator */}
-                      {currentPlayingAyah !== null && (
-                        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50">
-                          <Card className="px-4 py-2 bg-primary text-primary-foreground shadow-lg flex items-center gap-2">
-                            <Volume2 className="w-4 h-4 animate-pulse" />
-                            <span className="text-sm font-medium">
-                              Playing Ayah {currentPlayingAyah}
-                            </span>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 text-primary-foreground hover:text-primary-foreground/80"
-                              onClick={stopAudio}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </Card>
+                      {/* Translation block */}
+                      {showTranslation && translationAyahs.length > 0 && (
+                        <div className="space-y-2 mt-4">
+                          <h4 className="text-sm font-medium text-muted-foreground">English Translation (Sahih International)</h4>
+                          {translationAyahs.map(t => (
+                            <p key={t.numberInSurah} className="text-sm">
+                              <span className="font-medium text-primary">{t.numberInSurah}.</span> {t.text}
+                            </p>
+                          ))}
                         </div>
                       )}
                     </div>
                   </ScrollArea>
                 ) : (
-                  /* Cards View (existing) */
                   <ScrollArea className="flex-1">
                     <div className="p-4 space-y-4">
-                      {currentPageAyahs.map((ayah) => {
+                      {currentPageAyahs.map(ayah => {
                         const ayahIsRead = selectedSurah && isAyahRead(selectedSurah.number, ayah.numberInSurah);
+                        const translation = getTranslation(ayah.numberInSurah);
                         return (
-                          <Card
-                            key={ayah.numberInSurah}
-                            className={cn(
-                              "p-4 transition-all",
+                          <Card key={ayah.numberInSurah}
+                            className={cn("p-4 transition-all",
                               currentPlayingAyah === ayah.numberInSurah && "ring-2 ring-primary bg-primary/5",
-                              ayahIsRead && "border-emerald-500/30 bg-emerald-500/5"
-                            )}
-                          >
+                              ayahIsRead && "border-emerald-500/30 bg-emerald-500/5")}>
                             <div className="flex items-start gap-3">
                               <div className="flex flex-col items-center gap-1">
-                                <Badge 
-                                  variant="outline" 
-                                  className={cn(
-                                    "w-8 h-8 rounded-full p-0 flex items-center justify-center",
-                                    ayahIsRead && "border-emerald-500 text-emerald-600"
-                                  )}
-                                >
+                                <Badge variant="outline" className={cn("w-8 h-8 rounded-full p-0 flex items-center justify-center",
+                                  ayahIsRead && "border-emerald-500 text-emerald-600")}>
                                   {ayahIsRead ? <CheckCircle2 className="w-4 h-4" /> : ayah.numberInSurah}
                                 </Badge>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
+                                <Button variant="ghost" size="icon" className="h-8 w-8"
                                   onClick={() => {
-                                    if (currentPlayingAyah === ayah.numberInSurah) {
-                                      stopAudio();
-                                    } else {
-                                      playAyahAudio(ayah);
-                                      // Mark as read when played
-                                      if (selectedSurah) {
-                                        markAyahAsRead(selectedSurah.number, ayah.numberInSurah);
-                                      }
-                                    }
-                                  }}
-                                >
-                                  {currentPlayingAyah === ayah.numberInSurah ? (
-                                    <Pause className="w-4 h-4" />
-                                  ) : (
-                                    <Play className="w-4 h-4" />
-                                  )}
+                                    if (currentPlayingAyah === ayah.numberInSurah) stopAudio();
+                                    else { playAyahAudio(ayah); if (selectedSurah) markAyahAsRead(selectedSurah.number, ayah.numberInSurah); }
+                                  }}>
+                                  {currentPlayingAyah === ayah.numberInSurah ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    "h-8 w-8",
-                                    selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) && "text-amber-500"
-                                  )}
-                                  onClick={() => handleBookmarkToggle(ayah)}
-                                >
-                                  {selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) ? (
-                                    <BookmarkCheck className="w-4 h-4" />
-                                  ) : (
-                                    <Bookmark className="w-4 h-4" />
-                                  )}
+                                <Button variant="ghost" size="icon"
+                                  className={cn("h-8 w-8", selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) && "text-amber-500")}
+                                  onClick={() => handleBookmarkToggle(ayah)}>
+                                  {selectedSurah && isBookmarked(selectedSurah.number, ayah.numberInSurah) ?
+                                    <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
                                 </Button>
                               </div>
-                              {tajweedEnabled ? (
-                                <p
-                                  className="flex-1 text-right leading-loose tajweed-text"
-                                  style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }}
-                                  dir="rtl"
-                                  dangerouslySetInnerHTML={{ __html: ayah.text }}
-                                />
-                              ) : (
-                                <p
-                                  className="flex-1 text-right leading-loose"
-                                  style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }}
-                                  dir="rtl"
-                                >
-                                  {ayah.text}
-                                </p>
-                              )}
+                              <div className="flex-1">
+                                {tajweedEnabled ? (
+                                  <p className="text-right leading-loose tajweed-text"
+                                    style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }} dir="rtl"
+                                    dangerouslySetInnerHTML={{ __html: ayah.text }} />
+                                ) : (
+                                  <p className="text-right leading-loose"
+                                    style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }} dir="rtl">
+                                    {ayah.text}
+                                  </p>
+                                )}
+                                {showTranslation && translation && (
+                                  <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border/50">{translation}</p>
+                                )}
+                              </div>
                             </div>
                           </Card>
                         );
@@ -1765,158 +760,39 @@ export function IslamEnhancedPanel() {
                   </ScrollArea>
                 )}
 
-                {/* Pagination - only show for cards view */}
+                {/* Pagination */}
                 {selectedSurah && totalPages > 1 && quranViewMode === 'cards' && (
                   <div className="p-3 border-t border-border flex items-center justify-between">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === 0}
-                      onClick={() => setCurrentAyahIndex((currentPage - 1) * AYAHS_PER_PAGE)}
-                    >
+                    <Button variant="outline" size="sm" disabled={currentPage === 0}
+                      onClick={() => setCurrentAyahIndex((currentPage - 1) * AYAHS_PER_PAGE)}>
                       <ChevronLeft className="w-4 h-4" />
                     </Button>
-                    <span className="text-sm text-muted-foreground">
-                      Page {currentPage + 1} of {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage >= totalPages - 1}
-                      onClick={() => setCurrentAyahIndex((currentPage + 1) * AYAHS_PER_PAGE)}
-                    >
+                    <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {totalPages}</span>
+                    <Button variant="outline" size="sm" disabled={currentPage >= totalPages - 1}
+                      onClick={() => setCurrentAyahIndex((currentPage + 1) * AYAHS_PER_PAGE)}>
                       <ChevronRight className="w-4 h-4" />
                     </Button>
+                  </div>
+                )}
+
+                {/* Floating audio indicator */}
+                {currentPlayingAyah !== null && (
+                  <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50">
+                    <Card className="px-4 py-2 bg-primary text-primary-foreground shadow-lg flex items-center gap-2">
+                      <Volume2 className="w-4 h-4 animate-pulse" />
+                      <span className="text-sm font-medium">Playing Ayah {currentPlayingAyah}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-primary-foreground hover:text-primary-foreground/80"
+                        onClick={stopAudio}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </Card>
                   </div>
                 )}
               </>
             )}
           </div>
         </TabsContent>
-
-        {/* Islamic Calendar */}
-        <TabsContent value="calendar" className="flex-1 mt-0">
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-4">
-              <Card className="p-4 bg-gradient-to-br from-amber-500/20 to-orange-500/20">
-                <p className="text-sm text-muted-foreground">Today's Hijri Date</p>
-                <p className="text-2xl font-bold font-arabic">
-                  {hijriToday.day} {hijriToday.monthName} {hijriToday.year} هـ
-                </p>
-              </Card>
-              
-              {/* Event Type Legend */}
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="bg-primary/10 border-primary/30 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-primary mr-1" />
-                  Major
-                </Badge>
-                <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1" />
-                  Fasting
-                </Badge>
-                <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 mr-1" />
-                  Sunnah
-                </Badge>
-                <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-purple-500 mr-1" />
-                  Remembrance
-                </Badge>
-                <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 mr-1" />
-                  Historical
-                </Badge>
-              </div>
-              
-              <h3 className="font-medium">Upcoming Islamic Events</h3>
-              <div className="space-y-3">
-                {upcomingEvents.map((event, idx) => {
-                  const typeColors: Record<string, string> = {
-                    major: 'border-l-primary bg-primary/5',
-                    fasting: 'border-l-emerald-500 bg-emerald-500/5',
-                    sunnah: 'border-l-amber-500 bg-amber-500/5',
-                    remembrance: 'border-l-purple-500 bg-purple-500/5',
-                    historical: 'border-l-blue-500 bg-blue-500/5',
-                  };
-                  const typeBadgeColors: Record<string, string> = {
-                    major: 'bg-primary/10 text-primary border-primary/30',
-                    fasting: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
-                    sunnah: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
-                    remembrance: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
-                    historical: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
-                  };
-                  const eventType = event.type || 'major';
-                  
-                  return (
-                    <Card 
-                      key={idx} 
-                      className={cn(
-                        "p-4 border-l-4",
-                        typeColors[eventType]
-                      )}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium">{event.name}</p>
-                            <Badge 
-                              variant="outline" 
-                              className={cn("text-xs capitalize", typeBadgeColors[eventType])}
-                            >
-                              {eventType}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{event.description}</p>
-                        </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <Badge variant="outline">{event.hijriDate}</Badge>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            ~{format(event.date, 'MMM d, yyyy')}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {/* Actions */}
-                      {event.actions && event.actions.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-border/50">
-                          <p className="text-xs font-medium text-muted-foreground mb-2">📋 What to do:</p>
-                          <ul className="text-sm space-y-1">
-                            {event.actions.map((action, actionIdx) => (
-                              <li key={actionIdx} className="flex items-start gap-2">
-                                <span className="text-primary mt-0.5">•</span>
-                                <span>{action}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {/* Special Prayer */}
-                      {event.specialPrayer && (
-                        <div className="mt-3 pt-3 border-t border-border/50">
-                          <p className="text-xs font-medium text-muted-foreground mb-1">🕌 Special Prayer:</p>
-                          <p className="text-sm">{event.specialPrayer}</p>
-                        </div>
-                      )}
-                      
-                      {/* Dua */}
-                      {event.dua && (
-                        <div className="mt-3 pt-3 border-t border-border/50 bg-muted/30 -mx-4 -mb-4 p-4 rounded-b-lg">
-                          <p className="text-xs font-medium text-muted-foreground mb-2">🤲 Recommended Dua:</p>
-                          <p className="font-arabic text-lg text-right mb-2" dir="rtl">{event.dua.arabic}</p>
-                          <p className="text-sm italic text-muted-foreground mb-1">{event.dua.transliteration}</p>
-                          <p className="text-sm">{event.dua.translation}</p>
-                        </div>
-                      )}
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          </ScrollArea>
-        </TabsContent>
       </Tabs>
-    </div>
+    </PanelShell>
   );
 }

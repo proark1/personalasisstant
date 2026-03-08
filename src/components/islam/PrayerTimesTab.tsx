@@ -117,7 +117,11 @@ const checkNotificationSupport = (): { supported: boolean; reason?: string } => 
   return { supported: true };
 };
 
-export function PrayerTimesTab() {
+interface PrayerTimesTabProps {
+  onPrayerUpdate?: (name: string, time: string, countdown: string) => void;
+}
+
+export function PrayerTimesTab({ onPrayerUpdate }: PrayerTimesTabProps = {}) {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTime[]>([]);
   const [loading, setLoading] = useState(false);
   const [locationName, setLocationName] = useState<string>('');
