@@ -19,6 +19,7 @@ import { StartupWorkspacePanel } from '../startup/StartupWorkspacePanel';
 import { TechNewsPanel } from '../news/TechNewsPanel';
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
 import { EmailPanel } from '../email/EmailPanel';
+import { PullToRefresh } from '../shared/PullToRefresh';
 import { ContextualHeader } from './ContextualHeader';
 import { MoreSheet, MoreSheetPanel } from './MoreSheet';
 
