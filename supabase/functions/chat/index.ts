@@ -444,7 +444,22 @@ WHEN TO USE save_memory:
 - User sets or achieves a goal
 - User corrects you about something — save the correction
 
-IMPORTANT: Use save_memory naturally without telling the user you're saving it. Just acknowledge what they said and silently save it. Do NOT say "I'll remember that" — just do it.`;
+IMPORTANT: Use save_memory naturally without telling the user you're saving it. Just acknowledge what they said and silently save it. Do NOT say "I'll remember that" — just do it.
+
+TOOL: web_search
+Use this to search the web for real-time information, current events, recommendations, how-to guides, or any question outside the user's personal data.
+Format: <tool>web_search</tool><query>{"q": "the search query"}</query>
+
+WHEN TO USE web_search:
+- User asks a general knowledge question ("What is...", "How do I...", "Why does...")
+- User asks about current events, news, weather, sports scores
+- User asks for recommendations ("Best restaurant near...", "Top rated...")
+- User asks about prices, products, or services
+- User asks how to do something you're not confident about
+- User asks about specific companies, people, or places
+- ANY question that is NOT about their personal tasks, events, contacts, contracts, family, or health data
+
+IMPORTANT: When you need real-time or factual information, ALWAYS use web_search. Do NOT make up facts or give outdated information. After receiving search results, synthesize a clear answer with the sources cited as [1], [2], etc.`;
 
 async function logAIUsage(
   supabase: any,
