@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,8 @@ import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { findRelevantContacts, ContactSuggestion } from '@/lib/contactSuggestions';
 import { ConversationHistoryPanel } from './ConversationHistoryPanel';
 import { AudioVisualizer } from '@/components/ghost/AudioVisualizer';
-import { Send, User, Mic, MicOff, Users, X, History } from 'lucide-react';
+import { MarkdownRenderer } from '@/components/chat/MarkdownRenderer';
+import { Send, User, Mic, MicOff, Users, X, History, CheckSquare, Calendar, Search, Bell, Brain, ShoppingCart, BookOpen, Globe } from 'lucide-react';
 import { format } from 'date-fns';
 import doriFish from '@/assets/dori-fish.png';
 
@@ -23,6 +24,46 @@ interface DoriPanelProps {
   contacts?: Contact[];
 }
 
+// Time-aware greeting & suggestions
+function getTimeSuggestions() {
+  const hour = new Date().getHours();
+  if (hour < 12) {
+    return {
+      greeting: "Good morning! What shall we tackle today?",
+      suggestions: [
+        { label: 'Plan my morning', icon: Calendar },
+        { label: "What's on my calendar?", icon: Calendar },
+        { label: 'Search latest news', icon: Globe },
+      ],
+    };
+  }
+  if (hour < 17) {
+    return {
+      greeting: "Hey! Need help with anything?",
+      suggestions: [
+        { label: 'Add a task', icon: CheckSquare },
+        { label: 'Remind me in 30 min', icon: Bell },
+        { label: 'Search something', icon: Search },
+      ],
+    };
+  }
+  return {
+    greeting: "Good evening! How can I help?",
+    suggestions: [
+      { label: 'Review my day', icon: Brain },
+      { label: "What's left to do?", icon: CheckSquare },
+      { label: 'Plan tomorrow', icon: Calendar },
+    ],
+  };
+}
+
+const capabilities = [
+  { category: 'Productivity', items: ['Add tasks & events', 'Track habits', 'Manage projects'], icon: CheckSquare },
+  { category: 'Life', items: ['Shopping lists', 'Meal planning', 'Contract reminders'], icon: ShoppingCart },
+  { category: 'Knowledge', items: ['Web search', 'News & research', 'Remember things'], icon: BookOpen },
+  { category: 'Reminders', items: ['Location-based', 'Follow-up nudges', 'Contact check-ins'], icon: Bell },
+];
+
 export function DoriPanel({
   messages,
   onSendMessage,
@@ -31,24 +72,23 @@ export function DoriPanel({
   contacts = EMPTY_CONTACTS,
 }: DoriPanelProps) {
   const [showHistory, setShowHistory] = useState(false);
+  const [showCapabilities, setShowCapabilities] = useState(false);
   const [input, setInput] = useState('');
   const [contactSuggestions, setContactSuggestions] = useState<ContactSuggestion[]>([]);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastFinalTranscriptRef = useRef<string>('');
 
-  // Voice recognition for text input
+  const timeSuggestions = useMemo(() => getTimeSuggestions(), []);
+
   const {
     isListening,
     isSupported,
     transcript,
     startListening,
     stopListening,
-  } = useVoiceRecognition({
-    continuous: false,
-  });
+  } = useVoiceRecognition({ continuous: false });
 
-  // Handle final transcripts from voice recognition
   useEffect(() => {
     if (!transcript || isListening) return;
     if (lastFinalTranscriptRef.current === transcript) return;
@@ -70,7 +110,6 @@ export function DoriPanel({
     }
   };
 
-  // Check for contact suggestions when input changes
   useEffect(() => {
     if (input.length > 5 && contacts.length > 0 && !dismissedSuggestions) {
       const suggestions = findRelevantContacts(input, contacts);
@@ -89,11 +128,6 @@ export function DoriPanel({
     }
   };
 
-  const handleVoiceModeClick = () => {
-    onVoiceMode();
-  };
-
-  // Show conversation history panel
   if (showHistory) {
     return <ConversationHistoryPanel onClose={() => setShowHistory(false)} />;
   }
@@ -106,25 +140,11 @@ export function DoriPanel({
           <img src={doriFish} alt="Dori" className="w-10 h-10 object-contain" />
           <h3 className="font-semibold text-sm">Dori</h3>
         </div>
-        
         <div className="flex items-center gap-2">
-          {/* History Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setShowHistory(true)}
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowHistory(true)}>
             <History className="w-4 h-4" />
           </Button>
-
-          {/* Voice Mode Button */}
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={handleVoiceModeClick}
-          >
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={onVoiceMode}>
             <Mic className="w-4 h-4" />
           </Button>
         </div>
@@ -134,30 +154,63 @@ export function DoriPanel({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center relative">
-            {/* Audio Visualizer Background */}
-            <div className="absolute inset-0 flex items-center justify-center">
+            {/* Background Visualizer */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-30">
               <AudioVisualizer isActive={true} isSpeaking={false} isListening={false} />
             </div>
             
-            {/* Content overlay */}
-            <div className="relative z-10">
-              <h3 className="text-lg font-medium mb-2">Hi, I'm Dori!</h3>
-              <p className="text-sm text-muted-foreground max-w-xs">
-                Your personal assistant. Ask me to manage tasks, schedule events, brainstorm ideas, or search the web.
+            <div className="relative z-10 flex flex-col items-center">
+              <img src={doriFish} alt="Dori" className="w-20 h-20 object-contain mb-3 drop-shadow-lg animate-[bounce_3s_ease-in-out_infinite]" />
+              <h3 className="text-lg font-semibold mb-1">{timeSuggestions.greeting}</h3>
+              <p className="text-xs text-muted-foreground max-w-xs mb-4">
+                Your personal AI assistant — powered by web search, memory, and your life data.
               </p>
-              <div className="flex flex-wrap gap-2 mt-4 justify-center">
-                {['Add a task', 'Schedule meeting', 'Search latest news'].map((suggestion) => (
+              
+              {/* Quick suggestions */}
+              <div className="flex flex-wrap gap-2 justify-center mb-4">
+                {timeSuggestions.suggestions.map((s) => (
                   <Button
-                    key={suggestion}
+                    key={s.label}
                     variant="outline"
                     size="sm"
-                    className="text-xs bg-background/80 backdrop-blur-sm"
-                    onClick={() => setInput(suggestion)}
+                    className="text-xs bg-background/80 backdrop-blur-sm gap-1.5"
+                    onClick={() => setInput(s.label)}
                   >
-                    {suggestion}
+                    <s.icon className="w-3 h-3" />
+                    {s.label}
                   </Button>
                 ))}
               </div>
+
+              {/* Capabilities discovery */}
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                onClick={() => setShowCapabilities(!showCapabilities)}
+              >
+                {showCapabilities ? 'Hide capabilities' : 'What can Dori do?'}
+              </button>
+
+              {showCapabilities && (
+                <div className="grid grid-cols-2 gap-2 mt-3 text-left max-w-xs">
+                  {capabilities.map((cap) => (
+                    <div key={cap.category} className="p-2 rounded-lg border border-border/50 bg-background/80">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <cap.icon className="w-3 h-3 text-primary" />
+                        <span className="text-xs font-medium">{cap.category}</span>
+                      </div>
+                      {cap.items.map((item) => (
+                        <button
+                          key={item}
+                          className="block text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                          onClick={() => setInput(item)}
+                        >
+                          • {item}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -180,15 +233,25 @@ export function DoriPanel({
                     : "glass-panel"
                 )}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {message.role === 'assistant' ? (
+                  <MarkdownRenderer content={message.content} />
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                )}
                 {message.sources && message.sources.length > 0 && (
                   <div className="mt-2 pt-2 border-t border-border/50">
                     <p className="text-xs text-muted-foreground mb-1">Sources:</p>
                     <div className="flex flex-wrap gap-1">
                       {message.sources.map((source, i) => (
-                        <span key={i} className="text-xs text-primary underline cursor-pointer">
+                        <a
+                          key={i}
+                          href={source}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary underline underline-offset-2 hover:text-primary/80"
+                        >
                           [{i + 1}]
-                        </span>
+                        </a>
                       ))}
                     </div>
                   </div>

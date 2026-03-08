@@ -1,101 +1,148 @@
 
+# Deep Module Interconnection + AI Daily Voice Briefing
 
-# Top 10 UI/UX Improvements for DarAI
-
-After reviewing the codebase, session replay, layout components, dashboard, assistant panel, and navigation structure, here are the 10 highest-impact UI/UX changes ranked by user value.
-
----
-
-## 1. Dashboard is Overloaded — Reduce Cognitive Load
-The dashboard renders 8-10 cards simultaneously (CheckinPrompt, Hero, DailyBriefing, WhatNow, FocusCard, Weather, StatPills, TodayTimeline, SmartInsight, ContractAlerts, ContactReminders, QuickActions). This creates decision paralysis.
-
-**Fix:** Collapse the dashboard into 3 priority tiers:
-- **Tier 1 (always visible):** Hero greeting + WhatNowCard (merged into one)
-- **Tier 2 (scrollable):** TodayTimeline + FocusCard
-- **Tier 3 (collapsed accordion):** Weather, Contracts, Contacts, Insights
-
-Remove DailyBriefingCard as a separate card — fold its content into the Hero greeting text.
+## Vision
+Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
 
 ---
 
-## 2. Bottom Navigation Has No Labels
-The 5-tab bottom bar uses icon-only buttons (`LayoutDashboard`, `Calendar`, `Sparkles`, `Mail`, `Heart`). Without labels, users must memorize what each icon means. The Mail icon is ambiguous (could be chat). Heart could mean favorites.
+## Feature 1: AI Daily Voice Briefing on Dashboard
 
-**Fix:** Add small text labels below each icon (`Home`, `Calendar`, `Dori`, `Email`, `Health`). Reduce icon size from `w-5 h-5` to `w-4.5 h-4.5` and add `text-[10px]` labels.
+A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
 
----
+### New Edge Function: `daily-voice-briefing`
+- Accepts user_id and fetches cross-module data server-side:
+  - Pending tasks (count, top 3 by priority)
+  - Today's calendar events
+  - Unread email count + priority emails
+  - Contract alerts (upcoming renewals/cancellations)
+  - Contacts overdue for follow-up
+  - Habit completion status
+  - Yesterday's check-in mood/energy
+- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
+- Returns: `{ briefingText: string, highlights: [...] }`
 
-## 3. The "More" Menu Buries Critical Features
-Tasks, Notes, Contacts, Habits, and Contracts are all hidden behind a hamburger menu → MoreSheet drawer. These are core daily-use features that require 2 taps to reach.
+### New Component: `DailyBriefingCard`
+- Displayed prominently on the dashboard (below the hero)
+- Shows a text summary with key highlights as chips/badges
+- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
+- Auto-play option (respects existing morning auto-play setting)
+- Cached per day so it doesn't re-generate on every page load
 
-**Fix:** Replace the static 5-tab bar with a customizable bottom bar. Let users pick their 5 tabs from all available panels. Default: Dashboard, Calendar, Dori, Tasks, More.
-
----
-
-## 4. Dori Chat Empty State Lacks Personality
-The empty chat shows a generic gradient icon + "How can I help you?" with 3 basic suggestions. For a personal AI named Dori (a fish character), this is a missed branding opportunity.
-
-**Fix:** Show the Dori fish image (`src/assets/dori-fish.png`) prominently. Use personalized suggestions based on time of day and user context (e.g., "Plan my morning", "What's on my calendar?", "Remind me in 30 min"). Add a subtle wave animation.
-
----
-
-## 5. No Visual Hierarchy Between Card Types
-All dashboard cards use the same `GlassCard` component with similar padding, borders, and text sizes. The "What Now" card (most actionable) looks identical to the Weather card (least actionable).
-
-**Fix:** Use distinct visual treatments:
-- **Actionable cards** (WhatNow, Focus): Larger, gradient border, prominent CTA button
-- **Informational cards** (Weather, Stats): Compact, muted background, no CTA
-- **Alert cards** (Contracts, Contacts): Left border accent in warning/danger color
-
----
-
-## 6. No Onboarding for What Dori Can Do
-New users see "Ask me to manage tasks, schedule events, brainstorm ideas, or search the web" — but Dori can do 15+ things (habits, contracts, shopping, reminders, web search, memory). Users never discover most capabilities.
-
-**Fix:** Add a "Dori can..." expandable section in the empty state showing categorized capabilities with tap-to-try examples. Categories: Productivity, Life Management, Knowledge, Reminders.
+### Files
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add card)
 
 ---
 
-## 7. Header Wastes Space on Mobile
-The `ContextualHeader` takes a fixed 56px (h-14) showing just the section title + notification icons. On a 667px iPhone screen, that is 8.4% of viewport used for a title that is already obvious from context.
+## Feature 2: Email-to-Calendar Integration
 
-**Fix:** Make the header collapse on scroll (shrink to 40px with smaller text). Or remove it entirely on the Dashboard (the Hero card already says "Good morning, Name").
+When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
 
----
+### Changes
+- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
+- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
+- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
 
-## 8. StatPills Are Not Tappable
-The streak, today count, weekly count, and life score pills are display-only. Users see "3 Today" but can't tap to see which 3 tasks they completed, or tap the streak to see their streak calendar.
-
-**Fix:** Make each pill tappable — navigate to the relevant detail view (tasks completed today, streak history, life score breakdown).
-
----
-
-## 9. Pull-to-Refresh Is a Hacky Re-render
-The current pull-to-refresh toggles `activeTab` away and back, causing a full unmount/remount of the panel. This is visually jarring and loses scroll position.
-
-**Fix:** Replace with a proper data refetch pattern — call the fetch functions again without unmounting the component. Use `React.useCallback` with a refresh key or invalidate the relevant queries.
+### Files
+- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
+- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
+- `src/components/email/EmailCard.tsx` (date detection badge)
 
 ---
 
-## 10. Chat Messages Have No Markdown/Rich Formatting
-AI responses are rendered as plain `<p className="text-sm whitespace-pre-wrap">`. When Dori returns lists, code, bold text, or links, they all appear as flat text. Web search citations show as `[1]` spans with no actual links.
+## Feature 3: Email-to-Contact Linking
 
-**Fix:** Add a lightweight markdown renderer (or simple regex-based formatter) for assistant messages. Support: **bold**, *italic*, bullet lists, numbered lists, clickable links, and citation links that open in a new tab.
+Automatically link emails to existing contacts and surface contact context when reading emails.
+
+### Changes
+- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
+- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
+- Add a "Save as Contact" button when no match exists, pre-filling name and email
+- When viewing a contact profile, show their recent emails in the timeline
+
+### Files
+- `src/components/email/EmailDetailSheet.tsx` (contact context card)
+- `src/components/contacts/ContactTimeline.tsx` (add email history section)
 
 ---
 
-## Implementation Priority
+## Feature 4: Smart Dashboard Insight Card (Cross-Module)
 
-| Priority | Item | Effort |
-|----------|------|--------|
-| 1 | Bottom nav labels (#2) | Small |
-| 2 | Chat markdown rendering (#10) | Medium |
-| 3 | Dashboard card hierarchy (#5) | Medium |
-| 4 | Dori empty state personality (#4) | Small |
-| 5 | Collapsible header (#7) | Small |
-| 6 | Dashboard cognitive load (#1) | Large |
-| 7 | Tappable stat pills (#8) | Medium |
-| 8 | Dori capabilities onboarding (#6) | Medium |
-| 9 | Customizable bottom bar (#3) | Large |
-| 10 | Proper pull-to-refresh (#9) | Medium |
+Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
 
+### Changes
+- Add email-based insights: "You have 3 unread priority emails from key contacts"
+- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
+- Add contact insights: "You haven't spoken to [Name] in 45 days"
+- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
+- Rotate through these insights automatically
+
+### Files
+- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
+- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
+
+---
+
+## Feature 5: Contextual Quick Actions (Cross-Module)
+
+Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
+
+### Changes
+- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
+- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
+- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
+- These actions appear in the QuickActionsBar on the dashboard
+
+### Files
+- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
+- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
+
+---
+
+## Technical Details
+
+### Daily Voice Briefing Edge Function
+```text
+POST /daily-voice-briefing
+Body: { user_id }
+Response: {
+  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
+  highlights: [
+    { type: "task", label: "4 tasks, 1 overdue" },
+    { type: "email", label: "3 unread priority" },
+    { type: "contract", label: "Insurance renews in 5 days" },
+    { type: "contact", label: "Follow up with Ahmed" }
+  ]
+}
+```
+
+Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
+
+### Data Flow for Cross-Module Features
+```text
+Email sender --> match against user_contacts.email
+Email body --> AI extract --> calendar event / contract data
+Contact profile --> query user_emails WHERE from_email = contact.email
+Calendar event title --> fuzzy match against contact names
+Contract provider --> match against email senders
+```
+
+### Caching Strategy
+- Daily briefing: cached in localStorage with date key, regenerated once per day
+- Cross-module matches (email-contact): computed on render, lightweight DB queries
+- Smart insights: refreshed every 5 minutes (existing pattern)
+
+## Summary of Files Modified/Created
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
+- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
+- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
+- `src/components/email/EmailCard.tsx` (date badge)
+- `src/components/contacts/ContactTimeline.tsx` (email history)
+- `src/hooks/useContextualActions.ts` (cross-module actions)
+- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)

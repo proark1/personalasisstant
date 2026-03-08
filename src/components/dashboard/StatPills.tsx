@@ -8,14 +8,15 @@ interface StatPillsProps {
   completedToday: number;
   completedThisWeek: number;
   lifeScore?: number;
+  onNavigate?: (panel: string) => void;
 }
 
-export function StatPills({ streak, completedToday, completedThisWeek, lifeScore }: StatPillsProps) {
+export function StatPills({ streak, completedToday, completedThisWeek, lifeScore, onNavigate }: StatPillsProps) {
   const pills = [
-    { icon: Flame, label: 'Streak', value: streak, color: 'text-orange-500', show: streak > 0 },
-    { icon: CheckCircle2, label: 'Today', value: completedToday, color: 'text-primary', show: true },
-    { icon: TrendingUp, label: 'This Week', value: completedThisWeek, color: 'text-primary', show: completedThisWeek > 0 },
-    { icon: Star, label: 'Life Score', value: lifeScore || 0, color: 'text-accent', show: (lifeScore || 0) > 0 },
+    { icon: Flame, label: 'Streak', value: streak, color: 'text-orange-500', show: streak > 0, nav: 'habits' },
+    { icon: CheckCircle2, label: 'Today', value: completedToday, color: 'text-primary', show: true, nav: 'tasks' },
+    { icon: TrendingUp, label: 'This Week', value: completedThisWeek, color: 'text-primary', show: completedThisWeek > 0, nav: 'tasks' },
+    { icon: Star, label: 'Life Score', value: lifeScore || 0, color: 'text-accent', show: (lifeScore || 0) > 0, nav: 'health' },
   ].filter(p => p.show);
 
   if (pills.length === 0) return null;
@@ -28,12 +29,15 @@ export function StatPills({ streak, completedToday, completedThisWeek, lifeScore
       transition={{ delay: 0.2 }}
     >
       {pills.map((pill, i) => (
-        <motion.div
+        <motion.button
           key={pill.label}
+          onClick={() => onNavigate?.(pill.nav)}
           className={cn(
             "flex items-center gap-2 px-3 py-2 rounded-full shrink-0",
             "bg-card border border-border/50",
-            "shadow-soft"
+            "shadow-soft",
+            "transition-all duration-200 hover:border-primary/30 hover:shadow-md",
+            "active:scale-95 cursor-pointer"
           )}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -42,7 +46,7 @@ export function StatPills({ streak, completedToday, completedThisWeek, lifeScore
           <pill.icon className={cn("w-4 h-4", pill.color)} />
           <AnimatedCounter value={pill.value} className="text-sm font-bold" />
           <span className="text-xs text-muted-foreground">{pill.label}</span>
-        </motion.div>
+        </motion.button>
       ))}
     </motion.div>
   );

@@ -31,10 +31,10 @@ import { SidebarFilter } from './Sidebar';
 import {
   LayoutDashboard,
   Calendar,
-  Sparkles,
   Mail,
   Heart,
 } from 'lucide-react';
+import doriFish from '@/assets/dori-fish.png';
 
 interface MobileLayoutProps {
   userId: string;
@@ -98,6 +98,14 @@ const panelTransition = {
   transition: { duration: 0.2, ease: 'easeOut' },
 };
 
+const tabLabels: Record<string, string> = {
+  dashboard: 'Home',
+  calendar: 'Calendar',
+  dori: 'Dori',
+  email: 'Email',
+  health: 'Health',
+};
+
 export function MobileLayout({
   userId,
   tasks,
@@ -130,6 +138,7 @@ export function MobileLayout({
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [filter, setFilter] = useState<SidebarFilter>('all');
   const [moreOpen, setMoreOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const { t } = useLanguage();
   const { vibrate } = useHaptics();
@@ -167,12 +176,13 @@ export function MobileLayout({
   const primaryTabs = [
     { id: 'dashboard' as const, icon: LayoutDashboard },
     { id: 'calendar' as const, icon: Calendar },
-    { id: 'dori' as const, icon: Sparkles, isCenter: true },
+    { id: 'dori' as const, icon: null, isCenter: true },
     { id: 'email' as const, icon: Mail },
     { id: 'health' as const, icon: Heart },
   ];
 
-  // Determine header title
+  // Hide header on dashboard (hero card already shows greeting)
+  const showHeader = activeTab !== 'dashboard';
   const headerTitle = t(`nav.${activeTab}`) || tabTitles[activeTab] || 'DarAI';
 
   const renderPanel = () => {
@@ -223,7 +233,7 @@ export function MobileLayout({
       case 'family':
         return <CookingPanel />;
       case 'dashboard':
-        return <DashboardPanel userId={userId} />;
+        return <DashboardPanel key={refreshKey} userId={userId} onNavigate={handleTabChange} />;
       case 'health':
         return <HealthHubPanel />;
       case 'contacts':
@@ -251,26 +261,24 @@ export function MobileLayout({
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden safe-area-top">
-      {/* Contextual Header */}
-      <ContextualHeader
-        title={headerTitle}
-        onOpenMenu={() => setMoreOpen(true)}
-        notifications={notifications}
-        onMarkRead={markRead}
-        onMarkAllRead={markAllRead}
-        onDeleteNotification={deleteNotification}
-        onClearAll={clearAll}
-      />
+      {/* Contextual Header — hidden on dashboard */}
+      {showHeader && (
+        <ContextualHeader
+          title={headerTitle}
+          onOpenMenu={() => setMoreOpen(true)}
+          notifications={notifications}
+          onMarkRead={markRead}
+          onMarkAllRead={markAllRead}
+          onDeleteNotification={deleteNotification}
+          onClearAll={clearAll}
+        />
+      )}
 
-      {/* Content with AnimatePresence transitions + Pull to Refresh */}
+      {/* Content */}
       <main className="flex-1 overflow-hidden relative">
         <PullToRefresh
           onRefresh={async () => {
-            // Trigger a re-render by toggling the active tab
-            const current = activeTab;
-            setActiveTab('dashboard');
-            await new Promise(r => setTimeout(r, 50));
-            setActiveTab(current);
+            setRefreshKey(k => k + 1);
           }}
           className="h-full"
         >
@@ -287,11 +295,12 @@ export function MobileLayout({
         </PullToRefresh>
       </main>
 
-      {/* Bottom Tab Bar - 5 items */}
+      {/* Bottom Tab Bar with labels */}
       <nav className="border-t border-border shrink-0 bg-background/95 backdrop-blur-lg safe-area-bottom">
         <div className="h-16 flex items-center justify-around px-1">
           {primaryTabs.map((tab) => {
             const isActive = !tab.isCenter && activeTab === tab.id;
+            const label = tabLabels[tab.id] || '';
 
             return (
               <button
@@ -315,29 +324,38 @@ export function MobileLayout({
               >
                 {tab.isCenter ? (
                   <div className={cn(
-                    "w-14 h-14 -mt-6 rounded-full bg-gradient-to-br from-primary to-accent",
+                    "w-14 h-14 -mt-6 rounded-full",
+                    "bg-gradient-to-br from-primary to-accent",
                     "flex items-center justify-center",
                     "shadow-lg shadow-primary/30 border-4 border-background",
                     "transition-all duration-200 ease-out",
                     "active:scale-95 active:shadow-primary/50",
-                    "animate-pulse-glow"
+                    "animate-pulse-glow overflow-hidden"
                   )}>
-                    <Sparkles className="w-6 h-6 text-primary-foreground" />
+                    <img src={doriFish} alt="Dori" className="w-9 h-9 object-contain" />
                   </div>
                 ) : (
-                  <div className="relative p-1.5 rounded-lg transition-all duration-200">
-                    <tab.icon className={cn(
-                      "w-5 h-5 transition-transform duration-200",
-                      isActive && "scale-110"
-                    )} />
-                    {isActive && (
-                      <motion.div
-                        layoutId="mobile-tab-indicator"
-                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary"
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                  </div>
+                  <>
+                    <div className="relative p-1 rounded-lg transition-all duration-200">
+                      {tab.icon && <tab.icon className={cn(
+                        "w-[18px] h-[18px] transition-transform duration-200",
+                        isActive && "scale-110"
+                      )} />}
+                      {isActive && (
+                        <motion.div
+                          layoutId="mobile-tab-indicator"
+                          className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary"
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-[10px] leading-none font-medium",
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      {label}
+                    </span>
+                  </>
                 )}
               </button>
             );
