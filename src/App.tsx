@@ -181,19 +181,21 @@ function AppContent() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <LanguageProvider>
-      <TooltipProvider>
-        <XPBadgeProvider>
-          <Toaster />
-          <Sonner position="top-center" />
-          <ErrorBoundary fallbackTitle="DarAI couldn't load">
-            <BrowserRouter>
-              <AppContent />
-            </BrowserRouter>
-          </ErrorBoundary>
-        </XPBadgeProvider>
-      </TooltipProvider>
-    </LanguageProvider>
+    <AuthProvider>
+      <LanguageProvider>
+        <TooltipProvider>
+          <XPBadgeProvider>
+            <Toaster />
+            <Sonner position="top-center" />
+            <ErrorBoundary fallbackTitle="DarAI couldn't load">
+              <BrowserRouter>
+                <AppContent />
+              </BrowserRouter>
+            </ErrorBoundary>
+          </XPBadgeProvider>
+        </TooltipProvider>
+      </LanguageProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

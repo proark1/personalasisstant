@@ -77,12 +77,12 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         .lt('last_contacted_at', subDays(now, 30).toISOString())
         .order('last_contacted_at', { ascending: true })
         .limit(3),
-      supabase.from('user_emails').select('id, from_name, from_email, subject, priority_score, is_read, user_archived, category')
+      supabase.from('user_emails').select('id, from_name, from_email, subject, priority_score, category')
         .eq('user_id', userId)
         .eq('is_read', false)
         .eq('user_archived', false)
         .order('priority_score')
-        .limit(20),
+        .limit(10),
     ]);
 
     if (tasksRes.data) {

@@ -144,7 +144,7 @@ export function Sidebar({
   const [isAdmin, setIsAdmin] = useState(false);
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { unreadCount } = useEmails();
+  const { unreadCount } = useUnreadEmailCount();
 
   useEffect(() => {
     const checkAdmin = async () => {
