@@ -55,6 +55,7 @@ export function useGeminiLive({
   personality = 'balanced',
   userProfile,
   contextData,
+  memories,
   onResponse,
   onAction,
   onError,
