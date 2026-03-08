@@ -513,6 +513,8 @@ serve(async (req) => {
       emailSummary,
       notesSummary,
       habitsSummary,
+      // AI Memory
+      memories,
     }: ChatRequest = await req.json();
     
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
