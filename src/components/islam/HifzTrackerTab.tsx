@@ -668,7 +668,7 @@ export function HifzTrackerTab() {
                   <p>• <strong>Daily review:</strong> Revise what you memorized yesterday</p>
                   <p>• <strong>Pray with it:</strong> Use memorized surahs in your prayers</p>
                 </div>
-              </Card>
+              </GlassCard>
             </div>
           </ScrollArea>
         </TabsContent>
