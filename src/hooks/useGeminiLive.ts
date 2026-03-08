@@ -116,7 +116,7 @@ export function useGeminiLive({
     } finally {
       setIsProcessing(false);
     }
-  }, [personality, userProfile, contextData, onResponse, onAction, onError, onSpeakingChange]);
+  }, [personality, userProfile, contextData, memories, onResponse, onAction, onError, onSpeakingChange]);
 
   const sendAudio = useCallback(async (audioData: Float32Array, sampleRate: number = 16000) => {
     setIsProcessing(true);
