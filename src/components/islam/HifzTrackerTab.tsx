@@ -618,7 +618,7 @@ export function HifzTrackerTab() {
         <TabsContent value="practice" className="flex-1 mt-0">
           <ScrollArea className="h-full">
             <div className="p-4 space-y-4">
-              <Card className="p-4 bg-gradient-to-br from-primary/10 to-primary/5">
+              <GlassCard className="p-4 bg-gradient-to-br from-primary/10 to-primary/5">
                 <h3 className="font-semibold flex items-center gap-2 mb-2">
                   <Star className="w-4 h-4 text-amber-500" />
                   Recommended for Beginners
