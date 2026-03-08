@@ -49,8 +49,8 @@ export function FollowUpCard() {
             <div className="h-4 bg-muted rounded w-1/3" />
             <div className="h-12 bg-muted rounded" />
           </div>
-        </CardContent>
-      </Card>
+        </GlassCardContent>
+      </GlassCard>
     );
   }
 
