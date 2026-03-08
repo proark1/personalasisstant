@@ -4,7 +4,6 @@ import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
 import { XPDisplay } from '@/components/gamification/XPDisplay';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Task } from '@/types/flux';
@@ -107,10 +106,7 @@ export function DashboardHero({
         </div>
 
         {sugLoading && !rec && (
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-3 w-full" />
-          </div>
+          <p className="text-sm text-muted-foreground animate-pulse">Thinking…</p>
         )}
 
         {!sugLoading && !rec && (

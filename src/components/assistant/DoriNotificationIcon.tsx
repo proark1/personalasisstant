@@ -125,10 +125,8 @@ export function DoriNotificationIcon() {
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold"
-            >
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </motion.div>
+              className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-destructive"
+            />
           )}
         </Button>
       </PopoverTrigger>

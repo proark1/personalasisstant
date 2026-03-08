@@ -749,6 +749,10 @@ const translations: Record<Language, Record<string, string>> = {
     'checkin.mood': 'Mood',
     'checkin.skipForNow': 'Skip for now',
     'checkin.submit': 'Submit',
+    'checkin.startCheckin': 'Check in',
+    'checkin.startReflection': 'Reflect',
+    'checkin.morningPrompt': 'Start your day with a quick check-in to set your goals',
+    'checkin.eveningPrompt': 'Take a moment to reflect on your day and prepare for tomorrow',
 
     // Automation Rules
     'automation.title': 'Automation Rules',
@@ -1611,7 +1615,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('app-language');
-    return (saved as Language) || 'de';
+    return (saved as Language) || 'en';
   });
 
   const setLanguage = (lang: Language) => {

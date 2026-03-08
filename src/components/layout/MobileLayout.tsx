@@ -182,8 +182,10 @@ export function MobileLayout({
   ];
 
   // Hide header on dashboard and chat (both have their own headers)
+  const primaryTabIds = ['dashboard', 'calendar', 'email', 'health', 'chat'];
+  const isPrimaryTab = primaryTabIds.includes(activeTab);
   const showHeader = activeTab !== 'dashboard' && activeTab !== 'chat';
-  const headerTitle = t(`nav.${activeTab}`) || tabTitles[activeTab] || 'DarAI';
+  const headerTitle = tabTitles[activeTab] || t(`nav.${activeTab}`) || 'DarAI';
 
   const renderPanel = () => {
     switch (activeTab) {
@@ -265,7 +267,7 @@ export function MobileLayout({
       {showHeader && (
         <ContextualHeader
           title={headerTitle}
-          onOpenMenu={() => setMoreOpen(true)}
+          onOpenMenu={isPrimaryTab ? undefined : () => setMoreOpen(true)}
           notifications={notifications}
           onMarkRead={markRead}
           onMarkAllRead={markAllRead}
@@ -323,16 +325,19 @@ export function MobileLayout({
                 )}
               >
                 {tab.isCenter ? (
-                  <div className={cn(
-                    "w-14 h-14 -mt-6 rounded-full",
-                    "bg-gradient-to-br from-primary to-accent",
-                    "flex items-center justify-center",
-                    "shadow-lg shadow-primary/30 border-4 border-background",
-                    "transition-all duration-200 ease-out",
-                    "active:scale-95 active:shadow-primary/50",
-                    "animate-pulse-glow overflow-hidden"
-                  )}>
-                    <img src={doriFish} alt="Dori" className="w-9 h-9 object-contain" />
+                  <div className="flex flex-col items-center gap-0.5">
+                    <div className={cn(
+                      "w-14 h-14 -mt-6 rounded-full",
+                      "bg-gradient-to-br from-primary to-accent",
+                      "flex items-center justify-center",
+                      "shadow-lg shadow-primary/30 border-4 border-background",
+                      "transition-all duration-200 ease-out",
+                      "active:scale-95 active:shadow-primary/50",
+                      "animate-pulse-glow overflow-hidden"
+                    )}>
+                      <img src={doriFish} alt="Dori" className="w-9 h-9 object-contain" />
+                    </div>
+                    <span className="text-[10px] leading-none font-medium text-muted-foreground">Dori</span>
                   </div>
                 ) : (
                   <>

@@ -58,6 +58,13 @@ function getInitials(name: string | null, email: string): string {
 
 const SWIPE_THRESHOLD = 80;
 
+function decodeHtmlEntities(text: string | null): string {
+  if (!text) return '';
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+}
+
 export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSnooze, selectMode, isSelected, onToggleSelect }: EmailCardProps) {
   const email = thread.latestEmail;
   const sender = reconstructSender(email.from_name, email.from_email);
@@ -179,7 +186,7 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
           <p className={cn("text-sm truncate mt-0.5", !email.is_read ? "text-foreground" : "text-muted-foreground")}>
             {email.subject || '(No subject)'}
           </p>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{email.ai_summary || email.snippet}</p>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">{decodeHtmlEntities(email.ai_summary || email.snippet)}</p>
 
           {/* Tags row: AI action + priority badge + category chip + threat */}
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">

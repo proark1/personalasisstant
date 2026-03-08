@@ -36,13 +36,12 @@ export function QuickActionsBar({ onNavigate, maxActions = 6 }: QuickActionsBarP
   const topActions = getTopActions(maxActions);
 
   if (loading) {
-    return (
-      <div className="flex gap-2 overflow-hidden">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-9 w-24 bg-muted animate-pulse rounded-full shrink-0" />
-        ))}
-      </div>
-    );
+    // Show loading only briefly, then hide if no data
+    return null;
+  }
+
+  if (topActions.length === 0) {
+    return null;
   }
 
   const getCategoryColor = (category: QuickAction['category']) => {
