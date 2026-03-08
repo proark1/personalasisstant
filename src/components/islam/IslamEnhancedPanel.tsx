@@ -815,10 +815,10 @@ export function IslamEnhancedPanel() {
                 {/* Floating audio indicator */}
                 {currentPlayingAyah !== null && (
                   <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50">
-                    <Card className="px-4 py-2 bg-primary text-primary-foreground shadow-lg flex items-center gap-2">
+                    <Card className="px-4 py-2 shadow-glow flex items-center gap-3 bg-primary text-primary-foreground rounded-full">
                       <Volume2 className="w-4 h-4 animate-pulse" />
-                      <span className="text-sm font-medium">Playing Ayah {currentPlayingAyah}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-primary-foreground hover:text-primary-foreground/80"
+                      <span className="text-sm font-medium">Ayah {currentPlayingAyah}</span>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-primary-foreground hover:text-primary-foreground/80 hover:bg-primary-foreground/10"
                         onClick={stopAudio}>
                         <X className="w-4 h-4" />
                       </Button>
