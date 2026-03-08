@@ -74,6 +74,14 @@ export function DashboardHero({
           </motion.div>
           <div className="flex items-center gap-2 shrink-0">
             <XPDisplay variant="compact" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              onClick={() => onNavigate?.('settings')}
+            >
+              <Settings className="w-4 h-4 text-muted-foreground" />
+            </Button>
           </div>
         </div>
 
