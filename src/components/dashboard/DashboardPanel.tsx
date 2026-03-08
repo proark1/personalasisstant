@@ -17,7 +17,6 @@ import { ContractAlertsCard } from './ContractAlertsCard';
 import { ContactRemindersCard } from './ContactRemindersCard';
 import { StaggerContainer, StaggerItem } from '@/components/ui/page-transition';
 import { PanelSkeleton } from '@/components/ui/panel-skeleton';
-import { WhatNowCard } from './WhatNowCard';
 import { useSmartTaskSuggestions } from '@/hooks/useSmartTaskSuggestions';
 import { Task, TaskCategory, CalendarEvent } from '@/types/flux';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -118,95 +117,69 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
       })));
     }
 
-    if (contactsRes.data) {
-      setOverdueContacts(contactsRes.data);
-    }
-
-    if (emailsRes.data) {
-      setEmails(emailsRes.data);
-    }
+    if (contactsRes.data) setOverdueContacts(contactsRes.data);
+    if (emailsRes.data) setEmails(emailsRes.data);
 
     setLoading(false);
   }, [userId]);
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const stats = useMemo(() => {
     const now = new Date();
-    
-    const completedToday = tasks.filter(t => 
-      t.completed && t.createdAt && isToday(t.createdAt)
-    ).length;
-
+    const completedToday = tasks.filter(t => t.completed && t.createdAt && isToday(t.createdAt)).length;
     const completedThisWeek = tasks.filter(t => {
       if (!t.completed || !t.createdAt) return false;
-      const daysDiff = Math.floor((now.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-      return daysDiff < 7;
+      return Math.floor((now.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60 * 24)) < 7;
     }).length;
 
     let streak = 0;
     let checkDate = startOfDay(now);
     for (let i = 0; i < 365; i++) {
-      const dayTasks = tasks.filter(t => 
-        t.completed && t.createdAt && isSameDay(t.createdAt, checkDate)
-      );
-      if (dayTasks.length > 0) {
-        streak++;
-        checkDate = subDays(checkDate, 1);
-      } else {
-        break;
-      }
+      const dayTasks = tasks.filter(t => t.completed && t.createdAt && isSameDay(t.createdAt, checkDate));
+      if (dayTasks.length > 0) { streak++; checkDate = subDays(checkDate, 1); }
+      else break;
     }
 
     return { completedToday, completedThisWeek, streak };
   }, [tasks]);
 
   const handleCompleteTask = async (taskId: string) => {
-    const { error } = await supabase
-      .from('tasks')
-      .update({ completed: true })
-      .eq('id', taskId);
-
+    const { error } = await supabase.from('tasks').update({ completed: true }).eq('id', taskId);
     if (!error) {
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: true } : t));
       const newStreak = stats.streak + 1;
-      if (!checkStreak(newStreak)) {
-        celebrate({ type: 'taskComplete' });
-      }
+      if (!checkStreak(newStreak)) celebrate({ type: 'taskComplete' });
     }
   };
 
-  const hasSecondaryCards = contractAlerts.length > 0 || overdueContacts.length > 0;
-
   if (loading) {
-    return (
-      <div className="h-full p-3 md:p-4">
-        <PanelSkeleton variant="grid" />
-      </div>
-    );
+    return <div className="h-full p-3 md:p-4"><PanelSkeleton variant="grid" /></div>;
   }
 
   return (
     <div className="h-full overflow-y-auto p-3 md:p-4">
       <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-        {/* Tier 1: Always visible — greeting + primary action */}
+        {/* Slim check-in banner */}
         <StaggerItem className="col-span-full">
           <CheckinPrompt />
         </StaggerItem>
 
+        {/* Tier 1: Merged Hero + WhatNow */}
         <StaggerItem className="col-span-full">
-          <DashboardHero userName={profile?.display_name} tasks={tasks} />
-        </StaggerItem>
-
-        <StaggerItem className="col-span-full">
-          <WhatNowCard
+          <DashboardHero
+            userName={profile?.display_name}
+            tasks={tasks}
             suggestion={suggestion}
-            loading={sugLoading}
-            onRefresh={refreshSuggestion}
+            sugLoading={sugLoading}
+            onRefreshSuggestion={refreshSuggestion}
             onStartTask={handleStartTask}
           />
+        </StaggerItem>
+
+        {/* Quick Actions — immediately after hero */}
+        <StaggerItem className="col-span-full">
+          <QuickActionsBar onNavigate={onNavigate} />
         </StaggerItem>
 
         {/* Tier 2: Key actionable content */}
@@ -226,7 +199,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         </StaggerItem>
 
         <StaggerItem className="col-span-full">
-          <TodayTimeline tasks={tasks} events={events} onNavigate={onNavigate} />
+          <TodayTimeline tasks={tasks} events={events} onNavigate={onNavigate} onCompleteTask={handleCompleteTask} />
         </StaggerItem>
 
         {/* Tier 3: Secondary — collapsible */}
@@ -241,29 +214,19 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pt-2">
-                <div className="md:col-span-2">
-                  <DailyBriefingCard />
-                </div>
+                <div className="md:col-span-2"><DailyBriefingCard /></div>
                 <div className="md:col-span-1">
                   <SmartInsightCard tasks={tasks} emails={emails} contracts={contractAlerts} contacts={overdueContacts} events={events} />
                 </div>
                 {contractAlerts.length > 0 && (
-                  <div className="md:col-span-2">
-                    <ContractAlertsCard contracts={contractAlerts} onNavigate={onNavigate} />
-                  </div>
+                  <div className="md:col-span-2"><ContractAlertsCard contracts={contractAlerts} onNavigate={onNavigate} /></div>
                 )}
                 {overdueContacts.length > 0 && (
-                  <div className="md:col-span-1">
-                    <ContactRemindersCard contacts={overdueContacts} onNavigate={onNavigate} />
-                  </div>
+                  <div className="md:col-span-1"><ContactRemindersCard contacts={overdueContacts} onNavigate={onNavigate} /></div>
                 )}
               </div>
             </CollapsibleContent>
           </Collapsible>
-        </StaggerItem>
-
-        <StaggerItem className="col-span-full">
-          <QuickActionsBar />
         </StaggerItem>
       </StaggerContainer>
     </div>
