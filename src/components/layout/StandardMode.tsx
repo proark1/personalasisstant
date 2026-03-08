@@ -408,6 +408,15 @@ export function StandardMode({
 
           {/* Main Content Area - Only one panel at a time */}
           <div className="flex-1 flex flex-col p-2 gap-2">
+            <AnimatePresence mode="wait">
+            <motion.div
+              key={activePanel}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 flex flex-col gap-2"
+            >
             <Suspense fallback={<PanelFallback />}>
               {/* AI Assistant Panel */}
               {activePanel === 'assistant' && (
