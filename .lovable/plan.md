@@ -1,122 +1,148 @@
 
-# Unified World-Class UI/UX Across All Modules
+# Deep Module Interconnection + AI Daily Voice Briefing
 
-## Problem Analysis
+## Vision
+Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
 
-After reviewing the codebase, I found these key inconsistencies across panels:
+---
 
-1. **Card components**: Dashboard uses `GlassCard` (glassmorphism), but Habits/Notes/Contacts/Health use plain `Card` from shadcn. Some panels have no card wrappers at all.
-2. **Loading states**: Dashboard shows `animate-pulse text-primary`, Contracts shows the same, Habits uses `RefreshCw animate-spin`, Health has its own spinner. No skeleton loaders used consistently.
-3. **Empty states**: Some panels have rich empty states (Email), others have none (Contracts, Health).
-4. **Panel headers**: Habits/Notes have `px-4 py-3 border-b` headers with icon + title. Email has `p-3 border-b`. Calendar has no header. Dashboard has none (hero instead). No shared pattern.
-5. **Animations**: Dashboard uses `StaggerContainer/StaggerItem` (framer-motion). Other panels have zero entrance animations.
-6. **Spacing**: Dashboard uses `p-3 md:p-4`, Contracts uses `p-4`, Notes uses `px-4 py-3`. Inconsistent.
-7. **Section headers**: Email uses uppercase tracking-wider. Habits doesn't. No shared component.
+## Feature 1: AI Daily Voice Briefing on Dashboard
 
-## Plan
+A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
 
-### 1. Create Shared `PanelShell` Layout Component
-A reusable wrapper that every panel uses, providing consistent structure:
-- Standardized header with icon, title, optional subtitle, and action buttons
-- Consistent padding (`p-3 md:p-4`)
-- `StaggerContainer` entrance animation built in
-- Shared loading skeleton pattern
-- Consistent empty state component
+### New Edge Function: `daily-voice-briefing`
+- Accepts user_id and fetches cross-module data server-side:
+  - Pending tasks (count, top 3 by priority)
+  - Today's calendar events
+  - Unread email count + priority emails
+  - Contract alerts (upcoming renewals/cancellations)
+  - Contacts overdue for follow-up
+  - Habit completion status
+  - Yesterday's check-in mood/energy
+- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
+- Returns: `{ briefingText: string, highlights: [...] }`
 
-**New file:** `src/components/ui/panel-shell.tsx`
+### New Component: `DailyBriefingCard`
+- Displayed prominently on the dashboard (below the hero)
+- Shows a text summary with key highlights as chips/badges
+- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
+- Auto-play option (respects existing morning auto-play setting)
+- Cached per day so it doesn't re-generate on every page load
 
-```text
-<PanelShell
-  icon={Target}
-  title="Habits & Goals"
-  subtitle="3 of 5 completed"
-  actions={<Button .../>}
-  loading={loading}
-  empty={items.length === 0}
-  emptyIcon={Target}
-  emptyTitle="No habits yet"
-  emptyDescription="Start building healthy routines"
-  emptyAction={<Button>Add Habit</Button>}
->
-  {children}
-</PanelShell>
-```
+### Files
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add card)
 
-### 2. Create Shared `SectionHeader` Component
-Consistent section headers across all panels (email sections, habit sections, etc.)
+---
 
-**New file:** `src/components/ui/section-header.tsx`
+## Feature 2: Email-to-Calendar Integration
 
-### 3. Create Shared `EmptyState` Component  
-Reusable empty/zero state with icon, title, description, and CTA.
+When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
 
-**New file:** `src/components/ui/empty-state.tsx`
+### Changes
+- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
+- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
+- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
 
-### 4. Create Shared `PanelSkeleton` Loading Component
-Standardized skeleton loading with configurable layout (list, grid, cards).
+### Files
+- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
+- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
+- `src/components/email/EmailCard.tsx` (date detection badge)
 
-**New file:** `src/components/ui/panel-skeleton.tsx`
+---
 
-### 5. Migrate Panels to Use Shared Components
-Update these panels to use the new shared components:
-- `HabitsPanel.tsx` -- wrap with PanelShell, use GlassCard for habit items
-- `NotesPanel.tsx` -- wrap with PanelShell, use GlassCard for note cards
-- `ContractsPanel.tsx` / `ContractManager.tsx` -- wrap with PanelShell
-- `ContactsPanel.tsx` -- wrap with PanelShell
-- `HealthHubPanel.tsx` -- wrap with PanelShell, standardize card usage
-- `EmailPanel.tsx` -- adopt SectionHeader, standardize loading/empty states
-- `CalendarHubPanel.tsx` -- adopt PanelShell header pattern
-- `DashboardPanel.tsx` -- minor alignment (already closest to target)
+## Feature 3: Email-to-Contact Linking
 
-### 6. Standardize Card Usage
-Replace plain `Card` with `GlassCard` across all item cards for visual consistency:
-- Habit items, goal items
-- Note list items
-- Contact cards (already close)
-- Contract cards
-- Health metric cards
+Automatically link emails to existing contacts and surface contact context when reading emails.
 
-### 7. Add Entrance Animations Everywhere
-Wrap all panel content lists with `StaggerContainer`/`StaggerItem` so every panel has the same smooth staggered entrance.
+### Changes
+- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
+- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
+- Add a "Save as Contact" button when no match exists, pre-filling name and email
+- When viewing a contact profile, show their recent emails in the timeline
+
+### Files
+- `src/components/email/EmailDetailSheet.tsx` (contact context card)
+- `src/components/contacts/ContactTimeline.tsx` (add email history section)
+
+---
+
+## Feature 4: Smart Dashboard Insight Card (Cross-Module)
+
+Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
+
+### Changes
+- Add email-based insights: "You have 3 unread priority emails from key contacts"
+- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
+- Add contact insights: "You haven't spoken to [Name] in 45 days"
+- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
+- Rotate through these insights automatically
+
+### Files
+- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
+- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
+
+---
+
+## Feature 5: Contextual Quick Actions (Cross-Module)
+
+Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
+
+### Changes
+- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
+- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
+- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
+- These actions appear in the QuickActionsBar on the dashboard
+
+### Files
+- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
+- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
+
+---
 
 ## Technical Details
 
-### PanelShell Structure
+### Daily Voice Briefing Edge Function
 ```text
-┌──────────────────────────────┐
-│ Icon  Title        [Actions] │  <- Consistent header
-│        Subtitle              │
-├──────────────────────────────┤
-│                              │
-│  {children} or Loading       │  <- Content with StaggerContainer
-│  or EmptyState               │
-│                              │
-└──────────────────────────────┘
+POST /daily-voice-briefing
+Body: { user_id }
+Response: {
+  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
+  highlights: [
+    { type: "task", label: "4 tasks, 1 overdue" },
+    { type: "email", label: "3 unread priority" },
+    { type: "contract", label: "Insurance renews in 5 days" },
+    { type: "contact", label: "Follow up with Ahmed" }
+  ]
+}
 ```
 
-### Design Tokens Used Consistently
-- Cards: `GlassCard` (default variant) everywhere
-- Interactive cards: `GlassCard pressable haptic="light"`
-- Spacing: `p-3 md:p-4` for panel content, `gap-3` between cards
-- Text sizes: Panel title `text-lg font-semibold`, section headers `text-xs font-semibold uppercase tracking-wider`, body `text-sm`
-- Colors: `text-primary` for labels, `text-muted-foreground` for secondary text
-- Loading: Skeleton shimmer pattern (3 skeleton cards)
-- Empty: Centered icon + title + description + optional CTA
+Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
 
-### Files Created
-- `src/components/ui/panel-shell.tsx`
-- `src/components/ui/section-header.tsx`  
-- `src/components/ui/empty-state.tsx`
-- `src/components/ui/panel-skeleton.tsx`
+### Data Flow for Cross-Module Features
+```text
+Email sender --> match against user_contacts.email
+Email body --> AI extract --> calendar event / contract data
+Contact profile --> query user_emails WHERE from_email = contact.email
+Calendar event title --> fuzzy match against contact names
+Contract provider --> match against email senders
+```
 
-### Files Modified
-- `src/components/habits/HabitsPanel.tsx`
-- `src/components/notes/NotesPanel.tsx`
-- `src/components/contracts/ContractsPanel.tsx`
-- `src/components/contracts/ContractManager.tsx`
-- `src/components/contacts/ContactsPanel.tsx`
-- `src/components/health/HealthHubPanel.tsx`
-- `src/components/email/EmailPanel.tsx`
-- `src/components/calendar/CalendarHubPanel.tsx`
+### Caching Strategy
+- Daily briefing: cached in localStorage with date key, regenerated once per day
+- Cross-module matches (email-contact): computed on render, lightweight DB queries
+- Smart insights: refreshed every 5 minutes (existing pattern)
 
-This is a large change touching many files. I recommend implementing it in 2 rounds: first create the shared components (round 1), then migrate panels one by one (round 2), to keep changes reviewable.
+## Summary of Files Modified/Created
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
+- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
+- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
+- `src/components/email/EmailCard.tsx` (date badge)
+- `src/components/contacts/ContactTimeline.tsx` (email history)
+- `src/hooks/useContextualActions.ts` (cross-module actions)
+- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)

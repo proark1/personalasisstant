@@ -3,6 +3,7 @@ import { useContracts } from '@/hooks/useContracts';
 import { useItemSharing } from '@/hooks/useItemSharing';
 import { ContractManager } from './ContractManager';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
+import { PanelSkeleton } from '@/components/ui/panel-skeleton';
 
 interface ContractsPanelProps {
   userId: string;
@@ -30,14 +31,14 @@ export function ContractsPanel({ userId }: ContractsPanelProps) {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-pulse text-primary">Loading...</div>
+      <div className="h-full p-4">
+        <PanelSkeleton variant="cards" count={4} />
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4">
+    <div className="h-full overflow-y-auto p-3 md:p-4">
       <ContractManager
         contracts={contracts}
         activeContracts={activeContracts}

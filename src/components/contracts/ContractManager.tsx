@@ -9,6 +9,8 @@ import { SnoozeReminderDialog } from './SnoozeReminderDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
+import { SectionHeader } from '@/components/ui/section-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -449,42 +451,42 @@ export function ContractManager({
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <GlassCard>
+          <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <DollarSign className="h-4 w-4" />
               {t('contracts.monthlyCost')}
             </div>
             <p className="text-2xl font-bold">€{monthlyCost.toFixed(2)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
+          </GlassCardContent>
+        </GlassCard>
+        <GlassCard>
+          <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <DollarSign className="h-4 w-4" />
               {t('contracts.yearlyCost')}
             </div>
             <p className="text-2xl font-bold">€{yearlyCost.toFixed(2)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
+          </GlassCardContent>
+        </GlassCard>
+        <GlassCard>
+          <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               {t('contracts.activeContracts')}
             </div>
             <p className="text-2xl font-bold">{activeContracts.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
+          </GlassCardContent>
+        </GlassCard>
+        <GlassCard>
+          <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <Calendar className="h-4 w-4" />
+              <AlertTriangle className="h-4 w-4" />
               {t('contracts.expiringSoon')}
             </div>
             <p className="text-2xl font-bold">{expiringContracts.length}</p>
-          </CardContent>
-        </Card>
+          </GlassCardContent>
+        </GlassCard>
       </div>
 
       {/* Search & Filter */}

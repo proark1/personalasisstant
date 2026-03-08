@@ -4,8 +4,10 @@ import { NoteEditor } from './NoteEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
 import { Badge } from '@/components/ui/badge';
+import { PanelShell, staggerItem } from '@/components/ui/panel-shell';
+import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
@@ -172,94 +174,88 @@ export function NotesPanel({ userId }: NotesPanelProps) {
     );
   }
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            {t('notes.title')}
-          </h2>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={refetch}>
-              <RefreshCw className="w-4 h-4" />
-            </Button>
-            <Button 
-              variant={isRecording ? "destructive" : "outline"}
-              size="icon"
-              onClick={toggleRecording}
-              disabled={isTranscribing}
-              title={isRecording ? "Stop recording" : "Create voice note"}
-            >
-              {isTranscribing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : isRecording ? (
-                <MicOff className="w-4 h-4" />
-              ) : (
-                <Mic className="w-4 h-4" />
-              )}
-            </Button>
-            <Button onClick={handleCreateNote} size="icon" title={t('notes.newNote')}>
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
+  const searchExtra = (
+    <div className="space-y-3">
+      {isRecording && (
+        <div className="flex items-center gap-2 p-2 bg-destructive/10 rounded-lg">
+          <span className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
+          <span className="text-sm text-destructive font-medium">Recording... Tap mic to stop</span>
         </div>
-        
-        {/* Recording indicator */}
-        {isRecording && (
-          <div className="flex items-center gap-2 p-2 bg-destructive/10 rounded-lg mb-3">
-            <span className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
-            <span className="text-sm text-destructive font-medium">Recording... Tap mic to stop</span>
-          </div>
-        )}
-        
-        {isTranscribing && (
-          <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg mb-3">
-            <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            <span className="text-sm text-primary font-medium">Transcribing audio...</span>
-          </div>
-        )}
-        
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder={t('notes.searchNotes')}
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-9"
-          />
+      )}
+      {isTranscribing && (
+        <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <span className="text-sm text-primary font-medium">Transcribing audio...</span>
         </div>
+      )}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder={t('notes.searchNotes')}
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          className="pl-9"
+        />
       </div>
+    </div>
+  );
 
-      {/* Notes List */}
-      {loading ? (
-        <div className="flex items-center justify-center h-48">
-          <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+  return (
+    <PanelShell
+      icon={FileText}
+      title={t('notes.title')}
+      loading={loading}
+      empty={notes.length === 0}
+      emptyIcon={FileText}
+      emptyTitle={t('notes.noNotes')}
+      emptyDescription={t('notes.createFirst')}
+      emptyAction={
+        <div className="flex gap-2">
+          <Button variant="link" onClick={handleCreateNote}>
+            {t('notes.createFirst')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={toggleRecording} className="gap-1">
+            <Mic className="w-4 h-4" />
+            Voice Note
+          </Button>
         </div>
-      ) : notes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-          <FileText className="w-8 h-8 mb-2 opacity-50" />
-          <p className="text-sm">{t('notes.noNotes')}</p>
-          <div className="flex gap-2 mt-3">
-            <Button variant="link" onClick={handleCreateNote}>
-              {t('notes.createFirst')}
-            </Button>
-            <Button variant="outline" size="sm" onClick={toggleRecording} className="gap-1">
+      }
+      actions={
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={refetch}>
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant={isRecording ? "destructive" : "outline"}
+            size="icon"
+            onClick={toggleRecording}
+            disabled={isTranscribing}
+            title={isRecording ? "Stop recording" : "Create voice note"}
+          >
+            {isTranscribing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isRecording ? (
+              <MicOff className="w-4 h-4" />
+            ) : (
               <Mic className="w-4 h-4" />
-              Voice Note
-            </Button>
-          </div>
+            )}
+          </Button>
+          <Button onClick={handleCreateNote} size="icon" title={t('notes.newNote')}>
+            <Plus className="w-4 h-4" />
+          </Button>
         </div>
-      ) : (
-        <ScrollArea className="flex-1">
-          <div className="p-4 space-y-3">
-            {notes.map(note => (
-              <Card
-                key={note.id}
+      }
+      headerExtra={searchExtra}
+    >
+      <ScrollArea className="h-full">
+        <div className="space-y-3">
+          {notes.map(note => (
+            <motion.div key={note.id} variants={staggerItem}>
+              <GlassCard
+                pressable
+                haptic="light"
                 className={cn(
-                  "p-3 cursor-pointer transition-colors hover:bg-muted/50",
+                  "p-3 cursor-pointer",
                   note.isPinned && "border-primary/50 bg-primary/5"
                 )}
                 onClick={() => setSelectedNote(note)}
@@ -294,11 +290,11 @@ export function NotesPanel({ userId }: NotesPanelProps) {
                     {formatDistanceToNow(note.updatedAt, { addSuffix: true, locale: dateLocale })}
                   </span>
                 </div>
-              </Card>
-            ))}
-          </div>
-        </ScrollArea>
-      )}
-    </div>
+              </GlassCard>
+            </motion.div>
+          ))}
+        </div>
+      </ScrollArea>
+    </PanelShell>
   );
 }

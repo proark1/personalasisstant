@@ -3,6 +3,7 @@ import { useContacts, Contact, ContactType, ContactInput, PersonalTier, Business
 import { useContactInteractions } from '@/hooks/useContactInteractions';
 import { useItemSharing } from '@/hooks/useItemSharing';
 import { ContactCardSkeleton } from '@/components/skeletons';
+import { PanelSkeleton } from '@/components/ui/panel-skeleton';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { ContactProfileCard } from '@/components/contacts/ContactProfileCard';
 import { ContactNetworkHealth } from '@/components/contacts/ContactNetworkHealth';
@@ -434,18 +435,14 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col p-4">
+      <div className="h-full flex flex-col p-3 md:p-4">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold">Contacts</h1>
             <p className="text-sm text-muted-foreground">Manage your network</p>
           </div>
         </div>
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <ContactCardSkeleton key={i} />
-          ))}
-        </div>
+        <PanelSkeleton variant="list" count={5} />
       </div>
     );
   }

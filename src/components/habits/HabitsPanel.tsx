@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useHabits } from '@/hooks/useHabits';
 import { useGoals } from '@/hooks/useGoals';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,6 +11,8 @@ import { Separator } from '@/components/ui/separator';
 import { AddHabitDialog } from './AddHabitDialog';
 import { AddGoalDialog } from './AddGoalDialog';
 import { StreakDisplay } from './StreakDisplay';
+import { PanelShell, staggerItem } from '@/components/ui/panel-shell';
+import { motion } from 'framer-motion';
 import { 
   Plus, 
   Check, 
@@ -62,37 +64,30 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
 
   const loading = habitsLoading || goalsLoading;
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            {t('habits.habitsAndGoals')}
-          </h2>
-          <Button variant="ghost" size="icon" onClick={() => { refetchHabits(); refetchGoals(); }}>
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        {/* Today's Progress */}
-        {totalHabits > 0 && (
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-sm mb-1">
-              <span className="text-muted-foreground">{t('habits.todaysProgress')}</span>
-              <span className="font-medium">{completedHabits}/{totalHabits}</span>
-            </div>
-            <Progress value={habitProgress} className="h-2" />
-          </div>
-        )}
+  const progressExtra = totalHabits > 0 ? (
+    <div>
+      <div className="flex items-center justify-between text-sm mb-1">
+        <span className="text-muted-foreground">{t('habits.todaysProgress')}</span>
+        <span className="font-medium">{completedHabits}/{totalHabits}</span>
       </div>
+      <Progress value={habitProgress} className="h-2" />
+    </div>
+  ) : undefined;
 
-      {loading ? (
-        <div className="flex items-center justify-center h-48">
-          <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
+  return (
+    <PanelShell
+      icon={Target}
+      title={t('habits.habitsAndGoals')}
+      subtitle={totalHabits > 0 ? `${completedHabits}/${totalHabits} ${t('habits.todaysProgress')}` : undefined}
+      loading={loading}
+      actions={
+        <Button variant="ghost" size="icon" onClick={() => { refetchHabits(); refetchGoals(); }}>
+          <RefreshCw className="w-4 h-4" />
+        </Button>
+      }
+      headerExtra={progressExtra}
+      noPadding
+    >
         <Tabs defaultValue="habits" className="flex-1 flex flex-col">
           <TabsList className="mx-4 mt-3">
             <TabsTrigger value="habits" className="flex-1 gap-1">
@@ -135,8 +130,8 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                   </div>
                 ) : (
                   todayHabits.map(habit => (
-                    <Card 
-                      key={habit.id}
+                    <motion.div key={habit.id} variants={staggerItem}>
+                    <GlassCard 
                       className={cn(
                         "p-3 transition-colors",
                         habit.isCompleted && "bg-success/10 border-success/30"
@@ -197,7 +192,8 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                    </Card>
+                    </GlassCard>
+                    </motion.div>
                   ))
                 )}
 
@@ -237,7 +233,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                     {activeGoals.map(goal => {
                       const progress = (goal.currentValue / goal.targetValue) * 100;
                       return (
-                        <Card key={goal.id} className="p-3">
+                        <motion.div key={goal.id} variants={staggerItem}><GlassCard className="p-3">
                           <div className="flex items-start gap-3">
                             <div 
                               className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
@@ -295,7 +291,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                               </div>
                             </div>
                           </div>
-                        </Card>
+                        </GlassCard></motion.div>
                       );
                     })}
 
@@ -308,7 +304,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                           {t('habits.completedGoals')}
                         </h3>
                         {completedGoals.map(goal => (
-                          <Card key={goal.id} className="p-3 bg-success/10 border-success/30">
+                          <GlassCard key={goal.id} className="p-3 bg-success/10 border-success/30">
                             <div className="flex items-center gap-3">
                               <div 
                                 className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -323,7 +319,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
                                 </p>
                               </div>
                             </div>
-                          </Card>
+                          </GlassCard>
                         ))}
                       </>
                     )}
@@ -333,11 +329,10 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
             </ScrollArea>
           </TabsContent>
         </Tabs>
-      )}
 
       <AddHabitDialog open={showAddHabit} onOpenChange={setShowAddHabit} userId={userId} />
       <AddGoalDialog open={showAddGoal} onOpenChange={setShowAddGoal} userId={userId} />
-    </div>
+    </PanelShell>
   );
 }
 
@@ -384,7 +379,7 @@ function HabitSuggestions({ userId, existingHabitNames, onHabitAdded }: HabitSug
   };
 
   return (
-    <Card className="p-3 bg-muted/30 border-dashed">
+    <GlassCard className="p-3 bg-muted/30 border-dashed">
       <div className="flex items-center gap-2 mb-3">
         <Lightbulb className="w-4 h-4 text-amber-500" />
         <span className="text-sm font-medium">{t('habits.suggestions') || 'Suggested Habits'}</span>
@@ -411,6 +406,6 @@ function HabitSuggestions({ userId, existingHabitNames, onHabitAdded }: HabitSug
           </Button>
         ))}
       </div>
-    </Card>
+    </GlassCard>
   );
 }
