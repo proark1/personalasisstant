@@ -3,7 +3,7 @@ import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, X, User } from 'lucide-react';
+import { Send, Loader2, X, User, ChevronDown, ChevronUp } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -21,10 +21,13 @@ interface ComposeEmailSheetProps {
 
 export function ComposeEmailSheet({ open, onOpenChange, onSend, initialTo, initialSubject, initialBody, threadId, gmailMessageId }: ComposeEmailSheetProps) {
   const [to, setTo] = useState('');
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
+  const [showCcBcc, setShowCcBcc] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
   const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -39,7 +42,6 @@ export function ComposeEmailSheet({ open, onOpenChange, onSend, initialTo, initi
     );
   }, [contacts, contactSearch]);
 
-  // Populate fields when initial values change (e.g. AI draft)
   useEffect(() => {
     if (open) {
       if (initialTo !== undefined) { setTo(initialTo); setContactSearch(initialTo); }
@@ -55,19 +57,25 @@ export function ComposeEmailSheet({ open, onOpenChange, onSend, initialTo, initi
     setSending(false);
     if (success) {
       setTo('');
+      setCc('');
+      setBcc('');
       setSubject('');
       setBody('');
       setContactSearch('');
+      setShowCcBcc(false);
       onOpenChange(false);
     }
   };
 
   const handleClose = () => {
     setTo('');
+    setCc('');
+    setBcc('');
     setSubject('');
     setBody('');
     setContactSearch('');
     setShowContacts(false);
+    setShowCcBcc(false);
     onOpenChange(false);
   };
 
@@ -99,7 +107,18 @@ export function ComposeEmailSheet({ open, onOpenChange, onSend, initialTo, initi
         <div className="px-4 pb-8 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-foreground">{threadId ? 'Reply' : 'New Email'}</h3>
-            <Button variant="ghost" size="icon" onClick={handleClose}><X className="w-4 h-4" /></Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCcBcc(!showCcBcc)}
+                className="text-xs text-muted-foreground gap-1"
+              >
+                CC/BCC
+                {showCcBcc ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleClose}><X className="w-4 h-4" /></Button>
+            </div>
           </div>
 
           {/* To field with contact search */}
@@ -134,6 +153,26 @@ export function ComposeEmailSheet({ open, onOpenChange, onSend, initialTo, initi
               </div>
             )}
           </div>
+
+          {/* CC / BCC fields */}
+          {showCcBcc && (
+            <div className="space-y-2">
+              <Input
+                placeholder="CC"
+                type="email"
+                value={cc}
+                onChange={e => setCc(e.target.value)}
+                className="h-9 text-sm"
+              />
+              <Input
+                placeholder="BCC"
+                type="email"
+                value={bcc}
+                onChange={e => setBcc(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+          )}
 
           <Input placeholder="Subject" value={subject} onChange={e => setSubject(e.target.value)} className="h-10 text-sm" />
           <Textarea placeholder="Write your message..." value={body} onChange={e => setBody(e.target.value)} className="min-h-[150px] text-sm" />

@@ -3,13 +3,15 @@ import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Archive, Star, StarOff, X, ExternalLink, ShieldAlert, Sparkles, Flag, Clock, Copy, Loader2, Ban, Send, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Receipt, CalendarPlus, UserPlus, User } from 'lucide-react';
+import { GlassCard } from '@/components/ui/glass-card';
+import { Archive, Star, StarOff, X, ExternalLink, ShieldAlert, Sparkles, Flag, Clock, Copy, Loader2, Ban, Send, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Receipt, CalendarPlus, UserPlus, User, MoreHorizontal, Reply } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format, addHours, addDays, nextMonday, setHours, setMinutes } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { Email, EmailThread } from '@/hooks/useEmails';
 import { reconstructSender } from '@/lib/emailSender';
 
@@ -62,6 +64,12 @@ const priorityOptions = [
   { key: 'spam' as const, label: 'Spam', icon: AlertTriangle, activeClass: 'bg-destructive/15 text-destructive border-destructive/30', color: 'text-destructive' },
 ];
 
+const QUICK_REPLIES = [
+  "Thanks, got it!",
+  "I'll review and get back to you.",
+  "Let me check and follow up.",
+];
+
 function EmailBodySkeleton() {
   return (
     <div className="space-y-3 p-4">
@@ -78,7 +86,7 @@ function EmailBodySkeleton() {
 function ThreadMessage({ email, body, bodyLoading }: { email: Email; body: string | null; bodyLoading: boolean }) {
   const sender = reconstructSender(email.from_name, email.from_email);
   return (
-    <div className="border border-border rounded-xl overflow-hidden">
+    <GlassCard className="overflow-hidden">
       <div className="flex items-center gap-3 p-3 bg-muted/30">
         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-semibold bg-muted text-muted-foreground">
           {getInitials(sender.name, sender.email)}
@@ -98,7 +106,7 @@ function ThreadMessage({ email, body, bodyLoading }: { email: Email; body: strin
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{email.snippet || email.body_preview || 'No content.'}</p>
         )}
       </div>
-    </div>
+    </GlassCard>
   );
 }
 
@@ -109,16 +117,16 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
   const [bodiesLoading, setBodiesLoading] = useState<Set<string>>(new Set());
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
 
-  // Reset state when email changes
   useEffect(() => {
     setFullBodies({});
     setBodiesLoading(new Set());
     setReplyText('');
     setShowSnooze(false);
+    setShowMoreActions(false);
   }, [email?.id]);
 
-  // Auto-fetch body for all thread messages when opened
   useEffect(() => {
     if (!open || !onFetchBody) return;
     const emails = thread?.allEmails || (email ? [email] : []);
@@ -205,18 +213,18 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
         <div className="px-4 pb-8 space-y-3 overflow-y-auto max-h-[85vh]">
           {/* Threat Warning */}
           {isThreat && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+            <GlassCard className="flex items-start gap-3 p-3 bg-destructive/5 border-destructive/20">
               <ShieldAlert className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-destructive">{email.is_phishing ? '⚠️ Phishing Detected' : '⚠️ Spam Detected'}</p>
                 {email.threat_reason && <p className="text-xs text-destructive/80 mt-0.5">{email.threat_reason}</p>}
               </div>
-            </div>
+            </GlassCard>
           )}
 
           {/* AI Analysis */}
           {(email.ai_summary || email.ai_suggested_action) && (
-            <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
+            <GlassCard className="p-3 bg-primary/5 border-primary/10 space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                 <Sparkles className="w-3.5 h-3.5" />AI Analysis
               </div>
@@ -227,7 +235,7 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
                 )}
                 <span className={cn("text-xs font-medium", sentimentInfo.className)}>{sentimentInfo.label}</span>
               </div>
-            </div>
+            </GlassCard>
           )}
 
           {/* Priority Categorization */}
@@ -243,7 +251,7 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
                       key={opt.key}
                       onClick={() => onCategorize(email.id, opt.key)}
                       className={cn(
-                        "flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border transition-all",
+                        "flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border transition-all active:scale-95",
                         isActive ? opt.activeClass : "border-border text-muted-foreground hover:bg-muted/50"
                       )}
                     >
@@ -256,49 +264,82 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
             </div>
           )}
 
-          {/* Actions bar */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 flex-wrap">
-              <Button variant="ghost" size="sm" onClick={() => { onArchive(email.id); onOpenChange(false); }}>
-                <Archive className="w-4 h-4 mr-1" />Archive
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => onToggleImportant(email.id)}>
-                {email.is_important ? <StarOff className="w-4 h-4 mr-1" /> : <Star className="w-4 h-4 mr-1" />}
-                {email.is_important ? 'Unmark' : 'Important'}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowSnooze(!showSnooze)}>
-                <Clock className="w-4 h-4 mr-1" />Snooze
-              </Button>
-              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { onReportSpam(email.id); onOpenChange(false); }}>
-                <Flag className="w-4 h-4 mr-1" />Spam
-              </Button>
-              {onSaveAsContract && (
-                <Button variant="ghost" size="sm" onClick={() => {
-                  const bodyHtml = fullBodies[email.gmail_message_id] || undefined;
-                  onSaveAsContract(email, bodyHtml);
-                }} disabled={contractExtracting}>
-                  {contractExtracting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Receipt className="w-4 h-4 mr-1" />}
-                  {contractExtracting ? 'Extracting...' : 'Contract'}
-                </Button>
-              )}
-              {onAddToCalendar && (
-                <Button variant="ghost" size="sm" onClick={() => {
-                  onAddToCalendar({
-                    title: email.subject || 'Event from email',
-                    description: `From: ${mainSender.name} <${mainSender.email}>\n\n${email.snippet || ''}`,
-                    date: email.received_at,
-                  });
-                }}>
-                  <CalendarPlus className="w-4 h-4 mr-1" />Calendar
-                </Button>
-              )}
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}><X className="w-4 h-4" /></Button>
+          {/* Actions — Row 1: Primary */}
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 h-9" onClick={() => { onArchive(email.id); onOpenChange(false); }}>
+              <Archive className="w-3.5 h-3.5" />Archive
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 h-9" onClick={() => onToggleImportant(email.id)}>
+              {email.is_important ? <StarOff className="w-3.5 h-3.5" /> : <Star className="w-3.5 h-3.5" />}
+              {email.is_important ? 'Unstar' : 'Star'}
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 h-9" onClick={() => setShowSnooze(!showSnooze)}>
+              <Clock className="w-3.5 h-3.5" />Snooze
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => onOpenChange(false)}>
+              <X className="w-4 h-4" />
+            </Button>
           </div>
+
+          {/* Actions — Row 2: Secondary (collapsible) */}
+          <Collapsible open={showMoreActions} onOpenChange={setShowMoreActions}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full text-xs gap-1.5 text-muted-foreground h-7">
+                <MoreHorizontal className="w-3.5 h-3.5" />
+                {showMoreActions ? 'Less' : 'More actions'}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button variant="ghost" size="sm" className="text-xs gap-1 text-destructive hover:text-destructive h-8" onClick={() => { onReportSpam(email.id); onOpenChange(false); }}>
+                  <Flag className="w-3 h-3" />Spam
+                </Button>
+                {onSaveAsContract && (
+                  <Button variant="ghost" size="sm" className="text-xs gap-1 h-8" onClick={() => {
+                    const bodyHtml = fullBodies[email.gmail_message_id] || undefined;
+                    onSaveAsContract(email, bodyHtml);
+                  }} disabled={contractExtracting}>
+                    {contractExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Receipt className="w-3 h-3" />}
+                    {contractExtracting ? 'Extracting...' : 'Save as Contract'}
+                  </Button>
+                )}
+                {onAddToCalendar && (
+                  <Button variant="ghost" size="sm" className="text-xs gap-1 h-8" onClick={() => {
+                    onAddToCalendar({
+                      title: email.subject || 'Event from email',
+                      description: `From: ${mainSender.name} <${mainSender.email}>\n\n${email.snippet || ''}`,
+                      date: email.received_at,
+                    });
+                  }}>
+                    <CalendarPlus className="w-3 h-3" />Calendar
+                  </Button>
+                )}
+                {!isThreat && onCreateSenderRule && (
+                  <Button variant="ghost" size="sm" className="text-xs gap-1 h-8 text-muted-foreground" onClick={handleArchiveWithRule}>
+                    <Ban className="w-3 h-3" />Always archive {email.from_email.split('@')[1]}
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" className="text-xs gap-1 h-8" onClick={() => window.open(`https://mail.google.com/mail/u/0/#inbox/${email.gmail_message_id}`, '_blank')}>
+                  <ExternalLink className="w-3 h-3" />Open in Gmail
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Snooze options */}
+          {showSnooze && (
+            <div className="flex gap-2 flex-wrap">
+              {snoozeOptions.map(opt => (
+                <Button key={opt.label} variant="outline" size="sm" className="text-xs" onClick={() => handleSnooze(opt.date)}>
+                  <Clock className="w-3 h-3 mr-1" />{opt.label}
+                </Button>
+              ))}
+            </div>
+          )}
 
           {/* Matched Contact Card */}
           {matchedContact && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
+            <GlassCard className="flex items-center gap-3 p-3 bg-primary/5 border-primary/10">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="text-xs bg-primary/10 text-primary">
                   {matchedContact.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
@@ -313,10 +354,10 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
                 </div>
               </div>
               <User className="w-4 h-4 text-primary shrink-0" />
-            </div>
+            </GlassCard>
           )}
 
-          {/* Save as Contact (when no match) */}
+          {/* Save as Contact */}
           {!matchedContact && !email.matched_contact_id && onSaveAsContact && (
             <Button
               variant="ghost"
@@ -326,17 +367,6 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
             >
               <UserPlus className="w-3.5 h-3.5" />Save {mainSender.name || mainSender.email} as Contact
             </Button>
-          )}
-
-          {/* Snooze options */}
-          {showSnooze && (
-            <div className="flex gap-2 flex-wrap">
-              {snoozeOptions.map(opt => (
-                <Button key={opt.label} variant="outline" size="sm" className="text-xs" onClick={() => handleSnooze(opt.date)}>
-                  <Clock className="w-3 h-3 mr-1" />{opt.label}
-                </Button>
-              ))}
-            </div>
           )}
 
           {/* Subject */}
@@ -378,7 +408,7 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
               ))}
             </div>
           ) : (
-            <div className="bg-muted/50 rounded-xl p-4">
+            <GlassCard className="p-4">
               {bodiesLoading.has(email.gmail_message_id) ? (
                 <EmailBodySkeleton />
               ) : fullBodies[email.gmail_message_id] ? (
@@ -388,18 +418,43 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
                   {email.snippet || email.body_preview || 'No preview available.'}
                 </p>
               )}
-            </div>
+            </GlassCard>
           )}
 
-          {/* Reply Composer — always visible */}
-          <div className="space-y-2 border border-border rounded-xl p-3">
+          {/* Reply Composer */}
+          <GlassCard variant="elevated" className="p-3 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Reply to {mainSender.name}</span>
-              <Button variant="ghost" size="sm" onClick={handleDraftReply} disabled={draftLoading} className="gap-1 text-xs">
+              <div className="flex items-center gap-1.5">
+                <Reply className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Reply to {mainSender.name}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDraftReply}
+                disabled={draftLoading}
+                className="gap-1.5 text-xs bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 h-7"
+              >
                 {draftLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                 AI Draft
               </Button>
             </div>
+
+            {/* Quick Replies */}
+            {!replyText && (
+              <div className="flex gap-1.5 flex-wrap">
+                {QUICK_REPLIES.map(qr => (
+                  <button
+                    key={qr}
+                    onClick={() => setReplyText(qr)}
+                    className="text-[11px] px-2.5 py-1 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors active:scale-95"
+                  >
+                    {qr}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <Textarea
               value={replyText}
               onChange={e => setReplyText(e.target.value)}
@@ -412,23 +467,8 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
                 {sending ? 'Sending...' : 'Send Reply'}
               </Button>
               <Button variant="outline" size="sm" onClick={copyDraft} disabled={!replyText}><Copy className="w-3.5 h-3.5" /></Button>
-              <Button variant="outline" size="sm" onClick={() => window.open(`https://mail.google.com/mail/u/0/#inbox/${email.gmail_message_id}`, '_blank')}>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </Button>
             </div>
-          </div>
-
-          {/* Always-archive rule */}
-          {!isThreat && onCreateSenderRule && (
-            <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground gap-1.5" onClick={handleArchiveWithRule}>
-              <Ban className="w-3.5 h-3.5" />Archive & always archive from {email.from_email.split('@')[1]}
-            </Button>
-          )}
-
-          {/* Open in Gmail */}
-          <Button variant="outline" className="w-full" onClick={() => window.open(`https://mail.google.com/mail/u/0/#inbox/${email.gmail_message_id}`, '_blank')}>
-            <ExternalLink className="w-4 h-4 mr-2" />Open in Gmail
-          </Button>
+          </GlassCard>
         </div>
       </DrawerContent>
     </Drawer>

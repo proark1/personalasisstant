@@ -2,8 +2,10 @@ import { cn } from '@/lib/utils';
 import { reconstructSender } from '@/lib/emailSender';
 import { Shield, ShieldAlert, ChevronRight, Archive, Star, Check, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { GlassCard } from '@/components/ui/glass-card';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { useCallback, useRef, useState } from 'react';
+import { staggerItem } from '@/components/ui/panel-shell';
 import type { Email, EmailThread } from '@/hooks/useEmails';
 
 interface EmailCardProps {
@@ -111,8 +113,7 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
   }, []);
 
   return (
-    <div
-      className="relative overflow-hidden rounded-xl group"
+    <motion.div variants={staggerItem} className="relative overflow-hidden rounded-xl group"
       onMouseEnter={() => !selectMode && setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
@@ -127,7 +128,9 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
         </>
       )}
 
-      <motion.div
+      <GlassCard
+        pressable={!selectMode}
+        haptic={selectMode ? false : "light"}
         drag={selectMode ? false : 'x'}
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.5}
@@ -138,13 +141,11 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         className={cn(
-          "relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200",
-          "hover:bg-muted/50 active:scale-[0.99]",
-          "bg-background",
-          !email.is_read && "border-l-[3px] border-l-primary bg-primary/5 border border-primary/10",
+          "relative flex items-start gap-3 p-3 !rounded-xl",
+          !email.is_read && "border-l-[3px] border-l-primary bg-primary/5 border-primary/10",
           email.is_read && "opacity-70 border-l-[3px] border-l-transparent",
-          isThreat && "bg-destructive/5 border border-destructive/20 border-l-destructive",
-          isSelected && "bg-primary/10 border border-primary/30"
+          isThreat && "bg-destructive/5 border-destructive/20 border-l-destructive",
+          isSelected && "bg-primary/10 border-primary/30"
         )}
       >
         {/* Select checkbox or Avatar */}
@@ -188,7 +189,7 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
           </p>
           <p className="text-xs text-muted-foreground truncate mt-0.5">{decodeHtmlEntities(email.ai_summary || email.snippet)}</p>
 
-          {/* Tags row: AI action + priority badge + category chip + threat */}
+          {/* Tags row */}
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             {email.ai_suggested_action && (
               <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium", actionColors[email.ai_suggested_action] || "bg-muted text-muted-foreground")}>
@@ -237,7 +238,7 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
         ) : (
           !selectMode && <ChevronRight className="w-4 h-4 text-muted-foreground mt-2 shrink-0" />
         )}
-      </motion.div>
-    </div>
+      </GlassCard>
+    </motion.div>
   );
 }
