@@ -329,7 +329,6 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
             </ScrollArea>
           </TabsContent>
         </Tabs>
-      )}
 
       <AddHabitDialog open={showAddHabit} onOpenChange={setShowAddHabit} userId={userId} />
       <AddGoalDialog open={showAddGoal} onOpenChange={setShowAddGoal} userId={userId} />
