@@ -72,6 +72,7 @@ function AppContent() {
   
   return (
     <>
+      <TopLoader />
       <NetworkStatusBanner />
       <AnimatePresence mode="wait">
         <motion.div
