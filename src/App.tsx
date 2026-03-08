@@ -176,7 +176,7 @@ const App = () => (
       <TooltipProvider>
         <XPBadgeProvider>
           <Toaster />
-          <Sonner />
+          <Sonner position="top-center" />
           <ErrorBoundary fallbackTitle="DarAI couldn't load">
             <BrowserRouter>
               <AppContent />

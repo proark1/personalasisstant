@@ -33,7 +33,7 @@ export function StatPills({
 }: StatPillsProps) {
   const pills = [
     { icon: Flame, label: 'Streak', value: streak, color: 'text-orange-500', barColor: 'bg-orange-500', show: streak > 0, nav: 'habits', max: 7, zeroLabel: null },
-    { icon: CheckCircle2, label: 'Today', value: completedToday, color: 'text-primary', barColor: 'bg-primary', show: true, nav: 'tasks', max: dailyGoal, zeroLabel: 'Start first task!' },
+    { icon: CheckCircle2, label: 'Today', value: completedToday, color: 'text-primary', barColor: 'bg-primary', show: true, nav: 'tasks', max: dailyGoal, zeroLabel: '0 done today' },
     { icon: TrendingUp, label: 'Week', value: completedThisWeek, color: 'text-primary', barColor: 'bg-primary', show: completedThisWeek > 0, nav: 'tasks', max: weeklyGoal, zeroLabel: null },
     { icon: Star, label: 'Life', value: lifeScore || 0, color: 'text-accent', barColor: 'bg-accent', show: (lifeScore || 0) > 0, nav: 'health', max: 100, zeroLabel: null },
   ].filter(p => p.show);

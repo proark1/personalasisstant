@@ -1,13 +1,26 @@
 import { useState } from 'react';
 import { useWeather } from '@/hooks/useWeather';
 import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
-import { MapPin } from 'lucide-react';
+import { MapPin, CloudOff } from 'lucide-react';
 
 export function WeatherCard() {
   const { weather, loading, error } = useWeather();
   const [useFahrenheit, setUseFahrenheit] = useState(false);
 
-  if (loading || error || !weather) return null;
+  if (loading) return null;
+
+  if (error || !weather) {
+    return (
+      <GlassCard>
+        <GlassCardContent className="p-3">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <CloudOff className="w-4 h-4 shrink-0" />
+            <span className="text-xs">Weather unavailable</span>
+          </div>
+        </GlassCardContent>
+      </GlassCard>
+    );
+  }
 
   const temp = useFahrenheit
     ? Math.round(weather.temperature * 9 / 5 + 32)

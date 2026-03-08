@@ -34,6 +34,7 @@ export function DashboardHero({
   userName, tasks, suggestion, sugLoading, onRefreshSuggestion, onStartTask, onNavigate,
 }: DashboardHeroProps) {
   const [altOpen, setAltOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -129,9 +130,11 @@ export function DashboardHero({
               <p className="text-sm font-semibold text-foreground leading-snug">
                 🎯 {rec.title}
               </p>
-              <p className="text-xs text-muted-foreground leading-relaxed">{rec.reason}</p>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Button size="sm" className="gap-1.5 h-8" onClick={() => onStartTask(rec.taskId, rec.title)}>
+                  <Play className="w-3 h-3" /> Start Now
+                </Button>
                 <Badge variant="secondary" className="gap-1 text-[10px]">
                   <Clock className="w-2.5 h-2.5" />~{rec.estimatedMinutes}m
                 </Badge>
@@ -142,43 +145,44 @@ export function DashboardHero({
                 )}
               </div>
 
-              {rec.startTip && (
-                <div className="flex items-start gap-1.5 p-2 rounded-lg bg-accent/50 border border-border/30">
-                  <Lightbulb className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">{rec.startTip}</p>
-                </div>
-              )}
+              <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+                <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+                  <ChevronDown className={cn("w-3 h-3 transition-transform", detailsOpen && "rotate-180")} />
+                  {detailsOpen ? 'Hide details' : 'Why this?'}
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-2 mt-2">
+                    <p className="text-xs text-muted-foreground leading-relaxed">{rec.reason}</p>
 
-              <Button size="sm" className="gap-1.5 h-8" onClick={() => onStartTask(rec.taskId, rec.title)}>
-                <Play className="w-3 h-3" /> Start Now
-              </Button>
+                    {rec.startTip && (
+                      <div className="flex items-start gap-1.5 p-2 rounded-lg bg-accent/50 border border-border/30">
+                        <Lightbulb className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">{rec.startTip}</p>
+                      </div>
+                    )}
 
-              {suggestion!.alternatives.length > 0 && (
-                <Collapsible open={altOpen} onOpenChange={setAltOpen}>
-                  <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
-                    <ChevronDown className={cn("w-3 h-3 transition-transform", altOpen && "rotate-180")} />
-                    Something else?
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="space-y-1.5 mt-1.5">
-                      {suggestion!.alternatives.map((alt, i) => (
-                        <button
-                          key={i}
-                          onClick={() => onStartTask(alt.taskId, alt.title)}
-                          className="w-full text-left p-2 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors"
-                        >
-                          <p className="text-xs font-medium">{alt.title}</p>
-                          <p className="text-[10px] text-muted-foreground">{alt.reason}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
+                    {suggestion!.alternatives.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-muted-foreground font-medium">Or try:</span>
+                        {suggestion!.alternatives.map((alt, i) => (
+                          <button
+                            key={i}
+                            onClick={() => onStartTask(alt.taskId, alt.title)}
+                            className="w-full text-left p-2 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors"
+                          >
+                            <p className="text-xs font-medium">{alt.title}</p>
+                            <p className="text-[10px] text-muted-foreground">{alt.reason}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-              {suggestion!.encouragement && (
-                <p className="text-[10px] text-muted-foreground">💪 {suggestion!.encouragement}</p>
-              )}
+                    {suggestion!.encouragement && (
+                      <p className="text-[10px] text-muted-foreground">💪 {suggestion!.encouragement}</p>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </motion.div>
           )}
         </AnimatePresence>

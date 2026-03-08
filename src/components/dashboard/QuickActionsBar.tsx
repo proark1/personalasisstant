@@ -1,28 +1,15 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useContextualActions, QuickAction } from '@/hooks/useContextualActions';
 import { 
   Sun, Calendar, ListTodo, Timer, Zap, Check, CalendarPlus, 
-  BarChart, Users, Trophy, Brain, Sparkles, Mail, FileText, LucideIcon, ChevronRight
+  BarChart, Users, Trophy, Brain, Sparkles, Mail, FileText, LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const iconMap: Record<string, LucideIcon> = {
-  Sun,
-  Calendar,
-  ListTodo,
-  Timer,
-  Zap,
-  Check,
-  CalendarPlus,
-  BarChart,
-  Users,
-  Trophy,
-  Brain,
-  Sparkles,
-  Mail,
-  FileText,
+  Sun, Calendar, ListTodo, Timer, Zap, Check, CalendarPlus,
+  BarChart, Users, Trophy, Brain, Sparkles, Mail, FileText,
 };
 
 interface QuickActionsBarProps {
@@ -30,19 +17,12 @@ interface QuickActionsBarProps {
   maxActions?: number;
 }
 
-export function QuickActionsBar({ onNavigate, maxActions = 6 }: QuickActionsBarProps) {
+export function QuickActionsBar({ onNavigate, maxActions = 3 }: QuickActionsBarProps) {
   const { getTopActions, loading } = useContextualActions(onNavigate);
 
   const topActions = getTopActions(maxActions);
 
-  if (loading) {
-    // Show loading only briefly, then hide if no data
-    return null;
-  }
-
-  if (topActions.length === 0) {
-    return null;
-  }
+  if (loading || topActions.length === 0) return null;
 
   const getCategoryColor = (category: QuickAction['category']) => {
     switch (category) {
@@ -61,29 +41,25 @@ export function QuickActionsBar({ onNavigate, maxActions = 6 }: QuickActionsBarP
   };
 
   return (
-    <ScrollArea className="w-full whitespace-nowrap">
-      <div className="flex gap-2 pb-2">
-        {topActions.map((action) => {
-          const Icon = iconMap[action.icon] || Sparkles;
-          return (
-            <Button
-              key={action.id}
-              variant="outline"
-              size="sm"
-              onClick={action.action}
-              className={cn(
-                "shrink-0 rounded-full gap-1.5 border transition-all",
-                getCategoryColor(action.category)
-              )}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium">{action.label}</span>
-              <ChevronRight className="w-3 h-3 opacity-50" />
-            </Button>
-          );
-        })}
-      </div>
-      <ScrollBar orientation="horizontal" className="h-1.5" />
-    </ScrollArea>
+    <div className="grid grid-cols-3 gap-2">
+      {topActions.map((action) => {
+        const Icon = iconMap[action.icon] || Sparkles;
+        return (
+          <Button
+            key={action.id}
+            variant="outline"
+            size="sm"
+            onClick={action.action}
+            className={cn(
+              "rounded-xl gap-1.5 border transition-all h-auto py-2 px-2.5",
+              getCategoryColor(action.category)
+            )}
+          >
+            <Icon className="w-3.5 h-3.5 shrink-0" />
+            <span className="text-xs font-medium truncate">{action.label}</span>
+          </Button>
+        );
+      })}
+    </div>
   );
 }

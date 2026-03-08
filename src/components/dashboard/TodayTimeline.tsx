@@ -24,10 +24,11 @@ interface TimelineItem {
   category?: string;
 }
 
-function TimelineRow({ item, index, onNavigate, onCompleteTask }: {
+function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = false }: {
   item: TimelineItem; index: number;
   onNavigate?: (panel: string) => void;
   onCompleteTask?: (taskId: string) => void;
+  isOverdue?: boolean;
 }) {
   return (
     <motion.div
@@ -55,9 +56,11 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask }: {
         <div className={cn("w-2 h-2 rounded-full shrink-0 ml-1.5 mr-1.5", "bg-primary")} />
       )}
       <span className="text-xs text-muted-foreground w-12 shrink-0 tabular-nums">
-        {item.time
-          ? (item.time.getHours() === 0 && item.time.getMinutes() === 0 ? 'All day' : format(item.time, 'HH:mm'))
-          : '—'}
+        {isOverdue
+          ? (item.time ? format(item.time, 'MMM d') : 'Overdue')
+          : item.time
+            ? (item.time.getHours() === 0 && item.time.getMinutes() === 0 ? 'All day' : format(item.time, 'HH:mm'))
+            : '—'}
       </span>
       <span className={cn("text-sm flex-1 truncate", item.completed && "line-through")}>
         {item.title}
@@ -148,9 +151,17 @@ export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }
               <span className="text-[10px] font-semibold uppercase tracking-wider text-destructive px-2.5">Overdue</span>
             </div>
           )}
-          {items.overdue.map((item, i) => (
-            <TimelineRow key={item.id} item={item} index={i} onNavigate={onNavigate} onCompleteTask={onCompleteTask} />
+          {items.overdue.slice(0, 3).map((item, i) => (
+            <TimelineRow key={item.id} item={item} index={i} onNavigate={onNavigate} onCompleteTask={onCompleteTask} isOverdue />
           ))}
+          {items.overdue.length > 3 && (
+            <button
+              onClick={() => onNavigate?.('tasks')}
+              className="text-xs text-primary hover:underline px-2.5 py-1"
+            >
+              See all {items.overdue.length} overdue →
+            </button>
+          )}
           
           {items.timed.length > 0 && items.overdue.length > 0 && (
             <div className="h-px bg-border/40 my-1" />

@@ -170,7 +170,7 @@ export function DoriPanel({
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col justify-end text-center relative pb-2">
+          <div className="h-full flex flex-col justify-end text-center relative pb-0">
             <div className="absolute inset-0 flex items-center justify-center opacity-30">
               <AudioVisualizer isActive={true} isSpeaking={false} isListening={false} />
             </div>
@@ -269,7 +269,7 @@ export function DoriPanel({
       )}
 
       {/* Input — expandable textarea */}
-      <form onSubmit={handleSubmit} className="p-2 border-t border-border safe-area-bottom">
+      <form onSubmit={handleSubmit} className="p-2 border-t border-border pb-1">
         <div className="relative flex items-end gap-2 bg-muted rounded-xl px-3 py-2">
           <textarea
             ref={textareaRef}
