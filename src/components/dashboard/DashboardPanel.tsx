@@ -70,7 +70,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
       supabase.from('events').select('*').eq('user_id', userId)
         .gte('start_time', startOfDay(now).toISOString())
         .lte('start_time', endOfDay(now).toISOString()),
-      supabase.from('contracts').select('*').eq('user_id', userId)
+      supabase.from('contracts').select('id, name, renewal_date, cancellation_notice_days, auto_renews').eq('user_id', userId)
         .eq('is_active', true).not('renewal_date', 'is', null),
       supabase.from('user_contacts').select('id, name, last_contacted_at')
         .eq('user_id', userId)
