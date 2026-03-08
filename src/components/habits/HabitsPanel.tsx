@@ -333,7 +333,7 @@ export function HabitsPanel({ userId }: HabitsPanelProps) {
 
       <AddHabitDialog open={showAddHabit} onOpenChange={setShowAddHabit} userId={userId} />
       <AddGoalDialog open={showAddGoal} onOpenChange={setShowAddGoal} userId={userId} />
-    </div>
+    </PanelShell>
   );
 }
 
