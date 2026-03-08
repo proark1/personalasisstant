@@ -1,67 +1,148 @@
 
+# Deep Module Interconnection + AI Daily Voice Briefing
 
-# Cooking Feature Overhaul
-
-The current Cooking panel is a thin wrapper around `MealPlanningPanel` (from the family module). It has two tabs: a weekly planner grid and a recipe list. The feature works but the UX is desktop-oriented — the 7-column grid is cramped on mobile, the recipe list is bare-bones, there's no "today's meals" quick view, and the empty states don't guide users.
+## Vision
+Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
 
 ---
 
-## Changes
+## Feature 1: AI Daily Voice Briefing on Dashboard
 
-### 1. Replace CookingPanel with a dedicated, richer panel
-**File:** `src/components/cooking/CookingPanel.tsx`
+A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
 
-Instead of wrapping `MealPlanningPanel`, build a proper cooking-first experience with 3 tabs:
-- **Today** — shows today's planned meals (breakfast → dinner) with tap-to-view-recipe, a "What's for dinner?" AI suggestion button, and a quick "Add meal" action. Uses `GlassCard` for each meal slot.
-- **Week** — the existing weekly planner, but optimized for mobile (horizontal scroll of day cards instead of a 7-column grid that squishes).
-- **Recipes** — the recipe collection with search/filter, category chips, and tap-to-open detail.
+### New Edge Function: `daily-voice-briefing`
+- Accepts user_id and fetches cross-module data server-side:
+  - Pending tasks (count, top 3 by priority)
+  - Today's calendar events
+  - Unread email count + priority emails
+  - Contract alerts (upcoming renewals/cancellations)
+  - Contacts overdue for follow-up
+  - Habit completion status
+  - Yesterday's check-in mood/energy
+- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
+- Returns: `{ briefingText: string, highlights: [...] }`
 
-### 2. Add a "Today's Meals" view component
-**New file:** `src/components/cooking/TodayMealsView.tsx`
+### New Component: `DailyBriefingCard`
+- Displayed prominently on the dashboard (below the hero)
+- Shows a text summary with key highlights as chips/badges
+- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
+- Auto-play option (respects existing morning auto-play setting)
+- Cached per day so it doesn't re-generate on every page load
 
-Shows today's 4 meal slots (breakfast, lunch, dinner, snack) as vertical cards. Each card:
-- If a meal is planned: shows the meal name, prep+cook time, tap to open `RecipeDetailDialog`
-- If empty: shows a subtle "+" button to add a meal
-- At the bottom: "What should I cook?" AI button that calls the `recipe-assistant` edge function with `type: 'explore'` filtered to the next upcoming empty meal slot
+### Files
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add card)
 
-### 3. Improve RecipesList with search, filters, and tap-to-view
-**File:** `src/components/family/RecipesList.tsx`
+---
 
-- Add a search input at the top
-- Add horizontal category filter chips (All, Breakfast, Main, Side, Dessert, etc.)
-- Make each recipe card tappable → opens `RecipeDetailDialog`
-- Use `EmptyState` component for zero-state instead of raw Card
-- Add `GlassCard` styling for consistency with design system
+## Feature 2: Email-to-Calendar Integration
 
-### 4. Fix weekly planner for mobile
-**File:** `src/components/family/MealPlanningPanel.tsx`
+When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
 
-- On mobile, show a single-day view with left/right swipe/arrows instead of the 7-column grid
-- Show the day name + date prominently, with the 4 meal slots vertically
-- Keep the 7-column grid for `md:` and up
-- Remove `PanelShell` wrapping from CookingPanel (it already has its own header via tabs)
+### Changes
+- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
+- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
+- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
 
-### 5. Improve AddMealPlanDialog UX
-**File:** `src/components/family/AddMealPlanDialog.tsx`
+### Files
+- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
+- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
+- `src/components/email/EmailCard.tsx` (date detection badge)
 
-- Add an "AI Suggest" button that calls `recipe-assistant` with `type: 'suggest'` based on the selected meal type and shows quick-pick suggestions before requiring manual entry
-- Pre-select the meal type based on time of day (morning → breakfast, afternoon → lunch, evening → dinner)
+---
 
-### 6. Polish RecipeDetailDialog
-**File:** `src/components/family/RecipeDetailDialog.tsx`
+## Feature 3: Email-to-Contact Linking
 
-- Add ingredient checkboxes (local state) so users can check off ingredients while cooking
-- Add a "Generate Shopping List" button for single-recipe shopping
-- Improve the cooking mode step display with better typography and swipe gesture support
+Automatically link emails to existing contacts and surface contact context when reading emails.
+
+### Changes
+- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
+- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
+- Add a "Save as Contact" button when no match exists, pre-filling name and email
+- When viewing a contact profile, show their recent emails in the timeline
+
+### Files
+- `src/components/email/EmailDetailSheet.tsx` (contact context card)
+- `src/components/contacts/ContactTimeline.tsx` (add email history section)
+
+---
+
+## Feature 4: Smart Dashboard Insight Card (Cross-Module)
+
+Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
+
+### Changes
+- Add email-based insights: "You have 3 unread priority emails from key contacts"
+- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
+- Add contact insights: "You haven't spoken to [Name] in 45 days"
+- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
+- Rotate through these insights automatically
+
+### Files
+- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
+- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
+
+---
+
+## Feature 5: Contextual Quick Actions (Cross-Module)
+
+Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
+
+### Changes
+- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
+- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
+- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
+- These actions appear in the QuickActionsBar on the dashboard
+
+### Files
+- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
+- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
 
 ---
 
 ## Technical Details
 
-- **TodayMealsView** uses `useMealPlanning` with today's date range, reuses `mealTypeConfig` styling
-- AI suggestion in TodayMealsView calls `supabase.functions.invoke('recipe-assistant', { body: { type: 'explore', mealCategory: nextEmptySlot } })` 
-- Mobile day view in planner uses `useState` for `selectedDayIndex` with ChevronLeft/Right navigation, only rendered below `md:` breakpoint
-- Recipe search is client-side filtering on the existing `recipes` array (name + category + description)
-- All new components use `GlassCard`, `staggerItem` animations, and `EmptyState` from the design system
-- No database changes needed — all data models already exist
+### Daily Voice Briefing Edge Function
+```text
+POST /daily-voice-briefing
+Body: { user_id }
+Response: {
+  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
+  highlights: [
+    { type: "task", label: "4 tasks, 1 overdue" },
+    { type: "email", label: "3 unread priority" },
+    { type: "contract", label: "Insurance renews in 5 days" },
+    { type: "contact", label: "Follow up with Ahmed" }
+  ]
+}
+```
 
+Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
+
+### Data Flow for Cross-Module Features
+```text
+Email sender --> match against user_contacts.email
+Email body --> AI extract --> calendar event / contract data
+Contact profile --> query user_emails WHERE from_email = contact.email
+Calendar event title --> fuzzy match against contact names
+Contract provider --> match against email senders
+```
+
+### Caching Strategy
+- Daily briefing: cached in localStorage with date key, regenerated once per day
+- Cross-module matches (email-contact): computed on render, lightweight DB queries
+- Smart insights: refreshed every 5 minutes (existing pattern)
+
+## Summary of Files Modified/Created
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
+- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
+- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
+- `src/components/email/EmailCard.tsx` (date badge)
+- `src/components/contacts/ContactTimeline.tsx` (email history)
+- `src/hooks/useContextualActions.ts` (cross-module actions)
+- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)
