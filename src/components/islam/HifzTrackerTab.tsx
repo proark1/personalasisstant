@@ -654,7 +654,7 @@ export function HifzTrackerTab() {
                     );
                   })}
                 </div>
-              </Card>
+              </GlassCard>
 
               <Card className="p-4">
                 <h3 className="font-semibold flex items-center gap-2 mb-3">
