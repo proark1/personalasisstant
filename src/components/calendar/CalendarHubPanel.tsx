@@ -144,7 +144,7 @@ export function CalendarHubPanel({
   return (
     <PanelShell
       icon={Calendar}
-      title="Planner"
+      title=""
       headerExtra={viewSwitcher}
       noPadding
     >
