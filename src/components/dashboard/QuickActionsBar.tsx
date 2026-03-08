@@ -79,6 +79,7 @@ export function QuickActionsBar({ onNavigate, maxActions = 6 }: QuickActionsBarP
             >
               <Icon className="w-3.5 h-3.5" />
               <span className="text-xs font-medium">{action.label}</span>
+              <ChevronRight className="w-3 h-3 opacity-50" />
             </Button>
           );
         })}
