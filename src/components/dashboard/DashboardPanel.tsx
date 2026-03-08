@@ -66,7 +66,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
     const now = new Date();
 
     const [tasksRes, eventsRes, contractsRes, contactsRes, emailsRes] = await Promise.all([
-      supabase.from('tasks').select('*').eq('user_id', userId),
+      supabase.from('tasks').select('id, title, description, category, priority, completed, created_at, due_date').eq('user_id', userId),
       supabase.from('events').select('*').eq('user_id', userId)
         .gte('start_time', startOfDay(now).toISOString())
         .lte('start_time', endOfDay(now).toISOString()),
