@@ -15,6 +15,7 @@ import { QuickActionsBar } from './QuickActionsBar';
 import { WeatherCard } from './WeatherCard';
 import { ContractAlertsCard } from './ContractAlertsCard';
 import { ContactRemindersCard } from './ContactRemindersCard';
+import { DashboardPrayerCard } from './DashboardPrayerCard';
 import { StaggerContainer, StaggerItem } from '@/components/ui/page-transition';
 import { PanelSkeleton } from '@/components/ui/panel-skeleton';
 import { useSmartTaskSuggestions } from '@/hooks/useSmartTaskSuggestions';
