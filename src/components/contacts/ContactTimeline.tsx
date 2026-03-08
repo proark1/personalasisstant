@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { Contact } from '@/hooks/useContacts';
 import { ContactInteraction } from '@/hooks/useContactInteractions';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { motion } from 'framer-motion';
 import { 
   Phone, Mail, Video, MessageSquare, CheckCircle, 
   UserPlus, Calendar, Bell
@@ -41,7 +43,6 @@ export function ContactTimeline({ contacts, interactions = [], showUpcoming = tr
     const allEvents: TimelineEvent[] = [];
     const now = new Date();
 
-    // Add upcoming due dates
     if (showUpcoming) {
       contacts.forEach(contact => {
         if (contact.nextContactDue) {
@@ -56,7 +57,6 @@ export function ContactTimeline({ contacts, interactions = [], showUpcoming = tr
           }
         }
 
-        // Add upcoming birthdays
         if (contact.birthDate && contact.birthdayReminder) {
           const birthday = new Date(contact.birthDate);
           birthday.setFullYear(now.getFullYear());
@@ -76,7 +76,6 @@ export function ContactTimeline({ contacts, interactions = [], showUpcoming = tr
       });
     }
 
-    // Add interaction history
     interactions.forEach(interaction => {
       const contact = contacts.find(c => c.id === interaction.contactId);
       if (contact) {
@@ -91,17 +90,16 @@ export function ContactTimeline({ contacts, interactions = [], showUpcoming = tr
       }
     });
 
-    // Sort by date (newest/upcoming first for past, soonest first for future)
     allEvents.sort((a, b) => {
       const aIsPast = a.date < now;
       const bIsPast = b.date < now;
       
       if (aIsPast && bIsPast) {
-        return b.date.getTime() - a.date.getTime(); // Newest first for past
+        return b.date.getTime() - a.date.getTime();
       } else if (!aIsPast && !bIsPast) {
-        return a.date.getTime() - b.date.getTime(); // Soonest first for future
+        return a.date.getTime() - b.date.getTime();
       } else {
-        return aIsPast ? 1 : -1; // Future before past
+        return aIsPast ? 1 : -1;
       }
     });
 
@@ -153,7 +151,6 @@ export function ContactTimeline({ contacts, interactions = [], showUpcoming = tr
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Group events by date
   const groupedEvents = useMemo(() => {
     const groups: { label: string; events: TimelineEvent[] }[] = [];
     let currentLabel = '';
@@ -172,23 +169,35 @@ export function ContactTimeline({ contacts, interactions = [], showUpcoming = tr
 
   if (events.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          No timeline events to display.
-        </CardContent>
-      </Card>
+      <GlassCard>
+        <GlassCardContent className="py-4">
+          <EmptyState
+            icon={Calendar}
+            title="No timeline events"
+            description="Timeline events will appear as you interact with contacts."
+          />
+        </GlassCardContent>
+      </GlassCard>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Timeline</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
+    <GlassCard>
+      <GlassCardHeader className="pb-2">
+        <GlassCardTitle className="text-lg">Timeline</GlassCardTitle>
+      </GlassCardHeader>
+      <GlassCardContent>
+        <motion.div
+          className="space-y-6"
+          initial="hidden"
+          animate="show"
+          variants={{ show: { transition: { staggerChildren: 0.04 } } }}
+        >
           {groupedEvents.map((group, groupIndex) => (
-            <div key={groupIndex}>
+            <motion.div
+              key={groupIndex}
+              variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+            >
               <div className="flex items-center gap-2 mb-3">
                 <div className="h-px flex-1 bg-border" />
                 <span className="text-xs font-medium text-muted-foreground px-2">
@@ -233,10 +242,10 @@ export function ContactTimeline({ contacts, interactions = [], showUpcoming = tr
                   );
                 })}
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+        </motion.div>
+      </GlassCardContent>
+    </GlassCard>
   );
 }

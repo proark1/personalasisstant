@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useContacts, Contact, ContactType, ContactInput, PersonalTier, BusinessLevel, FamilyRelationship, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
 import { useContactInteractions } from '@/hooks/useContactInteractions';
 import { useItemSharing } from '@/hooks/useItemSharing';
-import { ContactCardSkeleton } from '@/components/skeletons';
-import { PanelSkeleton } from '@/components/ui/panel-skeleton';
+import { PanelShell, staggerItem } from '@/components/ui/panel-shell';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { ContactProfileCard } from '@/components/contacts/ContactProfileCard';
 import { ContactNetworkHealth } from '@/components/contacts/ContactNetworkHealth';
@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { motion } from 'framer-motion';
 import { 
   UserPlus, Trash2, Search, Users, Briefcase, 
   Phone, Mail, Building, Clock, Bell, MessageSquare, Check, Pencil,
@@ -320,7 +321,6 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Check if birthday is within the next 7 days
   const getUpcomingBirthday = (contact: Contact) => {
     if (!contact.birthDate || !contact.birthdayReminder) return null;
     const now = new Date();
@@ -338,114 +338,101 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     const isFamily = contact.personalTier === 'family';
     
     return (
-      <GlassCard 
-        className={`group hover:bg-accent/50 transition-colors cursor-pointer relative ${isDue ? 'border-destructive/50' : ''}`}
-        onClick={() => setSelectedContact(contact)}
-      >
-        {/* Overdue pulsing dot */}
-        {isDue && (
-          <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
-          </span>
-        )}
-        <GlassCardContent className="p-3">
-          <div className="flex items-start gap-2.5">
-            <Avatar className="h-9 w-9 shrink-0">
-              <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                {getInitials(contact.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="font-medium text-sm truncate">{contact.name}</p>
-                {getTierBadge(contact)}
-                {isFamily && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-pink-500/50 text-pink-500">
-                    <Heart className="w-2 h-2 mr-0.5" />Family
-                  </Badge>
-                )}
-              </div>
-              
-              <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
-                {contact.company && (
-                  <p className="flex items-center gap-1 truncate">
-                    <Building className="w-3 h-3 shrink-0" />
-                    {contact.company}{contact.role && ` · ${contact.role}`}
-                  </p>
-                )}
-                {contact.lastContactedAt ? (
-                  <p className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 shrink-0" />
-                    {formatDistanceToNow(contact.lastContactedAt, { addSuffix: true })}
-                  </p>
-                ) : (
-                  <p className="flex items-center gap-1 text-muted-foreground/60">
-                    <Clock className="w-3 h-3 shrink-0" />Never contacted
-                  </p>
-                )}
-              </div>
-
-              {/* Inline birthday reminder */}
-              {birthdayDays !== null && (
-                <div className="flex items-center gap-1 mt-1">
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-pink-500/10 text-pink-600">
-                    <Cake className="w-2.5 h-2.5 mr-0.5" />
-                    {birthdayDays === 0 ? 'Birthday today! 🎂' : `Birthday in ${birthdayDays}d`}
-                  </Badge>
+      <motion.div variants={staggerItem}>
+        <GlassCard 
+          pressable
+          haptic="light"
+          className={`group transition-colors relative ${isDue ? 'border-destructive/50' : ''}`}
+          onClick={() => setSelectedContact(contact)}
+        >
+          {isDue && (
+            <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
+            </span>
+          )}
+          <GlassCardContent className="p-3">
+            <div className="flex items-start gap-2.5">
+              <Avatar className="h-9 w-9 shrink-0">
+                <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                  {getInitials(contact.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="font-medium text-sm truncate">{contact.name}</p>
+                  {getTierBadge(contact)}
+                  {isFamily && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-pink-500/50 text-pink-500">
+                      <Heart className="w-2 h-2 mr-0.5" />Family
+                    </Badge>
+                  )}
                 </div>
-              )}
-            </div>
+                
+                <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                  {contact.company && (
+                    <p className="flex items-center gap-1 truncate">
+                      <Building className="w-3 h-3 shrink-0" />
+                      {contact.company}{contact.role && ` · ${contact.role}`}
+                    </p>
+                  )}
+                  {contact.lastContactedAt ? (
+                    <p className="flex items-center gap-1">
+                      <Clock className="w-3 h-3 shrink-0" />
+                      {formatDistanceToNow(contact.lastContactedAt, { addSuffix: true })}
+                    </p>
+                  ) : (
+                    <p className="flex items-center gap-1 text-muted-foreground/60">
+                      <Clock className="w-3 h-3 shrink-0" />Never contacted
+                    </p>
+                  )}
+                </div>
 
-            {/* Hover quick actions */}
-            <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-0 max-md:opacity-100">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-green-500"
-                onClick={(e) => { e.stopPropagation(); handleMarkContacted(contact); }}
-                title="Mark contacted"
-              >
-                <Check className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={(e) => { e.stopPropagation(); openEditDialog(contact); }}
-                title="Edit"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={(e) => { e.stopPropagation(); handleOpenEmailTemplate(contact); }}
-                title="Email"
-              >
-                <Mail className="w-3.5 h-3.5" />
-              </Button>
+                {birthdayDays !== null && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-pink-500/10 text-pink-600">
+                      <Cake className="w-2.5 h-2.5 mr-0.5" />
+                      {birthdayDays === 0 ? 'Birthday today! 🎂' : `Birthday in ${birthdayDays}d`}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-0 max-md:opacity-100">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-green-500"
+                  onClick={(e) => { e.stopPropagation(); handleMarkContacted(contact); }}
+                  title="Mark contacted"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e) => { e.stopPropagation(); openEditDialog(contact); }}
+                  title="Edit"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e) => { e.stopPropagation(); handleOpenEmailTemplate(contact); }}
+                  title="Email"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </div>
-          </div>
-        </GlassCardContent>
-      </GlassCard>
+          </GlassCardContent>
+        </GlassCard>
+      </motion.div>
     );
   };
-
-  if (loading) {
-    return (
-      <div className="h-full flex flex-col p-3 md:p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-xl font-bold">Contacts</h1>
-            <p className="text-sm text-muted-foreground">Manage your network</p>
-          </div>
-        </div>
-        <PanelSkeleton variant="list" count={5} />
-      </div>
-    );
-  }
 
   const displayContacts = activeTab === 'personal' 
     ? filterContacts(personalContacts)
@@ -455,143 +442,144 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     ? filterContacts(contactsDue)
     : [];
 
-  return (
-    <div className="h-full flex flex-col p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3 flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-bold">Contacts</h1>
-          <p className="text-xs text-muted-foreground">{contacts.length} contacts · {contactsDue.length} due</p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <ContactImportExport contacts={contacts} onImport={handleImportContacts} />
-          <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1">
-                <UserPlus className="w-4 h-4" />
-                Add
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingContact ? 'Edit Contact' : 'Add Contact'}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div>
-                  <Label>Name *</Label>
-                  <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label>Email</Label>
-                    <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label>Phone</Label>
-                    <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label>Company</Label>
-                    <Input value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label>Role</Label>
-                    <Input value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} />
-                  </div>
-                </div>
-                <div>
-                  <Label>Type</Label>
-                  <Select value={formData.contactType} onValueChange={(v: ContactType) => setFormData({ ...formData, contactType: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="personal">Personal</SelectItem>
-                      <SelectItem value="business">Business</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {formData.contactType === 'personal' && (
-                  <div>
-                    <Label>Tier</Label>
-                    <Select value={formData.personalTier || undefined} onValueChange={(v: PersonalTier) => setFormData({ ...formData, personalTier: v, familyRelationship: v !== 'family' ? '' : formData.familyRelationship })}>
-                      <SelectTrigger><SelectValue placeholder="Select tier" /></SelectTrigger>
-                      <SelectContent>
-                        {PERSONAL_TIERS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {formData.personalTier === 'family' && (
-                  <div>
-                    <Label>Relationship</Label>
-                    <Select value={formData.familyRelationship || undefined} onValueChange={(v: FamilyRelationship) => setFormData({ ...formData, familyRelationship: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select relationship" /></SelectTrigger>
-                      <SelectContent>
-                        {FAMILY_RELATIONSHIPS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {formData.contactType === 'business' && (
-                  <div>
-                    <Label>Level</Label>
-                    <Select value={formData.businessLevel || undefined} onValueChange={(v: BusinessLevel) => setFormData({ ...formData, businessLevel: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
-                      <SelectContent>
-                        {BUSINESS_LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div>
-                  <Label>Contact Frequency (days)</Label>
-                  <Input type="number" value={formData.contactFrequencyDays} onChange={(e) => setFormData({ ...formData, contactFrequencyDays: parseInt(e.target.value) || 30 })} />
-                </div>
-                <div>
-                  <Label>Notes</Label>
-                  <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Tags (comma-separated)</Label>
-                  <Input value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} />
-                </div>
-                
-                {/* Birthday Section */}
-                <div className="border-t pt-3 mt-3">
-                  <Label className="flex items-center gap-2 mb-2">
-                    <Cake className="w-4 h-4 text-primary" />
-                    Birthday
-                  </Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Input 
-                        type="date" 
-                        value={formData.birthDate} 
-                        onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })} 
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={formData.birthdayReminder}
-                        onCheckedChange={(checked) => setFormData({ ...formData, birthdayReminder: checked })}
-                      />
-                      <Label className="text-xs">Remind me</Label>
-                    </div>
-                  </div>
-                </div>
-                
-                <Button onClick={handleSubmit} className="w-full" disabled={saving}>
-                  {saving ? 'Saving…' : editingContact ? 'Update' : 'Add'} Contact
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+  const getEmptyMessage = () => {
+    if (searchQuery) return { title: 'No matches', description: 'No contacts match your search' };
+    if (activeTab === 'due') return { title: "All caught up! 🎉", description: 'No contacts due for follow-up' };
+    if (activeTab === 'personal') return { title: 'No personal contacts', description: 'Add family, friends, or acquaintances' };
+    if (activeTab === 'business') return { title: 'No business contacts', description: 'Build your professional network' };
+    return { title: 'No contacts yet', description: 'Get started by adding a contact' };
+  };
 
-      {/* Search + View Toggle */}
-      <div className="flex items-center gap-2 mb-3 flex-shrink-0">
+  const headerActions = (
+    <div className="flex items-center gap-1.5">
+      <ContactImportExport contacts={contacts} onImport={handleImportContacts} />
+      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) resetForm(); }}>
+        <DialogTrigger asChild>
+          <Button size="sm" className="gap-1">
+            <UserPlus className="w-4 h-4" />
+            Add
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingContact ? 'Edit Contact' : 'Add Contact'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Name *</Label>
+              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Email</Label>
+                <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Company</Label>
+                <Input value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })} />
+              </div>
+              <div>
+                <Label>Role</Label>
+                <Input value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label>Type</Label>
+              <Select value={formData.contactType} onValueChange={(v: ContactType) => setFormData({ ...formData, contactType: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="personal">Personal</SelectItem>
+                  <SelectItem value="business">Business</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {formData.contactType === 'personal' && (
+              <div>
+                <Label>Tier</Label>
+                <Select value={formData.personalTier || undefined} onValueChange={(v: PersonalTier) => setFormData({ ...formData, personalTier: v, familyRelationship: v !== 'family' ? '' : formData.familyRelationship })}>
+                  <SelectTrigger><SelectValue placeholder="Select tier" /></SelectTrigger>
+                  <SelectContent>
+                    {PERSONAL_TIERS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {formData.personalTier === 'family' && (
+              <div>
+                <Label>Relationship</Label>
+                <Select value={formData.familyRelationship || undefined} onValueChange={(v: FamilyRelationship) => setFormData({ ...formData, familyRelationship: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select relationship" /></SelectTrigger>
+                  <SelectContent>
+                    {FAMILY_RELATIONSHIPS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {formData.contactType === 'business' && (
+              <div>
+                <Label>Level</Label>
+                <Select value={formData.businessLevel || undefined} onValueChange={(v: BusinessLevel) => setFormData({ ...formData, businessLevel: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
+                  <SelectContent>
+                    {BUSINESS_LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <Label>Contact Frequency (days)</Label>
+              <Input type="number" value={formData.contactFrequencyDays} onChange={(e) => setFormData({ ...formData, contactFrequencyDays: parseInt(e.target.value) || 30 })} />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
+            </div>
+            <div>
+              <Label>Tags (comma-separated)</Label>
+              <Input value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} />
+            </div>
+            
+            <div className="border-t border-border pt-3 mt-3">
+              <Label className="flex items-center gap-2 mb-2">
+                <Cake className="w-4 h-4 text-primary" />
+                Birthday
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Input 
+                    type="date" 
+                    value={formData.birthDate} 
+                    onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })} 
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={formData.birthdayReminder}
+                    onCheckedChange={(checked) => setFormData({ ...formData, birthdayReminder: checked })}
+                  />
+                  <Label className="text-xs">Remind me</Label>
+                </div>
+              </div>
+            </div>
+            
+            <Button onClick={handleSubmit} className="w-full" disabled={saving}>
+              {saving ? 'Saving…' : editingContact ? 'Update' : 'Add'} Contact
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+
+  const headerExtra = (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -611,76 +599,92 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
         </ToggleGroup>
       </div>
 
-      {/* Tabs -- flex-1 min-h-0 is critical for scroll to work */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <TabsList className="grid w-full grid-cols-5 mb-2 flex-shrink-0">
-          <TabsTrigger value="personal" className="gap-1 text-[10px] px-1">
-            <Users className="w-3 h-3" />
-            <span className="hidden sm:inline">Personal</span>
-            <span className="sm:hidden">{personalContacts.length}</span>
-            <span className="hidden sm:inline">({personalContacts.length})</span>
-          </TabsTrigger>
-          <TabsTrigger value="business" className="gap-1 text-[10px] px-1">
-            <Briefcase className="w-3 h-3" />
-            <span className="hidden sm:inline">Business</span>
-            <span className="sm:hidden">{businessContacts.length}</span>
-            <span className="hidden sm:inline">({businessContacts.length})</span>
-          </TabsTrigger>
-          <TabsTrigger value="due" className="gap-1 text-[10px] px-1">
-            <Bell className="w-3 h-3" />
-            <span className="hidden sm:inline">Due</span>
-            <span className="sm:hidden">{contactsDue.length}</span>
-            <span className="hidden sm:inline">({contactsDue.length})</span>
-          </TabsTrigger>
-          <TabsTrigger value="insights" className="gap-1 text-[10px] px-1">
-            <TrendingUp className="w-3 h-3" />
-            <span className="hidden sm:inline">Insights</span>
-          </TabsTrigger>
-          <TabsTrigger value="timeline" className="gap-1 text-[10px] px-1">
-            <Calendar className="w-3 h-3" />
-            <span className="hidden sm:inline">Timeline</span>
-          </TabsTrigger>
-        </TabsList>
+      <TabsList className="grid w-full grid-cols-5">
+        <TabsTrigger value="personal" className="gap-1 text-[10px] px-1">
+          <Users className="w-3 h-3" />
+          <span className="hidden sm:inline">Personal</span>
+          <span className="sm:hidden">{personalContacts.length}</span>
+          <span className="hidden sm:inline">({personalContacts.length})</span>
+        </TabsTrigger>
+        <TabsTrigger value="business" className="gap-1 text-[10px] px-1">
+          <Briefcase className="w-3 h-3" />
+          <span className="hidden sm:inline">Business</span>
+          <span className="sm:hidden">{businessContacts.length}</span>
+          <span className="hidden sm:inline">({businessContacts.length})</span>
+        </TabsTrigger>
+        <TabsTrigger value="due" className="gap-1 text-[10px] px-1">
+          <Bell className="w-3 h-3" />
+          <span className="hidden sm:inline">Due</span>
+          <span className="sm:hidden">{contactsDue.length}</span>
+          <span className="hidden sm:inline">({contactsDue.length})</span>
+        </TabsTrigger>
+        <TabsTrigger value="insights" className="gap-1 text-[10px] px-1">
+          <TrendingUp className="w-3 h-3" />
+          <span className="hidden sm:inline">Insights</span>
+        </TabsTrigger>
+        <TabsTrigger value="timeline" className="gap-1 text-[10px] px-1">
+          <Calendar className="w-3 h-3" />
+          <span className="hidden sm:inline">Timeline</span>
+        </TabsTrigger>
+      </TabsList>
+    </div>
+  );
 
-        {/* Contact list tabs */}
-        {(['personal', 'business', 'due'] as const).map(tab => (
-          <TabsContent key={tab} value={tab} className="flex-1 min-h-0 overflow-hidden mt-0">
-            <ScrollArea className="h-full">
-              <div className="space-y-2 pr-2 pb-4">
-                {displayContacts.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    {searchQuery ? 'No contacts match your search' : tab === 'due' ? "No contacts due — you're all caught up! 🎉" : 'No contacts yet'}
-                  </div>
-                ) : (
-                  displayContacts.map(contact => (
+  return (
+    <>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="h-full flex flex-col">
+        <PanelShell
+          icon={Users}
+          title="Contacts"
+          subtitle={`${contacts.length} contacts · ${contactsDue.length} due`}
+          actions={headerActions}
+          loading={loading}
+          loadingVariant="list"
+          empty={activeTab !== 'insights' && activeTab !== 'timeline' && displayContacts.length === 0 && !loading}
+          emptyIcon={activeTab === 'due' ? Bell : Users}
+          emptyTitle={getEmptyMessage().title}
+          emptyDescription={getEmptyMessage().description}
+          emptyAction={
+            activeTab !== 'due' ? (
+              <Button size="sm" onClick={() => setShowAddDialog(true)}>
+                <UserPlus className="w-4 h-4 mr-1" />
+                Add Contact
+              </Button>
+            ) : undefined
+          }
+          headerExtra={headerExtra}
+          noPadding
+        >
+          {(['personal', 'business', 'due'] as const).map(tab => (
+            <TabsContent key={tab} value={tab} className="flex-1 min-h-0 overflow-hidden mt-0 px-3 md:px-4">
+              <ScrollArea className="h-full">
+                <div className="space-y-2 pr-2 pb-4">
+                  {displayContacts.map(contact => (
                     <ContactCard key={contact.id} contact={contact} />
-                  ))
-                )}
+                  ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          ))}
+
+          <TabsContent value="insights" className="flex-1 min-h-0 overflow-hidden mt-0 px-3 md:px-4">
+            <ScrollArea className="h-full">
+              <div className="pr-2 pb-4">
+                <ContactNetworkHealth contacts={contacts} />
               </div>
             </ScrollArea>
           </TabsContent>
-        ))}
 
-        {/* Insights tab */}
-        <TabsContent value="insights" className="flex-1 min-h-0 overflow-hidden mt-0">
-          <ScrollArea className="h-full">
-            <div className="pr-2 pb-4">
-              <ContactNetworkHealth contacts={contacts} />
-            </div>
-          </ScrollArea>
-        </TabsContent>
-
-        {/* Timeline tab */}
-        <TabsContent value="timeline" className="flex-1 min-h-0 overflow-hidden mt-0">
-          <ScrollArea className="h-full">
-            <div className="pr-2 pb-4">
-              <ContactTimeline contacts={contacts} />
-            </div>
-          </ScrollArea>
-        </TabsContent>
+          <TabsContent value="timeline" className="flex-1 min-h-0 overflow-hidden mt-0 px-3 md:px-4">
+            <ScrollArea className="h-full">
+              <div className="pr-2 pb-4">
+                <ContactTimeline contacts={contacts} />
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </PanelShell>
       </Tabs>
 
-      {/* Contact Profile Card Dialog */}
       {selectedContact && (
         <ContactProfileCard
           contact={selectedContact}
@@ -692,7 +696,6 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
         />
       )}
 
-      {/* Delete Confirmation */}
       <AlertDialog open={!!contactToDelete} onOpenChange={() => setContactToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -708,7 +711,6 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Share Dialog */}
       {shareDialog && (
         <ShareDialog
           itemType="contact"
@@ -722,7 +724,6 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
         />
       )}
 
-      {/* Email Template Dialog */}
       {emailTemplateContact && (
         <EmailTemplateDialog
           contact={emailTemplateContact}
@@ -730,6 +731,6 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
           onOpenChange={(open) => { setShowEmailTemplate(open); if (!open) setEmailTemplateContact(null); }}
         />
       )}
-    </div>
+    </>
   );
 }

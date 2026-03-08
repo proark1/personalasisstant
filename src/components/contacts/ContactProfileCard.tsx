@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
@@ -138,12 +138,11 @@ export function ContactProfileCard({
 
           <ScrollArea className="flex-1 mt-4">
             <TabsContent value="overview" className="mt-0 space-y-4">
-              {/* Contact Details */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Contact Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
+              <GlassCard>
+                <GlassCardHeader className="pb-2">
+                  <GlassCardTitle className="text-sm">Contact Details</GlassCardTitle>
+                </GlassCardHeader>
+                <GlassCardContent className="space-y-2 text-sm">
                   {contact.phone && (
                     <a href={`tel:${contact.phone}`} className="flex items-center gap-2 hover:text-primary">
                       <Phone className="w-4 h-4" />
@@ -173,43 +172,40 @@ export function ContactProfileCard({
                       </a>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </GlassCardContent>
+              </GlassCard>
 
-              {/* Tags */}
               {contact.tags.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Tags</CardTitle>
-                  </CardHeader>
-                  <CardContent>
+                <GlassCard>
+                  <GlassCardHeader className="pb-2">
+                    <GlassCardTitle className="text-sm">Tags</GlassCardTitle>
+                  </GlassCardHeader>
+                  <GlassCardContent>
                     <div className="flex flex-wrap gap-1">
                       {contact.tags.map((tag, i) => (
                         <Badge key={i} variant="secondary">{tag}</Badge>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
+                  </GlassCardContent>
+                </GlassCard>
               )}
 
-              {/* Notes */}
               {contact.notes && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Notes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
+                <GlassCard>
+                  <GlassCardHeader className="pb-2">
+                    <GlassCardTitle className="text-sm">Notes</GlassCardTitle>
+                  </GlassCardHeader>
+                  <GlassCardContent>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap">{contact.notes}</p>
-                  </CardContent>
-                </Card>
+                  </GlassCardContent>
+                </GlassCard>
               )}
 
-              {/* Stats */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Relationship Stats</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4 text-sm">
+              <GlassCard>
+                <GlassCardHeader className="pb-2">
+                  <GlassCardTitle className="text-sm">Relationship Stats</GlassCardTitle>
+                </GlassCardHeader>
+                <GlassCardContent className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Contact Frequency</p>
                     <p className="font-medium">Every {contact.contactFrequencyDays} days</p>
@@ -234,16 +230,16 @@ export function ContactProfileCard({
                     <p className="text-muted-foreground">Total Interactions</p>
                     <p className="font-medium">{interactions.length}</p>
                   </div>
-                </CardContent>
-              </Card>
+                </GlassCardContent>
+              </GlassCard>
             </TabsContent>
 
             <TabsContent value="history" className="mt-0 space-y-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Log New Interaction</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <GlassCard>
+                <GlassCardHeader className="pb-2">
+                  <GlassCardTitle className="text-sm">Log New Interaction</GlassCardTitle>
+                </GlassCardHeader>
+                <GlassCardContent className="space-y-3">
                   <Textarea
                     placeholder="Add notes about this interaction..."
                     value={newNote}
@@ -264,14 +260,14 @@ export function ContactProfileCard({
                       <MessageSquare className="w-4 h-4 mr-1" /> Message
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </GlassCardContent>
+              </GlassCard>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Interaction History</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <GlassCard>
+                <GlassCardHeader className="pb-2">
+                  <GlassCardTitle className="text-sm">Interaction History</GlassCardTitle>
+                </GlassCardHeader>
+                <GlassCardContent>
                   {interactionsLoading ? (
                     <p className="text-sm text-muted-foreground">Loading...</p>
                   ) : interactions.length === 0 ? (
@@ -299,20 +295,19 @@ export function ContactProfileCard({
                       })}
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </GlassCardContent>
+              </GlassCard>
             </TabsContent>
 
             <TabsContent value="ai" className="mt-0 space-y-4">
-              {/* Conversation Starters */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
+              <GlassCard>
+                <GlassCardHeader className="pb-2">
+                  <GlassCardTitle className="text-sm flex items-center gap-2">
                     <Sparkles className="w-4 h-4" />
                     Conversation Starters
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                  </GlassCardTitle>
+                </GlassCardHeader>
+                <GlassCardContent>
                   {conversationStarters.length === 0 ? (
                     <Button variant="outline" onClick={handleLoadStarters} disabled={aiLoading}>
                       {aiLoading ? 'Generating...' : 'Generate Starters'}
@@ -327,18 +322,17 @@ export function ContactProfileCard({
                       ))}
                     </ul>
                   )}
-                </CardContent>
-              </Card>
+                </GlassCardContent>
+              </GlassCard>
 
-              {/* Relationship Insights */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
+              <GlassCard>
+                <GlassCardHeader className="pb-2">
+                  <GlassCardTitle className="text-sm flex items-center gap-2">
                     <TrendingUp className="w-4 h-4" />
                     Relationship Insights
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                  </GlassCardTitle>
+                </GlassCardHeader>
+                <GlassCardContent>
                   {!insights ? (
                     <Button variant="outline" onClick={handleLoadInsights} disabled={aiLoading}>
                       {aiLoading ? 'Analyzing...' : 'Analyze Relationship'}
@@ -391,16 +385,16 @@ export function ContactProfileCard({
                       </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </GlassCardContent>
+              </GlassCard>
             </TabsContent>
 
             <TabsContent value="actions" className="mt-0 space-y-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
+              <GlassCard>
+                <GlassCardHeader className="pb-2">
+                  <GlassCardTitle className="text-sm">Quick Actions</GlassCardTitle>
+                </GlassCardHeader>
+                <GlassCardContent className="space-y-2">
                   {contact.phone && (
                     <a 
                       href={`tel:${contact.phone}`}
@@ -454,8 +448,8 @@ export function ContactProfileCard({
                     </div>
                     <span>Edit Contact</span>
                   </button>
-                </CardContent>
-              </Card>
+                </GlassCardContent>
+              </GlassCard>
             </TabsContent>
           </ScrollArea>
         </Tabs>

@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Contact } from '@/hooks/useContacts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
 import { 
   TrendingUp, TrendingDown, Users, AlertCircle, 
   CheckCircle, Clock, Heart, Briefcase 
@@ -25,6 +26,11 @@ interface NetworkMetrics {
   avgContactFrequency: number;
   topNeglected: Contact[];
 }
+
+const fadeIn = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+};
 
 export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
   const metrics = useMemo((): NetworkMetrics => {
@@ -61,11 +67,9 @@ export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
       }
     });
 
-    // Sort neglected by days past due (most neglected first)
     neglectedList.sort((a, b) => b.daysPastDue - a.daysPastDue);
     const topNeglected = neglectedList.slice(0, 5).map(n => n.contact);
 
-    // Calculate overall health score (0-100)
     const totalWithDue = overdueCount + healthyCount;
     const healthRatio = totalWithDue > 0 ? healthyCount / totalWithDue : 1;
     const overallHealth = Math.round(healthRatio * 100);
@@ -103,123 +107,119 @@ export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <motion.div
+      className="space-y-4"
+      initial="hidden"
+      animate="show"
+      variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+    >
       {/* Overall Health Score */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            Network Health
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className={`text-4xl font-bold ${getHealthColor(metrics.overallHealth)}`}>
-                {metrics.overallHealth}%
-              </p>
-              <p className="text-sm text-muted-foreground">{getHealthLabel(metrics.overallHealth)}</p>
+      <motion.div variants={fadeIn}>
+        <GlassCard>
+          <GlassCardHeader className="pb-2">
+            <GlassCardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Network Health
+            </GlassCardTitle>
+          </GlassCardHeader>
+          <GlassCardContent>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className={`text-4xl font-bold ${getHealthColor(metrics.overallHealth)}`}>
+                  {metrics.overallHealth}%
+                </p>
+                <p className="text-sm text-muted-foreground">{getHealthLabel(metrics.overallHealth)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-semibold">{metrics.totalContacts}</p>
+                <p className="text-sm text-muted-foreground">Total Contacts</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-semibold">{metrics.totalContacts}</p>
-              <p className="text-sm text-muted-foreground">Total Contacts</p>
-            </div>
-          </div>
-          <Progress value={metrics.overallHealth} className="h-2" />
-        </CardContent>
-      </Card>
+            <Progress value={metrics.overallHealth} className="h-2" />
+          </GlassCardContent>
+        </GlassCard>
+      </motion.div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <Heart className="w-4 h-4 text-red-500" />
-            <span className="text-sm text-muted-foreground">Personal</span>
-          </div>
-          <p className="text-2xl font-bold mt-1">{metrics.personalCount}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-blue-500" />
-            <span className="text-sm text-muted-foreground">Business</span>
-          </div>
-          <p className="text-2xl font-bold mt-1">{metrics.businessCount}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-green-500" />
-            <span className="text-sm text-muted-foreground">Healthy</span>
-          </div>
-          <p className="text-2xl font-bold mt-1">{metrics.healthyCount}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-orange-500" />
-            <span className="text-sm text-muted-foreground">Overdue</span>
-          </div>
-          <p className="text-2xl font-bold mt-1">{metrics.overdueCount}</p>
-        </Card>
+        {[
+          { icon: Heart, color: 'text-red-500', label: 'Personal', value: metrics.personalCount },
+          { icon: Briefcase, color: 'text-blue-500', label: 'Business', value: metrics.businessCount },
+          { icon: CheckCircle, color: 'text-green-500', label: 'Healthy', value: metrics.healthyCount },
+          { icon: AlertCircle, color: 'text-orange-500', label: 'Overdue', value: metrics.overdueCount },
+        ].map((stat, i) => (
+          <motion.div key={stat.label} variants={fadeIn}>
+            <GlassCard className="p-4">
+              <div className="flex items-center gap-2">
+                <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                <span className="text-sm text-muted-foreground">{stat.label}</span>
+              </div>
+              <p className="text-2xl font-bold mt-1">{stat.value}</p>
+            </GlassCard>
+          </motion.div>
+        ))}
       </div>
 
       {/* Additional Stats */}
-      <Card>
-        <CardContent className="pt-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">Avg. Contact Frequency</span>
+      <motion.div variants={fadeIn}>
+        <GlassCard>
+          <GlassCardContent className="pt-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm">Avg. Contact Frequency</span>
+              </div>
+              <span className="font-medium">{metrics.avgContactFrequency} days</span>
             </div>
-            <span className="font-medium">{metrics.avgContactFrequency} days</span>
-          </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">Recently Contacted (7d)</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm">Recently Contacted (7d)</span>
+              </div>
+              <span className="font-medium">{metrics.recentlyContactedCount}</span>
             </div>
-            <span className="font-medium">{metrics.recentlyContactedCount}</span>
-          </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingDown className="w-4 h-4 text-red-500" />
-              <span className="text-sm">Neglected (30+ days overdue)</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingDown className="w-4 h-4 text-red-500" />
+                <span className="text-sm">Neglected (30+ days overdue)</span>
+              </div>
+              <Badge variant={metrics.neglectedCount > 0 ? "destructive" : "secondary"}>
+                {metrics.neglectedCount}
+              </Badge>
             </div>
-            <Badge variant={metrics.neglectedCount > 0 ? "destructive" : "secondary"}>
-              {metrics.neglectedCount}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+          </GlassCardContent>
+        </GlassCard>
+      </motion.div>
 
       {/* Neglected Contacts */}
       {metrics.topNeglected.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2 text-orange-500">
-              <AlertCircle className="w-4 h-4" />
-              Most Neglected Contacts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {metrics.topNeglected.map(contact => (
-                <div key={contact.id} className="flex items-center justify-between text-sm">
-                  <span>{contact.name}</span>
-                  <span className="text-muted-foreground">
-                    {contact.nextContactDue 
-                      ? `${differenceInDays(new Date(), contact.nextContactDue)} days overdue`
-                      : 'No due date'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <motion.div variants={fadeIn}>
+          <GlassCard>
+            <GlassCardHeader className="pb-2">
+              <GlassCardTitle className="text-sm flex items-center gap-2 text-orange-500">
+                <AlertCircle className="w-4 h-4" />
+                Most Neglected Contacts
+              </GlassCardTitle>
+            </GlassCardHeader>
+            <GlassCardContent>
+              <div className="space-y-2">
+                {metrics.topNeglected.map(contact => (
+                  <div key={contact.id} className="flex items-center justify-between text-sm">
+                    <span>{contact.name}</span>
+                    <span className="text-muted-foreground">
+                      {contact.nextContactDue 
+                        ? `${differenceInDays(new Date(), contact.nextContactDue)} days overdue`
+                        : 'No due date'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </GlassCardContent>
+          </GlassCard>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
