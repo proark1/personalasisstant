@@ -154,6 +154,12 @@ export function MobileLayout({
     setActiveTab(panel as Tab);
   }, []);
 
+  // Scroll to top on panel change
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeTab]);
+
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
