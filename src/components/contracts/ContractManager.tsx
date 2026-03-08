@@ -559,13 +559,18 @@ export function ContractManager({
           <TabsContent value={activeCategory} className="mt-4">
             {viewMode === 'cards' ? (
               filteredContracts.length === 0 ? (
-              <GlassCard>
-                  <GlassCardContent className="py-8 text-center text-muted-foreground">
-                    {search ? t('contracts.noContractsSearch') : t('contracts.noContracts')}
-                  </GlassCardContent>
-                </GlassCard>
+                <EmptyState
+                  icon={FileText}
+                  title={search ? "No contracts found" : "No contracts yet"}
+                  description={search ? "Try a different search term" : "Add your first contract to get started"}
+                />
               ) : (
-                <div className="grid gap-3 md:grid-cols-2">
+                <motion.div 
+                  className="grid gap-3 md:grid-cols-2"
+                  variants={staggerContainer}
+                  initial="hidden"
+                  animate="show"
+                >
                   {filteredContracts.map(contract => (
                     <ContractCard
                       key={contract.id}
