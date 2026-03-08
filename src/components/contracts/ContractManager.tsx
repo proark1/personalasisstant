@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { SectionHeader } from '@/components/ui/section-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { motion } from 'framer-motion';
+import { staggerContainer } from '@/components/ui/panel-shell';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -255,11 +258,11 @@ export function ContractManager({
   const ContractTable = () => {
     if (filteredContracts.length === 0) {
       return (
-        <GlassCard>
-          <GlassCardContent className="py-8 text-center text-muted-foreground">
-            {search ? t('contracts.noContractsSearch') : t('contracts.noContracts')}
-          </GlassCardContent>
-        </GlassCard>
+        <EmptyState
+          icon={FileText}
+          title={search ? "No contracts found" : "No contracts yet"}
+          description={search ? "Try a different search term" : "Add your first contract to get started"}
+        />
       );
     }
 
@@ -386,33 +389,25 @@ export function ContractManager({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-2xl font-bold">{t('contracts.title')}</h2>
-          <p className="text-muted-foreground">
-            {t('contracts.subtitle')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleSyncAllToCalendar}
-            disabled={syncingToCalendar}
-          >
-            {syncingToCalendar ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <CalendarPlus className="h-4 w-4 mr-2" />
-            )}
-            Sync to Calendar
-          </Button>
-          <Button onClick={() => { setEditingContract(null); setDialogOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t('contracts.addContract')}
-          </Button>
-        </div>
+      {/* Actions bar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleSyncAllToCalendar}
+          disabled={syncingToCalendar}
+        >
+          {syncingToCalendar ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <CalendarPlus className="h-4 w-4 mr-2" />
+          )}
+          Sync to Calendar
+        </Button>
+        <Button size="sm" onClick={() => { setEditingContract(null); setDialogOpen(true); }}>
+          <Plus className="h-4 w-4 mr-2" />
+          {t('contracts.addContract')}
+        </Button>
       </div>
 
       {/* Alerts */}
@@ -451,7 +446,7 @@ export function ContractManager({
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <GlassCard>
+        <GlassCard pressable haptic="light">
           <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <DollarSign className="h-4 w-4" />
@@ -460,7 +455,7 @@ export function ContractManager({
             <p className="text-2xl font-bold">€{monthlyCost.toFixed(2)}</p>
           </GlassCardContent>
         </GlassCard>
-        <GlassCard>
+        <GlassCard pressable haptic="light">
           <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <DollarSign className="h-4 w-4" />
@@ -469,7 +464,7 @@ export function ContractManager({
             <p className="text-2xl font-bold">€{yearlyCost.toFixed(2)}</p>
           </GlassCardContent>
         </GlassCard>
-        <GlassCard>
+        <GlassCard pressable haptic="light">
           <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               {t('contracts.activeContracts')}
@@ -477,7 +472,7 @@ export function ContractManager({
             <p className="text-2xl font-bold">{activeContracts.length}</p>
           </GlassCardContent>
         </GlassCard>
-        <GlassCard>
+        <GlassCard pressable haptic="light">
           <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <AlertTriangle className="h-4 w-4" />
@@ -564,13 +559,18 @@ export function ContractManager({
           <TabsContent value={activeCategory} className="mt-4">
             {viewMode === 'cards' ? (
               filteredContracts.length === 0 ? (
-              <GlassCard>
-                  <GlassCardContent className="py-8 text-center text-muted-foreground">
-                    {search ? t('contracts.noContractsSearch') : t('contracts.noContracts')}
-                  </GlassCardContent>
-                </GlassCard>
+                <EmptyState
+                  icon={FileText}
+                  title={search ? "No contracts found" : "No contracts yet"}
+                  description={search ? "Try a different search term" : "Add your first contract to get started"}
+                />
               ) : (
-                <div className="grid gap-3 md:grid-cols-2">
+                <motion.div 
+                  className="grid gap-3 md:grid-cols-2"
+                  variants={staggerContainer}
+                  initial="hidden"
+                  animate="show"
+                >
                   {filteredContracts.map(contract => (
                     <ContractCard
                       key={contract.id}
@@ -596,7 +596,7 @@ export function ContractManager({
                       showBulkSelect={showBulkSelect}
                     />
                   ))}
-                </div>
+                </motion.div>
               )
             ) : (
               <ContractTable />

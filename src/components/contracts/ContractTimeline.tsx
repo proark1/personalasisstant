@@ -1,16 +1,18 @@
 import { Contract } from '@/hooks/useContracts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { EmptyState } from '@/components/ui/empty-state';
+import { motion } from 'framer-motion';
+import { staggerItem, staggerContainer } from '@/components/ui/panel-shell';
 import { 
   Calendar, 
   AlertTriangle, 
   CheckCircle, 
   Clock, 
   RefreshCw,
-  FileText
 } from 'lucide-react';
-import { format, differenceInDays, addDays, isBefore, isAfter } from 'date-fns';
+import { format, differenceInDays, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface ContractTimelineProps {
@@ -30,14 +32,11 @@ interface TimelineEvent {
 
 export function ContractTimeline({ contracts }: ContractTimelineProps) {
   const now = new Date();
-  
-  // Generate timeline events from contracts
   const events: TimelineEvent[] = [];
   
   contracts.forEach(contract => {
     if (!contract.isActive) return;
 
-    // Add renewal date
     if (contract.renewalDate) {
       const daysUntil = differenceInDays(contract.renewalDate, now);
       events.push({
@@ -51,7 +50,6 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
         daysFromNow: daysUntil
       });
 
-      // Add cancellation deadline if auto-renews
       if (contract.autoRenews) {
         const cancellationDate = addDays(contract.renewalDate, -contract.cancellationNoticeDays);
         const daysToCancellation = differenceInDays(cancellationDate, now);
@@ -68,7 +66,6 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
       }
     }
 
-    // Add end date if different from renewal
     if (contract.endDate && (!contract.renewalDate || 
         format(contract.endDate, 'yyyy-MM-dd') !== format(contract.renewalDate, 'yyyy-MM-dd'))) {
       const daysUntil = differenceInDays(contract.endDate, now);
@@ -85,21 +82,16 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
     }
   });
 
-  // Sort by date and filter to upcoming events (next 180 days) plus recent past (30 days)
   const sortedEvents = events
     .filter(e => e.daysFromNow >= -30 && e.daysFromNow <= 180)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   const getEventIcon = (type: TimelineEvent['type']) => {
     switch (type) {
-      case 'cancellation_deadline':
-        return <AlertTriangle className="w-4 h-4" />;
-      case 'renewal':
-        return <RefreshCw className="w-4 h-4" />;
-      case 'start':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'end':
-        return <Clock className="w-4 h-4" />;
+      case 'cancellation_deadline': return <AlertTriangle className="w-4 h-4" />;
+      case 'renewal': return <RefreshCw className="w-4 h-4" />;
+      case 'start': return <CheckCircle className="w-4 h-4" />;
+      case 'end': return <Clock className="w-4 h-4" />;
     }
   };
 
@@ -112,60 +104,61 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
 
   const getEventLabel = (type: TimelineEvent['type']) => {
     switch (type) {
-      case 'cancellation_deadline':
-        return 'Cancel by';
-      case 'renewal':
-        return 'Renews';
-      case 'start':
-        return 'Starts';
-      case 'end':
-        return 'Ends';
+      case 'cancellation_deadline': return 'Cancel by';
+      case 'renewal': return 'Renews';
+      case 'start': return 'Starts';
+      case 'end': return 'Ends';
     }
   };
 
   if (sortedEvents.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
+      <GlassCard>
+        <GlassCardHeader>
+          <GlassCardTitle className="text-lg flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
             Contract Timeline
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No upcoming contract events
-          </p>
-        </CardContent>
-      </Card>
+          </GlassCardTitle>
+        </GlassCardHeader>
+        <GlassCardContent>
+          <EmptyState
+            icon={Calendar}
+            title="No upcoming events"
+            description="No contract renewals or deadlines in the next 6 months"
+          />
+        </GlassCardContent>
+      </GlassCard>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
+    <GlassCard>
+      <GlassCardHeader>
+        <GlassCardTitle className="text-lg flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-primary" />
           Contract Timeline
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </GlassCardTitle>
+      </GlassCardHeader>
+      <GlassCardContent>
         <ScrollArea className="h-[400px] pr-4">
           <div className="relative">
-            {/* Timeline line */}
             <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-border" />
             
-            {/* Events */}
-            <div className="space-y-4">
-              {sortedEvents.map((event, index) => (
-                <div 
-                  key={event.id} 
+            <motion.div 
+              className="space-y-4"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="show"
+            >
+              {sortedEvents.map((event) => (
+                <motion.div
+                  key={event.id}
+                  variants={staggerItem}
                   className={cn(
                     "relative pl-8",
                     event.isPast && "opacity-50"
                   )}
                 >
-                  {/* Timeline dot */}
                   <div className={cn(
                     "absolute left-1.5 top-1.5 w-3 h-3 rounded-full border-2",
                     event.type === 'cancellation_deadline' 
@@ -175,7 +168,6 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
                         : "bg-background border-border"
                   )} />
                   
-                  {/* Event content */}
                   <div className={cn(
                     "p-3 rounded-lg border transition-colors",
                     event.isUrgent && !event.isPast && "border-primary/50 bg-primary/5",
@@ -205,12 +197,12 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
                       </Badge>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
         </ScrollArea>
-      </CardContent>
-    </Card>
+      </GlassCardContent>
+    </GlassCard>
   );
 }

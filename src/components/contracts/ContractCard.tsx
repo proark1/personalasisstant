@@ -3,6 +3,8 @@ import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { motion } from 'framer-motion';
+import { staggerItem } from '@/components/ui/panel-shell';
 import { 
   Pencil, 
   Trash2, 
@@ -114,12 +116,17 @@ export function ContractCard({
   };
 
   return (
-    <GlassCard className={cn(
-      "group relative transition-all hover:shadow-md",
-      !contract.isActive && "opacity-60",
-      isCancellationSoon && "border-destructive/50 bg-destructive/5",
-      isSelected && "ring-2 ring-primary"
-    )}>
+    <motion.div variants={staggerItem}>
+    <GlassCard 
+      pressable 
+      haptic="light"
+      className={cn(
+        "group relative transition-all hover:shadow-md",
+        !contract.isActive && "opacity-60",
+        isCancellationSoon && "border-destructive/50 bg-destructive/5",
+        isSelected && "ring-2 ring-primary"
+      )}
+    >
       <GlassCardContent className="p-4">
         <div className="flex items-start gap-3">
           {/* Bulk select checkbox */}
@@ -282,5 +289,6 @@ export function ContractCard({
         </div>
       </GlassCardContent>
     </GlassCard>
+    </motion.div>
   );
 }
