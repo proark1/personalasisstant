@@ -457,9 +457,8 @@ export default function Contacts() {
   const ContactTable = ({ contacts }: { contacts: Contact[] }) => {
     if (contacts.length === 0) {
       return (
-        <div className="text-center py-8 text-muted-foreground">
-          No contacts found.
-        </div>
+        <EmptyState icon={Users} title="No contacts found" description="Try a different search term" />
+      );
       );
     }
 
