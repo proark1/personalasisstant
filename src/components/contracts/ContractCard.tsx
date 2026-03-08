@@ -114,13 +114,13 @@ export function ContractCard({
   };
 
   return (
-    <Card className={cn(
+    <GlassCard className={cn(
       "group relative transition-all hover:shadow-md",
       !contract.isActive && "opacity-60",
       isCancellationSoon && "border-destructive/50 bg-destructive/5",
       isSelected && "ring-2 ring-primary"
     )}>
-      <CardContent className="p-4">
+      <GlassCardContent className="p-4">
         <div className="flex items-start gap-3">
           {/* Bulk select checkbox */}
           {showBulkSelect && (
