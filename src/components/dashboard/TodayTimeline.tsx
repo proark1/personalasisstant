@@ -64,6 +64,10 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = fals
           onClick={(e) => e.stopPropagation()}
           className="shrink-0"
         />
+      ) : item.type === 'prayer' ? (
+        <div className="shrink-0 ml-0.5 mr-0.5">
+          {getPrayerIcon(item.title)}
+        </div>
       ) : (
         <div className={cn("w-2 h-2 rounded-full shrink-0 ml-1.5 mr-1.5", "bg-primary")} />
       )}
@@ -75,7 +79,7 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = fals
             : '—'}
       </span>
       <span className={cn("text-sm flex-1 line-clamp-2", item.completed && "line-through")}>
-        {item.title}
+        {item.type === 'prayer' ? `${item.title} Prayer` : item.title}
       </span>
       {item.type === 'task' && item.priority === 'high' && (
         <div className="w-2 h-2 rounded-full bg-destructive shrink-0" />
