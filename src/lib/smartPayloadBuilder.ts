@@ -46,6 +46,7 @@ interface SmartPayload {
     members: { name: string; relationship: string; age: number | null; school?: string; activities: string[] }[];
     shoppingLists: { name: string; itemCount: number }[];
   };
+  memories?: { type: string; key: string; value: string; category?: string }[];
 }
 
 function matchesCategory(msg: string, keywords: string[]): boolean {
