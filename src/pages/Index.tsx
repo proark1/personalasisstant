@@ -864,6 +864,67 @@ const Index = () => {
             toast({ title: 'Email Draft Ready', description: `To: ${emailData.to} — "${emailData.subject}"` });
             // The compose sheet will be opened via a custom event
             window.dispatchEvent(new CustomEvent('compose-email', { detail: emailData }));
+          } else if (toolCall.tool === 'set_reminder' && toolCall.reminder) {
+            // Schedule a reminder notification
+            const { message, triggerAt } = toolCall.reminder;
+            const triggerTime = new Date(triggerAt).getTime();
+            const now = Date.now();
+            const delayMs = Math.max(triggerTime - now, 1000);
+
+            // Schedule via setTimeout for in-app notification
+            setTimeout(() => {
+              toast({ title: '⏰ Reminder', description: message });
+              // Also try browser notification
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('⏰ Reminder', { body: message, icon: '/favicon.png' });
+              }
+            }, delayMs);
+
+            // Also store in user_notifications for persistence
+            if (user?.id) {
+              supabase.from('user_notifications').insert({
+                user_id: user.id,
+                type: 'reminder',
+                title: '⏰ Reminder',
+                message,
+                data: { triggerAt, scheduled: true },
+                read: false,
+              }).then(() => {});
+            }
+
+            toast({ title: 'Reminder Set', description: `"${message}" at ${new Date(triggerAt).toLocaleTimeString()}` });
+          } else if (toolCall.tool === 'get_summary' && toolCall.summaryType === 'contract_costs') {
+            // Compute financial summary from contracts
+            let monthlyTotal = 0;
+            let yearlyTotal = 0;
+            const activeContracts2 = contracts.filter(c => c.isActive !== false);
+            for (const c of activeContracts2) {
+              if (!c.costAmount) continue;
+              const amount = c.costAmount;
+              const freq = c.costFrequency || 'monthly';
+              if (freq === 'monthly') {
+                monthlyTotal += amount;
+                yearlyTotal += amount * 12;
+              } else if (freq === 'yearly') {
+                monthlyTotal += amount / 12;
+                yearlyTotal += amount;
+              } else if (freq === 'weekly') {
+                monthlyTotal += amount * 4.33;
+                yearlyTotal += amount * 52;
+              }
+            }
+            // Feed back as assistant context
+            const costSummary = `📊 **Financial Summary**\n\n` +
+              `**Monthly costs:** €${monthlyTotal.toFixed(2)}\n` +
+              `**Yearly costs:** €${yearlyTotal.toFixed(2)}\n` +
+              `**Active contracts:** ${activeContracts2.length}\n\n` +
+              activeContracts2
+                .filter(c => c.costAmount)
+                .sort((a, b) => (b.costAmount || 0) - (a.costAmount || 0))
+                .slice(0, 10)
+                .map(c => `- ${c.name}${c.provider ? ` (${c.provider})` : ''}: €${c.costAmount}/${c.costFrequency || 'month'}`)
+                .join('\n');
+            assistantContent += '\n\n' + costSummary;
           }
         },
         onDone: () => {
