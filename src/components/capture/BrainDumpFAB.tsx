@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
 import { Badge } from '@/components/ui/badge';
 import { Mic, X, Send, Inbox, Brain, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';

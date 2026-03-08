@@ -267,6 +267,7 @@ export function MobileLayout({
           <motion.div
             key={activeTab}
             {...panelTransition}
+            ref={scrollRef}
             className="h-full overflow-y-auto"
           >
             {renderPanel()}

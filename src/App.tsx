@@ -153,6 +153,8 @@ function AppContent() {
           <Route path="*" element={<LazyNotFound />} />
         </Routes>
       </Suspense>
+        </motion.div>
+      </AnimatePresence>
     </>
   );
 }
