@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Task, CalendarEvent } from '@/types/flux';
-import { Clock } from 'lucide-react';
+import { Clock, ChevronRight } from 'lucide-react';
 import { format, isToday, startOfDay, endOfDay, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -62,7 +62,7 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = fals
             ? (item.time.getHours() === 0 && item.time.getMinutes() === 0 ? 'All day' : format(item.time, 'HH:mm'))
             : '—'}
       </span>
-      <span className={cn("text-sm flex-1 truncate", item.completed && "line-through")}>
+      <span className={cn("text-sm flex-1 line-clamp-2", item.completed && "line-through")}>
         {item.title}
       </span>
       {item.type === 'task' && item.priority === 'high' && (
@@ -157,9 +157,10 @@ export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }
           {items.overdue.length > 3 && (
             <button
               onClick={() => onNavigate?.('tasks')}
-              className="text-xs text-primary hover:underline px-2.5 py-1"
+              className="flex items-center gap-1.5 text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/15 rounded-lg px-3 py-2 mx-2.5 mt-1 transition-colors"
             >
-              See all {items.overdue.length} overdue →
+              See all {items.overdue.length} overdue
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}
           

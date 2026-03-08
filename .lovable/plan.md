@@ -1,111 +1,148 @@
 
+# Deep Module Interconnection + AI Daily Voice Briefing
 
-# Round 7: Top 10 UI/UX Improvements
-
----
-
-## 1. Dori Chat — Dead Space Below Input Persists
-The Dori chat still has a large empty area below the input form extending to the bottom nav. The form has `pb-1` but the entire area below it (between the form bottom and the nav bar) is blank white/dark space. This is because the `<form>` ends but the parent `div.flex.flex-col.h-full` doesn't account for the bottom nav height.
-
-**Fix:** Add `pb-safe` or `pb-16` to the Dori panel container to account for the bottom nav. Or set the form to have `pb-safe-area-bottom` to sit flush above the nav. The empty state suggestions + input should fill the available space without a visible gap.
-
-**Files:** `src/components/assistant/DoriPanel.tsx` — add bottom padding to account for nav bar, tighten the form container.
+## Vision
+Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
 
 ---
 
-## 2. Notification Dot Still Appears When No Notifications Exist
-The red dot on the Sparkles icon in the header (Calendar, Email, Health pages) appears even when there are likely 0 unread reminders. The `useProactiveReminders` hook returns data from the database, but the dot renders whenever `unreadCount > 0`. If the hook returns stale or cached data, the dot persists incorrectly.
+## Feature 1: AI Daily Voice Briefing on Dashboard
 
-**Fix:** Verify the `useProactiveReminders` hook correctly filters dismissed/completed reminders from the count. Add a loading state check — don't show the dot while loading. If `reminders.length === 0`, ensure `unreadCount` is truly 0.
+A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
 
-**Files:** `src/hooks/useProactiveReminders.ts` — audit the unreadCount calculation.
+### New Edge Function: `daily-voice-briefing`
+- Accepts user_id and fetches cross-module data server-side:
+  - Pending tasks (count, top 3 by priority)
+  - Today's calendar events
+  - Unread email count + priority emails
+  - Contract alerts (upcoming renewals/cancellations)
+  - Contacts overdue for follow-up
+  - Habit completion status
+  - Yesterday's check-in mood/energy
+- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
+- Returns: `{ briefingText: string, highlights: [...] }`
 
----
+### New Component: `DailyBriefingCard`
+- Displayed prominently on the dashboard (below the hero)
+- Shows a text summary with key highlights as chips/badges
+- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
+- Auto-play option (respects existing morning auto-play setting)
+- Cached per day so it doesn't re-generate on every page load
 
-## 3. Calendar Page Has Redundant Header + Internal Title
-The Calendar page shows "Calendar" in the ContextualHeader, then below it has an empty calendar icon, then "Focus / Tasks / Calendar" tab bar. The ContextualHeader title is redundant with the bottom nav label. The empty calendar icon between the header and tabs is unexplained.
-
-**Fix:** Remove the ContextualHeader for the Calendar tab (like Dashboard already does). Let the internal CalendarHubPanel handle its own header with the tab bar integrated. Or hide the header title and use the space for the tab bar directly.
-
-**Files:** `src/components/layout/MobileLayout.tsx` — add 'calendar' to the list of tabs that hide the header. `src/components/calendar/CalendarHubPanel.tsx` — add a compact header with the panel title.
-
----
-
-## 4. Email "120" Badge Is Overwhelming
-The Email page header shows "Email 120" with a large cyan badge, then repeats "Unread 120 | Priority 13 | Handled 0" below it. The "120" badge is visually heavy and redundant with the stat bar below. It creates anxiety rather than helping the user.
-
-**Fix:** Remove the "120" badge from the title. Keep only the stat bar below ("Unread 120 | Priority 13 | Handled 0") which is more informative. Or show only the priority count in the header ("13 priority").
-
-**Files:** `src/components/email/EmailPanel.tsx` — simplify the header, remove redundant unread count badge.
-
----
-
-## 5. Health Page "Try Again" Button Suggests Failure
-The Health page shows "No Health Data Yet" with a "Try Again" button. "Try Again" implies an error occurred, when actually the user simply hasn't added data. The CTA should be inviting, not error-recovery language.
-
-**Fix:** Change "Try Again" to "Get Started" or "Connect Health Data". The empty state message is fine but the button label needs to be welcoming.
-
-**Files:** `src/components/health/HealthHubPanel.tsx` — change the empty state CTA text.
+### Files
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add card)
 
 ---
 
-## 6. Overdue Task Titles Are Truncated Too Aggressively
-In the dashboard timeline, task titles show "Reach out to Zeyne..." and "Reach out to Tugba..." — truncated at ~20 characters. On a 390px viewport, there's room for more text. The truncation cuts off the most important part (the person's full name).
+## Feature 2: Email-to-Calendar Integration
 
-**Fix:** Remove or increase the `truncate` constraint on timeline row titles. Allow them to wrap to 2 lines for important context, or truncate at a higher character threshold.
+When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
 
-**Files:** `src/components/dashboard/TodayTimeline.tsx` — change `truncate` to `line-clamp-2` on the title span, or remove the `w-12` fixed width on the date column to give more space to titles.
+### Changes
+- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
+- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
+- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
 
----
-
-## 7. QuickActions Labels Are Still Truncated ("Priority E...")
-The QuickActions grid shows "Priority E..." for "Priority Emails" — the 3-column grid with small buttons truncates the labels. At 390px width with 3 columns, each button gets ~110px, but icon + text still overflow.
-
-**Fix:** Use shorter labels: "Emails" instead of "Priority Emails", "Quick Wins" is fine, "Reach Out" is fine. Or reduce to 2 columns with full labels. Or use icon-only buttons with tooltips.
-
-**Files:** `src/hooks/useContextualActions.ts` — shorten the action labels. Or `src/components/dashboard/QuickActionsBar.tsx` — allow text wrapping or use 2 columns.
+### Files
+- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
+- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
+- `src/components/email/EmailCard.tsx` (date detection badge)
 
 ---
 
-## 8. "Weather unavailable" Takes Same Visual Weight as Data
-The "Weather unavailable" card has the same GlassCard treatment as a real weather card. It draws attention to a failure state. It should be minimal — just a small muted text, not a full card.
+## Feature 3: Email-to-Contact Linking
 
-**Fix:** Replace the GlassCard wrapper with a simple inline element: just the CloudOff icon + "Weather unavailable" text without a card border. Make it visually subordinate to StatPills.
+Automatically link emails to existing contacts and surface contact context when reading emails.
 
-**Files:** `src/components/dashboard/WeatherCard.tsx` — remove GlassCard wrapper from error state, use inline styling.
+### Changes
+- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
+- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
+- Add a "Save as Contact" button when no match exists, pre-filling name and email
+- When viewing a contact profile, show their recent emails in the timeline
 
----
-
-## 9. "See all 18 overdue" Link Doesn't Stand Out
-The "See all 18 overdue →" link at the bottom of the overdue section is small, uses primary color, but blends with the task items. Users may miss it. The arrow is a text arrow (→) rather than an icon.
-
-**Fix:** Add a subtle background (e.g., `bg-destructive/10 rounded-lg px-3 py-2`) to make it look like a tappable element. Use a proper ChevronRight icon instead of the text arrow.
-
-**Files:** `src/components/dashboard/TodayTimeline.tsx` — style the "See all" link as a mini-button.
+### Files
+- `src/components/email/EmailDetailSheet.tsx` (contact context card)
+- `src/components/contacts/ContactTimeline.tsx` (add email history section)
 
 ---
 
-## 10. Dori Header Shows Duplicate Fish Icons
-The Dori chat page shows the fish icon in the header bar AND the same fish icon in the bottom nav's center button, both visible simultaneously. Two identical fish icons on screen at once is redundant.
+## Feature 4: Smart Dashboard Insight Card (Cross-Module)
 
-**Fix:** Since the bottom nav already prominently shows the Dori fish, simplify the Dori panel header. Replace the large fish image with just the "Dori" text label, or make the header fish smaller/different from the nav fish.
+Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
 
-**Files:** `src/components/assistant/DoriPanel.tsx` — simplify the header, reduce or remove the duplicate fish icon.
+### Changes
+- Add email-based insights: "You have 3 unread priority emails from key contacts"
+- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
+- Add contact insights: "You haven't spoken to [Name] in 45 days"
+- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
+- Rotate through these insights automatically
+
+### Files
+- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
+- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
 
 ---
 
-## Implementation Priority
+## Feature 5: Contextual Quick Actions (Cross-Module)
 
-| # | Item | Effort | Impact |
-|---|------|--------|--------|
-| 1 | Fix Dori chat dead space (#1) | Small | High |
-| 2 | Hide Calendar redundant header (#3) | Small | High |
-| 3 | Simplify Email header badge (#4) | Small | High |
-| 4 | Fix overdue title truncation (#6) | Small | High |
-| 5 | Shorten QuickAction labels (#7) | Small | Medium |
-| 6 | Fix Health "Try Again" CTA (#5) | Small | Medium |
-| 7 | Downplay weather error state (#8) | Small | Medium |
-| 8 | Style "See all overdue" link (#9) | Small | Medium |
-| 9 | Remove duplicate Dori fish (#10) | Small | Low |
-| 10 | Audit notification dot (#2) | Medium | Medium |
+Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
 
+### Changes
+- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
+- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
+- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
+- These actions appear in the QuickActionsBar on the dashboard
+
+### Files
+- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
+- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
+
+---
+
+## Technical Details
+
+### Daily Voice Briefing Edge Function
+```text
+POST /daily-voice-briefing
+Body: { user_id }
+Response: {
+  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
+  highlights: [
+    { type: "task", label: "4 tasks, 1 overdue" },
+    { type: "email", label: "3 unread priority" },
+    { type: "contract", label: "Insurance renews in 5 days" },
+    { type: "contact", label: "Follow up with Ahmed" }
+  ]
+}
+```
+
+Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
+
+### Data Flow for Cross-Module Features
+```text
+Email sender --> match against user_contacts.email
+Email body --> AI extract --> calendar event / contract data
+Contact profile --> query user_emails WHERE from_email = contact.email
+Calendar event title --> fuzzy match against contact names
+Contract provider --> match against email senders
+```
+
+### Caching Strategy
+- Daily briefing: cached in localStorage with date key, regenerated once per day
+- Cross-module matches (email-contact): computed on render, lightweight DB queries
+- Smart insights: refreshed every 5 minutes (existing pattern)
+
+## Summary of Files Modified/Created
+- `supabase/functions/daily-voice-briefing/index.ts` (new)
+- `src/components/dashboard/DailyBriefingCard.tsx` (new)
+- `src/hooks/useDailyBriefing.ts` (new)
+- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
+- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
+- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
+- `src/components/email/EmailCard.tsx` (date badge)
+- `src/components/contacts/ContactTimeline.tsx` (email history)
+- `src/hooks/useContextualActions.ts` (cross-module actions)
+- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)

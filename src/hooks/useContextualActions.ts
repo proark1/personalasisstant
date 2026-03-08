@@ -237,7 +237,7 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
     if (priorityEmailCount > 0) {
       allActions.push({
         id: 'priority-emails',
-        label: 'Priority Emails',
+        label: 'Emails',
         icon: 'Mail',
         category: 'priority',
         action: () => navigate('email'),
@@ -250,7 +250,7 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
     if (urgentContractName) {
       allActions.push({
         id: 'contract-review',
-        label: 'Review Contract',
+        label: 'Contract',
         icon: 'FileText',
         category: 'priority',
         action: () => navigate('contracts'),

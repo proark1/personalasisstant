@@ -371,9 +371,6 @@ export function EmailPanel() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-foreground">Email</h2>
-                {unreadCount > 0 && (
-                  <span className="text-xs font-semibold bg-primary text-primary-foreground rounded-full px-2 py-0.5">{unreadCount}</span>
-                )}
                 {flaggedCount > 0 && (
                   <span className="text-xs font-semibold bg-destructive/10 text-destructive rounded-full px-2 py-0.5">{flaggedCount} ⚠️</span>
                 )}

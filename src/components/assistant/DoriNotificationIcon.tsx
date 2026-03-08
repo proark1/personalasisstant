@@ -53,7 +53,7 @@ const getActionLabel = (reminder: ProactiveReminder): string => {
 
 export function DoriNotificationIcon() {
   const navigate = useNavigate();
-  const { reminders, unreadCount, markAsRead, dismissReminder, snoozeReminder, completeReminder } = useProactiveReminders();
+  const { reminders, unreadCount, loading, markAsRead, dismissReminder, snoozeReminder, completeReminder } = useProactiveReminders();
   const [open, setOpen] = useState(false);
 
   const handleOpen = (isOpen: boolean) => {
@@ -121,7 +121,7 @@ export function DoriNotificationIcon() {
             )} />
           </motion.div>
           
-          {unreadCount > 0 && (
+          {!loading && unreadCount > 0 && reminders.length > 0 && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
