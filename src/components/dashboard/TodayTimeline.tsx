@@ -157,9 +157,10 @@ export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }
           {items.overdue.length > 3 && (
             <button
               onClick={() => onNavigate?.('tasks')}
-              className="text-xs text-primary hover:underline px-2.5 py-1"
+              className="flex items-center gap-1.5 text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/15 rounded-lg px-3 py-2 mx-2.5 mt-1 transition-colors"
             >
-              See all {items.overdue.length} overdue →
+              See all {items.overdue.length} overdue
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}
           
