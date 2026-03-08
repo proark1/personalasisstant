@@ -118,31 +118,36 @@ export function CalendarHubPanel({
     }
   };
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* View Switcher with Quick Add */}
-      <div className="px-4 py-2 border-b border-border shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex gap-1 bg-muted/50 p-1 rounded-lg">
-            {views.map((view) => (
-              <Button
-                key={view.id}
-                variant={activeView === view.id ? 'secondary' : 'ghost'}
-                size="sm"
-                className={cn(
-                  "flex-1 gap-1.5",
-                  activeView === view.id && "bg-background shadow-sm"
-                )}
-                onClick={() => setActiveView(view.id)}
-              >
-                <view.icon className="w-4 h-4" />
-                <span className="text-xs">{view.label}</span>
-              </Button>
-            ))}
-          </div>
-          <QuickAddButton onAddTask={onAddTask} projects={projects} />
-        </div>
+  const viewSwitcher = (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 flex gap-1 bg-muted/50 p-1 rounded-lg">
+        {views.map((view) => (
+          <Button
+            key={view.id}
+            variant={activeView === view.id ? 'secondary' : 'ghost'}
+            size="sm"
+            className={cn(
+              "flex-1 gap-1.5",
+              activeView === view.id && "bg-background shadow-sm"
+            )}
+            onClick={() => setActiveView(view.id)}
+          >
+            <view.icon className="w-4 h-4" />
+            <span className="text-xs">{view.label}</span>
+          </Button>
+        ))}
       </div>
+      <QuickAddButton onAddTask={onAddTask} projects={projects} />
+    </div>
+  );
+
+  return (
+    <PanelShell
+      icon={Calendar}
+      title="Planner"
+      headerExtra={viewSwitcher}
+      noPadding
+    >
 
       {/* Task View Switcher - only shown in Tasks tab */}
       {activeView === 'tasks' && (
