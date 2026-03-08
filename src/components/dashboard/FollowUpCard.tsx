@@ -43,8 +43,8 @@ export function FollowUpCard() {
 
   if (loading) {
     return (
-      <Card className="glass-panel-solid">
-        <CardContent className="p-4">
+      <GlassCard>
+        <GlassCardContent className="p-4">
           <div className="animate-pulse space-y-3">
             <div className="h-4 bg-muted rounded w-1/3" />
             <div className="h-12 bg-muted rounded" />
