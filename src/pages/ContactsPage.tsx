@@ -459,7 +459,6 @@ export default function Contacts() {
       return (
         <EmptyState icon={Users} title="No contacts found" description="Try a different search term" />
       );
-      );
     }
 
     return (
