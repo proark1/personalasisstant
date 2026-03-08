@@ -477,7 +477,7 @@ const Index = () => {
       const now = new Date();
       const startOfToday = new Date(now);
       startOfToday.setHours(0, 0, 0, 0);
-      const thirtyDaysFromNow = addDays(now, 30);
+      const thirtyDaysFromNow = addDays(now, 7);
       
       // Filter calendar events to include today and future (next 30 days)
       const upcomingCalendarEvents = events.filter(e => {
