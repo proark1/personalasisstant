@@ -3,7 +3,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { 
   MessageCircle, 
-  Phone, 
   History, 
   Voicemail, 
   Calendar, 
@@ -22,6 +21,7 @@ import { ChatSettingsPanel } from '@/components/chat/ChatSettingsPanel';
 import { MessageSearchDialog } from '@/components/chat/MessageSearchDialog';
 import { SavedMessagesDialog } from '@/components/chat/SavedMessagesDialog';
 import { ScheduleCallDialog } from '@/components/calling/ScheduleCallDialog';
+import { PanelShell } from '@/components/ui/panel-shell';
 
 interface SocialPanelProps {
   userId: string;
@@ -33,39 +33,30 @@ export function SocialPanel({ userId }: SocialPanelProps) {
   const [showSaved, setShowSaved] = useState(false);
   const [showScheduleCall, setShowScheduleCall] = useState(false);
 
+  const headerActions = (
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSearch(true)}>
+        <Search className="w-4 h-4" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSaved(true)}>
+        <Star className="w-4 h-4" />
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => setShowScheduleCall(true)}>
+        <Clock className="w-4 h-4 mr-1" />
+        Schedule
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="h-full flex flex-col">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-        <div className="px-4 pt-3 pb-2 border-b border-border">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setShowSearch(true)}
-              >
-                <Search className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setShowSaved(true)}
-              >
-                <Star className="w-4 h-4" />
-              </Button>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowScheduleCall(true)}
-            >
-              <Clock className="w-4 h-4 mr-1" />
-              Schedule Call
-            </Button>
-          </div>
-          
+    <PanelShell
+      icon={MessageCircle}
+      title="Social"
+      actions={headerActions}
+      noPadding
+    >
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <div className="px-4 pt-2 pb-2">
           <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
             <TabsTrigger value="chat" className="gap-1 text-xs">
               <MessageCircle className="w-3 h-3" />
@@ -120,21 +111,9 @@ export function SocialPanel({ userId }: SocialPanelProps) {
       </Tabs>
 
       {/* Dialogs */}
-      <MessageSearchDialog 
-        open={showSearch} 
-        onOpenChange={setShowSearch} 
-      />
-      
-      <SavedMessagesDialog 
-        open={showSaved} 
-        onOpenChange={setShowSaved} 
-      />
-
-      <ScheduleCallDialog
-        open={showScheduleCall}
-        onOpenChange={setShowScheduleCall}
-        userId={userId}
-      />
-    </div>
+      <MessageSearchDialog open={showSearch} onOpenChange={setShowSearch} />
+      <SavedMessagesDialog open={showSaved} onOpenChange={setShowSaved} />
+      <ScheduleCallDialog open={showScheduleCall} onOpenChange={setShowScheduleCall} userId={userId} />
+    </PanelShell>
   );
 }
