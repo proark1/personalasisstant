@@ -29,6 +29,7 @@ import { useShoppingLists } from '@/hooks/useShoppingLists';
 import { useHabits } from '@/hooks/useHabits';
 import { useEmails } from '@/hooks/useEmails';
 import { buildSmartPayload } from '@/lib/smartPayloadBuilder';
+import { useAIMemory } from '@/hooks/useAIMemory';
 import { StandardMode } from '@/components/layout/StandardMode';
 import { GhostMode } from '@/components/ghost/GhostMode';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
