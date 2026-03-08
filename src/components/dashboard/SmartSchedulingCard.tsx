@@ -69,9 +69,9 @@ export function SmartSchedulingCard() {
               {suggestions.length} {t('smartScheduling.tips')}
             </Badge>
           )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+        </div>
+      </GlassCardHeader>
+      <GlassCardContent className="space-y-3">
         {/* Pattern Summary */}
         {patterns && patterns.peakHours.length > 0 && (
           <div className="p-3 rounded-lg bg-muted/50 space-y-2">
