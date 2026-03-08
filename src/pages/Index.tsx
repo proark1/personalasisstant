@@ -909,9 +909,15 @@ const Index = () => {
               } else if (freq === 'yearly') {
                 monthlyTotal += amount / 12;
                 yearlyTotal += amount;
-              } else if (freq === 'weekly') {
-                monthlyTotal += amount * 4.33;
-                yearlyTotal += amount * 52;
+              } else if (freq === 'quarterly') {
+                monthlyTotal += amount / 3;
+                yearlyTotal += amount * 4;
+              } else if (freq === 'one_time') {
+                yearlyTotal += amount;
+              } else {
+                // fallback: treat as monthly
+                monthlyTotal += amount;
+                yearlyTotal += amount * 12;
               }
             }
             // Feed back as assistant context
