@@ -699,7 +699,7 @@ export function HifzTrackerTab() {
                       const daysSince = differenceInDays(new Date(), new Date(p.last_revised_at!));
                       
                       return (
-                        <Card key={p.id} className="p-3">
+                        <GlassCard key={p.id} className="p-3">
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="flex items-center gap-2">
