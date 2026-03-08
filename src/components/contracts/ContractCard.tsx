@@ -289,5 +289,6 @@ export function ContractCard({
         </div>
       </GlassCardContent>
     </GlassCard>
+    </motion.div>
   );
 }

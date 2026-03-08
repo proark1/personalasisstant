@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Contract, CONTRACT_CATEGORIES } from '@/hooks/useContracts';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Receipt, TrendingUp, TrendingDown } from 'lucide-react';
@@ -12,10 +12,7 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
   const costAnalysis = useMemo(() => {
     const activeContracts = contracts.filter(c => c.isActive && c.costAmount);
     
-    // Calculate monthly and yearly costs
     let monthlyTotal = 0;
-    let yearlyTotal = 0;
-    
     const categoryTotals: Record<string, number> = {};
     
     activeContracts.forEach(contract => {
@@ -33,20 +30,16 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
           monthlyCost = contract.costAmount / 12;
           break;
         case 'one_time':
-          // One-time costs don't count towards recurring
           return;
       }
       
       monthlyTotal += monthlyCost;
-      
-      // Add to category totals (yearly)
       const categoryYearly = monthlyCost * 12;
       categoryTotals[contract.category] = (categoryTotals[contract.category] || 0) + categoryYearly;
     });
     
-    yearlyTotal = monthlyTotal * 12;
+    const yearlyTotal = monthlyTotal * 12;
     
-    // Convert to chart data
     const categoryData = Object.entries(categoryTotals)
       .map(([category, total]) => {
         const categoryInfo = CONTRACT_CATEGORIES.find(c => c.value === category);
@@ -73,14 +66,14 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
   }
 
   return (
-    <Card className="glass-panel-solid">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <GlassCard>
+      <GlassCardHeader>
+        <GlassCardTitle className="flex items-center gap-2">
           <Receipt className="w-5 h-5 text-primary" />
           Contract Costs
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </GlassCardTitle>
+      </GlassCardHeader>
+      <GlassCardContent>
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
           {/* Pie Chart */}
           <div className="w-28 h-28 sm:w-36 sm:h-36 shrink-0">
@@ -120,7 +113,6 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
           
           {/* Stats */}
           <div className="flex-1 w-full space-y-4">
-            {/* Monthly & Yearly Totals */}
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div className="p-2 sm:p-3 rounded-lg bg-muted/50 text-center sm:text-left">
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs text-muted-foreground mb-1">
@@ -142,7 +134,6 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
               </div>
             </div>
             
-            {/* Category Breakdown */}
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground font-medium">By Category (Yearly)</p>
               <div className="space-y-1.5">
@@ -173,8 +164,8 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
             </p>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </GlassCardContent>
+    </GlassCard>
   );
 }
 

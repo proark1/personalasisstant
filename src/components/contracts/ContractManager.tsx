@@ -596,7 +596,7 @@ export function ContractManager({
                       showBulkSelect={showBulkSelect}
                     />
                   ))}
-                </div>
+                </motion.div>
               )
             ) : (
               <ContractTable />
