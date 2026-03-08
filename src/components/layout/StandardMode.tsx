@@ -12,6 +12,7 @@ import { List, Grid3X3, X, LayoutGrid, Activity } from 'lucide-react';
 import { TaskViewSwitcher, TaskView } from '../tasks/TaskViewSwitcher';
 import { PanelFallback } from '@/components/lazy/LazyLoader';
 import { ContextualHeader } from './ContextualHeader';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { ActivityItem } from '@/hooks/useActivityFeed';
 import type { SearchResult, SearchFilters } from '@/hooks/useGlobalSearch';
 import type { Contact } from '@/hooks/useContacts';
@@ -407,6 +408,15 @@ export function StandardMode({
 
           {/* Main Content Area - Only one panel at a time */}
           <div className="flex-1 flex flex-col p-2 gap-2">
+            <AnimatePresence mode="wait">
+            <motion.div
+              key={activePanel}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 flex flex-col gap-2"
+            >
             <Suspense fallback={<PanelFallback />}>
               {/* AI Assistant Panel */}
               {activePanel === 'assistant' && (
@@ -676,6 +686,8 @@ export function StandardMode({
                 </div>
               )}
             </Suspense>
+            </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </main>
