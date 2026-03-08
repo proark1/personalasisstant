@@ -379,7 +379,7 @@ function HabitSuggestions({ userId, existingHabitNames, onHabitAdded }: HabitSug
   };
 
   return (
-    <Card className="p-3 bg-muted/30 border-dashed">
+    <GlassCard className="p-3 bg-muted/30 border-dashed">
       <div className="flex items-center gap-2 mb-3">
         <Lightbulb className="w-4 h-4 text-amber-500" />
         <span className="text-sm font-medium">{t('habits.suggestions') || 'Suggested Habits'}</span>
