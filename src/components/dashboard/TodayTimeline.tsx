@@ -55,9 +55,11 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask }: {
         <div className={cn("w-2 h-2 rounded-full shrink-0 ml-1.5 mr-1.5", "bg-primary")} />
       )}
       <span className="text-xs text-muted-foreground w-12 shrink-0 tabular-nums">
-        {item.time
-          ? (item.time.getHours() === 0 && item.time.getMinutes() === 0 ? 'All day' : format(item.time, 'HH:mm'))
-          : '—'}
+        {isOverdue
+          ? (item.time ? format(item.time, 'MMM d') : 'Overdue')
+          : item.time
+            ? (item.time.getHours() === 0 && item.time.getMinutes() === 0 ? 'All day' : format(item.time, 'HH:mm'))
+            : '—'}
       </span>
       <span className={cn("text-sm flex-1 truncate", item.completed && "line-through")}>
         {item.title}
