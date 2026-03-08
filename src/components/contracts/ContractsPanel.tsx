@@ -30,16 +30,16 @@ export function ContractsPanel({ userId }: ContractsPanelProps) {
 
   const [shareDialog, setShareDialog] = useState<{ id: string; name: string } | null>(null);
 
-  if (loading) {
-    return (
-      <div className="h-full p-4">
-        <PanelSkeleton variant="cards" count={4} />
-      </div>
-    );
-  }
-
   return (
-    <div className="h-full overflow-y-auto p-3 md:p-4">
+    <PanelShell
+      icon={FileText}
+      title="Contracts"
+      subtitle={`${activeContracts.length} active · €${monthlyCost.toFixed(0)}/mo`}
+      loading={loading}
+      loadingVariant="cards"
+      noPadding
+    >
+      <div className="p-3 md:p-4">
       <ContractManager
         contracts={contracts}
         activeContracts={activeContracts}
