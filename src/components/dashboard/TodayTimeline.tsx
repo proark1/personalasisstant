@@ -1,11 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Task, CalendarEvent } from '@/types/flux';
-import { Clock, ChevronRight } from 'lucide-react';
+import { Clock, ChevronRight, Sunrise, Sun, Sunset, Moon as MoonIcon } from 'lucide-react';
 import { format, isToday, startOfDay, endOfDay, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { fetchPrayerTimesForTimeline } from './DashboardPrayerCard';
 
 interface TodayTimelineProps {
   tasks: Task[];
@@ -18,10 +19,21 @@ interface TimelineItem {
   id: string;
   title: string;
   time?: Date;
-  type: 'task' | 'event';
+  type: 'task' | 'event' | 'prayer';
   priority?: string;
   completed?: boolean;
   category?: string;
+}
+
+function getPrayerIcon(name: string) {
+  switch (name) {
+    case 'Fajr': return <Sunrise className="w-3.5 h-3.5 text-indigo-500" />;
+    case 'Dhuhr': return <Sun className="w-3.5 h-3.5 text-orange-500" />;
+    case 'Asr': return <Sun className="w-3.5 h-3.5 text-amber-600" />;
+    case 'Maghrib': return <Sunset className="w-3.5 h-3.5 text-rose-500" />;
+    case 'Isha': return <MoonIcon className="w-3.5 h-3.5 text-purple-500" />;
+    default: return null;
+  }
 }
 
 function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = false }: {
@@ -43,7 +55,7 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = fals
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10, height: 0 }}
       transition={{ delay: 0.05 * index }}
-      onClick={() => onNavigate?.(item.type === 'event' ? 'calendar' : 'tasks')}
+      onClick={() => onNavigate?.(item.type === 'event' ? 'calendar' : item.type === 'prayer' ? 'islam' : 'tasks')}
     >
       {item.type === 'task' ? (
         <Checkbox
@@ -52,6 +64,10 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = fals
           onClick={(e) => e.stopPropagation()}
           className="shrink-0"
         />
+      ) : item.type === 'prayer' ? (
+        <div className="shrink-0 ml-0.5 mr-0.5">
+          {getPrayerIcon(item.title)}
+        </div>
       ) : (
         <div className={cn("w-2 h-2 rounded-full shrink-0 ml-1.5 mr-1.5", "bg-primary")} />
       )}
@@ -63,22 +79,45 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = fals
             : '—'}
       </span>
       <span className={cn("text-sm flex-1 line-clamp-2", item.completed && "line-through")}>
-        {item.title}
+        {item.type === 'prayer' ? `${item.title} Prayer` : item.title}
       </span>
       {item.type === 'task' && item.priority === 'high' && (
         <div className="w-2 h-2 rounded-full bg-destructive shrink-0" />
       )}
       <span className={cn(
         "text-[10px] px-1.5 py-0.5 rounded-full shrink-0",
-        item.type === 'event' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+        item.type === 'event' ? "bg-primary/10 text-primary" 
+          : item.type === 'prayer' ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          : "bg-muted text-muted-foreground"
       )}>
-        {item.type === 'event' ? 'Event' : 'Task'}
+        {item.type === 'event' ? 'Event' : item.type === 'prayer' ? '🕌 Salah' : 'Task'}
       </span>
     </motion.div>
   );
 }
 
 export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }: TodayTimelineProps) {
+  const [prayerItems, setPrayerItems] = useState<TimelineItem[]>([]);
+
+  // Fetch prayer times for timeline
+  useEffect(() => {
+    fetchPrayerTimesForTimeline().then(prayers => {
+      if (prayers.length > 0) {
+        const now = new Date();
+        setPrayerItems(prayers.map(p => {
+          const [h, m] = p.time.split(':').map(Number);
+          const prayerDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+          return {
+            id: `prayer-${p.name}`,
+            title: p.name,
+            time: prayerDate,
+            type: 'prayer' as const,
+          };
+        }));
+      }
+    });
+  }, []);
+
   const items = useMemo(() => {
     const now = new Date();
     const dayStart = startOfDay(now);
@@ -104,11 +143,10 @@ export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }
         priority: t.priority, completed: false, category: t.category,
       }));
 
-    // Group: overdue first, then timed, then all-day
     const isAllDay = (item: TimelineItem) =>
       item.time && item.time.getHours() === 0 && item.time.getMinutes() === 0;
     
-    const timed = [...taskItems, ...eventItems]
+    const timed = [...taskItems, ...eventItems, ...prayerItems]
       .filter(i => !isAllDay(i))
       .sort((a, b) => (a.time?.getTime() || 0) - (b.time?.getTime() || 0));
     
@@ -116,10 +154,10 @@ export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }
       .filter(i => isAllDay(i));
 
     return { overdue: overdueItems, timed, allDay };
-  }, [tasks, events]);
+  }, [tasks, events, prayerItems]);
 
   const allItems = [...items.overdue, ...items.timed, ...items.allDay];
-  
+
   if (allItems.length === 0) {
     return (
       <GlassCard>
