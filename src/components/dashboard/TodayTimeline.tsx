@@ -24,6 +24,57 @@ interface TimelineItem {
   category?: string;
 }
 
+function TimelineRow({ item, index, onNavigate, onCompleteTask }: {
+  item: TimelineItem; index: number;
+  onNavigate?: (panel: string) => void;
+  onCompleteTask?: (taskId: string) => void;
+}) {
+  return (
+    <motion.div
+      key={item.id}
+      layout
+      className={cn(
+        "flex items-center gap-3 p-2.5 rounded-lg transition-colors",
+        "hover:bg-muted/50 cursor-pointer active:scale-[0.98]",
+        item.completed && "opacity-50"
+      )}
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 10, height: 0 }}
+      transition={{ delay: 0.05 * index }}
+      onClick={() => onNavigate?.(item.type === 'event' ? 'calendar' : 'tasks')}
+    >
+      {item.type === 'task' ? (
+        <Checkbox
+          checked={item.completed}
+          onCheckedChange={() => { if (!item.completed && onCompleteTask) onCompleteTask(item.id); }}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0"
+        />
+      ) : (
+        <div className={cn("w-2 h-2 rounded-full shrink-0 ml-1.5 mr-1.5", "bg-primary")} />
+      )}
+      <span className="text-xs text-muted-foreground w-12 shrink-0 tabular-nums">
+        {item.time
+          ? (item.time.getHours() === 0 && item.time.getMinutes() === 0 ? 'All day' : format(item.time, 'HH:mm'))
+          : '—'}
+      </span>
+      <span className={cn("text-sm flex-1 truncate", item.completed && "line-through")}>
+        {item.title}
+      </span>
+      {item.type === 'task' && item.priority === 'high' && (
+        <div className="w-2 h-2 rounded-full bg-destructive shrink-0" />
+      )}
+      <span className={cn(
+        "text-[10px] px-1.5 py-0.5 rounded-full shrink-0",
+        item.type === 'event' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+      )}>
+        {item.type === 'event' ? 'Event' : 'Task'}
+      </span>
+    </motion.div>
+  );
+}
+
 export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }: TodayTimelineProps) {
   const items = useMemo(() => {
     const now = new Date();
