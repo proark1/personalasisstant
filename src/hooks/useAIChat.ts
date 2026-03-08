@@ -407,6 +407,9 @@ export function useAIChat() {
       cleanContent = cleanContent.replace(match[0], '');
     }
 
+    // Strip save_memory tool calls from displayed content (handled server-side)
+    cleanContent = cleanContent.replace(/<tool>save_memory<\/tool>\s*<memory>\{[\s\S]*?\}<\/memory>/g, '');
+
     console.log('[useAIChat] Parse complete. Total tool calls found:', toolCalls.length, toolCalls.map(tc => tc.tool));
     return { cleanContent: cleanContent.trim(), toolCalls };
   };
