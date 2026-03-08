@@ -182,8 +182,10 @@ export function MobileLayout({
   ];
 
   // Hide header on dashboard and chat (both have their own headers)
+  const primaryTabIds = ['dashboard', 'calendar', 'email', 'health', 'chat'];
+  const isPrimaryTab = primaryTabIds.includes(activeTab);
   const showHeader = activeTab !== 'dashboard' && activeTab !== 'chat';
-  const headerTitle = t(`nav.${activeTab}`) || tabTitles[activeTab] || 'DarAI';
+  const headerTitle = tabTitles[activeTab] || t(`nav.${activeTab}`) || 'DarAI';
 
   const renderPanel = () => {
     switch (activeTab) {
