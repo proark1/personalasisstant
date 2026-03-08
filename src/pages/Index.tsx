@@ -48,6 +48,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { settings, updateSettings, updateNotifications } = useSettings();
   const { streamChat, isStreaming } = useAIChat();
+  const { memories, getMemoriesForContext } = useAIMemory();
   
   const {
     tasks,
