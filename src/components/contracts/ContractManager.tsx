@@ -389,33 +389,25 @@ export function ContractManager({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-2xl font-bold">{t('contracts.title')}</h2>
-          <p className="text-muted-foreground">
-            {t('contracts.subtitle')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleSyncAllToCalendar}
-            disabled={syncingToCalendar}
-          >
-            {syncingToCalendar ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <CalendarPlus className="h-4 w-4 mr-2" />
-            )}
-            Sync to Calendar
-          </Button>
-          <Button onClick={() => { setEditingContract(null); setDialogOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t('contracts.addContract')}
-          </Button>
-        </div>
+      {/* Actions bar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleSyncAllToCalendar}
+          disabled={syncingToCalendar}
+        >
+          {syncingToCalendar ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <CalendarPlus className="h-4 w-4 mr-2" />
+          )}
+          Sync to Calendar
+        </Button>
+        <Button size="sm" onClick={() => { setEditingContract(null); setDialogOpen(true); }}>
+          <Plus className="h-4 w-4 mr-2" />
+          {t('contracts.addContract')}
+        </Button>
       </div>
 
       {/* Alerts */}
