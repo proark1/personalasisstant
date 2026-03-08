@@ -23,12 +23,14 @@ interface DoriPanelProps {
   contacts?: Contact[];
 }
 
-function getTimeSuggestions() {
+function getTimeSuggestions(messages: ChatMessage[], contacts: Contact[]) {
   const hour = new Date().getHours();
+  // Dynamic suggestions logic can be implemented here based on state, but keeping it simple for now
+  // We can pass overdue tasks, etc. later if needed.
   if (hour < 12) return {
     greeting: "Good morning! What shall we tackle today?",
     suggestions: [
-      { label: 'Plan my morning', icon: Calendar },
+      { label: 'Check my unread emails', icon: Bell },
       { label: "What's on my calendar?", icon: Calendar },
       { label: 'Search latest news', icon: Globe },
     ],
@@ -36,7 +38,7 @@ function getTimeSuggestions() {
   if (hour < 17) return {
     greeting: "Hey! Need help with anything?",
     suggestions: [
-      { label: 'Add a task', icon: CheckSquare },
+      { label: 'How are my habits?', icon: Brain },
       { label: 'Remind me in 30 min', icon: Bell },
       { label: 'Search something', icon: Search },
     ],

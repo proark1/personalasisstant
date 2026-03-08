@@ -955,7 +955,7 @@ serve(async (req) => {
       } : null,
     });
 
-    const model = 'google/gemini-2.5-flash';
+    const model = 'google/gemini-3-flash-preview';
     
     // Helper: call Lovable AI
     async function callAI(msgs: { role: string; content: string }[], stream: boolean) {

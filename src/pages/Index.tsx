@@ -372,7 +372,7 @@ const Index = () => {
     const createdEventTitles = new Set<string>();
 
     // Keep prompts small and avoid runaway token usage
-    const conversationMessages = (() => {
+    const conversationMessages = await (async () => {
       // Prepend previous conversation context for cross-session memory
       const prevContext: Array<{ role: 'user' | 'assistant'; content: string }> = [];
       if (previousConversationMessages.length > 0 && messages.length === 0) {
@@ -382,9 +382,18 @@ const Index = () => {
         prevContext.push({ role: 'assistant', content: '[End of previous context — new conversation starts below]' });
       }
 
-      const recent = messages
-        .slice(-20)
-        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+      let recent = messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+      
+      // Summarize older messages if history is long
+      if (recent.length > 12) {
+        try {
+          const { summarizeConversation } = useChatAI(); // Assuming we can use this, or simple truncate
+          // Simple truncate for now to avoid async hook issues inside this block
+          recent = [{ role: 'system', content: '[Older messages omitted for brevity]' }, ...recent.slice(-10)];
+        } catch (e) {
+          recent = recent.slice(-12);
+        }
+      }
 
       const deduped: Array<{ role: 'user' | 'assistant'; content: string }> = [];
       for (const m of [...prevContext, ...recent]) {

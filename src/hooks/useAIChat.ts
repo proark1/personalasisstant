@@ -634,9 +634,26 @@ export function useAIChat() {
               onDelta(content);
             }
           } catch {
-            // Incomplete JSON, put it back
-            textBuffer = line + '\n' + textBuffer;
-            break;
+            // Attempt to repair JSON by adding closing brace
+            try {
+              if (jsonStr.includes('"content":')) {
+                const repaired = jsonStr + (jsonStr.endsWith('"') ? '}' : '"}');
+                const parsed = JSON.parse(repaired);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  fullContent += content;
+                  onDelta(content);
+                }
+              } else {
+                // Incomplete JSON, put it back
+                textBuffer = line + '\n' + textBuffer;
+                break;
+              }
+            } catch {
+              // Still failed, put it back
+              textBuffer = line + '\n' + textBuffer;
+              break;
+            }
           }
         }
       }
