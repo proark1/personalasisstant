@@ -93,7 +93,8 @@ export function AddMealPlanDialog({
   };
 
   const resetForm = () => {
-    setMealType('dinner');
+    const hour = new Date().getHours();
+    setMealType(hour < 10 ? 'breakfast' : hour < 14 ? 'lunch' : hour < 18 ? 'dinner' : 'snack');
     setRecipeId('');
     setCustomMealName('');
     setServings('4');
