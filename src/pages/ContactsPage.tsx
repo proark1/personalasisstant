@@ -973,14 +973,14 @@ export default function Contacts() {
                   
                   {/* Recent Contacts */}
                   {recentContacts.length > 0 && (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2">
+                    <GlassCard>
+                      <GlassCardHeader className="pb-2">
+                        <GlassCardTitle className="text-lg flex items-center gap-2">
                           <Clock className="w-5 h-5" />
                           Recently Contacted
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
+                        </GlassCardTitle>
+                      </GlassCardHeader>
+                      <GlassCardContent>
                         <div className="space-y-2">
                           {recentContacts.map(contact => (
                             <div 
@@ -1002,8 +1002,8 @@ export default function Contacts() {
                             </div>
                           ))}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </GlassCardContent>
+                    </GlassCard>
                   )}
                 </div>
               </TabsContent>
