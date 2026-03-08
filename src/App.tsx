@@ -66,12 +66,22 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   useMorningAutoPlay();
+  const location = useLocation();
   
   return (
     <>
       <NetworkStatusBanner />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          className="min-h-screen"
+        >
       <Suspense fallback={<PageFallback />}>
-        <Routes>
+        <Routes location={location}>
           <Route
             path="/"
             element={
