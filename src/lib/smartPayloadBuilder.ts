@@ -78,6 +78,7 @@ export function buildSmartPayload({
   familyMembers,
   shoppingLists,
   stats,
+  memories,
 }: {
   message: string;
   userProfile?: UserProfile | null;
