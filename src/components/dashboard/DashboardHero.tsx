@@ -12,7 +12,7 @@ import { SmartSuggestion, TaskSuggestion } from '@/hooks/useSmartTaskSuggestions
 import { cn } from '@/lib/utils';
 import {
   Sparkles, Play, RefreshCw, Clock, Zap, Lightbulb,
-  ChevronDown, Target,
+  ChevronDown, Target, Settings,
 } from 'lucide-react';
 
 interface DashboardHeroProps {
@@ -22,6 +22,7 @@ interface DashboardHeroProps {
   sugLoading: boolean;
   onRefreshSuggestion: () => void;
   onStartTask: (taskId: string | null, title: string) => void;
+  onNavigate?: (panel: string) => void;
 }
 
 const energyConfig = {
@@ -31,7 +32,7 @@ const energyConfig = {
 };
 
 export function DashboardHero({
-  userName, tasks, suggestion, sugLoading, onRefreshSuggestion, onStartTask,
+  userName, tasks, suggestion, sugLoading, onRefreshSuggestion, onStartTask, onNavigate,
 }: DashboardHeroProps) {
   const [altOpen, setAltOpen] = useState(false);
 
@@ -74,6 +75,14 @@ export function DashboardHero({
           </motion.div>
           <div className="flex items-center gap-2 shrink-0">
             <XPDisplay variant="compact" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              onClick={() => onNavigate?.('settings')}
+            >
+              <Settings className="w-4 h-4 text-muted-foreground" />
+            </Button>
           </div>
         </div>
 

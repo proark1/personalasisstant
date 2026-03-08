@@ -112,7 +112,9 @@ export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }
 
               {/* Time */}
               <span className="text-xs text-muted-foreground w-12 shrink-0 tabular-nums">
-                {item.time ? format(item.time, 'HH:mm') : '—'}
+                {item.time
+                  ? (item.time.getHours() === 0 && item.time.getMinutes() === 0 ? 'All day' : format(item.time, 'HH:mm'))
+                  : '—'}
               </span>
 
               {/* Title */}

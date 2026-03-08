@@ -181,8 +181,8 @@ export function MobileLayout({
     { id: 'health' as const, icon: Heart },
   ];
 
-  // Hide header on dashboard (hero card already shows greeting)
-  const showHeader = activeTab !== 'dashboard';
+  // Hide header on dashboard and chat (both have their own headers)
+  const showHeader = activeTab !== 'dashboard' && activeTab !== 'chat';
   const headerTitle = t(`nav.${activeTab}`) || tabTitles[activeTab] || 'DarAI';
 
   const renderPanel = () => {

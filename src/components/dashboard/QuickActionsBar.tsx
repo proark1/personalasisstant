@@ -4,7 +4,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useContextualActions, QuickAction } from '@/hooks/useContextualActions';
 import { 
   Sun, Calendar, ListTodo, Timer, Zap, Check, CalendarPlus, 
-  BarChart, Users, Trophy, Brain, Sparkles, Mail, FileText, LucideIcon
+  BarChart, Users, Trophy, Brain, Sparkles, Mail, FileText, LucideIcon, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -79,6 +79,7 @@ export function QuickActionsBar({ onNavigate, maxActions = 6 }: QuickActionsBarP
             >
               <Icon className="w-3.5 h-3.5" />
               <span className="text-xs font-medium">{action.label}</span>
+              <ChevronRight className="w-3 h-3 opacity-50" />
             </Button>
           );
         })}

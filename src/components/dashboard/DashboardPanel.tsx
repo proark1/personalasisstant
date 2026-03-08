@@ -6,7 +6,7 @@ import { useLifeScore } from '@/hooks/useLifeScore';
 import { useCelebration } from '@/hooks/useCelebration';
 import { CheckinPrompt } from '@/components/checkin/CheckinPrompt';
 import { DashboardHero } from './DashboardHero';
-import { FocusCard } from './FocusCard';
+
 import { StatPills } from './StatPills';
 import { TodayTimeline } from './TodayTimeline';
 import { SmartInsightCard } from './SmartInsightCard';
@@ -21,6 +21,7 @@ import { useSmartTaskSuggestions } from '@/hooks/useSmartTaskSuggestions';
 import { Task, TaskCategory, CalendarEvent } from '@/types/flux';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { isSameDay, subDays, startOfDay, endOfDay, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -158,7 +159,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-3 md:p-4">
+    <div className="h-full overflow-y-auto p-3 md:p-4 pb-20">
       <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         {/* Slim check-in banner */}
         <StaggerItem className="col-span-full">
@@ -174,6 +175,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
             sugLoading={sugLoading}
             onRefreshSuggestion={refreshSuggestion}
             onStartTask={handleStartTask}
+            onNavigate={onNavigate}
           />
         </StaggerItem>
 
@@ -183,10 +185,6 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         </StaggerItem>
 
         {/* Tier 2: Key actionable content */}
-        <StaggerItem className="md:col-span-2">
-          <FocusCard tasks={tasks} onCompleteTask={handleCompleteTask} />
-        </StaggerItem>
-
         <StaggerItem className="md:col-span-1 space-y-3 md:space-y-4">
           <WeatherCard />
           <StatPills
@@ -209,7 +207,9 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
               <ChevronDown className={cn("w-4 h-4 transition-transform", moreOpen && "rotate-180")} />
               <span className="font-medium">Insights & Alerts</span>
               {(contractAlerts.length > 0 || overdueContacts.length > 0) && (
-                <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] justify-center">
+                  {contractAlerts.length + overdueContacts.length}
+                </Badge>
               )}
             </CollapsibleTrigger>
             <CollapsibleContent>

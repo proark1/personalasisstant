@@ -32,10 +32,10 @@ export function StatPills({
   dailyGoal = 5, weeklyGoal = 25,
 }: StatPillsProps) {
   const pills = [
-    { icon: Flame, label: 'Streak', value: streak, color: 'text-orange-500', barColor: 'bg-orange-500', show: streak > 0, nav: 'habits', max: 7 },
-    { icon: CheckCircle2, label: 'Today', value: completedToday, color: 'text-primary', barColor: 'bg-primary', show: true, nav: 'tasks', max: dailyGoal },
-    { icon: TrendingUp, label: 'Week', value: completedThisWeek, color: 'text-primary', barColor: 'bg-primary', show: completedThisWeek > 0, nav: 'tasks', max: weeklyGoal },
-    { icon: Star, label: 'Life', value: lifeScore || 0, color: 'text-accent', barColor: 'bg-accent', show: (lifeScore || 0) > 0, nav: 'health', max: 100 },
+    { icon: Flame, label: 'Streak', value: streak, color: 'text-orange-500', barColor: 'bg-orange-500', show: streak > 0, nav: 'habits', max: 7, zeroLabel: null },
+    { icon: CheckCircle2, label: 'Today', value: completedToday, color: 'text-primary', barColor: 'bg-primary', show: true, nav: 'tasks', max: dailyGoal, zeroLabel: 'Start first task!' },
+    { icon: TrendingUp, label: 'Week', value: completedThisWeek, color: 'text-primary', barColor: 'bg-primary', show: completedThisWeek > 0, nav: 'tasks', max: weeklyGoal, zeroLabel: null },
+    { icon: Star, label: 'Life', value: lifeScore || 0, color: 'text-accent', barColor: 'bg-accent', show: (lifeScore || 0) > 0, nav: 'health', max: 100, zeroLabel: null },
   ].filter(p => p.show);
 
   if (pills.length === 0) return null;
@@ -64,9 +64,15 @@ export function StatPills({
         >
           <div className="flex items-center gap-1.5">
             <pill.icon className={cn("w-3.5 h-3.5", pill.color)} />
-            <AnimatedCounter value={pill.value} className="text-sm font-bold" />
+            {pill.value === 0 && pill.zeroLabel ? (
+              <span className="text-[10px] font-medium text-muted-foreground">{pill.zeroLabel}</span>
+            ) : (
+              <AnimatedCounter value={pill.value} className="text-sm font-bold" />
+            )}
           </div>
-          <span className="text-[10px] text-muted-foreground">{pill.label}</span>
+          {!(pill.value === 0 && pill.zeroLabel) && (
+            <span className="text-[10px] text-muted-foreground">{pill.label}</span>
+          )}
           <MiniProgress value={pill.value} max={pill.max} color={pill.barColor} />
         </motion.button>
       ))}
