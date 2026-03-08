@@ -14,10 +14,6 @@ import { PriorityBoardView } from '../tasks/PriorityBoardView';
 import { TimelineView } from '../tasks/TimelineView';
 import { KanbanBoard } from '../tasks/KanbanBoard';
 import { PanelShell } from '@/components/ui/panel-shell';
-import { TaskViewSwitcher, TaskView } from '../tasks/TaskViewSwitcher';
-import { PriorityBoardView } from '../tasks/PriorityBoardView';
-import { TimelineView } from '../tasks/TimelineView';
-import { KanbanBoard } from '../tasks/KanbanBoard';
 
 interface CalendarHubPanelProps {
   userId: string;
