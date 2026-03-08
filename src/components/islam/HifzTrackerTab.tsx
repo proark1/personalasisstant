@@ -732,7 +732,7 @@ export function HifzTrackerTab() {
                   <p className="text-sm text-muted-foreground">
                     No surahs need reviewing right now. Keep memorizing!
                   </p>
-                </Card>
+                </GlassCard>
               )}
             </div>
           </ScrollArea>
