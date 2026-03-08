@@ -62,7 +62,7 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = fals
             ? (item.time.getHours() === 0 && item.time.getMinutes() === 0 ? 'All day' : format(item.time, 'HH:mm'))
             : '—'}
       </span>
-      <span className={cn("text-sm flex-1 truncate", item.completed && "line-through")}>
+      <span className={cn("text-sm flex-1 line-clamp-2", item.completed && "line-through")}>
         {item.title}
       </span>
       {item.type === 'task' && item.priority === 'high' && (
