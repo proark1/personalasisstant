@@ -97,6 +97,27 @@ function TimelineRow({ item, index, onNavigate, onCompleteTask, isOverdue = fals
 }
 
 export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }: TodayTimelineProps) {
+  const [prayerItems, setPrayerItems] = useState<TimelineItem[]>([]);
+
+  // Fetch prayer times for timeline
+  useEffect(() => {
+    fetchPrayerTimesForTimeline().then(prayers => {
+      if (prayers.length > 0) {
+        const now = new Date();
+        setPrayerItems(prayers.map(p => {
+          const [h, m] = p.time.split(':').map(Number);
+          const prayerDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+          return {
+            id: `prayer-${p.name}`,
+            title: p.name,
+            time: prayerDate,
+            type: 'prayer' as const,
+          };
+        }));
+      }
+    });
+  }, []);
+
   const items = useMemo(() => {
     const now = new Date();
     const dayStart = startOfDay(now);
@@ -122,11 +143,10 @@ export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }
         priority: t.priority, completed: false, category: t.category,
       }));
 
-    // Group: overdue first, then timed, then all-day
     const isAllDay = (item: TimelineItem) =>
       item.time && item.time.getHours() === 0 && item.time.getMinutes() === 0;
     
-    const timed = [...taskItems, ...eventItems]
+    const timed = [...taskItems, ...eventItems, ...prayerItems]
       .filter(i => !isAllDay(i))
       .sort((a, b) => (a.time?.getTime() || 0) - (b.time?.getTime() || 0));
     
@@ -134,10 +154,10 @@ export function TodayTimeline({ tasks, events = [], onNavigate, onCompleteTask }
       .filter(i => isAllDay(i));
 
     return { overdue: overdueItems, timed, allDay };
-  }, [tasks, events]);
+  }, [tasks, events, prayerItems]);
 
   const allItems = [...items.overdue, ...items.timed, ...items.allDay];
-  
+
   if (allItems.length === 0) {
     return (
       <GlassCard>
