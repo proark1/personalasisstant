@@ -952,8 +952,8 @@ export default function Contacts() {
                   <ScrollArea className="h-[calc(100vh-400px)]">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-4">
                       {contactsDue.length === 0 ? (
-                        <div className="col-span-full text-center py-8 text-muted-foreground">
-                          You're all caught up! No contacts due for follow-up.
+                        <div className="col-span-full">
+                          <EmptyState icon={Bell} title="All caught up! 🎉" description="No contacts due for follow-up" />
                         </div>
                       ) : (
                         contactsDue.map(contact => (
