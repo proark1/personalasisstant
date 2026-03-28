@@ -1,148 +1,92 @@
+# DarAI — Architecture & Security Hardening Summary
 
-# Deep Module Interconnection + AI Daily Voice Briefing
+## Overview
 
-## Vision
-Transform DarAI from siloed modules into a deeply interconnected intelligent system where email, calendar, contacts, contracts, and the AI assistant all feed into each other -- with a new AI-generated daily voice briefing as the centerpiece.
+DarAI is an AI-powered life dashboard with 36 Supabase Edge Functions, 135 custom hooks, 45 component categories, and 11 pages. It integrates AI chat, email, calendar, contacts, contracts, health tracking, and family management into a unified cross-module intelligence system.
 
----
+## Security Hardening (Completed)
 
-## Feature 1: AI Daily Voice Briefing on Dashboard
+All 36 edge functions are now fully secured:
 
-A new dashboard card where the AI generates a personalized daily summary and reads it aloud using text-to-speech. The briefing aggregates data from ALL modules.
+### Authentication
+- **33 user-facing functions**: Gateway-level JWT verification (`verify_jwt = true` in config.toml) + in-code `supabase.auth.getUser()` validation
+- **3 server-to-server functions**: Service role key validation (`proactive-assistant`, `push-delivery`, `send-push-notification`)
+- **OAuth**: HMAC-SHA256 signed state parameter with 10-minute expiry on calendar OAuth flow
+- **Auth bypass fixed**: Removed `body.userId` override pattern in `analyze-patterns`, `auto-pilot`, `life-correlator`, `weekly-coach`
 
-### New Edge Function: `daily-voice-briefing`
-- Accepts user_id and fetches cross-module data server-side:
-  - Pending tasks (count, top 3 by priority)
-  - Today's calendar events
-  - Unread email count + priority emails
-  - Contract alerts (upcoming renewals/cancellations)
-  - Contacts overdue for follow-up
-  - Habit completion status
-  - Yesterday's check-in mood/energy
-- Sends all context to Gemini 3 Flash (via Lovable AI gateway) with a prompt like: "Generate a warm, concise 30-second daily briefing script for this user. Be specific, mention names and times."
-- Returns: `{ briefingText: string, highlights: [...] }`
+### Input Validation & XSS
+- Email format validation on `gmail-send-reply`
+- Path traversal prevention on `scan-contract` (`..` and `/` prefix rejected)
+- `innerHTML` replaced with `DOMParser` in `EmailCard.tsx` and `IslamEnhancedPanel.tsx`
+- Raw AI response content removed from error responses (`extract-contract-from-email`, `scan-contract`)
 
-### New Component: `DailyBriefingCard`
-- Displayed prominently on the dashboard (below the hero)
-- Shows a text summary with key highlights as chips/badges
-- Play button that reads the briefing aloud via Web Speech API (existing `useTextToSpeech` hook)
-- Auto-play option (respects existing morning auto-play setting)
-- Cached per day so it doesn't re-generate on every page load
+### Headers & CORS
+- `Access-Control-Allow-Origin` restricted to `Deno.env.get('APP_URL')` with wildcard fallback
+- `X-Content-Type-Options: nosniff` on all 35 edge function response headers
 
-### Files
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add card)
+### Data Protection
+- Hardcoded user identity ("Asad Dar") replaced with dynamic profile lookup in `gmail-sync` and `email-draft-reply`
+- Sensitive data (user IDs, message content) removed from push notification logs
+- CryptoKey stored directly in IndexedDB via structured clone (not exported to base64)
+- `.env` added to `.gitignore`
 
----
+### Error Handling
+- `health-insights` and `weekly-review` error responses changed from HTTP 200 to 500
 
-## Feature 2: Email-to-Calendar Integration
+## Frontend Quality (Completed)
 
-When an email contains dates, times, or meeting references, surface a one-tap "Add to Calendar" action.
+### Memory Leak Prevention
+- All 15 Supabase realtime channels call `channel.unsubscribe()` before `supabase.removeChannel()`
+- `useMorningAutoPlay` setTimeout captured in ref and cleared on unmount
 
-### Changes
-- Update the `extract-contract-from-email` edge function (or create a shared extraction endpoint) to also detect event-like data: dates, times, locations, meeting links
-- Add an "Add to Calendar" button in `EmailDetailSheet.tsx` that pre-fills an event creation dialog with AI-extracted data (title from subject, time from email body, description from snippet)
-- Show a small calendar icon badge on `EmailCard.tsx` when the email contains detected dates
+### Accessibility (WCAG)
+- `prefers-reduced-motion` CSS media query disables all animations
+- Skip-to-content link (visible on keyboard focus)
+- `aria-label` on password toggle buttons
+- `aria-busy` on loading buttons
+- `autoComplete` attributes on all auth form inputs
 
-### Files
-- `supabase/functions/extract-contract-from-email/index.ts` (extend to also return `detectedEvent` data)
-- `src/components/email/EmailDetailSheet.tsx` (add "Add to Calendar" action)
-- `src/components/email/EmailCard.tsx` (date detection badge)
+### UI/UX Polish
+- `Button` component: `loading` prop with Loader2 spinner and disabled state
+- `Card` component: hover shadow transition
+- `EmptyState` component: gradient icon container with staggered entrance
+- Sonner toast: bottom-center position with rich colors and safe-area offset
+- 404 page: quick nav links, attempted path display, Dori bobbing animation
+- Password strength meter on Auth and ResetPassword (Weak/Fair/Good/Strong)
+- Password match indicator on ResetPassword (green check / red X)
+- Search term highlighting in GlobalSearch results
+- Onboarding skip option for power users
+- ForgotPassword/ResetPassword visual parity with Auth.tsx (gradient orbs, motion)
+- Sidebar collapse animation easing (linear to ease-out)
+- StatPills goal-reached ring glow
 
----
+### Parsing
+- Recurrence BYDAY: filters out undefined values from invalid day codes
+- Recurrence UNTIL: validates parsed date with `isNaN` check
 
-## Feature 3: Email-to-Contact Linking
+## Edge Function Categories
 
-Automatically link emails to existing contacts and surface contact context when reading emails.
+| Category | Functions |
+|----------|-----------|
+| AI & Chat | chat, chat-ai, ai-assistant, gemini-live, openai-realtime-session, family-assistant, recipe-assistant, weekly-review, weekly-coach, morning-briefing |
+| Voice | text-to-speech, voice-to-text, daily-voice-briefing |
+| Email | gmail-sync, gmail-fetch-email, gmail-send-reply, email-draft-reply |
+| Calendar | calendar-oauth-start, calendar-oauth-callback, calendar-sync, import-calendar |
+| Contracts | scan-contract, extract-contract-from-email, detect-recurring-payments, generate-cancellation-email |
+| Analytics | analyze-patterns, contact-insights, health-insights, health-coach, life-correlator, auto-pilot, proactive-assistant |
+| Notifications | send-push-notification, push-delivery, call-push-notification |
+| Search | web-search |
 
-### Changes
-- In `EmailDetailSheet.tsx`, match the sender email against `user_contacts` table
-- If a match is found, show a mini contact card (name, tier, last contacted, relationship) inline in the email detail view
-- Add a "Save as Contact" button when no match exists, pre-filling name and email
-- When viewing a contact profile, show their recent emails in the timeline
+## Files Modified Across All Rounds
 
-### Files
-- `src/components/email/EmailDetailSheet.tsx` (contact context card)
-- `src/components/contacts/ContactTimeline.tsx` (add email history section)
-
----
-
-## Feature 4: Smart Dashboard Insight Card (Cross-Module)
-
-Upgrade the existing `SmartInsightCard` to pull insights from ALL modules instead of just tasks.
-
-### Changes
-- Add email-based insights: "You have 3 unread priority emails from key contacts"
-- Add contract insights: "Insurance contract renews in 5 days -- review or cancel?"
-- Add contact insights: "You haven't spoken to [Name] in 45 days"
-- Add calendar-email correlation: "Meeting with [Contact] tomorrow -- check their latest email"
-- Rotate through these insights automatically
-
-### Files
-- `src/components/dashboard/SmartInsightCard.tsx` (accept emails, contracts, contacts props)
-- `src/components/dashboard/DashboardPanel.tsx` (pass new data to SmartInsightCard)
-
----
-
-## Feature 5: Contextual Quick Actions (Cross-Module)
-
-Enhance the existing `useContextualActions` hook to suggest actions based on cross-module data.
-
-### Changes
-- Add email-aware actions: "Reply to [Contact]'s email" when there are priority unread emails from known contacts
-- Add contract-aware actions: "Review [Contract] renewal" when a deadline is within 3 days
-- Add calendar-contact actions: "Prepare for meeting with [Name]" when a calendar event matches a contact
-- These actions appear in the QuickActionsBar on the dashboard
-
-### Files
-- `src/hooks/useContextualActions.ts` (add email, contract, calendar-contact cross-references)
-- `src/components/dashboard/DashboardPanel.tsx` (pass onNavigate to QuickActionsBar)
-
----
-
-## Technical Details
-
-### Daily Voice Briefing Edge Function
-```text
-POST /daily-voice-briefing
-Body: { user_id }
-Response: {
-  briefingText: "Good morning, Dar! You have 4 tasks today, including...",
-  highlights: [
-    { type: "task", label: "4 tasks, 1 overdue" },
-    { type: "email", label: "3 unread priority" },
-    { type: "contract", label: "Insurance renews in 5 days" },
-    { type: "contact", label: "Follow up with Ahmed" }
-  ]
-}
-```
-
-Uses Lovable AI gateway with `google/gemini-3-flash-preview` model. Queries tasks, events, user_emails, contracts, user_contacts, daily_checkins tables server-side using the service role key.
-
-### Data Flow for Cross-Module Features
-```text
-Email sender --> match against user_contacts.email
-Email body --> AI extract --> calendar event / contract data
-Contact profile --> query user_emails WHERE from_email = contact.email
-Calendar event title --> fuzzy match against contact names
-Contract provider --> match against email senders
-```
-
-### Caching Strategy
-- Daily briefing: cached in localStorage with date key, regenerated once per day
-- Cross-module matches (email-contact): computed on render, lightweight DB queries
-- Smart insights: refreshed every 5 minutes (existing pattern)
-
-## Summary of Files Modified/Created
-- `supabase/functions/daily-voice-briefing/index.ts` (new)
-- `src/components/dashboard/DailyBriefingCard.tsx` (new)
-- `src/hooks/useDailyBriefing.ts` (new)
-- `src/components/dashboard/DashboardPanel.tsx` (add briefing card + pass data to SmartInsightCard)
-- `src/components/dashboard/SmartInsightCard.tsx` (cross-module insights)
-- `src/components/email/EmailDetailSheet.tsx` (contact card + calendar action)
-- `src/components/email/EmailCard.tsx` (date badge)
-- `src/components/contacts/ContactTimeline.tsx` (email history)
-- `src/hooks/useContextualActions.ts` (cross-module actions)
-- `supabase/functions/extract-contract-from-email/index.ts` (extend for calendar detection)
+**9 commits, ~90 file modifications total:**
+- 36 edge function files (auth, CORS, headers, input validation, error handling)
+- 15 hook files (channel cleanup, setTimeout cleanup)
+- 6 UI component files (button, card, empty-state, sonner, skeleton, sidebar)
+- 5 page files (Auth, ResetPassword, ForgotPassword, NotFound, Onboarding)
+- 2 config files (supabase/config.toml, .gitignore)
+- 2 lib files (recurrence.ts, encryption.ts)
+- 1 CSS file (index.css — reduced motion)
+- 1 app file (App.tsx — skip link)
+- 1 search component (GlobalSearch.tsx — highlighting)
+- 1 dashboard component (StatPills.tsx — milestone glow)

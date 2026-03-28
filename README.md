@@ -1,73 +1,252 @@
-# Welcome to your Lovable project
+# DarAI
 
-## Project info
+AI-powered life dashboard and personal assistant. Built for productivity, health, communication, and personal growth — with deep cross-module intelligence and voice-first interactions.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+**AI Assistant**
+- Real-time conversational AI (Gemini Live, OpenAI Realtime)
+- AI-generated daily voice briefings aggregating all modules
+- Proactive suggestions, smart nudges, and auto-pilot task automation
+- Life pattern correlation and weekly coaching insights
 
-There are several ways of editing your application.
+**Productivity**
+- Task management with Kanban, timeline, and priority views
+- Focus timer with ambient sounds and body doubling
+- Habit tracking with streaks and gamification (XP system)
+- Smart scheduling and contextual quick actions
+- Project management with real-time collaboration
 
-**Use Lovable**
+**Communication**
+- Gmail integration (sync, read, draft replies, send)
+- AI-powered email categorization, spam/phishing detection
+- Calendar OAuth integration with Google Calendar sync
+- Contact management with relationship tiers and follow-up tracking
+- Direct messaging and group chat with encryption
+- WebRTC voice/video calling
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+**Health & Wellness**
+- Apple HealthKit integration (steps, heart rate, sleep, workouts)
+- AI health coach with personalized recommendations
+- Daily check-ins (mood, energy, stress, sleep, exercise)
+- Meal planning with recipe assistant
 
-Changes made via Lovable will be committed automatically to this repo.
+**Contract & Finance**
+- Contract scanning and AI-powered data extraction
+- Renewal alerts and cancellation reminders
+- Recurring payment detection from email
+- Cancellation email generator
 
-**Use your preferred IDE**
+**Islamic Features**
+- Prayer times with notifications
+- Quran reader with bookmarks and reading progress
+- Islamic holidays calendar
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+**Family**
+- Family member profiles and shared tasks
+- Family budget tracking and shopping lists
+- Family assistant and shared calendar
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Tech Stack
 
-Follow these steps:
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, TypeScript 5.8, Vite 5 |
+| UI | Tailwind CSS 3, shadcn/ui, Radix UI, Framer Motion |
+| State | TanStack React Query, React Context |
+| Backend | Supabase (Auth, Database, Realtime, Storage, Edge Functions) |
+| AI | Google Gemini, OpenAI Realtime API (via Lovable AI Gateway) |
+| Mobile | Capacitor 8 (iOS + Android) |
+| PWA | Vite PWA Plugin with offline caching |
+| Forms | React Hook Form + Zod validation |
+| Charts | Recharts |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ and npm ([install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
+
+### Development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone https://github.com/proark1/darai.git
+cd darai
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app runs at `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Scripts
 
-**Use GitHub Codespaces**
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Production build |
+| `npm run build:dev` | Development build |
+| `npm run lint` | Run ESLint |
+| `npm run preview` | Preview production build |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Environment Variables
 
-## What technologies are used for this project?
+Create a `.env` file in the project root:
 
-This project is built with:
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Supabase Edge Functions require these secrets (set via Supabase Dashboard):
 
-## How can I deploy this project?
+| Secret | Used By |
+|--------|---------|
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-to-server functions |
+| `LOVABLE_API_KEY` | AI Gateway (Gemini, OpenAI) |
+| `OPENAI_API_KEY` | OpenAI Realtime, TTS, STT |
+| `GOOGLE_CLIENT_ID` | Calendar/Gmail OAuth |
+| `GOOGLE_CLIENT_SECRET` | Calendar/Gmail OAuth |
+| `PERPLEXITY_API_KEY` | Web search |
+| `GEMINI_API_KEY` | Gemini Live |
+| `APP_URL` | CORS origin restriction |
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Architecture
 
-## Can I connect a custom domain to my Lovable project?
+### Project Structure
 
-Yes, you can!
+```
+src/
+  pages/           # 11 page components (Index, Dashboard, Auth, etc.)
+  components/      # 45 feature directories (tasks, chat, calendar, etc.)
+    ui/            # 40+ shadcn/Radix UI primitives
+  hooks/           # 135 custom React hooks
+  contexts/        # Auth and Language providers
+  lib/             # Utilities (encryption, parsing, payload building)
+  integrations/    # Supabase client and generated types
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+supabase/
+  functions/       # 36 Deno Edge Functions
+  migrations/      # Database schema migrations
+  config.toml      # Function configuration and JWT settings
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Routes
+
+| Route | Access | Page |
+|-------|--------|------|
+| `/` | Protected | Main app (tasks, chat, panels) |
+| `/dashboard` | Protected | Analytics and insights |
+| `/contacts` | Protected | Contact management |
+| `/contracts` | Protected | Contract tracking |
+| `/landing` | Public | Landing page |
+| `/auth` | Public | Login / Signup |
+| `/forgot-password` | Public | Password reset request |
+| `/reset-password` | Any | Set new password |
+| `/auth/calendar-callback` | Protected | OAuth callback |
+| `/onboarding` | Protected | New user onboarding |
+
+### Edge Functions (36)
+
+**AI & Chat**
+- `chat` — Main AI chat with user context, tasks, contacts, and memory
+- `chat-ai` — Smart replies, translation, conversation summaries
+- `ai-assistant` — Task suggestions, scheduling, daily planning
+- `gemini-live` — Real-time voice assistant with task commands
+- `openai-realtime-session` — OpenAI Realtime API session creation
+- `family-assistant` — Family-focused AI (homework help, meal planning)
+- `recipe-assistant` — AI recipe search and generation
+- `weekly-review` — AI-generated weekly productivity review
+- `weekly-coach` — Personalized weekly coaching insights
+- `morning-briefing` — Personalized news and morning content
+
+**Voice**
+- `text-to-speech` — TTS audio generation
+- `voice-to-text` — Speech transcription
+- `daily-voice-briefing` — Cross-module daily summary
+
+**Email**
+- `gmail-sync` — Sync inbox with AI categorization and threat detection
+- `gmail-fetch-email` — Fetch individual email content
+- `gmail-send-reply` — Send email replies via Gmail API
+- `email-draft-reply` — AI-drafted email replies
+
+**Calendar**
+- `calendar-oauth-start` — Initiate Google OAuth with HMAC-signed state
+- `calendar-oauth-callback` — Handle OAuth callback with HMAC verification
+- `calendar-sync` — Sync Google Calendar events
+- `import-calendar` — Import ICS calendar files
+
+**Contracts**
+- `scan-contract` — AI extraction of contract details from documents
+- `extract-contract-from-email` — Detect contracts in emails
+- `detect-recurring-payments` — Find recurring payments in email history
+- `generate-cancellation-email` — AI-generated cancellation letters
+
+**Analytics**
+- `analyze-patterns` — User behavior pattern analysis
+- `contact-insights` — AI-powered contact relationship insights
+- `health-insights` — Health metrics analysis and recommendations
+- `health-coach` — Personalized health coaching
+- `life-correlator` — Cross-domain life data correlation
+- `auto-pilot` — Automated task rescheduling and follow-ups
+- `proactive-assistant` — Proactive reminder generation
+
+**Notifications**
+- `send-push-notification` — Push notification delivery (service key auth)
+- `push-delivery` — Expo push notification transport (service key auth)
+- `call-push-notification` — Incoming call push notifications
+
+**Search**
+- `web-search` — Perplexity-powered web search
+
+### Security
+
+All 36 edge functions are authenticated:
+- **33 user-facing functions**: JWT verification at Supabase gateway + in-code `getUser()` validation
+- **3 server-to-server functions**: Service role key validation (`proactive-assistant`, `push-delivery`, `send-push-notification`)
+- **OAuth**: HMAC-SHA256 signed state parameter with 10-minute expiry
+- **CORS**: Restricted to `APP_URL` origin (wildcard fallback for development)
+- **Headers**: `X-Content-Type-Options: nosniff` on all responses
+- **Encryption**: End-to-end encryption for messages using Web Crypto API with CryptoKey stored directly in IndexedDB
+- **Input validation**: Email format validation, path traversal prevention, XSS protection via DOMPurify
+
+### Design System
+
+Three complete themes with CSS custom properties:
+- **Light** — Clean white with teal-cyan primary
+- **Dark** — Deep space blue with cyan accents
+- **Colorful** — Vibrant magenta primary with neon yellow accent
+
+UI features:
+- Glassmorphism effects with backdrop blur
+- Framer Motion page transitions and micro-interactions
+- Haptic feedback on touch interactions
+- `prefers-reduced-motion` WCAG compliance
+- 44px minimum touch targets
+- Safe-area support for notched devices
+
+## Mobile
+
+Built with Capacitor for native iOS and Android deployment.
+
+**Native capabilities:**
+- Apple HealthKit integration
+- Biometric authentication (Face ID / Touch ID)
+- Push notifications with badge and sound
+- Local notifications for reminders
+- Haptic feedback
+- Geolocation for location-based reminders
+
+**PWA support:**
+- Service worker with offline caching
+- Font and asset caching (1-year expiration)
+- App manifest with shortcuts and icons
+
+## License
+
+Private project.
