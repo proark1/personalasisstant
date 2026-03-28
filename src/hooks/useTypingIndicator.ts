@@ -61,6 +61,7 @@ export function useTypingIndicator({ chatId, userId, userName }: UseTypingIndica
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
+      channel.unsubscribe();
       supabase.removeChannel(channel);
       channelRef.current = null;
     };

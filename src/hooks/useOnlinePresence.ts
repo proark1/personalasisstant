@@ -64,6 +64,7 @@ export function useOnlinePresence(userId: string | null, spaceMemberIds: string[
     setChannelRef(channel);
 
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [userId]);

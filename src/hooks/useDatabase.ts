@@ -183,6 +183,7 @@ export function useDatabase(userId: string | undefined) {
 
     return () => {
       console.log('[useDatabase] Cleaning up realtime subscriptions');
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [userId, fetchData]);

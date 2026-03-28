@@ -179,8 +179,8 @@ Respond ONLY with a valid JSON array, no other text.`;
         }]
       }),
       { 
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }

@@ -34,6 +34,7 @@ export function useInCallChat(sessionId: string | null, userId: string) {
       .subscribe();
 
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
