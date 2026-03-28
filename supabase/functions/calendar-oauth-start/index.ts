@@ -52,9 +52,15 @@ serve(async (req) => {
     }
 
     const redirectUri = `${supabaseUrl}/functions/v1/calendar-oauth-callback`;
-    
-    // Generate a state parameter with user ID for security
-    const state = btoa(JSON.stringify({ userId: user.id, provider: 'google' }));
+
+    // Generate a cryptographically signed state parameter
+    const statePayload = JSON.stringify({ userId: user.id, provider: 'google', ts: Date.now() });
+    const secret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const encoder = new TextEncoder();
+    const hmacKey = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', hmacKey, encoder.encode(statePayload));
+    const sigHex = [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
+    const state = btoa(statePayload) + '.' + sigHex;
     
     const scopes = [
       'https://www.googleapis.com/auth/calendar.readonly',

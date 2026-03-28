@@ -79,26 +79,32 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Get user from authorization header
+  // Authenticate the user
   const authHeader = req.headers.get('authorization');
-  let userId = 'anonymous';
-  
-  if (authHeader) {
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseKey, {
-        global: { headers: { Authorization: authHeader } }
-      });
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) userId = user.id;
-    } catch (e) {
-      console.log('Could not get user from auth header');
-    }
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+  let userId: string;
+
+  try {
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No user');
+    userId = user.id;
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   // Create service role client for logging
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 

@@ -351,9 +351,8 @@ export function IslamEnhancedPanel() {
   };
 
   const stripHtml = (html: string): string => {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.body.textContent || '';
   };
 
   const handleBookmarkToggle = async (ayah: Ayah) => {

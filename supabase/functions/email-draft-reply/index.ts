@@ -33,6 +33,15 @@ serve(async (req) => {
       });
     }
 
+    const userId = claimsData.claims.sub;
+    const adminClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('display_name')
+      .eq('id', userId)
+      .single();
+    const userName = profile?.display_name || 'the user';
+
     const { subject, from_name, from_email, snippet, ai_summary } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -53,9 +62,9 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are drafting a reply email for Asad Dar. He is co-founder of Medieval Empires, OYA Play, and Eleven Labs. 
+            content: `You are drafting a reply email for ${userName}.
 
-Write a concise, professional, and friendly reply. Keep it short (2-4 sentences max). Match the tone of the original email. Don't use overly formal language. Sign off with just "Best, Asad" or similar.
+Write a concise, professional, and friendly reply. Keep it short (2-4 sentences max). Match the tone of the original email. Don't use overly formal language. Sign off with the user's first name.
 
 Only return the email body text, no subject line or headers.`
           },

@@ -61,6 +61,10 @@ serve(async (req) => {
     if (!to || !body) {
       return new Response(JSON.stringify({ error: 'to and body required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(to)) {
+      return new Response(JSON.stringify({ error: 'Invalid email address' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // Get Google connection
     const { data: connections } = await adminClient

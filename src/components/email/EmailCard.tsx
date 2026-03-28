@@ -62,9 +62,8 @@ const SWIPE_THRESHOLD = 80;
 
 function decodeHtmlEntities(text: string | null): string {
   if (!text) return '';
-  const textarea = document.createElement('textarea');
-  textarea.innerHTML = text;
-  return textarea.value;
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  return doc.body.textContent || '';
 }
 
 export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSnooze, selectMode, isSelected, onToggleSelect }: EmailCardProps) {

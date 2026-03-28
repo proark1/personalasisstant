@@ -43,7 +43,8 @@ interface EmailAnalysis {
 
 async function analyzeWithAI(
   emails: { subject: string; from_name: string; from_email: string; snippet: string }[],
-  contactContext: string
+  contactContext: string,
+  userName?: string
 ): Promise<Record<string, EmailAnalysis>> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY || emails.length === 0) return {};
@@ -64,7 +65,7 @@ async function analyzeWithAI(
         messages: [
           {
             role: 'system',
-            content: `You are an email intelligence assistant for Asad Dar. He is co-founder of Medieval Empires (strategy game), OYA Play (AI game publisher), and Eleven Labs (Web3 growth agency). He is based in Germany and frequently travels to Dubai.
+            content: `You are an email intelligence assistant for ${userName || 'the user'}.
 
 Your job is to analyze each email and return structured data. For each email:
 
@@ -196,7 +197,8 @@ async function processEmails(
   accessToken: string,
   adminClient: any,
   userId: string,
-  connection: any
+  connection: any,
+  userName?: string
 ): Promise<{ parsedEmails: any[]; highPriorityCount: number }> {
   if (messageIds.length === 0) {
     return { parsedEmails: [], highPriorityCount: 0 };
@@ -332,7 +334,7 @@ async function processEmails(
   const needsAnalysis = parsedEmails.filter((e) => !e.user_archived).slice(0, 20);
 
   if (needsAnalysis.length > 0) {
-    const aiResults = await analyzeWithAI(needsAnalysis, contactContext);
+    const aiResults = await analyzeWithAI(needsAnalysis, contactContext, userName);
 
     const analysisIndexMap = new Map<number, number>();
     let aiIdx = 0;
@@ -420,6 +422,14 @@ serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+    // Get user's display name for AI prompts
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('display_name')
+      .eq('id', userId)
+      .single();
+    const userName = profile?.display_name || undefined;
+
     // Find Google connection
     const { data: connections } = await adminClient
       .from('external_calendar_connections')
@@ -492,7 +502,7 @@ serve(async (req) => {
 
         const listData = await listResponse.json();
         const messageIds = (listData.messages || []).map((m: any) => ({ id: m.id }));
-        syncResult = await processEmails(messageIds, accessToken, adminClient, userId, connection);
+        syncResult = await processEmails(messageIds, accessToken, adminClient, userId, connection, userName);
       } else if (newIds.length === 0) {
         // No new emails — fast return
         console.log('No new emails since last sync');
@@ -514,7 +524,7 @@ serve(async (req) => {
         console.log(`Found ${newIds.length} new emails via History API`);
         syncType = 'incremental';
         const messageIdsToFetch = newIds.map(id => ({ id }));
-        syncResult = await processEmails(messageIdsToFetch, accessToken, adminClient, userId, connection);
+        syncResult = await processEmails(messageIdsToFetch, accessToken, adminClient, userId, connection, userName);
       }
     } else {
       // === FIRST SYNC — full fetch ===
@@ -548,7 +558,7 @@ serve(async (req) => {
         });
       }
 
-      syncResult = await processEmails(messageIds, accessToken, adminClient, userId, connection);
+      syncResult = await processEmails(messageIds, accessToken, adminClient, userId, connection, userName);
     }
 
     // Save latest historyId for next incremental sync

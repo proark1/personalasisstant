@@ -96,7 +96,7 @@ Return ONLY valid JSON, no markdown or explanation.`;
       extracted = JSON.parse(jsonStr);
     } catch {
       console.error("Failed to parse AI response:", content);
-      return new Response(JSON.stringify({ error: "Failed to parse AI response", raw: content }), {
+      return new Response(JSON.stringify({ error: "Failed to parse AI response" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

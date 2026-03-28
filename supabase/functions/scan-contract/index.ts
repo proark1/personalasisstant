@@ -12,15 +12,45 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate the user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { documentPath, documentType } = await req.json();
+
+    // Validate documentPath to prevent path traversal
+    if (!documentPath || typeof documentPath !== "string" || documentPath.includes("..") || documentPath.startsWith("/")) {
+      return new Response(JSON.stringify({ error: "Invalid document path" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
+
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     // Get Supabase client to fetch the document
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -160,7 +190,7 @@ Be thorough but only include information you can clearly extract from the docume
       extractedData = JSON.parse(jsonMatch[1] || content_text);
     } catch (parseError) {
       console.error("Failed to parse AI response:", content_text);
-      extractedData = { error: "Could not parse contract details", raw: content_text };
+      extractedData = { error: "Could not parse contract details" };
     }
 
     return new Response(

@@ -20,12 +20,35 @@ serve(async (req) => {
       return Response.redirect(`${appUrl}/auth/calendar-callback?error=missing_params`);
     }
 
-    // Decode state to get user ID
-    let stateData: { userId: string; provider: string };
+    // Verify cryptographically signed state parameter
+    const stateParts = state.split('.');
+    if (stateParts.length !== 2) {
+      return Response.redirect(`${appUrl}/auth/calendar-callback?error=invalid_state`);
+    }
+
+    let stateData: { userId: string; provider: string; ts: number };
     try {
-      stateData = JSON.parse(atob(state));
+      stateData = JSON.parse(atob(stateParts[0]));
     } catch {
       return Response.redirect(`${appUrl}/auth/calendar-callback?error=invalid_state`);
+    }
+
+    // Verify HMAC signature
+    const secret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const encoder = new TextEncoder();
+    const hmacKey = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+    const sigBytes = new Uint8Array(stateParts[1].match(/.{2}/g)!.map(b => parseInt(b, 16)));
+    const statePayload = atob(stateParts[0]);
+    const valid = await crypto.subtle.verify('HMAC', hmacKey, sigBytes, encoder.encode(statePayload));
+
+    if (!valid) {
+      console.error('OAuth state HMAC verification failed');
+      return Response.redirect(`${appUrl}/auth/calendar-callback?error=invalid_state`);
+    }
+
+    // Reject state older than 10 minutes
+    if (stateData.ts && Date.now() - stateData.ts > 10 * 60 * 1000) {
+      return Response.redirect(`${appUrl}/auth/calendar-callback?error=state_expired`);
     }
 
     const { userId, provider } = stateData;
