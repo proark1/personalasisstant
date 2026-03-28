@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Sparkles, Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { useMemo } from 'react';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -20,6 +21,20 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const passwordStrength = useMemo(() => {
+    if (isLogin || !password) return null;
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9!@#$%^&*(),.?":{}|<>]/.test(password)) score++;
+    if (password.length >= 12) score++;
+    const labels = ['Weak', 'Fair', 'Good', 'Strong'] as const;
+    const colors = ['bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'] as const;
+    const textColors = ['text-red-500', 'text-yellow-500', 'text-blue-500', 'text-green-500'] as const;
+    const idx = Math.min(score, 4) - 1;
+    return idx >= 0 ? { score, label: labels[idx], color: colors[idx], textColor: textColors[idx] } : null;
+  }, [password, isLogin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,17 +202,28 @@ export default function Auth() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {!isLogin && passwordStrength && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden flex gap-0.5">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className={`flex-1 rounded-full transition-colors duration-300 ${
+                          i <= passwordStrength.score ? passwordStrength.color : 'bg-muted'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className={`text-xs font-medium ${passwordStrength.textColor}`}>
+                    {passwordStrength.label}
+                  </span>
+                </div>
+              )}
             </div>
 
-            <Button type="submit" className="w-full gap-2 h-12 text-base mt-2" disabled={loading}>
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  {isLogin ? t('auth.signIn') : t('auth.createAccount')}
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
+            <Button type="submit" className="w-full gap-2 h-12 text-base mt-2" loading={loading}>
+              {isLogin ? t('auth.signIn') : t('auth.createAccount')}
+              <ArrowRight className="w-5 h-5" />
             </Button>
           </form>
 

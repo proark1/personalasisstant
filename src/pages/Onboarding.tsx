@@ -373,6 +373,15 @@ export default function Onboarding() {
             </Button>
           )}
         </div>
+        {step < totalSteps - 1 && (
+          <button
+            type="button"
+            onClick={handleComplete}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-3 mx-auto block"
+          >
+            Skip for now
+          </button>
+        )}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Home } from "lucide-react";
+import { Home, LayoutDashboard, CheckSquare, Calendar, Users } from "lucide-react";
 import doriImage from "@/assets/dori-fish.png";
 
 const NotFound = () => {
@@ -29,19 +29,42 @@ const NotFound = () => {
           alt="Dori"
           className="w-20 h-20 rounded-full mx-auto mb-4 object-cover shadow-lg"
           initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", delay: 0.2 }}
+          animate={{ scale: 1, y: [0, -6, 0] }}
+          transition={{
+            scale: { type: "spring", delay: 0.2 },
+            y: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+          }}
         />
         <h1 className="mb-2 text-5xl font-bold text-foreground">404</h1>
-        <p className="mb-6 text-lg text-muted-foreground">
+        <p className="mb-2 text-lg text-muted-foreground">
           Oops! Dori couldn't find this page.
         </p>
-        <Button asChild size="lg" className="gap-2">
+        <p className="mb-6 text-xs text-muted-foreground/60 font-mono">
+          {location.pathname}
+        </p>
+
+        <Button asChild size="lg" className="gap-2 w-full mb-4">
           <Link to="/">
             <Home className="w-4 h-4" />
             Return Home
           </Link>
         </Button>
+
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+            { to: "/", icon: CheckSquare, label: "Tasks" },
+            { to: "/contacts", icon: Users, label: "Contacts" },
+            { to: "/contracts", icon: Calendar, label: "Contracts" },
+          ].map((link) => (
+            <Button key={link.to} asChild variant="ghost" size="sm" className="gap-1.5 text-xs">
+              <Link to={link.to}>
+                <link.icon className="w-3.5 h-3.5" />
+                {link.label}
+              </Link>
+            </Button>
+          ))}
+        </div>
       </motion.div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,18 @@ const priorityColors: Record<string, string> = {
   medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
   low: 'bg-green-500/20 text-green-400 border-green-500/50',
 };
+
+function highlightMatch(text: string, query: string): React.ReactNode {
+  if (!query || query.length < 2) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    part.toLowerCase() === query.toLowerCase()
+      ? <mark key={i} className="bg-primary/20 text-foreground rounded-sm px-0.5">{part}</mark>
+      : part
+  );
+}
 
 export function GlobalSearch({
   open,
@@ -206,12 +218,12 @@ export function GlobalSearch({
                               )
                             )}
                             <span className="font-medium text-sm truncate">
-                              {result.title}
+                              {highlightMatch(result.title, query)}
                             </span>
                           </div>
                           {result.description && (
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {result.description}
+                              {highlightMatch(result.description, query)}
                             </p>
                           )}
                           <div className="flex items-center gap-2 mt-2 flex-wrap">
