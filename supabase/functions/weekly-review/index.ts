@@ -183,7 +183,7 @@ Provide a supportive weekly review with achievements, patterns, and suggestions.
       personalizedTip: "Keep going, you're doing great!",
       nextWeekSuggestions: [],
     }), {
-      status: 200, // Return 200 with fallback data
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

@@ -83,6 +83,7 @@ export function useProactiveReminders() {
 
     return () => {
       channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [user?.id, fetchReminders]);
 
