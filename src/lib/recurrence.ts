@@ -46,14 +46,17 @@ export function parseRRuleString(rrule: string): RecurrenceRule | null {
         rule.interval = parseInt(value, 10);
         break;
       case 'BYDAY':
-        rule.daysOfWeek = value.split(',').map(d => dayMap[d]);
+        rule.daysOfWeek = value.split(',').map(d => dayMap[d]).filter((d): d is number => d !== undefined);
         break;
       case 'UNTIL':
         // Parse RRULE date format: YYYYMMDDTHHMMSSZ
         const year = value.slice(0, 4);
         const month = value.slice(4, 6);
         const day = value.slice(6, 8);
-        rule.endDate = new Date(`${year}-${month}-${day}`);
+        const parsed = new Date(`${year}-${month}-${day}`);
+        if (!isNaN(parsed.getTime())) {
+          rule.endDate = parsed;
+        }
         break;
     }
   }

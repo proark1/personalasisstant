@@ -26,34 +26,30 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Get user from authorization header
+  // Authenticate the user
   const authHeader = req.headers.get('authorization');
-  let userId: string | null = null;
-  
-  if (authHeader) {
-    try {
-      const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader } }
-      });
-      const { data: { user } } = await userClient.auth.getUser();
-      if (user) userId = user.id;
-    } catch (e) {
-      console.log('Could not get user from auth header');
-    }
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  let userId: string;
+  try {
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) throw new Error('No user');
+    userId = user.id;
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
-    userId = body.userId || userId;
-
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'User ID required' }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     console.log(`Running life correlator for user: ${userId}`);
 
     // Fetch last 60 days of data for better correlation analysis
