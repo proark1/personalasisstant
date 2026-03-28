@@ -69,6 +69,7 @@ export function useSharedItemsRealtime({ userId, onNewShare }: UseSharedItemsRea
       .subscribe();
 
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [userId, toast, onNewShare]);

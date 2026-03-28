@@ -469,6 +469,7 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
 
      // Unsubscribe from channel
      if (channelRef.current) {
+       channelRef.current.unsubscribe();
        supabase.removeChannel(channelRef.current);
        channelRef.current = null;
      }
@@ -653,6 +654,7 @@ export function useWebRTCCall({ userId, onIncomingCall }: UseWebRTCCallOptions) 
 
     return () => {
       console.log('[WebRTC] Cleaning up incoming call subscription');
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [userId, callStatus, onIncomingCall]);

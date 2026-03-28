@@ -66,6 +66,7 @@ export function useFollowUpQueue() {
       .subscribe();
 
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [user?.id, fetchFollowUps]);

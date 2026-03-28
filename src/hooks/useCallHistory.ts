@@ -130,6 +130,7 @@ export function useCallHistory(userId: string | undefined) {
       .subscribe();
 
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [userId, fetchHistory]);

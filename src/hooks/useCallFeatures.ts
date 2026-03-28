@@ -336,7 +336,9 @@ export function useCallFeatures() {
       .subscribe();
 
     return () => {
+      voicemailChannel.unsubscribe();
       supabase.removeChannel(voicemailChannel);
+      callsChannel.unsubscribe();
       supabase.removeChannel(callsChannel);
     };
   }, [user, fetchVoicemails, fetchScheduledCalls]);

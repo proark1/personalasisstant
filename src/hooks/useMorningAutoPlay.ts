@@ -10,6 +10,7 @@ export function useMorningAutoPlay() {
   const { playBriefing } = useMorningBriefing();
   const { settings } = useProactiveSettings();
   const hasTriggered = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!user?.id || hasTriggered.current) return;
@@ -17,7 +18,7 @@ export function useMorningAutoPlay() {
     const voiceEnabled = settings?.voice_proactive_enabled ?? false;
 
     // Check if we should auto-play
-    const checkAutoPlay = async () => {
+    const checkAutoPlay = () => {
       const today = new Date().toISOString().split('T')[0];
       const lastAutoPlay = localStorage.getItem(LAST_AUTO_PLAY_KEY);
 
@@ -34,12 +35,16 @@ export function useMorningAutoPlay() {
       localStorage.setItem(LAST_AUTO_PLAY_KEY, today);
 
       // Small delay before playing
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         playBriefing();
       }, 2000);
     };
 
     checkAutoPlay();
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [user?.id, settings?.voice_proactive_enabled, playBriefing]);
 
   return null;

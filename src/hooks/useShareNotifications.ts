@@ -78,6 +78,7 @@ export function useShareNotifications(userId: string | undefined) {
       .subscribe();
 
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [userId]);

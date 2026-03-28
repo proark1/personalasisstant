@@ -356,7 +356,9 @@ export function useDirectMessages(userId: string | null) {
       .subscribe();
 
     return () => {
+      incomingChannel.unsubscribe();
       supabase.removeChannel(incomingChannel);
+      outgoingChannel.unsubscribe();
       supabase.removeChannel(outgoingChannel);
     };
   }, [userId, fetchConversations, decryptMessage]);

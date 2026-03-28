@@ -194,6 +194,7 @@ export function useSharedProjects(userId: string | undefined) {
       .subscribe();
 
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [userId, fetchSharedProjects]);

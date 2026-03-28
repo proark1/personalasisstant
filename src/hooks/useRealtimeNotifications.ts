@@ -205,6 +205,7 @@ export function useRealtimeNotifications(userId: string | undefined) {
 
     return () => {
       console.log('[useRealtimeNotifications] Cleaning up subscription');
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [userId, fetchNotifications, toast, playNotificationSound, showBrowserNotification]);

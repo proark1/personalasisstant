@@ -453,6 +453,7 @@ export function useGroupChat(userId: string | null) {
       .subscribe();
 
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [userId, fetchGroups]);
