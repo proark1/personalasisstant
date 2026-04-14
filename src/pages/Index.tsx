@@ -986,6 +986,8 @@ const Index = () => {
         },
         onDone: () => {
           setIsProcessing(false);
+          setThinkingStatus(undefined);
+          setActionCards(collectedCards);
         },
       });
 
