@@ -771,7 +771,7 @@ const Index = () => {
                 contactType: (contact.contactType === 'business' ? 'business' : 'personal') as 'personal' | 'business',
                 notes: contact.notes || '',
               });
-              if (result) toast({ title: 'Contact Added', description: contact.name });
+              if (result) { toast({ title: 'Contact Added', description: contact.name }); collectedCards.push({ type: 'contact', action: 'Added', title: contact.name }); }
             } else if (action === 'delete' && contact.query) {
               const match = contacts.find(c => c.name.toLowerCase().includes(contact.query!.toLowerCase()));
               if (match) {
