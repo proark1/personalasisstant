@@ -364,6 +364,12 @@ const Index = () => {
     if (sendLockRef.current) return;
     sendLockRef.current = true;
 
+    // Start a new conversation if none active
+    if (!activeConversationIdRef.current) {
+      const convId = await startConversation(false, userText.substring(0, 60));
+      activeConversationIdRef.current = convId;
+    }
+
     addMessage({ role: 'user', content: userText });
     setIsProcessing(true);
 
