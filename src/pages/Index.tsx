@@ -705,10 +705,8 @@ const Index = () => {
               });
 
               if (newTask) {
-                toast({
-                  title: 'Task Added',
-                  description: newTask.title,
-                });
+                toast({ title: 'Task Added', description: newTask.title });
+                collectedCards.push({ type: 'task', action: 'Created', title: newTask.title, details: dueDate ? `Due: ${new Date(dueDate).toLocaleDateString()}` : undefined });
               }
             } else if (toolCall.action === 'complete' && toolCall.task.id) {
               await toggleTaskComplete(toolCall.task.id);
