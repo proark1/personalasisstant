@@ -9,48 +9,64 @@ import { findRelevantContacts, ContactSuggestion } from '@/lib/contactSuggestion
 import { ConversationHistoryPanel } from './ConversationHistoryPanel';
 import { AudioVisualizer } from '@/components/ghost/AudioVisualizer';
 import { MarkdownRenderer } from '@/components/chat/MarkdownRenderer';
-import { Send, User, Mic, MicOff, Users, X, History, CheckSquare, Calendar, Search, Bell, Brain, ShoppingCart, BookOpen, Globe } from 'lucide-react';
+import { ActionCard, ActionCardData } from './ActionCard';
+import { Send, User, Mic, MicOff, Users, X, History, CheckSquare, Calendar, Search, Bell, Brain, ShoppingCart, BookOpen, Globe, ImagePlus, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import doriFish from '@/assets/dori-fish.png';
 
 const EMPTY_CONTACTS: Contact[] = [];
 
+export interface DoriStats {
+  overdueTasks?: number;
+  unreadEmails?: number;
+  habitsAtRisk?: number;
+  todayEvents?: number;
+  pendingTasks?: number;
+}
+
 interface DoriPanelProps {
   messages: ChatMessage[];
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, imageUrl?: string) => void;
   isProcessing: boolean;
   onVoiceMode: () => void;
   contacts?: Contact[];
+  thinkingStatus?: string;
+  actionCards?: ActionCardData[];
+  stats?: DoriStats;
 }
 
-function getTimeSuggestions(messages: ChatMessage[], contacts: Contact[]) {
+function getTimeSuggestions(stats?: DoriStats) {
   const hour = new Date().getHours();
-  // Dynamic suggestions logic can be implemented here based on state, but keeping it simple for now
-  // We can pass overdue tasks, etc. later if needed.
-  if (hour < 12) return {
-    greeting: "Good morning! What shall we tackle today?",
-    suggestions: [
-      { label: 'Check my unread emails', icon: Bell },
-      { label: "What's on my calendar?", icon: Calendar },
-      { label: 'Search latest news', icon: Globe },
-    ],
-  };
-  if (hour < 17) return {
-    greeting: "Hey! Need help with anything?",
-    suggestions: [
-      { label: 'How are my habits?', icon: Brain },
-      { label: 'Remind me in 30 min', icon: Bell },
-      { label: 'Search something', icon: Search },
-    ],
-  };
-  return {
-    greeting: "Good evening! How can I help?",
-    suggestions: [
-      { label: 'Review my day', icon: Brain },
-      { label: "What's left to do?", icon: CheckSquare },
-      { label: 'Plan tomorrow', icon: Calendar },
-    ],
-  };
+  const suggestions: { label: string; icon: React.ElementType }[] = [];
+
+  // Data-driven suggestions first
+  if (stats?.overdueTasks && stats.overdueTasks > 0) {
+    suggestions.push({ label: `I have ${stats.overdueTasks} overdue task${stats.overdueTasks > 1 ? 's' : ''}`, icon: CheckSquare });
+  }
+  if (stats?.unreadEmails && stats.unreadEmails > 0) {
+    suggestions.push({ label: `Check my ${stats.unreadEmails} unread emails`, icon: Bell });
+  }
+  if (stats?.todayEvents && stats.todayEvents > 0) {
+    suggestions.push({ label: "What's on my calendar today?", icon: Calendar });
+  }
+
+  // Fill remaining with time-based defaults
+  if (hour < 12) {
+    if (suggestions.length < 3) suggestions.push({ label: 'Plan my morning', icon: Calendar });
+    if (suggestions.length < 3) suggestions.push({ label: 'Search latest news', icon: Globe });
+  } else if (hour < 17) {
+    if (suggestions.length < 3) suggestions.push({ label: 'How are my habits?', icon: Brain });
+    if (suggestions.length < 3) suggestions.push({ label: 'Search something', icon: Search });
+  } else {
+    if (suggestions.length < 3) suggestions.push({ label: 'Review my day', icon: Brain });
+    if (suggestions.length < 3) suggestions.push({ label: 'Plan tomorrow', icon: Calendar });
+  }
+
+  const greeting = hour < 12 ? "Good morning! What shall we tackle today?"
+    : hour < 17 ? "Hey! Need help with anything?"
+    : "Good evening! How can I help?";
+
+  return { greeting, suggestions: suggestions.slice(0, 3) };
 }
 
 const capabilities = [
@@ -60,7 +76,7 @@ const capabilities = [
   { category: 'Reminders', items: ['Location-based', 'Follow-up nudges', 'Contact check-ins'], icon: Bell },
 ];
 
-function ThinkingIndicator() {
+function ThinkingIndicator({ status }: { status?: string }) {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => setElapsed(s => s + 1), 1000);
@@ -71,11 +87,18 @@ function ThinkingIndicator() {
       <img src={doriFish} alt="Dori" className="w-8 h-8 object-contain shrink-0" />
       <div className="glass-panel rounded-xl px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-            <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
-            <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
-          </div>
+          {status ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+              <span className="text-xs text-muted-foreground">{status}</span>
+            </>
+          ) : (
+            <div className="flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          )}
           <span className="text-[10px] text-muted-foreground tabular-nums">{elapsed}s</span>
         </div>
       </div>
@@ -85,17 +108,21 @@ function ThinkingIndicator() {
 
 export function DoriPanel({
   messages, onSendMessage, isProcessing, onVoiceMode, contacts = EMPTY_CONTACTS,
+  thinkingStatus, actionCards, stats,
 }: DoriPanelProps) {
   const [showHistory, setShowHistory] = useState(false);
   const [showCapabilities, setShowCapabilities] = useState(false);
   const [input, setInput] = useState('');
   const [contactSuggestions, setContactSuggestions] = useState<ContactSuggestion[]>([]);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const lastFinalTranscriptRef = useRef<string>('');
 
-  const timeSuggestions = useMemo(() => getTimeSuggestions(messages, contacts), [messages.length, contacts.length]);
+  const timeSuggestions = useMemo(() => getTimeSuggestions(stats), [stats]);
 
   const { isListening, isSupported, transcript, startListening, stopListening } = useVoiceRecognition({ continuous: false });
 
@@ -108,22 +135,23 @@ export function DoriPanel({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, actionCards]);
 
   // Auto-resize textarea
   useEffect(() => {
     const ta = textareaRef.current;
     if (ta) {
       ta.style.height = 'auto';
-      ta.style.height = Math.min(ta.scrollHeight, 96) + 'px'; // max 3 lines ~96px
+      ta.style.height = Math.min(ta.scrollHeight, 96) + 'px';
     }
   }, [input]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !isProcessing) {
-      onSendMessage(input.trim());
+    if ((input.trim() || pendingImage) && !isProcessing) {
+      onSendMessage(input.trim(), pendingImage || undefined);
       setInput('');
+      setPendingImage(null);
       setContactSuggestions([]);
       setDismissedSuggestions(false);
     }
@@ -134,6 +162,26 @@ export function DoriPanel({
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return; // 5MB limit
+
+    setUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPendingImage(reader.result as string);
+        setUploadingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploadingImage(false);
+    }
+    // Reset input so user can select same file again
+    e.target.value = '';
   };
 
   useEffect(() => {
@@ -211,32 +259,46 @@ export function DoriPanel({
             </div>
           </div>
         ) : (
-          messages.map((message) => (
-            <div key={message.id} className={cn("flex gap-3 animate-fade-in", message.role === 'user' ? 'justify-end' : 'justify-start')}>
-              {message.role === 'assistant' && <img src={doriFish} alt="Dori" className="w-8 h-8 object-contain shrink-0" />}
-              <div className={cn("max-w-[80%] rounded-xl px-4 py-3", message.role === 'user' ? "bg-primary text-primary-foreground" : "glass-panel")}>
-                {message.role === 'assistant' ? <MarkdownRenderer content={message.content} /> : <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
-                {message.sources && message.sources.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">Sources:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {message.sources.map((source, i) => (
-                        <a key={i} href={source} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 hover:text-primary/80">[{i + 1}]</a>
-                      ))}
+          messages.map((message, idx) => (
+            <div key={message.id}>
+              <div className={cn("flex gap-3 animate-fade-in", message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                {message.role === 'assistant' && <img src={doriFish} alt="Dori" className="w-8 h-8 object-contain shrink-0" />}
+                <div className={cn("max-w-[80%] rounded-xl px-4 py-3", message.role === 'user' ? "bg-primary text-primary-foreground" : "glass-panel")}>
+                  {/* Show attached image if present */}
+                  {message.role === 'user' && (message as any).imageUrl && (
+                    <img src={(message as any).imageUrl} alt="Attached" className="rounded-lg mb-2 max-h-40 object-contain" />
+                  )}
+                  {message.role === 'assistant' ? <MarkdownRenderer content={message.content} /> : <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
+                  {message.sources && message.sources.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground mb-1">Sources:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {message.sources.map((source, i) => (
+                          <a key={i} href={source} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 hover:text-primary/80">[{i + 1}]</a>
+                        ))}
+                      </div>
                     </div>
+                  )}
+                  <span className="text-[10px] text-muted-foreground mt-1 block">{format(message.timestamp, 'HH:mm')}</span>
+                </div>
+                {message.role === 'user' && (
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4 text-muted-foreground" />
                   </div>
                 )}
-                <span className="text-[10px] text-muted-foreground mt-1 block">{format(message.timestamp, 'HH:mm')}</span>
               </div>
-              {message.role === 'user' && (
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-muted-foreground" />
+              {/* Render action cards after the last assistant message */}
+              {message.role === 'assistant' && idx === messages.length - 1 && actionCards && actionCards.length > 0 && (
+                <div className="ml-11 space-y-1">
+                  {actionCards.map((card, i) => (
+                    <ActionCard key={i} data={card} />
+                  ))}
                 </div>
               )}
             </div>
           ))
         )}
-        {isProcessing && <ThinkingIndicator />}
+        {isProcessing && <ThinkingIndicator status={thinkingStatus} />}
         <div ref={messagesEndRef} />
       </div>
 
@@ -262,6 +324,18 @@ export function DoriPanel({
         </div>
       )}
 
+      {/* Pending image preview */}
+      {pendingImage && (
+        <div className="px-4 py-2 border-t border-border">
+          <div className="relative inline-block">
+            <img src={pendingImage} alt="To send" className="h-16 rounded-lg object-contain" />
+            <button className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs" onClick={() => setPendingImage(null)}>
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Voice transcript */}
       {isListening && transcript && (
         <div className="px-4 py-2 bg-primary/10 text-sm text-primary">
@@ -272,6 +346,25 @@ export function DoriPanel({
       {/* Input — expandable textarea */}
       <form onSubmit={handleSubmit} className="p-2 border-t border-border pb-safe">
         <div className="relative flex items-end gap-2 bg-muted rounded-xl px-3 py-2">
+          {/* Image upload */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageSelect}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={isProcessing || uploadingImage}
+          >
+            {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+          </Button>
+
           <textarea
             ref={textareaRef}
             value={input}
@@ -299,7 +392,7 @@ export function DoriPanel({
                 {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
               </Button>
             )}
-            <Button type="submit" size="icon" className="h-7 w-7" disabled={!input.trim() || isProcessing}>
+            <Button type="submit" size="icon" className="h-7 w-7" disabled={(!input.trim() && !pendingImage) || isProcessing}>
               <Send className="w-3.5 h-3.5" />
             </Button>
           </div>

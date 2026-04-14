@@ -87,6 +87,9 @@ interface StandardModeProps {
   onDeleteEvent?: (id: string) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
+  thinkingStatus?: string;
+  actionCards?: { type: string; action: string; title: string; details?: string }[];
+  doriStats?: { overdueTasks?: number; unreadEmails?: number; habitsAtRisk?: number; todayEvents?: number; pendingTasks?: number };
   onVoiceMode: () => void;
   onEditProfile?: () => void;
   onShareTask?: (id: string, title: string) => void;
@@ -135,6 +138,9 @@ export function StandardMode({
   onDeleteEvent,
   onImportEvents,
   onSendMessage,
+  thinkingStatus,
+  actionCards,
+  doriStats,
   onVoiceMode,
   onEditProfile,
   onShareTask,
@@ -295,6 +301,9 @@ export function StandardMode({
         onDeleteEvent={onDeleteEvent}
         onImportEvents={onImportEvents}
         onSendMessage={onSendMessage}
+        thinkingStatus={thinkingStatus}
+        actionCards={actionCards}
+        doriStats={doriStats}
         onVoiceMode={onVoiceMode}
         onEditProfile={onEditProfile}
         onShareTask={onShareTask}

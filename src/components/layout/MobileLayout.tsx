@@ -56,6 +56,9 @@ interface MobileLayoutProps {
   onDeleteEvent?: (id: string) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
+  thinkingStatus?: string;
+  actionCards?: { type: string; action: string; title: string; details?: string }[];
+  doriStats?: { overdueTasks?: number; unreadEmails?: number; habitsAtRisk?: number; todayEvents?: number; pendingTasks?: number };
   onVoiceMode: () => void;
   onEditProfile?: () => void;
   onShareTask?: (id: string, title: string) => void;
@@ -126,6 +129,9 @@ export function MobileLayout({
   onDeleteEvent,
   onImportEvents,
   onSendMessage,
+  thinkingStatus,
+  actionCards,
+  doriStats,
   onVoiceMode,
   onEditProfile,
   onShareTask,
@@ -196,6 +202,9 @@ export function MobileLayout({
             onSendMessage={onSendMessage}
             isProcessing={isProcessing}
             onVoiceMode={onVoiceMode}
+            thinkingStatus={thinkingStatus}
+            actionCards={actionCards as any}
+            stats={doriStats}
           />
         );
       case 'social':

@@ -128,6 +128,7 @@ interface FamilyContext {
 
 interface ChatRequest {
   messages: Message[];
+  imageUrl?: string; // Base64 data URL for image input
   tasks?: { id: string; title: string; completed: boolean; category: string; priority: string; dueDate?: string }[];
   events?: { id: string; title: string; startTime: string; endTime: string }[];
   overdueTasks?: OverdueTask[];
@@ -584,6 +585,7 @@ serve(async (req) => {
   try {
     const { 
       messages, 
+      imageUrl,
       tasks, 
       events,
       overdueTasks: clientOverdueTasks,
@@ -1007,8 +1009,8 @@ serve(async (req) => {
 
     const model = 'google/gemini-3-flash-preview';
     
-    // Helper: call Lovable AI
-    async function callAI(msgs: { role: string; content: string }[], stream: boolean) {
+    // Helper: call Lovable AI (supports multimodal messages)
+    async function callAI(msgs: { role: string; content: string | any[] }[], stream: boolean) {
       return fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -1055,10 +1057,26 @@ serve(async (req) => {
       }
     }
 
-    const allMessages: { role: string; content: string }[] = [
+    // Build messages, injecting image into the last user message if present
+    const allMessages: { role: string; content: string | any[] }[] = [
       { role: 'system', content: fullSystemPrompt },
-      ...messages,
     ];
+    
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (imageUrl && i === messages.length - 1 && msg.role === 'user') {
+        // Multimodal message with image
+        allMessages.push({
+          role: 'user',
+          content: [
+            { type: 'text', text: msg.content || 'What do you see in this image?' },
+            { type: 'image_url', image_url: { url: imageUrl } },
+          ],
+        });
+      } else {
+        allMessages.push(msg);
+      }
+    }
 
     // Pre-detect web search intent from the user's last message to avoid two-pass
     const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || '';

@@ -51,9 +51,10 @@ const Index = () => {
   const { settings, updateSettings, updateNotifications } = useSettings();
   const { streamChat, isStreaming } = useAIChat();
   const { memories, getMemoriesForContext } = useAIMemory();
-  const { fetchMessages: fetchConversationMessages, fetchConversations, conversations } = useAssistantConversations();
+  const { fetchMessages: fetchConversationMessages, fetchConversations, conversations, startConversation, addMessage: saveMessageToDB, currentConversation } = useAssistantConversations();
   const previousContextLoadedRef = useRef(false);
   const [previousConversationMessages, setPreviousConversationMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const activeConversationIdRef = useRef<string | null>(null);
 
   // Load last conversation's recent messages for cross-session context
   useEffect(() => {
@@ -291,6 +292,8 @@ const Index = () => {
   const [mode, setMode] = useState<AppMode>('standard');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [thinkingStatus, setThinkingStatus] = useState<string | undefined>();
+  const [actionCards, setActionCards] = useState<{ type: string; action: string; title: string; details?: string }[]>([]);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [shareDialog, setShareDialog] = useState<{
     type: 'task' | 'event';
@@ -345,8 +348,14 @@ const Index = () => {
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, newMessage]);
+
+    // Persist to DB
+    if (activeConversationIdRef.current) {
+      saveMessageToDB(activeConversationIdRef.current, message.role as 'user' | 'assistant', message.content);
+    }
+
     return newMessage;
-  }, []);
+  }, [saveMessageToDB]);
 
   // Handle AI chat with real streaming
   const handleSendMessage = useCallback(async (content: string) => {
@@ -357,10 +366,36 @@ const Index = () => {
     if (sendLockRef.current) return;
     sendLockRef.current = true;
 
+    // Start a new conversation if none active
+    if (!activeConversationIdRef.current) {
+      const convId = await startConversation(false, userText.substring(0, 60));
+      activeConversationIdRef.current = convId;
+    }
+
     addMessage({ role: 'user', content: userText });
     setIsProcessing(true);
+    setActionCards([]);
+
+    // Set contextual thinking status
+    const lowerText = userText.toLowerCase();
+    if (lowerText.includes('search') || lowerText.includes('news') || lowerText.includes('latest')) {
+      setThinkingStatus('Searching the web...');
+    } else if (lowerText.includes('task') || lowerText.includes('todo') || lowerText.includes('remind')) {
+      setThinkingStatus('Checking your tasks...');
+    } else if (lowerText.includes('calendar') || lowerText.includes('event') || lowerText.includes('schedule')) {
+      setThinkingStatus('Looking at your calendar...');
+    } else if (lowerText.includes('email') || lowerText.includes('mail') || lowerText.includes('inbox')) {
+      setThinkingStatus('Checking your emails...');
+    } else if (lowerText.includes('health') || lowerText.includes('sleep') || lowerText.includes('steps')) {
+      setThinkingStatus('Analyzing health data...');
+    } else if (lowerText.includes('contact') || lowerText.includes('who')) {
+      setThinkingStatus('Searching contacts...');
+    } else {
+      setThinkingStatus('Thinking...');
+    }
 
     let assistantContent = '';
+    const collectedCards: { type: string; action: string; title: string; details?: string }[] = [];
     
     // Rate limit task/event creation per message to prevent runaway loops
     const MAX_TASKS_PER_MESSAGE = 10;
@@ -578,20 +613,31 @@ const Index = () => {
         habitsSummary: smartPayload.habitsSummary,
         memories: smartPayload.memories,
         familyContext: smartPayload.familyContext ? {
-          members: smartPayload.familyContext.members.map(m => ({
-            id: '',
-            ...m,
-            school: m.school || null,
-            grade: null,
-            teacherName: null,
-            teacherContact: null,
-            kindergarten: null,
-            kindergartenTeacher: null,
-            activities: m.activities.map(a => ({ name: a, schedule: '', location: '' })),
-            allergies: [],
-            medicalNotes: null,
-            livesWithUser: true,
-          })),
+          members: familyMembers.map(m => {
+            const birthDate = m.birth_date ? new Date(m.birth_date) : null;
+            const age = birthDate ? Math.floor((Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+            const activities = Array.isArray(m.activities) ? (m.activities as any[]).map((a: any) => ({
+              name: typeof a === 'string' ? a : a.name || '',
+              schedule: typeof a === 'object' ? a.schedule || '' : '',
+              location: typeof a === 'object' ? a.location || '' : '',
+            })) : [];
+            return {
+              id: m.id,
+              name: m.name,
+              relationship: m.relationship,
+              age,
+              school: m.school_name || m.kindergarten_name || null,
+              grade: m.school_grade || null,
+              teacherName: m.teacher_name || null,
+              teacherContact: m.teacher_contact || null,
+              kindergarten: m.kindergarten_name || null,
+              kindergartenTeacher: m.kindergarten_teacher_name || null,
+              activities,
+              allergies: m.allergies || [],
+              medicalNotes: m.medical_notes || null,
+              livesWithUser: m.lives_with_user ?? true,
+            };
+          }),
           todayEvents: [],
           tomorrowEvents: [],
           upcomingBirthdays: [],
@@ -659,10 +705,8 @@ const Index = () => {
               });
 
               if (newTask) {
-                toast({
-                  title: 'Task Added',
-                  description: newTask.title,
-                });
+                toast({ title: 'Task Added', description: newTask.title });
+                collectedCards.push({ type: 'task', action: 'Created', title: newTask.title, details: dueDate ? `Due: ${new Date(dueDate).toLocaleDateString()}` : undefined });
               }
             } else if (toolCall.action === 'complete' && toolCall.task.id) {
               await toggleTaskComplete(toolCall.task.id);
@@ -700,23 +744,18 @@ const Index = () => {
               recurrenceEnd: toolCall.event.recurrenceEnd,
             });
             if (newEvent) {
-              toast({
-                title: 'Event Scheduled',
-                description: newEvent.title,
-              });
+              toast({ title: 'Event Scheduled', description: newEvent.title });
+              collectedCards.push({ type: 'event', action: 'Scheduled', title: newEvent.title });
             }
           } else if (toolCall.tool === 'create_note' && toolCall.note) {
-            // Create a note from voice assistant
             const noteTitle = toolCall.note.title || 'Voice Note';
             const noteContent = toolCall.note.content || '';
             const noteTags = toolCall.note.tags || [];
             
             const newNote = await createNote(noteTitle, noteContent, noteTags);
             if (newNote) {
-              toast({
-                title: 'Note Saved',
-                description: noteTitle,
-              });
+              toast({ title: 'Note Saved', description: noteTitle });
+              collectedCards.push({ type: 'note', action: 'Saved', title: noteTitle });
             }
           } else if (toolCall.tool === 'manage_contact' && toolCall.contact) {
             const { action, contact } = toolCall;
@@ -732,7 +771,7 @@ const Index = () => {
                 contactType: (contact.contactType === 'business' ? 'business' : 'personal') as 'personal' | 'business',
                 notes: contact.notes || '',
               });
-              if (result) toast({ title: 'Contact Added', description: contact.name });
+              if (result) { toast({ title: 'Contact Added', description: contact.name }); collectedCards.push({ type: 'contact', action: 'Added', title: contact.name }); }
             } else if (action === 'delete' && contact.query) {
               const match = contacts.find(c => c.name.toLowerCase().includes(contact.query!.toLowerCase()));
               if (match) {
@@ -940,6 +979,8 @@ const Index = () => {
         },
         onDone: () => {
           setIsProcessing(false);
+          setThinkingStatus(undefined);
+          setActionCards(collectedCards);
         },
       });
 
@@ -974,10 +1015,11 @@ const Index = () => {
         content: "I'm sorry, I encountered an error. Please try again.",
       });
       setIsProcessing(false);
+      setThinkingStatus(undefined);
     } finally {
       sendLockRef.current = false;
     }
-  }, [addMessage, addTask, addEvent, deleteTask, toggleTaskComplete, updateTask, events, messages, settings, streamChat, tasks, toast, contacts, contracts, allEmails, notes, todayHabits, familyMembers, shoppingLists, userProfile, unreadEmailCount, createNote, deleteNote, searchNotes, addContact, updateContact, deleteContact, markContacted, addContract, updateContract, deleteContract, addProject, updateProject, deleteProject, projects, createHabit, logHabit, deleteHabit, previousConversationMessages, user?.id]);
+  }, [addMessage, addTask, addEvent, deleteTask, toggleTaskComplete, updateTask, events, messages, settings, streamChat, tasks, toast, contacts, contracts, allEmails, notes, todayHabits, familyMembers, shoppingLists, userProfile, unreadEmailCount, createNote, deleteNote, searchNotes, addContact, updateContact, deleteContact, markContacted, addContract, updateContract, deleteContract, addProject, updateProject, deleteProject, projects, createHabit, logHabit, deleteHabit, previousConversationMessages, user?.id, startConversation]);
 
   const handleGhostCommand = useCallback((command: string) => {
     handleSendMessage(command);
@@ -1096,6 +1138,18 @@ const Index = () => {
           onDeleteEvent={deleteEvent}
           onImportEvents={handleImportEvents}
           onSendMessage={handleSendMessage}
+          thinkingStatus={thinkingStatus}
+          actionCards={actionCards}
+          doriStats={{
+            overdueTasks: tasks.filter(t => !t.completed && t.dueDate && new Date(t.dueDate) < new Date()).length,
+            unreadEmails: unreadEmailCount,
+            todayEvents: events.filter(e => {
+              const d = new Date(e.startTime);
+              const now = new Date();
+              return d.toDateString() === now.toDateString();
+            }).length,
+            pendingTasks: tasks.filter(t => !t.completed).length,
+          }}
           onVoiceMode={() => setMode('ghost')}
           onEditProfile={() => setShowProfileSettings(true)}
           settings={settings}

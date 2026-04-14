@@ -440,6 +440,7 @@ export function useAIChat() {
 
   const streamChat = useCallback(async ({
     messages,
+    imageUrl,
     tasks,
     events,
     overdueTasks,
@@ -465,6 +466,7 @@ export function useAIChat() {
     memories,
   }: {
     messages: Message[];
+    imageUrl?: string;
     tasks?: Task[];
     events?: CalendarEvent[];
     overdueTasks?: Task[];
@@ -496,6 +498,7 @@ export function useAIChat() {
       // Build request payload
       const payload: Record<string, unknown> = {
         messages: messages.map(m => ({ role: m.role, content: m.content })),
+        imageUrl,
         tasks: tasks?.map(t => ({
           id: t.id,
           title: t.title,
