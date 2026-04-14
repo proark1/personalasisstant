@@ -585,6 +585,7 @@ serve(async (req) => {
   try {
     const { 
       messages, 
+      imageUrl,
       tasks, 
       events,
       overdueTasks: clientOverdueTasks,
