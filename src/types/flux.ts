@@ -75,6 +75,7 @@ export interface Task {
   status?: TaskStatus; // Kanban status: backlog, in_progress, done
   completed: boolean;
   createdAt: Date;
+  updatedAt?: Date;
   dueDate?: Date;
   recurrenceRule?: string; // RRULE format
   recurrenceEnd?: Date;
