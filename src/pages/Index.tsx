@@ -578,20 +578,31 @@ const Index = () => {
         habitsSummary: smartPayload.habitsSummary,
         memories: smartPayload.memories,
         familyContext: smartPayload.familyContext ? {
-          members: smartPayload.familyContext.members.map(m => ({
-            id: '',
-            ...m,
-            school: m.school || null,
-            grade: null,
-            teacherName: null,
-            teacherContact: null,
-            kindergarten: null,
-            kindergartenTeacher: null,
-            activities: m.activities.map(a => ({ name: a, schedule: '', location: '' })),
-            allergies: [],
-            medicalNotes: null,
-            livesWithUser: true,
-          })),
+          members: familyMembers.map(m => {
+            const birthDate = m.birth_date ? new Date(m.birth_date) : null;
+            const age = birthDate ? Math.floor((Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+            const activities = Array.isArray(m.activities) ? (m.activities as any[]).map((a: any) => ({
+              name: typeof a === 'string' ? a : a.name || '',
+              schedule: typeof a === 'object' ? a.schedule || '' : '',
+              location: typeof a === 'object' ? a.location || '' : '',
+            })) : [];
+            return {
+              id: m.id,
+              name: m.name,
+              relationship: m.relationship,
+              age,
+              school: m.school_name || m.kindergarten_name || null,
+              grade: m.school_grade || null,
+              teacherName: m.teacher_name || null,
+              teacherContact: m.teacher_contact || null,
+              kindergarten: m.kindergarten_name || null,
+              kindergartenTeacher: m.kindergarten_teacher_name || null,
+              activities,
+              allergies: m.allergies || [],
+              medicalNotes: m.medical_notes || null,
+              livesWithUser: m.lives_with_user ?? true,
+            };
+          }),
           todayEvents: [],
           tomorrowEvents: [],
           upcomingBirthdays: [],
