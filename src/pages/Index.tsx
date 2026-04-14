@@ -374,8 +374,28 @@ const Index = () => {
 
     addMessage({ role: 'user', content: userText });
     setIsProcessing(true);
+    setActionCards([]);
+
+    // Set contextual thinking status
+    const lowerText = userText.toLowerCase();
+    if (lowerText.includes('search') || lowerText.includes('news') || lowerText.includes('latest')) {
+      setThinkingStatus('Searching the web...');
+    } else if (lowerText.includes('task') || lowerText.includes('todo') || lowerText.includes('remind')) {
+      setThinkingStatus('Checking your tasks...');
+    } else if (lowerText.includes('calendar') || lowerText.includes('event') || lowerText.includes('schedule')) {
+      setThinkingStatus('Looking at your calendar...');
+    } else if (lowerText.includes('email') || lowerText.includes('mail') || lowerText.includes('inbox')) {
+      setThinkingStatus('Checking your emails...');
+    } else if (lowerText.includes('health') || lowerText.includes('sleep') || lowerText.includes('steps')) {
+      setThinkingStatus('Analyzing health data...');
+    } else if (lowerText.includes('contact') || lowerText.includes('who')) {
+      setThinkingStatus('Searching contacts...');
+    } else {
+      setThinkingStatus('Thinking...');
+    }
 
     let assistantContent = '';
+    const collectedCards: { type: string; action: string; title: string; details?: string }[] = [];
     
     // Rate limit task/event creation per message to prevent runaway loops
     const MAX_TASKS_PER_MESSAGE = 10;
