@@ -744,23 +744,18 @@ const Index = () => {
               recurrenceEnd: toolCall.event.recurrenceEnd,
             });
             if (newEvent) {
-              toast({
-                title: 'Event Scheduled',
-                description: newEvent.title,
-              });
+              toast({ title: 'Event Scheduled', description: newEvent.title });
+              collectedCards.push({ type: 'event', action: 'Scheduled', title: newEvent.title });
             }
           } else if (toolCall.tool === 'create_note' && toolCall.note) {
-            // Create a note from voice assistant
             const noteTitle = toolCall.note.title || 'Voice Note';
             const noteContent = toolCall.note.content || '';
             const noteTags = toolCall.note.tags || [];
             
             const newNote = await createNote(noteTitle, noteContent, noteTags);
             if (newNote) {
-              toast({
-                title: 'Note Saved',
-                description: noteTitle,
-              });
+              toast({ title: 'Note Saved', description: noteTitle });
+              collectedCards.push({ type: 'note', action: 'Saved', title: noteTitle });
             }
           } else if (toolCall.tool === 'manage_contact' && toolCall.contact) {
             const { action, contact } = toolCall;
