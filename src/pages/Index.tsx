@@ -292,6 +292,8 @@ const Index = () => {
   const [mode, setMode] = useState<AppMode>('standard');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [thinkingStatus, setThinkingStatus] = useState<string | undefined>();
+  const [actionCards, setActionCards] = useState<{ type: string; action: string; title: string; details?: string }[]>([]);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [shareDialog, setShareDialog] = useState<{
     type: 'task' | 'event';
