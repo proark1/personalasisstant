@@ -519,6 +519,34 @@ async function logAIUsage(
   }
 }
 
+// Detect if user's message likely needs a web search (avoids two-pass)
+function detectWebSearchIntent(msg: string): boolean {
+  const searchPatterns = [
+    /^(what|who|where|when|why|how)\s+(is|are|was|were|do|does|did|can|could|should|would)/i,
+    /\b(latest|current|recent|today'?s?|news|price|cost of|weather|score|recipe for|best|top|review|recommend)\b/i,
+    /\b(search|look up|find out|google|tell me about)\b/i,
+    /\b(what happened|what's happening|trending)\b/i,
+  ];
+  
+  // Don't trigger for personal data queries
+  const personalPatterns = [
+    /\b(my task|my event|my contact|my contract|my habit|my note|my email|my family|my health|my calendar|my schedule|add|create|delete|update|complete|mark|remind me|set reminder)\b/i,
+    /\b(shopping list|brain dump|how am i doing|life score)\b/i,
+  ];
+  
+  if (personalPatterns.some(p => p.test(msg))) return false;
+  return searchPatterns.some(p => p.test(msg));
+}
+
+// Extract a clean search query from the user message
+function extractSearchQuery(msg: string): string {
+  // Remove common prefixes
+  return msg
+    .replace(/^(hey dori|dori|can you|could you|please|search for|look up|google|find out|tell me)\s*/i, '')
+    .replace(/\?$/, '')
+    .trim() || msg;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
