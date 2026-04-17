@@ -1053,6 +1053,7 @@ async function executeToolsServerSide(text: string, userId: string, supabase: an
   return out;
 }
 
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
