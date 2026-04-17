@@ -403,8 +403,8 @@ export function SettingsPanelContent({
       </div>
 
       {/* Content */}
-      <ScrollArea className="flex-1">
-        <div className="p-6 space-y-6">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-6 space-y-6 pb-24">
         {activeTab === 'general' && (
           <>
             {/* Profile Section */}
