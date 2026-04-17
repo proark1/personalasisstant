@@ -96,10 +96,12 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader } }
     });
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No user');
-    userId = user.id;
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    const { data, error } = await supabase.auth.getClaims(token);
+    if (error || !data?.claims?.sub) throw new Error('No user');
+    userId = data.claims.sub;
   } catch (e) {
+    console.error('Auth error:', e);
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
