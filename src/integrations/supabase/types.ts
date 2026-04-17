@@ -1161,6 +1161,8 @@ export type Database = {
           attendees: string[] | null
           category: string | null
           created_at: string
+          created_by_telegram_user_id: number | null
+          created_via: string | null
           description: string | null
           end_time: string
           external_id: string | null
@@ -1179,6 +1181,8 @@ export type Database = {
           attendees?: string[] | null
           category?: string | null
           created_at?: string
+          created_by_telegram_user_id?: number | null
+          created_via?: string | null
           description?: string | null
           end_time: string
           external_id?: string | null
@@ -1197,6 +1201,8 @@ export type Database = {
           attendees?: string[] | null
           category?: string | null
           created_at?: string
+          created_by_telegram_user_id?: number | null
+          created_via?: string | null
           description?: string | null
           end_time?: string
           external_id?: string | null
@@ -2524,6 +2530,8 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          created_by_telegram_user_id: number | null
+          created_via: string | null
           id: string
           is_pinned: boolean
           linked_items: Json | null
@@ -2537,6 +2545,8 @@ export type Database = {
         Insert: {
           content?: string
           created_at?: string
+          created_by_telegram_user_id?: number | null
+          created_via?: string | null
           id?: string
           is_pinned?: boolean
           linked_items?: Json | null
@@ -2550,6 +2560,8 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          created_by_telegram_user_id?: number | null
+          created_via?: string | null
           id?: string
           is_pinned?: boolean
           linked_items?: Json | null
@@ -2854,6 +2866,7 @@ export type Database = {
           quiet_hours_enabled: boolean | null
           quiet_hours_end: string | null
           quiet_hours_start: string | null
+          telegram_group_enabled: boolean
           telegram_proactive_enabled: boolean | null
           updated_at: string
           user_id: string
@@ -2889,6 +2902,7 @@ export type Database = {
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          telegram_group_enabled?: boolean
           telegram_proactive_enabled?: boolean | null
           updated_at?: string
           user_id: string
@@ -2924,6 +2938,7 @@ export type Database = {
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          telegram_group_enabled?: boolean
           telegram_proactive_enabled?: boolean | null
           updated_at?: string
           user_id?: string
@@ -3869,6 +3884,8 @@ export type Database = {
           added_by: string | null
           category: string | null
           created_at: string
+          created_by_telegram_user_id: number | null
+          created_via: string | null
           id: string
           is_checked: boolean | null
           list_id: string
@@ -3882,6 +3899,8 @@ export type Database = {
           added_by?: string | null
           category?: string | null
           created_at?: string
+          created_by_telegram_user_id?: number | null
+          created_via?: string | null
           id?: string
           is_checked?: boolean | null
           list_id: string
@@ -3895,6 +3914,8 @@ export type Database = {
           added_by?: string | null
           category?: string | null
           created_at?: string
+          created_by_telegram_user_id?: number | null
+          created_via?: string | null
           id?: string
           is_checked?: boolean | null
           list_id?: string
@@ -4351,6 +4372,8 @@ export type Database = {
           comments: Json | null
           completed: boolean
           created_at: string
+          created_by_telegram_user_id: number | null
+          created_via: string | null
           description: string | null
           due_date: string | null
           id: string
@@ -4378,6 +4401,8 @@ export type Database = {
           comments?: Json | null
           completed?: boolean
           created_at?: string
+          created_by_telegram_user_id?: number | null
+          created_via?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -4405,6 +4430,8 @@ export type Database = {
           comments?: Json | null
           completed?: boolean
           created_at?: string
+          created_by_telegram_user_id?: number | null
+          created_via?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -4470,6 +4497,51 @@ export type Database = {
         Update: {
           id?: number
           update_offset?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      telegram_group_links: {
+        Row: {
+          chat_id: number | null
+          created_at: string
+          id: string
+          is_active: boolean
+          link_code: string | null
+          link_code_expires_at: string | null
+          linked_at: string | null
+          owner_user_id: string
+          partner_user_id: string | null
+          space_member_id: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          chat_id?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          link_code?: string | null
+          link_code_expires_at?: string | null
+          linked_at?: string | null
+          owner_user_id: string
+          partner_user_id?: string | null
+          space_member_id?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          chat_id?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          link_code?: string | null
+          link_code_expires_at?: string | null
+          linked_at?: string | null
+          owner_user_id?: string
+          partner_user_id?: string | null
+          space_member_id?: string | null
+          title?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -4540,6 +4612,33 @@ export type Database = {
           raw_update?: Json
           text?: string | null
           update_id?: number
+        }
+        Relationships: []
+      }
+      telegram_user_map: {
+        Row: {
+          created_at: string
+          id: string
+          telegram_first_name: string | null
+          telegram_user_id: number
+          telegram_username: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          telegram_first_name?: string | null
+          telegram_user_id: number
+          telegram_username?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          telegram_first_name?: string | null
+          telegram_user_id?: number
+          telegram_username?: string | null
+          user_id?: string
         }
         Relationships: []
       }
