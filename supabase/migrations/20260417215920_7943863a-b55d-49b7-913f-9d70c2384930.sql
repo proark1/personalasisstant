@@ -1,0 +1,1 @@
+ALTER TABLE public.telegram_group_links ADD CONSTRAINT telegram_group_links_owner_user_id_key UNIQUE (owner_user_id);
