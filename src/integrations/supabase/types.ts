@@ -4417,6 +4417,93 @@ export type Database = {
           },
         ]
       }
+      telegram_bot_state: {
+        Row: {
+          id: number
+          update_offset: number
+          updated_at: string
+        }
+        Insert: {
+          id: number
+          update_offset?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          update_offset?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      telegram_links: {
+        Row: {
+          chat_id: number | null
+          created_at: string
+          id: string
+          is_active: boolean
+          link_code: string | null
+          link_code_expires_at: string | null
+          linked_at: string | null
+          telegram_first_name: string | null
+          telegram_username: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_id?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          link_code?: string | null
+          link_code_expires_at?: string | null
+          linked_at?: string | null
+          telegram_first_name?: string | null
+          telegram_username?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          link_code?: string | null
+          link_code_expires_at?: string | null
+          linked_at?: string | null
+          telegram_first_name?: string | null
+          telegram_username?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telegram_messages: {
+        Row: {
+          chat_id: number
+          created_at: string
+          processed: boolean
+          raw_update: Json
+          text: string | null
+          update_id: number
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          processed?: boolean
+          raw_update: Json
+          text?: string | null
+          update_id: number
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          processed?: boolean
+          raw_update?: Json
+          text?: string | null
+          update_id?: number
+        }
+        Relationships: []
+      }
       user_challenges: {
         Row: {
           challenge_id: string
