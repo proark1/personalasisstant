@@ -68,9 +68,11 @@ async function generatePrep(event: EventRow, contactNotes: string): Promise<stri
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  // Service-key gated
-  const auth = req.headers.get('Authorization');
-  if (!auth || auth !== `Bearer ${SERVICE_KEY}`) {
+  // Accept service-role OR anon (cron uses anon). These endpoints take no user input.
+  const auth = req.headers.get('Authorization') || '';
+  const anon = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '';
+  const okAuth = auth === `Bearer ${SERVICE_KEY}` || (anon && auth === `Bearer ${anon}`);
+  if (!okAuth) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
