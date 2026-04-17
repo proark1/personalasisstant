@@ -30,6 +30,11 @@ export interface ProactiveSettings {
   push_notifications_enabled: boolean;
   in_app_notifications_enabled: boolean;
   voice_alerts_enabled: boolean;
+  meeting_briefing_enabled?: boolean;
+  meeting_briefing_minutes?: number[];
+  meeting_followup_enabled?: boolean;
+  meeting_prep_enabled?: boolean;
+  telegram_proactive_enabled?: boolean;
 }
 
 const DEFAULT_SETTINGS: Omit<ProactiveSettings, 'user_id'> = {
@@ -57,6 +62,11 @@ const DEFAULT_SETTINGS: Omit<ProactiveSettings, 'user_id'> = {
   push_notifications_enabled: true,
   in_app_notifications_enabled: true,
   voice_alerts_enabled: false,
+  meeting_briefing_enabled: true,
+  meeting_briefing_minutes: [15, 5, 1],
+  meeting_followup_enabled: true,
+  meeting_prep_enabled: true,
+  telegram_proactive_enabled: true,
 };
 
 export function useProactiveSettings() {
