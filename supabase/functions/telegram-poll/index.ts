@@ -1,4 +1,5 @@
-// Polls Telegram getUpdates and routes incoming messages to Dori AI per linked user.
+// Polls Telegram getUpdates and routes incoming messages.
+// 1:1 chats → Dori chat; group chats linked via /linkfamily → telegram-router.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/telegram';
@@ -27,7 +28,7 @@ async function tg(method: string, body: Record<string, unknown>, lovableKey: str
 
 async function sendMessage(chatId: number, text: string, lovableKey: string, tgKey: string) {
   try {
-    await tg('sendMessage', { chat_id: chatId, text, parse_mode: 'Markdown' }, lovableKey, tgKey);
+    await tg('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML' }, lovableKey, tgKey);
   } catch (e) {
     console.error('sendMessage failed:', e);
   }
@@ -47,17 +48,12 @@ async function callDori(userId: string, message: string, supabaseUrl: string, se
         personality: 'balanced',
       }),
     });
-
     if (!r.ok) {
-      const errText = await r.text();
-      console.error(`Dori call failed for user ${userId}:`, r.status, errText);
+      console.error(`Dori call failed for user ${userId}:`, r.status, await r.text());
       return "Sorry, I'm having trouble reaching Dori right now. Try again in a moment.";
     }
-
-    // Stream response — collect text chunks
     const reader = r.body?.getReader();
     if (!reader) return await r.text();
-
     const decoder = new TextDecoder();
     let full = '';
     let buffer = '';
@@ -75,9 +71,7 @@ async function callDori(userId: string, message: string, supabaseUrl: string, se
           const parsed = JSON.parse(payload);
           const delta = parsed.choices?.[0]?.delta?.content;
           if (delta) full += delta;
-        } catch {
-          // ignore non-JSON
-        }
+        } catch { /* ignore */ }
       }
     }
     return full.trim() || "I processed that but didn't have anything to add.";
@@ -127,42 +121,150 @@ Deno.serve(async (req) => {
       if (!msg || !msg.text) continue;
 
       const chatId = msg.chat.id;
+      const chatType = msg.chat.type as string; // 'private' | 'group' | 'supergroup' | 'channel'
       const text: string = msg.text.trim();
+      const fromId = msg.from?.id;
+      const fromUsername = msg.from?.username ?? null;
+      const fromFirstName = msg.from?.first_name ?? null;
+      const isGroup = chatType === 'group' || chatType === 'supergroup';
 
-      // Handle /start COMMAND with optional link code
-      if (text.startsWith('/start')) {
+      // ---------- /start (private only — group link uses /linkfamily) ----------
+      if (text.startsWith('/start') && !isGroup) {
         const parts = text.split(/\s+/);
         const code = parts[1];
         if (code) {
-          const { data: link } = await supabase
-            .from('telegram_links')
-            .select('*')
-            .eq('link_code', code)
-            .maybeSingle();
+          const { data: link } = await supabase.from('telegram_links').select('*').eq('link_code', code).maybeSingle();
           if (link && (!link.link_code_expires_at || new Date(link.link_code_expires_at) > new Date())) {
-            await supabase
-              .from('telegram_links')
-              .update({
-                chat_id: chatId,
-                telegram_username: msg.from?.username ?? null,
-                telegram_first_name: msg.from?.first_name ?? null,
-                is_active: true,
-                linked_at: new Date().toISOString(),
-                link_code: null,
-                link_code_expires_at: null,
-              })
-              .eq('id', link.id);
-            await sendMessage(chatId, `✅ *Linked successfully!*\n\nHi ${msg.from?.first_name ?? 'there'}, I'm Dori — your personal assistant. Send me anything: tasks, questions, reminders, or photos.`, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+            await supabase.from('telegram_links').update({
+              chat_id: chatId,
+              telegram_username: fromUsername,
+              telegram_first_name: fromFirstName,
+              is_active: true,
+              linked_at: new Date().toISOString(),
+              link_code: null,
+              link_code_expires_at: null,
+            }).eq('id', link.id);
+            // Also map this telegram user to the app user
+            if (fromId) {
+              await supabase.from('telegram_user_map').upsert({
+                telegram_user_id: fromId,
+                user_id: link.user_id,
+                telegram_username: fromUsername,
+                telegram_first_name: fromFirstName,
+              }, { onConflict: 'telegram_user_id' });
+            }
+            await sendMessage(chatId, `✅ <b>Linked successfully!</b>\n\nHi ${fromFirstName ?? 'there'}, I'm Dori — your personal assistant.`, LOVABLE_API_KEY, TELEGRAM_API_KEY);
           } else {
-            await sendMessage(chatId, '❌ This link code is invalid or expired. Generate a new one in the Dori app.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+            await sendMessage(chatId, '❌ This link code is invalid or expired.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
           }
         } else {
-          await sendMessage(chatId, '👋 Welcome! To connect this chat to your Dori account, open Settings → Telegram in the app and tap "Connect Telegram".', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          await sendMessage(chatId, '👋 Welcome! Open the Dori app → Settings → Telegram to connect.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
         }
         continue;
       }
 
-      // Find linked user
+      // ---------- /linkfamily <code> (group only) ----------
+      if (text.startsWith('/linkfamily') && isGroup) {
+        const parts = text.split(/\s+/);
+        const code = parts[1];
+        if (!code) {
+          await sendMessage(chatId, '⚠️ Usage: /linkfamily <code> — generate a code in Settings → Telegram → Family Group.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          continue;
+        }
+        const { data: glink } = await supabase.from('telegram_group_links').select('*').eq('link_code', code).maybeSingle();
+        if (!glink || (glink.link_code_expires_at && new Date(glink.link_code_expires_at) < new Date())) {
+          await sendMessage(chatId, '❌ Invalid or expired family link code.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          continue;
+        }
+        await supabase.from('telegram_group_links').update({
+          chat_id: chatId,
+          title: msg.chat.title ?? 'Family Group',
+          is_active: true,
+          linked_at: new Date().toISOString(),
+          link_code: null,
+          link_code_expires_at: null,
+        }).eq('id', glink.id);
+        // Map the user who ran /linkfamily as the owner-side telegram identity
+        if (fromId) {
+          await supabase.from('telegram_user_map').upsert({
+            telegram_user_id: fromId,
+            user_id: glink.owner_user_id,
+            telegram_username: fromUsername,
+            telegram_first_name: fromFirstName,
+          }, { onConflict: 'telegram_user_id' });
+        }
+        await sendMessage(chatId, `✅ <b>Family group linked!</b>\n\nWrite naturally — I'll save tasks, shopping items, and events for your shared space.\n\nYour partner should send <code>/linkme &lt;their-code&gt;</code> here so I know who's who.\nType /help for more commands.`, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        continue;
+      }
+
+      // ---------- /linkme <personal-code> (group only — partner self-identifies) ----------
+      if (text.startsWith('/linkme') && isGroup) {
+        const parts = text.split(/\s+/);
+        const code = parts[1];
+        if (!code) {
+          await sendMessage(chatId, '⚠️ Generate a personal link code in Settings → Telegram, then send: /linkme <code>', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          continue;
+        }
+        const { data: link } = await supabase.from('telegram_links').select('user_id, link_code_expires_at').eq('link_code', code).maybeSingle();
+        if (!link || (link.link_code_expires_at && new Date(link.link_code_expires_at) < new Date())) {
+          await sendMessage(chatId, '❌ Invalid or expired code.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          continue;
+        }
+        if (fromId) {
+          await supabase.from('telegram_user_map').upsert({
+            telegram_user_id: fromId,
+            user_id: link.user_id,
+            telegram_username: fromUsername,
+            telegram_first_name: fromFirstName,
+          }, { onConflict: 'telegram_user_id' });
+        }
+        await sendMessage(chatId, `✅ ${fromFirstName ?? 'You'} are now linked. Items you add will be tagged to you.`, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        continue;
+      }
+
+      // ---------- GROUP MESSAGES → router ----------
+      if (isGroup) {
+        const { data: glink } = await supabase
+          .from('telegram_group_links')
+          .select('owner_user_id')
+          .eq('chat_id', chatId)
+          .eq('is_active', true)
+          .maybeSingle();
+        if (!glink) {
+          // Group not linked — stay quiet unless a command was tried
+          if (text.startsWith('/')) {
+            await sendMessage(chatId, '🔒 This group is not linked. Send /linkfamily <code> with a code from Dori app.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          }
+          continue;
+        }
+
+        tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
+
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/telegram-router`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text,
+              telegram_user_id: fromId,
+              telegram_username: fromUsername,
+              telegram_first_name: fromFirstName,
+            }),
+          });
+        } catch (e) {
+          console.error('router invoke failed', e);
+          await sendMessage(chatId, '⚠️ Router unavailable, try again shortly.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        }
+
+        await supabase.from('telegram_messages').upsert({
+          update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,
+        }, { onConflict: 'update_id' });
+        processed++;
+        continue;
+      }
+
+      // ---------- 1:1 PRIVATE CHAT ----------
       const { data: link } = await supabase
         .from('telegram_links')
         .select('user_id, is_active')
@@ -170,24 +272,16 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (!link || !link.is_active) {
-        await sendMessage(chatId, '🔒 This chat isn\'t linked to a Dori account yet. Open the app → Settings → Telegram to connect.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        await sendMessage(chatId, '🔒 This chat isn\'t linked yet. Open Dori → Settings → Telegram to connect.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
         continue;
       }
 
-      // Send typing indicator
       tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
-
-      // Route to Dori
       const reply = await callDori(link.user_id, text, supabaseUrl, serviceKey);
       await sendMessage(chatId, reply, LOVABLE_API_KEY, TELEGRAM_API_KEY);
 
-      // Log
       await supabase.from('telegram_messages').upsert({
-        update_id: u.update_id,
-        chat_id: chatId,
-        text,
-        raw_update: u,
-        processed: true,
+        update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,
       }, { onConflict: 'update_id' });
       processed++;
     }

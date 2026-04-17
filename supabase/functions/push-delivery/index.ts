@@ -138,34 +138,49 @@ serve(async (req) => {
         notificationData.trigger_entity_id = reminderData?.trigger_entity_id;
       }
 
-      // Get user's settings (telegram + push toggles)
+      // Get user's settings (telegram + group toggles)
       const { data: fullSettings } = await supabase
         .from('proactive_settings')
-        .select('telegram_proactive_enabled')
+        .select('telegram_proactive_enabled, telegram_group_enabled')
         .eq('user_id', userId)
         .maybeSingle();
       const telegramEnabled = fullSettings?.telegram_proactive_enabled !== false;
+      const groupEnabled = fullSettings?.telegram_group_enabled !== false;
 
-      // Telegram delivery
+      // Telegram delivery — prefer family group, fall back to personal 1:1
       if (telegramEnabled) {
-        const { data: link } = await supabase
-          .from('telegram_links')
-          .select('chat_id')
-          .eq('user_id', userId)
-          .eq('is_active', true)
-          .maybeSingle();
-        if (link?.chat_id) {
-          const tgRes = await sendTelegram(Number(link.chat_id), notificationTitle, notificationBody);
+        let chatId: number | null = null;
+        let channelLabel = 'telegram';
+        if (groupEnabled) {
+          const { data: glink } = await supabase
+            .from('telegram_group_links')
+            .select('chat_id')
+            .eq('owner_user_id', userId)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (glink?.chat_id) { chatId = Number(glink.chat_id); channelLabel = 'telegram_group'; }
+        }
+        if (!chatId) {
+          const { data: link } = await supabase
+            .from('telegram_links')
+            .select('chat_id')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (link?.chat_id) chatId = Number(link.chat_id);
+        }
+        if (chatId) {
+          const tgRes = await sendTelegram(chatId, notificationTitle, notificationBody);
           await supabase.from('reminder_delivery_log').insert({
             user_id: userId,
             reminder_id: reminder_id || null,
-            delivery_channel: 'telegram',
+            delivery_channel: channelLabel,
             delivery_status: tgRes.ok ? 'sent' : 'failed',
             error_message: tgRes.ok ? null : (tgRes.error || JSON.stringify(tgRes.data)),
             sent_at: new Date().toISOString(),
           });
           if (tgRes.ok) {
-            results.push({ user_id: userId, channel: 'telegram', status: 'sent' });
+            results.push({ user_id: userId, channel: channelLabel, status: 'sent' });
           } else {
             errors.push(`Telegram failed for ${userId}: ${tgRes.error || 'unknown'}`);
           }

@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.meeting-followup]
 verify_jwt = false
+
+[functions.telegram-router]
+verify_jwt = false

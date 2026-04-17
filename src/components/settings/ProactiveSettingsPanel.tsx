@@ -132,6 +132,13 @@ export function ProactiveSettingsPanel() {
                 checked={settings.telegram_proactive_enabled ?? true}
                 onChange={(v) => updateSettings({ telegram_proactive_enabled: v })}
               />
+              <SettingRow
+                icon={<Users className="h-4 w-4" />}
+                label="Send to Family Group"
+                description="Prefer the linked Telegram group over personal chat"
+                checked={settings.telegram_group_enabled ?? true}
+                onChange={(v) => updateSettings({ telegram_group_enabled: v })}
+              />
             </CardContent>
           </Card>
 

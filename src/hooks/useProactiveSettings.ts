@@ -35,6 +35,7 @@ export interface ProactiveSettings {
   meeting_followup_enabled?: boolean;
   meeting_prep_enabled?: boolean;
   telegram_proactive_enabled?: boolean;
+  telegram_group_enabled?: boolean;
 }
 
 const DEFAULT_SETTINGS: Omit<ProactiveSettings, 'user_id'> = {
@@ -67,6 +68,7 @@ const DEFAULT_SETTINGS: Omit<ProactiveSettings, 'user_id'> = {
   meeting_followup_enabled: true,
   meeting_prep_enabled: true,
   telegram_proactive_enabled: true,
+  telegram_group_enabled: true,
 };
 
 export function useProactiveSettings() {

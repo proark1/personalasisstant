@@ -184,17 +184,32 @@ serve(async (req) => {
       });
     }
 
-    // Telegram delivery
+    // Telegram delivery — prefer family group, fall back to personal
     if (settings?.telegram_proactive_enabled !== false) {
-      const { data: link } = await supabase
-        .from('telegram_links')
-        .select('chat_id')
-        .eq('user_id', ev.user_id)
-        .eq('is_active', true)
-        .maybeSingle();
-      if (link?.chat_id) {
-        const tgText = `<b>${title}</b>\n${message}`.trim();
-        await sendTelegram(Number(link.chat_id), tgText);
+      const tgText = `<b>${title}</b>\n${message}`.trim();
+      let sentToGroup = false;
+      if (settings?.telegram_group_enabled !== false) {
+        const { data: glink } = await supabase
+          .from('telegram_group_links')
+          .select('chat_id')
+          .eq('owner_user_id', ev.user_id)
+          .eq('is_active', true)
+          .maybeSingle();
+        if (glink?.chat_id) {
+          await sendTelegram(Number(glink.chat_id), tgText);
+          sentToGroup = true;
+        }
+      }
+      if (!sentToGroup) {
+        const { data: link } = await supabase
+          .from('telegram_links')
+          .select('chat_id')
+          .eq('user_id', ev.user_id)
+          .eq('is_active', true)
+          .maybeSingle();
+        if (link?.chat_id) {
+          await sendTelegram(Number(link.chat_id), tgText);
+        }
       }
     }
 
