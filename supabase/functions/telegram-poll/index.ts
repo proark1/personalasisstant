@@ -323,9 +323,16 @@ Deno.serve(async (req) => {
           .eq('chat_id', chatId)
           .eq('is_active', true)
           .maybeSingle();
+        // Wake-word matchers — broad to handle voice transcription variants
+        // (Dori / Dory / Dorie / Doree / Dora / Dorai / Darai / DarAI / Tory / Lori etc.)
+        const BOT_MENTION = /@\w*(darai|dori|dory|dora|tory|lori)\w*_?bot\b/i;
+        const ADDRESSES_DORI = /^(hey\s+|hi\s+|hello\s+|ok\s+|okay\s+|yo\s+)?(dori|dory|dorie|doree|dora|dorai|darai|dar[\s-]?ai|tory|lori)\b[\s,.:;!?]?/i;
+        const STRIP_MENTION = /@\w*(darai|dori|dory|dora|tory|lori)\w*_?bot\b/gi;
+        const STRIP_ADDRESS = /^(hey\s+|hi\s+|hello\s+|ok\s+|okay\s+|yo\s+)?(dori|dory|dorie|doree|dora|dorai|darai|dar[\s-]?ai|tory|lori)\b[\s,.:;!?]*/i;
+
         if (!glink) {
-          const hasMention = /@\w*(darai|dori|dora)\w*_?bot\b/i.test(rawText);
-          const addressesDori = /^(hey\s+|hi\s+|ok\s+)?(dori|dora)\b[\s,:!?]?/i.test(rawText.trim());
+          const hasMention = BOT_MENTION.test(rawText);
+          const addressesDori = ADDRESSES_DORI.test(rawText.trim());
           if (rawText.startsWith('/') || hasMention || addressesDori) {
             await sendMessage(chatId, '🔒 This group is not linked yet. Generate a Family Group code in Settings → Telegram, then send /linkfamily <code> here.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
           }
@@ -334,13 +341,15 @@ Deno.serve(async (req) => {
 
         // Decide if Dori should respond. Stay silent on family chit-chat.
         const repliedToIsBot = msg.reply_to_message?.from?.is_bot === true;
-        const hasMention = /@\w*(darai|dori|dora)\w*_?bot\b/i.test(rawText);
-        const addressesDori = /^(hey\s+|hi\s+|ok\s+)?(dori|dora)\b[\s,:!?]?/i.test(rawText.trim());
+        const hasMention = BOT_MENTION.test(rawText);
+        const addressesDori = ADDRESSES_DORI.test(rawText.trim());
         const actionKeywords = /\b(buy|need|get|pick up|grab|remind|reminder|task|todo|to-do|schedule|meeting|appointment|event|tomorrow|today|tonight|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|kaufen|brauchen|besorgen|erinner|termin|morgen|heute)\b/i;
         const looksActionable = actionKeywords.test(rawText);
         const isCommand = rawText.startsWith('/');
+        // Voice/audio messages → always respond (user clearly meant to interact)
+        const isVoice = !!(msg.voice || msg.audio);
 
-        const shouldRespond = hasMention || addressesDori || repliedToIsBot || looksActionable || isCommand;
+        const shouldRespond = hasMention || addressesDori || repliedToIsBot || looksActionable || isCommand || isVoice;
 
         if (!shouldRespond) {
           await supabase.from('telegram_messages').upsert({
@@ -352,8 +361,8 @@ Deno.serve(async (req) => {
 
         // Strip mention/address prefix before sending to router
         const cleanText = rawText
-          .replace(/@\w*(darai|dori|dora)\w*_?bot\b/gi, '')
-          .replace(/^(hey\s+|hi\s+|ok\s+)?(dori|dora)\b[\s,:!?]*/i, '')
+          .replace(STRIP_MENTION, '')
+          .replace(STRIP_ADDRESS, '')
           .trim() || text;
 
         tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
