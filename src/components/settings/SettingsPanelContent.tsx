@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserSettings, ThemeMode, ColorScheme, TaskCategory, TaskPriority } from '@/types/flux';
@@ -403,7 +403,7 @@ export function SettingsPanelContent({
       </div>
 
       {/* Content */}
-      <ScrollArea className="flex-1 min-h-0 h-0">
+      <div className="flex-1 min-h-0 h-0 overflow-y-scroll overscroll-contain">
         <div className="p-6 space-y-6 pb-24">
         {activeTab === 'general' && (
           <>
@@ -865,7 +865,7 @@ export function SettingsPanelContent({
           </div>
         )}
         </div>
-      </ScrollArea>
+      </div>
       
       {/* Keyboard Shortcuts Dialog */}
       <KeyboardShortcutsPanel 
