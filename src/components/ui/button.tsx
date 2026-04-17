@@ -62,11 +62,26 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       [haptic, vibrate, onClick]
     );
 
+    if (asChild) {
+      return (
+        <Comp
+          className={cn(buttonVariants({ variant, size, className }))}
+          ref={ref}
+          onClick={onClick}
+          aria-busy={loading || undefined}
+          data-loading={loading ? "true" : undefined}
+          {...props}
+        >
+          {children}
+        </Comp>
+      );
+    }
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        onClick={asChild ? onClick : handleClick}
+        onClick={handleClick}
         disabled={disabled || loading}
         aria-busy={loading || undefined}
         {...props}
