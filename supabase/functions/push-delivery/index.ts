@@ -8,6 +8,32 @@ const corsHeaders = {
 };
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const TELEGRAM_GATEWAY = 'https://connector-gateway.lovable.dev/telegram';
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY');
+
+async function sendTelegram(chatId: number, title: string, body: string) {
+  if (!LOVABLE_API_KEY || !TELEGRAM_API_KEY) return { ok: false, error: 'telegram not configured' };
+  try {
+    const res = await fetch(`${TELEGRAM_GATEWAY}/sendMessage`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'X-Connection-Api-Key': TELEGRAM_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: `<b>${title}</b>\n${body}`,
+        parse_mode: 'HTML',
+      }),
+    });
+    const data = await res.json();
+    return { ok: res.ok, data };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
 
 interface ExpoPushMessage {
   to: string;
