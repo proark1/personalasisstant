@@ -563,23 +563,29 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   let userId: string;
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No user');
-    userId = user.id;
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    // Trusted server-to-server call (e.g. Telegram bot): accept service-role token + explicit user id header
+    const telegramUserId = req.headers.get('x-telegram-user-id');
+    if (telegramUserId && token === supabaseServiceKey) {
+      userId = telegramUserId;
+    } else {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      const { data, error } = await supabase.auth.getClaims(token);
+      if (error || !data?.claims?.sub) throw new Error('No user');
+      userId = data.claims.sub;
+    }
   } catch (e) {
+    console.error('Auth error:', e);
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
   // Create service role client for logging
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
