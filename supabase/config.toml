@@ -7,7 +7,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.chat]
-verify_jwt = true
+verify_jwt = false
 
 [functions.gemini-live]
 verify_jwt = true
