@@ -376,15 +376,15 @@ export function SettingsPanelContent({
   ];
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full min-h-0 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 p-4 border-b border-border">
+      <div className="flex items-center gap-2 p-4 border-b border-border shrink-0">
         <Settings className="w-5 h-5 text-primary" />
         <h2 className="text-lg font-semibold">{t('settings.title')}</h2>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border">
+      <div className="flex border-b border-border shrink-0">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -403,7 +403,7 @@ export function SettingsPanelContent({
       </div>
 
       {/* Content */}
-      <ScrollArea className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 h-0 overflow-y-scroll overscroll-contain">
         <div className="p-6 space-y-6 pb-24">
         {activeTab === 'general' && (
           <>
@@ -865,7 +865,7 @@ export function SettingsPanelContent({
           </div>
         )}
         </div>
-      </ScrollArea>
+      </div>
       
       {/* Keyboard Shortcuts Dialog */}
       <KeyboardShortcutsPanel 
