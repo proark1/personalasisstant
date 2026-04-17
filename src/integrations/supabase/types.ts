@@ -2406,6 +2406,30 @@ export type Database = {
           },
         ]
       }
+      meeting_reminders_sent: {
+        Row: {
+          event_id: string
+          id: string
+          reminder_type: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          reminder_type: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          reminder_type?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       message_read_receipts: {
         Row: {
           id: string
@@ -2821,11 +2845,16 @@ export type Database = {
           habit_streaks_enabled: boolean | null
           id: string
           in_app_notifications_enabled: boolean | null
+          meeting_briefing_enabled: boolean | null
+          meeting_briefing_minutes: number[] | null
+          meeting_followup_enabled: boolean | null
+          meeting_prep_enabled: boolean | null
           morning_briefing_time: string | null
           push_notifications_enabled: boolean | null
           quiet_hours_enabled: boolean | null
           quiet_hours_end: string | null
           quiet_hours_start: string | null
+          telegram_proactive_enabled: boolean | null
           updated_at: string
           user_id: string
           voice_alerts_enabled: boolean | null
@@ -2851,11 +2880,16 @@ export type Database = {
           habit_streaks_enabled?: boolean | null
           id?: string
           in_app_notifications_enabled?: boolean | null
+          meeting_briefing_enabled?: boolean | null
+          meeting_briefing_minutes?: number[] | null
+          meeting_followup_enabled?: boolean | null
+          meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
           push_notifications_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          telegram_proactive_enabled?: boolean | null
           updated_at?: string
           user_id: string
           voice_alerts_enabled?: boolean | null
@@ -2881,11 +2915,16 @@ export type Database = {
           habit_streaks_enabled?: boolean | null
           id?: string
           in_app_notifications_enabled?: boolean | null
+          meeting_briefing_enabled?: boolean | null
+          meeting_briefing_minutes?: number[] | null
+          meeting_followup_enabled?: boolean | null
+          meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
           push_notifications_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          telegram_proactive_enabled?: boolean | null
           updated_at?: string
           user_id?: string
           voice_alerts_enabled?: boolean | null

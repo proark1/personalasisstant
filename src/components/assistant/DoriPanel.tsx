@@ -7,6 +7,7 @@ import { Contact } from '@/hooks/useContacts';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { findRelevantContacts, ContactSuggestion } from '@/lib/contactSuggestions';
 import { ConversationHistoryPanel } from './ConversationHistoryPanel';
+import { NextUpStrip } from './NextUpStrip';
 import { AudioVisualizer } from '@/components/ghost/AudioVisualizer';
 import { MarkdownRenderer } from '@/components/chat/MarkdownRenderer';
 import { ActionCard, ActionCardData } from './ActionCard';
@@ -215,6 +216,9 @@ export function DoriPanel({
           </Button>
         </div>
       </div>
+
+      {/* Next-up live strip */}
+      <NextUpStrip />
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">

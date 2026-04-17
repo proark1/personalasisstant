@@ -111,6 +111,27 @@ export function ProactiveSettingsPanel() {
                 checked={settings.daily_review_enabled}
                 onChange={(v) => updateSettings({ daily_review_enabled: v })}
               />
+              <SettingRow
+                icon={<Clock className="h-4 w-4" />}
+                label="Meeting Briefings"
+                description="Pings 15/5/1 min before each meeting with context"
+                checked={settings.meeting_briefing_enabled ?? true}
+                onChange={(v) => updateSettings({ meeting_briefing_enabled: v })}
+              />
+              <SettingRow
+                icon={<Heart className="h-4 w-4" />}
+                label="Meeting Follow-ups"
+                description="Asks how it went after each meeting"
+                checked={settings.meeting_followup_enabled ?? true}
+                onChange={(v) => updateSettings({ meeting_followup_enabled: v })}
+              />
+              <SettingRow
+                icon={<Bell className="h-4 w-4" />}
+                label="Telegram Alerts"
+                description="Mirror critical alerts to your Telegram bot"
+                checked={settings.telegram_proactive_enabled ?? true}
+                onChange={(v) => updateSettings({ telegram_proactive_enabled: v })}
+              />
             </CardContent>
           </Card>
 
