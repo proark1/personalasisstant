@@ -614,6 +614,10 @@ serve(async (req) => {
     
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    if (!messages?.length) {
+      throw new Error("At least one message is required");
+    }
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");

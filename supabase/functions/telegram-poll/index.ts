@@ -44,14 +44,13 @@ async function callDori(userId: string, message: string, supabaseUrl: string, se
       },
       body: JSON.stringify({
         messages: [{ role: 'user', content: message }],
-        userId,
-        source: 'telegram',
+        personality: 'balanced',
       }),
     });
 
     if (!r.ok) {
       const errText = await r.text();
-      console.error('Dori call failed:', r.status, errText);
+      console.error(`Dori call failed for user ${userId}:`, r.status, errText);
       return "Sorry, I'm having trouble reaching Dori right now. Try again in a moment.";
     }
 
