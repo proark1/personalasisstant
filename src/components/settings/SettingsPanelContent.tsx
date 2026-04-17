@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserSettings, ThemeMode, ColorScheme, TaskCategory, TaskPriority } from '@/types/flux';
 import { 
-  Settings, 
+  Settings,
+  Send,
   Palette, 
   ListTodo, 
   Sun, 
@@ -46,7 +47,7 @@ import { ProactiveSettingsPanel } from './ProactiveSettingsPanel';
 import { KeyboardShortcutsPanel, useKeyboardShortcutsPanel } from './KeyboardShortcutsPanel';
 import { AutomationRulesPanel } from './AutomationRulesPanel';
 import { CalendarConnectionsPanel } from './CalendarConnectionsPanel';
-import { TelegramConnectPanel } from './TelegramConnectPanel';
+import { TelegramHubPanel } from './TelegramHubPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -334,7 +335,7 @@ export function SettingsPanelContent({
   const biometricAuth = useBiometricAuth();
   const keyboardShortcuts = useKeyboardShortcutsPanel();
   const prayerNotifications = usePrayerNotificationSettings();
-  const [activeTab, setActiveTab] = useState<'general' | 'proactive' | 'team' | 'ai' | 'info'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'telegram' | 'proactive' | 'team' | 'ai' | 'info'>('general');
   
   // Sync status bar color with theme
   useStatusBar(settings.theme);
@@ -369,6 +370,7 @@ export function SettingsPanelContent({
 
   const tabs = [
     { id: 'general' as const, label: 'General', icon: Settings },
+    { id: 'telegram' as const, label: 'Telegram', icon: Send },
     { id: 'proactive' as const, label: 'Proactive & Advanced', icon: Brain },
     { id: 'team' as const, label: t('settings.team'), icon: Users },
     { id: 'ai' as const, label: 'AI', icon: Bot },
@@ -480,11 +482,6 @@ export function SettingsPanelContent({
             {/* Calendar Connections Section */}
             <div className="pt-4 border-t border-border">
               <CalendarConnectionsPanel />
-            </div>
-
-            {/* Telegram Connection */}
-            <div className="pt-4 border-t border-border">
-              <TelegramConnectPanel />
             </div>
 
             {/* Appearance Section */}
@@ -768,6 +765,10 @@ export function SettingsPanelContent({
               </div>
             </div>
           </>
+        )}
+
+        {activeTab === 'telegram' && (
+          <TelegramHubPanel />
         )}
 
         {activeTab === 'proactive' && (
