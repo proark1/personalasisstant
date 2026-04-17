@@ -767,6 +767,10 @@ export function SettingsPanelContent({
           </>
         )}
 
+        {activeTab === 'telegram' && (
+          <TelegramHubPanel />
+        )}
+
         {activeTab === 'proactive' && (
           <div className="space-y-6">
             <ProactiveSettingsPanel />
