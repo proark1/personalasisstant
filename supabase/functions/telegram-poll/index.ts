@@ -235,12 +235,35 @@ Deno.serve(async (req) => {
           .eq('is_active', true)
           .maybeSingle();
         if (!glink) {
-          // Group not linked — stay quiet unless a command was tried
-          if (text.startsWith('/')) {
+          if (rawText.startsWith('/')) {
             await sendMessage(chatId, '🔒 This group is not linked. Send /linkfamily <code> with a code from Dori app.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
           }
           continue;
         }
+
+        // Decide if Dori should respond. Stay silent on family chit-chat.
+        const repliedToIsBot = msg.reply_to_message?.from?.is_bot === true;
+        const hasMention = /@\w*(darai|dori|dora)\w*_?bot\b/i.test(rawText);
+        const addressesDori = /^(hey\s+|hi\s+|ok\s+)?(dori|dora)\b[\s,:!?]?/i.test(rawText.trim());
+        const actionKeywords = /\b(buy|need|get|pick up|grab|remind|reminder|task|todo|to-do|schedule|meeting|appointment|event|tomorrow|today|tonight|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|kaufen|brauchen|besorgen|erinner|termin|morgen|heute)\b/i;
+        const looksActionable = actionKeywords.test(rawText);
+        const isCommand = rawText.startsWith('/');
+
+        const shouldRespond = hasMention || addressesDori || repliedToIsBot || looksActionable || isCommand;
+
+        if (!shouldRespond) {
+          await supabase.from('telegram_messages').upsert({
+            update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,
+          }, { onConflict: 'update_id' });
+          processed++;
+          continue;
+        }
+
+        // Strip mention/address prefix before sending to router
+        const cleanText = rawText
+          .replace(/@\w*(darai|dori|dora)\w*_?bot\b/gi, '')
+          .replace(/^(hey\s+|hi\s+|ok\s+)?(dori|dora)\b[\s,:!?]*/i, '')
+          .trim() || text;
 
         tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
 
@@ -250,7 +273,7 @@ Deno.serve(async (req) => {
             headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
-              text,
+              text: cleanText,
               telegram_user_id: fromId,
               telegram_username: fromUsername,
               telegram_first_name: fromFirstName,
