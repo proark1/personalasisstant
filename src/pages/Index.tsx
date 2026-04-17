@@ -725,8 +725,9 @@ const Index = () => {
               console.warn('Event creation rate limit reached for this message');
               return;
             }
+            const evt = toolCall.event as Partial<CalendarEvent>;
             // Dedupe: skip if we already created an event with this title in this message
-            const eventTitle = (toolCall.event.title || 'New Event').toLowerCase().trim();
+            const eventTitle = (evt.title || 'New Event').toLowerCase().trim();
             if (createdEventTitles.has(eventTitle)) {
               console.warn('Duplicate event title skipped:', eventTitle);
               return;
@@ -735,13 +736,13 @@ const Index = () => {
             eventsCreatedThisMessage++;
 
             const newEvent = await addEvent({
-              title: toolCall.event.title || 'New Event',
-              startTime: toolCall.event.startTime || new Date(),
-              endTime: toolCall.event.endTime || new Date(Date.now() + 60 * 60 * 1000),
-              location: toolCall.event.location,
-              attendees: toolCall.event.attendees,
-              recurrenceRule: toolCall.event.recurrenceRule,
-              recurrenceEnd: toolCall.event.recurrenceEnd,
+              title: evt.title || 'New Event',
+              startTime: evt.startTime instanceof Date ? evt.startTime : evt.startTime ? new Date(evt.startTime) : new Date(),
+              endTime: evt.endTime instanceof Date ? evt.endTime : evt.endTime ? new Date(evt.endTime) : new Date(Date.now() + 60 * 60 * 1000),
+              location: evt.location,
+              attendees: evt.attendees,
+              recurrenceRule: evt.recurrenceRule,
+              recurrenceEnd: evt.recurrenceEnd,
             });
             if (newEvent) {
               toast({ title: 'Event Scheduled', description: newEvent.title });
