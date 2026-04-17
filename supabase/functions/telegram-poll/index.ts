@@ -235,8 +235,10 @@ Deno.serve(async (req) => {
           .eq('is_active', true)
           .maybeSingle();
         if (!glink) {
-          if (rawText.startsWith('/')) {
-            await sendMessage(chatId, '🔒 This group is not linked. Send /linkfamily <code> with a code from Dori app.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          const hasMention = /@\w*(darai|dori|dora)\w*_?bot\b/i.test(rawText);
+          const addressesDori = /^(hey\s+|hi\s+|ok\s+)?(dori|dora)\b[\s,:!?]?/i.test(rawText.trim());
+          if (rawText.startsWith('/') || hasMention || addressesDori) {
+            await sendMessage(chatId, '🔒 This group is not linked yet. Generate a Family Group code in Settings → Telegram, then send /linkfamily <code> here.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
           }
           continue;
         }
