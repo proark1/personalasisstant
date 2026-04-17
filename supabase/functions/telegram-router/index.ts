@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
   // full Dori brain with server-side tool execution so Dori can create/update/delete
   // tasks, events, contacts, contracts, properties, businesses, family members,
   // emails (drafts), notes, shopping, reminders — anywhere from the family group.
-  const userForChat = senderUserId || ownerId;
+  const userForChat = senderUserId || group.owner_user_id;
   try {
     const r = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
       method: 'POST',

@@ -34,6 +34,73 @@ async function sendMessage(chatId: number, text: string, lovableKey: string, tgK
   }
 }
 
+// Download a Telegram file (voice/audio) and transcribe via Gemini.
+// Returns the transcript text, or null on failure.
+async function transcribeTelegramVoice(
+  fileId: string,
+  mime: string,
+  lovableKey: string,
+  tgKey: string,
+): Promise<string | null> {
+  try {
+    // 1) Resolve file_path
+    const fileRes = await tg('getFile', { file_id: fileId }, lovableKey, tgKey);
+    const filePath = fileRes?.result?.file_path;
+    if (!filePath) return null;
+
+    // 2) Download file bytes via gateway
+    const dl = await fetch(`${GATEWAY_URL}/file/${filePath}`, {
+      headers: { 'Authorization': `Bearer ${lovableKey}`, 'X-Connection-Api-Key': tgKey },
+    });
+    if (!dl.ok) {
+      console.error('voice download failed', dl.status);
+      return null;
+    }
+    const bytes = new Uint8Array(await dl.arrayBuffer());
+
+    // 3) Base64 encode (chunked to avoid stack overflow on large files)
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+    }
+    const base64Audio = btoa(binary);
+
+    // 4) Transcribe via Lovable AI Gateway (Gemini supports audio inline as data URL)
+    const audioMime = mime || 'audio/ogg';
+    const aiRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a precise transcriber. Transcribe the audio verbatim in the original language. Output ONLY the transcript, no quotes, no commentary.',
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Transcribe this voice message.' },
+              { type: 'image_url', image_url: { url: `data:${audioMime};base64,${base64Audio}` } },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!aiRes.ok) {
+      console.error('transcription failed', aiRes.status, await aiRes.text());
+      return null;
+    }
+    const aiData = await aiRes.json();
+    const transcript = aiData?.choices?.[0]?.message?.content?.trim();
+    return transcript || null;
+  } catch (e) {
+    console.error('transcribeTelegramVoice error', e);
+    return null;
+  }
+}
+
 async function callDori(userId: string, message: string, supabaseUrl: string, serviceKey: string): Promise<string> {
   try {
     const r = await fetch(`${supabaseUrl}/functions/v1/chat`, {
@@ -108,6 +175,7 @@ Deno.serve(async (req) => {
     let data: any;
     try {
       data = await tg('getUpdates', { offset: currentOffset, timeout, allowed_updates: ['message'] }, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+      // (voice/audio arrive inside 'message' updates — no extra allowed_updates needed)
     } catch (e) {
       console.error('getUpdates failed:', e);
       break;
@@ -118,11 +186,32 @@ Deno.serve(async (req) => {
 
     for (const u of updates) {
       const msg = u.message;
-      if (!msg || !msg.text) continue;
+      if (!msg) continue;
 
       const chatId = msg.chat.id;
-      const chatType = msg.chat.type as string; // 'private' | 'group' | 'supergroup' | 'channel'
-      const rawText: string = msg.text.trim();
+      const chatType = msg.chat.type as string;
+
+      // ---------- VOICE / AUDIO → transcribe via Gemini, then treat as text ----------
+      let textFromVoice: string | null = null;
+      if (!msg.text && (msg.voice || msg.audio)) {
+        const v = msg.voice || msg.audio;
+        const mime = v.mime_type || 'audio/ogg';
+        try {
+          await tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        } catch { /* ignore */ }
+        textFromVoice = await transcribeTelegramVoice(v.file_id, mime, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        if (!textFromVoice) {
+          await sendMessage(chatId, "🎙️ I couldn't understand that voice message. Try again or type it.", LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          await supabase.from('telegram_bot_state').update({ update_offset: u.update_id + 1, updated_at: new Date().toISOString() }).eq('id', 1);
+          currentOffset = u.update_id + 1;
+          continue;
+        }
+        // Inject transcript so the rest of the pipeline treats it as a text message
+        msg.text = textFromVoice;
+      }
+
+      if (!msg.text) continue;
+
       // Normalize: strip @botname suffix from commands so "/linkfamily@darai_bot CODE" works
       const text: string = rawText.replace(/^(\/[a-zA-Z_]+)@\w+/, '$1');
       const fromId = msg.from?.id;
