@@ -1199,7 +1199,39 @@ serve(async (req) => {
       }
     }
 
-    // Single streaming call
+    // ===== SERVER-SIDE EXECUTION BRANCH (for Telegram & non-browser surfaces) =====
+    if (executeServerSide) {
+      const fullResp = await callAI(allMessages, false);
+      if (!fullResp.ok) {
+        const t = await fullResp.text();
+        console.error('Lovable AI (non-stream) error:', fullResp.status, t);
+        return new Response(JSON.stringify({ error: 'AI service error', detail: t }), {
+          status: fullResp.status === 429 ? 429 : fullResp.status === 402 ? 402 : 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const aiData = await fullResp.json();
+      const fullText: string = aiData.choices?.[0]?.message?.content || '';
+
+      // Execute all tools server-side
+      const execResults = await executeToolsServerSide(fullText, userId, supabaseAdmin);
+
+      // Strip all tool XML tags from the displayed reply
+      const cleanText = stripAllToolTags(fullText);
+
+      await logAIUsage(supabaseAdmin, userId, 'chat-server-exec', model,
+        Math.ceil((fullSystemPrompt + JSON.stringify(messages)).length / 4),
+        Math.ceil(fullText.length / 4),
+        Math.ceil((fullSystemPrompt + fullText).length / 4),
+        'success', { personality, executeServerSide: true });
+
+      return new Response(JSON.stringify({
+        reply: cleanText.trim(),
+        toolResults: execResults,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ===== STREAMING BRANCH (web app default) =====
     const streamResponse = await callAI(allMessages, true);
 
     if (!streamResponse.ok) {
