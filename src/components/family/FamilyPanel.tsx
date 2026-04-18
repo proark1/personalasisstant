@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, ListTodo, ShoppingCart, Utensils, Heart, FolderOpen, Wallet, Sparkles, BookOpen, Baby, GraduationCap } from 'lucide-react';
+import { Users, ListTodo, ShoppingCart, Utensils, Heart, FolderOpen, Wallet, Sparkles, BookOpen, Baby, GraduationCap, Sun } from 'lucide-react';
 import { HouseholdTasksList } from './HouseholdTasksList';
 import { ShoppingListsPanel } from './ShoppingListsPanel';
 import { MealPlanningPanel } from './MealPlanningPanel';
@@ -11,6 +11,7 @@ import { FamilyActivityFinder } from './FamilyActivityFinder';
 import { HomeworkHelper } from './HomeworkHelper';
 import { ParentingCoach } from './ParentingCoach';
 import { FamilySchoolLogisticsCard } from './FamilySchoolLogisticsCard';
+import { FamilyDailyLifeCard } from './FamilyDailyLifeCard';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { PanelShell } from '@/components/ui/panel-shell';
 
@@ -45,6 +46,9 @@ export function FamilyPanel() {
             </TabsTrigger>
             <TabsTrigger value="school" className="p-2" title="School & Logistics">
               <GraduationCap className="h-5 w-5" />
+            </TabsTrigger>
+            <TabsTrigger value="daily" className="p-2" title="Daily Life & Routines">
+              <Sun className="h-5 w-5" />
             </TabsTrigger>
             <TabsTrigger value="docs" className="p-2">
               <FolderOpen className="h-5 w-5" />
@@ -83,6 +87,9 @@ export function FamilyPanel() {
             </TabsContent>
             <TabsContent value="school" className="mt-0">
               <FamilySchoolLogisticsCard />
+            </TabsContent>
+            <TabsContent value="daily" className="mt-0">
+              <FamilyDailyLifeCard />
             </TabsContent>
             <TabsContent value="docs" className="mt-0">
               <DocumentStoragePanel />

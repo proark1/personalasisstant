@@ -1656,6 +1656,47 @@ export type Database = {
           },
         ]
       }
+      family_allowance: {
+        Row: {
+          amount: number
+          created_at: string
+          entry_date: string
+          entry_type: string
+          family_member_id: string
+          id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          entry_date?: string
+          entry_type?: string
+          family_member_id: string
+          id?: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          entry_date?: string
+          entry_type?: string
+          family_member_id?: string
+          id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_allowance_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       family_appointments: {
         Row: {
           appointment_date: string
@@ -1741,6 +1782,113 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      family_chore_completions: {
+        Row: {
+          chore_id: string
+          completed_at: string
+          created_at: string
+          family_member_id: string | null
+          id: string
+          notes: string | null
+          points_awarded: number | null
+          user_id: string
+        }
+        Insert: {
+          chore_id: string
+          completed_at?: string
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          notes?: string | null
+          points_awarded?: number | null
+          user_id: string
+        }
+        Update: {
+          chore_id?: string
+          completed_at?: string
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          notes?: string | null
+          points_awarded?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_chore_completions_chore_id_fkey"
+            columns: ["chore_id"]
+            isOneToOne: false
+            referencedRelation: "family_chores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_chore_completions_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_chores: {
+        Row: {
+          created_at: string
+          day_of_week: number | null
+          description: string | null
+          family_member_id: string | null
+          frequency: string | null
+          id: string
+          is_active: boolean | null
+          last_completed_at: string | null
+          next_due_date: string | null
+          points: number | null
+          rotation_members: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week?: number | null
+          description?: string | null
+          family_member_id?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_completed_at?: string | null
+          next_due_date?: string | null
+          points?: number | null
+          rotation_members?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number | null
+          description?: string | null
+          family_member_id?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_completed_at?: string | null
+          next_due_date?: string | null
+          points?: number | null
+          rotation_members?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_chores_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       family_classmates: {
         Row: {
@@ -2374,6 +2522,53 @@ export type Database = {
           },
         ]
       }
+      family_meal_preferences: {
+        Row: {
+          created_at: string
+          dietary_restrictions: string[] | null
+          dislikes: string[] | null
+          family_member_id: string
+          favorite_meals: string[] | null
+          id: string
+          loves: string[] | null
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dietary_restrictions?: string[] | null
+          dislikes?: string[] | null
+          family_member_id: string
+          favorite_meals?: string[] | null
+          id?: string
+          loves?: string[] | null
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dietary_restrictions?: string[] | null
+          dislikes?: string[] | null
+          family_member_id?: string
+          favorite_meals?: string[] | null
+          id?: string
+          loves?: string[] | null
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_meal_preferences_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: true
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       family_medications: {
         Row: {
           created_at: string
@@ -2697,6 +2892,56 @@ export type Database = {
             foreignKeyName: "family_sick_log_family_member_id_fkey"
             columns: ["family_member_id"]
             isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_sleep_schedule: {
+        Row: {
+          bedtime: string | null
+          created_at: string
+          family_member_id: string
+          id: string
+          nap_duration_minutes: number | null
+          nap_time: string | null
+          notes: string | null
+          screen_time_limit_minutes: number | null
+          updated_at: string
+          user_id: string
+          wake_time: string | null
+        }
+        Insert: {
+          bedtime?: string | null
+          created_at?: string
+          family_member_id: string
+          id?: string
+          nap_duration_minutes?: number | null
+          nap_time?: string | null
+          notes?: string | null
+          screen_time_limit_minutes?: number | null
+          updated_at?: string
+          user_id: string
+          wake_time?: string | null
+        }
+        Update: {
+          bedtime?: string | null
+          created_at?: string
+          family_member_id?: string
+          id?: string
+          nap_duration_minutes?: number | null
+          nap_time?: string | null
+          notes?: string | null
+          screen_time_limit_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+          wake_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_sleep_schedule_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: true
             referencedRelation: "family_members"
             referencedColumns: ["id"]
           },
