@@ -1259,10 +1259,24 @@ serve(async (req) => {
       memories,
       // Server-side execution flag (for Telegram and other non-browser surfaces)
       executeServerSide = false,
-    }: ChatRequest & { executeServerSide?: boolean } = reqBody;
+      skipApprovalGate = false,
+      preformedToolText,
+    }: ChatRequest & { executeServerSide?: boolean; skipApprovalGate?: boolean; preformedToolText?: string } = reqBody;
     
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    // preformedToolText path: skip AI call, just execute the queued tool XML directly.
+    if (preformedToolText && executeServerSide && userId && userId !== 'anonymous') {
+      const supabaseAdminEarly = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+      const execResults = await executeToolsServerSide(preformedToolText, userId, supabaseAdminEarly, { skipApprovalGate });
+      return new Response(JSON.stringify({ reply: '', toolResults: execResults }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!messages?.length) {
       throw new Error("At least one message is required");
