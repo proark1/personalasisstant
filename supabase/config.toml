@@ -158,3 +158,12 @@ verify_jwt = false
 
 [functions.life-score-commentary]
 verify_jwt = false
+
+[functions.spouse-handoff]
+verify_jwt = true
+
+[functions.morning-thread]
+verify_jwt = false
+
+[functions.family-agent]
+verify_jwt = true
