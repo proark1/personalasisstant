@@ -1742,6 +1742,62 @@ export type Database = {
         }
         Relationships: []
       }
+      family_classmates: {
+        Row: {
+          birthday: string | null
+          child_name: string
+          created_at: string
+          family_member_id: string
+          id: string
+          last_playdate: string | null
+          notes: string | null
+          parent_email: string | null
+          parent_name: string | null
+          parent_phone: string | null
+          relationship_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          birthday?: string | null
+          child_name: string
+          created_at?: string
+          family_member_id: string
+          id?: string
+          last_playdate?: string | null
+          notes?: string | null
+          parent_email?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
+          relationship_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          birthday?: string | null
+          child_name?: string
+          created_at?: string
+          family_member_id?: string
+          id?: string
+          last_playdate?: string | null
+          notes?: string | null
+          parent_email?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
+          relationship_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_classmates_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       family_documents: {
         Row: {
           category: string | null
@@ -1850,6 +1906,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "family_emergency_contacts_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_equipment: {
+        Row: {
+          brand: string | null
+          category: string | null
+          condition: string | null
+          created_at: string
+          family_member_id: string | null
+          id: string
+          item_name: string
+          needs_replacement: boolean | null
+          notes: string | null
+          purchase_date: string | null
+          replacement_reason: string | null
+          size: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          condition?: string | null
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          item_name: string
+          needs_replacement?: boolean | null
+          notes?: string | null
+          purchase_date?: string | null
+          replacement_reason?: string | null
+          size?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          condition?: string | null
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          item_name?: string
+          needs_replacement?: boolean | null
+          notes?: string | null
+          purchase_date?: string | null
+          replacement_reason?: string | null
+          size?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_equipment_family_member_id_fkey"
             columns: ["family_member_id"]
             isOneToOne: false
             referencedRelation: "family_members"
@@ -2078,6 +2193,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "family_health_records_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_homework_schedule: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          estimated_minutes: number | null
+          family_member_id: string
+          id: string
+          notes: string | null
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          estimated_minutes?: number | null
+          family_member_id: string
+          id?: string
+          notes?: string | null
+          subject: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          estimated_minutes?: number | null
+          family_member_id?: string
+          id?: string
+          notes?: string | null
+          subject?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_homework_schedule_family_member_id_fkey"
             columns: ["family_member_id"]
             isOneToOne: false
             referencedRelation: "family_members"
@@ -2383,6 +2539,115 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "user_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_pickup_rota: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          dropoff_time: string | null
+          family_member_id: string
+          id: string
+          is_active: boolean | null
+          location: string | null
+          notes: string | null
+          pickup_time: string | null
+          responsible_person: string | null
+          responsible_user_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          dropoff_time?: string | null
+          family_member_id: string
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          notes?: string | null
+          pickup_time?: string | null
+          responsible_person?: string | null
+          responsible_user_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          dropoff_time?: string | null
+          family_member_id?: string
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          notes?: string | null
+          pickup_time?: string | null
+          responsible_person?: string | null
+          responsible_user_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_pickup_rota_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_school_calendar: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_date: string | null
+          event_type: string
+          family_member_id: string | null
+          id: string
+          last_reminded_at: string | null
+          reminder_days_before: number | null
+          start_date: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          event_type: string
+          family_member_id?: string | null
+          id?: string
+          last_reminded_at?: string | null
+          reminder_days_before?: number | null
+          start_date: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          event_type?: string
+          family_member_id?: string | null
+          id?: string
+          last_reminded_at?: string | null
+          reminder_days_before?: number | null
+          start_date?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_school_calendar_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
             referencedColumns: ["id"]
           },
         ]
