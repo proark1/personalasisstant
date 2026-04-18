@@ -140,3 +140,12 @@ verify_jwt = false
 
 [functions.proactive-feedback]
 verify_jwt = true
+
+[functions.travel-intelligence]
+verify_jwt = false
+
+[functions.meeting-preflight]
+verify_jwt = false
+
+[functions.energy-coach]
+verify_jwt = true
