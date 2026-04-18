@@ -1230,6 +1230,23 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Determine which channel this request is coming from (for unified memory)
+    const telegramUserIdHeader = req.headers.get('x-telegram-user-id');
+    const tgChannelHint = req.headers.get('x-dori-channel'); // 'tg_private' | 'tg_family'
+    const tgChannelRef = req.headers.get('x-dori-channel-ref') || null;
+    const currentChannel = telegramUserIdHeader
+      ? (tgChannelHint === 'tg_family' ? 'tg_family' : 'tg_private')
+      : 'web';
+
+    // Load unified cross-channel memory + auto-learned preferences
+    const intelligenceBlock = await loadDoriIntelligence(supabaseAdmin, userId, currentChannel);
+
+    // Persist the latest user turn into the unified log (fire-and-forget)
+    const lastUserTurn = [...messages].reverse().find(m => m.role === 'user');
+    if (lastUserTurn?.content) {
+      logDoriTurn(supabaseAdmin, userId, currentChannel, 'user', lastUserTurn.content, tgChannelRef);
+    }
+
     // Build comprehensive context
     let contextMessage = "";
     
