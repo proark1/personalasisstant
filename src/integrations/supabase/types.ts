@@ -1582,6 +1582,80 @@ export type Database = {
         }
         Relationships: []
       }
+      family_agent_groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          shared_calendar_enabled: boolean | null
+          shared_shopping_enabled: boolean | null
+          shared_tasks_enabled: boolean | null
+          telegram_chat_id: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          shared_calendar_enabled?: boolean | null
+          shared_shopping_enabled?: boolean | null
+          shared_tasks_enabled?: boolean | null
+          telegram_chat_id?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          shared_calendar_enabled?: boolean | null
+          shared_shopping_enabled?: boolean | null
+          shared_tasks_enabled?: boolean | null
+          telegram_chat_id?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      family_agent_members: {
+        Row: {
+          accepted_at: string | null
+          group_id: string
+          id: string
+          invited_at: string
+          role: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          group_id: string
+          id?: string
+          invited_at?: string
+          role?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          group_id?: string
+          id?: string
+          invited_at?: string
+          role?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_agent_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "family_agent_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       family_appointments: {
         Row: {
           appointment_date: string
@@ -2898,6 +2972,53 @@ export type Database = {
         }
         Relationships: []
       }
+      mental_load_log: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          group_id: string
+          handled_by: string
+          id: string
+          occurred_at: string
+          source: string | null
+          source_ref: string | null
+          weight: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          group_id: string
+          handled_by: string
+          id?: string
+          occurred_at?: string
+          source?: string | null
+          source_ref?: string | null
+          weight?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          group_id?: string
+          handled_by?: string
+          id?: string
+          occurred_at?: string
+          source?: string | null
+          source_ref?: string | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mental_load_log_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "family_agent_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_read_receipts: {
         Row: {
           id: string
@@ -2951,6 +3072,57 @@ export type Database = {
           logged_at?: string
           mood_score?: number
           notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      morning_thread_items: {
+        Row: {
+          action_label: string | null
+          action_payload: Json | null
+          body: string | null
+          created_at: string
+          id: string
+          is_dismissed: boolean | null
+          item_type: string
+          pushed_at: string | null
+          pushed_to_telegram: boolean | null
+          rank: number
+          source_ref: string | null
+          thread_date: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          action_label?: string | null
+          action_payload?: Json | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_dismissed?: boolean | null
+          item_type: string
+          pushed_at?: string | null
+          pushed_to_telegram?: boolean | null
+          rank?: number
+          source_ref?: string | null
+          thread_date: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          action_label?: string | null
+          action_payload?: Json | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_dismissed?: boolean | null
+          item_type?: string
+          pushed_at?: string | null
+          pushed_to_telegram?: boolean | null
+          rank?: number
+          source_ref?: string | null
+          thread_date?: string
+          title?: string
           user_id?: string
         }
         Relationships: []
@@ -5847,6 +6019,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { check_user_id: string }; Returns: boolean }
+      is_family_agent_member: {
+        Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_group_admin: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
