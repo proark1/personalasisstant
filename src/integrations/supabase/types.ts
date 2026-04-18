@@ -1466,19 +1466,23 @@ export type Database = {
         Row: {
           attendees: string[] | null
           category: string | null
+          connection_id: string | null
           created_at: string
           created_by_telegram_user_id: number | null
           created_via: string | null
           description: string | null
           end_time: string
+          external_etag: string | null
           external_id: string | null
           external_source: string | null
           id: string
+          last_pushed_at: string | null
           last_reminded_at: string | null
           location: string | null
           recurrence_end: string | null
           recurrence_rule: string | null
           start_time: string
+          sync_status: string
           title: string
           updated_at: string
           user_id: string
@@ -1486,19 +1490,23 @@ export type Database = {
         Insert: {
           attendees?: string[] | null
           category?: string | null
+          connection_id?: string | null
           created_at?: string
           created_by_telegram_user_id?: number | null
           created_via?: string | null
           description?: string | null
           end_time: string
+          external_etag?: string | null
           external_id?: string | null
           external_source?: string | null
           id?: string
+          last_pushed_at?: string | null
           last_reminded_at?: string | null
           location?: string | null
           recurrence_end?: string | null
           recurrence_rule?: string | null
           start_time: string
+          sync_status?: string
           title: string
           updated_at?: string
           user_id: string
@@ -1506,38 +1514,57 @@ export type Database = {
         Update: {
           attendees?: string[] | null
           category?: string | null
+          connection_id?: string | null
           created_at?: string
           created_by_telegram_user_id?: number | null
           created_via?: string | null
           description?: string | null
           end_time?: string
+          external_etag?: string | null
           external_id?: string | null
           external_source?: string | null
           id?: string
+          last_pushed_at?: string | null
           last_reminded_at?: string | null
           location?: string | null
           recurrence_end?: string | null
           recurrence_rule?: string | null
           start_time?: string
+          sync_status?: string
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "external_calendar_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       external_calendar_connections: {
         Row: {
           access_token: string | null
+          auth_type: string
+          caldav_password_encrypted: string | null
+          caldav_url: string | null
+          caldav_username: string | null
           calendar_id: string | null
           color: string | null
           created_at: string
           external_calendar_id: string | null
+          family_member_id: string | null
           gmail_history_id: string | null
           id: string
+          last_sync_error: string | null
           last_synced_at: string | null
           name: string
           provider: string
           refresh_token: string | null
+          sync_direction: string
           sync_enabled: boolean | null
           sync_token: string | null
           token_expires_at: string | null
@@ -1546,16 +1573,23 @@ export type Database = {
         }
         Insert: {
           access_token?: string | null
+          auth_type?: string
+          caldav_password_encrypted?: string | null
+          caldav_url?: string | null
+          caldav_username?: string | null
           calendar_id?: string | null
           color?: string | null
           created_at?: string
           external_calendar_id?: string | null
+          family_member_id?: string | null
           gmail_history_id?: string | null
           id?: string
+          last_sync_error?: string | null
           last_synced_at?: string | null
           name: string
           provider?: string
           refresh_token?: string | null
+          sync_direction?: string
           sync_enabled?: boolean | null
           sync_token?: string | null
           token_expires_at?: string | null
@@ -1564,23 +1598,38 @@ export type Database = {
         }
         Update: {
           access_token?: string | null
+          auth_type?: string
+          caldav_password_encrypted?: string | null
+          caldav_url?: string | null
+          caldav_username?: string | null
           calendar_id?: string | null
           color?: string | null
           created_at?: string
           external_calendar_id?: string | null
+          family_member_id?: string | null
           gmail_history_id?: string | null
           id?: string
+          last_sync_error?: string | null
           last_synced_at?: string | null
           name?: string
           provider?: string
           refresh_token?: string | null
+          sync_direction?: string
           sync_enabled?: boolean | null
           sync_token?: string | null
           token_expires_at?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "external_calendar_connections_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       family_agent_groups: {
         Row: {
