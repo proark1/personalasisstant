@@ -167,3 +167,6 @@ verify_jwt = false
 
 [functions.family-agent]
 verify_jwt = true
+
+[functions.family-expiry-scanner]
+verify_jwt = false
