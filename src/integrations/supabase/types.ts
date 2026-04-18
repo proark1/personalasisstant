@@ -2947,6 +2947,57 @@ export type Database = {
           },
         ]
       }
+      family_traditions: {
+        Row: {
+          cadence: string
+          created_at: string
+          day_of_month: number | null
+          day_of_week: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          last_celebrated_at: string | null
+          last_reminded_at: string | null
+          month_of_year: number | null
+          next_occurrence: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cadence?: string
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_celebrated_at?: string | null
+          last_reminded_at?: string | null
+          month_of_year?: number | null
+          next_occurrence?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cadence?: string
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_celebrated_at?: string | null
+          last_reminded_at?: string | null
+          month_of_year?: number | null
+          next_occurrence?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       family_vaccinations: {
         Row: {
           administered_by: string | null
@@ -3400,6 +3451,63 @@ export type Database = {
           unit?: string
           user_id?: string
           value?: number
+        }
+        Relationships: []
+      }
+      household_maintenance: {
+        Row: {
+          category: string | null
+          cost_estimate: number | null
+          created_at: string
+          frequency_months: number | null
+          id: string
+          is_active: boolean | null
+          last_done_date: string | null
+          last_reminded_at: string | null
+          next_due_date: string | null
+          notes: string | null
+          provider_name: string | null
+          provider_phone: string | null
+          reminder_days_before: number | null
+          task_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          cost_estimate?: number | null
+          created_at?: string
+          frequency_months?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_done_date?: string | null
+          last_reminded_at?: string | null
+          next_due_date?: string | null
+          notes?: string | null
+          provider_name?: string | null
+          provider_phone?: string | null
+          reminder_days_before?: number | null
+          task_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          cost_estimate?: number | null
+          created_at?: string
+          frequency_months?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_done_date?: string | null
+          last_reminded_at?: string | null
+          next_due_date?: string | null
+          notes?: string | null
+          provider_name?: string | null
+          provider_phone?: string | null
+          reminder_days_before?: number | null
+          task_name?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -4237,6 +4345,78 @@ export type Database = {
           synced_at?: string | null
           table_name?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      pets: {
+        Row: {
+          breed: string | null
+          created_at: string
+          date_of_birth: string | null
+          food_brand: string | null
+          food_notes: string | null
+          id: string
+          insurance_policy_number: string | null
+          insurance_provider: string | null
+          last_reminded_at: string | null
+          microchip_number: string | null
+          name: string
+          next_vaccination_date: string | null
+          next_vet_checkup: string | null
+          notes: string | null
+          photo_url: string | null
+          species: string | null
+          updated_at: string
+          user_id: string
+          vet_name: string | null
+          vet_phone: string | null
+          weight_kg: number | null
+        }
+        Insert: {
+          breed?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          food_brand?: string | null
+          food_notes?: string | null
+          id?: string
+          insurance_policy_number?: string | null
+          insurance_provider?: string | null
+          last_reminded_at?: string | null
+          microchip_number?: string | null
+          name: string
+          next_vaccination_date?: string | null
+          next_vet_checkup?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          species?: string | null
+          updated_at?: string
+          user_id: string
+          vet_name?: string | null
+          vet_phone?: string | null
+          weight_kg?: number | null
+        }
+        Update: {
+          breed?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          food_brand?: string | null
+          food_notes?: string | null
+          id?: string
+          insurance_policy_number?: string | null
+          insurance_provider?: string | null
+          last_reminded_at?: string | null
+          microchip_number?: string | null
+          name?: string
+          next_vaccination_date?: string | null
+          next_vet_checkup?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          species?: string | null
+          updated_at?: string
+          user_id?: string
+          vet_name?: string | null
+          vet_phone?: string | null
+          weight_kg?: number | null
         }
         Relationships: []
       }
@@ -6633,6 +6813,69 @@ export type Database = {
           weekly_habits_logged?: number
           weekly_tasks_completed?: number
           weekly_xp?: number
+        }
+        Relationships: []
+      }
+      vehicle_records: {
+        Row: {
+          created_at: string
+          current_mileage: number | null
+          id: string
+          insurance_provider: string | null
+          insurance_renewal_date: string | null
+          last_reminded_at: string | null
+          license_plate: string | null
+          make: string | null
+          model: string | null
+          next_inspection_date: string | null
+          next_service_date: string | null
+          next_tire_change_date: string | null
+          nickname: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+          vin: string | null
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          current_mileage?: number | null
+          id?: string
+          insurance_provider?: string | null
+          insurance_renewal_date?: string | null
+          last_reminded_at?: string | null
+          license_plate?: string | null
+          make?: string | null
+          model?: string | null
+          next_inspection_date?: string | null
+          next_service_date?: string | null
+          next_tire_change_date?: string | null
+          nickname: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+          vin?: string | null
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          current_mileage?: number | null
+          id?: string
+          insurance_provider?: string | null
+          insurance_renewal_date?: string | null
+          last_reminded_at?: string | null
+          license_plate?: string | null
+          make?: string | null
+          model?: string | null
+          next_inspection_date?: string | null
+          next_service_date?: string | null
+          next_tire_change_date?: string | null
+          nickname?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+          vin?: string | null
+          year?: number | null
         }
         Relationships: []
       }
