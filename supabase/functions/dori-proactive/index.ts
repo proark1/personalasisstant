@@ -182,10 +182,10 @@ async function staleContacts(supabase: any, ctx: UserCtx) {
   const cutoff = new Date(Date.now() - days * 24 * 3600_000).toISOString();
 
   const { data: contacts } = await supabase.from('user_contacts')
-    .select('id, name, last_contacted_at, relationship_tier')
+    .select('id, name, last_contacted_at, contact_frequency_days')
     .eq('user_id', ctx.userId)
     .or(`last_contacted_at.is.null,last_contacted_at.lt.${cutoff}`)
-    .eq('relationship_tier', 'close')
+    .order('last_contacted_at', { ascending: true, nullsFirst: false })
     .limit(3);
 
   if (!contacts || contacts.length === 0) return;

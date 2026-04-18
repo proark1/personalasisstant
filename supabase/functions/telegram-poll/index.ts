@@ -213,6 +213,10 @@ Deno.serve(async (req) => {
 
       if (!msg.text) continue;
 
+      // Track if original message was voice — used later to decide voice vs text reply
+      const wasVoiceMessage = !!textFromVoice;
+
+
       const rawText: string = String(msg.text ?? '').trim();
       if (!rawText) continue;
 
@@ -410,7 +414,7 @@ Deno.serve(async (req) => {
       tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
       const reply = await callDori(link.user_id, text, supabaseUrl, serviceKey);
       // Voice reply if user prefers OR if they sent a voice message
-      let preferVoice = !!isVoice;
+      let preferVoice = wasVoiceMessage;
       try {
         const supabaseForPref = createClient(supabaseUrl, serviceKey);
         const { data: ps } = await supabaseForPref.from('proactive_settings')
