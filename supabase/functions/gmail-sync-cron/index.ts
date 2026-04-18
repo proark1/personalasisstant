@@ -1,5 +1,5 @@
-// Scheduled Gmail sync — triggered every 2 hours via pg_cron.
-// Iterates over all users with a Google connection and triggers gmail-sync per user.
+// Scheduled Gmail sync — triggered once per day (24h) via pg_cron.
+// On-demand refresh (max once per 2h) is handled in the chat function when the user asks about emails.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
