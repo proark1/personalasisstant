@@ -62,7 +62,7 @@ export function LearnedRoutinesCard() {
             </div>
             <div className="flex gap-1 shrink-0">
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => respond(r.id, "accepted")}>
-                <Check className="w-3.5 h-3.5 text-green-600" />
+                <Check className="w-3.5 h-3.5 text-success" />
               </Button>
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => respond(r.id, "dismissed")}>
                 <X className="w-3.5 h-3.5 text-muted-foreground" />
