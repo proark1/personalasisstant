@@ -1,6 +1,7 @@
 // Polls Telegram getUpdates and routes incoming messages.
 // 1:1 chats → Dori chat; group chats linked via /linkfamily → telegram-router.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendDoriReply } from '../_shared/telegram-voice.ts';
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/telegram';
 const MAX_RUNTIME_MS = 55_000;
@@ -408,7 +409,18 @@ Deno.serve(async (req) => {
 
       tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
       const reply = await callDori(link.user_id, text, supabaseUrl, serviceKey);
-      await sendMessage(chatId, reply, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+      // Voice reply if user prefers OR if they sent a voice message
+      let preferVoice = !!isVoice;
+      try {
+        const supabaseForPref = createClient(supabaseUrl, serviceKey);
+        const { data: ps } = await supabaseForPref.from('proactive_settings')
+          .select('prefer_voice_replies').eq('user_id', link.user_id).maybeSingle();
+        if (ps?.prefer_voice_replies) preferVoice = true;
+      } catch (_) { /* ignore */ }
+      await sendDoriReply({
+        chatId, text: reply, preferVoice,
+        lovableKey: LOVABLE_API_KEY, telegramKey: TELEGRAM_API_KEY,
+      });
 
       await supabase.from('telegram_messages').upsert({
         update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,

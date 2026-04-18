@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.telegram-router]
 verify_jwt = false
+
+[functions.dori-proactive]
+verify_jwt = false
