@@ -131,3 +131,12 @@ verify_jwt = false
 
 [functions.gmail-sync-cron]
 verify_jwt = false
+
+[functions.email-classifier]
+verify_jwt = false
+
+[functions.conflict-detector]
+verify_jwt = false
+
+[functions.proactive-feedback]
+verify_jwt = true
