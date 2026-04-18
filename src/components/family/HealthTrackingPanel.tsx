@@ -10,6 +10,7 @@ import { format, isPast, isFuture } from 'date-fns';
 import { AddMedicationDialog } from './AddMedicationDialog';
 import { AddAppointmentDialog } from './AddAppointmentDialog';
 import { AddVaccinationDialog } from './AddVaccinationDialog';
+import { FamilyHealthSafetyCard } from './FamilyHealthSafetyCard';
 
 const appointmentTypeColors: Record<string, string> = {
   checkup: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
