@@ -36,12 +36,22 @@ serve(async (req) => {
 
   try {
     // Find users with autopilot on (default off — opt-in).
-    const { data: users, error: uErr } = await sb
+    const { data: rawUsers, error: uErr } = await sb
       .from('proactive_settings')
-      .select('user_id, email_autopilot, email_autoarchive_categories, telegram_chat_id, prefer_voice_replies')
+      .select('user_id, email_autopilot, email_autoarchive_categories, prefer_voice_replies')
       .eq('email_autopilot', true);
 
     if (uErr) throw uErr;
+
+    // Resolve telegram chat_id from telegram_links
+    const userIds = (rawUsers || []).map((u: any) => u.user_id);
+    const { data: links } = userIds.length
+      ? await sb.from('telegram_links').select('user_id, chat_id').in('user_id', userIds).eq('is_active', true)
+      : { data: [] as any[] };
+    const chatIdByUser = new Map<string, number>();
+    (links || []).forEach((l: any) => { if (l.chat_id) chatIdByUser.set(l.user_id, Number(l.chat_id)); });
+
+    const users = (rawUsers || []).map((u: any) => ({ ...u, telegram_chat_id: chatIdByUser.get(u.user_id) ?? null }));
 
     for (const u of (users as ProactiveSettings[]) || []) {
       const archiveCats = u.email_autoarchive_categories?.length
