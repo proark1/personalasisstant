@@ -578,6 +578,20 @@ serve(async (req) => {
         .eq('id', connection.id);
     }
 
+
+    // Fire-and-forget: trigger email classification on newly synced emails
+    if (syncResult.parsedEmails.length > 0) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (supabaseUrl && serviceKey) {
+        fetch(`${supabaseUrl}/functions/v1/email-classifier`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceKey}` },
+          body: JSON.stringify({ user_id: userId, limit: Math.min(syncResult.parsedEmails.length, 25) }),
+        }).catch(e => console.error('classifier trigger failed', e));
+      }
+    }
+
     return new Response(JSON.stringify({
       synced: syncResult.parsedEmails.length,
       newEmails: syncResult.parsedEmails.length,
