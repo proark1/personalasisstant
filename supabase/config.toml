@@ -149,3 +149,12 @@ verify_jwt = false
 
 [functions.energy-coach]
 verify_jwt = true
+
+[functions.routine-learner]
+verify_jwt = false
+
+[functions.episodic-memory-builder]
+verify_jwt = false
+
+[functions.life-score-commentary]
+verify_jwt = false
