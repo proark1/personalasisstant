@@ -1192,6 +1192,39 @@ export type Database = {
         }
         Relationships: []
       }
+      dori_proactive_log: {
+        Row: {
+          channel: string
+          channel_ref: string | null
+          id: string
+          message: string | null
+          sent_at: string
+          trigger_key: string
+          trigger_type: string
+          user_id: string
+        }
+        Insert: {
+          channel?: string
+          channel_ref?: string | null
+          id?: string
+          message?: string | null
+          sent_at?: string
+          trigger_key: string
+          trigger_type: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          channel_ref?: string | null
+          id?: string
+          message?: string | null
+          sent_at?: string
+          trigger_key?: string
+          trigger_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_sender_rules: {
         Row: {
           auto_archive: boolean | null
@@ -2934,12 +2967,15 @@ export type Database = {
           meeting_followup_enabled: boolean | null
           meeting_prep_enabled: boolean | null
           morning_briefing_time: string | null
+          prefer_voice_replies: boolean | null
           push_notifications_enabled: boolean | null
           quiet_hours_enabled: boolean | null
           quiet_hours_end: string | null
           quiet_hours_start: string | null
+          stale_contact_days: number | null
           telegram_group_enabled: boolean
           telegram_proactive_enabled: boolean | null
+          timezone: string | null
           updated_at: string
           user_id: string
           voice_alerts_enabled: boolean | null
@@ -2970,12 +3006,15 @@ export type Database = {
           meeting_followup_enabled?: boolean | null
           meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
+          prefer_voice_replies?: boolean | null
           push_notifications_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          stale_contact_days?: number | null
           telegram_group_enabled?: boolean
           telegram_proactive_enabled?: boolean | null
+          timezone?: string | null
           updated_at?: string
           user_id: string
           voice_alerts_enabled?: boolean | null
@@ -3006,12 +3045,15 @@ export type Database = {
           meeting_followup_enabled?: boolean | null
           meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
+          prefer_voice_replies?: boolean | null
           push_notifications_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          stale_contact_days?: number | null
           telegram_group_enabled?: boolean
           telegram_proactive_enabled?: boolean | null
+          timezone?: string | null
           updated_at?: string
           user_id?: string
           voice_alerts_enabled?: boolean | null
