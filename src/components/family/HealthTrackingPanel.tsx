@@ -10,6 +10,7 @@ import { format, isPast, isFuture } from 'date-fns';
 import { AddMedicationDialog } from './AddMedicationDialog';
 import { AddAppointmentDialog } from './AddAppointmentDialog';
 import { AddVaccinationDialog } from './AddVaccinationDialog';
+import { FamilyHealthSafetyCard } from './FamilyHealthSafetyCard';
 
 const appointmentTypeColors: Record<string, string> = {
   checkup: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
@@ -49,6 +50,7 @@ export function HealthTrackingPanel() {
 
   return (
     <div className="space-y-4">
+      <FamilyHealthSafetyCard />
       {/* Refill Alerts */}
       {refillAlerts.length > 0 && (
         <Card className="p-3 border-amber-500/50 bg-amber-500/10">

@@ -1804,6 +1804,59 @@ export type Database = {
           },
         ]
       }
+      family_emergency_contacts: {
+        Row: {
+          alt_phone: string | null
+          created_at: string
+          email: string | null
+          family_member_id: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          priority: number
+          relationship: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alt_phone?: string | null
+          created_at?: string
+          email?: string | null
+          family_member_id?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          priority?: number
+          relationship?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alt_phone?: string | null
+          created_at?: string
+          email?: string | null
+          family_member_id?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          priority?: number
+          relationship?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_emergency_contacts_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       family_events: {
         Row: {
           created_at: string
@@ -1913,6 +1966,251 @@ export type Database = {
           },
           {
             foreignKeyName: "family_expenses_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_growth_log: {
+        Row: {
+          created_at: string
+          family_member_id: string
+          head_circumference_cm: number | null
+          height_cm: number | null
+          id: string
+          measured_on: string
+          notes: string | null
+          user_id: string
+          weight_kg: number | null
+        }
+        Insert: {
+          created_at?: string
+          family_member_id: string
+          head_circumference_cm?: number | null
+          height_cm?: number | null
+          id?: string
+          measured_on?: string
+          notes?: string | null
+          user_id: string
+          weight_kg?: number | null
+        }
+        Update: {
+          created_at?: string
+          family_member_id?: string
+          head_circumference_cm?: number | null
+          height_cm?: number | null
+          id?: string
+          measured_on?: string
+          notes?: string | null
+          user_id?: string
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_growth_log_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_health_records: {
+        Row: {
+          blood_type: string | null
+          conditions: string[] | null
+          created_at: string
+          dentist_name: string | null
+          dentist_phone: string | null
+          family_member_id: string | null
+          id: string
+          last_checkup_date: string | null
+          next_checkup_date: string | null
+          notes: string | null
+          primary_doctor_address: string | null
+          primary_doctor_name: string | null
+          primary_doctor_phone: string | null
+          specialists: Json | null
+          surgeries: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          blood_type?: string | null
+          conditions?: string[] | null
+          created_at?: string
+          dentist_name?: string | null
+          dentist_phone?: string | null
+          family_member_id?: string | null
+          id?: string
+          last_checkup_date?: string | null
+          next_checkup_date?: string | null
+          notes?: string | null
+          primary_doctor_address?: string | null
+          primary_doctor_name?: string | null
+          primary_doctor_phone?: string | null
+          specialists?: Json | null
+          surgeries?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          blood_type?: string | null
+          conditions?: string[] | null
+          created_at?: string
+          dentist_name?: string | null
+          dentist_phone?: string | null
+          family_member_id?: string | null
+          id?: string
+          last_checkup_date?: string | null
+          next_checkup_date?: string | null
+          notes?: string | null
+          primary_doctor_address?: string | null
+          primary_doctor_name?: string | null
+          primary_doctor_phone?: string | null
+          specialists?: Json | null
+          surgeries?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_health_records_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_important_documents: {
+        Row: {
+          created_at: string
+          document_number: string | null
+          document_type: string
+          expiry_date: string | null
+          family_member_id: string | null
+          file_path: string | null
+          file_url: string | null
+          id: string
+          issue_date: string | null
+          issuing_authority: string | null
+          issuing_country: string | null
+          last_reminded_at: string | null
+          notes: string | null
+          reminder_days_before: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_number?: string | null
+          document_type: string
+          expiry_date?: string | null
+          family_member_id?: string | null
+          file_path?: string | null
+          file_url?: string | null
+          id?: string
+          issue_date?: string | null
+          issuing_authority?: string | null
+          issuing_country?: string | null
+          last_reminded_at?: string | null
+          notes?: string | null
+          reminder_days_before?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_number?: string | null
+          document_type?: string
+          expiry_date?: string | null
+          family_member_id?: string | null
+          file_path?: string | null
+          file_url?: string | null
+          id?: string
+          issue_date?: string | null
+          issuing_authority?: string | null
+          issuing_country?: string | null
+          last_reminded_at?: string | null
+          notes?: string | null
+          reminder_days_before?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_important_documents_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_insurance: {
+        Row: {
+          card_image_url: string | null
+          contact_phone: string | null
+          created_at: string
+          end_date: string | null
+          family_member_id: string | null
+          group_number: string | null
+          id: string
+          insurance_type: string
+          is_active: boolean | null
+          notes: string | null
+          policy_number: string | null
+          premium_amount: number | null
+          premium_frequency: string | null
+          provider: string
+          start_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          card_image_url?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          end_date?: string | null
+          family_member_id?: string | null
+          group_number?: string | null
+          id?: string
+          insurance_type: string
+          is_active?: boolean | null
+          notes?: string | null
+          policy_number?: string | null
+          premium_amount?: number | null
+          premium_frequency?: string | null
+          provider: string
+          start_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          card_image_url?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          end_date?: string | null
+          family_member_id?: string | null
+          group_number?: string | null
+          id?: string
+          insurance_type?: string
+          is_active?: boolean | null
+          notes?: string | null
+          policy_number?: string | null
+          premium_amount?: number | null
+          premium_frequency?: string | null
+          provider?: string
+          start_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_insurance_family_member_id_fkey"
             columns: ["family_member_id"]
             isOneToOne: false
             referencedRelation: "family_members"
@@ -2085,6 +2383,56 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "user_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_sick_log: {
+        Row: {
+          created_at: string
+          diagnosis: string | null
+          doctor_visited: boolean | null
+          family_member_id: string
+          id: string
+          notes: string | null
+          recovery_date: string | null
+          sick_date: string
+          symptoms: string[] | null
+          treatment: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diagnosis?: string | null
+          doctor_visited?: boolean | null
+          family_member_id: string
+          id?: string
+          notes?: string | null
+          recovery_date?: string | null
+          sick_date?: string
+          symptoms?: string[] | null
+          treatment?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diagnosis?: string | null
+          doctor_visited?: boolean | null
+          family_member_id?: string
+          id?: string
+          notes?: string | null
+          recovery_date?: string | null
+          sick_date?: string
+          symptoms?: string[] | null
+          treatment?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_sick_log_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
             referencedColumns: ["id"]
           },
         ]
