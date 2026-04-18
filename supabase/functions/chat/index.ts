@@ -1039,6 +1039,34 @@ async function executeToolsServerSide(text: string, userId: string, supabase: an
   for (const m of text.matchAll(/<tool>fetch_emails<\/tool>\s*<filter>(\{[\s\S]*?\})<\/filter>/g)) {
     const data = safeJSON(m[1]) || {};
     try {
+      // On-demand sync: if last Gmail sync was >2h ago, trigger a refresh first (throttled).
+      try {
+        const { data: conn } = await supabase
+          .from('external_calendar_connections')
+          .select('last_synced_at')
+          .eq('user_id', userId).eq('provider', 'google').eq('sync_enabled', true)
+          .order('last_synced_at', { ascending: false, nullsFirst: false })
+          .limit(1).maybeSingle();
+        const lastSync = conn?.last_synced_at ? new Date(conn.last_synced_at).getTime() : 0;
+        const twoHoursMs = 2 * 60 * 60 * 1000;
+        if (Date.now() - lastSync > twoHoursMs) {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+          const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          console.log(`[fetch_emails] Triggering on-demand sync for ${userId} (last sync ${lastSync ? new Date(lastSync).toISOString() : 'never'})`);
+          await fetch(`${supabaseUrl}/functions/v1/gmail-sync`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceRoleKey}`,
+              'Content-Type': 'application/json',
+              'x-internal-user-id': userId,
+            },
+            body: JSON.stringify({ maxResults: 30 }),
+          }).catch(e => console.error('[fetch_emails] sync trigger failed:', e));
+        }
+      } catch (e) {
+        console.error('[fetch_emails] throttle check failed:', e);
+      }
+
       const limit = Math.min(data.limit || 5, 20);
       let q = supabase.from('user_emails').select('id, subject, from_name, from_email, snippet, received_at, priority_score, is_important, is_read').eq('user_id', userId).eq('user_archived', false);
       if (data.scope === 'important') q = q.eq('is_important', true);
