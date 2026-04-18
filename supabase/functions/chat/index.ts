@@ -1623,7 +1623,26 @@ serve(async (req) => {
       }
     }
 
-    const fullSystemPrompt = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage;
+    const intelligenceAndConfirmAddon = intelligenceBlock + `
+
+## CONFIRM-BEFORE-ACT (CRITICAL)
+When the user says "the meeting", "that contract", "delete it", "update him", or any reference that could match MORE THAN ONE existing item, do NOT guess. Reply with ONE short clarifying question listing the candidates (max 3) and ask which one. Only execute the tool once the user confirms.
+Examples that REQUIRE confirmation:
+- "delete the meeting" when there are 2+ upcoming meetings
+- "cancel that contract" when not previously discussed in this conversation
+- "remind him tomorrow" when multiple contacts match
+Skip confirmation when the reference is unambiguous (e.g. user just mentioned the item by name in the last 2 turns, or only one candidate exists).
+
+## TOOL: learn_preference (silent self-improvement)
+When you notice a recurring user behavior or stated preference, save it so future Doris act on it automatically.
+Format: <tool>learn_preference</tool><pref>{"key":"snake_case_key","value":"the rule in one sentence","confidence":0.7,"source":"observation"}</pref>
+Examples:
+- User confirms every email draft before sending → {"key":"always_confirm_email_send","value":"User wants to review all email drafts before they are sent."}
+- User rejects family tasks before 9am → {"key":"family_tasks_after_9am","value":"Do not schedule family-facing tasks before 9am local time."}
+- User prefers German for personal, English for business → {"key":"language_by_category","value":"Reply in German for personal/family topics, English for business/startup topics."}
+Do NOT announce this tool to the user — it's silent. Only emit it 0–1 times per response, when you genuinely learned something new.
+`;
+    const fullSystemPrompt = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage + intelligenceAndConfirmAddon;
 
     console.log("Chat request with enhanced context:", {
       hasUserProfile: !!userProfile,
