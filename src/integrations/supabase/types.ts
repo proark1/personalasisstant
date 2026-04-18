@@ -1120,6 +1120,78 @@ export type Database = {
         }
         Relationships: []
       }
+      dori_conversations: {
+        Row: {
+          channel: string
+          channel_ref: string | null
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          channel_ref?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          channel_ref?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dori_learned_preferences: {
+        Row: {
+          confidence: number
+          created_at: string
+          id: string
+          key: string
+          last_seen_at: string
+          source: string | null
+          times_seen: number
+          updated_at: string
+          user_id: string
+          value: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          key: string
+          last_seen_at?: string
+          source?: string | null
+          times_seen?: number
+          updated_at?: string
+          user_id: string
+          value: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          key?: string
+          last_seen_at?: string
+          source?: string | null
+          times_seen?: number
+          updated_at?: string
+          user_id?: string
+          value?: string
+        }
+        Relationships: []
+      }
       email_sender_rules: {
         Row: {
           auto_archive: boolean | null
