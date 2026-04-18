@@ -59,7 +59,7 @@ export function FamilyDailyLifeCard() {
                 </div>
               </div>
               <Button size="sm" variant="ghost" onClick={() => completeChore(c)}>
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <CheckCircle2 className="h-4 w-4 text-success" />
               </Button>
             </div>
           ))}
@@ -70,7 +70,7 @@ export function FamilyDailyLifeCard() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Coins className="h-4 w-4 text-amber-500" />
+            <Coins className="h-4 w-4 text-warning" />
             Allowance
           </CardTitle>
           <Button size="sm" variant="outline" onClick={() => setAllowOpen(true)}>
@@ -82,7 +82,7 @@ export function FamilyDailyLifeCard() {
           {Array.from(balances.entries()).map(([mid, balance]) => (
             <div key={mid} className="flex items-center justify-between rounded-lg border p-3">
               <span className="text-sm font-medium">{memberName(mid)}</span>
-              <span className={`text-sm font-semibold ${balance >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+              <span className={`text-sm font-semibold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {balance.toFixed(2)}
               </span>
             </div>
@@ -94,7 +94,7 @@ export function FamilyDailyLifeCard() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Utensils className="h-4 w-4 text-orange-500" />
+            <Utensils className="h-4 w-4 text-accent-foreground" />
             Meal preferences
           </CardTitle>
           <Button size="sm" variant="outline" onClick={() => setMealOpen(true)}>
@@ -118,7 +118,7 @@ export function FamilyDailyLifeCard() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Moon className="h-4 w-4 text-indigo-500" />
+            <Moon className="h-4 w-4 text-primary" />
             Sleep & screen-time
           </CardTitle>
           <Button size="sm" variant="outline" onClick={() => setSleepOpen(true)}>
