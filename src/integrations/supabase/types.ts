@@ -2953,6 +2953,8 @@ export type Database = {
           contract_renewals_enabled: boolean | null
           created_at: string
           daily_review_enabled: boolean | null
+          email_autoarchive_categories: string[]
+          email_autopilot: boolean
           enabled: boolean | null
           evening_review_time: string | null
           event_prep_enabled: boolean | null
@@ -2992,6 +2994,8 @@ export type Database = {
           contract_renewals_enabled?: boolean | null
           created_at?: string
           daily_review_enabled?: boolean | null
+          email_autoarchive_categories?: string[]
+          email_autopilot?: boolean
           enabled?: boolean | null
           evening_review_time?: string | null
           event_prep_enabled?: boolean | null
@@ -3031,6 +3035,8 @@ export type Database = {
           contract_renewals_enabled?: boolean | null
           created_at?: string
           daily_review_enabled?: boolean | null
+          email_autoarchive_categories?: string[]
+          email_autopilot?: boolean
           enabled?: boolean | null
           evening_review_time?: string | null
           event_prep_enabled?: boolean | null
