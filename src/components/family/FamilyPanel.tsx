@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, ListTodo, ShoppingCart, Utensils, Heart, FolderOpen, Wallet, Sparkles, BookOpen, Baby, GraduationCap, Sun } from 'lucide-react';
+import { Users, ListTodo, ShoppingCart, Utensils, Heart, FolderOpen, Wallet, Sparkles, BookOpen, Baby, GraduationCap, Sun, Home } from 'lucide-react';
 import { HouseholdTasksList } from './HouseholdTasksList';
 import { ShoppingListsPanel } from './ShoppingListsPanel';
 import { MealPlanningPanel } from './MealPlanningPanel';
@@ -12,6 +12,7 @@ import { HomeworkHelper } from './HomeworkHelper';
 import { ParentingCoach } from './ParentingCoach';
 import { FamilySchoolLogisticsCard } from './FamilySchoolLogisticsCard';
 import { FamilyDailyLifeCard } from './FamilyDailyLifeCard';
+import { FamilyMemoryHomeCard } from './FamilyMemoryHomeCard';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { PanelShell } from '@/components/ui/panel-shell';
 
