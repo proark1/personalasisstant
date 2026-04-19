@@ -16,9 +16,13 @@ import { FamilyMemoryHomeCard } from './FamilyMemoryHomeCard';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { PanelShell } from '@/components/ui/panel-shell';
 
-export function FamilyPanel() {
+interface FamilyPanelProps {
+  defaultTab?: string;
+}
+
+export function FamilyPanel({ defaultTab = 'tasks' }: FamilyPanelProps = {}) {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState('tasks');
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   return (
     <PanelShell
