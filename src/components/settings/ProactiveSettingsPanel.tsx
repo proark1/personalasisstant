@@ -2,7 +2,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bell, Brain, Calendar, Clock, FileText, Heart, Moon, Users, Zap } from 'lucide-react';
+import { Bell, Brain, Calendar, Clock, FileText, Heart, Moon, Users, Zap, Cake, Sparkles } from 'lucide-react';
 import { useProactiveSettings } from '@/hooks/useProactiveSettings';
 import { useExpoPushNotifications } from '@/hooks/useExpoPushNotifications';
 import { Button } from '@/components/ui/button';
