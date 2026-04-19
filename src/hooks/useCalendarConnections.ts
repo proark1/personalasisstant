@@ -36,7 +36,7 @@ export function useCalendarConnections() {
     try {
       const { data, error } = await supabase
         .from('external_calendar_connections')
-        .select('id, user_id, provider, name, color, calendar_id, external_calendar_id, sync_enabled, last_synced_at, created_at')
+        .select('id, user_id, provider, auth_type, name, color, calendar_id, external_calendar_id, sync_enabled, sync_direction, last_synced_at, last_sync_error, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
