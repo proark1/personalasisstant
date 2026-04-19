@@ -399,7 +399,7 @@ async function emailActionItems(supabase: any, ctx: UserCtx) {
     return `${icon[it.action_type] || '•'} <b>${from}</b>${urg}\n   ${it.action_summary}`;
   }).join('\n\n');
 
-  const msg = `📬 <b>${items.length} email${items.length > 1 ? 's' : ''} need your attention today:</b>\n\n${lines}`;
+  const msg = `📬 <b>${items.length} email${items.length > 1 ? 's' : ''} need ${ctx.household.length >= 2 ? firstName(ctx.displayName) + "'s" : 'your'} attention today:</b>\n\n${lines}`;
   await send(ctx, msg);
   await logSent(supabase, ctx, 'email_actions', key, msg);
 
