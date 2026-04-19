@@ -82,13 +82,17 @@ serve(async (req) => {
     const unreadEmails = emailsRes.data || [];
     const contracts = contractsRes.data || [];
     const overdueContacts = contactsRes.data || [];
-    const yesterdayCheckin = checkinsRes.data?.[0] || null;
+    const yesterdayCheckin = checkinsRes.data?.find((c: any) => c.user_id === userId) || null;
     const totalHabits = habitsRes.count || 0;
     const habitsLogged = habitLogsRes.count || 0;
     const userName = profileRes.data?.display_name || "there";
 
     const highPriorityTasks = tasks.filter((t: any) => t.priority === "high");
     const priorityEmails = unreadEmails.filter((e: any) => e.priority_score <= 2);
+
+    // Helper: prefix with owner name when household is shared
+    const owner = (uid: string) => isShared ? `${ownerNameById.get(uid) || "Member"}'s ` : "";
+    const ownerSuffix = (uid: string) => isShared ? ` (${ownerNameById.get(uid) || "Member"})` : "";
 
     // Build highlights
     const highlights: any[] = [];
@@ -102,30 +106,41 @@ serve(async (req) => {
     // Build context for AI
     const contextParts: string[] = [];
     contextParts.push(`User name: ${userName}`);
+    if (isShared) {
+      contextParts.push(`Household members connected: ${household.map(h => h.display_name).join(", ")}. When mentioning tasks/events/emails/health/contacts that belong to a specific person, ALWAYS name them explicitly (e.g. "Sarah has a 10am dentist appointment", "Asad has 3 priority emails") instead of saying "you".`);
+    }
     contextParts.push(`Current time: ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`);
     contextParts.push(`Day: ${now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}`);
 
     if (tasks.length > 0) {
-      const topTasks = tasks.slice(0, 3).map((t: any) => `"${t.title}" (${t.priority} priority${t.due_date ? `, due ${t.due_date}` : ""})`).join(", ");
+      const topTasks = tasks.slice(0, 5).map((t: any) => `${owner(t.user_id)}"${t.title}" (${t.priority} priority${t.due_date ? `, due ${t.due_date}` : ""})`).join(", ");
       contextParts.push(`Pending tasks (${tasks.length} total): ${topTasks}`);
     }
     if (events.length > 0) {
-      const eventList = events.map((e: any) => `"${e.title}" at ${new Date(e.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}${e.location ? ` (${e.location})` : ""}`).join(", ");
+      const eventList = events.map((e: any) => `${owner(e.user_id)}"${e.title}" at ${new Date(e.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}${e.location ? ` (${e.location})` : ""}`).join(", ");
       contextParts.push(`Today's events: ${eventList}`);
     }
     if (unreadEmails.length > 0) {
-      const emailList = priorityEmails.slice(0, 3).map((e: any) => `"${e.subject}" from ${e.from_name || "unknown"}`).join(", ");
+      const emailList = priorityEmails.slice(0, 4).map((e: any) => `${owner(e.user_id)}"${e.subject}" from ${e.from_name || "unknown"}`).join(", ");
       contextParts.push(`Unread emails: ${unreadEmails.length} total. Priority: ${emailList || "none"}`);
     }
     if (contracts.length > 0) {
-      const contractList = contracts.map((c: any) => `"${c.name}" renews ${c.renewal_date}${c.cost_amount ? ` (${c.cost_amount}€/${c.cost_frequency})` : ""}`).join(", ");
+      const contractList = contracts.map((c: any) => `${owner(c.user_id)}"${c.name}" renews ${c.renewal_date}${c.cost_amount ? ` (${c.cost_amount}€/${c.cost_frequency})` : ""}`).join(", ");
       contextParts.push(`Contract alerts: ${contractList}`);
     }
     if (overdueContacts.length > 0) {
-      const contactList = overdueContacts.map((c: any) => c.name).join(", ");
+      const contactList = overdueContacts.map((c: any) => `${c.name}${ownerSuffix(c.user_id)}`).join(", ");
       contextParts.push(`Contacts to follow up: ${contactList}`);
     }
-    if (yesterdayCheckin) {
+    if (isShared) {
+      const checkinByUser = new Map((checkinsRes.data || []).map((c: any) => [c.user_id, c]));
+      const lines = household.map(h => {
+        const c: any = checkinByUser.get(h.user_id);
+        if (!c) return null;
+        return `${h.display_name}: mood=${c.mood || "unknown"}, energy=${c.energy_level || "unknown"}, sleep=${c.sleep_hours ? c.sleep_hours + "h" : "unknown"}`;
+      }).filter(Boolean);
+      if (lines.length > 0) contextParts.push(`Yesterday's check-ins (per person):\n${lines.join("\n")}`);
+    } else if (yesterdayCheckin) {
       contextParts.push(`Yesterday's check-in: mood=${yesterdayCheckin.mood || "unknown"}, energy=${yesterdayCheckin.energy_level || "unknown"}, sleep=${yesterdayCheckin.sleep_hours ? yesterdayCheckin.sleep_hours + "h" : "unknown"}`);
     }
     if (totalHabits > 0) {
