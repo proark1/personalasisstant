@@ -41,6 +41,7 @@ export interface ProactiveSettings {
   prayer_reminders_enabled?: boolean;
   prayer_reminder_minutes?: number;
   evening_dua_enabled?: boolean;
+  email_action_alerts_enabled?: boolean;
 }
 
 const DEFAULT_SETTINGS: Omit<ProactiveSettings, 'user_id'> = {
@@ -79,6 +80,7 @@ const DEFAULT_SETTINGS: Omit<ProactiveSettings, 'user_id'> = {
   prayer_reminders_enabled: false,
   prayer_reminder_minutes: 10,
   evening_dua_enabled: false,
+  email_action_alerts_enabled: true,
 };
 
 export function useProactiveSettings() {

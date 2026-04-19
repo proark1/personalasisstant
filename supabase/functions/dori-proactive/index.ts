@@ -270,6 +270,111 @@ async function prayerReminders(supabase: any, ctx: UserCtx) {
   }
 }
 
+// Scan recent unread emails for action items (todos / questions / payments)
+// and push a Telegram digest. Auto-creates tasks for clear action items.
+async function emailActionItems(supabase: any, ctx: UserCtx) {
+  if (ctx.settings.email_action_alerts_enabled === false) return;
+  // Once per day, mid-morning
+  if (ctx.nowLocal.getHours() < 9 || ctx.nowLocal.getHours() > 11) return;
+  const key = `email-actions-${ctx.todayKey}`;
+  if (await alreadySent(supabase, ctx.userId, 'email_actions', key)) return;
+
+  // Pull last 24h of emails
+  const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+  const { data: emails } = await supabase
+    .from('user_emails')
+    .select('id, subject, from_name, from_email, snippet, received_at')
+    .eq('user_id', ctx.userId)
+    .gte('received_at', since)
+    .order('received_at', { ascending: false })
+    .limit(40);
+
+  if (!emails || emails.length === 0) return;
+
+  const list = emails.map((e: any, i: number) =>
+    `[${i}] from="${e.from_name || e.from_email}" subject="${e.subject || ''}" snippet="${(e.snippet || '').slice(0, 240)}"`
+  ).join('\n');
+
+  const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: `You scan recent emails for the user and extract ONLY emails that need action: a todo, a direct question to answer, or a payment/invoice due. Skip newsletters, marketing, receipts of completed actions, and FYI threads. Be conservative — only flag clearly actionable items.` },
+        { role: 'user', content: `Here are ${emails.length} recent emails:\n${list}\n\nReturn the action items.` },
+      ],
+      tools: [{
+        type: 'function',
+        function: {
+          name: 'report_actions',
+          parameters: {
+            type: 'object',
+            properties: {
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    index: { type: 'number' },
+                    action_type: { type: 'string', enum: ['todo', 'question', 'payment'] },
+                    action_summary: { type: 'string', description: 'One short sentence describing what needs to be done.' },
+                    urgency: { type: 'string', enum: ['high', 'normal'] },
+                  },
+                  required: ['index', 'action_type', 'action_summary'],
+                },
+              },
+            },
+            required: ['items'],
+          },
+        },
+      }],
+      tool_choice: { type: 'function', function: { name: 'report_actions' } },
+    }),
+  });
+
+  if (!aiResp.ok) {
+    console.error('email actions AI failed', aiResp.status);
+    return;
+  }
+  const aiData = await aiResp.json();
+  const args = aiData.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  const parsed = typeof args === 'string' ? JSON.parse(args) : args;
+  const items = (parsed?.items ?? []).filter((it: any) => emails[it.index]);
+  if (items.length === 0) return;
+
+  // Build digest grouped by type
+  const icon: Record<string, string> = { todo: '✅', question: '❓', payment: '💸' };
+  const lines = items.slice(0, 8).map((it: any) => {
+    const e = emails[it.index];
+    const from = e.from_name || e.from_email || 'unknown';
+    const urg = it.urgency === 'high' ? ' <b>(urgent)</b>' : '';
+    return `${icon[it.action_type] || '•'} <b>${from}</b>${urg}\n   ${it.action_summary}`;
+  }).join('\n\n');
+
+  const msg = `📬 <b>${items.length} email${items.length > 1 ? 's' : ''} need your attention today:</b>\n\n${lines}`;
+  await send(ctx, msg);
+  await logSent(supabase, ctx, 'email_actions', key, msg);
+
+  // Auto-create tasks for clear todos & payments (max 5)
+  const taskItems = items.filter((it: any) => it.action_type === 'todo' || it.action_type === 'payment').slice(0, 5);
+  if (taskItems.length > 0) {
+    const taskRows = taskItems.map((it: any) => {
+      const e = emails[it.index];
+      return {
+        user_id: ctx.userId,
+        title: it.action_summary,
+        category: it.action_type === 'payment' ? 'business' : 'personal',
+        priority: it.urgency === 'high' ? 'high' : 'medium',
+        status: 'todo',
+        notes: `From email: "${e.subject}" — ${e.from_name || e.from_email}`,
+        created_via: 'email_proactive',
+      };
+    });
+    await supabase.from('tasks').insert(taskRows);
+  }
+}
+
 async function staleContacts(supabase: any, ctx: UserCtx) {
   if (!ctx.settings.contact_checkins_enabled) return;
   // Only nudge once a day, evening-ish
@@ -317,7 +422,8 @@ Deno.serve(async (req) => {
              contract_renewals_enabled, contract_reminder_days, contact_checkins_enabled, stale_contact_days,
              telegram_proactive_enabled, quiet_hours_enabled, quiet_hours_start, quiet_hours_end,
              birthday_reminders_enabled, birthday_reminder_days,
-             prayer_reminders_enabled, prayer_reminder_minutes, evening_dua_enabled`)
+             prayer_reminders_enabled, prayer_reminder_minutes, evening_dua_enabled,
+             email_action_alerts_enabled`)
     .eq('enabled', true).eq('telegram_proactive_enabled', true);
 
   if (error) {
@@ -349,6 +455,7 @@ Deno.serve(async (req) => {
       await staleContacts(supabase, ctx);
       await birthdayReminders(supabase, ctx);
       await prayerReminders(supabase, ctx);
+      await emailActionItems(supabase, ctx);
       processed++;
       // crude counter via log table re-read avoided; trust no-throw means OK
       sent = before; // leave at 0 — we just count attempts

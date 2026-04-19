@@ -5555,6 +5555,7 @@ export type Database = {
           contract_renewals_enabled: boolean | null
           created_at: string
           daily_review_enabled: boolean | null
+          email_action_alerts_enabled: boolean
           email_autoarchive_categories: string[]
           email_autopilot: boolean
           enabled: boolean | null
@@ -5601,6 +5602,7 @@ export type Database = {
           contract_renewals_enabled?: boolean | null
           created_at?: string
           daily_review_enabled?: boolean | null
+          email_action_alerts_enabled?: boolean
           email_autoarchive_categories?: string[]
           email_autopilot?: boolean
           enabled?: boolean | null
@@ -5647,6 +5649,7 @@ export type Database = {
           contract_renewals_enabled?: boolean | null
           created_at?: string
           daily_review_enabled?: boolean | null
+          email_action_alerts_enabled?: boolean
           email_autoarchive_categories?: string[]
           email_autopilot?: boolean
           enabled?: boolean | null
