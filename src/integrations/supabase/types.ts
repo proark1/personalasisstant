@@ -444,6 +444,54 @@ export type Database = {
         }
         Relationships: []
       }
+      books: {
+        Row: {
+          author: string | null
+          cover_url: string | null
+          created_at: string
+          finished_on: string | null
+          id: string
+          notes: string | null
+          rating: number | null
+          started_on: string | null
+          status: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author?: string | null
+          cover_url?: string | null
+          created_at?: string
+          finished_on?: string | null
+          id?: string
+          notes?: string | null
+          rating?: number | null
+          started_on?: string | null
+          status?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author?: string | null
+          cover_url?: string | null
+          created_at?: string
+          finished_on?: string | null
+          id?: string
+          notes?: string | null
+          rating?: number | null
+          started_on?: string | null
+          status?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       brain_dumps: {
         Row: {
           ai_summary: string | null
@@ -489,6 +537,48 @@ export type Database = {
           suggested_type?: string | null
           user_id?: string
           voice_url?: string | null
+        }
+        Relationships: []
+      }
+      bucket_list: {
+        Row: {
+          achieved_on: string | null
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          notes: string | null
+          status: string | null
+          target_year: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achieved_on?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          target_year?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achieved_on?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          target_year?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -824,6 +914,47 @@ export type Database = {
           },
         ]
       }
+      contact_special_dates: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          date_type: string
+          id: string
+          notes: string | null
+          occurs_on: string
+          reminder_days_before: number | null
+          user_id: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          date_type?: string
+          id?: string
+          notes?: string | null
+          occurs_on: string
+          reminder_days_before?: number | null
+          user_id: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          date_type?: string
+          id?: string
+          notes?: string | null
+          occurs_on?: string
+          reminder_days_before?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_special_dates_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "user_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           auto_renews: boolean | null
@@ -903,6 +1034,99 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      country_essentials: {
+        Row: {
+          country: string
+          created_at: string
+          currency: string | null
+          embassy_address: string | null
+          embassy_phone: string | null
+          emergency_number: string | null
+          id: string
+          language: string | null
+          notes: string | null
+          plug_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          country: string
+          created_at?: string
+          currency?: string | null
+          embassy_address?: string | null
+          embassy_phone?: string | null
+          emergency_number?: string | null
+          id?: string
+          language?: string | null
+          notes?: string | null
+          plug_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          currency?: string | null
+          embassy_address?: string | null
+          embassy_phone?: string | null
+          emergency_number?: string | null
+          id?: string
+          language?: string | null
+          notes?: string | null
+          plug_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      courses: {
+        Row: {
+          certificate_url: string | null
+          completed_on: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          progress_percent: number | null
+          provider: string | null
+          started_on: string | null
+          status: string | null
+          title: string
+          updated_at: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          certificate_url?: string | null
+          completed_on?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          progress_percent?: number | null
+          provider?: string | null
+          started_on?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          certificate_url?: string | null
+          completed_on?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          progress_percent?: number | null
+          provider?: string | null
+          started_on?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       daily_checkins: {
         Row: {
@@ -3097,6 +3321,176 @@ export type Database = {
           },
         ]
       }
+      financial_accounts: {
+        Row: {
+          account_type: string
+          created_at: string
+          currency: string | null
+          current_balance: number | null
+          id: string
+          institution: string | null
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type?: string
+          created_at?: string
+          currency?: string | null
+          current_balance?: number | null
+          id?: string
+          institution?: string | null
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          currency?: string | null
+          current_balance?: number | null
+          id?: string
+          institution?: string | null
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      financial_budgets: {
+        Row: {
+          category: string
+          created_at: string
+          currency: string | null
+          id: string
+          monthly_limit: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          monthly_limit?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          monthly_limit?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      financial_goals: {
+        Row: {
+          category: string | null
+          created_at: string
+          currency: string | null
+          current_amount: number | null
+          id: string
+          is_achieved: boolean | null
+          notes: string | null
+          target_amount: number
+          target_date: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          currency?: string | null
+          current_amount?: number | null
+          id?: string
+          is_achieved?: boolean | null
+          notes?: string | null
+          target_amount: number
+          target_date?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          currency?: string | null
+          current_amount?: number | null
+          id?: string
+          is_achieved?: boolean | null
+          notes?: string | null
+          target_amount?: number
+          target_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      financial_transactions: {
+        Row: {
+          account_id: string | null
+          amount: number
+          category: string | null
+          created_at: string
+          description: string | null
+          direction: string
+          id: string
+          merchant: string | null
+          occurred_on: string
+          receipt_id: string | null
+          tags: string[] | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          merchant?: string | null
+          occurred_on?: string
+          receipt_id?: string | null
+          tags?: string[] | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          merchant?: string | null
+          occurred_on?: string
+          receipt_id?: string | null
+          tags?: string[] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "financial_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       focus_sessions: {
         Row: {
           completed_at: string | null
@@ -3179,6 +3573,122 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      friend_circle_members: {
+        Row: {
+          circle_id: string | null
+          contact_id: string | null
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          circle_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          circle_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friend_circle_members_circle_id_fkey"
+            columns: ["circle_id"]
+            isOneToOne: false
+            referencedRelation: "friend_circles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "friend_circle_members_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "user_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friend_circles: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      gift_log: {
+        Row: {
+          contact_id: string | null
+          cost: number | null
+          created_at: string
+          gift_description: string
+          given_on: string
+          id: string
+          notes: string | null
+          occasion: string | null
+          reaction: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_id?: string | null
+          cost?: number | null
+          created_at?: string
+          gift_description: string
+          given_on?: string
+          id?: string
+          notes?: string | null
+          occasion?: string | null
+          reaction?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_id?: string | null
+          cost?: number | null
+          created_at?: string
+          gift_description?: string
+          given_on?: string
+          id?: string
+          notes?: string | null
+          occasion?: string | null
+          reaction?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "user_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       goals: {
         Row: {
@@ -3616,6 +4126,166 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          brand: string | null
+          category: string | null
+          created_at: string
+          current_value: number | null
+          id: string
+          name: string
+          notes: string | null
+          photo_url: string | null
+          property_id: string | null
+          purchase_date: string | null
+          purchase_price: number | null
+          serial_number: string | null
+          updated_at: string
+          user_id: string
+          warranty_until: string | null
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          photo_url?: string | null
+          property_id?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          serial_number?: string | null
+          updated_at?: string
+          user_id: string
+          warranty_until?: string | null
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          photo_url?: string | null
+          property_id?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          serial_number?: string | null
+          updated_at?: string
+          user_id?: string
+          warranty_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "user_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          content: string
+          created_at: string
+          entry_date: string
+          id: string
+          is_private: boolean | null
+          mood: string | null
+          prompt: string | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          entry_date?: string
+          id?: string
+          is_private?: boolean | null
+          mood?: string | null
+          prompt?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          entry_date?: string
+          id?: string
+          is_private?: boolean | null
+          mood?: string | null
+          prompt?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lab_results: {
+        Row: {
+          created_at: string
+          doctor_id: string | null
+          document_url: string | null
+          id: string
+          notes: string | null
+          reference_high: number | null
+          reference_low: number | null
+          status: string | null
+          test_date: string
+          test_name: string
+          unit: string | null
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          doctor_id?: string | null
+          document_url?: string | null
+          id?: string
+          notes?: string | null
+          reference_high?: number | null
+          reference_low?: number | null
+          status?: string | null
+          test_date?: string
+          test_name: string
+          unit?: string | null
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string | null
+          document_url?: string | null
+          id?: string
+          notes?: string | null
+          reference_high?: number | null
+          reference_low?: number | null
+          status?: string | null
+          test_date?: string
+          test_name?: string
+          unit?: string | null
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_results_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "personal_doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       learned_routines: {
         Row: {
           automation_rule_id: string | null
@@ -3726,6 +4396,42 @@ export type Database = {
           last_updated_at?: string | null
           pattern_description?: string
           sample_data?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      life_milestones: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          occurred_on: string
+          photo_url: string | null
+          related_people: Json | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          occurred_on: string
+          photo_url?: string | null
+          related_people?: Json | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          occurred_on?: string
+          photo_url?: string | null
+          related_people?: Json | null
+          title?: string
           user_id?: string
         }
         Relationships: []
@@ -3876,6 +4582,108 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      loyalty_programs: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          membership_number: string | null
+          notes: string | null
+          points_balance: number | null
+          program_name: string
+          program_type: string | null
+          tier: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          membership_number?: string | null
+          notes?: string | null
+          points_balance?: number | null
+          program_name: string
+          program_type?: string | null
+          tier?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          membership_number?: string | null
+          notes?: string | null
+          points_balance?: number | null
+          program_name?: string
+          program_type?: string | null
+          tier?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      maintenance_log: {
+        Row: {
+          cost: number | null
+          created_at: string
+          description: string | null
+          document_url: string | null
+          id: string
+          next_due_date: string | null
+          performed_on: string
+          property_id: string | null
+          provider: string | null
+          title: string
+          user_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          document_url?: string | null
+          id?: string
+          next_due_date?: string | null
+          performed_on?: string
+          property_id?: string | null
+          provider?: string | null
+          title: string
+          user_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          document_url?: string | null
+          id?: string
+          next_due_date?: string | null
+          performed_on?: string
+          property_id?: string | null
+          provider?: string | null
+          title?: string
+          user_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_log_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "user_properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_log_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meal_plans: {
         Row: {
@@ -4393,6 +5201,146 @@ export type Database = {
           synced?: boolean
           synced_at?: string | null
           table_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      packing_lists: {
+        Row: {
+          created_at: string
+          id: string
+          items: Json | null
+          name: string
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items?: Json | null
+          name?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items?: Json | null
+          name?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packing_lists_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_doctors: {
+        Row: {
+          address: string | null
+          clinic: string | null
+          created_at: string
+          email: string | null
+          id: string
+          last_visit: string | null
+          name: string
+          next_visit: string | null
+          notes: string | null
+          phone: string | null
+          specialty: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          clinic?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_visit?: string | null
+          name: string
+          next_visit?: string | null
+          notes?: string | null
+          phone?: string | null
+          specialty?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          clinic?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_visit?: string | null
+          name?: string
+          next_visit?: string | null
+          notes?: string | null
+          phone?: string | null
+          specialty?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personal_medications: {
+        Row: {
+          created_at: string
+          dose: string | null
+          end_date: string | null
+          frequency: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          prescriber: string | null
+          reason: string | null
+          refill_date: string | null
+          schedule: string | null
+          start_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dose?: string | null
+          end_date?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          prescriber?: string | null
+          reason?: string | null
+          refill_date?: string | null
+          schedule?: string | null
+          start_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dose?: string | null
+          end_date?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          prescriber?: string | null
+          reason?: string | null
+          refill_date?: string | null
+          schedule?: string | null
+          start_date?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -5294,6 +6242,53 @@ export type Database = {
         }
         Relationships: []
       }
+      receipts: {
+        Row: {
+          amount: number | null
+          created_at: string
+          file_path: string | null
+          file_url: string | null
+          id: string
+          merchant: string | null
+          ocr_text: string | null
+          receipt_date: string | null
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          file_path?: string | null
+          file_url?: string | null
+          id?: string
+          merchant?: string | null
+          ocr_text?: string | null
+          receipt_date?: string | null
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          file_path?: string | null
+          file_url?: string | null
+          id?: string
+          merchant?: string | null
+          ocr_text?: string | null
+          receipt_date?: string | null
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recipe_ingredients: {
         Row: {
           category: string | null
@@ -5763,6 +6758,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      skills: {
+        Row: {
+          category: string | null
+          created_at: string
+          current_level: string | null
+          id: string
+          last_practiced: string | null
+          name: string
+          notes: string | null
+          practice_frequency: string | null
+          target_level: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          current_level?: string | null
+          id?: string
+          last_practiced?: string | null
+          name: string
+          notes?: string | null
+          practice_frequency?: string | null
+          target_level?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          current_level?: string | null
+          id?: string
+          last_practiced?: string | null
+          name?: string
+          notes?: string | null
+          practice_frequency?: string | null
+          target_level?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       space_members: {
         Row: {
@@ -6438,6 +7475,116 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_bookings: {
+        Row: {
+          booking_type: string
+          confirmation_number: string | null
+          cost: number | null
+          created_at: string
+          currency: string | null
+          destination: string | null
+          document_url: string | null
+          end_time: string | null
+          id: string
+          notes: string | null
+          origin: string | null
+          provider: string | null
+          start_time: string | null
+          trip_id: string | null
+          user_id: string
+        }
+        Insert: {
+          booking_type: string
+          confirmation_number?: string | null
+          cost?: number | null
+          created_at?: string
+          currency?: string | null
+          destination?: string | null
+          document_url?: string | null
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          origin?: string | null
+          provider?: string | null
+          start_time?: string | null
+          trip_id?: string | null
+          user_id: string
+        }
+        Update: {
+          booking_type?: string
+          confirmation_number?: string | null
+          cost?: number | null
+          created_at?: string
+          currency?: string | null
+          destination?: string | null
+          document_url?: string | null
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          origin?: string | null
+          provider?: string | null
+          start_time?: string | null
+          trip_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_bookings_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          companions: Json | null
+          created_at: string
+          destination: string
+          destination_country: string | null
+          end_date: string
+          id: string
+          notes: string | null
+          purpose: string | null
+          start_date: string
+          status: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          companions?: Json | null
+          created_at?: string
+          destination: string
+          destination_country?: string | null
+          end_date: string
+          id?: string
+          notes?: string | null
+          purpose?: string | null
+          start_date: string
+          status?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          companions?: Json | null
+          created_at?: string
+          destination?: string
+          destination_country?: string | null
+          end_date?: string
+          id?: string
+          notes?: string | null
+          purpose?: string | null
+          start_date?: string
+          status?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_challenges: {
         Row: {
           challenge_id: string
@@ -6811,6 +7958,66 @@ export type Database = {
         }
         Relationships: []
       }
+      user_properties: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          current_value: number | null
+          id: string
+          insurance_provider: string | null
+          insurance_renewal: string | null
+          mortgage_amount: number | null
+          mortgage_provider: string | null
+          name: string
+          notes: string | null
+          property_type: string | null
+          purchase_date: string | null
+          purchase_price: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          insurance_provider?: string | null
+          insurance_renewal?: string | null
+          mortgage_amount?: number | null
+          mortgage_provider?: string | null
+          name: string
+          notes?: string | null
+          property_type?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          insurance_provider?: string | null
+          insurance_renewal?: string | null
+          mortgage_amount?: number | null
+          mortgage_provider?: string | null
+          name?: string
+          notes?: string | null
+          property_type?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_xp: {
         Row: {
           badges: Json
@@ -6920,6 +8127,63 @@ export type Database = {
           next_service_date?: string | null
           next_tire_change_date?: string | null
           nickname?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+          vin?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
+      vehicles: {
+        Row: {
+          created_at: string
+          current_mileage: number | null
+          id: string
+          insurance_provider: string | null
+          insurance_renewal: string | null
+          license_plate: string | null
+          make: string | null
+          model: string | null
+          name: string
+          next_inspection_date: string | null
+          next_service_date: string | null
+          notes: string | null
+          updated_at: string
+          user_id: string
+          vin: string | null
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          current_mileage?: number | null
+          id?: string
+          insurance_provider?: string | null
+          insurance_renewal?: string | null
+          license_plate?: string | null
+          make?: string | null
+          model?: string | null
+          name: string
+          next_inspection_date?: string | null
+          next_service_date?: string | null
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+          vin?: string | null
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          current_mileage?: number | null
+          id?: string
+          insurance_provider?: string | null
+          insurance_renewal?: string | null
+          license_plate?: string | null
+          make?: string | null
+          model?: string | null
+          name?: string
+          next_inspection_date?: string | null
+          next_service_date?: string | null
           notes?: string | null
           updated_at?: string
           user_id?: string
@@ -7144,6 +8408,42 @@ export type Database = {
           user_id?: string
           week_end?: string
           week_start?: string
+        }
+        Relationships: []
+      }
+      workouts: {
+        Row: {
+          created_at: string
+          duration_minutes: number | null
+          exercises: Json | null
+          felt_rating: number | null
+          id: string
+          notes: string | null
+          user_id: string
+          workout_date: string
+          workout_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number | null
+          exercises?: Json | null
+          felt_rating?: number | null
+          id?: string
+          notes?: string | null
+          user_id: string
+          workout_date?: string
+          workout_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number | null
+          exercises?: Json | null
+          felt_rating?: number | null
+          id?: string
+          notes?: string | null
+          user_id?: string
+          workout_date?: string
+          workout_type?: string | null
         }
         Relationships: []
       }
