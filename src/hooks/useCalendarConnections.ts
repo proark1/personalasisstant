@@ -6,13 +6,16 @@ import { useToast } from '@/hooks/use-toast';
 export interface CalendarConnection {
   id: string;
   user_id: string;
-  provider: 'google' | 'outlook' | 'ics';
+  provider: 'google' | 'outlook' | 'apple' | 'ics';
+  auth_type?: 'oauth' | 'caldav' | 'ics';
   name: string;
   color: string | null;
   calendar_id: string | null;
   external_calendar_id: string | null;
   sync_enabled: boolean;
+  sync_direction?: 'one_way_pull' | 'one_way_push' | 'two_way';
   last_synced_at: string | null;
+  last_sync_error?: string | null;
   created_at: string;
 }
 
@@ -33,7 +36,7 @@ export function useCalendarConnections() {
     try {
       const { data, error } = await supabase
         .from('external_calendar_connections')
-        .select('id, user_id, provider, name, color, calendar_id, external_calendar_id, sync_enabled, last_synced_at, created_at')
+        .select('id, user_id, provider, auth_type, name, color, calendar_id, external_calendar_id, sync_enabled, sync_direction, last_synced_at, last_sync_error, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -93,23 +96,82 @@ export function useCalendarConnections() {
     }
   };
 
+  const connectOutlook = async () => {
+    if (!user) {
+      toast({ title: 'Not authenticated', description: 'Please sign in.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('outlook-oauth-start', { body: {} });
+      if (error) throw error;
+      if (data?.code === 'NOT_CONFIGURED') {
+        toast({
+          title: 'Outlook not yet available',
+          description: 'Microsoft sign-in is being configured. Try again shortly or use ICS import for now.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (data?.url) window.location.href = data.url;
+      else throw new Error('No OAuth URL returned');
+    } catch (error: any) {
+      console.error('Outlook connect error:', error);
+      toast({
+        title: 'Connection failed',
+        description: error.message || 'Failed to start Outlook connection.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const connectApple = async (appleId: string, appPassword: string, calendarName?: string) => {
+    if (!user) {
+      toast({ title: 'Not authenticated', description: 'Please sign in.', variant: 'destructive' });
+      return { success: false };
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('apple-caldav-connect', {
+        body: { appleId, appPassword, calendarName },
+      });
+      if (error) throw error;
+      toast({ title: 'iCloud connected', description: 'Your Apple Calendar is now linked.' });
+      await fetchConnections();
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Apple CalDAV connect error:', error);
+      toast({
+        title: 'Apple connection failed',
+        description: error.message || 'Check your Apple ID and app-specific password.',
+        variant: 'destructive',
+      });
+      return { success: false };
+    }
+  };
+
   const syncCalendar = async (connectionId: string) => {
     if (syncing) return;
-    
+
+    const conn = connections.find(c => c.id === connectionId);
+    const fnName = conn?.provider === 'outlook'
+      ? 'outlook-sync'
+      : conn?.provider === 'apple'
+        ? 'apple-caldav-sync'
+        : 'calendar-sync';
+
     setSyncing(connectionId);
     try {
-      const { data, error } = await supabase.functions.invoke('calendar-sync', {
+      const { data, error } = await supabase.functions.invoke(fnName, {
         body: { connectionId },
       });
 
       if (error) throw error;
 
+      const pushed = data?.pushed || 0;
       toast({
         title: 'Calendar synced',
-        description: `Imported ${data.imported || 0} new events, updated ${data.updated || 0} events.`,
+        description: `Imported ${data?.imported || 0}, updated ${data?.updated || 0}${pushed ? `, pushed ${pushed}` : ''}.`,
       });
 
-      // Refresh connections to update last_synced_at
       await fetchConnections();
     } catch (error: any) {
       console.error('Error syncing calendar:', error);
@@ -194,6 +256,8 @@ export function useCalendarConnections() {
     loading,
     syncing,
     connectGoogle,
+    connectOutlook,
+    connectApple,
     syncCalendar,
     disconnectCalendar,
     toggleSync,
