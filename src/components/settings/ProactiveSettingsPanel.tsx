@@ -160,6 +160,13 @@ export function ProactiveSettingsPanel() {
                 checked={settings.evening_dua_enabled ?? false}
                 onChange={(v) => updateSettings({ evening_dua_enabled: v })}
               />
+              <SettingRow
+                icon={<Sparkles className="h-4 w-4" />}
+                label="Email Action Items"
+                description="Daily Telegram digest of emails needing replies, payments, or todos"
+                checked={settings.email_action_alerts_enabled ?? true}
+                onChange={(v) => updateSettings({ email_action_alerts_enabled: v })}
+              />
             </CardContent>
           </Card>
 
