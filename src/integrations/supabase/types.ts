@@ -5545,6 +5545,8 @@ export type Database = {
       }
       proactive_settings: {
         Row: {
+          birthday_reminder_days: number[]
+          birthday_reminders_enabled: boolean
           calendar_overload_enabled: boolean | null
           calendar_overload_threshold: number | null
           contact_checkin_days: number | null
@@ -5556,6 +5558,7 @@ export type Database = {
           email_autoarchive_categories: string[]
           email_autopilot: boolean
           enabled: boolean | null
+          evening_dua_enabled: boolean
           evening_review_time: string | null
           event_prep_enabled: boolean | null
           forgotten_task_days: number | null
@@ -5569,6 +5572,8 @@ export type Database = {
           meeting_followup_enabled: boolean | null
           meeting_prep_enabled: boolean | null
           morning_briefing_time: string | null
+          prayer_reminder_minutes: number
+          prayer_reminders_enabled: boolean
           prefer_voice_replies: boolean | null
           push_notifications_enabled: boolean | null
           quiet_hours_enabled: boolean | null
@@ -5586,6 +5591,8 @@ export type Database = {
           weekly_planning_enabled: boolean | null
         }
         Insert: {
+          birthday_reminder_days?: number[]
+          birthday_reminders_enabled?: boolean
           calendar_overload_enabled?: boolean | null
           calendar_overload_threshold?: number | null
           contact_checkin_days?: number | null
@@ -5597,6 +5604,7 @@ export type Database = {
           email_autoarchive_categories?: string[]
           email_autopilot?: boolean
           enabled?: boolean | null
+          evening_dua_enabled?: boolean
           evening_review_time?: string | null
           event_prep_enabled?: boolean | null
           forgotten_task_days?: number | null
@@ -5610,6 +5618,8 @@ export type Database = {
           meeting_followup_enabled?: boolean | null
           meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
+          prayer_reminder_minutes?: number
+          prayer_reminders_enabled?: boolean
           prefer_voice_replies?: boolean | null
           push_notifications_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
@@ -5627,6 +5637,8 @@ export type Database = {
           weekly_planning_enabled?: boolean | null
         }
         Update: {
+          birthday_reminder_days?: number[]
+          birthday_reminders_enabled?: boolean
           calendar_overload_enabled?: boolean | null
           calendar_overload_threshold?: number | null
           contact_checkin_days?: number | null
@@ -5638,6 +5650,7 @@ export type Database = {
           email_autoarchive_categories?: string[]
           email_autopilot?: boolean
           enabled?: boolean | null
+          evening_dua_enabled?: boolean
           evening_review_time?: string | null
           event_prep_enabled?: boolean | null
           forgotten_task_days?: number | null
@@ -5651,6 +5664,8 @@ export type Database = {
           meeting_followup_enabled?: boolean | null
           meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
+          prayer_reminder_minutes?: number
+          prayer_reminders_enabled?: boolean
           prefer_voice_replies?: boolean | null
           push_notifications_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
