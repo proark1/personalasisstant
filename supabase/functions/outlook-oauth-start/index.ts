@@ -40,8 +40,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         error: 'Outlook integration not yet configured. The administrator needs to add Microsoft credentials.',
         code: 'NOT_CONFIGURED',
+        fallback: true,
       }), {
-        status: 503,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
