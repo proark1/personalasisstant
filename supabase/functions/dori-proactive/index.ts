@@ -491,9 +491,14 @@ Deno.serve(async (req) => {
       const now = localNow(tz);
       if (inQuietHours(now, s)) continue;
 
+      const household = await resolveHousehold(supabase, s.user_id);
+      const self = household.find(h => h.user_id === s.user_id);
+
       const ctx: UserCtx = {
         userId: s.user_id, chatId: Number(link.chat_id), settings: s,
         preferVoice: !!s.prefer_voice_replies, tz, nowLocal: now.date, todayKey: now.dayKey,
+        displayName: self?.display_name || 'You',
+        household,
       };
 
       const before = sent;
