@@ -96,7 +96,57 @@ export function useCalendarConnections() {
     }
   };
 
-  const syncCalendar = async (connectionId: string) => {
+  const connectOutlook = async () => {
+    if (!user) {
+      toast({ title: 'Not authenticated', description: 'Please sign in.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('outlook-oauth-start', { body: {} });
+      if (error) throw error;
+      if (data?.code === 'NOT_CONFIGURED') {
+        toast({
+          title: 'Outlook not yet available',
+          description: 'Microsoft sign-in is being configured. Try again shortly or use ICS import for now.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (data?.url) window.location.href = data.url;
+      else throw new Error('No OAuth URL returned');
+    } catch (error: any) {
+      console.error('Outlook connect error:', error);
+      toast({
+        title: 'Connection failed',
+        description: error.message || 'Failed to start Outlook connection.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const connectApple = async (appleId: string, appPassword: string, calendarName?: string) => {
+    if (!user) {
+      toast({ title: 'Not authenticated', description: 'Please sign in.', variant: 'destructive' });
+      return { success: false };
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('apple-caldav-connect', {
+        body: { appleId, appPassword, calendarName },
+      });
+      if (error) throw error;
+      toast({ title: 'iCloud connected', description: 'Your Apple Calendar is now linked.' });
+      await fetchConnections();
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Apple CalDAV connect error:', error);
+      toast({
+        title: 'Apple connection failed',
+        description: error.message || 'Check your Apple ID and app-specific password.',
+        variant: 'destructive',
+      });
+      return { success: false };
+    }
+  };
     if (syncing) return;
     
     setSyncing(connectionId);
