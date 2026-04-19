@@ -192,6 +192,19 @@ export function ProactiveSettingsPanel() {
                   className="mt-2"
                 />
               </div>
+              {settings.prayer_reminders_enabled && (
+                <div>
+                  <Label className="text-sm">Prayer reminder: {settings.prayer_reminder_minutes ?? 10} min before</Label>
+                  <Slider
+                    value={[settings.prayer_reminder_minutes ?? 10]}
+                    onValueChange={([v]) => updateSettings({ prayer_reminder_minutes: v })}
+                    min={5}
+                    max={30}
+                    step={5}
+                    className="mt-2"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
