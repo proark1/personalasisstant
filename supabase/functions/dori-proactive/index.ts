@@ -171,6 +171,105 @@ async function contractRenewals(supabase: any, ctx: UserCtx) {
   }
 }
 
+async function birthdayReminders(supabase: any, ctx: UserCtx) {
+  if (!ctx.settings.birthday_reminders_enabled) return;
+  // Fire once per day in late morning window
+  if (ctx.nowLocal.getHours() < 9 || ctx.nowLocal.getHours() > 11) return;
+
+  const days: number[] = ctx.settings.birthday_reminder_days || [7, 1];
+
+  const { data: contacts } = await supabase.from('user_contacts')
+    .select('id, name, birth_date')
+    .eq('user_id', ctx.userId)
+    .eq('birthday_reminder', true)
+    .not('birth_date', 'is', null);
+
+  for (const c of (contacts || [])) {
+    const bd = new Date(c.birth_date);
+    const next = new Date(ctx.nowLocal.getFullYear(), bd.getMonth(), bd.getDate());
+    if (next < ctx.nowLocal) next.setFullYear(next.getFullYear() + 1);
+    const daysLeft = Math.ceil((next.getTime() - ctx.nowLocal.getTime()) / (24 * 3600_000));
+    if (!days.includes(daysLeft)) continue;
+
+    const key = `birthday-${c.id}-${next.getFullYear()}-${daysLeft}`;
+    if (await alreadySent(supabase, ctx.userId, 'birthday_reminder', key)) continue;
+
+    const msg = daysLeft === 0
+      ? `🎂 Today is <b>${c.name}</b>'s birthday! Send them a quick message or voice note.`
+      : daysLeft === 1
+      ? `🎂 Tomorrow is <b>${c.name}</b>'s birthday. Got a gift or card ready?`
+      : `🎁 In <b>${daysLeft} days</b> it's <b>${c.name}</b>'s birthday. Time to plan a gift or card.`;
+    await send(ctx, msg);
+    await logSent(supabase, ctx, 'birthday_reminder', key, msg);
+  }
+}
+
+// Simple sunrise/sunset-style prayer estimator. For Mönchengladbach defaults.
+// Uses fixed approximate times per month — good enough for a "remember to pray" nudge.
+// Real adhan API can replace this later.
+function estimatePrayerTimes(date: Date): Record<string, { h: number; m: number }> {
+  const month = date.getMonth(); // 0-11
+  // [Fajr, Dhuhr, Asr, Maghrib, Isha] hours for each month (rough Mönchengladbach values)
+  const table: Array<[number, number, number, number, number]> = [
+    [6.3, 12.5, 14.5, 16.7, 18.3], // Jan
+    [5.8, 12.6, 15.2, 17.7, 19.3], // Feb
+    [5.0, 12.5, 15.8, 18.7, 20.4], // Mar
+    [4.0, 13.5, 17.3, 20.8, 22.7], // Apr (DST)
+    [3.2, 13.5, 17.7, 21.5, 23.3], // May
+    [2.8, 13.5, 17.8, 21.8, 23.7], // Jun
+    [3.0, 13.6, 17.7, 21.6, 23.5], // Jul
+    [3.7, 13.6, 17.0, 20.7, 22.5], // Aug
+    [4.7, 13.4, 16.0, 19.5, 21.0], // Sep
+    [5.5, 13.2, 15.0, 18.3, 19.8], // Oct
+    [5.5, 12.5, 13.8, 16.5, 18.0], // Nov (back to standard time)
+    [6.2, 12.5, 14.0, 16.3, 17.8], // Dec
+  ];
+  const t = table[month];
+  const names = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+  const out: Record<string, { h: number; m: number }> = {};
+  names.forEach((n, i) => {
+    const h = Math.floor(t[i]);
+    const m = Math.round((t[i] - h) * 60);
+    out[n] = { h, m };
+  });
+  return out;
+}
+
+async function prayerReminders(supabase: any, ctx: UserCtx) {
+  if (!ctx.settings.prayer_reminders_enabled && !ctx.settings.evening_dua_enabled) return;
+  const minutesBefore = ctx.settings.prayer_reminder_minutes || 10;
+  const times = estimatePrayerTimes(ctx.nowLocal);
+  const nowMin = ctx.nowLocal.getHours() * 60 + ctx.nowLocal.getMinutes();
+
+  if (ctx.settings.prayer_reminders_enabled) {
+    for (const [name, t] of Object.entries(times)) {
+      const targetMin = t.h * 60 + t.m - minutesBefore;
+      // Cron runs every 30 min — fire if within ±15 min of pre-prayer target
+      if (Math.abs(nowMin - targetMin) > 15) continue;
+      const key = `prayer-${name}-${ctx.todayKey}`;
+      if (await alreadySent(supabase, ctx.userId, 'prayer_reminder', key)) continue;
+      const timeStr = `${String(t.h).padStart(2, '0')}:${String(t.m).padStart(2, '0')}`;
+      const msg = `🕌 <b>${name}</b> in ~${minutesBefore} min (${timeStr}). Time to prepare for salah.`;
+      await send(ctx, msg);
+      await logSent(supabase, ctx, 'prayer_reminder', key, msg);
+    }
+  }
+
+  // Evening dua nudge — fire after Maghrib, before Isha
+  if (ctx.settings.evening_dua_enabled) {
+    const maghribMin = times.Maghrib.h * 60 + times.Maghrib.m;
+    const targetMin = maghribMin + 30; // 30 min after Maghrib
+    if (Math.abs(nowMin - targetMin) <= 15) {
+      const key = `evening-dua-${ctx.todayKey}`;
+      if (!(await alreadySent(supabase, ctx.userId, 'evening_dua', key))) {
+        const msg = `🤲 Evening reflection time. Take a moment for dua — for your family, your work, and gratitude. "And your Lord says: Call upon Me; I will respond to you." (40:60)`;
+        await send(ctx, msg);
+        await logSent(supabase, ctx, 'evening_dua', key, msg);
+      }
+    }
+  }
+}
+
 async function staleContacts(supabase: any, ctx: UserCtx) {
   if (!ctx.settings.contact_checkins_enabled) return;
   // Only nudge once a day, evening-ish
@@ -208,7 +307,9 @@ Deno.serve(async (req) => {
     .select(`user_id, enabled, prefer_voice_replies, timezone, morning_briefing_time, evening_review_time,
              daily_review_enabled, weekly_planning_enabled, meeting_briefing_enabled, meeting_briefing_minutes,
              contract_renewals_enabled, contract_reminder_days, contact_checkins_enabled, stale_contact_days,
-             telegram_proactive_enabled, quiet_hours_enabled, quiet_hours_start, quiet_hours_end`)
+             telegram_proactive_enabled, quiet_hours_enabled, quiet_hours_start, quiet_hours_end,
+             birthday_reminders_enabled, birthday_reminder_days,
+             prayer_reminders_enabled, prayer_reminder_minutes, evening_dua_enabled`)
     .eq('enabled', true).eq('telegram_proactive_enabled', true);
 
   if (error) {
@@ -238,6 +339,8 @@ Deno.serve(async (req) => {
       await meetingPrep(supabase, ctx);
       await contractRenewals(supabase, ctx);
       await staleContacts(supabase, ctx);
+      await birthdayReminders(supabase, ctx);
+      await prayerReminders(supabase, ctx);
       processed++;
       // crude counter via log table re-read avoided; trust no-throw means OK
       sent = before; // leave at 0 — we just count attempts
