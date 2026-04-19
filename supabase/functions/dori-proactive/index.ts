@@ -339,6 +339,8 @@ Deno.serve(async (req) => {
       await meetingPrep(supabase, ctx);
       await contractRenewals(supabase, ctx);
       await staleContacts(supabase, ctx);
+      await birthdayReminders(supabase, ctx);
+      await prayerReminders(supabase, ctx);
       processed++;
       // crude counter via log table re-read avoided; trust no-throw means OK
       sent = before; // leave at 0 — we just count attempts
