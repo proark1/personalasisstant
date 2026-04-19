@@ -40,14 +40,38 @@ serve(async (req) => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Fetch cross-module data in parallel
+    // Resolve household (family_agent_members) so the briefing can name spouses
+    // when 2+ adults are connected to the same household.
+    const { data: myGroups } = await db
+      .from("family_agent_members")
+      .select("group_id")
+      .eq("user_id", userId)
+      .eq("status", "accepted");
+    const groupIds = (myGroups || []).map((g: any) => g.group_id);
+    let household: { user_id: string; display_name: string }[] = [];
+    if (groupIds.length > 0) {
+      const { data: members } = await db
+        .from("family_agent_members")
+        .select("user_id")
+        .in("group_id", groupIds)
+        .eq("status", "accepted");
+      const ids = Array.from(new Set([userId, ...((members || []).map((m: any) => m.user_id))]));
+      const { data: profs } = await db.from("profiles").select("user_id, display_name").in("user_id", ids);
+      const map = new Map((profs || []).map((p: any) => [p.user_id, p.display_name || "Member"]));
+      household = ids.map(id => ({ user_id: id, display_name: map.get(id) || "Member" }));
+    }
+    const isShared = household.length >= 2;
+    const householdUserIds = isShared ? household.map(h => h.user_id) : [userId];
+    const ownerNameById = new Map(household.map(h => [h.user_id, (h.display_name || "").split(/\s+/)[0]]));
+
+    // Fetch cross-module data in parallel — across the household when shared
     const [tasksRes, eventsRes, emailsRes, contractsRes, contactsRes, checkinsRes, habitsRes, habitLogsRes, profileRes] = await Promise.all([
-      db.from("tasks").select("id, title, priority, completed, due_date").eq("user_id", userId).eq("completed", false).order("priority", { ascending: true }).limit(10),
-      db.from("events").select("id, title, start_time, end_time, location").eq("user_id", userId).gte("start_time", todayStart).lte("start_time", todayEnd).order("start_time"),
-      db.from("user_emails").select("id, from_name, subject, priority_score, is_read, category").eq("user_id", userId).eq("is_read", false).eq("user_archived", false).order("priority_score").limit(10),
-      db.from("contracts").select("id, name, renewal_date, cancellation_notice_days, auto_renews, cost_amount, cost_frequency").eq("user_id", userId).eq("is_active", true).not("renewal_date", "is", null).lte("renewal_date", sevenDaysFromNow).gte("renewal_date", today),
-      db.from("user_contacts").select("id, name, last_contacted_at").eq("user_id", userId).lt("last_contacted_at", thirtyDaysAgo).order("last_contacted_at").limit(5),
-      db.from("daily_checkins").select("mood, energy_level, sleep_hours").eq("user_id", userId).eq("checkin_date", new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0]).limit(1),
+      db.from("tasks").select("id, title, priority, completed, due_date, user_id").in("user_id", householdUserIds).eq("completed", false).order("priority", { ascending: true }).limit(15),
+      db.from("events").select("id, title, start_time, end_time, location, user_id").in("user_id", householdUserIds).gte("start_time", todayStart).lte("start_time", todayEnd).order("start_time"),
+      db.from("user_emails").select("id, from_name, subject, priority_score, is_read, category, user_id").in("user_id", householdUserIds).eq("is_read", false).eq("user_archived", false).order("priority_score").limit(15),
+      db.from("contracts").select("id, name, renewal_date, cancellation_notice_days, auto_renews, cost_amount, cost_frequency, user_id").in("user_id", householdUserIds).eq("is_active", true).not("renewal_date", "is", null).lte("renewal_date", sevenDaysFromNow).gte("renewal_date", today),
+      db.from("user_contacts").select("id, name, last_contacted_at, user_id").in("user_id", householdUserIds).lt("last_contacted_at", thirtyDaysAgo).order("last_contacted_at").limit(8),
+      db.from("daily_checkins").select("mood, energy_level, sleep_hours, user_id").in("user_id", householdUserIds).eq("checkin_date", new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0]),
       db.from("habits").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_active", true),
       db.from("habit_logs").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("log_date", today),
       db.from("profiles").select("display_name").eq("user_id", userId).single(),
