@@ -2,7 +2,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bell, Brain, Calendar, Clock, FileText, Heart, Moon, Users, Zap } from 'lucide-react';
+import { Bell, Brain, Calendar, Clock, FileText, Heart, Moon, Users, Zap, Cake, Sparkles } from 'lucide-react';
 import { useProactiveSettings } from '@/hooks/useProactiveSettings';
 import { useExpoPushNotifications } from '@/hooks/useExpoPushNotifications';
 import { Button } from '@/components/ui/button';
@@ -139,6 +139,27 @@ export function ProactiveSettingsPanel() {
                 checked={settings.telegram_group_enabled ?? true}
                 onChange={(v) => updateSettings({ telegram_group_enabled: v })}
               />
+              <SettingRow
+                icon={<Cake className="h-4 w-4" />}
+                label="Birthday Reminders"
+                description="Heads-up before contacts' birthdays so you can plan a gift"
+                checked={settings.birthday_reminders_enabled ?? true}
+                onChange={(v) => updateSettings({ birthday_reminders_enabled: v })}
+              />
+              <SettingRow
+                icon={<Moon className="h-4 w-4" />}
+                label="Prayer Reminders"
+                description="Telegram nudge a few minutes before each salah"
+                checked={settings.prayer_reminders_enabled ?? false}
+                onChange={(v) => updateSettings({ prayer_reminders_enabled: v })}
+              />
+              <SettingRow
+                icon={<Sparkles className="h-4 w-4" />}
+                label="Evening Dua Reminder"
+                description="Gentle nudge after Maghrib to make dua"
+                checked={settings.evening_dua_enabled ?? false}
+                onChange={(v) => updateSettings({ evening_dua_enabled: v })}
+              />
             </CardContent>
           </Card>
 
@@ -171,6 +192,19 @@ export function ProactiveSettingsPanel() {
                   className="mt-2"
                 />
               </div>
+              {settings.prayer_reminders_enabled && (
+                <div>
+                  <Label className="text-sm">Prayer reminder: {settings.prayer_reminder_minutes ?? 10} min before</Label>
+                  <Slider
+                    value={[settings.prayer_reminder_minutes ?? 10]}
+                    onValueChange={([v]) => updateSettings({ prayer_reminder_minutes: v })}
+                    min={5}
+                    max={30}
+                    step={5}
+                    className="mt-2"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
