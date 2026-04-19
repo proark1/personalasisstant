@@ -239,21 +239,70 @@ serve(async (req) => {
       }
     }
 
+    // ====== PUSH local pending_push events to Google ======
+    let pushedCount = 0;
+    if (connection.sync_direction === 'two_way' || !connection.sync_direction) {
+      const { data: pendingEvents } = await adminSupabase.from('events')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('connection_id', connectionId)
+        .eq('sync_status', 'pending_push')
+        .limit(50);
+
+      for (const local of pendingEvents || []) {
+        try {
+          const body = {
+            summary: local.title || 'Untitled',
+            description: local.description || undefined,
+            location: local.location || undefined,
+            start: { dateTime: new Date(local.start_time).toISOString() },
+            end: { dateTime: new Date(local.end_time).toISOString() },
+          };
+          const isUpdate = !!local.external_id;
+          const url = isUpdate
+            ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${local.external_id}`
+            : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+          const resp = await fetch(url, {
+            method: isUpdate ? 'PATCH' : 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (resp.ok) {
+            const remote = await resp.json();
+            await adminSupabase.from('events').update({
+              external_id: remote.id,
+              external_source: 'google',
+              external_etag: remote.etag,
+              sync_status: 'synced',
+              last_pushed_at: new Date().toISOString(),
+            }).eq('id', local.id);
+            pushedCount++;
+          } else {
+            errors.push(`push ${isUpdate ? 'update' : 'create'}: ${resp.status}`);
+          }
+        } catch (e: any) {
+          errors.push(`push: ${e?.message || 'unknown'}`);
+        }
+      }
+    }
+
     // Update last synced time and sync token
     await adminSupabase
       .from('external_calendar_connections')
       .update({
         last_synced_at: new Date().toISOString(),
         sync_token: eventsData.nextSyncToken || null,
+        last_sync_error: errors.length ? errors.slice(0, 5).join('; ') : null,
       })
       .eq('id', connectionId);
 
-    console.log(`Sync complete: ${importedCount} imported, ${updatedCount} updated, ${errors.length} errors`);
+    console.log(`Sync complete: ${importedCount} imported, ${updatedCount} updated, ${pushedCount} pushed, ${errors.length} errors`);
 
     return new Response(JSON.stringify({
       success: true,
       imported: importedCount,
       updated: updatedCount,
+      pushed: pushedCount,
       errors: errors.length > 0 ? errors : undefined,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
