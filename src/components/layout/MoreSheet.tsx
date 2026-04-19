@@ -9,12 +9,17 @@ import {
   BookUser, FileText, StickyNote, Flame, Heart, Utensils, Moon,
   Building2, Briefcase, Newspaper, MessageCircle, Settings,
   MoreHorizontal, Mail, CheckSquare, Search, Clock,
+  Users, FolderKanban, Activity, BookHeart, GraduationCap,
+  Wallet, Plane, Home, Pill, Target, CalendarCheck, Sparkles,
 } from 'lucide-react';
 
 export type MoreSheetPanel =
   | 'contacts' | 'contracts' | 'notes' | 'habits'
-  | 'health' | 'family' | 'islam' | 'properties'
-  | 'startups' | 'news' | 'social' | 'settings' | 'email' | 'tasks';
+  | 'health' | 'family' | 'cooking' | 'islam' | 'properties' | 'assets'
+  | 'startups' | 'news' | 'social' | 'settings' | 'email' | 'tasks'
+  | 'projects' | 'activity' | 'journal' | 'learning'
+  | 'finances' | 'travel' | 'personal-health' | 'relationships-plus'
+  | 'assistant';
 
 interface MoreSheetProps {
   open: boolean;
@@ -24,20 +29,40 @@ interface MoreSheetProps {
 }
 
 const allItems = [
-  { id: 'tasks' as const, icon: CheckSquare, labelKey: 'nav.tasks', section: 'Tools' },
-  { id: 'notes' as const, icon: StickyNote, labelKey: 'nav.notes', section: 'Tools' },
-  { id: 'social' as const, icon: MessageCircle, labelKey: 'nav.social', section: 'Tools' },
-  { id: 'settings' as const, icon: Settings, labelKey: 'nav.settings', section: 'Tools' },
-  { id: 'health' as const, icon: Heart, labelKey: 'nav.health', section: 'Life' },
-  { id: 'habits' as const, icon: Flame, labelKey: 'nav.habits', section: 'Life' },
-  { id: 'family' as const, icon: Utensils, labelKey: 'nav.cooking', section: 'Life' },
-  { id: 'islam' as const, icon: Moon, labelKey: 'nav.islam', section: 'Life' },
-  { id: 'email' as const, icon: Mail, labelKey: 'nav.email', section: 'Business' },
-  { id: 'contacts' as const, icon: BookUser, labelKey: 'nav.contacts', section: 'Business' },
-  { id: 'contracts' as const, icon: FileText, labelKey: 'nav.contracts', section: 'Business' },
-  { id: 'properties' as const, icon: Building2, labelKey: 'nav.properties', section: 'Business' },
-  { id: 'startups' as const, icon: Briefcase, labelKey: 'nav.startups', section: 'Business' },
-  { id: 'news' as const, icon: Newspaper, labelKey: 'nav.news', section: 'Business' },
+  // Assistant & Capture
+  { id: 'assistant' as const, icon: Sparkles, labelKey: 'nav.assistant', section: 'Assistant & Capture' },
+  { id: 'notes' as const, icon: StickyNote, labelKey: 'nav.notes', section: 'Assistant & Capture' },
+  { id: 'journal' as const, icon: BookHeart, labelKey: 'nav.journal', section: 'Assistant & Capture' },
+  { id: 'activity' as const, icon: Activity, labelKey: 'nav.activity', section: 'Assistant & Capture' },
+
+  // Family & Home
+  { id: 'family' as const, icon: Users, labelKey: 'nav.familyHub', section: 'Family & Home' },
+  { id: 'cooking' as const, icon: Utensils, labelKey: 'nav.cooking', section: 'Family & Home' },
+  { id: 'health' as const, icon: Heart, labelKey: 'nav.health', section: 'Family & Home' },
+  { id: 'personal-health' as const, icon: Pill, labelKey: 'nav.personalHealth', section: 'Family & Home' },
+  { id: 'habits' as const, icon: Flame, labelKey: 'nav.habits', section: 'Family & Home' },
+  { id: 'relationships-plus' as const, icon: Heart, labelKey: 'nav.relationships', section: 'Family & Home' },
+  { id: 'islam' as const, icon: Moon, labelKey: 'nav.islam', section: 'Family & Home' },
+
+  // Communication
+  { id: 'email' as const, icon: Mail, labelKey: 'nav.email', section: 'Communication' },
+  { id: 'social' as const, icon: MessageCircle, labelKey: 'nav.social', section: 'Communication' },
+  { id: 'contacts' as const, icon: BookUser, labelKey: 'nav.contacts', section: 'Communication' },
+
+  // Work & Money
+  { id: 'projects' as const, icon: FolderKanban, labelKey: 'nav.projects', section: 'Work & Money' },
+  { id: 'startups' as const, icon: Briefcase, labelKey: 'nav.startups', section: 'Work & Money' },
+  { id: 'contracts' as const, icon: FileText, labelKey: 'nav.contracts', section: 'Work & Money' },
+  { id: 'finances' as const, icon: Wallet, labelKey: 'nav.finances', section: 'Work & Money' },
+  { id: 'assets' as const, icon: Home, labelKey: 'nav.assets', section: 'Work & Money' },
+  { id: 'travel' as const, icon: Plane, labelKey: 'nav.travel', section: 'Work & Money' },
+  { id: 'news' as const, icon: Newspaper, labelKey: 'nav.news', section: 'Work & Money' },
+
+  // Learn
+  { id: 'learning' as const, icon: GraduationCap, labelKey: 'nav.learning', section: 'Learn' },
+
+  // Settings
+  { id: 'settings' as const, icon: Settings, labelKey: 'nav.settings', section: 'Settings' },
 ];
 
 const RECENTS_KEY = 'moresheet-recents';

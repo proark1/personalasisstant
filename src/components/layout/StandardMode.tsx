@@ -173,6 +173,7 @@ export function StandardMode({
   
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel>('tasks');
+  const [familyDefaultTab, setFamilyDefaultTab] = useState<string>('tasks');
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
   const isMobile = useIsMobile();
   const { celebrate } = useCelebration();
@@ -403,7 +404,15 @@ export function StandardMode({
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenWeeklyReview={onOpenWeeklyReview}
         onOpenTodayFocus={() => setShowTodayFocus(true)}
-        onPanelChange={setActivePanel}
+        onPanelChange={(p) => {
+          if (p === 'cooking') {
+            setActivePanel('family');
+            setFamilyDefaultTab('meals');
+          } else {
+            setActivePanel(p);
+            setFamilyDefaultTab('tasks');
+          }
+        }}
         activePanel={activePanel}
       />
       
@@ -649,7 +658,7 @@ export function StandardMode({
               {/* Family Panel */}
               {activePanel === 'family' && user?.id && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                  <FamilyPanel />
+                  <FamilyPanel defaultTab={familyDefaultTab} />
                 </div>
               )}
 
