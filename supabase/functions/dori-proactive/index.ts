@@ -15,6 +15,11 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY')!;
 
+interface HouseholdMember {
+  user_id: string;
+  display_name: string;
+}
+
 interface UserCtx {
   userId: string;
   chatId: number;
@@ -23,6 +28,46 @@ interface UserCtx {
   tz: string;
   nowLocal: Date;
   todayKey: string; // YYYY-MM-DD in user's tz
+  displayName: string;
+  household: HouseholdMember[]; // includes self; length>=2 means shared household
+}
+
+// Resolve all accepted family-agent members the user shares a group with,
+// including the user themselves. Used to attribute messages by name when
+// 2+ adults are connected (shared household context).
+async function resolveHousehold(supabase: any, userId: string): Promise<HouseholdMember[]> {
+  // Find groups the user belongs to (accepted)
+  const { data: myGroups } = await supabase
+    .from('family_agent_members')
+    .select('group_id')
+    .eq('user_id', userId)
+    .eq('status', 'accepted');
+
+  const groupIds = (myGroups || []).map((g: any) => g.group_id);
+  if (groupIds.length === 0) {
+    // Solo: just self
+    const { data: prof } = await supabase.from('profiles').select('display_name').eq('user_id', userId).maybeSingle();
+    return [{ user_id: userId, display_name: prof?.display_name || 'You' }];
+  }
+
+  const { data: members } = await supabase
+    .from('family_agent_members')
+    .select('user_id')
+    .in('group_id', groupIds)
+    .eq('status', 'accepted');
+
+  const userIds = Array.from(new Set([userId, ...((members || []).map((m: any) => m.user_id))]));
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('user_id, display_name')
+    .in('user_id', userIds);
+
+  const map = new Map((profiles || []).map((p: any) => [p.user_id, p.display_name || 'Member']));
+  return userIds.map(uid => ({ user_id: uid, display_name: map.get(uid) || 'Member' }));
+}
+
+function firstName(name: string): string {
+  return (name || '').trim().split(/\s+/)[0] || name;
 }
 
 function localNow(tz: string): { date: Date; hour: number; minute: number; dayKey: string; dow: number } {
