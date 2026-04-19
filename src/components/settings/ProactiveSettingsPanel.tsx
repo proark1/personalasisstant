@@ -139,6 +139,27 @@ export function ProactiveSettingsPanel() {
                 checked={settings.telegram_group_enabled ?? true}
                 onChange={(v) => updateSettings({ telegram_group_enabled: v })}
               />
+              <SettingRow
+                icon={<Cake className="h-4 w-4" />}
+                label="Birthday Reminders"
+                description="Heads-up before contacts' birthdays so you can plan a gift"
+                checked={settings.birthday_reminders_enabled ?? true}
+                onChange={(v) => updateSettings({ birthday_reminders_enabled: v })}
+              />
+              <SettingRow
+                icon={<Moon className="h-4 w-4" />}
+                label="Prayer Reminders"
+                description="Telegram nudge a few minutes before each salah"
+                checked={settings.prayer_reminders_enabled ?? false}
+                onChange={(v) => updateSettings({ prayer_reminders_enabled: v })}
+              />
+              <SettingRow
+                icon={<Sparkles className="h-4 w-4" />}
+                label="Evening Dua Reminder"
+                description="Gentle nudge after Maghrib to make dua"
+                checked={settings.evening_dua_enabled ?? false}
+                onChange={(v) => updateSettings({ evening_dua_enabled: v })}
+              />
             </CardContent>
           </Card>
 
