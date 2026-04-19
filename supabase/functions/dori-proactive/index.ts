@@ -307,7 +307,9 @@ Deno.serve(async (req) => {
     .select(`user_id, enabled, prefer_voice_replies, timezone, morning_briefing_time, evening_review_time,
              daily_review_enabled, weekly_planning_enabled, meeting_briefing_enabled, meeting_briefing_minutes,
              contract_renewals_enabled, contract_reminder_days, contact_checkins_enabled, stale_contact_days,
-             telegram_proactive_enabled, quiet_hours_enabled, quiet_hours_start, quiet_hours_end`)
+             telegram_proactive_enabled, quiet_hours_enabled, quiet_hours_start, quiet_hours_end,
+             birthday_reminders_enabled, birthday_reminder_days,
+             prayer_reminders_enabled, prayer_reminder_minutes, evening_dua_enabled`)
     .eq('enabled', true).eq('telegram_proactive_enabled', true);
 
   if (error) {
