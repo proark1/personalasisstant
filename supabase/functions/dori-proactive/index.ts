@@ -222,6 +222,8 @@ async function birthdayReminders(supabase: any, ctx: UserCtx) {
   if (ctx.nowLocal.getHours() < 9 || ctx.nowLocal.getHours() > 11) return;
 
   const days: number[] = ctx.settings.birthday_reminder_days || [7, 1];
+  const isShared = ctx.household.length >= 2;
+  const ownerLabel = isShared ? ` (${firstName(ctx.displayName)}'s contact)` : '';
 
   const { data: contacts } = await supabase.from('user_contacts')
     .select('id, name, birth_date')
@@ -240,10 +242,10 @@ async function birthdayReminders(supabase: any, ctx: UserCtx) {
     if (await alreadySent(supabase, ctx.userId, 'birthday_reminder', key)) continue;
 
     const msg = daysLeft === 0
-      ? `🎂 Today is <b>${c.name}</b>'s birthday! Send them a quick message or voice note.`
+      ? `🎂 Today is <b>${c.name}</b>'s birthday!${ownerLabel} Send them a quick message or voice note.`
       : daysLeft === 1
-      ? `🎂 Tomorrow is <b>${c.name}</b>'s birthday. Got a gift or card ready?`
-      : `🎁 In <b>${daysLeft} days</b> it's <b>${c.name}</b>'s birthday. Time to plan a gift or card.`;
+      ? `🎂 Tomorrow is <b>${c.name}</b>'s birthday${ownerLabel}. Got a gift or card ready?`
+      : `🎁 In <b>${daysLeft} days</b> it's <b>${c.name}</b>'s birthday${ownerLabel}. Time to plan a gift or card.`;
     await send(ctx, msg);
     await logSent(supabase, ctx, 'birthday_reminder', key, msg);
   }
