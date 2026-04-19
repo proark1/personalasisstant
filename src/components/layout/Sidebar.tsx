@@ -31,6 +31,12 @@ import {
   Newspaper,
   Heart,
   Mail,
+  Wallet,
+  Plane,
+  Home,
+  Pill,
+  GraduationCap,
+  BookHeart,
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,7 +46,7 @@ import { useUnreadEmailCount } from '@/hooks/useUnreadEmailCount';
 
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | null;
+export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | 'finances' | 'travel' | 'assets' | 'personal-health' | 'relationships-plus' | 'learning' | 'journal' | null;
 
 interface SidebarProps {
   onEditProfile?: () => void;
@@ -227,9 +233,19 @@ export function Sidebar({
           {/* Life */}
           <NavGroup title="Life" collapsed={collapsed}>
             <NavItem icon={Heart} label={t('nav.health') || 'Health'} panel="health" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Pill} label="Personal Health" panel="personal-health" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Flame} label={t('nav.habits')} panel="habits" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Utensils} label={t('nav.cooking') || 'Cooking'} panel="family" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Moon} label={t('nav.islam') || 'Islam'} panel="islam" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Heart} label="Relationships+" panel="relationships-plus" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={BookHeart} label="Journal" panel="journal" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+          </NavGroup>
+
+          {/* Money & Assets */}
+          <NavGroup title="Money & Assets" collapsed={collapsed}>
+            <NavItem icon={Wallet} label="Finances" panel="finances" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Plane} label="Travel" panel="travel" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Home} label="Properties & Vehicles" panel="assets" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
           </NavGroup>
 
           {/* Business */}
@@ -245,6 +261,7 @@ export function Sidebar({
           {/* Tools */}
           <NavGroup title="Tools" collapsed={collapsed}>
             <NavItem icon={StickyNote} label={t('nav.notes')} panel="notes" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={GraduationCap} label="Learning" panel="learning" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={MessageCircle} label={t('nav.social')} panel="social" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
           </NavGroup>
 

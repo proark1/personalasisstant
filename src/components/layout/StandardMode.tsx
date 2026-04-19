@@ -50,6 +50,13 @@ const ContactsPanel = lazy(() => import('../contacts/ContactsPanel').then(m => (
 const ContractsPanel = lazy(() => import('../contracts/ContractsPanel').then(m => ({ default: m.ContractsPanel })));
 const SettingsPanelContent = lazy(() => import('../settings/SettingsPanelContent').then(m => ({ default: m.SettingsPanelContent })));
 const EmailPanel = lazy(() => import('../email/EmailPanel').then(m => ({ default: m.EmailPanel })));
+const FinancesPanel = lazy(() => import('../finances/FinancesPanel').then(m => ({ default: m.FinancesPanel })));
+const TravelPanel = lazy(() => import('../travel/TravelPanel').then(m => ({ default: m.TravelPanel })));
+const AssetsPanel = lazy(() => import('../assets/AssetsPanel').then(m => ({ default: m.AssetsPanel })));
+const PersonalHealthPanel = lazy(() => import('../health/PersonalHealthPanel').then(m => ({ default: m.PersonalHealthPanel })));
+const RelationshipsPlusPanel = lazy(() => import('../relationships/RelationshipsPlusPanel').then(m => ({ default: m.RelationshipsPlusPanel })));
+const LearningPanel = lazy(() => import('../learning/LearningPanel').then(m => ({ default: m.LearningPanel })));
+const JournalPanel = lazy(() => import('../journal/JournalPanel').then(m => ({ default: m.JournalPanel })));
 
 interface StandardModeProps {
   tasks: Task[];
@@ -692,6 +699,48 @@ export function StandardMode({
               {activePanel === 'health' && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
                   <HealthHubPanel />
+                </div>
+              )}
+
+              {activePanel === 'finances' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <FinancesPanel />
+                </div>
+              )}
+
+              {activePanel === 'travel' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <TravelPanel />
+                </div>
+              )}
+
+              {activePanel === 'assets' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <AssetsPanel />
+                </div>
+              )}
+
+              {activePanel === 'personal-health' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <PersonalHealthPanel />
+                </div>
+              )}
+
+              {activePanel === 'relationships-plus' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <RelationshipsPlusPanel />
+                </div>
+              )}
+
+              {activePanel === 'learning' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <LearningPanel />
+                </div>
+              )}
+
+              {activePanel === 'journal' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <JournalPanel />
                 </div>
               )}
             </Suspense>
