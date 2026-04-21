@@ -83,7 +83,15 @@ Deno.serve(async (req) => {
       }
       if (Object.keys(updates).length > 0) {
         const { error } = await admin.auth.admin.updateUserById(target_user_id, updates);
-        if (error) throw error;
+        if (error) {
+          const msg = (error as { code?: string; message?: string }).code === "weak_password"
+            ? "This password was found in a known data breach. Please choose a stronger, unique password."
+            : error.message;
+          return new Response(JSON.stringify({ error: msg }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       if (payload?.display_name !== undefined || payload?.email) {
