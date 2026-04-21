@@ -62,8 +62,10 @@ async function resolveHousehold(supabase: any, userId: string): Promise<Househol
     .select('user_id, display_name')
     .in('user_id', userIds);
 
-  const map = new Map((profiles || []).map((p: any) => [p.user_id, p.display_name || 'Member']));
-  return userIds.map(uid => ({ user_id: uid, display_name: map.get(uid) || 'Member' }));
+  const map = new Map<string, string>(
+    (profiles || []).map((p: any) => [p.user_id as string, (p.display_name as string) || 'Member']),
+  );
+  return userIds.map((uid) => ({ user_id: uid, display_name: map.get(uid) || 'Member' }));
 }
 
 function firstName(name: string): string {

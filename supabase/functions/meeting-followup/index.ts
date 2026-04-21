@@ -56,7 +56,7 @@ serve(async (req) => {
   for (const ev of events || []) {
     const { data: settings } = await supabase
       .from('proactive_settings')
-      .select('enabled, meeting_followup_enabled, in_app_notifications_enabled, telegram_proactive_enabled')
+      .select('enabled, meeting_followup_enabled, in_app_notifications_enabled, telegram_proactive_enabled, telegram_group_enabled')
       .eq('user_id', ev.user_id)
       .maybeSingle();
 

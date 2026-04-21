@@ -108,7 +108,9 @@ async function sendVoiceNote(
   try {
     const fd = new FormData();
     fd.append('chat_id', String(chatId));
-    fd.append('voice', new Blob([audio], { type: 'audio/wav' }), 'reply.wav');
+    // Cast to BlobPart — Deno's Uint8Array typing (ArrayBufferLike) is not
+    // directly assignable to lib.dom's BlobPart (ArrayBuffer-only) but works at runtime.
+    fd.append('voice', new Blob([audio as unknown as BlobPart], { type: 'audio/wav' }), 'reply.wav');
     if (caption) fd.append('caption', caption.slice(0, 1000));
     const r = await fetch(`${GATEWAY_URL}/sendVoice`, {
       method: 'POST',
