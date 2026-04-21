@@ -33,6 +33,8 @@ export function TelegramConnectPanel() {
   const [code, setCode] = useState<string | null>(null);
   const [groupCode, setGroupCode] = useState<string | null>(null);
   const [groupAddUrl, setGroupAddUrl] = useState<string | null>(null);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchLink = async () => {
     if (!user) return;
@@ -55,11 +57,16 @@ export function TelegramConnectPanel() {
 
   const handleGenerate = async () => {
     setGenerating(true);
+    setError(null);
     try {
       const { data, error } = await supabase.functions.invoke('telegram-link', { body: { action: 'generate', scope: 'personal' } });
       if (error) throw error;
       setCode(data.code);
       setDeepLink(data.deepLink);
+      setBotUsername(data.botUsername);
+      if (!data.deepLink) {
+        setError("Telegram connector is currently unreachable. Your code is ready — open @darai_bot manually and send: /start " + data.code);
+      }
     } catch (e) {
       toast({ title: 'Could not generate code', description: e instanceof Error ? e.message : '', variant: 'destructive' });
     } finally {
