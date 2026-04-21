@@ -41,7 +41,7 @@ interface GroupLink {
 
 // Fallback only — real username is fetched from telegram-link (getMe) so the
 // app stays correct if the bot is renamed.
-const DEFAULT_BOT_USERNAME = 'daraibot_bot';
+const DEFAULT_botUsername = 'daraibot_bot';
 
 export function TelegramHubPanel() {
   const { user } = useAuth();
@@ -55,7 +55,7 @@ export function TelegramHubPanel() {
   const [code, setCode] = useState<string | null>(null);
   const [groupCode, setGroupCode] = useState<string | null>(null);
   const [groupAddUrl, setGroupAddUrl] = useState<string | null>(null);
-  const [botUsername, setBotUsername] = useState<string>(DEFAULT_BOT_USERNAME);
+  const [botUsername, setBotUsername] = useState<string>(DEFAULT_botUsername);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLink = async () => {
@@ -187,11 +187,11 @@ export function TelegramHubPanel() {
           {link?.is_active ? (
             <>
               <p className="text-sm text-muted-foreground">
-                You're chatting as <span className="font-medium text-foreground">@{link.telegram_username ?? link.telegram_first_name}</span>. Open Telegram and search <span className="font-medium text-foreground">@{BOT_USERNAME}</span> to start.
+                You're chatting as <span className="font-medium text-foreground">@{link.telegram_username ?? link.telegram_first_name}</span>. Open Telegram and search <span className="font-medium text-foreground">@{botUsername}</span> to start.
               </p>
               <div className="flex gap-2 flex-wrap">
                 <a
-                  href={`https://t.me/${BOT_USERNAME}`}
+                  href={`https://t.me/${botUsername}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
@@ -208,12 +208,12 @@ export function TelegramHubPanel() {
               <p className="text-sm text-muted-foreground">
                 {deepLink
                   ? 'Tap below to open Telegram and link your account. Code expires in 10 minutes.'
-                  : `Open @${BOT_USERNAME} in Telegram and send: /start ${code}`}
+                  : `Open @${botUsername} in Telegram and send: /start ${code}`}
               </p>
               {error && <p className="text-xs text-destructive">{error}</p>}
               <div className="flex gap-2 flex-wrap">
                 <a
-                  href={deepLink ?? `https://t.me/${BOT_USERNAME}`}
+                  href={deepLink ?? `https://t.me/${botUsername}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
@@ -257,7 +257,7 @@ export function TelegramHubPanel() {
           {group?.is_active ? (
             <>
               <p className="text-sm text-muted-foreground">
-                Linked to <span className="font-medium text-foreground">{group.title || 'your family group'}</span>. Either of you can write naturally — "buy milk", "dentist Friday 4pm", "@{BOT_USERNAME} what's on today?" — and it lands in your shared space.
+                Linked to <span className="font-medium text-foreground">{group.title || 'your family group'}</span>. Either of you can write naturally — "buy milk", "dentist Friday 4pm", "@{botUsername} what's on today?" — and it lands in your shared space.
               </p>
               {!group.partner_user_id && (
                 <div className="rounded-md bg-muted/40 border border-border p-3 text-xs text-muted-foreground">
@@ -282,7 +282,7 @@ export function TelegramHubPanel() {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90"
                       >
-                        <ExternalLink className="w-3 h-3" /> Add @{BOT_USERNAME} to group
+                        <ExternalLink className="w-3 h-3" /> Add @{botUsername} to group
                       </a>
                     )}
                   </div>
@@ -337,7 +337,7 @@ export function TelegramHubPanel() {
             { icon: MessageSquare, title: 'Natural language', desc: 'Write "buy milk tomorrow" or "dentist Fri 4pm" — Dori files it correctly.' },
             { icon: Mic, title: 'Voice messages', desc: 'Send a voice note — it gets transcribed and turned into tasks or reminders.' },
             { icon: ImageIcon, title: 'Photos & docs', desc: 'Forward receipts, contracts, or screenshots — Dori scans and saves them.' },
-            { icon: Bot, title: 'Ask anything', desc: 'Mention @' + BOT_USERNAME + ' in groups: "what\'s on today?", "any overdue tasks?"' },
+            { icon: Bot, title: 'Ask anything', desc: 'Mention @' + botUsername + ' in groups: "what\'s on today?", "any overdue tasks?"' },
           ].map(({ icon: Icon, title, desc }) => (
             <div key={title} className="rounded-lg border border-border p-3">
               <div className="flex items-center gap-2 mb-1">
@@ -361,7 +361,7 @@ export function TelegramHubPanel() {
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>To avoid spamming your family chat, Dori only replies in groups when:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>You <strong className="text-foreground">@mention the bot</strong> — e.g. "@{BOT_USERNAME} what's on today?"</li>
+            <li>You <strong className="text-foreground">@mention the bot</strong> — e.g. "@{botUsername} what's on today?"</li>
             <li>You start with <strong className="text-foreground">"Hey Dori"</strong> or <strong className="text-foreground">"Dori, …"</strong></li>
             <li>You reply directly to one of Dori's messages</li>
             <li>The message clearly contains an action (buy, remind, schedule, meeting, tomorrow…)</li>
