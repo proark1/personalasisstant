@@ -157,13 +157,20 @@ export function Sidebar({
 
   useEffect(() => {
     const checkAdmin = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from('admin_users')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-      setIsAdmin(!!data);
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('is_admin', {
+        check_user_id: user.id,
+      });
+
+      if (error) {
+        console.error('Error checking sidebar admin access:', error);
+      }
+
+      setIsAdmin(Boolean(data));
     };
     checkAdmin();
   }, [user]);
