@@ -132,15 +132,27 @@ export function TelegramConnectPanel() {
                 <Unlink className="w-3 h-3 mr-2" /> Disconnect
               </Button>
             </>
-          ) : code && deepLink ? (
+          ) : code ? (
             <>
-              <p className="text-sm text-muted-foreground">Tap to open Telegram and link your account. Code expires in 10 min.</p>
+              <p className="text-sm text-muted-foreground">
+                {deepLink
+                  ? 'Tap to open Telegram and link your account. Code expires in 10 min.'
+                  : `Open @${botUsername ?? 'darai_bot'} in Telegram and send: /start ${code}`}
+              </p>
+              {error && <p className="text-xs text-destructive">{error}</p>}
               <div className="flex gap-2">
-                <a href={deepLink} target="_blank" rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-                  <ExternalLink className="w-3 h-3" /> Open Telegram
-                </a>
-                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(code); toast({ title: 'Code copied' }); }}>
+                {deepLink ? (
+                  <a href={deepLink} target="_blank" rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+                    <ExternalLink className="w-3 h-3" /> Open Telegram
+                  </a>
+                ) : (
+                  <a href={`https://t.me/${botUsername ?? 'darai_bot'}`} target="_blank" rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+                    <ExternalLink className="w-3 h-3" /> Open bot in Telegram
+                  </a>
+                )}
+                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(deepLink ? code : `/start ${code}`); toast({ title: 'Copied' }); }}>
                   <Copy className="w-3 h-3 mr-2" /> {code}
                 </Button>
               </div>
