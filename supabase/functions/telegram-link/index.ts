@@ -152,6 +152,7 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({
+        version: 'diagnose-v2',
         envVars: { LOVABLE_API_KEY: Boolean(LOVABLE_API_KEY), TELEGRAM_API_KEY: Boolean(TELEGRAM_API_KEY) },
         botInfo,
         botState: botState ? { ...botState, lastTickSeconds } : null,

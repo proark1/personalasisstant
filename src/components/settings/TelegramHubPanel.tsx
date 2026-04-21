@@ -47,6 +47,7 @@ interface GroupLink {
 const DEFAULT_BOT_USERNAME = 'daraibot_bot';
 
 interface DiagnosticsResult {
+  version?: string;
   envVars: { LOVABLE_API_KEY: boolean; TELEGRAM_API_KEY: boolean };
   botInfo: { ok: boolean; username?: string; first_name?: string; id?: number; error?: string };
   botState: { update_offset: number; updated_at: string; lastTickSeconds: number | null } | null;
@@ -72,6 +73,7 @@ export function TelegramHubPanel() {
   const [error, setError] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsResult | null>(null);
   const [diagnosing, setDiagnosing] = useState(false);
+  const [rawDiagnostics, setRawDiagnostics] = useState<unknown>(null);
 
   const fetchLink = async () => {
     if (!user) return;
@@ -146,17 +148,20 @@ export function TelegramHubPanel() {
     setDiagnosing(true);
     try {
       const { data, error } = await supabase.functions.invoke('telegram-link', { body: { action: 'diagnose', runPoll } });
+      // Always stash the raw response so we can see what came back even when
+      // the shape is wrong.
+      setRawDiagnostics(error ? { supabaseError: String(error) } : data);
+      console.log('[telegram-link diagnose] response:', data, 'error:', error);
       if (error) throw error;
       // If the deployed function doesn't yet have the 'diagnose' branch, it
       // will fall through to the generate path and return {code, deepLink}.
-      // Detect that and show a clear message instead of crashing on undefined.
       if (!data || !data.botInfo || !data.envVars) {
+        const keys = data && typeof data === 'object' ? Object.keys(data).join(', ') : typeof data;
         toast({
-          title: 'Diagnostics not ready yet',
-          description: 'The backend is still deploying the diagnose endpoint. Try again in a minute.',
+          title: 'Diagnose endpoint not deployed',
+          description: `Response shape unexpected (keys: ${keys}). Expand "Raw response" below to inspect.`,
           variant: 'destructive',
         });
-        // Re-fetch links in case the fallthrough upsert disconnected us.
         await fetchLink();
         return;
       }
@@ -513,8 +518,18 @@ export function TelegramHubPanel() {
               )}
               <p className="text-xs text-muted-foreground pt-1">
                 Checked {new Date(diagnostics.timestamp).toLocaleTimeString()}
+                {diagnostics.version && <span className="ml-2 opacity-60">(backend {diagnostics.version})</span>}
               </p>
             </div>
+          )}
+
+          {rawDiagnostics !== null && (
+            <details className="pt-2 border-t border-border">
+              <summary className="text-xs text-muted-foreground cursor-pointer select-none">Raw response (click to expand)</summary>
+              <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap break-all bg-muted/40 rounded p-2 mt-2 max-h-64 overflow-auto">
+                {JSON.stringify(rawDiagnostics, null, 2)}
+              </pre>
+            </details>
           )}
         </CardContent>
       </Card>
