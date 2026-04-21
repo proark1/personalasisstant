@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, ReactNode 
 import { useWebRTCCall, CallType } from '@/hooks/useWebRTCCall';
 import { useOnlinePresence } from '@/hooks/useOnlinePresence';
 import { useCallPushNotifications } from '@/hooks/useCallPushNotifications';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { CallDialog } from './CallDialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -46,9 +47,12 @@ interface CallProviderProps {
 
 export function CallProvider({ userId, userName, children }: CallProviderProps) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [incomingCallerName, setIncomingCallerName] = useState('');
   const [pendingSession, setPendingSession] = useState<CallSession | null>(null);
+  const isNativePlatform = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+  const enableBackgroundCallFeatures = !isMobile || isNativePlatform;
 
   const handleIncomingCall = useCallback((session: CallSession, callerName: string) => {
     console.log('Incoming call from:', callerName);
@@ -77,6 +81,7 @@ export function CallProvider({ userId, userName, children }: CallProviderProps) 
   useCallPushNotifications({
     userId,
     onIncomingCall: handlePushIncomingCall,
+    enabled: enableBackgroundCallFeatures,
   });
 
   const {
@@ -100,9 +105,10 @@ export function CallProvider({ userId, userName, children }: CallProviderProps) 
   } = useWebRTCCall({
     userId,
     onIncomingCall: handleIncomingCall,
+    enabled: enableBackgroundCallFeatures,
   });
 
-  const { isOnline } = useOnlinePresence(userId);
+  const { isOnline } = useOnlinePresence(userId, [], enableBackgroundCallFeatures);
 
   const startVideoCall = useCallback(async (calleeId: string) => {
     try {
