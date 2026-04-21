@@ -5,8 +5,21 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, ArrowUpDown, User, Activity, Bot } from 'lucide-react';
+import { Search, ArrowUpDown, User, Activity, Bot, Pencil, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { UserManagementDialog } from './UserManagementDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface UserStats {
   user_id: string;
@@ -19,15 +32,38 @@ interface UserStats {
 
 interface UserAnalyticsTableProps {
   userStats: UserStats[];
+  onChanged?: () => void;
 }
 
 type SortField = 'display_name' | 'total_events' | 'total_ai_tokens' | 'last_active';
 type SortDirection = 'asc' | 'desc';
 
-export function UserAnalyticsTable({ userStats }: UserAnalyticsTableProps) {
+export function UserAnalyticsTable({ userStats, onChanged }: UserAnalyticsTableProps) {
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('total_events');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [editingUser, setEditingUser] = useState<UserStats | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserStats | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deletingUser) return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-user-management', {
+        body: { action: 'delete', target_user_id: deletingUser.user_id },
+      });
+      if (error) throw error;
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+      toast.success('User deleted');
+      setDeletingUser(null);
+      onChanged?.();
+    } catch (e) {
+      toast.error('Delete failed: ' + (e as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -143,12 +179,13 @@ export function UserAnalyticsTable({ userStats }: UserAnalyticsTableProps) {
                 </Button>
               </TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredAndSorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   No users found
                 </TableCell>
               </TableRow>
@@ -197,6 +234,28 @@ export function UserAnalyticsTable({ userStats }: UserAnalyticsTableProps) {
                         {activityBadge.label}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setEditingUser(user)}
+                          title="Edit user"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeletingUser(user)}
+                          title="Delete user"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })
@@ -204,6 +263,28 @@ export function UserAnalyticsTable({ userStats }: UserAnalyticsTableProps) {
           </TableBody>
         </Table>
       </CardContent>
+      <UserManagementDialog
+        user={editingUser}
+        open={!!editingUser}
+        onOpenChange={(o) => !o && setEditingUser(null)}
+        onSaved={() => onChanged?.()}
+      />
+      <AlertDialog open={!!deletingUser} onOpenChange={(o) => !o && setDeletingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{deletingUser?.display_name || deletingUser?.email}</strong> and all their data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
