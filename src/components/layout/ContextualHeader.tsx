@@ -32,11 +32,6 @@ export function ContextualHeader({
   return (
     <header className="h-14 px-4 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-lg shrink-0 sticky top-0 z-50">
       <div className="flex items-center gap-1 min-w-0">
-        {onOpenMenu && (
-          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={onOpenMenu}>
-            <Menu className="w-5 h-5" />
-          </Button>
-        )}
         <AnimatePresence mode="wait">
           <motion.h1
             key={title}
@@ -66,6 +61,17 @@ export function ContextualHeader({
           onClearAll={onClearAll}
         />
         {rightSlot}
+        {onOpenMenu && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={onOpenMenu}
+            aria-label="Open menu"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+        )}
       </div>
     </header>
   );

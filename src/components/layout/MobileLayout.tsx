@@ -187,10 +187,9 @@ export function MobileLayout({
     { id: 'health' as const, icon: Heart },
   ];
 
-  // Hide header on dashboard and chat (both have their own headers)
-  const primaryTabIds = ['dashboard', 'calendar', 'email', 'health', 'chat'];
-  const isPrimaryTab = primaryTabIds.includes(activeTab);
-  const showHeader = activeTab !== 'dashboard' && activeTab !== 'chat' && activeTab !== 'calendar';
+  // Always show the header so the burger menu is reachable from every tab.
+  // Chat has its own internal header, so we still suppress it there.
+  const showHeader = activeTab !== 'chat';
   const headerTitle = tabTitles[activeTab] || t(`nav.${activeTab}`) || 'DarAI';
 
   const renderPanel = () => {
@@ -272,11 +271,11 @@ export function MobileLayout({
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden safe-area-top">
-      {/* Contextual Header — hidden on dashboard */}
+      {/* Contextual Header — burger menu always visible (top-right) */}
       {showHeader && (
         <ContextualHeader
           title={headerTitle}
-          onOpenMenu={isPrimaryTab ? undefined : () => setMoreOpen(true)}
+          onOpenMenu={() => setMoreOpen(true)}
           notifications={notifications}
           onMarkRead={markRead}
           onMarkAllRead={markAllRead}
