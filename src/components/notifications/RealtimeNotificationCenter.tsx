@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { 
   Bell, 
@@ -67,13 +66,7 @@ export function RealtimeNotificationCenter({ userId }: RealtimeNotificationCente
     markAllRead,
     deleteNotification,
     clearAll,
-    requestPermission,
   } = useRealtimeNotifications(userId);
-
-  // Request notification permission on mount
-  useEffect(() => {
-    requestPermission();
-  }, [requestPermission]);
 
   return (
     <Sheet>

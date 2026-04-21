@@ -51,11 +51,6 @@ export function CallProvider({ userId, userName, children }: CallProviderProps) 
   const [incomingCallerName, setIncomingCallerName] = useState('');
   const [pendingSession, setPendingSession] = useState<CallSession | null>(null);
 
-  // Request notification permission on mount
-  useEffect(() => {
-    requestNotificationPermission();
-  }, []);
-
   const handleIncomingCall = useCallback((session: CallSession, callerName: string) => {
     console.log('Incoming call from:', callerName);
     setIncomingCallerName(callerName);

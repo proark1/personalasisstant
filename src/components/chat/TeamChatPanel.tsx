@@ -106,11 +106,6 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
     userName: 'You',
   });
 
-  // Request notification permission on mount
-  useEffect(() => {
-    requestNotificationPermission();
-  }, []);
-
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
