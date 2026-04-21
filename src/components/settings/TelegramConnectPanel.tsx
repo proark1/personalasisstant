@@ -65,7 +65,7 @@ export function TelegramConnectPanel() {
       setDeepLink(data.deepLink);
       setBotUsername(data.botUsername);
       if (!data.deepLink) {
-        setError("Telegram connector is currently unreachable. Your code is ready — open @darai_bot manually and send: /start " + data.code);
+        setError(`Telegram connector is currently unreachable. Your code is ready — open @${data.botUsername || botUsername || 'daraibot_bot'} manually and send: /start ${data.code}`);
       }
     } catch (e) {
       toast({ title: 'Could not generate code', description: e instanceof Error ? e.message : '', variant: 'destructive' });
@@ -137,7 +137,7 @@ export function TelegramConnectPanel() {
               <p className="text-sm text-muted-foreground">
                 {deepLink
                   ? 'Tap to open Telegram and link your account. Code expires in 10 min.'
-                  : `Open @${botUsername ?? 'darai_bot'} in Telegram and send: /start ${code}`}
+                  : `Open @${botUsername ?? 'daraibot_bot'} in Telegram and send: /start ${code}`}
               </p>
               {error && <p className="text-xs text-destructive">{error}</p>}
               <div className="flex gap-2">
@@ -147,7 +147,7 @@ export function TelegramConnectPanel() {
                     <ExternalLink className="w-3 h-3" /> Open Telegram
                   </a>
                 ) : (
-                  <a href={`https://t.me/${botUsername ?? 'darai_bot'}`} target="_blank" rel="noopener noreferrer"
+                  <a href={`https://t.me/${botUsername ?? 'daraibot_bot'}`} target="_blank" rel="noopener noreferrer"
                     className="flex-1 inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
                     <ExternalLink className="w-3 h-3" /> Open bot in Telegram
                   </a>

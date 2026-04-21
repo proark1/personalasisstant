@@ -41,7 +41,7 @@ interface GroupLink {
 
 // Fallback only — real username is fetched from telegram-link (getMe) so the
 // app stays correct if the bot is renamed.
-const DEFAULT_botUsername = 'daraibot_bot';
+const DEFAULT_BOT_USERNAME = 'daraibot_bot';
 
 export function TelegramHubPanel() {
   const { user } = useAuth();
@@ -55,7 +55,7 @@ export function TelegramHubPanel() {
   const [code, setCode] = useState<string | null>(null);
   const [groupCode, setGroupCode] = useState<string | null>(null);
   const [groupAddUrl, setGroupAddUrl] = useState<string | null>(null);
-  const [botUsername, setBotUsername] = useState<string>(DEFAULT_botUsername);
+  const [botUsername, setBotUsername] = useState<string>(DEFAULT_BOT_USERNAME);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLink = async () => {
