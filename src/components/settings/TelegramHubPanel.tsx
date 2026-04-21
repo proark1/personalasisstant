@@ -39,7 +39,9 @@ interface GroupLink {
   partner_user_id: string | null;
 }
 
-const BOT_USERNAME = 'darai_bot';
+// Fallback only — real username is fetched from telegram-link (getMe) so the
+// app stays correct if the bot is renamed.
+const DEFAULT_BOT_USERNAME = 'daraibot_bot';
 
 export function TelegramHubPanel() {
   const { user } = useAuth();
@@ -53,6 +55,7 @@ export function TelegramHubPanel() {
   const [code, setCode] = useState<string | null>(null);
   const [groupCode, setGroupCode] = useState<string | null>(null);
   const [groupAddUrl, setGroupAddUrl] = useState<string | null>(null);
+  const [botUsername, setBotUsername] = useState<string>(DEFAULT_BOT_USERNAME);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLink = async () => {
@@ -82,8 +85,9 @@ export function TelegramHubPanel() {
       if (error) throw error;
       setCode(data.code);
       setDeepLink(data.deepLink);
+      if (data.botUsername) setBotUsername(data.botUsername);
       if (!data.deepLink) {
-        setError(`Telegram connector is currently unreachable. Your code is ready — open @${BOT_USERNAME} manually and send: /start ${data.code}`);
+        setError(`Telegram connector is currently unreachable. Your code is ready — open @${data.botUsername || botUsername} manually and send: /start ${data.code}`);
       }
     } catch (e) {
       toast({ title: 'Could not generate code', description: e instanceof Error ? e.message : '', variant: 'destructive' });
@@ -99,6 +103,7 @@ export function TelegramHubPanel() {
       if (error) throw error;
       setGroupCode(data.code);
       setGroupAddUrl(data.addToGroupUrl);
+      if (data.botUsername) setBotUsername(data.botUsername);
     } catch (e) {
       toast({ title: 'Could not generate group code', description: e instanceof Error ? e.message : '', variant: 'destructive' });
     } finally {
