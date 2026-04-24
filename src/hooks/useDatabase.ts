@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchWithRetry } from '@/lib/fetchWithTimeout';
+import { moduleBus } from '@/lib/moduleEventBus';
+import { moduleHealth } from '@/lib/moduleHealth';
+import { subscribeToTable } from '@/lib/realtimeCoordinator';
 import { Task, CalendarEvent, TaskCategory, TaskPriority, TaskStatus } from '@/types/flux';
 
 interface DbTask {
@@ -99,7 +102,8 @@ export function useDatabase(userId: string | undefined) {
     recurrenceEnd: dbEvent.recurrence_end ? new Date(dbEvent.recurrence_end) : undefined,
   });
 
-  // Fetch all data
+  // Fetch all data — runs in parallel with structured error handling so one
+  // failing slice (e.g. trashed) doesn't block the others.
   const fetchData = useCallback(async () => {
     if (!userId) {
       setTasks([]);
@@ -110,41 +114,50 @@ export function useDatabase(userId: string | undefined) {
     }
 
     setLoading(true);
-    
-    // Fetch active tasks (not trashed)
-    const { data: tasksData } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('trashed', false)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: false });
-    
-    if (tasksData) {
-      setTasks(tasksData.map(dbTaskToTask));
+
+    const [tasksResult, trashedResult, eventsResult] = await Promise.allSettled([
+      supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('trashed', false)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('trashed', true)
+        .order('trashed_at', { ascending: false }),
+      supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', userId)
+        .order('start_time', { ascending: true }),
+    ]);
+
+    if (tasksResult.status === 'fulfilled' && !tasksResult.value.error) {
+      setTasks((tasksResult.value.data ?? []).map(dbTaskToTask));
+      moduleHealth.reportSuccess('tasks');
+    } else {
+      moduleHealth.reportError(
+        'tasks',
+        tasksResult.status === 'rejected' ? tasksResult.reason : tasksResult.value.error,
+      );
     }
 
-    // Fetch trashed tasks
-    const { data: trashedData } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('trashed', true)
-      .order('trashed_at', { ascending: false });
-    
-    if (trashedData) {
-      setTrashedTasks(trashedData.map(dbTaskToTask));
+    if (trashedResult.status === 'fulfilled' && !trashedResult.value.error) {
+      setTrashedTasks((trashedResult.value.data ?? []).map(dbTaskToTask));
     }
 
-    // Fetch events
-    const { data: eventsData } = await supabase
-      .from('events')
-      .select('*')
-      .eq('user_id', userId)
-      .order('start_time', { ascending: true });
-    
-    if (eventsData) {
-      setEvents(eventsData.map(dbEventToEvent));
+    if (eventsResult.status === 'fulfilled' && !eventsResult.value.error) {
+      setEvents((eventsResult.value.data ?? []).map(dbEventToEvent));
+      moduleHealth.reportSuccess('events');
+    } else {
+      moduleHealth.reportError(
+        'events',
+        eventsResult.status === 'rejected' ? eventsResult.reason : eventsResult.value.error,
+      );
     }
 
     setLoading(false);
@@ -154,40 +167,15 @@ export function useDatabase(userId: string | undefined) {
     fetchData();
   }, [fetchData]);
 
-  // Subscribe to realtime changes for tasks and events
+  // Subscribe to realtime changes via the shared coordinator. Multiple hooks
+  // listening to the same table now share one underlying channel.
   useEffect(() => {
     if (!userId) return;
-
-    console.log('[useDatabase] Setting up realtime subscriptions for user:', userId);
-
-    const channel = supabase
-      .channel('tasks-events-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks' },
-        (payload) => {
-          console.log('[useDatabase] Tasks realtime change:', payload.eventType, payload);
-          // Refetch to get updated data
-          fetchData();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'events' },
-        (payload) => {
-          console.log('[useDatabase] Events realtime change:', payload.eventType, payload);
-          // Refetch to get updated data
-          fetchData();
-        }
-      )
-      .subscribe((status) => {
-        console.log('[useDatabase] Realtime subscription status:', status);
-      });
-
+    const offTasks = subscribeToTable('tasks', userId, () => fetchData());
+    const offEvents = subscribeToTable('events', userId, () => fetchData());
     return () => {
-      console.log('[useDatabase] Cleaning up realtime subscriptions');
-      channel.unsubscribe();
-      supabase.removeChannel(channel);
+      offTasks();
+      offEvents();
     };
   }, [userId, fetchData]);
 
@@ -228,6 +216,7 @@ export function useDatabase(userId: string | undefined) {
 
     const newTask = dbTaskToTask(data as unknown as DbTask);
     setTasks(prev => [newTask, ...prev]);
+    moduleBus.emit('task:created', { taskId: newTask.id, projectId: newTask.projectId }, 'useDatabase');
     return newTask;
   }, [userId]);
 
@@ -284,6 +273,11 @@ export function useDatabase(userId: string | undefined) {
     if (!data) throw new Error('Task update not permitted or task not found');
 
     setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
+    if (updates.completed === true) {
+      moduleBus.emit('task:completed', { taskId: id }, 'useDatabase');
+    } else {
+      moduleBus.emit('task:updated', { taskId: id, fields: Object.keys(updates) }, 'useDatabase');
+    }
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {
@@ -295,6 +289,7 @@ export function useDatabase(userId: string | undefined) {
     if (!error) {
       setTasks(prev => prev.filter(t => t.id !== id));
       setTrashedTasks(prev => prev.filter(t => t.id !== id));
+      moduleBus.emit('task:deleted', { taskId: id }, 'useDatabase');
     }
   }, []);
 
@@ -311,6 +306,7 @@ export function useDatabase(userId: string | undefined) {
         const trashedTask = { ...task, trashed: true, trashedAt: new Date() };
         setTasks(prev => prev.filter(t => t.id !== id));
         setTrashedTasks(prev => [trashedTask, ...prev]);
+        moduleBus.emit('task:trashed', { taskId: id }, 'useDatabase');
       }
     }
     return { error };
@@ -439,9 +435,10 @@ export function useDatabase(userId: string | undefined) {
 
     if (data && !error) {
       const newEvent = dbEventToEvent(data);
-      setEvents(prev => [...prev, newEvent].sort((a, b) => 
+      setEvents(prev => [...prev, newEvent].sort((a, b) =>
         a.startTime.getTime() - b.startTime.getTime()
       ));
+      moduleBus.emit('event:created', { eventId: newEvent.id }, 'useDatabase');
       return newEvent;
     }
     return null;
@@ -465,6 +462,7 @@ export function useDatabase(userId: string | undefined) {
 
     if (!error) {
       setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+      moduleBus.emit('event:updated', { eventId: id, fields: Object.keys(updates) }, 'useDatabase');
     }
   }, []);
 
@@ -476,6 +474,7 @@ export function useDatabase(userId: string | undefined) {
 
     if (!error) {
       setEvents(prev => prev.filter(e => e.id !== id));
+      moduleBus.emit('event:deleted', { eventId: id }, 'useDatabase');
     }
   }, []);
 

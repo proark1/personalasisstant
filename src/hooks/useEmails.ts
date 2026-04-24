@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { moduleBus } from '@/lib/moduleEventBus';
+import { moduleHealth } from '@/lib/moduleHealth';
 
 export interface Email {
   id: string;
@@ -80,8 +82,10 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
         .limit(200);
       if (error) throw error;
       setEmails((data as unknown as Email[]) || []);
+      moduleHealth.reportSuccess('emails');
     } catch (e) {
       console.error('Failed to fetch emails:', e);
+      moduleHealth.reportError('emails', e);
     } finally {
       setLoading(false);
     }
@@ -105,9 +109,12 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
       } else {
         toast.success('Inbox up to date');
       }
+      moduleHealth.reportSuccess('gmail-sync');
+      moduleBus.emit('email:synced', { newCount }, 'useEmails');
       await fetchEmails();
     } catch (e) {
       console.error('Sync error:', e);
+      moduleHealth.reportError('gmail-sync', e);
       toast.error('Failed to sync emails');
     } finally {
       setSyncing(false);
@@ -148,6 +155,7 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
     await updateEmail(emailId, { user_archived: true });
     setEmails(prev => prev.filter(e => e.id !== emailId));
     setHandledToday(prev => prev + 1);
+    moduleBus.emit('email:archived', { emailId }, 'useEmails');
     toast.success('Email archived', {
       action: {
         label: 'Undo',
@@ -174,6 +182,7 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
 
   const markAsRead = useCallback(async (emailId: string) => {
     await updateEmail(emailId, { is_read: true });
+    moduleBus.emit('email:read', { emailId }, 'useEmails');
   }, [updateEmail]);
 
   const reportSpam = useCallback(async (emailId: string) => {

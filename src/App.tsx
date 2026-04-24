@@ -12,6 +12,7 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { XPBadgeProvider } from "@/components/ui/xp-badge";
+import { InfrastructureProvider } from "@/components/InfrastructureProvider";
 
 import { useMorningAutoPlay } from "@/hooks/useMorningAutoPlay";
 import { TopLoader } from "@/components/ui/top-loader";
@@ -40,6 +41,14 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
+      // Cap retries so a failing module doesn't stall the load tier.
+      retry: 1,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+      // Prefer cached data while refetching — graceful degradation default.
+      placeholderData: (prev: unknown) => prev,
+    },
+    mutations: {
+      retry: 0,
     },
   },
 });
@@ -211,19 +220,21 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <WorkspaceProvider>
-        <LanguageProvider>
-          <TooltipProvider>
-            <XPBadgeProvider>
-              <Toaster />
-              <Sonner position="top-center" />
-              <ErrorBoundary fallbackTitle="DarAI couldn't load">
-                <BrowserRouter>
-                  <AppContent />
-                </BrowserRouter>
-              </ErrorBoundary>
-            </XPBadgeProvider>
-          </TooltipProvider>
-        </LanguageProvider>
+        <InfrastructureProvider>
+          <LanguageProvider>
+            <TooltipProvider>
+              <XPBadgeProvider>
+                <Toaster />
+                <Sonner position="top-center" />
+                <ErrorBoundary fallbackTitle="DarAI couldn't load">
+                  <BrowserRouter>
+                    <AppContent />
+                  </BrowserRouter>
+                </ErrorBoundary>
+              </XPBadgeProvider>
+            </TooltipProvider>
+          </LanguageProvider>
+        </InfrastructureProvider>
       </WorkspaceProvider>
     </AuthProvider>
   </QueryClientProvider>

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { moduleBus } from '@/lib/moduleEventBus';
+import { moduleHealth } from '@/lib/moduleHealth';
 import { useAppNotifications } from './useAppNotifications';
 export type ContractCategory = 'insurance' | 'utilities' | 'subscription' | 'phone' | 'internet' | 'streaming' | 'other';
 export type CostFrequency = 'monthly' | 'quarterly' | 'yearly' | 'one_time';
@@ -99,8 +101,10 @@ export function useContracts(userId: string | undefined) {
 
     if (error) {
       console.error('Error fetching contracts:', error);
+      moduleHealth.reportError('contracts', error);
     } else if (data) {
       setContracts(data.map(mapDbToContract));
+      moduleHealth.reportSuccess('contracts');
     }
     setLoading(false);
   }, [userId]);
@@ -138,10 +142,11 @@ export function useContracts(userId: string | undefined) {
     if (data && !error) {
       const newContract = mapDbToContract(data);
       setContracts(prev => [...prev, newContract]);
-      
+
       // Create in-app notification
       notifyContractCreated(newContract.name, newContract.id);
-      
+      moduleBus.emit('contract:created', { contractId: newContract.id }, 'useContracts');
+
       return newContract;
     }
     return null;
@@ -178,6 +183,7 @@ export function useContracts(userId: string | undefined) {
       setContracts(prev => prev.map(c =>
         c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c
       ));
+      moduleBus.emit('contract:updated', { contractId: id, fields: Object.keys(updates) }, 'useContracts');
       return true;
     }
     return false;
@@ -192,6 +198,7 @@ export function useContracts(userId: string | undefined) {
 
     if (!error) {
       setContracts(prev => prev.filter(c => c.id !== id));
+      moduleBus.emit('contract:deleted', { contractId: id }, 'useContracts');
       return true;
     }
     return false;

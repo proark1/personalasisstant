@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { moduleBus } from '@/lib/moduleEventBus';
+import { moduleHealth } from '@/lib/moduleHealth';
 
 export type ContactType = 'personal' | 'business';
 export type PersonalTier = 'family' | 'close_friend' | 'friend' | 'acquaintance';
@@ -119,6 +121,8 @@ export function useContacts(userId: string | undefined) {
 
     // Retry a few times on transient network errors (e.g. "TypeError: Failed to fetch").
     const maxAttempts = 3;
+    let succeeded = false;
+    let lastErr: unknown = null;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const { data, error } = await supabase
@@ -130,17 +134,24 @@ export function useContacts(userId: string | undefined) {
         if (error) throw error;
 
         setContacts((data || []).map(mapDbToContact));
+        succeeded = true;
         break;
       } catch (err) {
+        lastErr = err;
         const isLast = attempt === maxAttempts;
         if (isLast) {
           console.error('Error fetching contacts:', err);
         } else {
-          // small backoff
           await new Promise((r) => setTimeout(r, 250 * attempt));
           continue;
         }
       }
+    }
+
+    if (succeeded) {
+      moduleHealth.reportSuccess('contacts');
+    } else if (lastErr) {
+      moduleHealth.reportError('contacts', lastErr);
     }
 
     setLoading(false);
@@ -192,6 +203,7 @@ export function useContacts(userId: string | undefined) {
     if (data && !error) {
       const newContact = mapDbToContact(data);
       setContacts(prev => [...prev, newContact].sort((a, b) => a.name.localeCompare(b.name)));
+      moduleBus.emit('contact:created', { contactId: newContact.id }, 'useContacts');
       return newContact;
     }
     return null;
@@ -239,6 +251,7 @@ export function useContacts(userId: string | undefined) {
       setContacts((prev) =>
         prev.map((c) => (c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c))
       );
+      moduleBus.emit('contact:updated', { contactId: id, fields: Object.keys(updates) }, 'useContacts');
       return true;
     } catch (err) {
       console.error('Error updating contact:', err);
@@ -254,6 +267,7 @@ export function useContacts(userId: string | undefined) {
 
     if (!error) {
       setContacts(prev => prev.filter(c => c.id !== id));
+      moduleBus.emit('contact:deleted', { contactId: id }, 'useContacts');
       return true;
     }
     return false;
@@ -276,9 +290,10 @@ export function useContacts(userId: string | undefined) {
       .eq('id', id);
 
     if (!error) {
-      setContacts(prev => prev.map(c => 
+      setContacts(prev => prev.map(c =>
         c.id === id ? { ...c, lastContactedAt: now, nextContactDue: nextDue } : c
       ));
+      moduleBus.emit('contact:contacted', { contactId: id }, 'useContacts');
       return true;
     }
     return false;

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { moduleBus } from '@/lib/moduleEventBus';
 import { useAuth } from './useAuth';
 
 export interface AIMemory {
@@ -97,8 +98,9 @@ export function useAIMemory() {
         .single();
 
       if (error) throw error;
-      
+
       await fetchMemories();
+      moduleBus.emit('ai:memory-updated', { memoryId: data?.id, key: memory.key }, 'useAIMemory');
       return data;
     } catch (err) {
       console.error('Error adding memory:', err);
@@ -126,8 +128,9 @@ export function useAIMemory() {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      
+
       await fetchMemories();
+      moduleBus.emit('ai:memory-updated', { memoryId }, 'useAIMemory');
     } catch (err) {
       console.error('Error updating memory:', err);
     }
@@ -144,8 +147,9 @@ export function useAIMemory() {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      
+
       setMemories(prev => prev.filter(m => m.id !== memoryId));
+      moduleBus.emit('ai:memory-updated', { memoryId, deleted: true }, 'useAIMemory');
     } catch (err) {
       console.error('Error deleting memory:', err);
     }

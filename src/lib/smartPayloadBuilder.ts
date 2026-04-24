@@ -4,6 +4,7 @@ import { Email } from '@/hooks/useEmails';
 import { Note } from '@/hooks/useNotes';
 import { FamilyMember } from '@/hooks/useFamilyMembers';
 import { ShoppingList } from '@/hooks/useShoppingLists';
+import { moduleHealth, type ModuleId } from './moduleHealth';
 
 // Keyword categories for smart context injection
 const CONTEXT_TRIGGERS = {
@@ -47,6 +48,14 @@ interface SmartPayload {
     shoppingLists: { name: string; itemCount: number }[];
   };
   memories?: { type: string; key: string; value: string; category?: string }[];
+  /**
+   * Freshness metadata so the AI knows which slices may be stale.
+   * Edge functions can decide to re-fetch when a module is degraded.
+   */
+  _meta?: {
+    builtAt: number;
+    moduleStatus: Partial<Record<ModuleId, string>>;
+  };
 }
 
 function matchesCategory(msg: string, keywords: string[]): boolean {
@@ -227,6 +236,25 @@ export function buildSmartPayload({
   if (memories && memories.length > 0) {
     payload.memories = memories;
   }
+
+  // Freshness metadata: tells the edge function which slices were sourced
+  // from healthy modules vs stale/failed ones, so it can decide whether
+  // to trust the snapshot or re-fetch on its side.
+  const trackedModules: ModuleId[] = [
+    'tasks', 'events', 'contacts', 'contracts', 'emails',
+    'notes', 'habits', 'health', 'family', 'shopping',
+  ];
+  const moduleStatus: Partial<Record<ModuleId, string>> = {};
+  trackedModules.forEach((m) => {
+    const s = moduleHealth.status(m);
+    if (s !== 'unknown' && s !== 'ok') {
+      moduleStatus[m] = s;
+    }
+  });
+  payload._meta = {
+    builtAt: Date.now(),
+    moduleStatus,
+  };
 
   return payload;
 }
