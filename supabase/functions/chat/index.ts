@@ -1730,12 +1730,18 @@ serve(async (req) => {
       // surface (e.g. a Telegram chat) can be notified back when the user approves.
       actionSource,
       actionSourceRef,
+      // Opt-in streaming mode for executeServerSide callers (Telegram). Emits
+      // an SSE stream with {type: delta|tool|done} events so the Telegram bot
+      // can edit the placeholder message progressively instead of waiting
+      // 5–15s for the whole turn to finish.
+      streamFinalText = false,
     }: ChatRequest & {
       executeServerSide?: boolean;
       skipApprovalGate?: boolean;
       preformedToolText?: string;
       actionSource?: string;
       actionSourceRef?: string | null;
+      streamFinalText?: boolean;
     } = reqBody;
 
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
@@ -2204,7 +2210,12 @@ serve(async (req) => {
       }
     }
 
-    const intelligenceAndConfirmAddon = intelligenceBlock + `
+    // Split for cache-friendliness: `staticGuidance` is identical for every
+    // user+turn (pure instruction), so it lives in the stable prefix.
+    // `intelligenceBlock` is per-user AND changes with each new message
+    // (cross-channel history + learned preferences), so it belongs in the
+    // dynamic tail — otherwise every turn misses the prompt cache.
+    const staticGuidance = `
 
 ## CONFIRM-BEFORE-ACT (CRITICAL)
 When the user says "the meeting", "that contract", "delete it", "update him", or any reference that could match MORE THAN ONE existing item, do NOT guess. Reply with ONE short clarifying question listing the candidates (max 3) and ask which one. Only execute the tool once the user confirms.
@@ -2279,7 +2290,18 @@ This avoids wrong actions on big asks. Skip propose_plan for simple 1–3 action
       workspaceBlock = `\n\n## ACTIVE WORKSPACE\nThe user is in their PERSONAL space right now. Do NOT assign things to teammates or reference workspace members; those are only relevant inside a workspace.`;
     }
 
-    const fullSystemPrompt = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage + liveContextBlock + workspaceBlock + intelligenceAndConfirmAddon;
+    // Prompt assembled in stable → dynamic order so any downstream prompt-
+    // caching (Anthropic cache_control / Gemini context caching / gateway
+    // passthrough) can key on the stable prefix and reuse it across turns.
+    //   STABLE PREFIX: baseSystemPrompt + personality + staticGuidance
+    //   ── cache boundary ──
+    //   DYNAMIC TAIL: intelligenceBlock + user/workspace/live context
+    //     (intelligenceBlock contains cross-channel history + learned
+    //     preferences, both of which change per-turn and would otherwise
+    //     break the cache if placed above the boundary).
+    const stablePrefix = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + staticGuidance;
+    const dynamicTail = intelligenceBlock + contextMessage + liveContextBlock + workspaceBlock;
+    const fullSystemPrompt = stablePrefix + dynamicTail;
 
     console.log("Chat request with enhanced context:", {
       hasUserProfile: !!userProfile,
@@ -2391,6 +2413,141 @@ This avoids wrong actions on big asks. Skip propose_plan for simple 1–3 action
           content: `Web search results for the user's question:\n\n${searchResult.answer}${citationText}\n\nUse these results to give a comprehensive answer. Cite sources as [1], [2], etc. Do NOT use the web_search tool — results are already provided.`,
         });
       }
+    }
+
+    // ===== SERVER-SIDE STREAMING BRANCH (Telegram with streamFinalText=true) =====
+    // Runs the agent loop per-round, streams the AI's prose as deltas (filtering
+    // out <tool> blocks so the user never sees XML), runs tools after each round,
+    // and closes with a done event that carries the full tool result list.
+    if (executeServerSide && streamFinalText) {
+      const encoder = new TextEncoder();
+      const MAX_AGENT_ROUNDS = 4;
+      const conversationMsgs: { role: string; content: string | any[] }[] = [...allMessages];
+      const allExecResults: ToolExecResult[] = [];
+
+      const effectiveSource = actionSource || (currentChannel === 'tg_family' ? 'tg_family'
+        : currentChannel === 'tg_private' ? 'tg_private'
+        : 'web');
+      const effectiveSourceRef = actionSourceRef ?? tgChannelRef ?? null;
+
+      // Approximate token counter for logAIUsage. Accumulates completion
+      // chars across rounds, and the initial prompt size already counts the
+      // system prompt + the full messages array we're about to send.
+      const initialPromptChars = fullSystemPrompt.length
+        + allMessages.reduce((n, m) => n + (typeof m.content === 'string' ? m.content.length : JSON.stringify(m.content).length), 0);
+      let totalStreamCompletionChars = 0;
+
+      const sse = new ReadableStream({
+        async start(controller) {
+          const emit = (obj: Record<string, unknown>) => {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+          };
+
+          try {
+            let finalPromptText = '';
+            for (let round = 0; round < MAX_AGENT_ROUNDS; round++) {
+              const aiResp = await callAI(conversationMsgs, true);
+              if (!aiResp.ok || !aiResp.body) {
+                const t = aiResp.body ? await aiResp.text() : `status ${aiResp.status}`;
+                console.error(`stream round ${round} AI error:`, aiResp.status, t);
+                emit({ type: 'error', status: aiResp.status, detail: t });
+                break;
+              }
+
+              // Read the SSE stream from the AI gateway chunk-by-chunk. We
+              // accumulate `roundText` to pass to the tool executor, but we
+              // only emit deltas up to the first `<tool>` tag so the user
+              // never sees raw XML mid-reply.
+              const reader = aiResp.body.getReader();
+              const decoder = new TextDecoder();
+              let roundText = '';
+              let lineBuffer = '';
+              let emittedSafeLength = 0;
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                lineBuffer += decoder.decode(value, { stream: true });
+                const lines = lineBuffer.split('\n');
+                lineBuffer = lines.pop() || '';
+                for (const line of lines) {
+                  if (!line.startsWith('data: ')) continue;
+                  const payload = line.slice(6).trim();
+                  if (!payload || payload === '[DONE]') continue;
+                  try {
+                    const parsed = JSON.parse(payload);
+                    const delta: string | undefined = parsed.choices?.[0]?.delta?.content;
+                    if (!delta) continue;
+                    roundText += delta;
+                    // Only relay the portion BEFORE the first <tool> so the
+                    // user never sees XML. Once a tool tag starts we stop
+                    // relaying; anything after the tool block will be
+                    // emitted by the NEXT round (after tool execution).
+                    const toolIdx = roundText.search(/<tool>/i);
+                    const safeEnd = toolIdx === -1 ? roundText.length : toolIdx;
+                    if (safeEnd > emittedSafeLength) {
+                      const out = roundText.slice(emittedSafeLength, safeEnd);
+                      if (out) emit({ type: 'delta', content: out });
+                      emittedSafeLength = safeEnd;
+                    }
+                  } catch { /* ignore malformed delta line */ }
+                }
+              }
+
+              // Round done — execute any tools we parsed out of the text.
+              // Append (not overwrite) so the final reply covers prose from
+              // every round. If we overwrote, the Telegram client — which
+              // accumulated deltas across all rounds — would render something
+              // different from the `reply` field in the final edit.
+              finalPromptText += (finalPromptText ? '\n\n' : '') + roundText;
+              totalStreamCompletionChars += roundText.length;
+              const roundResults = await executeToolsServerSide(roundText, userId, supabaseAdmin, {
+                source: effectiveSource,
+                sourceRef: effectiveSourceRef,
+                workspaceId: activeWorkspace?.id ?? null,
+                workspaceMembers: activeWorkspace?.members,
+                timezone: userTimezone,
+              });
+              allExecResults.push(...roundResults);
+              for (const r of roundResults) {
+                emit({ type: 'tool', ...r });
+              }
+
+              if (roundResults.length === 0) break;  // no tools → we're done
+
+              // Feed the round's output + results back for the next AI call.
+              conversationMsgs.push({ role: 'assistant', content: roundText });
+              const observation = roundResults.map((r, i) =>
+                `[${i + 1}] ${r.tool} → ${r.ok ? 'OK' : 'FAIL'}: ${r.message}`
+              ).join('\n');
+              conversationMsgs.push({
+                role: 'system',
+                content: `Tool results from your last turn:\n${observation}\n\nIf the user's request is fully satisfied, reply with a brief natural-language confirmation and DO NOT emit more tools. If more steps are needed, emit the next tool(s).`,
+              });
+            }
+
+            const cleanText = stripAllToolTags(finalPromptText).trim();
+            emit({ type: 'done', reply: cleanText, toolResults: allExecResults });
+            // Token accounting: include the full conversation we sent (system
+            // prompt + messages) as the prompt cost, and the accumulated
+            // completion text across every round as the completion cost.
+            const promptTokens = Math.ceil(initialPromptChars / 4);
+            const completionTokens = Math.ceil(totalStreamCompletionChars / 4);
+            await logAIUsage(supabaseAdmin, userId, 'chat-agent-stream', model,
+              promptTokens, completionTokens, promptTokens + completionTokens,
+              'success', { personality, streamFinalText: true, agentResultsCount: allExecResults.length });
+            logDoriTurn(supabaseAdmin, userId, currentChannel, 'assistant', cleanText, tgChannelRef);
+          } catch (e) {
+            console.error('SSE agent stream failed', e);
+            try { emit({ type: 'error', detail: (e as Error).message }); } catch { /* ignore */ }
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(sse, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+      });
     }
 
     // ===== SERVER-SIDE EXECUTION BRANCH (Telegram, voice, agent loop) =====

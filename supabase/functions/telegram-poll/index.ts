@@ -170,6 +170,12 @@ interface DoriCallResult {
 // messages (previously the private chat path streamed text without executing
 // tools, so add/edit/delete silently failed). Returns the reply PLUS any
 // tool results, including queued confirmation prompts the bot must surface.
+interface StreamCallbacks {
+  // Fires when accumulated text changes. Debounced by the caller before
+  // hitting Telegram's editMessageText (which rate-limits to ~1/sec).
+  onText: (accumulated: string) => void;
+}
+
 async function callDori(
   userId: string,
   message: string,
@@ -177,9 +183,9 @@ async function callDori(
   supabaseUrl: string,
   serviceKey: string,
   imageUrl?: string | null,
+  streamCbs?: StreamCallbacks,
 ): Promise<DoriCallResult> {
-  // Small retry helper: if the AI gateway returns 429/402 once, back off briefly
-  // and retry. After that we surface a friendly message to the user.
+  const streaming = !!streamCbs;
   async function doRequest(): Promise<Response> {
     return fetch(`${supabaseUrl}/functions/v1/chat`, {
       method: 'POST',
@@ -196,6 +202,7 @@ async function callDori(
         executeServerSide: true,
         actionSource: 'tg_private',
         actionSourceRef: String(chatId),
+        streamFinalText: streaming,
         ...(imageUrl ? { imageUrl } : {}),
       }),
     });
@@ -219,11 +226,62 @@ async function callDori(
         : "I couldn't process that — please try again in a moment.";
       return { reply: friendly, toolResults: [] };
     }
-    const data = await r.json();
-    return {
-      reply: (data?.reply || '').trim(),
-      toolResults: (data?.toolResults || []) as ToolResult[],
-    };
+
+    // Non-streaming path: fall back to the original JSON contract.
+    if (!streaming || !r.body) {
+      const data = await r.json();
+      return {
+        reply: (data?.reply || '').trim(),
+        toolResults: (data?.toolResults || []) as ToolResult[],
+      };
+    }
+
+    // Streaming path: consume our SSE envelope (delta / tool / done) and
+    // invoke onText every time the accumulated prose grows. Tool-result
+    // events are collected but not forwarded to the UI live — the caller
+    // decides whether to surface them in the final reply.
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let lineBuf = '';
+    let accumulatedText = '';
+    const tools: ToolResult[] = [];
+    let finalReply = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      lineBuf += decoder.decode(value, { stream: true });
+      const lines = lineBuf.split('\n');
+      lineBuf = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (!payload) continue;
+        try {
+          const evt = JSON.parse(payload) as
+            | { type: 'delta'; content: string }
+            | { type: 'tool'; message: string; ok: boolean; queued?: boolean; actionId?: string; summary?: string; undoId?: string; tool?: string }
+            | { type: 'done'; reply: string; toolResults: ToolResult[] }
+            | { type: 'error'; detail?: string };
+          if (evt.type === 'delta') {
+            accumulatedText += evt.content;
+            streamCbs?.onText(accumulatedText);
+          } else if (evt.type === 'tool') {
+            tools.push(evt as ToolResult);
+          } else if (evt.type === 'done') {
+            finalReply = (evt.reply || accumulatedText).trim();
+            // Prefer server's definitive tool list over the accumulated one
+            // (the server emits tools as they run AND includes them in done).
+            if (Array.isArray(evt.toolResults)) {
+              return { reply: finalReply, toolResults: evt.toolResults as ToolResult[] };
+            }
+          } else if (evt.type === 'error') {
+            return { reply: `⚠️ ${evt.detail || 'Something went wrong.'}`, toolResults: tools };
+          }
+        } catch { /* ignore malformed event */ }
+      }
+    }
+    return { reply: (finalReply || accumulatedText).trim(), toolResults: tools };
   } catch (e) {
     console.error('callDori error:', e);
     return { reply: 'Something went wrong. Please try again.', toolResults: [] };
@@ -1076,8 +1134,8 @@ Deno.serve(async (req) => {
       tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
 
       // Instant placeholder so the user sees acknowledgment in ~100ms instead
-      // of waiting 5-15s for the full AI round to finish. We'll edit this
-      // message into the real reply once the tool calls complete.
+      // of waiting 5-15s for the full AI round to finish. Streaming path will
+      // mutate this message in-place as deltas arrive.
       let placeholderMessageId: number | null = null;
       try {
         const phResp = await tg('sendMessage', {
@@ -1089,7 +1147,43 @@ Deno.serve(async (req) => {
         console.warn('placeholder send failed', e);
       }
 
-      const dori = await callDori(link.user_id, text, chatId, supabaseUrl, serviceKey, photoDataUrl);
+      // Throttled live-edit callback. Telegram rate-limits editMessageText
+      // to ~1/sec/message, so we coalesce deltas within a 1s window and
+      // only edit when the text has meaningfully changed.
+      let lastEditAt = 0;
+      let lastEditedLen = 0;
+      let pendingEdit: ReturnType<typeof setTimeout> | null = null;
+      let latestText = '';
+      const flushEdit = async () => {
+        pendingEdit = null;
+        if (!placeholderMessageId) return;
+        if (!latestText || latestText.length === lastEditedLen) return;
+        lastEditAt = Date.now();
+        lastEditedLen = latestText.length;
+        try {
+          await tgEditMessageText(chatId, placeholderMessageId, latestText.slice(0, 4000) + ' …', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        } catch (e) { console.warn('streaming edit failed', e); }
+      };
+      const streamCbs = placeholderMessageId && !photoDataUrl
+        ? {
+            onText: (text: string) => {
+              latestText = text;
+              const now = Date.now();
+              const since = now - lastEditAt;
+              if (since >= 1000) {
+                // Enough time has passed — fire now.
+                flushEdit();
+              } else if (!pendingEdit) {
+                // Schedule a trailing edit so the user sees the latest text
+                // even when deltas arrive in a tight burst.
+                pendingEdit = setTimeout(flushEdit, 1000 - since);
+              }
+            },
+          }
+        : undefined;
+
+      const dori = await callDori(link.user_id, text, chatId, supabaseUrl, serviceKey, photoDataUrl, streamCbs);
+      if (pendingEdit) { clearTimeout(pendingEdit); pendingEdit = null; }
 
       // Voice reply if user prefers OR if they sent a voice message
       let preferVoice = wasVoiceMessage;
