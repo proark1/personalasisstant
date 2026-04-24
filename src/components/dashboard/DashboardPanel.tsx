@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
 import { useLifeScore } from '@/hooks/useLifeScore';
 import { useCelebration } from '@/hooks/useCelebration';
 import { CheckinPrompt } from '@/components/checkin/CheckinPrompt';
@@ -71,15 +72,25 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
     onNavigate?.('tasks');
   };
 
+  const workspaceId = useActiveWorkspaceId();
+
   const fetchAll = useCallback(async () => {
     if (!userId) return;
     const now = new Date();
 
+    // Tasks/events scope depends on the active workspace. Workspace mode
+    // pulls ALL tasks/events in that workspace (across members); personal
+    // mode pulls only the current user's own un-workspaced rows.
+    const tasksQuery = workspaceId
+      ? supabase.from('tasks').select('id, title, description, category, priority, completed, created_at, due_date').eq('workspace_id', workspaceId)
+      : supabase.from('tasks').select('id, title, description, category, priority, completed, created_at, due_date').eq('user_id', userId).is('workspace_id', null);
+    const eventsQuery = workspaceId
+      ? supabase.from('events').select('*').eq('workspace_id', workspaceId).gte('start_time', startOfDay(now).toISOString()).lte('start_time', endOfDay(now).toISOString())
+      : supabase.from('events').select('*').eq('user_id', userId).is('workspace_id', null).gte('start_time', startOfDay(now).toISOString()).lte('start_time', endOfDay(now).toISOString());
+
     const [tasksRes, eventsRes, contractsRes, contactsRes, emailsRes] = await Promise.all([
-      supabase.from('tasks').select('id, title, description, category, priority, completed, created_at, due_date').eq('user_id', userId),
-      supabase.from('events').select('*').eq('user_id', userId)
-        .gte('start_time', startOfDay(now).toISOString())
-        .lte('start_time', endOfDay(now).toISOString()),
+      tasksQuery,
+      eventsQuery,
       supabase.from('contracts').select('id, name, renewal_date, cancellation_notice_days, auto_renews').eq('user_id', userId)
         .eq('is_active', true).not('renewal_date', 'is', null),
       supabase.from('user_contacts').select('id, name, last_contacted_at')
@@ -133,7 +144,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
     if (emailsRes.data) setEmails(emailsRes.data);
 
     setLoading(false);
-  }, [userId]);
+  }, [userId, workspaceId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 

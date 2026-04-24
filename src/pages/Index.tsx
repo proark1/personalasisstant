@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
 import { useDatabase } from '@/hooks/useDatabase';
 import { supabase } from '@/integrations/supabase/client';
 import { useSettings } from '@/hooks/useSettings';
@@ -48,6 +49,7 @@ import { Contract as SmartContract } from '@/hooks/useSmartContext';
 const Index = () => {
   const { toast } = useToast();
   const { user, signOut } = useAuth();
+  const activeWorkspaceId = useActiveWorkspaceId();
   const { settings, updateSettings, updateNotifications } = useSettings();
   const { streamChat, isStreaming } = useAIChat();
   const { memories, getMemoriesForContext } = useAIMemory();
@@ -647,6 +649,7 @@ const Index = () => {
           upcomingBirthdays: [],
           shoppingLists: smartPayload.familyContext.shoppingLists,
         } : undefined,
+        workspaceId: activeWorkspaceId,
         onDelta: (delta) => {
           assistantContent += delta;
         },

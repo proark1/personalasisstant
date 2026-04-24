@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Project } from '@/types/flux';
+import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
 
 interface DbProject {
   id: string;
@@ -14,6 +15,7 @@ interface DbProject {
 }
 
 export function useProjects(userId: string | undefined) {
+  const workspaceId = useActiveWorkspaceId();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,17 +37,19 @@ export function useProjects(userId: string | undefined) {
     }
 
     setLoading(true);
-    const { data } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+    // Active workspace → all projects in that workspace the user can see.
+    // Personal (workspaceId === null) → only the user's own personal projects.
+    const query = supabase.from('projects').select('*').order('created_at', { ascending: false });
+    const scoped = workspaceId
+      ? query.eq('workspace_id', workspaceId)
+      : query.eq('user_id', userId).is('workspace_id', null);
+    const { data } = await scoped;
 
     if (data) {
       setProjects(data.map(dbProjectToProject));
     }
     setLoading(false);
-  }, [userId]);
+  }, [userId, workspaceId]);
 
   useEffect(() => {
     fetchProjects();
@@ -58,6 +62,7 @@ export function useProjects(userId: string | undefined) {
       .from('projects')
       .insert({
         user_id: userId,
+        workspace_id: workspaceId,
         name: project.name,
         description: project.description,
         color: project.color,
@@ -72,7 +77,7 @@ export function useProjects(userId: string | undefined) {
       return newProject;
     }
     return null;
-  }, [userId]);
+  }, [userId, workspaceId]);
 
   const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
     const dbUpdates: Record<string, unknown> = {};

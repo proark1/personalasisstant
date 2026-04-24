@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
 
 export interface LinkedItem {
   type: 'task' | 'project' | 'contact' | 'contract' | 'event';
@@ -23,6 +24,7 @@ export interface Note {
 }
 
 export function useNotes(userId: string | undefined) {
+  const workspaceId = useActiveWorkspaceId();
   const { toast } = useToast();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,13 +34,16 @@ export function useNotes(userId: string | undefined) {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const base = supabase
         .from('notes')
         .select('*')
-        .eq('user_id', userId)
         .eq('trashed', false)
         .order('is_pinned', { ascending: false })
         .order('updated_at', { ascending: false });
+      const scoped = workspaceId
+        ? base.eq('workspace_id', workspaceId)
+        : base.eq('user_id', userId).is('workspace_id', null);
+      const { data, error } = await scoped;
 
       if (error) throw error;
 
@@ -62,7 +67,7 @@ export function useNotes(userId: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, workspaceId]);
 
   const createNote = useCallback(async (title: string = 'Untitled', content: string = '', tags: string[] = []) => {
     if (!userId) return null;
@@ -72,6 +77,7 @@ export function useNotes(userId: string | undefined) {
         .from('notes')
         .insert({
           user_id: userId,
+          workspace_id: workspaceId,
           title,
           content,
           tags: tags.length > 0 ? tags : null,
@@ -106,7 +112,7 @@ export function useNotes(userId: string | undefined) {
       });
       return null;
     }
-  }, [userId, toast]);
+  }, [userId, workspaceId, toast]);
 
   const updateNote = useCallback(async (noteId: string, updates: Partial<Pick<Note, 'title' | 'content' | 'linkedItems' | 'tags' | 'isPinned'>>) => {
     try {

@@ -490,7 +490,7 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
-  const { chat_id, text, telegram_user_id, telegram_first_name, telegram_username } = await req.json();
+  const { chat_id, text, telegram_user_id, telegram_first_name, telegram_username, workspace_id } = await req.json();
 
   // Resolve group → owner + partner
   const { data: group } = await supabase
@@ -523,7 +523,8 @@ Deno.serve(async (req) => {
   // "yes"/"do it"/"no"/"cancel" resolves it without another AI round.
   const confirm = classifyConfirmationText(trimmed);
   if (confirm) {
-    const pending = await fetchLatestPendingForChat(supabase, userForChat, 'tg_family', String(chat_id));
+    const chatSource = workspace_id ? 'tg_workspace' : 'tg_family';
+    const pending = await fetchLatestPendingForChat(supabase, userForChat, chatSource, String(chat_id));
     if (pending) {
       const msg = confirm === 'yes'
         ? await approveAndExecutePending(supabase, pending, SUPABASE_URL, SERVICE_KEY)
@@ -708,21 +709,23 @@ Deno.serve(async (req) => {
   ];
 
   try {
+    const channel = workspace_id ? 'tg_workspace' : 'tg_family';
     const r = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${SERVICE_KEY}`,
         'Content-Type': 'application/json',
         'x-telegram-user-id': userForChat,
-        'x-dori-channel': 'tg_family',
+        'x-dori-channel': channel,
         'x-dori-channel-ref': String(chat_id),
       },
       body: JSON.stringify({
         messages: conversationMessages,
         personality: 'balanced',
         executeServerSide: true,
-        actionSource: 'tg_family',
+        actionSource: channel,
         actionSourceRef: String(chat_id),
+        workspaceId: workspace_id || undefined,
       }),
     });
 

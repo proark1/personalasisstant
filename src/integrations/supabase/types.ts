@@ -1745,6 +1745,7 @@ export type Database = {
       }
       events: {
         Row: {
+          assignee_id: string | null
           attendees: string[] | null
           category: string | null
           connection_id: string | null
@@ -1767,8 +1768,10 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
+          assignee_id?: string | null
           attendees?: string[] | null
           category?: string | null
           connection_id?: string | null
@@ -1791,8 +1794,10 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
+          assignee_id?: string | null
           attendees?: string[] | null
           category?: string | null
           connection_id?: string | null
@@ -1815,6 +1820,7 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -5055,6 +5061,7 @@ export type Database = {
           trashed_at: string | null
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           content?: string
@@ -5070,6 +5077,7 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           content?: string
@@ -5085,6 +5093,7 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -5844,6 +5853,7 @@ export type Database = {
           name: string
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           color?: string
@@ -5854,6 +5864,7 @@ export type Database = {
           name: string
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           color?: string
@@ -5864,6 +5875,7 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -7265,6 +7277,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          assignee_id: string | null
           attachments: Json | null
           category: string
           checklist: Json | null
@@ -7292,8 +7305,10 @@ export type Database = {
           trashed_at: string | null
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
+          assignee_id?: string | null
           attachments?: Json | null
           category?: string
           checklist?: Json | null
@@ -7321,8 +7336,10 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
+          assignee_id?: string | null
           attachments?: Json | null
           category?: string
           checklist?: Json | null
@@ -7350,6 +7367,7 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -8534,6 +8552,147 @@ export type Database = {
           user_id?: string
           workout_date?: string
           workout_type?: string | null
+        }
+        Relationships: []
+      }
+      workspaces: {
+        Row: {
+          archived: boolean
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          owner_id: string
+          slug: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workspace_members: {
+        Row: {
+          display_name: string | null
+          invited_at: string
+          invited_by: string | null
+          joined_at: string | null
+          role: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          display_name?: string | null
+          invited_at?: string
+          invited_by?: string | null
+          joined_at?: string | null
+          role?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          display_name?: string | null
+          invited_at?: string
+          invited_by?: string | null
+          joined_at?: string | null
+          role?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      workspace_invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+          revoked_at: string | null
+          role: string
+          uses: number
+          workspace_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          revoked_at?: string | null
+          role?: string
+          uses?: number
+          workspace_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          revoked_at?: string | null
+          role?: string
+          uses?: number
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      workspace_telegram_links: {
+        Row: {
+          chat_id: number
+          created_at: string
+          id: string
+          is_active: boolean
+          link_code: string | null
+          link_code_expires_at: string | null
+          linked_at: string | null
+          title: string | null
+          workspace_id: string
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          link_code?: string | null
+          link_code_expires_at?: string | null
+          linked_at?: string | null
+          title?: string | null
+          workspace_id: string
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          link_code?: string | null
+          link_code_expires_at?: string | null
+          linked_at?: string | null
+          title?: string | null
+          workspace_id?: string
         }
         Relationships: []
       }

@@ -127,6 +127,20 @@ interface FamilyContext {
   shoppingLists: { name: string; itemCount: number }[];
 }
 
+interface WorkspaceMemberCtx {
+  user_id: string;
+  display_name: string | null;
+  role: string;
+}
+
+interface WorkspaceCtx {
+  id: string;
+  name: string;
+  icon?: string | null;
+  description?: string | null;
+  members: WorkspaceMemberCtx[];
+}
+
 interface ChatRequest {
   messages: Message[];
   imageUrl?: string; // Base64 data URL for image input
@@ -143,6 +157,9 @@ interface ChatRequest {
   healthData?: HealthData;
   // Family context
   familyContext?: FamilyContext;
+  // Workspace context (set when the user is acting inside a team space)
+  workspace?: WorkspaceCtx;
+  workspaceId?: string;  // short-hand if the caller didn't preload members
   // Smart payload fields
   statsSummary?: string;
   emailSummary?: { subject: string; from: string; priority: string; snippet: string }[];
@@ -197,6 +214,7 @@ Task JSON fields:
 - "priority": "high" | "medium" | "low"
 - "dueDate": ISO date string (IMPORTANT: always set this when user mentions a date, deadline, or "starting from today")
 - "recurrenceRule": RRULE string for recurring tasks (e.g., "FREQ=WEEKLY;INTERVAL=2" for every 2 weeks, "FREQ=DAILY", "FREQ=MONTHLY")
+- "assignee": string (OPTIONAL — only valid inside a workspace; a teammate's display name or @handle. Use the ACTIVE WORKSPACE members list to pick one)
 - "id": string (only for update/delete/complete actions)
 
 TOOL: schedule_event
@@ -209,6 +227,7 @@ Event JSON fields:
 - "location": string (optional)
 - "attendees": string[] (optional)
 - "recurrenceRule": RRULE string (optional, e.g., "FREQ=WEEKLY;INTERVAL=2")
+- "assignee": string (OPTIONAL — a teammate's display name when inside a workspace)
 
 TOOL: create_note
 Use this to save notes or ideas the user wants to remember.
@@ -886,6 +905,31 @@ interface ServerExecOpts {
   skipApprovalGate?: boolean;
   source?: string;       // 'web' | 'tg_private' | 'tg_family' | 'voice' | 'proactive'
   sourceRef?: string | null;
+  // When set, every NEW row the executor creates is tagged with this workspace.
+  workspaceId?: string | null;
+  // Member list used to resolve assignee names ("Alice" / "@alice") to user ids.
+  workspaceMembers?: WorkspaceMemberCtx[];
+}
+
+// Match an "assignee"-like field in the AI's payload against the workspace
+// member list. Accepts user_id, display_name, or @handle. Returns null if no
+// member matches — caller keeps assignee_id NULL in that case.
+function resolveAssignee(
+  raw: unknown,
+  members: WorkspaceMemberCtx[] | undefined,
+): string | null {
+  if (!raw || typeof raw !== 'string' || !members?.length) return null;
+  const needle = raw.trim().replace(/^@+/, '').toLowerCase();
+  if (!needle) return null;
+  // Exact UUID match first (AI may already know the id).
+  const exactId = members.find((m) => m.user_id === raw);
+  if (exactId) return exactId.user_id;
+  // Case-insensitive display-name match.
+  const byName = members.find((m) => (m.display_name || '').toLowerCase() === needle);
+  if (byName) return byName.user_id;
+  // Loose prefix/contains on display name, as a fallback.
+  const byLoose = members.find((m) => (m.display_name || '').toLowerCase().includes(needle));
+  return byLoose?.user_id || null;
 }
 
 async function executeToolsServerSide(
@@ -983,14 +1027,24 @@ async function executeToolsServerSide(
     const action = m[1]; const data = safeJSON(m[2]); if (!data) continue;
     try {
       if (action === 'add') {
+        const assigneeId = resolveAssignee(data.assignee, opts?.workspaceMembers);
         const { data: t, error } = await supabase.from('tasks').insert({
           user_id: userId, title: data.title, category: data.category || 'personal',
           priority: data.priority || 'medium', due_date: isoOrNull(data.dueDate),
           recurrence_rule: data.recurrenceRule || null,
+          workspace_id: opts?.workspaceId || null,
+          assignee_id: assigneeId,
         }).select('id, title, due_date').single();
         if (error) throw error;
         const undoId = await undoCreate('tasks', t.id, `added task "${t.title}"`, 'task');
-        out.push({ tool: 'manage_task', ok: true, message: `✅ Added task: ${t.title}${t.due_date ? ` (due ${new Date(t.due_date).toLocaleString()})` : ''}`, data: t, undoId, entityId: t.id });
+        const assigneeName = assigneeId
+          ? (opts?.workspaceMembers?.find((m) => m.user_id === assigneeId)?.display_name || 'teammate')
+          : null;
+        out.push({
+          tool: 'manage_task', ok: true,
+          message: `✅ Added task: ${t.title}${t.due_date ? ` (due ${new Date(t.due_date).toLocaleString()})` : ''}${assigneeName ? ` — for ${assigneeName}` : ''}`,
+          data: t, undoId, entityId: t.id,
+        });
       } else if (action === 'complete' && data.id) {
         const { data: before } = await supabase.from('tasks')
           .select('title, completed, completed_at').eq('id', data.id).eq('user_id', userId).maybeSingle();
@@ -1029,10 +1083,13 @@ async function executeToolsServerSide(
     try {
       const start = isoOrNull(data.startTime)!;
       const end = isoOrNull(data.endTime) || new Date(new Date(start).getTime() + 60 * 60 * 1000).toISOString();
+      const assigneeId = resolveAssignee(data.assignee, opts?.workspaceMembers);
       const { data: e, error } = await supabase.from('events').insert({
         user_id: userId, title: data.title, start_time: start, end_time: end,
         location: data.location || null, attendees: data.attendees || null,
         recurrence_rule: data.recurrenceRule || null, category: data.category || 'personal',
+        workspace_id: opts?.workspaceId || null,
+        assignee_id: assigneeId,
       }).select('id, title, start_time').single();
       if (error) throw error;
       const undoId = await undoCreate('events', e.id, `scheduled "${e.title}"`, 'event');
@@ -1294,6 +1351,7 @@ async function executeToolsServerSide(
       if (action === 'create') {
         const { data: n, error } = await supabase.from('notes').insert({
           user_id: userId, title: data.title || 'Note', content: data.content || '', tags: data.tags || null,
+          workspace_id: opts?.workspaceId || null,
         }).select('id, title').single();
         if (error) throw error;
         const undoId = await undoCreate('notes', n.id, `saved note "${n.title}"`, 'note');
@@ -1590,6 +1648,8 @@ serve(async (req) => {
       contextSummary,
       healthData,
       familyContext,
+      workspace,
+      workspaceId,
       // Smart payload fields
       statsSummary,
       emailSummary,
@@ -1616,6 +1676,42 @@ serve(async (req) => {
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
+    // Resolve the active workspace server-side — but NEVER trust the caller's
+    // claim without checking the authenticated user is actually a member.
+    // Since the executor uses the service-role client (bypasses RLS), a
+    // missing membership check would let a caller read any workspace's
+    // members or write rows into workspaces they don't belong to.
+    let activeWorkspace: WorkspaceCtx | null = null;
+    const requestedWorkspaceId = workspace?.id || workspaceId || null;
+    if (requestedWorkspaceId && userId && userId !== 'anonymous') {
+      try {
+        const { data: membership } = await supabaseAdmin
+          .from('workspace_members')
+          .select('user_id')
+          .eq('workspace_id', requestedWorkspaceId)
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (!membership) {
+          console.warn(`workspace IDOR attempt: user=${userId} ws=${requestedWorkspaceId}`);
+        } else {
+          // Always fetch fresh server-side — ignore the client-supplied
+          // member list so a crafted request can't seed a fake "@alice".
+          const [{ data: ws }, { data: mems }] = await Promise.all([
+            supabaseAdmin.from('workspaces').select('id, name, icon, description').eq('id', requestedWorkspaceId).maybeSingle(),
+            supabaseAdmin.from('workspace_members').select('user_id, display_name, role').eq('workspace_id', requestedWorkspaceId),
+          ]);
+          if (ws) {
+            activeWorkspace = {
+              id: ws.id, name: ws.name, icon: ws.icon ?? null, description: ws.description ?? null,
+              members: (mems || []) as WorkspaceMemberCtx[],
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('workspace lookup failed', e);
+      }
+    }
+
     // preformedToolText path: skip AI call, just execute the queued tool XML directly.
     if (preformedToolText && executeServerSide && userId && userId !== 'anonymous') {
       const supabaseAdminEarly = createClient(
@@ -1626,6 +1722,8 @@ serve(async (req) => {
         skipApprovalGate,
         source: actionSource,
         sourceRef: actionSourceRef ?? null,
+        workspaceId: activeWorkspace?.id ?? null,
+        workspaceMembers: activeWorkspace?.members,
       });
       return new Response(JSON.stringify({ reply: '', toolResults: execResults }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -2074,7 +2172,22 @@ Format: <tool>propose_plan</tool><plan>{"title":"Plan for X","steps":["1. Find c
 After the user approves (any affirmative reply), execute all steps using the normal tools in ONE response. If they say "skip 2", omit step 2.
 This avoids wrong actions on big asks. Skip propose_plan for simple 1–3 action chains — just do those directly.
 `;
-    const fullSystemPrompt = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage + intelligenceAndConfirmAddon;
+    let workspaceBlock = '';
+    if (activeWorkspace) {
+      workspaceBlock = `\n\n## ACTIVE WORKSPACE\nYou are currently acting inside the workspace "${activeWorkspace.name}"${activeWorkspace.icon ? ` (${activeWorkspace.icon})` : ''}${activeWorkspace.description ? ` — ${activeWorkspace.description}` : ''}.\n`;
+      if (activeWorkspace.members?.length) {
+        workspaceBlock += `\n### Workspace members (${activeWorkspace.members.length})\n`;
+        for (const m of activeWorkspace.members) {
+          workspaceBlock += `- ${m.display_name || m.user_id} (${m.role})\n`;
+        }
+        workspaceBlock += `\nWhen the user references a teammate by name (e.g. "Alice", "@alice"), treat it as an assignee for the relevant tool call. You can include an "assignee" field in task or event payloads with the person's display name; the executor resolves it to a user id. If the referenced person isn't in the list above, ask before assuming.`;
+      }
+      workspaceBlock += `\n\nEVERY task / event / note / project you create here will be scoped to this workspace automatically — never mix in personal items.`;
+    } else {
+      workspaceBlock = `\n\n## ACTIVE WORKSPACE\nThe user is in their PERSONAL space right now. Do NOT assign things to teammates or reference workspace members; those are only relevant inside a workspace.`;
+    }
+
+    const fullSystemPrompt = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + contextMessage + workspaceBlock + intelligenceAndConfirmAddon;
 
     console.log("Chat request with enhanced context:", {
       hasUserProfile: !!userProfile,
@@ -2226,6 +2339,8 @@ This avoids wrong actions on big asks. Skip propose_plan for simple 1–3 action
         const roundResults = await executeToolsServerSide(roundText, userId, supabaseAdmin, {
           source: effectiveSource,
           sourceRef: effectiveSourceRef,
+          workspaceId: activeWorkspace?.id ?? null,
+          workspaceMembers: activeWorkspace?.members,
         });
         allExecResults.push(...roundResults);
 

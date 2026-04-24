@@ -3,6 +3,7 @@ import { Search, Bell, Menu } from 'lucide-react';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { DoriNotificationIcon } from '@/components/assistant/DoriNotificationIcon';
 import { AgentActionInbox } from '@/components/assistant/AgentActionInbox';
+import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -31,7 +32,7 @@ export function ContextualHeader({
 }: ContextualHeaderProps) {
   return (
     <header className="h-14 px-4 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-lg shrink-0 sticky top-0 z-50">
-      <div className="flex items-center gap-1 min-w-0">
+      <div className="flex items-center gap-2 min-w-0">
         <AnimatePresence mode="wait">
           <motion.h1
             key={title}
@@ -44,6 +45,7 @@ export function ContextualHeader({
             {title}
           </motion.h1>
         </AnimatePresence>
+        <WorkspaceSwitcher />
       </div>
       <div className="flex items-center gap-1">
         {onOpenSearch && (

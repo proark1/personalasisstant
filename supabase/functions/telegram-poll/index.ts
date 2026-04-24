@@ -776,6 +776,56 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // ---------- /linkworkspace <code> (group only — bind this chat to a workspace) ----------
+      if (text.startsWith('/linkworkspace') && isGroup) {
+        const parts = text.split(/\s+/);
+        const code = parts[1]?.trim();
+        if (!code) {
+          await sendMessage(chatId, '⚠️ Usage: /linkworkspace <invite-code>. Generate a code in the app at Settings → Workspaces.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          continue;
+        }
+        const { data: invite } = await supabase.from('workspace_invite_codes').select('workspace_id, revoked_at, expires_at').eq('code', code).maybeSingle();
+        if (!invite || invite.revoked_at || (invite.expires_at && new Date(invite.expires_at) < new Date())) {
+          await sendMessage(chatId, '❌ Invalid or expired workspace code.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          continue;
+        }
+        // Upsert the link. chat_id is UNIQUE so re-linking just rebinds.
+        await supabase.from('workspace_telegram_links').upsert({
+          workspace_id: invite.workspace_id,
+          chat_id: chatId,
+          title: msg.chat.title ?? 'Workspace Group',
+          is_active: true,
+          linked_at: new Date().toISOString(),
+        }, { onConflict: 'chat_id' });
+        // Also map the linker so the chat function can resolve the sender.
+        if (fromId) {
+          // Find the user_id the Telegram user maps to (if previously linked personally).
+          const { data: userMap } = await supabase.from('telegram_user_map')
+            .select('user_id').eq('telegram_user_id', fromId).maybeSingle();
+          if (userMap?.user_id) {
+            // Ensure they're a member (honor invite role if not).
+            const { data: existing } = await supabase.from('workspace_members')
+              .select('user_id').eq('workspace_id', invite.workspace_id).eq('user_id', userMap.user_id).maybeSingle();
+            if (!existing) {
+              await supabase.from('workspace_members').insert({
+                workspace_id: invite.workspace_id,
+                user_id: userMap.user_id,
+                role: 'member',
+                invited_at: new Date().toISOString(),
+                joined_at: new Date().toISOString(),
+              });
+            }
+          }
+        }
+        const { data: ws } = await supabase.from('workspaces').select('name').eq('id', invite.workspace_id).maybeSingle();
+        await sendMessage(
+          chatId,
+          `✅ <b>Workspace linked!</b>\n\nThis group is now bound to <b>${ws?.name || 'the workspace'}</b>. Everything we add here will live inside that space.\n\nTeammates can send <code>/linkme &lt;their-code&gt;</code> so I know who's who.`,
+          LOVABLE_API_KEY, TELEGRAM_API_KEY,
+        );
+        continue;
+      }
+
       // ---------- /linkme <personal-code> (group only — partner self-identifies) ----------
       if (text.startsWith('/linkme') && isGroup) {
         const parts = text.split(/\s+/);
@@ -803,12 +853,12 @@ Deno.serve(async (req) => {
 
       // ---------- GROUP MESSAGES → router ----------
       if (isGroup) {
-        const { data: glink } = await supabase
-          .from('telegram_group_links')
-          .select('owner_user_id')
-          .eq('chat_id', chatId)
-          .eq('is_active', true)
-          .maybeSingle();
+        // A group can be linked to a workspace (team) and/or a family space.
+        // Workspace link takes precedence since it's explicit startup context.
+        const [{ data: wsLink }, { data: glink }] = await Promise.all([
+          supabase.from('workspace_telegram_links').select('workspace_id').eq('chat_id', chatId).eq('is_active', true).maybeSingle(),
+          supabase.from('telegram_group_links').select('owner_user_id').eq('chat_id', chatId).eq('is_active', true).maybeSingle(),
+        ]);
         // Wake-word matchers — broad to handle voice transcription variants
         // (Dori / Dory / Dorie / Doree / Dora / Dorai / Darai / DarAI / Tory / Lori etc.)
         const BOT_MENTION = /@\w*(darai|dori|dory|dora|tory|lori)\w*_?bot\b/i;
@@ -816,11 +866,11 @@ Deno.serve(async (req) => {
         const STRIP_MENTION = /@\w*(darai|dori|dory|dora|tory|lori)\w*_?bot\b/gi;
         const STRIP_ADDRESS = /^(hey\s+|hi\s+|hello\s+|ok\s+|okay\s+|yo\s+)?(dori|dory|dorie|doree|dora|dorai|darai|dar[\s-]?ai|tory|lori)\b[\s,.:;!?]*/i;
 
-        if (!glink) {
+        if (!glink && !wsLink) {
           const hasMention = BOT_MENTION.test(rawText);
           const addressesDori = ADDRESSES_DORI.test(rawText.trim());
           if (rawText.startsWith('/') || hasMention || addressesDori) {
-            await sendMessage(chatId, '🔒 This group is not linked yet. Generate a Family Group code in Settings → Telegram, then send /linkfamily <code> here.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+            await sendMessage(chatId, '🔒 This group isn\'t linked yet. Either /linkfamily for a family space or /linkworkspace for a startup team — grab a code in the app.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
           }
           continue;
         }
@@ -863,6 +913,7 @@ Deno.serve(async (req) => {
               telegram_user_id: fromId,
               telegram_username: fromUsername,
               telegram_first_name: fromFirstName,
+              workspace_id: wsLink?.workspace_id || null,
             }),
           });
         } catch (e) {
@@ -934,6 +985,21 @@ Deno.serve(async (req) => {
       }
 
       tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
+
+      // Instant placeholder so the user sees acknowledgment in ~100ms instead
+      // of waiting 5-15s for the full AI round to finish. We'll edit this
+      // message into the real reply once the tool calls complete.
+      let placeholderMessageId: number | null = null;
+      try {
+        const phResp = await tg('sendMessage', {
+          chat_id: chatId,
+          text: photoDataUrl ? '🔍 Reading your photo…' : '🤔 Thinking…',
+        }, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        placeholderMessageId = phResp?.result?.message_id ?? null;
+      } catch (e) {
+        console.warn('placeholder send failed', e);
+      }
+
       const dori = await callDori(link.user_id, text, chatId, supabaseUrl, serviceKey, photoDataUrl);
 
       // Voice reply if user prefers OR if they sent a voice message
@@ -958,24 +1024,29 @@ Deno.serve(async (req) => {
       const undoableIds = executed.map((t) => t.undoId).filter(Boolean) as string[];
       const latestUndoId = undoableIds.length > 0 ? undoableIds[undoableIds.length - 1] : null;
 
-      if (replyText) {
-        if (latestUndoId && !preferVoice) {
-          // Voice replies can't carry inline keyboards, so we only attach the
-          // Undo affordance when we're sending as text (the normal case).
-          await tgSendWithKeyboard(
-            chatId,
-            replyText,
-            buildUndoKeyboard(latestUndoId),
-            LOVABLE_API_KEY,
-            TELEGRAM_API_KEY,
-          );
-        } else {
+      // Figure out the final outgoing text for the "main" reply.
+      const outgoingText = replyText || (queued.length === 0 ? "I processed that but didn't have anything to add." : null);
+
+      if (placeholderMessageId && outgoingText && !preferVoice) {
+        // Update the placeholder in place → the user sees the same message
+        // transform from "🤔 Thinking…" into the real answer. Feels instant.
+        await tgEditMessageText(chatId, placeholderMessageId, outgoingText.slice(0, 4000), LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        if (latestUndoId) {
+          await tgEditReplyMarkup(chatId, placeholderMessageId, buildUndoKeyboard(latestUndoId), LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        }
+      } else {
+        // Voice path, or we failed to place a placeholder — delete the stale
+        // placeholder if any, then send via the normal (potentially-voice) path.
+        if (placeholderMessageId) {
+          try { await tg('deleteMessage', { chat_id: chatId, message_id: placeholderMessageId }, LOVABLE_API_KEY, TELEGRAM_API_KEY); }
+          catch { /* ignore */ }
+        }
+        if (outgoingText) {
           await sendDoriReply({
-            chatId, text: replyText, preferVoice,
+            chatId, text: outgoingText, preferVoice,
             lovableKey: LOVABLE_API_KEY, telegramKey: TELEGRAM_API_KEY,
           });
           if (latestUndoId) {
-            // Voice path: send the Undo button as a separate follow-up text message.
             await tgSendWithKeyboard(
               chatId,
               '↩️ Tap to undo the last action.',
@@ -996,13 +1067,6 @@ Deno.serve(async (req) => {
           LOVABLE_API_KEY,
           TELEGRAM_API_KEY,
         );
-      }
-
-      if (!replyText && queued.length === 0) {
-        await sendDoriReply({
-          chatId, text: "I processed that but didn't have anything to add.", preferVoice,
-          lovableKey: LOVABLE_API_KEY, telegramKey: TELEGRAM_API_KEY,
-        });
       }
 
       await supabase.from('telegram_messages').upsert({

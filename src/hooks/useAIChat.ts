@@ -529,6 +529,8 @@ export function useAIChat() {
     habitsSummary,
     // AI Memory
     memories,
+    // Workspace
+    workspaceId,
   }: {
     messages: Message[];
     imageUrl?: string;
@@ -555,6 +557,9 @@ export function useAIChat() {
     habitsSummary?: { name: string; streak: number; isCompletedToday: boolean; frequency: string }[];
     // AI Memory
     memories?: { type: string; key: string; value: string; category?: string }[];
+    // Workspace — when set, the chat function scopes tool creation to that
+    // workspace and exposes workspace members to the AI for @mention resolution.
+    workspaceId?: string | null;
   }) => {
     setIsStreaming(true);
     setError(null);
@@ -653,6 +658,11 @@ export function useAIChat() {
       // AI Memory
       if (memories && memories.length > 0) {
         payload.memories = memories;
+      }
+
+      // Active workspace (if any). The server resolves members itself.
+      if (workspaceId) {
+        payload.workspaceId = workspaceId;
       }
 
       const resp = await fetch(CHAT_URL, {

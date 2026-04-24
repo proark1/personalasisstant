@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { AnimatePresence, motion } from "framer-motion";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { XPBadgeProvider } from "@/components/ui/xp-badge";
@@ -16,6 +17,7 @@ import { useMorningAutoPlay } from "@/hooks/useMorningAutoPlay";
 import { TopLoader } from "@/components/ui/top-loader";
 import Landing from "@/pages/Landing";
 import CalendarCallback from "@/pages/CalendarCallback";
+import { lazy } from "react";
 import {
   LazyAuth,
   LazyForgotPassword,
@@ -28,6 +30,8 @@ import {
   LazyIndex,
   PageFallback,
 } from "@/components/lazy";
+
+const LazyWorkspaces = lazy(() => import("@/pages/Workspaces"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -134,6 +138,14 @@ function AppContent() {
             }
           />
           <Route
+            path="/workspaces"
+            element={
+              <ProtectedRoute>
+                <LazyWorkspaces />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/landing"
             element={
               <PublicRoute>
@@ -189,19 +201,21 @@ function AppContent() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <LanguageProvider>
-        <TooltipProvider>
-          <XPBadgeProvider>
-            <Toaster />
-            <Sonner position="top-center" />
-            <ErrorBoundary fallbackTitle="DarAI couldn't load">
-              <BrowserRouter>
-                <AppContent />
-              </BrowserRouter>
-            </ErrorBoundary>
-          </XPBadgeProvider>
-        </TooltipProvider>
-      </LanguageProvider>
+      <WorkspaceProvider>
+        <LanguageProvider>
+          <TooltipProvider>
+            <XPBadgeProvider>
+              <Toaster />
+              <Sonner position="top-center" />
+              <ErrorBoundary fallbackTitle="DarAI couldn't load">
+                <BrowserRouter>
+                  <AppContent />
+                </BrowserRouter>
+              </ErrorBoundary>
+            </XPBadgeProvider>
+          </TooltipProvider>
+        </LanguageProvider>
+      </WorkspaceProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

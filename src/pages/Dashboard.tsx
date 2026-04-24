@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useContracts } from '@/hooks/useContracts';
+import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -37,6 +38,7 @@ interface DbTask {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const workspaceId = useActiveWorkspaceId();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const { contracts } = useContracts(user?.id);
@@ -45,10 +47,11 @@ export default function Dashboard() {
     if (!user) return;
 
     const fetchTasks = async () => {
-      const { data } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id);
+      const base = supabase.from('tasks').select('*');
+      const scoped = workspaceId
+        ? base.eq('workspace_id', workspaceId)
+        : base.eq('user_id', user.id).is('workspace_id', null);
+      const { data } = await scoped;
 
       if (data) {
         setTasks(data.map((t: DbTask) => ({
@@ -67,7 +70,7 @@ export default function Dashboard() {
     };
 
     fetchTasks();
-  }, [user]);
+  }, [user, workspaceId]);
 
   const stats = useMemo(() => {
     const now = new Date();
