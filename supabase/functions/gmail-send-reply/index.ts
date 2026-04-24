@@ -49,13 +49,23 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
+    // Accept two auth shapes:
+    //   (a) a real user JWT — the normal web-app path
+    //   (b) service-role token + x-telegram-user-id header — used when the
+    //       chat function dispatches on behalf of a Telegram user
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const telegramUserIdHeader = req.headers.get('x-telegram-user-id');
+    let userId: string;
+    if (token === serviceRoleKey && telegramUserIdHeader) {
+      userId = telegramUserIdHeader;
+    } else {
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      userId = claimsData.claims.sub;
     }
-    const userId = claimsData.claims.sub;
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     const { to, subject, body, threadId, gmailMessageId } = await req.json();

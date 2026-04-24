@@ -32,6 +32,7 @@ import {
 } from "@/components/lazy";
 
 const LazyWorkspaces = lazy(() => import("@/pages/Workspaces"));
+const LazyActivity = lazy(() => import("@/pages/Activity"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -142,6 +143,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <LazyWorkspaces />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activity"
+            element={
+              <ProtectedRoute>
+                <LazyActivity />
               </ProtectedRoute>
             }
           />

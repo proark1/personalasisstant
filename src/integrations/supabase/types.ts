@@ -133,6 +133,7 @@ export type Database = {
           updated_at: string
           user_id: string
           value: string
+          workspace_id: string | null
         }
         Insert: {
           category?: string | null
@@ -150,6 +151,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           value: string
+          workspace_id?: string | null
         }
         Update: {
           category?: string | null
@@ -167,6 +169,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           value?: string
+          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -5790,6 +5793,7 @@ export type Database = {
           id: string
           interests: string[] | null
           last_session_at: string | null
+          locale: string | null
           location_city: string | null
           location_country: string | null
           onboarding_completed: boolean | null
@@ -5814,6 +5818,7 @@ export type Database = {
           id?: string
           interests?: string[] | null
           last_session_at?: string | null
+          locale?: string | null
           location_city?: string | null
           location_country?: string | null
           onboarding_completed?: boolean | null
@@ -5838,6 +5843,7 @@ export type Database = {
           id?: string
           interests?: string[] | null
           last_session_at?: string | null
+          locale?: string | null
           location_city?: string | null
           location_country?: string | null
           onboarding_completed?: boolean | null

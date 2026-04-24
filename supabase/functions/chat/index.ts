@@ -333,12 +333,23 @@ Note JSON fields:
 - "query": string (for search/delete — matches title or content)
 
 TOOL: compose_email
-Use this to draft an email for the user.
+Use this to draft an email for the user to review (does NOT send). For actually dispatching, use send_email.
 Format: <tool>compose_email</tool><email>JSON_OBJECT</email>
 Email JSON fields:
 - "to": string (required — email address of recipient)
 - "subject": string (required)
 - "body": string (required — the email body text)
+
+TOOL: send_email
+Use this when the user explicitly asks you to SEND an email via Gmail (requires a connected Google account). This passes through the confirmation gate so the user sees a preview before it goes out.
+Format: <tool>send_email</tool><email>JSON_OBJECT</email>
+Email JSON fields:
+- "to": string (required)
+- "subject": string (required)
+- "body": string (required)
+- "threadId": string (optional — set when replying to an existing Gmail thread)
+- "gmailMessageId": string (optional — the Message-ID header of the message you're replying to)
+Only use send_email when the user clearly wants to send. For "draft a reply" or "write an email", use compose_email or draft_email_reply instead.
 
 TOOL: get_summary
 Use this to retrieve a summary of specific data the user asks about.
@@ -869,6 +880,20 @@ const MUTATING_TOOLS: MutatingTool[] = [
     },
     classify: () => 'create',
     summarize: (_a, d) => `Set reminder${d.triggerAt ? ` for ${new Date(d.triggerAt).toLocaleString()}` : ''}: ${d.message || ''}`,
+  },
+  {
+    // send_email is always gated: sending is irreversible so the user must
+    // explicitly approve the destination + body before it hits Gmail.
+    // Classified as 'delete' so the default confirm_deletes=true rule
+    // catches it; per-module overrides can opt out for power users.
+    tool: 'send_email', entity: 'email',
+    regex: /<tool>send_email<\/tool>\s*<email>(\{[\s\S]*?\})<\/email>/g,
+    parse: (m) => {
+      const data = safeParseJson(m[1]); if (!data) return null;
+      return { action: 'send', data, fullMatch: m[0] };
+    },
+    classify: () => 'delete',
+    summarize: (_a, d) => `📧 Send email to ${d.to}${d.subject ? ` — "${d.subject}"` : ''}`,
   },
 ];
 
@@ -1468,6 +1493,53 @@ async function executeToolsServerSide(
     out.push({ tool: 'compose_email', ok: true, message: `✉️ Email draft prepared for ${data.to} — Subject: "${data.subject || ''}"\n\n${data.body || ''}`, data });
   }
 
+  // ---------- send_email (actually dispatches via Gmail) ----------
+  // Runs only when the confirmation gate has released the XML — by default
+  // confirm_deletes=true catches every send. Per-workspace / per-user
+  // overrides can turn it into an auto-send for power users.
+  for (const m of text.matchAll(/<tool>send_email<\/tool>\s*<email>(\{[\s\S]*?\})<\/email>/g)) {
+    const data = safeJSON(m[1]);
+    if (!data?.to || !data?.body) {
+      out.push({ tool: 'send_email', ok: false, message: '⚠️ send_email needs `to` and `body`.' });
+      continue;
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(data.to)) {
+      out.push({ tool: 'send_email', ok: false, message: `⚠️ "${data.to}" doesn't look like a valid email.` });
+      continue;
+    }
+    try {
+      // Reuse the existing Gmail pipeline. Authorization header uses the
+      // service-role key + x-telegram-user-id so the chat function can
+      // dispatch on behalf of any user it's already acting for.
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/gmail-send-reply`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+          'x-telegram-user-id': userId,
+        },
+        body: JSON.stringify({
+          to: data.to,
+          subject: data.subject || '',
+          body: data.body,
+          threadId: data.threadId || null,
+          gmailMessageId: data.gmailMessageId || null,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.text();
+        out.push({ tool: 'send_email', ok: false, message: `⚠️ Gmail send failed: ${err.slice(0, 200)}` });
+        continue;
+      }
+      out.push({ tool: 'send_email', ok: true, message: `📧 Sent — "${data.subject || '(no subject)'}" to ${data.to}.` });
+    } catch (e) {
+      out.push({ tool: 'send_email', ok: false, message: `Failed: ${(e as Error).message}` });
+    }
+  }
+
   // ---------- find_time (workspace scheduling helper) ----------
   for (const m of text.matchAll(/<tool>find_time<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
     const data = safeJSON(m[1]);
@@ -1592,13 +1664,17 @@ async function executeToolsServerSide(
   }
 
   // ---------- save_memory ----------
+  // Memories created inside an active workspace carry that workspace_id so
+  // personal and work facts don't pollute each other (e.g. "my boss is X"
+  // stays in the workspace, "my wife prefers Y" stays in personal).
   for (const m of text.matchAll(/<tool>save_memory<\/tool>\s*<memory>(\{[\s\S]*?\})<\/memory>/g)) {
     const data = safeJSON(m[1]); if (!data?.key || !data.value) continue;
     try {
       await supabase.from('ai_memory').upsert({
         user_id: userId, memory_type: data.type || 'fact', category: data.category || null,
         key: data.key, value: data.value, source: 'chat',
-      }, { onConflict: 'user_id,key' });
+        workspace_id: opts?.workspaceId || null,
+      }, { onConflict: 'user_id,key,workspace_scope' });
     } catch { /* silent */ }
   }
 
@@ -1660,10 +1736,32 @@ async function logDoriTurn(
   }
 }
 
-// Load recent cross-channel turns + learned preferences for prompt injection
-async function loadDoriIntelligence(supabase: any, userId: string, currentChannel: string) {
+// Load recent cross-channel turns + learned preferences for prompt injection.
+// Scope-aware: when `workspaceId` is set, pulls memories marked for that
+// workspace (so "my boss is X" doesn't surface on a personal turn and vice
+// versa). Personal scope pulls user-level memories with workspace_id NULL.
+async function loadDoriIntelligence(
+  supabase: any,
+  userId: string,
+  currentChannel: string,
+  workspaceId?: string | null,
+) {
   const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const [{ data: turns }, { data: prefs }] = await Promise.all([
+  const memoryQuery = supabase
+    .from('ai_memory')
+    .select('memory_type, category, key, value')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    // Order by updated_at (always set) not last_referenced_at (NULL until
+    // the memory is first recalled) — otherwise just-learned facts would
+    // fall off the bottom of the window.
+    .order('updated_at', { ascending: false })
+    .limit(20);
+  const scopedMemoryQuery = workspaceId
+    ? memoryQuery.eq('workspace_id', workspaceId)
+    : memoryQuery.is('workspace_id', null);
+
+  const [{ data: turns }, { data: prefs }, { data: memories }] = await Promise.all([
     supabase
       .from('dori_conversations')
       .select('channel, role, content, created_at')
@@ -1678,6 +1776,7 @@ async function loadDoriIntelligence(supabase: any, userId: string, currentChanne
       .gte('confidence', 0.5)
       .order('confidence', { ascending: false })
       .limit(15),
+    scopedMemoryQuery,
   ]);
 
   let memoryBlock = '';
@@ -1701,7 +1800,16 @@ async function loadDoriIntelligence(supabase: any, userId: string, currentChanne
     }
   }
 
-  return memoryBlock + prefsBlock;
+  let memoriesBlock = '';
+  if (memories && memories.length > 0) {
+    memoriesBlock += `\n\n## LONG-TERM MEMORY (${workspaceId ? 'workspace' : 'personal'} scope)`;
+    memoriesBlock += '\nFacts, preferences, and patterns saved in prior turns. Reference them naturally.';
+    for (const m of (memories as any[])) {
+      memoriesBlock += `\n- [${m.memory_type}]${m.category ? ` (${m.category})` : ''} ${m.key}: "${m.value}"`;
+    }
+  }
+
+  return memoryBlock + prefsBlock + memoriesBlock;
 }
 
 serve(async (req) => {
@@ -1873,7 +1981,7 @@ serve(async (req) => {
       : 'web';
 
     // Load unified cross-channel memory + auto-learned preferences
-    const intelligenceBlock = await loadDoriIntelligence(supabaseAdmin, userId, currentChannel);
+    const intelligenceBlock = await loadDoriIntelligence(supabaseAdmin, userId, currentChannel, activeWorkspace?.id ?? null);
 
     // Persist the latest user turn into the unified log (fire-and-forget)
     const lastUserTurn = [...messages].reverse().find(m => m.role === 'user');
@@ -2307,10 +2415,19 @@ This avoids wrong actions on big asks. Skip propose_plan for simple 1–3 action
     // into the AI) reflects the user's local clock, not the UTC edge-runtime
     // default. Fall through if the column is missing.
     let userTimezone: string | undefined;
+    let userLocale: string | undefined;
     try {
-      const { data: p } = await supabaseAdmin.from('profiles').select('timezone').eq('user_id', userId).maybeSingle();
+      const { data: p } = await supabaseAdmin.from('profiles').select('timezone, locale').eq('user_id', userId).maybeSingle();
       userTimezone = p?.timezone || undefined;
+      userLocale = p?.locale || undefined;
     } catch { /* ignore */ }
+
+    // Locale directive goes right on top of the dynamic tail so the AI
+    // sees it consistently. Null/empty = let the model auto-detect from
+    // the user's messages.
+    const localeBlock = userLocale
+      ? `\n\n## LOCALE\nRespond in locale "${userLocale}". If the user writes in a different language, mirror theirs — but default to this for proactive messages, digests, and prose.`
+      : '';
 
     // Live context block — one round-trip snapshot of "what's on this user's
     // plate RIGHT NOW" so the AI never has to ask a follow-up lookup tool.
@@ -2347,7 +2464,7 @@ This avoids wrong actions on big asks. Skip propose_plan for simple 1–3 action
     //     preferences, both of which change per-turn and would otherwise
     //     break the cache if placed above the boundary).
     const stablePrefix = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + staticGuidance;
-    const dynamicTail = intelligenceBlock + contextMessage + liveContextBlock + workspaceBlock;
+    const dynamicTail = localeBlock + intelligenceBlock + contextMessage + liveContextBlock + workspaceBlock;
     const fullSystemPrompt = stablePrefix + dynamicTail;
 
     console.log("Chat request with enhanced context:", {
@@ -2726,7 +2843,8 @@ This avoids wrong actions on big asks. Skip propose_plan for simple 1–3 action
                     key: memData.key,
                     value: memData.value,
                     source: 'chat',
-                  }, { onConflict: 'user_id,key' });
+                    workspace_id: activeWorkspace?.id ?? null,
+                  }, { onConflict: 'user_id,key,workspace_scope' });
                   console.log('Saved memory:', memData.key);
                 }
               } catch (e) {
