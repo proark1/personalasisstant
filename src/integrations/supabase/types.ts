@@ -133,7 +133,6 @@ export type Database = {
           updated_at: string
           user_id: string
           value: string
-          workspace_id: string | null
         }
         Insert: {
           category?: string | null
@@ -151,7 +150,6 @@ export type Database = {
           updated_at?: string
           user_id: string
           value: string
-          workspace_id?: string | null
         }
         Update: {
           category?: string | null
@@ -169,7 +167,6 @@ export type Database = {
           updated_at?: string
           user_id?: string
           value?: string
-          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -335,12 +332,9 @@ export type Database = {
           created_at: string
           entity_id: string | null
           entity_type: string | null
-          expires_at: string | null
           id: string
           reason: string
           rejected_at: string | null
-          source: string
-          source_ref: string | null
           status: string
           user_id: string
         }
@@ -351,12 +345,9 @@ export type Database = {
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
-          expires_at?: string | null
           id?: string
           reason: string
           rejected_at?: string | null
-          source?: string
-          source_ref?: string | null
           status?: string
           user_id: string
         }
@@ -367,61 +358,10 @@ export type Database = {
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
-          expires_at?: string | null
           id?: string
           reason?: string
           rejected_at?: string | null
-          source?: string
-          source_ref?: string | null
           status?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      dori_undo_log: {
-        Row: {
-          consumed_at: string | null
-          created_at: string
-          entity_id: string | null
-          entity_type: string
-          expires_at: string
-          id: string
-          inverse_tool_xml: string | null
-          label: string
-          op: string
-          snapshot: Json | null
-          source: string
-          source_ref: string | null
-          user_id: string
-        }
-        Insert: {
-          consumed_at?: string | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type: string
-          expires_at?: string
-          id?: string
-          inverse_tool_xml?: string | null
-          label: string
-          op: string
-          snapshot?: Json | null
-          source?: string
-          source_ref?: string | null
-          user_id: string
-        }
-        Update: {
-          consumed_at?: string | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type?: string
-          expires_at?: string
-          id?: string
-          inverse_tool_xml?: string | null
-          label?: string
-          op?: string
-          snapshot?: Json | null
-          source?: string
-          source_ref?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1748,7 +1688,6 @@ export type Database = {
       }
       events: {
         Row: {
-          assignee_id: string | null
           attendees: string[] | null
           category: string | null
           connection_id: string | null
@@ -1771,10 +1710,8 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
-          workspace_id: string | null
         }
         Insert: {
-          assignee_id?: string | null
           attendees?: string[] | null
           category?: string | null
           connection_id?: string | null
@@ -1797,10 +1734,8 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
-          workspace_id?: string | null
         }
         Update: {
-          assignee_id?: string | null
           attendees?: string[] | null
           category?: string | null
           connection_id?: string | null
@@ -1823,7 +1758,6 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
-          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -5064,7 +4998,6 @@ export type Database = {
           trashed_at: string | null
           updated_at: string
           user_id: string
-          workspace_id: string | null
         }
         Insert: {
           content?: string
@@ -5080,7 +5013,6 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id: string
-          workspace_id?: string | null
         }
         Update: {
           content?: string
@@ -5096,7 +5028,6 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id?: string
-          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -5618,10 +5549,6 @@ export type Database = {
           birthday_reminders_enabled: boolean
           calendar_overload_enabled: boolean | null
           calendar_overload_threshold: number | null
-          confirm_creates: boolean
-          confirm_deletes: boolean
-          confirm_updates: boolean
-          confirmation_overrides: Json
           contact_checkin_days: number | null
           contact_checkins_enabled: boolean | null
           contract_reminder_days: number[] | null
@@ -5635,7 +5562,6 @@ export type Database = {
           evening_dua_enabled: boolean
           evening_review_time: string | null
           event_prep_enabled: boolean | null
-          focus_mode_until: string | null
           forgotten_task_days: number | null
           forgotten_tasks_enabled: boolean | null
           habit_streak_warning_hours: number | null
@@ -5647,7 +5573,6 @@ export type Database = {
           meeting_followup_enabled: boolean | null
           meeting_prep_enabled: boolean | null
           morning_briefing_time: string | null
-          onboarding_checklist_dismissed: boolean
           prayer_reminder_minutes: number
           prayer_reminders_enabled: boolean
           prefer_voice_replies: boolean | null
@@ -5655,9 +5580,7 @@ export type Database = {
           quiet_hours_enabled: boolean | null
           quiet_hours_end: string | null
           quiet_hours_start: string | null
-          require_action_confirmation: boolean
           stale_contact_days: number | null
-          suppress_during_events: boolean
           telegram_group_enabled: boolean
           telegram_proactive_enabled: boolean | null
           timezone: string | null
@@ -5673,10 +5596,6 @@ export type Database = {
           birthday_reminders_enabled?: boolean
           calendar_overload_enabled?: boolean | null
           calendar_overload_threshold?: number | null
-          confirm_creates?: boolean
-          confirm_deletes?: boolean
-          confirm_updates?: boolean
-          confirmation_overrides?: Json
           contact_checkin_days?: number | null
           contact_checkins_enabled?: boolean | null
           contract_reminder_days?: number[] | null
@@ -5690,7 +5609,6 @@ export type Database = {
           evening_dua_enabled?: boolean
           evening_review_time?: string | null
           event_prep_enabled?: boolean | null
-          focus_mode_until?: string | null
           forgotten_task_days?: number | null
           forgotten_tasks_enabled?: boolean | null
           habit_streak_warning_hours?: number | null
@@ -5702,7 +5620,6 @@ export type Database = {
           meeting_followup_enabled?: boolean | null
           meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
-          onboarding_checklist_dismissed?: boolean
           prayer_reminder_minutes?: number
           prayer_reminders_enabled?: boolean
           prefer_voice_replies?: boolean | null
@@ -5710,9 +5627,7 @@ export type Database = {
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
-          require_action_confirmation?: boolean
           stale_contact_days?: number | null
-          suppress_during_events?: boolean
           telegram_group_enabled?: boolean
           telegram_proactive_enabled?: boolean | null
           timezone?: string | null
@@ -5728,10 +5643,6 @@ export type Database = {
           birthday_reminders_enabled?: boolean
           calendar_overload_enabled?: boolean | null
           calendar_overload_threshold?: number | null
-          confirm_creates?: boolean
-          confirm_deletes?: boolean
-          confirm_updates?: boolean
-          confirmation_overrides?: Json
           contact_checkin_days?: number | null
           contact_checkins_enabled?: boolean | null
           contract_reminder_days?: number[] | null
@@ -5745,7 +5656,6 @@ export type Database = {
           evening_dua_enabled?: boolean
           evening_review_time?: string | null
           event_prep_enabled?: boolean | null
-          focus_mode_until?: string | null
           forgotten_task_days?: number | null
           forgotten_tasks_enabled?: boolean | null
           habit_streak_warning_hours?: number | null
@@ -5757,7 +5667,6 @@ export type Database = {
           meeting_followup_enabled?: boolean | null
           meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
-          onboarding_checklist_dismissed?: boolean
           prayer_reminder_minutes?: number
           prayer_reminders_enabled?: boolean
           prefer_voice_replies?: boolean | null
@@ -5765,9 +5674,7 @@ export type Database = {
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
-          require_action_confirmation?: boolean
           stale_contact_days?: number | null
-          suppress_during_events?: boolean
           telegram_group_enabled?: boolean
           telegram_proactive_enabled?: boolean | null
           timezone?: string | null
@@ -5793,7 +5700,6 @@ export type Database = {
           id: string
           interests: string[] | null
           last_session_at: string | null
-          locale: string | null
           location_city: string | null
           location_country: string | null
           onboarding_completed: boolean | null
@@ -5818,7 +5724,6 @@ export type Database = {
           id?: string
           interests?: string[] | null
           last_session_at?: string | null
-          locale?: string | null
           location_city?: string | null
           location_country?: string | null
           onboarding_completed?: boolean | null
@@ -5843,7 +5748,6 @@ export type Database = {
           id?: string
           interests?: string[] | null
           last_session_at?: string | null
-          locale?: string | null
           location_city?: string | null
           location_country?: string | null
           onboarding_completed?: boolean | null
@@ -5868,7 +5772,6 @@ export type Database = {
           name: string
           updated_at: string
           user_id: string
-          workspace_id: string | null
         }
         Insert: {
           color?: string
@@ -5879,7 +5782,6 @@ export type Database = {
           name: string
           updated_at?: string
           user_id: string
-          workspace_id?: string | null
         }
         Update: {
           color?: string
@@ -5890,7 +5792,6 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
-          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -7215,36 +7116,6 @@ export type Database = {
         }
         Relationships: []
       }
-      task_comments: {
-        Row: {
-          author_id: string | null
-          body: string
-          created_at: string
-          id: string
-          source: string
-          task_id: string
-          workspace_id: string | null
-        }
-        Insert: {
-          author_id?: string | null
-          body: string
-          created_at?: string
-          id?: string
-          source?: string
-          task_id: string
-          workspace_id?: string | null
-        }
-        Update: {
-          author_id?: string | null
-          body?: string
-          created_at?: string
-          id?: string
-          source?: string
-          task_id?: string
-          workspace_id?: string | null
-        }
-        Relationships: []
-      }
       task_tags: {
         Row: {
           created_at: string
@@ -7322,7 +7193,6 @@ export type Database = {
       }
       tasks: {
         Row: {
-          assignee_id: string | null
           attachments: Json | null
           category: string
           checklist: Json | null
@@ -7350,10 +7220,8 @@ export type Database = {
           trashed_at: string | null
           updated_at: string
           user_id: string
-          workspace_id: string | null
         }
         Insert: {
-          assignee_id?: string | null
           attachments?: Json | null
           category?: string
           checklist?: Json | null
@@ -7381,10 +7249,8 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id: string
-          workspace_id?: string | null
         }
         Update: {
-          assignee_id?: string | null
           attachments?: Json | null
           category?: string
           checklist?: Json | null
@@ -7412,7 +7278,6 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id?: string
-          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -7534,7 +7399,6 @@ export type Database = {
       }
       telegram_links: {
         Row: {
-          active_workspace_id: string | null
           chat_id: number | null
           created_at: string
           id: string
@@ -7548,7 +7412,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          active_workspace_id?: string | null
           chat_id?: number | null
           created_at?: string
           id?: string
@@ -7562,7 +7425,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          active_workspace_id?: string | null
           chat_id?: number | null
           created_at?: string
           id?: string
@@ -8600,147 +8462,6 @@ export type Database = {
           user_id?: string
           workout_date?: string
           workout_type?: string | null
-        }
-        Relationships: []
-      }
-      workspaces: {
-        Row: {
-          archived: boolean
-          created_at: string
-          description: string | null
-          icon: string | null
-          id: string
-          name: string
-          owner_id: string
-          slug: string | null
-          updated_at: string
-        }
-        Insert: {
-          archived?: boolean
-          created_at?: string
-          description?: string | null
-          icon?: string | null
-          id?: string
-          name: string
-          owner_id: string
-          slug?: string | null
-          updated_at?: string
-        }
-        Update: {
-          archived?: boolean
-          created_at?: string
-          description?: string | null
-          icon?: string | null
-          id?: string
-          name?: string
-          owner_id?: string
-          slug?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      workspace_members: {
-        Row: {
-          display_name: string | null
-          invited_at: string
-          invited_by: string | null
-          joined_at: string | null
-          role: string
-          user_id: string
-          workspace_id: string
-        }
-        Insert: {
-          display_name?: string | null
-          invited_at?: string
-          invited_by?: string | null
-          joined_at?: string | null
-          role?: string
-          user_id: string
-          workspace_id: string
-        }
-        Update: {
-          display_name?: string | null
-          invited_at?: string
-          invited_by?: string | null
-          joined_at?: string | null
-          role?: string
-          user_id?: string
-          workspace_id?: string
-        }
-        Relationships: []
-      }
-      workspace_invite_codes: {
-        Row: {
-          code: string
-          created_at: string
-          created_by: string
-          expires_at: string | null
-          id: string
-          max_uses: number | null
-          revoked_at: string | null
-          role: string
-          uses: number
-          workspace_id: string
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          created_by: string
-          expires_at?: string | null
-          id?: string
-          max_uses?: number | null
-          revoked_at?: string | null
-          role?: string
-          uses?: number
-          workspace_id: string
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          created_by?: string
-          expires_at?: string | null
-          id?: string
-          max_uses?: number | null
-          revoked_at?: string | null
-          role?: string
-          uses?: number
-          workspace_id?: string
-        }
-        Relationships: []
-      }
-      workspace_telegram_links: {
-        Row: {
-          chat_id: number
-          created_at: string
-          id: string
-          is_active: boolean
-          link_code: string | null
-          link_code_expires_at: string | null
-          linked_at: string | null
-          title: string | null
-          workspace_id: string
-        }
-        Insert: {
-          chat_id: number
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          link_code?: string | null
-          link_code_expires_at?: string | null
-          linked_at?: string | null
-          title?: string | null
-          workspace_id: string
-        }
-        Update: {
-          chat_id?: number
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          link_code?: string | null
-          link_code_expires_at?: string | null
-          linked_at?: string | null
-          title?: string | null
-          workspace_id?: string
         }
         Relationships: []
       }
