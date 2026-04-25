@@ -148,6 +148,11 @@ export function useDatabase(userId: string | undefined) {
 
     if (trashedResult.status === 'fulfilled' && !trashedResult.value.error) {
       setTrashedTasks((trashedResult.value.data ?? []).map(dbTaskToTask));
+    } else {
+      moduleHealth.reportError(
+        'tasks',
+        trashedResult.status === 'rejected' ? trashedResult.reason : trashedResult.value.error,
+      );
     }
 
     if (eventsResult.status === 'fulfilled' && !eventsResult.value.error) {

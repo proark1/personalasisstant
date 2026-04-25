@@ -47,6 +47,33 @@ export interface ModuleEvent<T = unknown> {
 
 type Listener<T = unknown> = (event: ModuleEvent<T>) => void;
 
+/**
+ * Build a small, order-stable signature for dedupe.
+ * - Primitives serialize directly.
+ * - Objects: shallow, sorted keys (payloads here are tiny — { taskId, ... }).
+ * - Falls back to '?' on anything pathological so dedupe degrades to "no dedupe"
+ *   rather than throwing.
+ */
+function dedupeSignature(payload: unknown): string {
+  if (payload === null || payload === undefined) return String(payload);
+  const t = typeof payload;
+  if (t !== 'object') return `${t}:${String(payload)}`;
+  try {
+    const obj = payload as Record<string, unknown>;
+    const keys = Object.keys(obj).sort();
+    if (keys.length === 0) return '{}';
+    let out = '';
+    for (const k of keys) {
+      const v = obj[k];
+      const vt = typeof v;
+      out += `${k}=${vt === 'object' ? '[obj]' : String(v)};`;
+    }
+    return out;
+  } catch {
+    return '?';
+  }
+}
+
 class ModuleEventBus {
   private listeners = new Map<ModuleEventName, Set<Listener>>();
   private wildcardListeners = new Set<Listener>();
@@ -60,7 +87,7 @@ class ModuleEventBus {
 
   emit<T = unknown>(name: ModuleEventName, payload: T, source?: string): void {
     const now = Date.now();
-    const key = `${name}:${JSON.stringify(payload)}`;
+    const key = `${name}:${dedupeSignature(payload)}`;
     if (key === this.lastEmitKey && now - this.lastEmitAt < this.DEDUPE_WINDOW_MS) {
       return;
     }
