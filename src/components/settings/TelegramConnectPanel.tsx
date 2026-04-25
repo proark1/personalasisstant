@@ -47,7 +47,7 @@ export function TelegramConnectPanel() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchLink(); }, [user]);
+  useEffect(() => { fetchLink(); }, [user?.id]);
 
   useEffect(() => {
     if ((!code && !groupCode) || (link?.is_active && group?.is_active)) return;
@@ -61,14 +61,21 @@ export function TelegramConnectPanel() {
     try {
       const { data, error } = await supabase.functions.invoke('telegram-link', { body: { action: 'generate', scope: 'personal' } });
       if (error) throw error;
+      if (!data || !data.code) {
+        throw new Error('No link code returned from server');
+      }
       setCode(data.code);
-      setDeepLink(data.deepLink);
-      setBotUsername(data.botUsername);
+      setDeepLink(data.deepLink ?? null);
+      if (data.botUsername) {
+        setBotUsername(data.botUsername);
+      }
       if (!data.deepLink) {
-        setError(`Telegram connector is currently unreachable. Your code is ready — open @${data.botUsername || botUsername || 'daraibot_bot'} manually and send: /start ${data.code}`);
+        setError(`Telegram connector is currently unreachable. Your code is ready — open @${data.botUsername ?? 'daraibot_bot'} manually and send: /start ${data.code}`);
       }
     } catch (e) {
       toast({ title: 'Could not generate code', description: e instanceof Error ? e.message : '', variant: 'destructive' });
+      setCode(null);
+      setDeepLink(null);
     } finally {
       setGenerating(false);
     }
@@ -79,10 +86,15 @@ export function TelegramConnectPanel() {
     try {
       const { data, error } = await supabase.functions.invoke('telegram-link', { body: { action: 'generate', scope: 'group' } });
       if (error) throw error;
+      if (!data || !data.code) {
+        throw new Error('No link code returned from server');
+      }
       setGroupCode(data.code);
-      setGroupAddUrl(data.addToGroupUrl);
+      setGroupAddUrl(data.addToGroupUrl ?? null);
     } catch (e) {
       toast({ title: 'Could not generate group code', description: e instanceof Error ? e.message : '', variant: 'destructive' });
+      setGroupCode(null);
+      setGroupAddUrl(null);
     } finally {
       setGeneratingGroup(false);
     }

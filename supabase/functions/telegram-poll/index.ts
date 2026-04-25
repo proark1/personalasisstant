@@ -771,10 +771,11 @@ Deno.serve(async (req) => {
       // ---------- /start (private only — group link uses /linkfamily) ----------
       if (text.startsWith('/start') && !isGroup) {
         const parts = text.split(/\s+/);
-        const code = parts[1];
+        const code = parts[1]?.trim();
         if (code) {
           const { data: link } = await supabase.from('telegram_links').select('*').eq('link_code', code).maybeSingle();
-          if (link && (!link.link_code_expires_at || new Date(link.link_code_expires_at) > new Date())) {
+          const isExpired = link?.link_code_expires_at && new Date(link.link_code_expires_at) <= new Date();
+          if (link && !isExpired) {
             await supabase.from('telegram_links').update({
               chat_id: chatId,
               telegram_username: fromUsername,
@@ -806,13 +807,14 @@ Deno.serve(async (req) => {
       // ---------- /linkfamily <code> (group only) ----------
       if (text.startsWith('/linkfamily') && isGroup) {
         const parts = text.split(/\s+/);
-        const code = parts[1];
+        const code = parts[1]?.trim();
         if (!code) {
           await sendMessage(chatId, '⚠️ Usage: /linkfamily <code> — generate a code in Settings → Telegram → Family Group.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
           continue;
         }
         const { data: glink } = await supabase.from('telegram_group_links').select('*').eq('link_code', code).maybeSingle();
-        if (!glink || (glink.link_code_expires_at && new Date(glink.link_code_expires_at) < new Date())) {
+        const isExpired = glink?.link_code_expires_at && new Date(glink.link_code_expires_at) <= new Date();
+        if (!glink || isExpired) {
           await sendMessage(chatId, '❌ Invalid or expired family link code.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
           continue;
         }
@@ -890,13 +892,14 @@ Deno.serve(async (req) => {
       // ---------- /linkme <personal-code> (group only — partner self-identifies) ----------
       if (text.startsWith('/linkme') && isGroup) {
         const parts = text.split(/\s+/);
-        const code = parts[1];
+        const code = parts[1]?.trim();
         if (!code) {
           await sendMessage(chatId, '⚠️ Generate a personal link code in Settings → Telegram, then send: /linkme <code>', LOVABLE_API_KEY, TELEGRAM_API_KEY);
           continue;
         }
         const { data: link } = await supabase.from('telegram_links').select('user_id, link_code_expires_at').eq('link_code', code).maybeSingle();
-        if (!link || (link.link_code_expires_at && new Date(link.link_code_expires_at) < new Date())) {
+        const isExpired = link?.link_code_expires_at && new Date(link.link_code_expires_at) <= new Date();
+        if (!link || isExpired) {
           await sendMessage(chatId, '❌ Invalid or expired code.', LOVABLE_API_KEY, TELEGRAM_API_KEY);
           continue;
         }
