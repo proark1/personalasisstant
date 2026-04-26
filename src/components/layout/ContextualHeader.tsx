@@ -6,6 +6,7 @@ import { AgentActionInbox } from '@/components/assistant/AgentActionInbox';
 import { PlansPanel } from '@/components/assistant/PlansPanel';
 import { MeetingBotsPanel } from '@/components/assistant/MeetingBotsPanel';
 import { VisionCaptureButton } from '@/components/capture/VisionCaptureButton';
+import { SchedulePlannerSheet } from '@/components/schedule/SchedulePlannerSheet';
 import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -58,6 +59,7 @@ export function ContextualHeader({
         )}
         <DoriNotificationIcon />
         <VisionCaptureButton />
+        <SchedulePlannerSheet />
         <MeetingBotsPanel />
         <PlansPanel />
         <AgentActionInbox />

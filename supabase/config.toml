@@ -218,3 +218,9 @@ verify_jwt = true
 
 [functions.vision-commit]
 verify_jwt = true
+
+[functions.propose-schedule]
+verify_jwt = true
+
+[functions.apply-schedule]
+verify_jwt = true
