@@ -26,7 +26,12 @@ const ALLOWED_SOURCES: MentionSourceKind[] = [
   'semantic', 'episodic', 'ai_memory', 'task', 'event', 'note', 'contact', 'chat',
 ];
 
-const BACKFILL_LIMIT = 200;
+// Each backfill row triggers a sequential LLM call (~1-3s each) so the
+// per-invocation ceiling has to fit comfortably under the 60s edge
+// timeout. 20 rows is the sweet spot: it leaves headroom for slow
+// gateway responses, and the caller can simply re-invoke to drain a
+// larger backfill (the operation is idempotent via kg_link_mention).
+const BACKFILL_LIMIT = 20;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });

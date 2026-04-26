@@ -109,7 +109,10 @@ const EXTRACTION_TOOL = {
 };
 
 export async function extractEntities(text: string): Promise<ExtractionResult> {
-  const cleaned = (text || '').replace(/\s+/g, ' ').trim().slice(0, 4000);
+  // Slice first so the whitespace regex never scans more than ~8 KB,
+  // even if the caller hands us a multi-megabyte buffer. Final slice
+  // to 4000 trims again after the regex collapses runs of whitespace.
+  const cleaned = (text || '').slice(0, 8000).replace(/\s+/g, ' ').trim().slice(0, 4000);
   if (cleaned.length < 12) return { entities: [], model: null };
 
   const lovableKey = Deno.env.get('LOVABLE_API_KEY');
