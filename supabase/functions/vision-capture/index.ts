@@ -17,6 +17,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { assertWithinQuota } from '../_shared/ai-quota.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -217,6 +218,18 @@ serve(async (req) => {
         error_message: 'LOVABLE_API_KEY not configured',
       }).eq('id', row.id);
       return json({ error: 'AI not configured' }, 503);
+    }
+
+    // AI cost gate — rejects when the user has burned their monthly cap.
+    try {
+      await assertWithinQuota(admin, user.id);
+    } catch (e) {
+      const code = (e as any)?.code;
+      await admin.from('vision_captures').update({
+        status: 'error',
+        error_message: (e as Error).message,
+      }).eq('id', row.id);
+      return json({ error: (e as Error).message, code }, code === 'quota_exceeded' ? 429 : 500);
     }
 
     // 3. Gemini Vision via gateway, forced tool-call.

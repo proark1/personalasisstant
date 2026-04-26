@@ -39,6 +39,7 @@ import {
   useMemoryAudit,
   type MemoryAuditItem,
 } from '@/hooks/useMemoryAudit';
+import { AIUsageCard } from './AIUsageCard';
 import { cn } from '@/lib/utils';
 
 // "Memory & Privacy" view — three tabs:
@@ -90,6 +91,8 @@ export function MemoryDashboard() {
           Refresh
         </Button>
       </div>
+
+      <AIUsageCard />
 
       <Tabs defaultValue="entities" className="w-full">
         <TabsList className="grid w-full grid-cols-3">

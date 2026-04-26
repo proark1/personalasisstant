@@ -22,6 +22,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { adminClient, resolveUserId } from '../_shared/auth.ts';
+import { assertWithinQuota } from '../_shared/ai-quota.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -171,6 +172,13 @@ serve(async (req) => {
 
     const lovableKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableKey) return json({ error: 'AI not configured' }, 503);
+
+    try {
+      await assertWithinQuota(admin, user.id);
+    } catch (e) {
+      const code = (e as any)?.code;
+      return json({ error: (e as Error).message, code }, code === 'quota_exceeded' ? 429 : 500);
+    }
 
     // ---- 2. Render the prompt. Keep it tight; the model doesn't
     //         need verbose framing.
