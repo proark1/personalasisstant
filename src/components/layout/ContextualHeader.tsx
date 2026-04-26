@@ -2,9 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Search, Bell, Menu } from 'lucide-react';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { DoriNotificationIcon } from '@/components/assistant/DoriNotificationIcon';
-import { AgentActionInbox } from '@/components/assistant/AgentActionInbox';
-import { PlansPanel } from '@/components/assistant/PlansPanel';
-import { MeetingBotsPanel } from '@/components/assistant/MeetingBotsPanel';
+import { AssistantHubSheet } from '@/components/hub/AssistantHubSheet';
 import { VisionCaptureButton } from '@/components/capture/VisionCaptureButton';
 import { SchedulePlannerSheet } from '@/components/schedule/SchedulePlannerSheet';
 import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher';
@@ -60,9 +58,7 @@ export function ContextualHeader({
         <DoriNotificationIcon />
         <VisionCaptureButton />
         <SchedulePlannerSheet />
-        <MeetingBotsPanel />
-        <PlansPanel />
-        <AgentActionInbox />
+        <AssistantHubSheet />
         <NotificationCenter
           notifications={notifications}
           onMarkRead={onMarkRead}
