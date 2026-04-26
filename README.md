@@ -122,6 +122,12 @@ Supabase Edge Functions require these secrets (set via Supabase Dashboard):
 | `PLAID_ENV` | `sandbox` (default), `development`, or `production` |
 | `BANK_TOKEN_SECRET` | 64-hex-char (32-byte) AES-GCM key for encrypting bank `access_token`s at rest. Generate with `openssl rand -hex 32` |
 
+### Optional native plugins
+
+| Package | Used by |
+|---------|---------|
+| `@capacitor/camera` | Vision capture — installs the native iOS / Android camera flow. Without it, the web file-input fallback (`<input type="file" capture="environment">`) is used. Add with `bun add @capacitor/camera && npx cap sync`. |
+
 ## Architecture
 
 ### Project Structure

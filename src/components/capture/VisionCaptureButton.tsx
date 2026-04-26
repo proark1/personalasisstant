@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Camera, Loader2, Trash2, CheckCircle2 } from 'lucide-react';
 import { useVisionCapture, type VisionKind } from '@/hooks/useVisionCapture';
+import { useNativeCamera } from '@/hooks/useNativeCamera';
 import { cn } from '@/lib/utils';
 
 const KIND_LABELS: Record<VisionKind, string> = {
@@ -32,23 +33,35 @@ export function VisionCaptureButton() {
   const [open, setOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const vision = useVisionCapture();
+  const nativeCam = useNativeCamera();
   const [editedFields, setEditedFields] = useState<Record<string, string>>({});
   const [chosenKind, setChosenKind] = useState<VisionKind | null>(null);
 
-  const onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFile = async (file: File) => {
     const r = await vision.captureFromFile(file);
-    e.target.value = ''; // allow re-upload of same file
     if (r) {
       setChosenKind(r.detected_kind);
-      // Seed editable fields from extraction.
       const seed: Record<string, string> = {};
       for (const [k, v] of Object.entries(r.extracted ?? {})) {
         if (typeof v === 'string' || typeof v === 'number') seed[k] = String(v);
       }
       setEditedFields(seed);
     }
+  };
+
+  const onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = ''; // allow re-upload of same file
+    await handleFile(file);
+  };
+
+  // Native camera path — only fires when @capacitor/camera is
+  // installed and we're in a native shell. Falls through to the
+  // file input otherwise.
+  const onNativeCapture = async () => {
+    const r = await nativeCam.takePhoto();
+    if (r?.file) await handleFile(r.file);
   };
 
   const close = () => {
@@ -125,13 +138,26 @@ export function VisionCaptureButton() {
                 />
                 <Button
                   className="w-full gap-2"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    if (nativeCam.available) onNativeCapture();
+                    else fileInputRef.current?.click();
+                  }}
                   disabled={vision.busy}
                 >
                   {vision.busy
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> {vision.phase?.label ?? 'Analysing…'}</>
-                    : <><Camera className="w-4 h-4" /> Take or choose a photo</>}
+                    : <><Camera className="w-4 h-4" /> {nativeCam.available ? 'Take a photo' : 'Take or choose a photo'}</>}
                 </Button>
+                {nativeCam.available && (
+                  <Button
+                    variant="ghost"
+                    className="w-full text-xs gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={vision.busy}
+                  >
+                    Choose from library
+                  </Button>
+                )}
                 {vision.busy && vision.phase ? (
                   <p className="text-[10px] text-muted-foreground text-center tabular-nums">
                     {Math.floor(vision.phase.elapsed_ms / 1000)}s elapsed · phase: {vision.phase.key}
