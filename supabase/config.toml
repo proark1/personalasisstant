@@ -230,3 +230,12 @@ verify_jwt = true
 
 [functions.trip-prep]
 verify_jwt = true
+
+[functions.plaid-sync-cron]
+verify_jwt = false
+
+[functions.meeting-bot-reconciler-cron]
+verify_jwt = false
+
+[functions.trip-prep-cron]
+verify_jwt = false
