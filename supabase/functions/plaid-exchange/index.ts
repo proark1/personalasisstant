@@ -24,6 +24,7 @@ import {
   loadConfig,
   normaliseAccountType,
 } from '../_shared/plaid.ts';
+import { encryptToken } from '../_shared/encryption.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -84,14 +85,22 @@ serve(async (req) => {
       }
     }
 
-    // 3. Upsert bank_connections.
+    // 3. Upsert bank_connections — access_token is encrypted at rest;
+    //    the DB never sees the plaintext.
+    let cipher: string;
+    try {
+      cipher = await encryptToken(exchanged.access_token);
+    } catch (e) {
+      console.error('[plaid-exchange] encrypt failed', (e as Error).message);
+      return json({ error: `BANK_TOKEN_SECRET misconfigured: ${(e as Error).message}` }, 503);
+    }
     const { data: conn, error: connErr } = await admin
       .from('bank_connections')
       .upsert({
         user_id: user.id,
         provider: 'plaid',
         external_item_id: exchanged.item_id,
-        access_token: exchanged.access_token,
+        access_token_ciphertext: cipher,
         institution_id: institutionId,
         institution_name: institutionName,
         status: 'good',
@@ -108,6 +117,8 @@ serve(async (req) => {
     // 4. Pull accounts and upsert.
     let accountsCount = 0;
     try {
+      // Use the just-exchanged plaintext for this one call (still in
+      // memory locally) — never re-read from the DB.
       const accounts = await getAccounts(cfg, exchanged.access_token);
       const rows = accounts.accounts.map((a) => ({
         user_id: user.id,

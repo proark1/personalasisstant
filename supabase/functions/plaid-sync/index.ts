@@ -27,6 +27,7 @@ import {
   getAccounts,
   type PlaidTransaction,
 } from '../_shared/plaid.ts';
+import { decryptToken } from '../_shared/encryption.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,7 +74,7 @@ serve(async (req) => {
 
     let q = admin
       .from('bank_connections')
-      .select('id, access_token, sync_cursor, status, institution_name')
+      .select('id, access_token_ciphertext, sync_cursor, status, institution_name')
       .eq('user_id', user.id)
       .neq('status', 'disabled');
     if (onlyConnectionId) q = q.eq('id', onlyConnectionId);
@@ -87,8 +88,22 @@ serve(async (req) => {
     const perConnection: Record<string, unknown>[] = [];
 
     for (const conn of conns) {
-      if (!conn.access_token) {
-        perConnection.push({ id: conn.id, error: 'no access_token' });
+      if (!conn.access_token_ciphertext) {
+        perConnection.push({ id: conn.id, error: 'no access_token (re-link required)' });
+        continue;
+      }
+      // Decrypt once per connection; the plaintext stays in this loop's
+      // closure and is never written to logs or back to the DB.
+      let accessToken: string;
+      try {
+        accessToken = await decryptToken(conn.access_token_ciphertext);
+      } catch (e) {
+        perConnection.push({ id: conn.id, error: `token decrypt failed: ${(e as Error).message}` });
+        // Flip status so the UI shows a "re-link" prompt.
+        await admin.from('bank_connections').update({
+          status: 'error',
+          last_error: 'Token decrypt failed — re-link the bank',
+        }).eq('id', conn.id);
         continue;
       }
 
@@ -102,7 +117,7 @@ serve(async (req) => {
 
       while (pages < MAX_PAGES_PER_CONNECTION) {
         try {
-          const resp = await syncTransactions(cfg, conn.access_token, cursor);
+          const resp = await syncTransactions(cfg, accessToken, cursor);
           added.push(...resp.added);
           modified.push(...resp.modified);
           removed.push(...resp.removed);
@@ -188,7 +203,7 @@ serve(async (req) => {
 
       // Opportunistic balance refresh.
       try {
-        const accs = await getAccounts(cfg, conn.access_token);
+        const accs = await getAccounts(cfg, accessToken);
         for (const a of accs.accounts) {
           await admin.from('financial_accounts').update({
             current_balance: a.balances.current ?? a.balances.available ?? 0,

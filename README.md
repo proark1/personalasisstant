@@ -120,6 +120,7 @@ Supabase Edge Functions require these secrets (set via Supabase Dashboard):
 | `PLAID_CLIENT_ID` | Financial OS — bank linking + transaction sync |
 | `PLAID_SECRET` | Plaid secret matching `PLAID_ENV` (sandbox/development/production) |
 | `PLAID_ENV` | `sandbox` (default), `development`, or `production` |
+| `BANK_TOKEN_SECRET` | 64-hex-char (32-byte) AES-GCM key for encrypting bank `access_token`s at rest. Generate with `openssl rand -hex 32` |
 
 ## Architecture
 
