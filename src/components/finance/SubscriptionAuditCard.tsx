@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, AlertTriangle, ChevronRight } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, ChevronRight, Mail, Loader2 } from 'lucide-react';
 import type { SubscriptionAuditRow } from '@/hooks/useFinanceSummary';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 // Closes the loop on detect-recurring-payments: now we cross-reference
 // every active contract with the actual transaction history and flag:
@@ -75,6 +78,7 @@ function flagFor(r: SubscriptionAuditRow): AuditFlag {
 }
 
 function AuditRow({ row }: { row: SubscriptionAuditRow }) {
+  const [busy, setBusy] = useState(false);
   const flag = flagFor(row);
   const flagMeta: Record<AuditFlag, { label: string; tone: string }> = {
     ghost:    { label: 'GHOST',    tone: 'bg-destructive/15 text-destructive' },
@@ -82,6 +86,23 @@ function AuditRow({ row }: { row: SubscriptionAuditRow }) {
     unmatched:{ label: 'NO MATCH', tone: 'bg-muted text-muted-foreground' },
   };
   const m = flagMeta[flag];
+  const onCancelDraft = async () => {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+        body: { contract_id: row.contract_id, tone: 'formal', language: 'en' },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const n = (data as any)?.drafts_count ?? 0;
+      toast.success(`Drafted ${n} version${n === 1 ? '' : 's'} · follow-up task added`);
+    } catch (e) {
+      toast.error(`Failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="rounded-md border border-border bg-card/40 p-2.5">
       <div className="flex items-center justify-between gap-2">
@@ -115,6 +136,17 @@ function AuditRow({ row }: { row: SubscriptionAuditRow }) {
             )}
           </div>
         </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-[11px] gap-1 shrink-0"
+          onClick={onCancelDraft}
+          disabled={busy}
+          title="Draft a cancellation email + create a follow-up task"
+        >
+          {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
+          Cancel
+        </Button>
       </div>
     </div>
   );

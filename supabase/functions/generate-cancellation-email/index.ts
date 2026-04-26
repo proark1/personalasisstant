@@ -22,7 +22,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth gate
+  // Auth gate. Accept either an end-user JWT or a service-role bearer
+  // with x-telegram-user-id (the standard internal-call pattern used by
+  // chat tools and dori-execute-action).
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -30,12 +32,19 @@ serve(async (req) => {
     });
   }
   {
-    const _sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user }, error } = await _sb.auth.getUser();
-    if (error || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const tgUserId = req.headers.get('x-telegram-user-id');
+    if (serviceKey && token === serviceKey && tgUserId) {
+      // Trusted internal call — skip JWT verify.
+    } else {
+      const _sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user }, error } = await _sb.auth.getUser();
+      if (error || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
   }
 

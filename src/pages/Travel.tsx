@@ -6,7 +6,7 @@ import { TripCard } from '@/components/travel/TripCard';
 
 export default function TravelPage() {
   const navigate = useNavigate();
-  const { data, loading, busyTripId, refresh, refreshWeather, generatePacking, togglePackedItem } = useTripOverview();
+  const { data, loading, busyTripId, refresh, refreshWeather, generatePacking, togglePackedItem, prepTrip } = useTripOverview();
 
   const trips = data?.trips ?? [];
   // In-progress trips (started but not yet ended) belong with upcoming
@@ -62,6 +62,7 @@ export default function TravelPage() {
                     onRefreshWeather={() => refreshWeather(trip)}
                     onGeneratePacking={(opts) => generatePacking(trip.trip_id, opts)}
                     onTogglePackedItem={togglePackedItem}
+                    onPrepTrip={() => prepTrip(trip.trip_id)}
                   />
                 ))}
               </section>
@@ -83,6 +84,7 @@ export default function TravelPage() {
                     onRefreshWeather={() => refreshWeather(trip)}
                     onGeneratePacking={(opts) => generatePacking(trip.trip_id, opts)}
                     onTogglePackedItem={togglePackedItem}
+                    onPrepTrip={() => prepTrip(trip.trip_id)}
                     pastTrip
                   />
                 ))}

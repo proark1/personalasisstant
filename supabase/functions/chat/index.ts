@@ -698,7 +698,7 @@ function extractSearchQuery(msg: string): string {
 
 function stripAllToolTags(text: string): string {
   return text
-    .replace(/<tool>[\s\S]*?<\/(?:task|event|note|criteria|plan|item|contact|contract|project|habit|email|reminder|memory|query|type|property|business|member|filter|draft|meeting|target|packing)>/g, '')
+    .replace(/<tool>[\s\S]*?<\/(?:task|event|note|criteria|plan|item|contact|contract|project|habit|email|reminder|memory|query|type|property|business|member|filter|draft|meeting|target|packing|prep|cancel)>/g, '')
     .replace(/<tool>[\s\S]*?<\/tool>/g, '')
     .replace(/<action>[\s\S]*?<\/action>/g, '')
     .replace(/\n{3,}/g, '\n\n')
@@ -1855,6 +1855,45 @@ async function executeToolsServerSide(
       : { tool: 'generate_packing_list', ok: false, message: `Failed: ${r.error}` });
   }
 
+  // ---------- prep_trip ----------
+  for (const m of text.matchAll(/<tool>prep_trip<\/tool>\s*<prep>(\{[\s\S]*?\})<\/prep>/g)) {
+    const data = safeJSON(m[1]);
+    if (!data?.trip_id) {
+      out.push({ tool: 'prep_trip', ok: false, message: 'trip_id required' });
+      continue;
+    }
+    const r = await invokeInternal('trip-prep', userId, {
+      trip_id: data.trip_id,
+      force: !!data.force,
+    });
+    out.push(r.ok
+      ? { tool: 'prep_trip', ok: true,
+          message: r.body?.skipped
+            ? `🎒 Already prepped`
+            : `🎒 Pack task added${r.body?.packing_kicked_off ? ' + packing list generating' : ''}`,
+          entityId: r.body?.task_id }
+      : { tool: 'prep_trip', ok: false, message: `Failed: ${r.error}` });
+  }
+
+  // ---------- cancel_subscription ----------
+  for (const m of text.matchAll(/<tool>cancel_subscription<\/tool>\s*<cancel>(\{[\s\S]*?\})<\/cancel>/g)) {
+    const data = safeJSON(m[1]);
+    if (!data?.contract_id) {
+      out.push({ tool: 'cancel_subscription', ok: false, message: 'contract_id required' });
+      continue;
+    }
+    const r = await invokeInternal('cancel-subscription', userId, {
+      contract_id: data.contract_id,
+      tone: data.tone ?? 'formal',
+      language: data.language ?? 'en',
+    });
+    out.push(r.ok
+      ? { tool: 'cancel_subscription', ok: true,
+          message: `✉️ Cancellation drafted (${r.body?.drafts_count ?? 0} version${r.body?.drafts_count === 1 ? '' : 's'}) — review in Contracts before sending. Follow-up task added.`,
+          entityId: r.body?.task_id }
+      : { tool: 'cancel_subscription', ok: false, message: `Failed: ${r.error}` });
+  }
+
   return out;
 }
 
@@ -2669,6 +2708,14 @@ Format: <tool>forget_memory</tool><target>{"target_kind":"kg_entity|semantic|epi
 ## TOOL: generate_packing_list (AI packing list for a trip)
 Use when the user asks to "pack for X", "what should I bring to Y", "plan my packing". Requires a trip id (look it up via the trips table first if needed).
 Format: <tool>generate_packing_list</tool><packing>{"trip_id":"uuid","replace":false,"extra_context":"climbing trip, expect rain"}</packing>
+
+## TOOL: prep_trip (auto-create the "Pack for X" task + kick off packing list)
+Use when the user adds a trip and says "get me ready" / "prep my trip" / "remind me to pack".
+Format: <tool>prep_trip</tool><prep>{"trip_id":"uuid","force":false}</prep>
+
+## TOOL: cancel_subscription (draft email + create follow-up task)
+Use when the user says "cancel X subscription", "stop paying for Y". Drafts the email, saves it to the contract, and creates a follow-up task with a deadline derived from the renewal date.
+Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"formal","language":"en"}</cancel>
 
 `;
     // Resolve the user's timezone so every timestamp Dori shows (or feeds

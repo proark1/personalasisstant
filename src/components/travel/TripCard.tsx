@@ -21,12 +21,13 @@ interface TripCardProps {
   onRefreshWeather: () => void;
   onGeneratePacking: (opts?: { replace?: boolean; extraContext?: string }) => void;
   onTogglePackedItem: (list: PackingList, idx: number) => void;
+  onPrepTrip?: () => void;
   pastTrip?: boolean;
 }
 
 export function TripCard({
   trip, segments, bookings, packingLists, busy,
-  onRefreshWeather, onGeneratePacking, onTogglePackedItem, pastTrip,
+  onRefreshWeather, onGeneratePacking, onTogglePackedItem, onPrepTrip, pastTrip,
 }: TripCardProps) {
   const [stepsOpen, setStepsOpen] = useState(false);
   const aiList = packingLists.find((p) => p.source === 'ai_generated');
@@ -97,23 +98,38 @@ export function TripCard({
 
       {/* Packing */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             Packing · {trip.packing_packed_items}/{trip.packing_total_items}
             {trip.packing_pct != null && <span className="ml-1">({trip.packing_pct}%)</span>}
           </p>
-          {!pastTrip && (
-            <Button
-              size="sm"
-              variant={aiList ? 'ghost' : 'default'}
-              className="h-6 text-[10px] gap-1"
-              onClick={() => onGeneratePacking({ replace: !!aiList })}
-              disabled={busy}
-            >
-              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-              {aiList ? 'Regenerate' : 'Generate with AI'}
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {!pastTrip && onPrepTrip && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-[10px] gap-1"
+                onClick={onPrepTrip}
+                disabled={busy}
+                title="Auto-create the 'Pack for X' task and (when imminent) generate the packing list"
+              >
+                {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                Auto-prep
+              </Button>
+            )}
+            {!pastTrip && (
+              <Button
+                size="sm"
+                variant={aiList ? 'ghost' : 'default'}
+                className="h-6 text-[10px] gap-1"
+                onClick={() => onGeneratePacking({ replace: !!aiList })}
+                disabled={busy}
+              >
+                {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                {aiList ? 'Regenerate list' : 'Generate list'}
+              </Button>
+            )}
+          </div>
         </div>
         {trip.packing_total_items > 0 && (
           <div className="h-1 w-full rounded bg-muted/40 overflow-hidden">

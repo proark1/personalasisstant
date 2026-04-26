@@ -170,6 +170,31 @@ export function useTripOverview() {
     }
   }, [refresh]);
 
+  const prepTrip = useCallback(async (tripId: string, force = false) => {
+    setBusyTripId(tripId);
+    try {
+      const { data, error } = await supabase.functions.invoke('trip-prep', {
+        body: { trip_id: tripId, force },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const skipped = (data as any)?.skipped;
+      if (skipped) {
+        toast.info('Already prepped — pass force to re-run');
+      } else {
+        const kicked = (data as any)?.packing_kicked_off;
+        toast.success(`🎒 Pack task added${kicked ? ' + packing list generating' : ''}`);
+      }
+      await refresh();
+      return data;
+    } catch (e) {
+      toast.error(`Prep failed: ${(e as Error).message}`);
+      return null;
+    } finally {
+      setBusyTripId(null);
+    }
+  }, [refresh]);
+
   const generatePacking = useCallback(async (
     tripId: string,
     opts?: { replace?: boolean; extraContext?: string },
@@ -224,5 +249,6 @@ export function useTripOverview() {
     refreshWeather,
     generatePacking,
     togglePackedItem,
+    prepTrip,
   };
 }

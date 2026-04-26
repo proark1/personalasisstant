@@ -224,3 +224,9 @@ verify_jwt = true
 
 [functions.apply-schedule]
 verify_jwt = true
+
+[functions.cancel-subscription]
+verify_jwt = true
+
+[functions.trip-prep]
+verify_jwt = true
