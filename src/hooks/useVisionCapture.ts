@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -24,17 +24,63 @@ const MAX_BYTES = 10 * 1024 * 1024;
 //   commit()          — confirms (with optional edits) and creates the
 //                       downstream entity.
 //   discard()         — drops the row; image stays in storage for now.
+//
+// Phase progress: the backend's vision-capture is a single round-trip
+// today (no SSE/NDJSON). We surface elapsed-time-derived phase labels
+// so the UI shows the user where in the pipeline we likely are. Real
+// backend streaming is a follow-up; the pattern below is forward-
+// compatible — when the backend emits phases we'll just replace the
+// timer ticks with stream events.
+const PHASE_TICKS: Array<{ atMs: number; phase: string; description: string }> = [
+  { atMs: 0,     phase: 'uploading',  description: 'Uploading image…' },
+  { atMs: 1500,  phase: 'analysing',  description: 'Analysing with AI…' },
+  { atMs: 8000,  phase: 'extracting', description: 'Extracting fields…' },
+  { atMs: 18000, phase: 'finishing',  description: 'Almost done…' },
+];
+
 export function useVisionCapture() {
   const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<VisionExtractResult | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [phase, setPhase] = useState<{ key: string; label: string; elapsed_ms: number } | null>(null);
+  const phaseTickerRef = useRef<number | null>(null);
+  const phaseStartRef = useRef<number>(0);
 
   const reset = useCallback(() => {
     setResult(null);
+    setPhase(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
   }, [previewUrl]);
+
+  // Walk PHASE_TICKS in lockstep with elapsed time. Stop when busy=false.
+  const startPhaseTicker = useCallback(() => {
+    phaseStartRef.current = Date.now();
+    setPhase({ key: PHASE_TICKS[0].phase, label: PHASE_TICKS[0].description, elapsed_ms: 0 });
+    if (phaseTickerRef.current) window.clearInterval(phaseTickerRef.current);
+    phaseTickerRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - phaseStartRef.current;
+      let next = PHASE_TICKS[0];
+      for (const t of PHASE_TICKS) {
+        if (elapsed >= t.atMs) next = t;
+      }
+      setPhase({ key: next.phase, label: next.description, elapsed_ms: elapsed });
+    }, 500);
+  }, []);
+
+  const stopPhaseTicker = useCallback(() => {
+    if (phaseTickerRef.current) {
+      window.clearInterval(phaseTickerRef.current);
+      phaseTickerRef.current = null;
+    }
+    setPhase(null);
+  }, []);
+
+  // Cleanup on unmount.
+  useEffect(() => () => {
+    if (phaseTickerRef.current) window.clearInterval(phaseTickerRef.current);
+  }, []);
 
   const captureFromFile = useCallback(async (
     file: File,
@@ -53,6 +99,7 @@ export function useVisionCapture() {
     setResult(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
+    startPhaseTicker();
     try {
       // 1. Upload to chat-attachments under <user>/vision/
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -87,8 +134,9 @@ export function useVisionCapture() {
       return null;
     } finally {
       setBusy(false);
+      stopPhaseTicker();
     }
-  }, [user?.id, previewUrl]);
+  }, [user?.id, previewUrl, startPhaseTicker, stopPhaseTicker]);
 
   const commit = useCallback(async (
     opts?: { kind?: VisionKind; payload?: Record<string, unknown> },
@@ -134,6 +182,7 @@ export function useVisionCapture() {
     busy,
     result,
     previewUrl,
+    phase,
     captureFromFile,
     commit,
     discard,

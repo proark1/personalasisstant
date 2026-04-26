@@ -129,12 +129,18 @@ export function VisionCaptureButton() {
                   disabled={vision.busy}
                 >
                   {vision.busy
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Analysing…</>
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> {vision.phase?.label ?? 'Analysing…'}</>
                     : <><Camera className="w-4 h-4" /> Take or choose a photo</>}
                 </Button>
-                <p className="text-[10px] text-muted-foreground text-center">
-                  Up to 10 MB. JPEG/PNG/WEBP work best.
-                </p>
+                {vision.busy && vision.phase ? (
+                  <p className="text-[10px] text-muted-foreground text-center tabular-nums">
+                    {Math.floor(vision.phase.elapsed_ms / 1000)}s elapsed · phase: {vision.phase.key}
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Up to 10 MB. JPEG/PNG/WEBP work best.
+                  </p>
+                )}
               </div>
             )}
 
