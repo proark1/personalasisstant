@@ -11,6 +11,7 @@ const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY')!;
 
 const COMMANDS = [
   { command: 'me',         description: '🌤 Your day — digest with overdue, today, tomorrow' },
+  { command: 'plans',      description: '📋 Active plans (Run next / Skip / Abort inline)' },
   { command: 'today',      description: "Today's tappable agenda" },
   { command: 'tomorrow',   description: "Tomorrow's tappable agenda" },
   { command: 'week',       description: 'Next 7 days overview' },

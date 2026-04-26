@@ -551,6 +551,107 @@ async function handleContractCallback(
   }
 }
 
+// Plan inline-keyboard handler. Mirrors the per-step controls the
+// AssistantHubSheet exposes in the web app: Run next / Skip / Abort.
+// Delegates to dori-plan-execute for the heavy lifting; we just
+// ack the callback and edit the message to reflect the new state.
+async function handlePlanCallback(
+  supabase: any,
+  cb: any,
+  payload: { op: 'run_next' | 'skip' | 'abort'; planId: string },
+  tappingUserId: string | undefined,
+  lovableKey: string,
+  telegramKey: string,
+  supabaseUrl: string,
+  serviceKey: string,
+) {
+  const { data: plan } = await supabase
+    .from('dori_action_plans')
+    .select('id, user_id, title, status, completed_step_count, step_count')
+    .eq('id', payload.planId)
+    .maybeSingle();
+  if (!plan) {
+    await tgAnswerCallback(cb.id, 'Plan not found.', lovableKey, telegramKey);
+    if (cb.message?.message_id) {
+      await tgEditReplyMarkup(cb.message.chat.id, cb.message.message_id, null, lovableKey, telegramKey);
+    }
+    return;
+  }
+  if (tappingUserId && tappingUserId !== plan.user_id) {
+    await tgAnswerCallback(cb.id, 'Only the owner can drive this plan.', lovableKey, telegramKey);
+    return;
+  }
+
+  // Map the inline op to the dori-plan-execute action.
+  const action = payload.op === 'run_next'
+    ? 'execute_next'
+    : payload.op === 'skip'
+    ? 'skip'
+    : 'abort';
+
+  let resultText = '';
+  let updateOk = false;
+  try {
+    const r = await fetch(`${supabaseUrl}/functions/v1/dori-plan-execute`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        'x-telegram-user-id': plan.user_id,
+      },
+      body: JSON.stringify({ plan_id: plan.id, action }),
+      signal: AbortSignal.timeout(55_000),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data?.error) {
+      resultText = `⚠️ ${data?.error || `HTTP ${r.status}`}`;
+    } else {
+      updateOk = true;
+      if (action === 'execute_next') {
+        const summary = data?.result_summary ? ` — ${String(data.result_summary).slice(0, 200)}` : '';
+        resultText = data?.ok
+          ? `▶️ Step done${summary}\n${data.completed_step_count ?? plan.completed_step_count}/${data.total_steps ?? plan.step_count} complete`
+          : `⚠️ Step failed: ${data?.error ?? 'unknown'}`;
+      } else if (action === 'skip') {
+        resultText = `⏭ Step skipped`;
+      } else {
+        resultText = `⛔ Plan aborted`;
+      }
+    }
+  } catch (e) {
+    resultText = `⚠️ ${(e as Error).message}`;
+  }
+
+  await tgAnswerCallback(cb.id, updateOk ? '' : 'Failed', lovableKey, telegramKey);
+  if (cb.message?.message_id) {
+    const header = `📋 <b>${escape(plan.title)}</b>`;
+    await tgEditMessageText(
+      cb.message.chat.id,
+      cb.message.message_id,
+      `${header}\n\n${resultText}`,
+      lovableKey, telegramKey,
+    );
+    // Re-attach the keyboard unless we hit a terminal state.
+    if (action === 'abort') {
+      await tgEditReplyMarkup(cb.message.chat.id, cb.message.message_id, null, lovableKey, telegramKey);
+    } else {
+      try {
+        const { buildPlanRowKeyboard } = await import('../_shared/telegram-inline.ts');
+        await tgEditReplyMarkup(
+          cb.message.chat.id,
+          cb.message.message_id,
+          buildPlanRowKeyboard(plan.id),
+          lovableKey, telegramKey,
+        );
+      } catch { /* ignore */ }
+    }
+  }
+}
+
+function escape(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -669,6 +770,8 @@ Deno.serve(async (req) => {
             await handleEventCallback(supabase, cb, payload, tappingUserId, LOVABLE_API_KEY, TELEGRAM_API_KEY);
           } else if (payload.kind === 'contract') {
             await handleContractCallback(supabase, cb, payload, tappingUserId, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          } else if (payload.kind === 'plan') {
+            await handlePlanCallback(supabase, cb, payload, tappingUserId, LOVABLE_API_KEY, TELEGRAM_API_KEY, supabaseUrl, serviceKey);
           } else if (payload.kind === 'dismiss') {
             await tgAnswerCallback(cb.id, '', LOVABLE_API_KEY, TELEGRAM_API_KEY);
             if (cbMessageId) await tgEditReplyMarkup(cbChatId, cbMessageId, null, LOVABLE_API_KEY, TELEGRAM_API_KEY);

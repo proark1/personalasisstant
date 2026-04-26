@@ -31,6 +31,7 @@ export type CallbackData =
   | { kind: 'shop'; op: 'check' | 'uncheck' | 'remove'; itemId: string }
   | { kind: 'contract'; op: 'snooze7' | 'handled' | 'details'; contractId: string }
   | { kind: 'page'; ns: string; cursor: string }
+  | { kind: 'plan'; op: 'run_next' | 'skip' | 'abort'; planId: string }
   | { kind: 'dismiss' }
   | { kind: 'unknown'; raw: string };
 
@@ -44,6 +45,7 @@ export function encodeCallback(data: CallbackData): string {
     case 'shop':     return `dori_shop:${data.op}:${data.itemId}`;
     case 'contract': return `dori_contract:${data.op}:${data.contractId}`;
     case 'page':     return `dori_page:${data.ns}:${data.cursor}`;
+    case 'plan':     return `dori_plan:${data.op}:${data.planId}`;
     case 'dismiss':  return 'dori_dismiss';
     default:         return 'dori_dismiss';
   }
@@ -75,6 +77,10 @@ export function decodeCallback(raw: string): CallbackData {
     case 'dori_page': {
       const [ns, ...cur] = rest;
       return { kind: 'page', ns, cursor: cur.join(':') };
+    }
+    case 'dori_plan': {
+      const [op, ...id] = rest;
+      return { kind: 'plan', op: op as any, planId: id.join(':') };
     }
     case 'dori_dismiss':  return { kind: 'dismiss' };
     default:              return { kind: 'unknown', raw };
@@ -123,6 +129,19 @@ export function buildContractRowKeyboard(contractId: string): Keyboard {
       { text: '✅ Handled',    callback_data: encodeCallback({ kind: 'contract', op: 'handled', contractId }) },
       { text: '⏰ Snooze 7d',  callback_data: encodeCallback({ kind: 'contract', op: 'snooze7', contractId }) },
       { text: '📝 Details',    callback_data: encodeCallback({ kind: 'contract', op: 'details', contractId }) },
+    ]],
+  };
+}
+
+// Plan-step actions: gives the user run-next / skip / abort inline
+// on each "Plans" message, so multi-step flows can be approved
+// from Telegram without round-tripping to the web app.
+export function buildPlanRowKeyboard(planId: string): Keyboard {
+  return {
+    inline_keyboard: [[
+      { text: '▶️ Run next', callback_data: encodeCallback({ kind: 'plan', op: 'run_next', planId }) },
+      { text: '⏭ Skip',     callback_data: encodeCallback({ kind: 'plan', op: 'skip', planId }) },
+      { text: '⛔ Abort',    callback_data: encodeCallback({ kind: 'plan', op: 'abort', planId }) },
     ]],
   };
 }

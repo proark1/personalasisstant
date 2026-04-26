@@ -33,7 +33,7 @@ const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-async function tgSend(chatId: number, text: string) {
+async function tgSend(chatId: number, text: string, replyMarkup?: unknown) {
   try {
     await fetch(`${GATEWAY_URL}/sendMessage`, {
       method: 'POST',
@@ -42,11 +42,61 @@ async function tgSend(chatId: number, text: string) {
         'X-Connection-Api-Key': TELEGRAM_API_KEY,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+      }),
     });
   } catch (e) {
     console.error('tgSend failed', e);
   }
+}
+
+// /plans — list active plans for the user with inline keyboard
+// (Run next / Skip / Abort) per plan. The callback handler in
+// telegram-poll dispatches to dori-plan-execute.
+async function handlePlansCommand(supabase: any, chatId: number, userId: string | null) {
+  if (!userId) {
+    await tgSend(chatId, '📋 Link this chat with /linkme first to see your plans.');
+    return;
+  }
+  const { data: plans, error } = await supabase
+    .from('dori_action_plans')
+    .select('id, title, status, completed_step_count, step_count, current_step_idx, blocks:dori_plan_steps(idx,title,status)')
+    .eq('user_id', userId)
+    .in('status', ['awaiting_confirm', 'running', 'paused'])
+    .order('updated_at', { ascending: false })
+    .limit(5);
+  if (error) {
+    await tgSend(chatId, `⚠️ Couldn't load plans: ${error.message}`);
+    return;
+  }
+  if (!plans || plans.length === 0) {
+    await tgSend(chatId, '📋 No active plans. Ask Dori to plan something multi-step ("plan my Dubai trip", "set up a weekly review") and it'll appear here.');
+    return;
+  }
+  // Build the inline keyboard import once.
+  const { buildPlanRowKeyboard } = await import('../_shared/telegram-inline.ts');
+  for (const p of plans as Array<any>) {
+    const nextStep = Array.isArray(p.blocks)
+      ? p.blocks
+        .filter((s: any) => s.status === 'pending' || s.status === 'awaiting_confirm')
+        .sort((a: any, b: any) => a.idx - b.idx)[0]
+      : null;
+    const text = [
+      `📋 <b>${escapeHtml(p.title)}</b>`,
+      `${p.completed_step_count}/${p.step_count} done · <i>${p.status}</i>`,
+      nextStep ? `\nNext: ${escapeHtml(nextStep.title)}` : '\nNo pending steps.',
+    ].join('\n');
+    await tgSend(chatId, text, buildPlanRowKeyboard(p.id));
+  }
+}
+
+function escapeHtml(s: string): string {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ─── Help / discoverability ──────────────────────────────────────────────
@@ -701,6 +751,12 @@ Deno.serve(async (req) => {
   // ─── /me — personal digest, no AI round-trip ─────────────
   if (lower === '/me') {
     await tgSend(chat_id, await handleMeDigest(supabase, userForChat, workspace_id || null, userTimezone));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // ─── /plans — list active plans + per-plan inline keyboard ─
+  if (lower === '/plans') {
+    await handlePlansCommand(supabase, chat_id, userForChat);
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
 
