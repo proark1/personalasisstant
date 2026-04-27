@@ -823,34 +823,31 @@ Deno.serve(async (req) => {
       }
 
       // ---------- PHOTO / DOCUMENT → download + forward to chat() as a multimodal turn ----------
-      // The user sent a picture (receipt / business card / bill / prescription / whiteboard)
-      // or a file. We download it, encode as a base64 data URL, and hand it off to the
-      // normal chat pipeline via the existing imageUrl field so the AI extracts
-      // structured content and runs the appropriate tools (subject to the user's
-      // confirmation settings). Group chats use the router path which doesn't
-      // accept imageUrl today, so for simplicity photo intake is private-chat only.
+      // The user sent a picture (receipt / business card / bill / prescription / whiteboard /
+      // calendar screenshot) or a file. We download it, encode as a base64 data URL, and hand
+      // it off to the normal chat pipeline via the existing imageUrl field so the AI extracts
+      // structured content and runs the appropriate tools (subject to the user's confirmation
+      // settings). Photo intake works in BOTH private chats and linked family/assistant groups —
+      // for groups we bypass the text-only router and call Dori directly with the image.
       let photoDataUrl: string | null = null;
       let photoCaption: string | null = null;
-      const isGroupChat = chatType === 'group' || chatType === 'supergroup';
-      if (!isGroupChat) {
-        if (msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0) {
-          // photo is an array of PhotoSize; pick the highest-resolution option.
-          // Sorting by pixel area avoids mixing units if file_size is missing.
-          const biggest = [...msg.photo].sort(
-            (a: any, b: any) => ((b.width || 0) * (b.height || 0)) - ((a.width || 0) * (a.height || 0)),
-          )[0];
-          photoDataUrl = await downloadTelegramFile(biggest.file_id, 'image/jpeg', LOVABLE_API_KEY, TELEGRAM_API_KEY);
-          photoCaption = msg.caption || null;
-        } else if (msg.document && typeof msg.document.mime_type === 'string' && msg.document.mime_type.startsWith('image/')) {
-          photoDataUrl = await downloadTelegramFile(msg.document.file_id, msg.document.mime_type, LOVABLE_API_KEY, TELEGRAM_API_KEY);
-          photoCaption = msg.caption || null;
-        }
-        if (photoDataUrl) {
-          // Fabricate the text so the rest of the pipeline treats it as a normal turn.
-          msg.text = photoCaption && photoCaption.trim()
-            ? photoCaption.trim()
-            : 'Please look at this picture and take the appropriate action (add contact / task / expense / reminder / note as makes sense).';
-        }
+      if (msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0) {
+        // photo is an array of PhotoSize; pick the highest-resolution option.
+        // Sorting by pixel area avoids mixing units if file_size is missing.
+        const biggest = [...msg.photo].sort(
+          (a: any, b: any) => ((b.width || 0) * (b.height || 0)) - ((a.width || 0) * (a.height || 0)),
+        )[0];
+        photoDataUrl = await downloadTelegramFile(biggest.file_id, 'image/jpeg', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        photoCaption = msg.caption || null;
+      } else if (msg.document && typeof msg.document.mime_type === 'string' && msg.document.mime_type.startsWith('image/')) {
+        photoDataUrl = await downloadTelegramFile(msg.document.file_id, msg.document.mime_type, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+        photoCaption = msg.caption || null;
+      }
+      if (photoDataUrl) {
+        // Fabricate the text so the rest of the pipeline treats it as a normal turn.
+        msg.text = photoCaption && photoCaption.trim()
+          ? photoCaption.trim()
+          : 'Please look at this picture and take the appropriate action — if it is a calendar screenshot, add the events to my calendar; otherwise add contact / task / expense / reminder / note as makes sense.';
       }
 
       if (!msg.text && !photoDataUrl) continue;
@@ -1052,7 +1049,11 @@ Deno.serve(async (req) => {
         // Voice/audio messages → always respond (user clearly meant to interact)
         const isVoice = !!(msg.voice || msg.audio);
 
-        const shouldRespond = hasMention || addressesDori || repliedToIsBot || looksActionable || isCommand || isVoice;
+        // Photos/images posted in linked groups should ALWAYS be processed —
+        // family/assistant typically share receipts, calendar screenshots,
+        // school notices, prescriptions, etc. without explicitly addressing Dori.
+        const isPhoto = !!photoDataUrl;
+        const shouldRespond = hasMention || addressesDori || repliedToIsBot || looksActionable || isCommand || isVoice || isPhoto;
 
         if (!shouldRespond) {
           await supabase.from('telegram_messages').upsert({
@@ -1069,6 +1070,49 @@ Deno.serve(async (req) => {
           .trim() || text;
 
         tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
+
+        // ── PHOTO in group → bypass text-only router and call Dori directly with imageUrl.
+        // Resolve the sender's app user_id (via telegram_user_map) so the action is
+        // attributed correctly; fall back to the group owner if the sender hasn't
+        // personally linked their Telegram account yet.
+        if (photoDataUrl) {
+          let actingUserId: string | null = null;
+          if (fromId) {
+            const { data: userMap } = await supabase
+              .from('telegram_user_map')
+              .select('user_id')
+              .eq('telegram_user_id', fromId)
+              .maybeSingle();
+            actingUserId = userMap?.user_id ?? null;
+          }
+          if (!actingUserId) actingUserId = glink?.owner_user_id ?? null;
+          if (!actingUserId) {
+            await sendMessage(chatId, "📸 I can read photos here, but this group isn't linked to a personal account yet. Run /linkfamily or have a member link via Settings → Telegram.", LOVABLE_API_KEY, TELEGRAM_API_KEY);
+            await supabase.from('telegram_messages').upsert({
+              update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,
+            }, { onConflict: 'update_id' });
+            processed++;
+            continue;
+          }
+          await sendMessage(chatId, '🔍 Reading the picture…', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          const dori = await callDori(
+            actingUserId,
+            cleanText,
+            chatId,
+            supabaseUrl,
+            serviceKey,
+            photoDataUrl,
+            undefined,
+            wsLink?.workspace_id || null,
+          );
+          const replyText = dori.reply || '✅ Got it.';
+          await sendMessage(chatId, replyText, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          await supabase.from('telegram_messages').upsert({
+            update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,
+          }, { onConflict: 'update_id' });
+          processed++;
+          continue;
+        }
 
         try {
           await fetch(`${supabaseUrl}/functions/v1/telegram-router`, {
