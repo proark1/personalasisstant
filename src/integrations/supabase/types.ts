@@ -1548,6 +1548,36 @@ export type Database = {
         }
         Relationships: []
       }
+      dori_undo_log: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          payload: Json
+          undone: boolean
+          undone_at: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          undone?: boolean
+          undone_at?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          undone?: boolean
+          undone_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_classifications: {
         Row: {
           applied_at: string | null
@@ -1710,6 +1740,7 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           attendees?: string[] | null
@@ -1734,6 +1765,7 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           attendees?: string[] | null
@@ -1758,6 +1790,7 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -1765,6 +1798,13 @@ export type Database = {
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "external_calendar_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -4188,6 +4228,63 @@ export type Database = {
           },
         ]
       }
+      islamic_notification_settings: {
+        Row: {
+          created_at: string
+          daily_hadith_enabled: boolean
+          daily_hadith_time: string
+          events_enabled: boolean
+          events_hours_before: number
+          events_send_time: string
+          hadith_source_preference: string
+          id: string
+          notification_language: string
+          prayer_reminder_minutes_before: number
+          prayer_reminders_enabled: boolean
+          prayer_reminders_for_all_five: boolean
+          prayer_reminders_selected: string[]
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_hadith_enabled?: boolean
+          daily_hadith_time?: string
+          events_enabled?: boolean
+          events_hours_before?: number
+          events_send_time?: string
+          hadith_source_preference?: string
+          id?: string
+          notification_language?: string
+          prayer_reminder_minutes_before?: number
+          prayer_reminders_enabled?: boolean
+          prayer_reminders_for_all_five?: boolean
+          prayer_reminders_selected?: string[]
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_hadith_enabled?: boolean
+          daily_hadith_time?: string
+          events_enabled?: boolean
+          events_hours_before?: number
+          events_send_time?: string
+          hadith_source_preference?: string
+          id?: string
+          notification_language?: string
+          prayer_reminder_minutes_before?: number
+          prayer_reminders_enabled?: boolean
+          prayer_reminders_for_all_five?: boolean
+          prayer_reminders_selected?: string[]
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           content: string
@@ -4998,6 +5095,7 @@ export type Database = {
           trashed_at: string | null
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           content?: string
@@ -5013,6 +5111,7 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           content?: string
@@ -5028,8 +5127,17 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_preferences: {
         Row: {
@@ -5573,6 +5681,7 @@ export type Database = {
           meeting_followup_enabled: boolean | null
           meeting_prep_enabled: boolean | null
           morning_briefing_time: string | null
+          onboarding_checklist_dismissed: boolean
           prayer_reminder_minutes: number
           prayer_reminders_enabled: boolean
           prefer_voice_replies: boolean | null
@@ -5620,6 +5729,7 @@ export type Database = {
           meeting_followup_enabled?: boolean | null
           meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
+          onboarding_checklist_dismissed?: boolean
           prayer_reminder_minutes?: number
           prayer_reminders_enabled?: boolean
           prefer_voice_replies?: boolean | null
@@ -5667,6 +5777,7 @@ export type Database = {
           meeting_followup_enabled?: boolean | null
           meeting_prep_enabled?: boolean | null
           morning_briefing_time?: string | null
+          onboarding_checklist_dismissed?: boolean
           prayer_reminder_minutes?: number
           prayer_reminders_enabled?: boolean
           prefer_voice_replies?: boolean | null
@@ -5700,6 +5811,7 @@ export type Database = {
           id: string
           interests: string[] | null
           last_session_at: string | null
+          locale: string | null
           location_city: string | null
           location_country: string | null
           onboarding_completed: boolean | null
@@ -5724,6 +5836,7 @@ export type Database = {
           id?: string
           interests?: string[] | null
           last_session_at?: string | null
+          locale?: string | null
           location_city?: string | null
           location_country?: string | null
           onboarding_completed?: boolean | null
@@ -5748,6 +5861,7 @@ export type Database = {
           id?: string
           interests?: string[] | null
           last_session_at?: string | null
+          locale?: string | null
           location_city?: string | null
           location_country?: string | null
           onboarding_completed?: boolean | null
@@ -5772,6 +5886,7 @@ export type Database = {
           name: string
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           color?: string
@@ -5782,6 +5897,7 @@ export type Database = {
           name: string
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           color?: string
@@ -5792,8 +5908,17 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       properties: {
         Row: {
@@ -7116,6 +7241,41 @@ export type Database = {
         }
         Relationships: []
       }
+      task_comments: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          source: string
+          task_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          source?: string
+          task_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          source?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_tags: {
         Row: {
           created_at: string
@@ -7220,6 +7380,7 @@ export type Database = {
           trashed_at: string | null
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           attachments?: Json | null
@@ -7249,6 +7410,7 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           attachments?: Json | null
@@ -7278,6 +7440,7 @@ export type Database = {
           trashed_at?: string | null
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -7306,6 +7469,13 @@ export type Database = {
             columns: ["secondary_responsible_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -7882,6 +8052,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_location_settings: {
+        Row: {
+          city: string
+          country: string
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          prayer_calculation_method: number
+          show_weather: boolean
+          temperature_unit: string
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city?: string
+          country?: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          prayer_calculation_method?: number
+          show_weather?: boolean
+          temperature_unit?: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string
+          country?: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          prayer_calculation_method?: number
+          show_weather?: boolean
+          temperature_unit?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_notifications: {
         Row: {
@@ -8465,6 +8680,121 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+          revoked_at: string | null
+          role: string
+          uses: number
+          workspace_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          revoked_at?: string | null
+          role?: string
+          uses?: number
+          workspace_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          revoked_at?: string | null
+          role?: string
+          uses?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_invite_codes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_members: {
+        Row: {
+          display_name: string | null
+          joined_at: string
+          role: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          display_name?: string | null
+          joined_at?: string
+          role?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          display_name?: string | null
+          joined_at?: string
+          role?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspaces: {
+        Row: {
+          archived: boolean
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          owner_id: string
+          slug: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -8501,6 +8831,14 @@ export type Database = {
       }
       is_group_member: {
         Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_workspace_admin: {
+        Args: { _user_id: string; _workspace_id: string }
+        Returns: boolean
+      }
+      is_workspace_member: {
+        Args: { _user_id: string; _workspace_id: string }
         Returns: boolean
       }
     }
