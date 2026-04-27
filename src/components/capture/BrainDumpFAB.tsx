@@ -7,6 +7,8 @@ import { Mic, X, Send, Inbox, Brain, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBrainDump } from '@/hooks/useBrainDump';
 import { BrainDumpInbox } from './BrainDumpInbox';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface BrainDumpFABProps {
   className?: string;
@@ -18,7 +20,11 @@ export function BrainDumpFAB({ className, collapsed = false }: BrainDumpFABProps
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const isMountedRef = useRef(true);
   
   const { addDump, unprocessedCount, isProcessing, fetchDumps } = useBrainDump();
 
@@ -51,11 +57,95 @@ export function BrainDumpFAB({ className, collapsed = false }: BrainDumpFABProps
     }
   };
 
-  const toggleRecording = () => {
-    // Voice recording would use the existing voice-to-text functionality
-    setIsRecording(!isRecording);
-    // TODO: Integrate with useVoiceRecorder hook
+  const startRecording = async () => {
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // iOS Safari doesn't support audio/webm in MediaRecorder; fall back to
+      // audio/mp4 (which the platform accepts) so iPhone users aren't locked
+      // out of voice capture.
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const recorderStream = stream;
+      audioChunksRef.current = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      mediaRecorder.onstop = async () => {
+        recorderStream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
+        audioChunksRef.current = [];
+        if (blob.size === 0) return;
+        await transcribeAndAppend(blob);
+      };
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start(100);
+      setIsRecording(true);
+    } catch (err) {
+      // If MediaRecorder construction fails AFTER getUserMedia succeeded, the
+      // mic stream stays open until the page is reloaded. Stop it explicitly.
+      stream?.getTracks().forEach((t) => t.stop());
+      console.error('mic error', err);
+      toast.error('Microphone access denied or unsupported');
+    }
   };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
+  };
+
+  const transcribeAndAppend = async (blob: Blob) => {
+    if (isMountedRef.current) setIsTranscribing(true);
+    try {
+      // voice-to-text expects a base64-encoded audio payload (see NotesPanel
+      // for the same pattern). Decoded server-side with the chunk-aware
+      // helper to avoid the 32 KB atob() limit on long clips.
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1] ?? '');
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const { data, error } = await supabase.functions.invoke('voice-to-text', {
+        body: { audio: base64Audio },
+      });
+      // The recorder's onstop fires from the unmount cleanup too, so a
+      // transcription request can resolve after this component is gone.
+      // Guard every state update against that to silence the React warning
+      // and avoid wasted re-renders.
+      if (!isMountedRef.current) return;
+      if (error) throw error;
+      if (data?.text) {
+        setText((prev) => (prev ? `${prev} ${data.text}` : data.text));
+      } else {
+        toast.error('No speech detected');
+      }
+    } catch (err) {
+      console.error('transcribe error', err);
+      if (isMountedRef.current) toast.error('Could not transcribe audio');
+    } finally {
+      if (isMountedRef.current) setIsTranscribing(false);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) stopRecording();
+    else startRecording();
+  };
+
+  useEffect(() => {
+    return () => {
+      // Stop the recorder if the component unmounts mid-recording so we don't
+      // leak a live MediaStream + microphone access. Mark unmounted so any
+      // in-flight transcription doesn't try to setState after teardown.
+      isMountedRef.current = false;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   // Check if we're in menu mode (not floating)
   const isMenuMode = className?.includes('static');
@@ -186,8 +276,10 @@ export function BrainDumpFAB({ className, collapsed = false }: BrainDumpFABProps
                   isRecording && "text-destructive animate-pulse"
                 )}
                 onClick={toggleRecording}
+                disabled={isTranscribing}
+                aria-label={isRecording ? 'Stop recording' : 'Start voice capture'}
               >
-                <Mic className="w-4 h-4" />
+                {isTranscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
               </Button>
               
               <Button

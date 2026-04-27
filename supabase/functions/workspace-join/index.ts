@@ -4,7 +4,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('APP_URL') || '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -39,28 +39,36 @@ serve(async (req) => {
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) return json({ ok: false, error: 'Code expired' }, 410);
     if (invite.max_uses !== null && invite.uses >= invite.max_uses) return json({ ok: false, error: 'Code exhausted' }, 410);
 
-    // Already a member? Return success without creating a duplicate.
-    const { data: existing } = await admin.from('workspace_members')
-      .select('workspace_id, role')
-      .eq('workspace_id', invite.workspace_id)
-      .eq('user_id', user.id).maybeSingle();
-    if (!existing) {
-      const { error: mErr } = await admin.from('workspace_members').insert({
+    // Insert idempotently. ON CONFLICT collapses the membership check and the
+    // insert into a single statement so two concurrent join requests can't
+    // both fall through to the insert and have the second one error out.
+    // `inserted` is empty if the row already existed.
+    const { data: inserted, error: mErr } = await admin.from('workspace_members')
+      .upsert({
         workspace_id: invite.workspace_id,
         user_id: user.id,
         role: invite.role,
         invited_by: invite.created_by,
         joined_at: new Date().toISOString(),
-      });
-      if (mErr) return json({ ok: false, error: mErr.message }, 500);
-    }
+      }, { onConflict: 'workspace_id,user_id', ignoreDuplicates: true })
+      .select('workspace_id');
+    if (mErr) return json({ ok: false, error: mErr.message }, 500);
+    const newlyJoined = (inserted ?? []).length > 0;
 
-    // Atomic increment + concurrent-use guard in one round-trip. If the code
-    // got exhausted between our earlier read and now (another joiner won the
-    // race), the RPC returns false and we refuse the join.
-    const { data: claimed } = await admin.rpc('increment_workspace_invite_uses', { p_id: invite.id });
-    if (claimed === false) {
-      return json({ ok: false, error: 'Code exhausted' }, 410);
+    // Only consume an invite use when this call actually added a member;
+    // re-joins shouldn't burn a slot. If the code got exhausted between our
+    // earlier read and now (another joiner won the race), the RPC returns
+    // false — roll back the membership we just created so a single user can't
+    // sneak past max_uses by racing.
+    if (newlyJoined) {
+      const { data: claimed } = await admin.rpc('increment_workspace_invite_uses', { p_id: invite.id });
+      if (claimed === false) {
+        await admin.from('workspace_members')
+          .delete()
+          .eq('workspace_id', invite.workspace_id)
+          .eq('user_id', user.id);
+        return json({ ok: false, error: 'Code exhausted' }, 410);
+      }
     }
 
     // Return the workspace record the caller needs to set active immediately

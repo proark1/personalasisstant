@@ -68,7 +68,10 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
       // Fetch today's checkin for context
       const today = new Date().toISOString().split('T')[0];
       
-      // Race between AI call and 5s timeout
+      // Race between AI call and 5s timeout. Wrap in .catch so a network error
+      // resolves to a synthetic error response instead of leaving the race
+      // with an unhandled rejection (which previously crashed the
+      // `response.error` access below if the timeout had already won).
       const aiPromise = (async () => {
         const { data: checkinData } = await supabase
           .from('daily_checkins')
@@ -90,7 +93,7 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
             checkin: checkinData,
           },
         });
-      })();
+      })().catch((err) => ({ data: null, error: err instanceof Error ? err : new Error(String(err)) }));
       
       const timeoutPromise = new Promise<'timeout'>((resolve) =>
         setTimeout(() => resolve('timeout'), 5000)

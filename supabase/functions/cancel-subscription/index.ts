@@ -21,7 +21,7 @@ import { adminClient, resolveUserId } from '../_shared/auth.ts';
 import { recordUndo } from '../_shared/dori-undo.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('APP_URL') || '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-telegram-user-id',
 };
 

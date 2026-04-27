@@ -1,7 +1,7 @@
 // One-shot registration of Dori's slash commands with Telegram (BotFather menu).
 // Call this once after deploy to populate the autocomplete menu users see when typing "/".
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('APP_URL') || '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 

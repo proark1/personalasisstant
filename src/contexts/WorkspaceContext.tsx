@@ -38,6 +38,7 @@ export interface WorkspaceMember {
 interface WorkspaceContextValue {
   workspaces: Workspace[];
   loading: boolean;
+  error: string | null;                 // last fetchWorkspaces failure, if any
   activeWorkspaceId: string | null;     // null == Personal
   activeWorkspace: Workspace | null;
   members: WorkspaceMember[];           // members of the ACTIVE workspace (empty for Personal)
@@ -72,36 +73,43 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<string | null>(() => readStoredActive());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchWorkspaces = useCallback(async () => {
     if (!user) {
       setWorkspaces([]);
+      setError(null);
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase
+    const { data, error: dbError } = await supabase
       .from('workspaces')
       .select('*')
       .eq('archived', false)
       .order('created_at', { ascending: true });
-    if (error) {
-      console.error('fetchWorkspaces failed', error);
-      setWorkspaces([]);
+    if (dbError) {
+      // Keep the previous workspace list visible. Wiping it on a transient
+      // failure was triggering the "fall back to Personal" effect below and
+      // silently demoting users out of workspaces they actually belonged to.
+      console.error('fetchWorkspaces failed', dbError);
+      setError(dbError.message || 'Failed to load workspaces');
     } else {
       setWorkspaces((data || []) as Workspace[]);
+      setError(null);
     }
     setLoading(false);
   }, [user]);
 
   const fetchMembers = useCallback(async (wsId: string | null) => {
     if (!wsId) { setMembers([]); return; }
-    const { data, error } = await supabase
+    const { data, error: dbError } = await supabase
       .from('workspace_members')
       .select('workspace_id, user_id, role, display_name, joined_at')
       .eq('workspace_id', wsId);
-    if (error) {
-      console.error('fetchMembers failed', error);
-      setMembers([]);
+    if (dbError) {
+      // Same reasoning as fetchWorkspaces: don't blow away the cached
+      // member list on a transient failure.
+      console.error('fetchMembers failed', dbError);
     } else {
       setMembers((data || []) as WorkspaceMember[]);
     }
@@ -112,17 +120,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   // If the active id points at a workspace the user can no longer see
   // (removed from the team, archived, deleted) fall back to Personal.
-  // Wait for `loading` so the initial load doesn't race-reset the id, and
-  // don't short-circuit on an empty list — losing your last workspace is
-  // exactly the case this handler exists for.
+  // Wait for `loading` and require a successful fetch (`!error`) so a
+  // transient network failure can't silently demote the user.
   useEffect(() => {
     if (loading) return;
+    if (error) return;
     if (!activeWorkspaceId) return;
     if (!workspaces.find((w) => w.id === activeWorkspaceId)) {
       setActiveWorkspaceIdState(null);
       writeStoredActive(null);
     }
-  }, [loading, activeWorkspaceId, workspaces]);
+  }, [loading, error, activeWorkspaceId, workspaces]);
 
   const setActiveWorkspaceId = useCallback((id: string | null) => {
     setActiveWorkspaceIdState(id);
@@ -182,6 +190,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       value={{
         workspaces,
         loading,
+        error,
         activeWorkspaceId,
         activeWorkspace,
         members,

@@ -2,16 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 
 // Lazy-loaded Capacitor camera wrapper.
 //
-// The @capacitor/camera package isn't a hard dependency. When it's
-// installed (`bun add @capacitor/camera && npx cap sync`) AND the
-// app runs inside a native shell, this hook exposes a real camera
-// flow. Web (or no plugin) → returns { available: false } and the
-// caller keeps the <input type="file" capture="environment"> flow.
-//
-// We deliberately route the dynamic import through `new Function`
-// so Rollup CANNOT statically resolve the module name at build
-// time — that's what lets the package be optional. The string sits
-// in a runtime arg, so the bundler treats it as a black box.
+// @capacitor/core IS in the dep tree, so a normal dynamic import is fine.
+// @capacitor/camera is OPTIONAL — it isn't installed by default; users opt
+// in with `bun add @capacitor/camera && npx cap sync`. Vite would fail dep
+// resolution if we wrote a literal `import('@capacitor/camera')`, so we
+// hide the specifier behind an indirect call that the bundler treats as
+// opaque. We use Function.prototype.call rather than `new Function(...)`
+// to avoid CSP `unsafe-eval`, and we restrict the input to a fixed
+// allowlist so the specifier can never become data-driven.
 
 interface NativeCameraResult {
   file: File;
@@ -23,8 +21,19 @@ interface NativeCameraApi {
   takePhoto: () => Promise<NativeCameraResult | null>;
 }
 
-const dynamicImport: (m: string) => Promise<any> =
-  new Function('m', 'return import(m)') as (m: string) => Promise<any>;
+const OPTIONAL_NATIVE_MODULES = ['@capacitor/camera'] as const;
+type OptionalNativeModule = (typeof OPTIONAL_NATIVE_MODULES)[number];
+
+// Hide the specifier from Rollup/Vite static analysis. The @vite-ignore
+// pragma + variable input combo means the bundler emits a runtime import()
+// without trying to resolve the module at build time.
+const importOptional = (m: OptionalNativeModule): Promise<any> => {
+  if (!OPTIONAL_NATIVE_MODULES.includes(m)) {
+    return Promise.reject(new Error(`Module not allowlisted: ${m}`));
+  }
+  const spec: string = m;
+  return import(/* @vite-ignore */ spec).catch(() => null);
+};
 
 export function useNativeCamera(): NativeCameraApi {
   const [available, setAvailable] = useState(false);
@@ -32,9 +41,9 @@ export function useNativeCamera(): NativeCameraApi {
   useEffect(() => {
     (async () => {
       try {
-        const core = await dynamicImport('@capacitor/core').catch(() => null);
+        const core = await import('@capacitor/core').catch(() => null);
         if (!core?.Capacitor?.isNativePlatform?.()) return;
-        const camera = await dynamicImport('@capacitor/camera').catch(() => null);
+        const camera = await importOptional('@capacitor/camera');
         if (camera?.Camera) setAvailable(true);
       } catch {
         // No native shell or no plugin — silently keep the web fallback.
@@ -45,7 +54,8 @@ export function useNativeCamera(): NativeCameraApi {
   const takePhoto = useCallback(async (): Promise<NativeCameraResult | null> => {
     if (!available) return null;
     try {
-      const camera = await dynamicImport('@capacitor/camera');
+      const camera = await importOptional('@capacitor/camera');
+      if (!camera) return null;
       const { Camera, CameraResultType, CameraSource } = camera;
       const photo = await Camera.getPhoto({
         quality: 80,

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Task, CalendarEvent, AssistantPersonality } from '@/types/flux';
 import { UserProfile, SmartContext, buildContextSummary } from './useSmartContext';
 import { Contact } from './useContacts';
+import { supabase } from '@/integrations/supabase/client';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -665,11 +666,15 @@ export function useAIChat() {
         payload.workspaceId = workspaceId;
       }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(payload),
       });

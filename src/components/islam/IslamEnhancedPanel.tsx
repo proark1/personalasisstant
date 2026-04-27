@@ -20,7 +20,13 @@ import {
   Bookmark, BookmarkCheck, X, FileText, LayoutGrid, TrendingUp, Type, CheckCircle2,
   Home, MoreHorizontal, Bell, MapPin
 } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { useIslamicFeatures } from '@/hooks/useIslamicFeatures';
+
+// Tajweed markup from the Quran API uses span/tt with class names for color
+// coding. Anything else is HTML we never asked for and should be stripped.
+const sanitizeTajweed = (html: string) =>
+  DOMPurify.sanitize(html, { ALLOWED_TAGS: ['span', 'tt'], ALLOWED_ATTR: ['class'] });
 import { useQuranBookmarks } from '@/hooks/useQuranBookmarks';
 import { useQuranReadingProgress } from '@/hooks/useQuranReadingProgress';
 import { cn } from '@/lib/utils';
@@ -739,7 +745,7 @@ export function IslamEnhancedPanel() {
                                   if (currentPlayingAyah === ayah.numberInSurah) stopAudio();
                                   else { playAyahAudio(ayah); if (selectedSurah) markAyahAsRead(selectedSurah.number, ayah.numberInSurah); }
                                 }}>
-                                {tajweedEnabled ? <span dangerouslySetInnerHTML={{ __html: ayah.text }} /> : ayah.text}
+                                {tajweedEnabled ? <span dangerouslySetInnerHTML={{ __html: sanitizeTajweed(ayah.text) }} /> : ayah.text}
                                 <span className={cn("inline-flex items-center justify-center mx-1", ayahIsRead ? "text-emerald-500" : "text-primary/80")}
                                   style={{ fontSize: `${fontSize * 0.6}px` }}>
                                   ﴿{toArabicIndic(ayah.numberInSurah)}﴾
@@ -797,7 +803,7 @@ export function IslamEnhancedPanel() {
                                 {tajweedEnabled ? (
                                   <p className="text-right leading-loose tajweed-text"
                                     style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }} dir="rtl"
-                                    dangerouslySetInnerHTML={{ __html: ayah.text }} />
+                                    dangerouslySetInnerHTML={{ __html: sanitizeTajweed(ayah.text) }} />
                                 ) : (
                                   <p className="text-right leading-loose"
                                     style={{ fontSize: `${fontSize}px`, fontFamily: currentFontFamily }} dir="rtl">
