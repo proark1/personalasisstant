@@ -75,7 +75,7 @@ async function handlePlansCommand(supabase: any, chatId: number, userId: string 
     return;
   }
   if (!plans || plans.length === 0) {
-    await tgSend(chatId, '📋 No active plans. Ask Dori to plan something multi-step ("plan my Dubai trip", "set up a weekly review") and it'll appear here.');
+    await tgSend(chatId, "📋 No active plans. Ask Dori to plan something multi-step (\"plan my Dubai trip\", \"set up a weekly review\") and it'll appear here.");
     return;
   }
   // Build the inline keyboard import once.
