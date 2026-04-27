@@ -1049,7 +1049,11 @@ Deno.serve(async (req) => {
         // Voice/audio messages → always respond (user clearly meant to interact)
         const isVoice = !!(msg.voice || msg.audio);
 
-        const shouldRespond = hasMention || addressesDori || repliedToIsBot || looksActionable || isCommand || isVoice;
+        // Photos/images posted in linked groups should ALWAYS be processed —
+        // family/assistant typically share receipts, calendar screenshots,
+        // school notices, prescriptions, etc. without explicitly addressing Dori.
+        const isPhoto = !!photoDataUrl;
+        const shouldRespond = hasMention || addressesDori || repliedToIsBot || looksActionable || isCommand || isVoice || isPhoto;
 
         if (!shouldRespond) {
           await supabase.from('telegram_messages').upsert({
@@ -1066,6 +1070,53 @@ Deno.serve(async (req) => {
           .trim() || text;
 
         tg('sendChatAction', { chat_id: chatId, action: 'typing' }, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
+
+        // ── PHOTO in group → bypass text-only router and call Dori directly with imageUrl.
+        // Resolve the sender's app user_id (via telegram_user_map) so the action is
+        // attributed correctly; fall back to the group owner if the sender hasn't
+        // personally linked their Telegram account yet.
+        if (photoDataUrl) {
+          let actingUserId: string | null = null;
+          if (fromId) {
+            const { data: userMap } = await supabase
+              .from('telegram_user_map')
+              .select('user_id')
+              .eq('telegram_user_id', fromId)
+              .maybeSingle();
+            actingUserId = userMap?.user_id ?? null;
+          }
+          if (!actingUserId) actingUserId = glink?.owner_user_id ?? null;
+          if (!actingUserId) {
+            await sendMessage(chatId, "📸 I can read photos here, but this group isn't linked to a personal account yet. Run /linkfamily or have a member link via Settings → Telegram.", LOVABLE_API_KEY, TELEGRAM_API_KEY);
+            await supabase.from('telegram_messages').upsert({
+              update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,
+            }, { onConflict: 'update_id' });
+            processed++;
+            continue;
+          }
+          const placeholder = await sendMessage(chatId, '🔍 Reading the picture…', LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          const dori = await callDori(
+            actingUserId,
+            cleanText,
+            chatId,
+            supabaseUrl,
+            serviceKey,
+            photoDataUrl,
+            undefined,
+            wsLink?.workspace_id || null,
+          );
+          const replyText = dori.reply || '✅ Got it.';
+          if (placeholder?.message_id) {
+            await tgEditMessageText(chatId, placeholder.message_id, replyText, LOVABLE_API_KEY, TELEGRAM_API_KEY).catch(() => {});
+          } else {
+            await sendMessage(chatId, replyText, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+          }
+          await supabase.from('telegram_messages').upsert({
+            update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,
+          }, { onConflict: 'update_id' });
+          processed++;
+          continue;
+        }
 
         try {
           await fetch(`${supabaseUrl}/functions/v1/telegram-router`, {
