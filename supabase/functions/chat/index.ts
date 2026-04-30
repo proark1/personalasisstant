@@ -1264,9 +1264,10 @@ async function executeToolsServerSide(
         for (const k of Object.keys(upd)) oldPatch[k] = target[k] ?? null;
         await supabase.from('events').update(upd).eq('id', target.id).eq('user_id', userId);
         const undoId = await undoPatch('events', target.id, oldPatch, `edited event "${target.title}"`, 'event');
-        out.push({ tool: 'manage_event', ok: true, message: `✏️ Updated event: ${target.title}`, undoId, entityId: target.id });
+        const updatedTitle = upd.title || target.title;
+        out.push({ tool: 'manage_event', ok: true, message: `✏️ Updated event: ${updatedTitle}`, undoId, entityId: target.id, title: updatedTitle, entityKind: 'event' });
       } else {
-        out.push({ tool: 'manage_event', ok: true, message: `Found: ${target.title} on ${new Date(target.start_time).toLocaleString()}`, entityId: target.id });
+        out.push({ tool: 'manage_event', ok: true, message: `Found: ${target.title} on ${new Date(target.start_time).toLocaleString()}`, entityId: target.id, title: target.title, entityKind: 'event' });
       }
     } catch (e) { out.push({ tool: 'manage_event', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }

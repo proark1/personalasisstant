@@ -389,6 +389,42 @@ async function handleWeek(supabase: any, ids: string[], household: any): Promise
   return out.join('\n');
 }
 
+async function handleUpcomingMeetings(supabase: any, ids: string[], household: any, tz?: string): Promise<string> {
+  const now = new Date();
+  const end = new Date(now);
+  end.setDate(end.getDate() + 14);
+
+  const { data: events } = await supabase.from('events')
+    .select('title, start_time, location, user_id')
+    .in('user_id', ids)
+    .gte('start_time', now.toISOString())
+    .lte('start_time', end.toISOString())
+    .order('start_time')
+    .limit(10);
+
+  const upcoming = (events || []).filter((e: any) => {
+    const title = String(e.title || '').toLowerCase();
+    return /\b(meet|meeting|call|sync|standup|review|interview|appointment|demo)\b/.test(title);
+  });
+
+  if (!upcoming.length) return '📅 No upcoming meetings in the next 14 days.';
+
+  const lines = ['<b>📅 Upcoming meetings</b>'];
+  upcoming.forEach((e: any) => {
+    const when = new Date(e.start_time).toLocaleString('en-GB', {
+      timeZone: tz,
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const who = household.multi ? ` <i>(${household.nameOf(e.user_id)})</i>` : '';
+    lines.push(`• ${when} — ${e.title}${e.location ? ` (${e.location})` : ''}${who}`);
+  });
+  return lines.join('\n');
+}
+
 async function handleShoppingList(supabase: any, ownerId: string): Promise<string> {
   const { data: lists } = await supabase.from('shopping_lists')
     .select('id, name').eq('user_id', ownerId).eq('is_completed', false)
@@ -924,6 +960,18 @@ Deno.serve(async (req) => {
   }
   if (lower === '/week') {
     await tgSend(chat_id, await handleWeek(supabase, memberIds, household));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+  if (/^(show me the calendar|show calendar|what'?s on (my|our) calendar|what do (i|we) have (today|tomorrow|this week)|what are (my|our) next meetings|next meetings|upcoming meetings)[?!.]*$/i.test(trimmed)) {
+    if (/meeting/i.test(trimmed)) {
+      await tgSend(chat_id, await handleUpcomingMeetings(supabase, memberIds, household, userTimezone));
+    } else if (/tomorrow/i.test(trimmed)) {
+      await sendTappableAgenda(chat_id, supabase, memberIds, 1, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+    } else if (/week/i.test(trimmed)) {
+      await tgSend(chat_id, await handleWeek(supabase, memberIds, household));
+    } else {
+      await sendTappableAgenda(chat_id, supabase, memberIds, 0, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+    }
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
   if (lower === '/shopping' || lower === '/list') {
