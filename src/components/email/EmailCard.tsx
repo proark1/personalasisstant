@@ -169,8 +169,8 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
 
         {/* Content */}
         <div className="flex-1 min-w-0 max-w-full overflow-hidden">
-          <div className="flex min-w-0 max-w-full items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 max-w-full flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full min-w-0 items-center gap-1.5 overflow-hidden sm:flex-1">
               {email.sentiment && email.sentiment !== 'neutral' && (
                 <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", sentimentDot[email.sentiment] || sentimentDot.neutral)} />
               )}
@@ -181,17 +181,21 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
                 <span className="text-[10px] font-medium bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 shrink-0">{thread.threadCount}</span>
               )}
             </div>
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">{timeAgo}</span>
+            <span className="max-w-full text-[10px] text-muted-foreground sm:whitespace-nowrap shrink-0">
+              {timeAgo}
+            </span>
           </div>
-          <p className={cn("text-sm truncate mt-0.5 max-w-full", !email.is_read ? "text-foreground" : "text-muted-foreground")}>
+          <p className={cn("mt-0.5 max-w-full text-sm whitespace-normal break-words [overflow-wrap:anywhere] line-clamp-2", !email.is_read ? "text-foreground" : "text-muted-foreground")}>
             {email.subject || '(No subject)'}
           </p>
-          <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-full">{decodeHtmlEntities(email.ai_summary || email.snippet)}</p>
+          <p className="mt-0.5 max-w-full text-xs text-muted-foreground whitespace-normal break-words [overflow-wrap:anywhere] line-clamp-2">
+            {decodeHtmlEntities(email.ai_summary || email.snippet)}
+          </p>
 
           {/* Tags row */}
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap min-w-0 max-w-full">
             {email.ai_suggested_action && (
-              <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium max-w-full truncate", actionColors[email.ai_suggested_action] || "bg-muted text-muted-foreground")}>
+              <span className={cn("max-w-full rounded-full px-1.5 py-0.5 text-[10px] font-medium whitespace-normal break-words [overflow-wrap:anywhere]", actionColors[email.ai_suggested_action] || "bg-muted text-muted-foreground")}>
                 {email.ai_suggested_action}
               </span>
             )}

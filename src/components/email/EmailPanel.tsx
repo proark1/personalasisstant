@@ -404,18 +404,20 @@ export function EmailPanel() {
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid h-auto w-full min-w-0 grid-cols-4 gap-1 overflow-hidden">
-          <TabsTrigger value="smart" className="min-w-0 gap-1 px-2 text-xs overflow-hidden"><Sparkles className="w-3 h-3 shrink-0" /><span className="truncate">Smart</span></TabsTrigger>
-          <TabsTrigger value="all" className="min-w-0 gap-1 px-2 text-xs overflow-hidden"><Inbox className="w-3 h-3 shrink-0" /><span className="truncate">All</span></TabsTrigger>
-          <TabsTrigger value="flagged" className="min-w-0 gap-1 px-2 text-xs overflow-hidden">
-            <ShieldAlert className="w-3 h-3" />Flagged
-            {flaggedCount > 0 && <span className="text-[10px] bg-destructive/20 text-destructive rounded-full px-1 ml-0.5">{flaggedCount}</span>}
-          </TabsTrigger>
-          <TabsTrigger value="actions" className="min-w-0 gap-1 px-2 text-xs overflow-hidden">
-            <Zap className="w-3 h-3" />Actions
-            {actionsCount > 0 && <span className="text-[10px] bg-primary/20 text-primary rounded-full px-1 ml-0.5">{actionsCount}</span>}
-          </TabsTrigger>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="grid h-auto w-full min-w-0 grid-cols-4 gap-1 overflow-hidden">
+            <TabsTrigger value="smart" className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden"><Sparkles className="w-3 h-3 shrink-0" /><span className="truncate">Smart</span></TabsTrigger>
+            <TabsTrigger value="all" className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden"><Inbox className="w-3 h-3 shrink-0" /><span className="truncate">All</span></TabsTrigger>
+            <TabsTrigger value="flagged" className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden">
+              <ShieldAlert className="w-3 h-3 shrink-0" />
+              <span className="truncate">Flagged</span>
+              {flaggedCount > 0 && <span className="shrink-0 rounded-full bg-destructive/20 px-1 text-[10px] text-destructive">{flaggedCount}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="actions" className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden">
+              <Zap className="w-3 h-3 shrink-0" />
+              <span className="truncate">Actions</span>
+              {actionsCount > 0 && <span className="shrink-0 rounded-full bg-primary/20 px-1 text-[10px] text-primary">{actionsCount}</span>}
+            </TabsTrigger>
         </TabsList>
       </Tabs>
     </div>
