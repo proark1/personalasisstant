@@ -144,7 +144,10 @@ Reply <b>yes</b> / <b>no</b> to confirm any action I propose.
 /inbox · /actions · /draft &lt;subject or sender&gt;
 
 <b>🕌 Islam</b>
-/prayers
+/prayers · /qibla [city] · /quran &lt;name|1-114&gt; · /dhikr [count]
+
+<b>🧹 Household</b>
+/chores — recurring chores across the family
 
 <b>⚙️ Settings</b>
 /quiet on|off · /voice on|off
