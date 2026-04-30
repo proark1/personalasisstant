@@ -111,6 +111,8 @@ read it. Send a <b>voice note</b> and I'll act on what you said.
 /today · /tomorrow — tappable cards (✅ Done, ⏰ +1h, 📅 +1d, 🗑)
 /week — next 7 days overview
 /agenda — same as /today
+/overdue — open tasks past their due date
+/free [day] — find free 30-min slots in your week
 /schedule &lt;title&gt; with @a @b for 30m — find a time
 
 <b>🧑‍🤝‍🧑 Team (workspace groups)</b>
@@ -122,7 +124,7 @@ read it. Send a <b>voice note</b> and I'll act on what you said.
 
 <b>➕ Quick add</b>
 /add &lt;task&gt; · /buy &lt;item&gt; · /event &lt;title&gt; @ &lt;time&gt;
-/note &lt;text&gt; · /remind &lt;text&gt;
+/note &lt;text&gt; · /notes &lt;query&gt; · /remind &lt;text&gt;
 
 <b>↩️ Safety net</b>
 /undo — reverse the last action (within 5 minutes)
@@ -139,7 +141,7 @@ Reply <b>yes</b> / <b>no</b> to confirm any action I propose.
 /health · /checkin
 
 <b>📧 Email</b>
-/inbox · /actions
+/inbox · /actions · /draft &lt;subject or sender&gt;
 
 <b>🕌 Islam</b>
 /prayers
