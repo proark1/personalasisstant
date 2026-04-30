@@ -2485,9 +2485,22 @@ async function executeToolsServerSide(
   // ---------- recent_actions ----------
   for (const _m of text.matchAll(/<tool>recent_actions<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
     try {
-      const { data: rows } = await supabase.from('dori_undo_log')
+      // Prefer the rich `label` column when present (some deployments). Fall
+      // back to `action`/`payload.label` when it isn't.
+      let rows: any[] | null = null;
+      const labelTry = await supabase.from('dori_undo_log')
         .select('label, created_at').eq('user_id', userId)
         .order('created_at', { ascending: false }).limit(5);
+      if (!labelTry.error) rows = labelTry.data;
+      else {
+        const { data: alt } = await supabase.from('dori_undo_log')
+          .select('action, payload, created_at').eq('user_id', userId)
+          .order('created_at', { ascending: false }).limit(5);
+        rows = (alt || []).map((r: any) => ({
+          label: r?.payload?.label || r?.action || 'action',
+          created_at: r.created_at,
+        }));
+      }
       if (!rows?.length) { out.push({ tool: 'recent_actions', ok: true, message: '📭 No recent actions in the undo window.' }); continue; }
       const lines = (rows as any[]).map((r: any, i: number) => {
         const mins = Math.max(1, Math.round((Date.now() - new Date(r.created_at).getTime()) / 60000));
