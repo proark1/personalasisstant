@@ -889,10 +889,15 @@ body::before {
   color: hsl(var(--foreground));
   word-break: break-word;
   overflow-wrap: break-word;
+  display: block;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 .email-body-scoped * {
   max-width: 100% !important;
   box-sizing: border-box;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
 }
 .email-body-scoped img {
   max-width: 100% !important;
@@ -901,12 +906,27 @@ body::before {
 .email-body-scoped a {
   color: hsl(var(--primary));
   text-decoration: underline;
+  overflow-wrap: anywhere !important;
+  word-break: break-all !important;
+}
+.email-body-scoped pre,
+.email-body-scoped code {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  max-width: 100% !important;
 }
 .email-body-scoped table {
   max-width: 100% !important;
   width: auto !important;
   overflow-x: auto;
   display: block;
+}
+.email-body-scoped td,
+.email-body-scoped th {
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
 }
 .email-body-scoped style,
 .email-body-scoped script {

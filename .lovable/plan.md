@@ -1,92 +1,71 @@
+## Goal
+Keep all Email panel content inside the visible panel width on desktop and mobile, including Smart, All, Actions, and email detail content.
 
+## Likely root cause
+This does not look like only one missing line break. The current code already adds `min-w-0`, `max-w-full`, and `overflow-hidden` in several places, so the remaining overflow is likely coming from a combination of:
 
-## Sidebar reorganization plan
+1. Email UI buttons inheriting `whitespace-nowrap` from the shared `Button` component, which can force cards wider.
+2. Some text elements using `truncate` on inline content or without aggressive wrap rules, so very long sender names / subjects / tokens can still push layout.
+3. Rendered email HTML needing stronger containment rules for long links, tables, `pre/code`, and unbroken strings.
 
-### Problems found
-1. **Duplicate / confusing items**
-   - `properties` ("Properties") **and** `assets` ("Properties & Vehicles") — both exist, overlap. Assets panel is the newer combined one.
-   - `family` panel labeled "Cooking" with a fork icon — but Family Hub contains tasks, meals, shopping, health, school, budget, docs (cooking is just one tab). Family is hidden behind the wrong label.
-   - `health` (Health Hub — Apple Health metrics) vs `personal-health` (medications, conditions) — both valid but unclear which is which in the sidebar.
+## Implementation plan
+1. Harden all email list card content
+   - Update `EmailCard.tsx` so every user-facing text container is width-safe.
+   - Convert vulnerable inline truncation targets into block/flex-safe elements.
+   - Add stronger wrap utilities such as `break-words`, `[overflow-wrap:anywhere]`, and `break-all` only where needed for pathological strings.
+   - Ensure hover action rail cannot widen the card.
 
-2. **Missing from sidebar (but wired in StandardMode)**
-   - `projects` — Project Manager
-   - `activity` — Activity Feed
-   - These are accessible nowhere from desktop nav today.
+2. Fix Email Actions tab width behavior
+   - Update `EmailActionPipelineCard.tsx` so action buttons can wrap instead of forcing horizontal growth.
+   - Override shared button `whitespace-nowrap` in email-specific action buttons with `whitespace-normal`, `min-w-0`, and compact wrapping layout.
+   - Harden subject/reasoning/category rows against long unbroken content.
 
-3. **Single-item groups waste space**
-   - "Assistant" group with just one item.
+3. Clamp the Email panel header area
+   - Tighten `EmailPanel.tsx` wrappers around stats, search, and tabs.
+   - Add explicit wrap/truncate handling for tab labels and badges.
+   - Keep the search input/icon row width-safe regardless of placeholder/content.
 
-4. **Buried actions**
-   - Focus Mode / Weekly Review live as orphan items at the bottom of the nav, easy to miss.
+4. Strengthen email detail/body rendering
+   - Extend `.email-body-scoped` styles in `src/index.css` to aggressively contain third-party HTML:
+     - `overflow-wrap: anywhere`
+     - `word-break: break-word`
+     - safe handling for `a`, `pre`, `code`, `table`, `td`, `th`, `img`
+   - Prevent long URLs, tables, and pasted plain text from exceeding drawer width.
 
-### Proposed grouping (desktop sidebar)
+5. Add final defensive layout guards
+   - Re-check shared containers already involved (`PanelShell`, `ScrollArea`) and only add more constraints if still needed.
+   - Avoid broad global changes unless necessary; keep the fix scoped to Email surfaces.
+
+6. QA the actual failure states
+   - Verify Smart, All, Actions, and opened email detail at desktop width and narrow/mobile width.
+   - Confirm there is no horizontal overflow and no text hidden behind icons.
+
+## Files to update
+- `src/components/email/EmailCard.tsx`
+- `src/components/dashboard/EmailActionPipelineCard.tsx`
+- `src/components/email/EmailPanel.tsx`
+- `src/components/email/EmailDetailSheet.tsx`
+- `src/index.css`
+- Possibly one shared wrapper file only if overflow still reproduces after the scoped fixes
+
+## Technical details
+Planned tactics:
 
 ```text
-MY DAY
-  • Dashboard
-  • Tasks
-  • Calendar
-  • Today Focus       (already CTA at top — keep)
+Email text:
+- block/min-w-0/max-w-full
+- truncate only on block/flex-safe elements
+- break-words / overflow-wrap:anywhere
 
-ASSISTANT & CAPTURE
-  • Dori (Assistant)
-  • Notes
-  • Journal
-  • Activity Feed     (newly surfaced)
+Email action buttons:
+- remove no-wrap behavior locally
+- allow wrapping / compact labels
+- keep button groups min-w-0 max-w-full
 
-FAMILY & HOME           (renamed from "Life")
-  • Family Hub         (was "Cooking" — fix label + icon to Users)
-  • Cooking            (NEW: deep-link to Family Hub → meals tab)
-  • Health Hub         (Apple Health metrics)
-  • Personal Health    (meds & conditions)
-  • Habits
-  • Relationships+
-  • Islam
-
-COMMUNICATION
-  • Email  (badge)
-  • Social / Chat
-  • Contacts
-
-WORK & MONEY            (merged Business + Money)
-  • Projects           (newly surfaced)
-  • Startups
-  • Contracts
-  • Finances
-  • Properties & Vehicles   (keep ONE — remove standalone "Properties")
-  • Travel
-  • Tech News
-
-LEARN
-  • Learning
-
-PRODUCTIVITY TOOLS       (promoted from buried)
-  • Focus Mode
-  • Weekly Review
-
-—— footer ——
-  • Settings
-  • Admin (if admin)
-  • Sign out
+Email HTML:
+- clamp links, tables, code, preformatted text
+- preserve readability without letting content widen the drawer
 ```
 
-### Key changes
-- **Remove duplicate**: drop standalone `properties` nav item, keep `assets` ("Properties & Vehicles") only. Old route still works.
-- **Fix Family label**: `family` panel → label "Family Hub", icon `Users` (not Utensils).
-- **Add Cooking shortcut**: opens Family Hub with cooking/meals tab pre-selected (small enhancement — pass a default tab prop).
-- **Surface Projects + Activity Feed** as nav items.
-- **Promote Focus Mode + Weekly Review** into their own visible "Productivity" group instead of orphan items.
-- **Rename group "Life" → "Family & Home"**, merge Business + Money & Assets → "Work & Money" to reduce group count from 6 to 5 visible groups.
-- **Mirror changes in MoreSheet** (mobile) so the same labels/icons/grouping apply there.
-
-### Files to touch
-- `src/components/layout/Sidebar.tsx` — reorder items, fix Family label/icon, remove `properties` duplicate, add Projects/Activity, regroup.
-- `src/components/layout/MoreSheet.tsx` — same label/icon fixes; reorder sections to match.
-- `src/components/family/FamilyPanel.tsx` — accept optional `defaultTab` prop so Cooking shortcut lands on meals.
-- `src/components/layout/StandardMode.tsx` — pass `defaultTab="meals"` when navigated via the Cooking shortcut (introduce a tiny `panelHint` state).
-
-### Out of scope
-- Removing the underlying `properties` panel/route (kept for backward compatibility, just not linked).
-- Translation keys for new labels — will reuse existing keys where possible, add German strings inline only where needed.
-- No DB / backend changes.
-
+## Expected result
+The Email panel should stop expanding past the right edge, even with long sender names, long subjects, long URLs, large suggested-action rows, or messy email HTML.
