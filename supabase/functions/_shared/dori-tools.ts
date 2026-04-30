@@ -350,6 +350,137 @@ export const NATIVE_TOOLS: ToolDef[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'manage_habit',
+      description: 'Create, log today, delete, or summarise habits & streaks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: ['create', 'log', 'delete', 'summary'] },
+          habit: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              query: { type: 'string', description: 'Used by log/delete/summary to fuzzy-match' },
+              frequency: { type: 'string', enum: ['daily', 'weekly', 'monthly'] },
+              target_count: { type: 'number' },
+              count: { type: 'number', description: 'completed_count for log' },
+              icon: { type: 'string' }, color: { type: 'string' },
+            },
+          },
+        },
+        required: ['action'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'log_wellbeing',
+      description: 'Log mood, energy, sleep hours, water, exercise, stress for today. Send only fields the user mentioned.',
+      parameters: {
+        type: 'object',
+        properties: {
+          wellbeing: {
+            type: 'object',
+            properties: {
+              mood: { description: '1-5 number or low/mid/high' },
+              energy_level: {},
+              sleep_hours: { type: 'number' },
+              water_glasses: { type: 'number', description: '1 glass = 250ml' },
+              exercise_minutes: { type: 'number' },
+              stress_level: { type: 'number' },
+              checkin_type: { type: 'string', enum: ['morning', 'evening'] },
+              notes: { type: 'string' },
+            },
+          },
+        },
+        required: ['wellbeing'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'manage_goal',
+      description: 'Create, update progress on (use add or current_value), list, or delete a long-term goal.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: ['create', 'progress', 'list', 'delete'] },
+          goal: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              query: { type: 'string' },
+              description: { type: 'string' },
+              target_value: { type: 'number' },
+              current_value: { type: 'number' },
+              add: { type: 'number', description: 'Increment current by this amount' },
+              unit: { type: 'string' },
+              target_date: { type: 'string', description: 'YYYY-MM-DD' },
+            },
+          },
+        },
+        required: ['action'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'bulk_reschedule',
+      description: 'Shift many open tasks at once. Use filter.when (today|overdue|tomorrow) or filter.date, plus shift_days.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bulk: {
+            type: 'object',
+            properties: {
+              filter: { type: 'object', properties: { when: { type: 'string', enum: ['today', 'overdue', 'tomorrow'] }, date: { type: 'string' } } },
+              shift_days: { type: 'number' },
+            },
+            required: ['shift_days'],
+          },
+        },
+        required: ['bulk'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'bulk_delete_events',
+      description: 'Cancel ALL events on a specific date for the user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bulk: { type: 'object', properties: { date: { type: 'string', description: 'YYYY-MM-DD' } }, required: ['date'] },
+        },
+        required: ['bulk'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'append_note',
+      description: 'Append content to an existing note found by title fragment (does not create a new note).',
+      parameters: {
+        type: 'object',
+        properties: {
+          note: {
+            type: 'object',
+            properties: { query: { type: 'string' }, content: { type: 'string' } },
+            required: ['query', 'content'],
+          },
+        },
+        required: ['note'],
+      },
+    },
+  },
 ];
 
 // Convert a native tool_calls array (OpenAI-style) into the legacy XML
@@ -410,6 +541,18 @@ function renderLegacy(name: string, args: any): string {
       return `<tool>save_memory</tool><memory>${JSON.stringify(args.memory ?? {})}</memory>`;
     case 'learn_preference':
       return `<tool>learn_preference</tool><pref>${JSON.stringify(args.pref ?? {})}</pref>`;
+    case 'manage_habit':
+      return `<tool>manage_habit</tool><action>${args.action}</action><habit>${JSON.stringify(args.habit ?? {})}</habit>`;
+    case 'log_wellbeing':
+      return `<tool>log_wellbeing</tool><wellbeing>${JSON.stringify(args.wellbeing ?? {})}</wellbeing>`;
+    case 'manage_goal':
+      return `<tool>manage_goal</tool><action>${args.action}</action><goal>${JSON.stringify(args.goal ?? {})}</goal>`;
+    case 'bulk_reschedule':
+      return `<tool>bulk_reschedule</tool><bulk>${JSON.stringify(args.bulk ?? {})}</bulk>`;
+    case 'bulk_delete_events':
+      return `<tool>bulk_delete_events</tool><bulk>${JSON.stringify(args.bulk ?? {})}</bulk>`;
+    case 'append_note':
+      return `<tool>append_note</tool><note>${JSON.stringify(args.note ?? {})}</note>`;
     default:
       console.warn('[toolCallsToLegacyXml] unknown tool name', name);
       return '';
