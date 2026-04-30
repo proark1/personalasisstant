@@ -112,7 +112,7 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
   }, []);
 
   return (
-    <motion.div variants={staggerItem} className="relative overflow-hidden rounded-xl group"
+    <motion.div variants={staggerItem} className="relative overflow-hidden rounded-xl group w-full max-w-full min-w-0"
       onMouseEnter={() => !selectMode && setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
