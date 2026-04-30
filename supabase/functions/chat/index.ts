@@ -2375,11 +2375,23 @@ async function executeToolsServerSide(
       const sinceDate = since.toISOString().slice(0,10);
       const validCols = new Set(['mood', 'sleep_hours', 'water_glasses', 'exercise_minutes', 'steps', 'stress_level']);
       if (!validCols.has(metric)) { out.push({ tool: 'wellbeing_summary', ok: false, message: `Unsupported metric "${metric}".` }); continue; }
+      // daily_checkins stores `mood` as text — coerce; columns water_glasses/steps may not exist on every deployment, fall back gracefully.
+      const safeCol = ['mood', 'sleep_hours', 'exercise_minutes', 'stress_level'].includes(metric) ? metric : null;
+      if (!safeCol) { out.push({ tool: 'wellbeing_summary', ok: true, message: `📭 ${metric.replace('_',' ')} is not tracked yet — use /checkin to start logging.` }); continue; }
       const { data: rows } = await supabase.from('daily_checkins')
-        .select(`checkin_date, ${metric}`)
+        .select(`checkin_date, ${safeCol}`)
         .eq('user_id', userId).gte('checkin_date', sinceDate)
         .order('checkin_date', { ascending: true });
-      const vals = (rows || []).map((r: any) => Number(r[metric])).filter((n: number) => Number.isFinite(n));
+      const moodMap: Record<string, number> = { terrible: 1, bad: 2, low: 2, ok: 3, mid: 3, neutral: 3, okay: 3, good: 4, great: 5, high: 5, amazing: 5 };
+      const vals = (rows || []).map((r: any) => {
+        const v = r[safeCol];
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string') {
+          const n = Number(v); if (Number.isFinite(n)) return n;
+          return moodMap[v.toLowerCase()] ?? NaN;
+        }
+        return NaN;
+      }).filter((n: number) => Number.isFinite(n));
       if (!vals.length) { out.push({ tool: 'wellbeing_summary', ok: true, message: `📭 No ${metric} entries in the last ${period}.` }); continue; }
       const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
       const min = Math.min(...vals), max = Math.max(...vals);
