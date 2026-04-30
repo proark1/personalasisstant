@@ -112,7 +112,11 @@ read it. Send a <b>voice note</b> and I'll act on what you said.
 /week — next 7 days overview
 /agenda — same as /today
 /overdue — open tasks past their due date
-/free [day] — find free 30-min slots in your week
+/free [duration] [day] — e.g. <code>/free 2h thursday</code>
+/agenda &lt;YYYY-MM-DD&gt; — past or future date lookup
+/load — meeting hours per member this week
+/snooze — push today's tasks to tomorrow
+/done — what you've completed this week
 /schedule &lt;title&gt; with @a @b for 30m — find a time
 
 <b>🧑‍🤝‍🧑 Team (workspace groups)</b>
@@ -136,6 +140,8 @@ Reply <b>yes</b> / <b>no</b> to confirm any action I propose.
 
 <b>💶 Money &amp; assets</b>
 /contracts · /expiring · /properties · /vehicles
+/expense &lt;amount&gt; [category] [note] — log a one-off expense
+/spent [category] [period] — totals (today/week/month/year)
 
 <b>❤️ Health &amp; wellbeing</b>
 /health · /checkin
@@ -148,6 +154,13 @@ Reply <b>yes</b> / <b>no</b> to confirm any action I propose.
 
 <b>🧹 Household</b>
 /chores — recurring chores across the family
+/whoseturn &lt;chore&gt; — next person up in the rotation
+/menu — today's planned meals
+
+<b>🌐 Misc</b>
+/weather &lt;city&gt; — today + tomorrow forecast
+/lang de|en — switch language
+/recent — Dori's last 5 actions
 
 <b>⚙️ Settings</b>
 /quiet on|off · /voice on|off
@@ -727,10 +740,18 @@ async function handleNotesSearch(supabase: any, ids: string[], query: string): P
 
 // /free [day] — find free slots for the *sender* (single user) in working hours.
 async function handleFreeTime(supabase: any, userId: string, dayHint: string, tz?: string): Promise<string> {
+  // Pull a duration token like "2h" / "90m" out of the hint, default 30 min.
+  let durationMinutes = 30;
+  const durMatch = dayHint.match(/(\d+)\s*(h|hr|hrs|hour|hours|m|min|mins|minutes)/i);
+  if (durMatch) {
+    const n = Number(durMatch[1]);
+    durationMinutes = /^h/i.test(durMatch[2]) ? n * 60 : n;
+    dayHint = dayHint.replace(durMatch[0], '').trim();
+  }
   const slots = await findTimeSlots(supabase, {
     workspaceId: '',
     participants: [userId],
-    durationMinutes: 30,
+    durationMinutes,
     withinDays: 7,
     timezone: tz,
   });
@@ -750,8 +771,8 @@ async function handleFreeTime(supabase: any, userId: string, dayHint: string, tz
     }
   }
   ranked = ranked.slice(0, 5);
-  if (!ranked.length) return `😕 No free 30-minute slots${dayHint ? ` for "${dayHint}"` : ' in the next 7 days'}.`;
-  const lines = [`<b>🗓 Free slots</b>${dayHint ? ` (${escapeHtml(dayHint)})` : ''}`];
+  if (!ranked.length) return `😕 No free ${durationMinutes}-minute slots${dayHint ? ` for "${dayHint}"` : ' in the next 7 days'}.`;
+  const lines = [`<b>🗓 Free ${durationMinutes}-min slots</b>${dayHint ? ` (${escapeHtml(dayHint)})` : ''}`];
   ranked.forEach((s: any, i: number) => lines.push(`${i + 1}. ${s.local}`));
   return lines.join('\n');
 }
@@ -1264,6 +1285,252 @@ Deno.serve(async (req) => {
     await tgSend(chat_id, await handleOverdue(supabase, memberIds, household));
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
+
+  // /done — what was completed since Monday
+  if (lower === '/done') {
+    const now = new Date(); const dow = now.getDay(); const offset = (dow + 6) % 7;
+    const monday = new Date(now); monday.setDate(now.getDate() - offset); monday.setHours(0,0,0,0);
+    const { data } = await supabase.from('tasks')
+      .select('title, updated_at, user_id')
+      .in('user_id', memberIds).eq('completed', true).eq('trashed', false)
+      .gte('updated_at', monday.toISOString())
+      .order('updated_at', { ascending: false }).limit(20);
+    if (!data?.length) {
+      await tgSend(chat_id, '📭 Nothing completed yet this week.');
+    } else {
+      const lines = ['<b>✅ Completed this week</b>'];
+      (data as any[]).forEach((t: any) => {
+        const who = household.multi ? ` <i>(${household.nameOf(t.user_id)})</i>` : '';
+        lines.push(`• ${escapeHtml(t.title)}${who}`);
+      });
+      await tgSend(chat_id, lines.join('\n'));
+    }
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /snooze — push all of today's open tasks to tomorrow
+  if (lower === '/snooze') {
+    const t0 = new Date(); t0.setHours(0,0,0,0); const t1 = new Date(t0); t1.setDate(t1.getDate()+1);
+    const { data: rows } = await supabase.from('tasks')
+      .select('id, due_date').eq('user_id', userForChat).eq('completed', false)
+      .gte('due_date', t0.toISOString()).lt('due_date', t1.toISOString());
+    if (!rows?.length) {
+      await tgSend(chat_id, '📭 No open tasks today.');
+    } else {
+      await Promise.all((rows as any[]).map((r: any) => {
+        const d = new Date(r.due_date); d.setDate(d.getDate()+1);
+        return supabase.from('tasks').update({ due_date: d.toISOString() }).eq('id', r.id).eq('user_id', userForChat);
+      }));
+      await tgSend(chat_id, `💤 Snoozed ${rows.length} task${rows.length === 1 ? '' : 's'} to tomorrow.`);
+    }
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /load — meeting hours this week
+  if (lower === '/load') {
+    const now = new Date(); const dow = now.getDay(); const offset = (dow + 6) % 7;
+    const monday = new Date(now); monday.setDate(now.getDate() - offset); monday.setHours(0,0,0,0);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate()+7);
+    const { data } = await supabase.from('events')
+      .select('start_time, end_time, user_id')
+      .in('user_id', memberIds)
+      .gte('start_time', monday.toISOString()).lt('start_time', sunday.toISOString());
+    if (!data?.length) { await tgSend(chat_id, '📭 No meetings this week.'); return new Response('{"ok":true}', { headers: corsHeaders }); }
+    const totals: Record<string, number> = {};
+    (data as any[]).forEach((e: any) => {
+      const ms = new Date(e.end_time).getTime() - new Date(e.start_time).getTime();
+      const hrs = Math.max(0, ms / 3600000);
+      totals[e.user_id] = (totals[e.user_id] || 0) + hrs;
+    });
+    const lines = ['<b>📆 Meeting load this week</b>'];
+    Object.entries(totals).forEach(([uid, hrs]) => lines.push(`• ${escapeHtml(household.nameOf(uid))}: ${hrs.toFixed(1)}h`));
+    await tgSend(chat_id, lines.join('\n'));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /agenda <YYYY-MM-DD> — past or future date
+  if (lower.startsWith('/agenda ')) {
+    const arg = trimmed.slice(8).trim();
+    const date = new Date(arg);
+    if (isNaN(date.getTime())) {
+      await tgSend(chat_id, 'Usage: <code>/agenda YYYY-MM-DD</code>');
+    } else {
+      const d0 = new Date(date); d0.setHours(0,0,0,0); const d1 = new Date(d0); d1.setDate(d1.getDate()+1);
+      const [{ data: events }, { data: tasks }] = await Promise.all([
+        supabase.from('events').select('title, start_time, location, user_id')
+          .in('user_id', memberIds)
+          .gte('start_time', d0.toISOString()).lt('start_time', d1.toISOString())
+          .order('start_time'),
+        supabase.from('tasks').select('title, user_id, completed')
+          .in('user_id', memberIds).eq('trashed', false)
+          .gte('due_date', d0.toISOString()).lt('due_date', d1.toISOString()),
+      ]);
+      const lines = [`<b>📅 ${arg}</b>`];
+      if (events?.length) {
+        lines.push('\n<b>Events</b>');
+        (events as any[]).forEach((e: any) => {
+          const t = new Date(e.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+          lines.push(`• ${t} — ${escapeHtml(e.title)}${e.location ? ` @ ${escapeHtml(e.location)}` : ''}`);
+        });
+      }
+      if (tasks?.length) {
+        lines.push('\n<b>Tasks</b>');
+        (tasks as any[]).forEach((t: any) => lines.push(`${t.completed ? '✅' : '⬜'} ${escapeHtml(t.title)}`));
+      }
+      if (!events?.length && !tasks?.length) lines.push('\n📭 Nothing scheduled.');
+      await tgSend(chat_id, lines.join('\n'));
+    }
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /menu — today's planned meal
+  if (lower === '/menu') {
+    const today = new Date().toISOString().slice(0,10);
+    const { data } = await supabase.from('meal_plans')
+      .select('meal_type, custom_meal_name, recipe_id, recipes(name)')
+      .in('user_id', memberIds).eq('meal_date', today).order('meal_type');
+    if (!data?.length) {
+      await tgSend(chat_id, '🍽 No meals planned for today. Plan one in the Cooking hub.');
+    } else {
+      const lines = ['<b>🍽 Today\'s menu</b>'];
+      (data as any[]).forEach((m: any) => {
+        const name = m.custom_meal_name || m.recipes?.name || '(untitled)';
+        lines.push(`• ${m.meal_type}: ${escapeHtml(name)}`);
+      });
+      await tgSend(chat_id, lines.join('\n'));
+    }
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /expense <amount> [category] [note...]
+  if (lower.startsWith('/expense ') || lower === '/expense') {
+    const rest = trimmed.slice(8).trim();
+    const tokens = rest.split(/\s+/);
+    const amount = Number(tokens[0]?.replace(',', '.').replace(/[€$]/g, ''));
+    if (!Number.isFinite(amount)) {
+      await tgSend(chat_id, 'Usage: <code>/expense 23.50 food lunch with Sarah</code>');
+    } else {
+      const category = tokens[1] || 'misc';
+      const note = tokens.slice(2).join(' ') || category;
+      const { data: row, error } = await supabase.from('family_expenses').insert({
+        user_id: userForChat, amount, description: `${category} · ${note}`,
+        expense_date: new Date().toISOString().slice(0,10),
+      }).select('id').single();
+      if (error) await tgSend(chat_id, `⚠️ Could not log: ${error.message}`);
+      else await tgSend(chat_id, `💶 Logged €${amount.toFixed(2)} — ${escapeHtml(category)}`);
+    }
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /spent [category] [period]
+  if (lower === '/spent' || lower.startsWith('/spent ')) {
+    const args = trimmed.slice(6).trim().split(/\s+/).filter(Boolean);
+    const periods = new Set(['today', 'week', 'month', 'year']);
+    let period = 'month'; let category = '';
+    args.forEach((a) => { if (periods.has(a.toLowerCase())) period = a.toLowerCase(); else category = a; });
+    const since = new Date();
+    if (period === 'today') since.setHours(0,0,0,0);
+    else if (period === 'week') since.setDate(since.getDate() - 7);
+    else if (period === 'year') since.setFullYear(since.getFullYear() - 1);
+    else since.setMonth(since.getMonth() - 1);
+    let q = supabase.from('family_expenses').select('amount, description')
+      .in('user_id', memberIds).gte('expense_date', since.toISOString().slice(0,10));
+    if (category) q = q.ilike('description', `%${category}%`);
+    const { data } = await q;
+    const total = (data || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+    await tgSend(chat_id, `💶 Spent <b>€${total.toFixed(2)}</b>${category ? ` on "${escapeHtml(category)}"` : ''} in past ${period} (${data?.length || 0} items).`);
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /weather [city]
+  if (lower === '/weather' || lower.startsWith('/weather ')) {
+    const city = trimmed.slice(8).trim();
+    if (!city) { await tgSend(chat_id, 'Usage: <code>/weather Berlin</code>'); return new Response('{"ok":true}', { headers: corsHeaders }); }
+    try {
+      const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`).then(r => r.json());
+      const place = geo?.results?.[0];
+      if (!place) { await tgSend(chat_id, `🌍 Couldn't find "${escapeHtml(city)}".`); return new Response('{"ok":true}', { headers: corsHeaders }); }
+      const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=2`).then(r => r.json());
+      const lines = [`🌤 <b>${escapeHtml(place.name)}, ${place.country_code}</b>`];
+      ['Today','Tomorrow'].forEach((label, i) => {
+        const hi = w?.daily?.temperature_2m_max?.[i];
+        const lo = w?.daily?.temperature_2m_min?.[i];
+        const rain = w?.daily?.precipitation_sum?.[i];
+        if (hi != null) lines.push(`${label}: ${lo}°–${hi}°C, ${rain ?? 0}mm`);
+      });
+      await tgSend(chat_id, lines.join('\n'));
+    } catch (e) {
+      await tgSend(chat_id, `⚠️ Weather lookup failed: ${(e as Error).message}`);
+    }
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /lang de|en
+  const langMatch = lower.match(/^\/lang\s+(de|en)$/);
+  if (langMatch) {
+    await supabase.from('profiles').update({ locale: langMatch[1] }).eq('user_id', userForChat);
+    await tgSend(chat_id, langMatch[1] === 'de' ? '🇩🇪 Sprache auf Deutsch gestellt.' : '🇬🇧 Language set to English.');
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /recent — last 5 mutations
+  if (lower === '/recent') {
+    let rows: any[] = [];
+    const labelTry = await supabase.from('dori_undo_log')
+      .select('label, created_at').eq('user_id', userForChat)
+      .order('created_at', { ascending: false }).limit(5);
+    if (!labelTry.error && labelTry.data) rows = labelTry.data as any[];
+    else {
+      const { data: alt } = await supabase.from('dori_undo_log')
+        .select('action, payload, created_at').eq('user_id', userForChat)
+        .order('created_at', { ascending: false }).limit(5);
+      rows = (alt || []).map((r: any) => ({ label: r?.payload?.label || r?.action || 'action', created_at: r.created_at }));
+    }
+    if (!rows.length) {
+      await tgSend(chat_id, '📭 No recent actions.');
+    } else {
+      const lines = ['<b>🕓 Recent actions</b>'];
+      rows.forEach((r: any, i: number) => {
+        const mins = Math.max(1, Math.round((Date.now() - new Date(r.created_at).getTime()) / 60000));
+        lines.push(`${i + 1}. ${escapeHtml(r.label)} <i>(${mins}m ago)</i>`);
+      });
+      await tgSend(chat_id, lines.join('\n'));
+    }
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // /whoseturn <chore name>
+  if (lower.startsWith('/whoseturn')) {
+    const q = trimmed.slice(10).trim();
+    if (!q) {
+      await tgSend(chat_id, 'Usage: <code>/whoseturn trash</code>');
+    } else {
+      const { data: chores } = await supabase.from('family_chores')
+        .select('id, title, rotation_members, family_member_id, last_completed_at')
+        .in('user_id', memberIds).eq('is_active', true)
+        .ilike('title', `%${q}%`).limit(1);
+      if (!chores?.length) {
+        await tgSend(chat_id, `🔍 No chore matches "${escapeHtml(q)}".`);
+      } else {
+        const c = chores[0];
+        const rotation: string[] = Array.isArray(c.rotation_members) ? c.rotation_members : [];
+        if (!rotation.length) {
+          await tgSend(chat_id, `🧹 <b>${escapeHtml(c.title)}</b> — no rotation set; assigned to ${c.family_member_id || 'no one'}.`);
+        } else {
+          // Last completer index → next is +1 mod len
+          const { data: last } = await supabase.from('family_chore_completions')
+            .select('family_member_id').eq('chore_id', c.id)
+            .order('completed_at', { ascending: false }).limit(1);
+          const lastIdx = last?.[0]?.family_member_id ? rotation.indexOf(last[0].family_member_id) : -1;
+          const nextId = rotation[(lastIdx + 1) % rotation.length];
+          const { data: fm } = await supabase.from('family_members').select('name').eq('id', nextId).maybeSingle();
+          await tgSend(chat_id, `🧹 <b>${escapeHtml(c.title)}</b> — next up: <b>${escapeHtml(fm?.name || 'Member')}</b>`);
+        }
+      }
+    }
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
   if (lower.startsWith('/notes')) {
     await tgSend(chat_id, await handleNotesSearch(supabase, memberIds, trimmed.slice(6).trim()));
     return new Response('{"ok":true}', { headers: corsHeaders });

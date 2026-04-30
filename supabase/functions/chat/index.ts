@@ -231,6 +231,10 @@ Task JSON fields:
 - "dueDate": ISO date string (IMPORTANT: always set this when user mentions a date, deadline, or "starting from today")
 - "recurrenceRule": RRULE string for recurring tasks (e.g., "FREQ=WEEKLY;INTERVAL=2" for every 2 weeks, "FREQ=DAILY", "FREQ=MONTHLY")
 - "assignee": string (OPTIONAL — only valid inside a workspace; a teammate's display name or @handle. Use the ACTIVE WORKSPACE members list to pick one)
+- "status": "backlog"|"in_progress"|"blocked"|"done" (optional)
+- "estimateMinutes": number (optional — saved as a comment "estimate: Nm" on the task)
+- "completionNote": string (optional — for action=complete; appended as a comment)
+- "fromNoteQuery": string (only for action=add — when set, look up the matching note's content and seed the task description from it)
 - "id": string (only for update/delete/complete actions)
 
 TOOL: schedule_event
@@ -374,14 +378,16 @@ Examples:
 - "How am I doing on books?" → action=progress query="books" (no values → returns status)
 
 TOOL: bulk_reschedule
-Use this when the user wants to shift MANY tasks at once (today, overdue, tomorrow, or a specific date).
+Use this when the user wants to shift MANY tasks OR events at once (today, overdue, tomorrow, or a specific date).
 Format: <tool>bulk_reschedule</tool><bulk>JSON_OBJECT</bulk>
 Fields:
+- "entity": "task" | "event" (default "task")
 - "filter": { "when": "today" | "overdue" | "tomorrow" }  OR  { "date": "YYYY-MM-DD" }
 - "shift_days": number (positive = later, negative = earlier)
 Examples:
 - "Move all today's tasks to next week" → filter.when="today" shift_days=7
 - "Push all overdue tasks to tomorrow" → filter.when="overdue" shift_days=1
+- "Move everything from Friday to Monday" → entity="event" filter.date="2026-05-01" shift_days=3
 
 TOOL: bulk_delete_events
 Use this when the user wants to cancel ALL events on a specific date.
@@ -392,6 +398,51 @@ TOOL: append_note
 Use this when the user wants to APPEND content to an existing note (don't create a new one).
 Format: <tool>append_note</tool><note>{"query":"<title fragment>","content":"<text to append>"}</note>
 Examples: "Append to yesterday's journal: had a great day" → query="journal" content="had a great day"
+
+TOOL: log_expense
+Use this when the user records spending (not a recurring contract). Inserts into family_expenses.
+Format: <tool>log_expense</tool><expense>JSON_OBJECT</expense>
+Fields: "amount" (number, required), "currency" (default "EUR"), "category" (string), "description" (string), "date" (YYYY-MM-DD, default today)
+Examples: "Log €23.50 lunch" → amount=23.5 category="food" description="lunch"
+
+TOOL: query_expenses
+Use this when the user asks how much they spent.
+Format: <tool>query_expenses</tool><query>JSON_OBJECT</query>
+Fields: "period": "today"|"week"|"month"|"year" (default "month"); "category": optional substring match on description.
+Examples: "What did I spend on groceries this month?" → period="month" category="grocer"
+
+TOOL: wellbeing_summary
+Use this when the user asks how their mood/sleep/water/etc. trend has been.
+Format: <tool>wellbeing_summary</tool><summary>JSON_OBJECT</summary>
+Fields: "metric": "mood"|"sleep_hours"|"water_glasses"|"exercise_minutes"|"steps" ; "period": "week"|"month" (default "week").
+Examples: "How's my mood trended this month?" → metric="mood" period="month"
+
+TOOL: recipe_to_shopping
+Use this to expand a saved recipe's ingredients onto the shopping list.
+Format: <tool>recipe_to_shopping</tool><recipe>JSON_OBJECT</recipe>
+Fields: "name" (string, required — fuzzy match on recipe title)
+Examples: "Add the ingredients of lasagna to shopping" → name="lasagna"
+
+TOOL: weather
+Use this for short-form weather lookups (no API key needed — open-meteo).
+Format: <tool>weather</tool><weather>JSON_OBJECT</weather>
+Fields: "location" (city name, required), "when": "today"|"tomorrow" (default "today")
+Examples: "Weather in Berlin tomorrow" → location="Berlin" when="tomorrow"
+
+TOOL: trip_template
+Use this when the user adds a multi-day trip — creates a calendar event AND seed packing tasks.
+Format: <tool>trip_template</tool><trip>JSON_OBJECT</trip>
+Fields: "destination" (required), "start" (YYYY-MM-DD, required), "end" (YYYY-MM-DD, required), "packing": boolean (default true)
+Examples: "Add Dubai trip Jul 10-15 with packing tasks" → destination="Dubai" start="2026-07-10" end="2026-07-15" packing=true
+
+TOOL: set_language
+Use this when the user explicitly asks to switch interface/reply language.
+Format: <tool>set_language</tool><lang>{"lang":"de"|"en"}</lang>
+Examples: "Switch to German" → lang="de"
+
+TOOL: recent_actions
+Use this when the user asks "what did you just do" / "show your last actions".
+Format: <tool>recent_actions</tool><query>{"limit":5}</query>
 
 TOOL: manage_note
 Use this to create, search, or delete notes. Replaces the simpler create_note tool.
@@ -754,7 +805,7 @@ function extractSearchQuery(msg: string): string {
 
 function stripAllToolTags(text: string): string {
   return text
-    .replace(/<tool>[\s\S]*?<\/(?:task|event|note|criteria|plan|item|contact|contract|project|habit|email|reminder|memory|query|type|property|business|member|filter|draft|meeting|target|packing|prep|cancel|wellbeing|bulk|goal|pref)>/g, '')
+    .replace(/<tool>[\s\S]*?<\/(?:task|event|note|criteria|plan|item|contact|contract|project|habit|email|reminder|memory|query|type|property|business|member|filter|draft|meeting|target|packing|prep|cancel|wellbeing|bulk|goal|pref|expense|summary|recipe|weather|trip|lang)>/g, '')
     .replace(/<tool>[\s\S]*?<\/tool>/g, '')
     .replace(/<action>[\s\S]*?<\/action>/g, '')
     .replace(/\n{3,}/g, '\n\n')
@@ -2202,29 +2253,42 @@ async function executeToolsServerSide(
     const shift = Number(data.shift_days);
     if (!Number.isFinite(shift)) { out.push({ tool: 'bulk_reschedule', ok: false, message: 'shift_days (number) required.' }); continue; }
     try {
+      const entity = (data.entity === 'event') ? 'event' : 'task';
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
-      let q = supabase.from('tasks').select('id, title, due_date').eq('user_id', userId).eq('completed', false);
+      const dateCol = entity === 'event' ? 'start_time' : 'due_date';
+      const table = entity === 'event' ? 'events' : 'tasks';
+      let q = entity === 'event'
+        ? supabase.from('events').select('id, title, start_time, end_time').eq('user_id', userId)
+        : supabase.from('tasks').select('id, title, due_date').eq('user_id', userId).eq('completed', false);
       const when = (data.filter?.when || data.when || '').toLowerCase();
-      if (when === 'today') q = q.gte('due_date', todayStart.toISOString()).lt('due_date', todayEnd.toISOString());
+      if (when === 'today') q = q.gte(dateCol, todayStart.toISOString()).lt(dateCol, todayEnd.toISOString());
       else if (when === 'tomorrow') {
         const t1 = new Date(todayEnd); const t2 = new Date(t1); t2.setDate(t2.getDate() + 1);
-        q = q.gte('due_date', t1.toISOString()).lt('due_date', t2.toISOString());
-      } else if (when === 'overdue') q = q.lt('due_date', todayStart.toISOString()).not('due_date', 'is', null);
+        q = q.gte(dateCol, t1.toISOString()).lt(dateCol, t2.toISOString());
+      } else if (when === 'overdue' && entity === 'task') q = q.lt('due_date', todayStart.toISOString()).not('due_date', 'is', null);
       else if (data.filter?.date || data.date) {
         const d = new Date(data.filter?.date || data.date); d.setHours(0,0,0,0);
         const d2 = new Date(d); d2.setDate(d2.getDate() + 1);
-        q = q.gte('due_date', d.toISOString()).lt('due_date', d2.toISOString());
+        q = q.gte(dateCol, d.toISOString()).lt(dateCol, d2.toISOString());
       } else { out.push({ tool: 'bulk_reschedule', ok: false, message: 'filter.when or filter.date required.' }); continue; }
-      const { data: tasks } = await q;
-      if (!tasks?.length) { out.push({ tool: 'bulk_reschedule', ok: true, message: '📭 No tasks matched the filter.' }); continue; }
-      const updates = tasks.map((t: any) => {
-        const cur = new Date(t.due_date);
+      const { data: rows } = await q;
+      if (!rows?.length) { out.push({ tool: 'bulk_reschedule', ok: true, message: `📭 No ${entity}s matched the filter.` }); continue; }
+      const updates = (rows as any[]).map((r: any) => {
+        if (entity === 'event') {
+          const s = new Date(r.start_time); s.setDate(s.getDate() + shift);
+          const e = r.end_time ? new Date(r.end_time) : null; if (e) e.setDate(e.getDate() + shift);
+          return supabase.from('events').update({
+            start_time: s.toISOString(),
+            ...(e ? { end_time: e.toISOString() } : {}),
+          }).eq('id', r.id).eq('user_id', userId);
+        }
+        const cur = new Date(r.due_date);
         cur.setDate(cur.getDate() + shift);
-        return supabase.from('tasks').update({ due_date: cur.toISOString() }).eq('id', t.id);
+        return supabase.from('tasks').update({ due_date: cur.toISOString() }).eq('id', r.id).eq('user_id', userId);
       });
       await Promise.all(updates);
-      out.push({ tool: 'bulk_reschedule', ok: true, message: `📅 Shifted ${tasks.length} task${tasks.length === 1 ? '' : 's'} by ${shift > 0 ? '+' : ''}${shift}d.` });
+      out.push({ tool: 'bulk_reschedule', ok: true, message: `📅 Shifted ${rows.length} ${entity}${rows.length === 1 ? '' : 's'} by ${shift > 0 ? '+' : ''}${shift}d.` });
     } catch (e) { out.push({ tool: 'bulk_reschedule', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
 
@@ -2260,6 +2324,203 @@ async function executeToolsServerSide(
       await supabase.from('notes').update({ content: newContent }).eq('id', target.id).eq('user_id', userId);
       out.push({ tool: 'append_note', ok: true, message: `📝 Appended to note: ${target.title}`, entityId: target.id });
     } catch (e) { out.push({ tool: 'append_note', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- log_expense ----------
+  for (const m of text.matchAll(/<tool>log_expense<\/tool>\s*<expense>(\{[\s\S]*?\})<\/expense>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const amount = Number(data.amount);
+    if (!Number.isFinite(amount)) { out.push({ tool: 'log_expense', ok: false, message: 'amount required.' }); continue; }
+    try {
+      const desc = [data.category, data.description].filter(Boolean).join(' · ') || 'expense';
+      const expense_date = (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) ? data.date : new Date().toISOString().slice(0, 10);
+      const { data: row, error } = await supabase.from('family_expenses').insert({
+        user_id: userId, amount, description: desc, expense_date,
+      }).select('id').single();
+      if (error) throw error;
+      const undoId = await undoCreate('family_expenses', row.id, `logged €${amount} expense`, 'expense');
+      out.push({ tool: 'log_expense', ok: true, message: `💶 Logged ${data.currency || '€'}${amount.toFixed(2)} — ${desc}`, undoId, entityId: row.id });
+    } catch (e) { out.push({ tool: 'log_expense', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- query_expenses ----------
+  for (const m of text.matchAll(/<tool>query_expenses<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
+    const data = safeJSON(m[1]) || {};
+    try {
+      const period = (data.period || 'month').toLowerCase();
+      const since = new Date();
+      if (period === 'today') since.setHours(0,0,0,0);
+      else if (period === 'week') since.setDate(since.getDate() - 7);
+      else if (period === 'year') since.setFullYear(since.getFullYear() - 1);
+      else since.setMonth(since.getMonth() - 1);
+      let q = supabase.from('family_expenses').select('amount, description, expense_date')
+        .eq('user_id', userId).gte('expense_date', since.toISOString().slice(0,10));
+      if (data.category) q = q.ilike('description', `%${data.category}%`);
+      const { data: rows } = await q;
+      const total = (rows || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const count = rows?.length || 0;
+      const cat = data.category ? ` on "${data.category}"` : '';
+      out.push({ tool: 'query_expenses', ok: true, message: `💶 You spent <b>€${total.toFixed(2)}</b>${cat} in the past ${period} (${count} item${count === 1 ? '' : 's'}).` });
+    } catch (e) { out.push({ tool: 'query_expenses', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- wellbeing_summary ----------
+  for (const m of text.matchAll(/<tool>wellbeing_summary<\/tool>\s*<summary>(\{[\s\S]*?\})<\/summary>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const metric = String(data.metric || 'mood').toLowerCase();
+    const period = (data.period || 'week').toLowerCase();
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - (period === 'month' ? 30 : 7));
+      const sinceDate = since.toISOString().slice(0,10);
+      const validCols = new Set(['mood', 'sleep_hours', 'water_glasses', 'exercise_minutes', 'steps', 'stress_level']);
+      if (!validCols.has(metric)) { out.push({ tool: 'wellbeing_summary', ok: false, message: `Unsupported metric "${metric}".` }); continue; }
+      // daily_checkins stores `mood` as text — coerce; columns water_glasses/steps may not exist on every deployment, fall back gracefully.
+      const safeCol = ['mood', 'sleep_hours', 'exercise_minutes', 'stress_level'].includes(metric) ? metric : null;
+      if (!safeCol) { out.push({ tool: 'wellbeing_summary', ok: true, message: `📭 ${metric.replace('_',' ')} is not tracked yet — use /checkin to start logging.` }); continue; }
+      const { data: rows } = await supabase.from('daily_checkins')
+        .select(`checkin_date, ${safeCol}`)
+        .eq('user_id', userId).gte('checkin_date', sinceDate)
+        .order('checkin_date', { ascending: true });
+      const moodMap: Record<string, number> = { terrible: 1, bad: 2, low: 2, ok: 3, mid: 3, neutral: 3, okay: 3, good: 4, great: 5, high: 5, amazing: 5 };
+      const vals = (rows || []).map((r: any) => {
+        const v = r[safeCol];
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string') {
+          const n = Number(v); if (Number.isFinite(n)) return n;
+          return moodMap[v.toLowerCase()] ?? NaN;
+        }
+        return NaN;
+      }).filter((n: number) => Number.isFinite(n));
+      if (!vals.length) { out.push({ tool: 'wellbeing_summary', ok: true, message: `📭 No ${metric} entries in the last ${period}.` }); continue; }
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const min = Math.min(...vals), max = Math.max(...vals);
+      out.push({ tool: 'wellbeing_summary', ok: true, message: `📊 ${metric.replace('_',' ')} (last ${period}): avg <b>${avg.toFixed(1)}</b>, range ${min}–${max}, ${vals.length} entries.` });
+    } catch (e) { out.push({ tool: 'wellbeing_summary', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- recipe_to_shopping ----------
+  for (const m of text.matchAll(/<tool>recipe_to_shopping<\/tool>\s*<recipe>(\{[\s\S]*?\})<\/recipe>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.name) { out.push({ tool: 'recipe_to_shopping', ok: false, message: 'name required.' }); continue; }
+    try {
+      const { data: recipes } = await supabase.from('recipes').select('id, name')
+        .eq('user_id', userId).ilike('name', `%${data.name}%`).limit(1);
+      if (!recipes?.length) { out.push({ tool: 'recipe_to_shopping', ok: false, message: `🔍 No recipe matches "${data.name}".` }); continue; }
+      const recipe = recipes[0];
+      const { data: ingredients } = await supabase.from('recipe_ingredients')
+        .select('name, quantity, unit, category').eq('recipe_id', recipe.id);
+      if (!ingredients?.length) { out.push({ tool: 'recipe_to_shopping', ok: true, message: `📭 "${recipe.name}" has no saved ingredients.` }); continue; }
+      const { data: list } = await supabase.from('shopping_lists')
+        .select('id').eq('user_id', userId).eq('is_completed', false)
+        .order('created_at', { ascending: false }).limit(1);
+      let listId = list?.[0]?.id;
+      if (!listId) {
+        const { data: newList } = await supabase.from('shopping_lists')
+          .insert({ user_id: userId, name: 'Shopping list', is_completed: false }).select('id').single();
+        listId = newList?.id;
+      }
+      const items = (ingredients as any[]).map((ing: any) => ({
+        list_id: listId, user_id: userId, name: ing.name,
+        quantity: Number.isFinite(Number(ing.quantity)) ? Math.max(1, Math.round(Number(ing.quantity))) : 1,
+        unit: ing.unit || null,
+        category: ing.category || 'other', is_checked: false,
+      }));
+      const { error } = await supabase.from('shopping_list_items').insert(items);
+      if (error) throw error;
+      out.push({ tool: 'recipe_to_shopping', ok: true, message: `🛒 Added ${items.length} ingredient${items.length === 1 ? '' : 's'} from "${recipe.name}" to your shopping list.` });
+    } catch (e) { out.push({ tool: 'recipe_to_shopping', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- weather (open-meteo, no API key) ----------
+  for (const m of text.matchAll(/<tool>weather<\/tool>\s*<weather>(\{[\s\S]*?\})<\/weather>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.location) { out.push({ tool: 'weather', ok: false, message: 'location required.' }); continue; }
+    try {
+      const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(data.location)}&count=1`)
+        .then(r => r.json()).catch(() => null);
+      const place = geo?.results?.[0];
+      if (!place) { out.push({ tool: 'weather', ok: false, message: `🌍 Couldn't find "${data.location}".` }); continue; }
+      const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=auto&forecast_days=2`)
+        .then(r => r.json()).catch(() => null);
+      if (!w?.daily) { out.push({ tool: 'weather', ok: false, message: `🌍 Weather lookup failed.` }); continue; }
+      const idx = (data.when || 'today').toLowerCase() === 'tomorrow' ? 1 : 0;
+      const hi = w.daily.temperature_2m_max?.[idx];
+      const lo = w.daily.temperature_2m_min?.[idx];
+      const rain = w.daily.precipitation_sum?.[idx];
+      out.push({ tool: 'weather', ok: true, message: `🌤 <b>${place.name}, ${place.country_code}</b> (${idx === 0 ? 'today' : 'tomorrow'}): ${lo}°–${hi}°C, ${rain ?? 0}mm precip.` });
+    } catch (e) { out.push({ tool: 'weather', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- trip_template ----------
+  for (const m of text.matchAll(/<tool>trip_template<\/tool>\s*<trip>(\{[\s\S]*?\})<\/trip>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.destination || !data.start || !data.end) { out.push({ tool: 'trip_template', ok: false, message: 'destination, start, end required.' }); continue; }
+    try {
+      const { data: ev, error: evErr } = await supabase.from('events').insert({
+        user_id: userId, title: `Trip: ${data.destination}`,
+        start_time: new Date(data.start + 'T09:00:00').toISOString(),
+        end_time: new Date(data.end + 'T18:00:00').toISOString(),
+        category: 'personal', location: data.destination,
+      }).select('id, title').single();
+      if (evErr) throw evErr;
+      const undoId = await undoCreate('events', ev.id, `created trip "${ev.title}"`, 'event');
+      let taskCount = 0;
+      if (data.packing !== false) {
+        const tripStart = new Date(data.start + 'T00:00:00');
+        const dueDate = new Date(tripStart); dueDate.setDate(dueDate.getDate() - 2);
+        const dueIso = dueDate.toISOString();
+        const seeds = [
+          'Pack clothes', 'Passport / ID', 'Chargers & adapters', 'Toiletries', 'Confirm bookings',
+        ];
+        const rows = seeds.map((title) => ({
+          user_id: userId, title: `${title} for ${data.destination}`,
+          category: 'personal', priority: 'medium', due_date: dueIso, status: 'backlog',
+        }));
+        const { error: tErr } = await supabase.from('tasks').insert(rows);
+        if (!tErr) taskCount = rows.length;
+      }
+      out.push({ tool: 'trip_template', ok: true, message: `✈️ Trip to ${data.destination} added (${data.start} → ${data.end})${taskCount ? ` + ${taskCount} packing tasks` : ''}.`, undoId, entityId: ev.id });
+    } catch (e) { out.push({ tool: 'trip_template', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- set_language ----------
+  for (const m of text.matchAll(/<tool>set_language<\/tool>\s*<lang>(\{[\s\S]*?\})<\/lang>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const lang = String(data.lang || '').toLowerCase().slice(0, 5);
+    if (!['de', 'en', 'de-de', 'en-us', 'en-gb'].includes(lang)) { out.push({ tool: 'set_language', ok: false, message: 'lang must be "de" or "en".' }); continue; }
+    try {
+      await supabase.from('profiles').update({ locale: lang }).eq('user_id', userId);
+      out.push({ tool: 'set_language', ok: true, message: lang.startsWith('de') ? '🇩🇪 Sprache auf Deutsch gestellt.' : '🇬🇧 Language set to English.' });
+    } catch (e) { out.push({ tool: 'set_language', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- recent_actions ----------
+  for (const _m of text.matchAll(/<tool>recent_actions<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
+    try {
+      // Prefer the rich `label` column when present (some deployments). Fall
+      // back to `action`/`payload.label` when it isn't.
+      let rows: any[] | null = null;
+      const labelTry = await supabase.from('dori_undo_log')
+        .select('label, created_at').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(5);
+      if (!labelTry.error) rows = labelTry.data;
+      else {
+        const { data: alt } = await supabase.from('dori_undo_log')
+          .select('action, payload, created_at').eq('user_id', userId)
+          .order('created_at', { ascending: false }).limit(5);
+        rows = (alt || []).map((r: any) => ({
+          label: r?.payload?.label || r?.action || 'action',
+          created_at: r.created_at,
+        }));
+      }
+      if (!rows?.length) { out.push({ tool: 'recent_actions', ok: true, message: '📭 No recent actions in the undo window.' }); continue; }
+      const lines = (rows as any[]).map((r: any, i: number) => {
+        const mins = Math.max(1, Math.round((Date.now() - new Date(r.created_at).getTime()) / 60000));
+        return `${i + 1}. ${r.label} <i>(${mins}m ago)</i>`;
+      });
+      out.push({ tool: 'recent_actions', ok: true, message: `<b>🕓 Recent actions</b>\n${lines.join('\n')}` });
+    } catch (e) { out.push({ tool: 'recent_actions', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
 
   return out;

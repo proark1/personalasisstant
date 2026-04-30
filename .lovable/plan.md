@@ -1,83 +1,147 @@
-# Telegram Assistant — Round 2 Audit (50 scenarios)
+# Telegram Assistant — Round 3 (50 new scenarios)
 
-I brainstormed 50 fresh scenarios, then audited `telegram-router`, `chat`, `dori-tools`, and `telegram-poll`. Here's what works today and what needs to be fixed.
+50 fresh scenarios (no overlap with Rounds 1-2), grouped by area. After each block, ✅ = already covered, ⚠️ = partial, ❌ = missing. Implementation focuses only on the gaps.
 
-## ✅ Already Works (38 / 50)
+## The 50 scenarios
 
-| # | Scenario | Path |
-|---|---|---|
-| 1 | Snooze task tomorrow | Tap-button snooze works; free-text "snooze" goes through `manage_task` update |
-| 4 | Mark task in progress | `manage_task update` with status field |
-| 6 | Highest-priority task | AI reads `tasksSummary` context |
-| 7 | Delete completed tasks | `manage_task delete` (one at a time) |
-| 8 | Reschedule 3pm to Friday | `manage_event update` (now echoes new time, fixed in round 1) |
-| 9 | Block deep-work time | `schedule_event` |
-| 11 | Who's invited | Event details via tap button or AI |
-| 14 | Recurring meeting | `schedule_event` with RRULE |
-| 19 | Life score this week | `get_summary type=health` covers wellbeing |
-| 22 | Mark meditation done | `manage_habit log` |
-| 23 | Reading streak | `manage_habit summary` |
-| 25 | Netflix cost | `manage_contract search` |
-| 26 | Renewals this month | `/expiring` shortcut |
-| 27 | Total monthly subs | `get_summary type=contract_costs` |
-| 28 | Cancel gym contract | `cancel_subscription` tool |
-| 29 | Urgent emails | `/priority` and `fetch_emails` |
-| 30 | Summarize boss emails | `fetch_emails` filter by sender |
-| 31 | Reply to John | `draft_email_reply` / `/draft` |
-| 33 | Last contact with Sarah | `manage_contact search` |
-| 34 | Add note to Ahmed | `manage_contact update` |
-| 35 | Contacts in Berlin | `suggest_contacts` |
-| 36 | Birthdays this month | `/birthdays` |
-| 37 | Add task to wife | `manage_task` with `assignee` (workspace only) |
-| 41 | Save note | `/note` and `manage_note create` |
-| 42 | Find lease notes | `/notes <query>` |
-| 48 | Voice note → action | `transcribeTelegramVoice` → router |
-| 49 | Photo of receipt | `downloadTelegramFile` → multimodal chat |
-| 50 | Forward email screenshot | Same multimodal path |
-| + tappable today/tomorrow/week, /overdue, /free, /shopping with check/uncheck/remove buttons, /undo, /standup, /comment, /schedule, /recap, /linkfamily, /linkworkspace |
+### Calendar & time intelligence (1-7)
+1. "When's my next free 2-hour block this week?" — ⚠️ `/free` only finds 30-min slots; duration is hardcoded.
+2. "Block 9-11 every weekday for deep work" — ❌ no recurring-block creator.
+3. "Reschedule everything from Friday to Monday" — ⚠️ `bulk_reschedule` exists for tasks, not events.
+4. "What did I have last Tuesday?" — ❌ no past-date agenda lookup.
+5. "How many hours of meetings do I have this week?" — ❌ no meeting-load summary.
+6. "Add 30 min travel buffer before tomorrow's dentist" — ❌ no buffer/travel-time tool.
+7. "Cancel my 3pm" — ⚠️ works only with title; ambiguous time-only references not resolved.
 
-## ❌ Gaps to Fix (12 / 50)
+### Tasks & productivity (8-14)
+8. "Snooze all today's tasks to tomorrow" — ⚠️ `bulk_reschedule` exists but no `snooze_all_today` shortcut.
+9. "What's blocked?" — ❌ no `status='blocked'` query.
+10. "Show me tasks tagged #invoice" — ❌ no tag filter via TG.
+11. "Estimate this task at 45 min" — ❌ no estimate field update tool.
+12. "Mark task done with note 'paid via SEPA'" — ⚠️ complete works, but no completion comment.
+13. "Show what I finished this week" — ❌ no /done command.
+14. "Convert this note to a task" — ❌ no note→task conversion tool.
 
-### Group A — Quick wins (free-text routing in `chat/index.ts` system prompt)
+### Shopping & meals (15-19)
+15. "Move 'milk' from shopping to dairy section" — ❌ no category/aisle field tool.
+16. "What's on the shopping list under €10?" — N/A (prices not tracked).
+17. "Plan dinners for next week using what's in the fridge" — ⚠️ `meal_plan` tool exists; pantry inventory not modeled.
+18. "Add the ingredients of 'lasagna' to shopping" — ❌ recipe→shopping not wired through TG.
+19. "What's for dinner tonight?" — ❌ no `/menu` shortcut.
 
-1. **#2 "Move all today's tasks to next week"** — bulk update not supported; AI iterates one at a time, often gives up. **Fix:** add `manage_task action=bulk_reschedule` with `{filter, shift_days}` payload.
-2. **#5 "Add subtask 'buy batteries' to shopping task"** — no `parent_task_id` support in tool. **Fix:** extend `manage_task add` schema to accept `parent_query` (matches parent by title).
-3. **#10 "Cancel all meetings on Friday"** — no bulk delete. **Fix:** extend `manage_event delete` with `{date}` filter.
-4. **#12 "Find slot for me + wife"** — `find_time` only solo in private chats. **Fix:** when called in `tg_family` chat, expand participants to all household members automatically.
+### Money, contracts, expenses (20-24)
+20. "How much do my subscriptions cost per month?" — ✅ `manage_contract` action `get_costs`.
+21. "Cancel my Netflix" — ⚠️ marks as cancelled in DB but no draft cancellation email.
+22. "Log €23.50 lunch expense" — ❌ no expense-logging tool (only contracts).
+23. "What did I spend on groceries this month?" — ❌ no expense aggregation.
+24. "Remind me 30 days before any contract auto-renews" — ⚠️ contracts tracked, but no automatic reminder generation on add.
 
-### Group B — New tools needed in `dori-tools.ts` + `chat/index.ts`
+### Health, habits, wellbeing (25-30)
+25. "Log 8000 steps today" — ❌ `log_wellbeing` covers mood/sleep/water/exercise but not steps explicitly.
+26. "How's my mood trended this month?" — ❌ no aggregate query.
+27. "Start my morning routine" — ❌ no routine/sequence trigger.
+28. "Log period started today" — ❌ no menstrual cycle tracking.
+29. "Remind me to take meds at 8am daily" — ⚠️ recurring reminders not first-class via TG.
+30. "Did I hit my water goal yesterday?" — ❌ no goal-vs-actual comparison.
 
-5. **#15 "Log mood 4/5"**, **#18 "morning check-in"** — no mood-logging tool exists. **Fix:** add `log_wellbeing` tool (mood, energy, sleep_hours, water_ml, notes) writing to `daily_checkins`.
-6. **#16 "How many steps today"**, **#17 "Log 8h sleep"**, **#20 "Log 500ml water"** — same gap. Covered by the same `log_wellbeing` tool + a read path through existing `health-insights`.
-7. **#24 "Q1 goal progress"** — no goals tool. **Fix:** add `manage_goal` tool (create/update/check-in) on `goals` table.
-8. **#32 "Archive promotional emails"** — no archive action. **Fix:** add `manage_email action=archive|trash` calling `gmail-modify-labels` (already deployed).
-9. **#38–39 "What's for dinner / plan meals this week"** — no meal-plan tool. **Fix:** add `meal_plan` tool that reads/writes `meal_plans` and triggers `recipe-assistant` for suggestions.
-10. **#40 "Who has trash duty"** — household chore-rotation not surfaced. **Fix:** new `/chores` shortcut in router that reads from `household_chores` (or recurring tasks tagged `chore`).
+### Family & household (31-35)
+31. "Whose turn is it to take out the trash?" — ⚠️ `/chores` lists chores but doesn't show rotation.
+32. "Assign 'pick up Lina' to my partner" — ⚠️ task creation works but no assignee field exposed in tool.
+33. "What did Sarah do today?" — ⚠️ partial — `manage_task` queries are per-user; no per-member day digest.
+34. "Send 'on my way' to my partner via app message" — ❌ no in-app message tool from TG.
+35. "Who's home tonight?" — ❌ no presence/availability concept.
 
-### Group C — Islam features (router shortcuts, no AI)
+### Email (36-39)
+36. "Summarize my unread emails" — ⚠️ `/inbox` lists; no AI summary.
+37. "Unsubscribe me from this sender" — ❌ no unsubscribe action.
+38. "Forward the latest invoice from Vodafone to my accountant" — ❌ no forward tool.
+39. "Star this email" — ❌ no star/flag action.
 
-11. **#13 "Sunset / Maghrib today"**, **#44 "When is Maghrib"** — `/prayers` calls `prayer-times` function which **does not exist**. **Fix:** create `supabase/functions/prayer-times/index.ts` using a free API (Aladhan) keyed to user's lat/lng from profile, then `/prayers` works.
-12. **#45 "Log 100 dhikr"**, **#46 "Read Surah Al-Fatiha"**, **#47 "Qibla from Berlin"** — no handlers. **Fix:** add `/dhikr <count>` (writes to `dhikr_log`), `/quran <surah>` (returns text snippet via existing `quran_verses` table), `/qibla [city]` (computes bearing from coords).
+### Notes, knowledge, search (40-43)
+40. "Search my notes for 'visa interview'" — ✅ `/notes <query>`.
+41. "Read me my note from yesterday's meeting" — ⚠️ search works; voice playback of note content not wired.
+42. "What did I say about the apartment last week?" — ❌ no semantic search across history.
+43. "Save this voice memo as a journal entry" — ⚠️ append_note exists; no auto-target to "Journal" note.
 
-### Group D — Other small fixes
+### Travel & location (44-46)
+44. "What's the weather in Berlin tomorrow?" — ⚠️ `web_search` can answer; no first-class weather tool.
+45. "Add 'Dubai trip' as an upcoming trip with 3 packing tasks" — ❌ no trip/template generator.
+46. "Remind me to check in for my flight 24h before" — ❌ no flight-aware reminder.
 
-13. **#3 "Tasks assigned to my wife"** — only works inside workspace; family-shared task assignment isn't queryable. **Fix:** in `tg_family`, when user says "assigned to <name>", filter `tasks` by `user_id` of household member matching the name.
-14. **#21 "Did I do my workout today?"** — `manage_habit summary` returns all; no per-name filter. **Fix:** allow `query` param to filter to a single habit.
-15. **#43 "Append to yesterday's journal"** — `manage_note` only creates new notes. **Fix:** add `action=append` that finds the most recent note matching the title (e.g. journal/today's date) and appends with a separator.
+### Islam (47-48)
+47. "When's the next prayer?" — ✅ `/prayers`.
+48. "Add a fasting day on Monday" — ❌ no fasting log.
 
-## Files to Edit
+### Misc UX (49-50)
+49. "Show me Dori's last 5 actions" — ❌ no `/recent` history.
+50. "Switch language to German" — ⚠️ Dori auto-mirrors but no explicit `/lang` command.
 
-- `supabase/functions/_shared/dori-tools.ts` — add `log_wellbeing`, `manage_goal`, `meal_plan`, `manage_email` tool defs.
-- `supabase/functions/chat/index.ts` — add executors for the new tools, `bulk_reschedule`, bulk event delete, append-note action, family-aware `find_time`, family-assignee filter, single-habit summary.
-- `supabase/functions/telegram-router/index.ts` — new shortcuts: `/chores`, `/dhikr`, `/quran`, `/qibla`. Update `HELP_TEXT`.
-- `supabase/functions/telegram-register-commands/index.ts` — register the new commands so they appear in Telegram's autocomplete.
-- **NEW** `supabase/functions/prayer-times/index.ts` — proxy to Aladhan API (`https://api.aladhan.com/v1/timings/...`), uses `profiles.latitude/longitude` (or city geocode fallback), no API key needed.
+## Audit summary
+- ✅ fully working: 4 (20, 40, 47, +chat free-text variants)
+- ⚠️ partial: 17
+- ❌ missing: 29
 
-## Out of Scope (acknowledged, won't fix this round)
+## Implementation plan (gap fixes only)
 
-- True multi-person conflict-free scheduling across separate calendars (#12) requires deeper rework of `find_time`; we'll do a "good-enough" intersection for now.
-- "Read Surah Al-Fatiha to me" as audio playback would need TTS streaming; we'll send Arabic + transliteration text and let `prefer_voice_replies` users get it spoken via the existing TTS path.
+To keep scope reasonable, implement the highest-leverage fixes that touch many scenarios. Defer the niche ones (28 menstrual, 35 presence, 46 flights, 48 fasting) — note them in HELP_TEXT as "coming soon" or skip.
 
-## Outcome
+### A. New tools in `dori-tools.ts` + executors in `chat/index.ts`
+1. **`log_expense`** — `{amount, currency, category, note, date?}` → insert into `expenses` table (create if missing). Covers 22, 23.
+2. **`query_expenses`** — `{period, category?}` aggregate. Covers 23.
+3. **`block_time`** — `{title, start_time, end_time, recurrence?, days_of_week?}` creates a recurring calendar block via `events` with RRULE. Covers 2.
+4. **`bulk_reschedule_events`** — extend bulk tool to accept `entity:'event'`. Covers 3.
+5. **`assign_task`** — extend `manage_task` add/update to accept `assignee` (resolves email/name to user_id within household). Covers 32.
+6. **`tag_filter`** — extend `manage_task` `search` action with `tag` and `status` ('blocked'). Covers 9, 10.
+7. **`update_task_estimate`** / **completion_note** — extend `manage_task` update/complete. Covers 11, 12.
+8. **`note_to_task`** — extend `append_note`-style tool with `convert_to_task`. Covers 14.
+9. **`recipe_to_shopping`** — `{recipe_name|recipe_id}` → expand ingredients to shopping list. Covers 18.
+10. **`weather`** — `{location, when}` → call open-meteo (no key) inside the tool. Covers 44.
+11. **`trip_template`** — `{destination, start, end, packing?:bool}` → creates trip event + N packing tasks. Covers 45.
+12. **`recurring_reminder`** — extend `set_reminder` with `recurrence`. Covers 29.
+13. **`steps_log`** — extend `log_wellbeing` with `steps`. Covers 25.
+14. **`wellbeing_summary`** — `{metric, period}` aggregate from `daily_checkins` / `mood_logs`. Covers 26, 30.
+15. **`email_action`** — extend `manage_email` with actions `summarize` (uses LOVABLE_API_KEY+gemini-flash on subject+snippet), `unsubscribe` (mailto:list-unsubscribe), `forward`, `star`. Covers 36-39.
+16. **`recent_actions`** — query `dori_undo_log` for the user's last 5 mutations. Covers 49.
+17. **`set_language`** — `{lang:'de'|'en'}` updates `profiles.locale`. Covers 50.
+18. **`contract_cancel_email`** — when `manage_contract` sets cancelled, auto-call `compose_email` with provider's address. Covers 21.
+19. **`contract_renewal_reminder`** — on contract create with `renewal_date`, auto-create a reminder 30 days before. Covers 24.
 
-After this round, **all 50 scenarios** route to either a deterministic shortcut or an AI tool that actually executes — no more silent failures or "got it" responses for unsupported asks.
+### B. Telegram-router shortcuts (`telegram-router/index.ts`)
+- `/free <duration>` — accept duration arg (default 30); Covers 1.
+- `/agenda <date>` — past or future date lookup. Covers 4.
+- `/load` — meeting hours this week per member. Covers 5.
+- `/snooze` — bulk snooze today's tasks to tomorrow. Covers 8.
+- `/done` — completed tasks since Monday. Covers 13.
+- `/menu` (today's planned meal) — pulls from `meal_plans`. Covers 19.
+- `/expense <amount> <category> [note]` — direct insert via `log_expense`. Covers 22.
+- `/spent <category> [period]` — calls `query_expenses`. Covers 23.
+- `/weather [city]` — calls weather tool. Covers 44.
+- `/lang de|en` — calls `set_language`. Covers 50.
+- `/recent` — calls `recent_actions`. Covers 49.
+- `/whoseturn <chore>` — rotation logic on `chores` table. Covers 31.
+
+### C. System prompt updates (`chat/index.ts`)
+- Document new tools and tags (`<expense>`, `<weather>`, `<trip>`, `<lang>`).
+- Update XML-strip regex to swallow new tags so they don't bleed to user.
+- Add few-shot for "what's blocked?", "log €23 lunch", "trip to Dubai", "weather Berlin tomorrow".
+
+### D. Help & registration
+- Update `HELP_TEXT` with the new commands, grouped under existing sections.
+- Update `telegram-register-commands/index.ts` with new slash commands so the Telegram client autocompletes them.
+
+### E. Database migrations
+- New table `expenses` (id, user_id, amount, currency, category, note, occurred_at, created_at) with RLS (user-owned + space-shared via existing pattern).
+- Optional `task_completion_notes` column on `tasks` (or reuse `comments`); prefer adding `completion_note text` column to `tasks`.
+- Add `assignee_id uuid` to `tasks` if not present (check first; many sharing tables already exist).
+
+## Files to edit
+- `supabase/functions/_shared/dori-tools.ts` — add new tool definitions.
+- `supabase/functions/chat/index.ts` — add executors, update system prompt + regex.
+- `supabase/functions/telegram-router/index.ts` — add new shortcuts.
+- `supabase/functions/telegram-register-commands/index.ts` — register commands + update help.
+- New migration: `expenses` table + RLS, optional `tasks.completion_note`/`assignee_id`.
+
+## Out of scope (intentionally skipped)
+- 28 menstrual cycle tracking, 35 presence, 46 flight integration, 48 fasting log — niche, would each require their own data models. Will add a one-line note in HELP_TEXT pointing users to free-text Dori for these.
+- 16 price-aware shopping — no price field on shopping items.
+- 42 semantic history search — would need new embeddings infra; existing `/notes` ILIKE covers most cases.
