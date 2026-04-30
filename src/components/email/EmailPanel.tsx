@@ -392,12 +392,12 @@ export function EmailPanel() {
       <StatsBanner unread={unreadCount} priority={priorityCount} handled={handledToday} />
 
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none z-10" />
         <Input
           placeholder="Search emails..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="pl-8 h-8 text-xs"
+          className="pl-9 pr-8 h-8 text-xs"
         />
         {searchQuery && (
           <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -446,9 +446,9 @@ export function EmailPanel() {
       </motion.div>
 
       {/* Content */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 w-full max-w-full overflow-x-hidden">
         <motion.div
-          className="p-2 space-y-1.5"
+          className="p-2 space-y-1.5 w-full max-w-full overflow-x-hidden"
           drag="y"
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={{ top: 0.3, bottom: 0 }}

@@ -304,9 +304,10 @@ export function EmailActionPipelineCard({
                     <p className="text-[11px] text-muted-foreground line-clamp-2">{item.reasoning}</p>
                   )}
                 </div>
-                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
-                  onClick={() => dismiss(item.id)} disabled={isApplying} title="Dismiss">
-                  <X className="w-3.5 h-3.5" />
+                <Button size="sm" variant="ghost" className="h-7 text-[11px] shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => dismiss(item.id)} disabled={isApplying} title="Dismiss — won't show again">
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Dismiss
                 </Button>
               </div>
               <div className="flex flex-wrap gap-1.5">
