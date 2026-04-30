@@ -2404,30 +2404,31 @@ async function executeToolsServerSide(
     const data = safeJSON(m[1]) || {};
     if (!data.name) { out.push({ tool: 'recipe_to_shopping', ok: false, message: 'name required.' }); continue; }
     try {
-      const { data: recipes } = await supabase.from('recipes').select('id, title')
-        .eq('user_id', userId).ilike('title', `%${data.name}%`).limit(1);
+      const { data: recipes } = await supabase.from('recipes').select('id, name')
+        .eq('user_id', userId).ilike('name', `%${data.name}%`).limit(1);
       if (!recipes?.length) { out.push({ tool: 'recipe_to_shopping', ok: false, message: `🔍 No recipe matches "${data.name}".` }); continue; }
       const recipe = recipes[0];
       const { data: ingredients } = await supabase.from('recipe_ingredients')
         .select('name, quantity, unit, category').eq('recipe_id', recipe.id);
-      if (!ingredients?.length) { out.push({ tool: 'recipe_to_shopping', ok: true, message: `📭 "${recipe.title}" has no saved ingredients.` }); continue; }
+      if (!ingredients?.length) { out.push({ tool: 'recipe_to_shopping', ok: true, message: `📭 "${recipe.name}" has no saved ingredients.` }); continue; }
       const { data: list } = await supabase.from('shopping_lists')
-        .select('id').eq('user_id', userId).eq('is_active', true)
+        .select('id').eq('user_id', userId).eq('is_completed', false)
         .order('created_at', { ascending: false }).limit(1);
       let listId = list?.[0]?.id;
       if (!listId) {
         const { data: newList } = await supabase.from('shopping_lists')
-          .insert({ user_id: userId, name: 'Shopping list', is_active: true }).select('id').single();
+          .insert({ user_id: userId, name: 'Shopping list', is_completed: false }).select('id').single();
         listId = newList?.id;
       }
       const items = (ingredients as any[]).map((ing: any) => ({
         list_id: listId, user_id: userId, name: ing.name,
-        quantity: ing.quantity ? `${ing.quantity}${ing.unit ? ' ' + ing.unit : ''}` : null,
-        category: ing.category || 'other', is_completed: false,
+        quantity: Number.isFinite(Number(ing.quantity)) ? Math.max(1, Math.round(Number(ing.quantity))) : 1,
+        unit: ing.unit || null,
+        category: ing.category || 'other', is_checked: false,
       }));
       const { error } = await supabase.from('shopping_list_items').insert(items);
       if (error) throw error;
-      out.push({ tool: 'recipe_to_shopping', ok: true, message: `🛒 Added ${items.length} ingredient${items.length === 1 ? '' : 's'} from "${recipe.title}" to your shopping list.` });
+      out.push({ tool: 'recipe_to_shopping', ok: true, message: `🛒 Added ${items.length} ingredient${items.length === 1 ? '' : 's'} from "${recipe.name}" to your shopping list.` });
     } catch (e) { out.push({ tool: 'recipe_to_shopping', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
 
