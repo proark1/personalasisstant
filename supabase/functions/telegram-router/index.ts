@@ -727,10 +727,18 @@ async function handleNotesSearch(supabase: any, ids: string[], query: string): P
 
 // /free [day] — find free slots for the *sender* (single user) in working hours.
 async function handleFreeTime(supabase: any, userId: string, dayHint: string, tz?: string): Promise<string> {
+  // Pull a duration token like "2h" / "90m" out of the hint, default 30 min.
+  let durationMinutes = 30;
+  const durMatch = dayHint.match(/(\d+)\s*(h|hr|hrs|hour|hours|m|min|mins|minutes)/i);
+  if (durMatch) {
+    const n = Number(durMatch[1]);
+    durationMinutes = /^h/i.test(durMatch[2]) ? n * 60 : n;
+    dayHint = dayHint.replace(durMatch[0], '').trim();
+  }
   const slots = await findTimeSlots(supabase, {
     workspaceId: '',
     participants: [userId],
-    durationMinutes: 30,
+    durationMinutes,
     withinDays: 7,
     timezone: tz,
   });
@@ -750,8 +758,8 @@ async function handleFreeTime(supabase: any, userId: string, dayHint: string, tz
     }
   }
   ranked = ranked.slice(0, 5);
-  if (!ranked.length) return `😕 No free 30-minute slots${dayHint ? ` for "${dayHint}"` : ' in the next 7 days'}.`;
-  const lines = [`<b>🗓 Free slots</b>${dayHint ? ` (${escapeHtml(dayHint)})` : ''}`];
+  if (!ranked.length) return `😕 No free ${durationMinutes}-minute slots${dayHint ? ` for "${dayHint}"` : ' in the next 7 days'}.`;
+  const lines = [`<b>🗓 Free ${durationMinutes}-min slots</b>${dayHint ? ` (${escapeHtml(dayHint)})` : ''}`];
   ranked.forEach((s: any, i: number) => lines.push(`${i + 1}. ${s.local}`));
   return lines.join('\n');
 }
