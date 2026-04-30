@@ -59,7 +59,7 @@ export function PanelShell({
   headerExtra,
 }: PanelShellProps) {
   return (
-    <div className={cn("flex flex-col h-full", className)}>
+    <div className={cn("flex flex-col h-full min-w-0 max-w-full overflow-hidden", className)}>
       {/* Header */}
       <div className={cn("px-3 md:px-4 py-3 border-b border-border shrink-0", headerClassName)}>
         <div className="flex items-center justify-between">
