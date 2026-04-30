@@ -1152,6 +1152,24 @@ Deno.serve(async (req) => {
     await tgSend(chat_id, await handleEmailActions(supabase, memberIds, household, false));
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
+  if (lower.startsWith('/draft')) {
+    await tgSend(chat_id, await handleEmailDraft(supabase, userForChat, trimmed.slice(6).trim()));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
+  // ─── Tasks / notes / free-time shortcuts ────────────────
+  if (lower === '/overdue') {
+    await tgSend(chat_id, await handleOverdue(supabase, memberIds, household));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+  if (lower.startsWith('/notes')) {
+    await tgSend(chat_id, await handleNotesSearch(supabase, memberIds, trimmed.slice(6).trim()));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+  if (lower === '/free' || lower.startsWith('/free ')) {
+    await tgSend(chat_id, await handleFreeTime(supabase, userForChat, trimmed.slice(5).trim(), userTimezone));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
 
   // ─── Islam ───────────────────────────────────────────────
   if (lower === '/prayers') {
@@ -1182,8 +1200,9 @@ Deno.serve(async (req) => {
   else if (lower.startsWith('/note ')) { forcedPrefix = 'Save note: '; payloadText = trimmed.slice(6); }
   else if (lower.startsWith('/remind ')) { forcedPrefix = 'Set reminder: '; payloadText = trimmed.slice(8); }
 
-  // Build short conversation history
-  const sinceIso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  // Build short conversation history (6h window, capped at 20 turns each side
+  // → keeps Dori coherent across longer pauses without blowing the prompt).
+  const sinceIso = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
   const [{ data: priorUserMsgs }, { data: priorReplies }] = await Promise.all([
     supabase.from('telegram_messages').select('text, created_at')
       .eq('chat_id', chat_id).gte('created_at', sinceIso).not('text', 'is', null)
