@@ -962,6 +962,18 @@ Deno.serve(async (req) => {
     await tgSend(chat_id, await handleWeek(supabase, memberIds, household));
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
+  if (/^(show me the calendar|show calendar|what'?s on (my|our) calendar|what do (i|we) have (today|tomorrow|this week)|what are (my|our) next meetings|next meetings|upcoming meetings)$/i.test(trimmed)) {
+    if (/meeting/i.test(trimmed)) {
+      await tgSend(chat_id, await handleUpcomingMeetings(supabase, memberIds, household, userTimezone));
+    } else if (/tomorrow/i.test(trimmed)) {
+      await sendTappableAgenda(chat_id, supabase, memberIds, 1, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+    } else if (/week/i.test(trimmed)) {
+      await tgSend(chat_id, await handleWeek(supabase, memberIds, household));
+    } else {
+      await sendTappableAgenda(chat_id, supabase, memberIds, 0, LOVABLE_API_KEY, TELEGRAM_API_KEY);
+    }
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
   if (lower === '/shopping' || lower === '/list') {
     const sent = await sendTappableShoppingList(chat_id, supabase, group.owner_user_id, LOVABLE_API_KEY, TELEGRAM_API_KEY);
     if (!sent) await tgSend(chat_id, '🛒 No active shopping lists.');
