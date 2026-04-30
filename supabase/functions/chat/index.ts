@@ -374,14 +374,16 @@ Examples:
 - "How am I doing on books?" → action=progress query="books" (no values → returns status)
 
 TOOL: bulk_reschedule
-Use this when the user wants to shift MANY tasks at once (today, overdue, tomorrow, or a specific date).
+Use this when the user wants to shift MANY tasks OR events at once (today, overdue, tomorrow, or a specific date).
 Format: <tool>bulk_reschedule</tool><bulk>JSON_OBJECT</bulk>
 Fields:
+- "entity": "task" | "event" (default "task")
 - "filter": { "when": "today" | "overdue" | "tomorrow" }  OR  { "date": "YYYY-MM-DD" }
 - "shift_days": number (positive = later, negative = earlier)
 Examples:
 - "Move all today's tasks to next week" → filter.when="today" shift_days=7
 - "Push all overdue tasks to tomorrow" → filter.when="overdue" shift_days=1
+- "Move everything from Friday to Monday" → entity="event" filter.date="2026-05-01" shift_days=3
 
 TOOL: bulk_delete_events
 Use this when the user wants to cancel ALL events on a specific date.
