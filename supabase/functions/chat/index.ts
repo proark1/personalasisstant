@@ -2326,6 +2326,177 @@ async function executeToolsServerSide(
     } catch (e) { out.push({ tool: 'append_note', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
 
+  // ---------- log_expense ----------
+  for (const m of text.matchAll(/<tool>log_expense<\/tool>\s*<expense>(\{[\s\S]*?\})<\/expense>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const amount = Number(data.amount);
+    if (!Number.isFinite(amount)) { out.push({ tool: 'log_expense', ok: false, message: 'amount required.' }); continue; }
+    try {
+      const desc = [data.category, data.description].filter(Boolean).join(' · ') || 'expense';
+      const expense_date = (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) ? data.date : new Date().toISOString().slice(0, 10);
+      const { data: row, error } = await supabase.from('family_expenses').insert({
+        user_id: userId, amount, description: desc, expense_date,
+      }).select('id').single();
+      if (error) throw error;
+      const undoId = await undoCreate('family_expenses', row.id, `logged €${amount} expense`, 'expense');
+      out.push({ tool: 'log_expense', ok: true, message: `💶 Logged ${data.currency || '€'}${amount.toFixed(2)} — ${desc}`, undoId, entityId: row.id });
+    } catch (e) { out.push({ tool: 'log_expense', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- query_expenses ----------
+  for (const m of text.matchAll(/<tool>query_expenses<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
+    const data = safeJSON(m[1]) || {};
+    try {
+      const period = (data.period || 'month').toLowerCase();
+      const since = new Date();
+      if (period === 'today') since.setHours(0,0,0,0);
+      else if (period === 'week') since.setDate(since.getDate() - 7);
+      else if (period === 'year') since.setFullYear(since.getFullYear() - 1);
+      else since.setMonth(since.getMonth() - 1);
+      let q = supabase.from('family_expenses').select('amount, description, expense_date')
+        .eq('user_id', userId).gte('expense_date', since.toISOString().slice(0,10));
+      if (data.category) q = q.ilike('description', `%${data.category}%`);
+      const { data: rows } = await q;
+      const total = (rows || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const count = rows?.length || 0;
+      const cat = data.category ? ` on "${data.category}"` : '';
+      out.push({ tool: 'query_expenses', ok: true, message: `💶 You spent <b>€${total.toFixed(2)}</b>${cat} in the past ${period} (${count} item${count === 1 ? '' : 's'}).` });
+    } catch (e) { out.push({ tool: 'query_expenses', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- wellbeing_summary ----------
+  for (const m of text.matchAll(/<tool>wellbeing_summary<\/tool>\s*<summary>(\{[\s\S]*?\})<\/summary>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const metric = String(data.metric || 'mood').toLowerCase();
+    const period = (data.period || 'week').toLowerCase();
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - (period === 'month' ? 30 : 7));
+      const sinceDate = since.toISOString().slice(0,10);
+      const validCols = new Set(['mood', 'sleep_hours', 'water_glasses', 'exercise_minutes', 'steps', 'stress_level']);
+      if (!validCols.has(metric)) { out.push({ tool: 'wellbeing_summary', ok: false, message: `Unsupported metric "${metric}".` }); continue; }
+      const { data: rows } = await supabase.from('daily_checkins')
+        .select(`checkin_date, ${metric}`)
+        .eq('user_id', userId).gte('checkin_date', sinceDate)
+        .order('checkin_date', { ascending: true });
+      const vals = (rows || []).map((r: any) => Number(r[metric])).filter((n: number) => Number.isFinite(n));
+      if (!vals.length) { out.push({ tool: 'wellbeing_summary', ok: true, message: `📭 No ${metric} entries in the last ${period}.` }); continue; }
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const min = Math.min(...vals), max = Math.max(...vals);
+      out.push({ tool: 'wellbeing_summary', ok: true, message: `📊 ${metric.replace('_',' ')} (last ${period}): avg <b>${avg.toFixed(1)}</b>, range ${min}–${max}, ${vals.length} entries.` });
+    } catch (e) { out.push({ tool: 'wellbeing_summary', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- recipe_to_shopping ----------
+  for (const m of text.matchAll(/<tool>recipe_to_shopping<\/tool>\s*<recipe>(\{[\s\S]*?\})<\/recipe>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.name) { out.push({ tool: 'recipe_to_shopping', ok: false, message: 'name required.' }); continue; }
+    try {
+      const { data: recipes } = await supabase.from('recipes').select('id, title')
+        .eq('user_id', userId).ilike('title', `%${data.name}%`).limit(1);
+      if (!recipes?.length) { out.push({ tool: 'recipe_to_shopping', ok: false, message: `🔍 No recipe matches "${data.name}".` }); continue; }
+      const recipe = recipes[0];
+      const { data: ingredients } = await supabase.from('recipe_ingredients')
+        .select('name, quantity, unit, category').eq('recipe_id', recipe.id);
+      if (!ingredients?.length) { out.push({ tool: 'recipe_to_shopping', ok: true, message: `📭 "${recipe.title}" has no saved ingredients.` }); continue; }
+      const { data: list } = await supabase.from('shopping_lists')
+        .select('id').eq('user_id', userId).eq('is_active', true)
+        .order('created_at', { ascending: false }).limit(1);
+      let listId = list?.[0]?.id;
+      if (!listId) {
+        const { data: newList } = await supabase.from('shopping_lists')
+          .insert({ user_id: userId, name: 'Shopping list', is_active: true }).select('id').single();
+        listId = newList?.id;
+      }
+      const items = (ingredients as any[]).map((ing: any) => ({
+        list_id: listId, user_id: userId, name: ing.name,
+        quantity: ing.quantity ? `${ing.quantity}${ing.unit ? ' ' + ing.unit : ''}` : null,
+        category: ing.category || 'other', is_completed: false,
+      }));
+      const { error } = await supabase.from('shopping_list_items').insert(items);
+      if (error) throw error;
+      out.push({ tool: 'recipe_to_shopping', ok: true, message: `🛒 Added ${items.length} ingredient${items.length === 1 ? '' : 's'} from "${recipe.title}" to your shopping list.` });
+    } catch (e) { out.push({ tool: 'recipe_to_shopping', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- weather (open-meteo, no API key) ----------
+  for (const m of text.matchAll(/<tool>weather<\/tool>\s*<weather>(\{[\s\S]*?\})<\/weather>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.location) { out.push({ tool: 'weather', ok: false, message: 'location required.' }); continue; }
+    try {
+      const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(data.location)}&count=1`)
+        .then(r => r.json()).catch(() => null);
+      const place = geo?.results?.[0];
+      if (!place) { out.push({ tool: 'weather', ok: false, message: `🌍 Couldn't find "${data.location}".` }); continue; }
+      const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=auto&forecast_days=2`)
+        .then(r => r.json()).catch(() => null);
+      if (!w?.daily) { out.push({ tool: 'weather', ok: false, message: `🌍 Weather lookup failed.` }); continue; }
+      const idx = (data.when || 'today').toLowerCase() === 'tomorrow' ? 1 : 0;
+      const hi = w.daily.temperature_2m_max?.[idx];
+      const lo = w.daily.temperature_2m_min?.[idx];
+      const rain = w.daily.precipitation_sum?.[idx];
+      out.push({ tool: 'weather', ok: true, message: `🌤 <b>${place.name}, ${place.country_code}</b> (${idx === 0 ? 'today' : 'tomorrow'}): ${lo}°–${hi}°C, ${rain ?? 0}mm precip.` });
+    } catch (e) { out.push({ tool: 'weather', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- trip_template ----------
+  for (const m of text.matchAll(/<tool>trip_template<\/tool>\s*<trip>(\{[\s\S]*?\})<\/trip>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.destination || !data.start || !data.end) { out.push({ tool: 'trip_template', ok: false, message: 'destination, start, end required.' }); continue; }
+    try {
+      const { data: ev, error: evErr } = await supabase.from('events').insert({
+        user_id: userId, title: `Trip: ${data.destination}`,
+        start_time: new Date(data.start + 'T09:00:00').toISOString(),
+        end_time: new Date(data.end + 'T18:00:00').toISOString(),
+        category: 'personal', location: data.destination,
+      }).select('id, title').single();
+      if (evErr) throw evErr;
+      const undoId = await undoCreate('events', ev.id, `created trip "${ev.title}"`, 'event');
+      let taskCount = 0;
+      if (data.packing !== false) {
+        const tripStart = new Date(data.start + 'T00:00:00');
+        const dueDate = new Date(tripStart); dueDate.setDate(dueDate.getDate() - 2);
+        const dueIso = dueDate.toISOString();
+        const seeds = [
+          'Pack clothes', 'Passport / ID', 'Chargers & adapters', 'Toiletries', 'Confirm bookings',
+        ];
+        const rows = seeds.map((title) => ({
+          user_id: userId, title: `${title} for ${data.destination}`,
+          category: 'personal', priority: 'medium', due_date: dueIso, status: 'backlog',
+        }));
+        const { error: tErr } = await supabase.from('tasks').insert(rows);
+        if (!tErr) taskCount = rows.length;
+      }
+      out.push({ tool: 'trip_template', ok: true, message: `✈️ Trip to ${data.destination} added (${data.start} → ${data.end})${taskCount ? ` + ${taskCount} packing tasks` : ''}.`, undoId, entityId: ev.id });
+    } catch (e) { out.push({ tool: 'trip_template', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- set_language ----------
+  for (const m of text.matchAll(/<tool>set_language<\/tool>\s*<lang>(\{[\s\S]*?\})<\/lang>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const lang = String(data.lang || '').toLowerCase().slice(0, 5);
+    if (!['de', 'en', 'de-de', 'en-us', 'en-gb'].includes(lang)) { out.push({ tool: 'set_language', ok: false, message: 'lang must be "de" or "en".' }); continue; }
+    try {
+      await supabase.from('profiles').update({ locale: lang }).eq('user_id', userId);
+      out.push({ tool: 'set_language', ok: true, message: lang.startsWith('de') ? '🇩🇪 Sprache auf Deutsch gestellt.' : '🇬🇧 Language set to English.' });
+    } catch (e) { out.push({ tool: 'set_language', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- recent_actions ----------
+  for (const _m of text.matchAll(/<tool>recent_actions<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
+    try {
+      const { data: rows } = await supabase.from('dori_undo_log')
+        .select('label, created_at').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(5);
+      if (!rows?.length) { out.push({ tool: 'recent_actions', ok: true, message: '📭 No recent actions in the undo window.' }); continue; }
+      const lines = (rows as any[]).map((r: any, i: number) => {
+        const mins = Math.max(1, Math.round((Date.now() - new Date(r.created_at).getTime()) / 60000));
+        return `${i + 1}. ${r.label} <i>(${mins}m ago)</i>`;
+      });
+      out.push({ tool: 'recent_actions', ok: true, message: `<b>🕓 Recent actions</b>\n${lines.join('\n')}` });
+    } catch (e) { out.push({ tool: 'recent_actions', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
   return out;
 }
 
