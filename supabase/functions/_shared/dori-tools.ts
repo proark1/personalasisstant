@@ -399,7 +399,7 @@ function renderLegacy(name: string, args: any): string {
     case 'set_reminder':
       return `<tool>set_reminder</tool><reminder>${JSON.stringify(args.reminder ?? {})}</reminder>`;
     case 'add_shopping_item':
-      return `<tool>add_shopping_item</tool><item>${JSON.stringify(args.item ?? {})}</item>`;
+      return `<tool>add_shopping_item</tool><action>${args.action || 'add'}</action><item>${JSON.stringify(args.item ?? {})}</item>`;
     case 'compose_email':
       return `<tool>compose_email</tool><email>${JSON.stringify(args.email ?? {})}</email>`;
     case 'send_email':
