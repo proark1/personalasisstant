@@ -1275,6 +1275,22 @@ Deno.serve(async (req) => {
     await tgSend(chat_id, await handlePrayers(supabase, userForChat));
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
+  if (lower === '/dhikr' || lower.startsWith('/dhikr ')) {
+    await tgSend(chat_id, await handleDhikr(supabase, userForChat, trimmed.slice(6).trim()));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+  if (lower === '/qibla' || lower.startsWith('/qibla ')) {
+    await tgSend(chat_id, await handleQibla(supabase, userForChat, trimmed.slice(6).trim()));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+  if (lower.startsWith('/quran')) {
+    await tgSend(chat_id, await handleQuran(supabase, userForChat, trimmed.slice(6).trim()));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+  if (lower === '/chores') {
+    await tgSend(chat_id, await handleChores(supabase, memberIds));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
 
   // ─── Settings toggles ────────────────────────────────────
   const quietMatch = lower.match(/^\/quiet\s+(on|off)$/);
