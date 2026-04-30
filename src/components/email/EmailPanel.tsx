@@ -44,7 +44,7 @@ function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onA
   if (count === 0) return null;
 
   return (
-    <motion.div variants={staggerItem} className="space-y-1">
+    <motion.div variants={staggerItem} className="w-full min-w-0 max-w-full space-y-1 overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
@@ -55,7 +55,7 @@ function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onA
         <span className="ml-auto text-[10px] font-medium bg-muted rounded-full px-1.5 py-0.5 normal-case">{count}</span>
       </button>
       {open && (
-        <div className="space-y-1.5">
+        <div className="w-full min-w-0 max-w-full space-y-1.5 overflow-hidden">
           {threads.map(thread => (
             <EmailCard
               key={thread.latestEmail.id}

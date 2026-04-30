@@ -421,7 +421,7 @@ export function StandardMode({
   }
 
   return (
-    <div className="flex h-screen w-full bg-background">
+    <div className="flex h-screen w-full min-w-0 overflow-hidden bg-background">
       <Sidebar 
         onSignOut={onSignOut}
         onOpenFocusTimer={() => setShowFocusTimer(true)}
@@ -439,7 +439,7 @@ export function StandardMode({
         activePanel={activePanel}
       />
       
-      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
         {/* Desktop Content Header */}
         <ContextualHeader
           title={panelTitle}
@@ -452,10 +452,10 @@ export function StandardMode({
           rightSlot={<RealtimeNotificationCenter userId={user?.id} />}
         />
  
-        <div className="flex-1 min-h-0 flex overflow-hidden">
+        <div className="flex-1 min-w-0 min-h-0 flex overflow-hidden">
  
           {/* Main Content Area - Only one panel at a time */}
-          <div className="flex-1 min-h-0 flex flex-col p-2 gap-2">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 overflow-hidden p-2">
             <AnimatePresence mode="wait">
             <motion.div
               key={activePanel}
@@ -463,7 +463,7 @@ export function StandardMode({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.2 }}
-              className="flex-1 min-h-0 flex flex-col gap-2"
+              className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 overflow-hidden"
             >
             <Suspense fallback={<PanelFallback />}>
               {/* AI Assistant Panel */}
