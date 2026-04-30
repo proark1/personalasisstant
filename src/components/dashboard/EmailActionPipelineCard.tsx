@@ -268,8 +268,8 @@ export function EmailActionPipelineCard({
       { key: 'create_contract', label: 'Contract', Icon: Receipt },
     ];
     return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
+      <div className="w-full min-w-0 space-y-2 overflow-x-hidden">
+        <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles className="w-4 h-4 text-primary shrink-0" />
             <h3 className="font-semibold text-sm truncate">{items.length} email action{items.length === 1 ? '' : 's'}</h3>
@@ -289,8 +289,8 @@ export function EmailActionPipelineCard({
           const isApplying = applyingId === item.id;
           const suggestedKey = item.suggested_action;
           return (
-            <Card key={item.id} className="p-3 space-y-2">
-              <div className="flex items-start gap-2">
+            <Card key={item.id} className="w-full min-w-0 max-w-full space-y-2 overflow-hidden p-3">
+              <div className="flex min-w-0 items-start gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <Badge variant="outline" className={`text-[10px] ${catClass}`}>
@@ -304,13 +304,13 @@ export function EmailActionPipelineCard({
                     <p className="text-[11px] text-muted-foreground line-clamp-2">{item.reasoning}</p>
                   )}
                 </div>
-                <Button size="sm" variant="ghost" className="h-7 text-[11px] shrink-0 text-muted-foreground hover:text-destructive"
+                <Button size="sm" variant="ghost" className="h-7 shrink-0 text-[11px] text-muted-foreground hover:text-destructive"
                   onClick={() => dismiss(item.id)} disabled={isApplying} title="Dismiss — won't show again">
                   <X className="w-3.5 h-3.5 mr-1" />
                   Dismiss
                 </Button>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex w-full min-w-0 flex-wrap gap-1.5">
                 {ALL_ACTIONS.map(({ key, label, Icon }) => {
                   const isSuggested = key === suggestedKey;
                   return (
@@ -318,7 +318,7 @@ export function EmailActionPipelineCard({
                       key={key}
                       size="sm"
                       variant={isSuggested ? 'default' : 'outline'}
-                      className="h-7 text-[11px]"
+                      className="h-7 min-w-0 text-[11px]"
                       onClick={() => apply(item, key)}
                       disabled={isApplying}
                     >
