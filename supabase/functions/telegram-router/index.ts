@@ -389,6 +389,42 @@ async function handleWeek(supabase: any, ids: string[], household: any): Promise
   return out.join('\n');
 }
 
+async function handleUpcomingMeetings(supabase: any, ids: string[], household: any, tz?: string): Promise<string> {
+  const now = new Date();
+  const end = new Date(now);
+  end.setDate(end.getDate() + 14);
+
+  const { data: events } = await supabase.from('events')
+    .select('title, start_time, location, user_id')
+    .in('user_id', ids)
+    .gte('start_time', now.toISOString())
+    .lte('start_time', end.toISOString())
+    .order('start_time')
+    .limit(10);
+
+  const upcoming = (events || []).filter((e: any) => {
+    const title = String(e.title || '').toLowerCase();
+    return /\b(meet|meeting|call|sync|standup|review|interview|appointment|demo)\b/.test(title);
+  });
+
+  if (!upcoming.length) return '📅 No upcoming meetings in the next 14 days.';
+
+  const lines = ['<b>📅 Upcoming meetings</b>'];
+  upcoming.forEach((e: any) => {
+    const when = new Date(e.start_time).toLocaleString('en-GB', {
+      timeZone: tz,
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const who = household.multi ? ` <i>(${household.nameOf(e.user_id)})</i>` : '';
+    lines.push(`• ${when} — ${e.title}${e.location ? ` (${e.location})` : ''}${who}`);
+  });
+  return lines.join('\n');
+}
+
 async function handleShoppingList(supabase: any, ownerId: string): Promise<string> {
   const { data: lists } = await supabase.from('shopping_lists')
     .select('id, name').eq('user_id', ownerId).eq('is_completed', false)
