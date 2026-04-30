@@ -397,7 +397,7 @@ export function EmailPanel() {
           placeholder="Search emails..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="pl-9 pr-8 h-8 text-xs"
+          className="!pl-9 !pr-8 sm:!pl-9 sm:!pr-8 h-8 text-xs"
         />
         {searchQuery && (
           <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2">
