@@ -229,10 +229,11 @@ export const NATIVE_TOOLS: ToolDef[] = [
     type: 'function',
     function: {
       name: 'add_shopping_item',
-      description: 'Add an item to the family shopping list.',
+      description: 'Add, remove, or clear items on the family shopping list. Use action="remove" with a name to delete a single item (fuzzy match), or action="clear" to empty all unchecked items.',
       parameters: {
         type: 'object',
         properties: {
+          action: { type: 'string', enum: ['add', 'remove', 'clear'], description: 'Defaults to "add" if omitted.' },
           item: {
             type: 'object',
             properties: {
@@ -240,10 +241,8 @@ export const NATIVE_TOOLS: ToolDef[] = [
               quantity: { type: 'number' },
               category: { type: 'string' },
             },
-            required: ['name'],
           },
         },
-        required: ['item'],
       },
     },
   },
