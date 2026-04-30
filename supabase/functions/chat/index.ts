@@ -231,6 +231,10 @@ Task JSON fields:
 - "dueDate": ISO date string (IMPORTANT: always set this when user mentions a date, deadline, or "starting from today")
 - "recurrenceRule": RRULE string for recurring tasks (e.g., "FREQ=WEEKLY;INTERVAL=2" for every 2 weeks, "FREQ=DAILY", "FREQ=MONTHLY")
 - "assignee": string (OPTIONAL — only valid inside a workspace; a teammate's display name or @handle. Use the ACTIVE WORKSPACE members list to pick one)
+- "status": "backlog"|"in_progress"|"blocked"|"done" (optional)
+- "estimateMinutes": number (optional — saved as a comment "estimate: Nm" on the task)
+- "completionNote": string (optional — for action=complete; appended as a comment)
+- "fromNoteQuery": string (only for action=add — when set, look up the matching note's content and seed the task description from it)
 - "id": string (only for update/delete/complete actions)
 
 TOOL: schedule_event
