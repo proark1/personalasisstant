@@ -395,6 +395,51 @@ Use this when the user wants to APPEND content to an existing note (don't create
 Format: <tool>append_note</tool><note>{"query":"<title fragment>","content":"<text to append>"}</note>
 Examples: "Append to yesterday's journal: had a great day" → query="journal" content="had a great day"
 
+TOOL: log_expense
+Use this when the user records spending (not a recurring contract). Inserts into family_expenses.
+Format: <tool>log_expense</tool><expense>JSON_OBJECT</expense>
+Fields: "amount" (number, required), "currency" (default "EUR"), "category" (string), "description" (string), "date" (YYYY-MM-DD, default today)
+Examples: "Log €23.50 lunch" → amount=23.5 category="food" description="lunch"
+
+TOOL: query_expenses
+Use this when the user asks how much they spent.
+Format: <tool>query_expenses</tool><query>JSON_OBJECT</query>
+Fields: "period": "today"|"week"|"month"|"year" (default "month"); "category": optional substring match on description.
+Examples: "What did I spend on groceries this month?" → period="month" category="grocer"
+
+TOOL: wellbeing_summary
+Use this when the user asks how their mood/sleep/water/etc. trend has been.
+Format: <tool>wellbeing_summary</tool><summary>JSON_OBJECT</summary>
+Fields: "metric": "mood"|"sleep_hours"|"water_glasses"|"exercise_minutes"|"steps" ; "period": "week"|"month" (default "week").
+Examples: "How's my mood trended this month?" → metric="mood" period="month"
+
+TOOL: recipe_to_shopping
+Use this to expand a saved recipe's ingredients onto the shopping list.
+Format: <tool>recipe_to_shopping</tool><recipe>JSON_OBJECT</recipe>
+Fields: "name" (string, required — fuzzy match on recipe title)
+Examples: "Add the ingredients of lasagna to shopping" → name="lasagna"
+
+TOOL: weather
+Use this for short-form weather lookups (no API key needed — open-meteo).
+Format: <tool>weather</tool><weather>JSON_OBJECT</weather>
+Fields: "location" (city name, required), "when": "today"|"tomorrow" (default "today")
+Examples: "Weather in Berlin tomorrow" → location="Berlin" when="tomorrow"
+
+TOOL: trip_template
+Use this when the user adds a multi-day trip — creates a calendar event AND seed packing tasks.
+Format: <tool>trip_template</tool><trip>JSON_OBJECT</trip>
+Fields: "destination" (required), "start" (YYYY-MM-DD, required), "end" (YYYY-MM-DD, required), "packing": boolean (default true)
+Examples: "Add Dubai trip Jul 10-15 with packing tasks" → destination="Dubai" start="2026-07-10" end="2026-07-15" packing=true
+
+TOOL: set_language
+Use this when the user explicitly asks to switch interface/reply language.
+Format: <tool>set_language</tool><lang>{"lang":"de"|"en"}</lang>
+Examples: "Switch to German" → lang="de"
+
+TOOL: recent_actions
+Use this when the user asks "what did you just do" / "show your last actions".
+Format: <tool>recent_actions</tool><query>{"limit":5}</query>
+
 TOOL: manage_note
 Use this to create, search, or delete notes. Replaces the simpler create_note tool.
 Format: <tool>manage_note</tool><action>create|search|delete</action><note>JSON_OBJECT</note>
