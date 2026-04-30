@@ -3,9 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Sparkles, X, Plus, RefreshCw } from 'lucide-react';
+import {
+  Mail, Sparkles, X, Plus, RefreshCw, Calendar, CheckSquare,
+  FileText, Receipt, Loader2,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 interface Suggestion {
   id: string;
@@ -20,12 +30,37 @@ const ACTION_LABEL: Record<string, string> = {
   create_contract: 'Create contract',
   create_event: 'Add to calendar',
   create_task: 'Create task',
+  create_note: 'Save as note',
+};
+
+const ACTION_ICON: Record<string, typeof Plus> = {
+  create_contract: Receipt,
+  create_event: Calendar,
+  create_task: CheckSquare,
+  create_note: FileText,
+};
+
+const CATEGORY_COLOR: Record<string, string> = {
+  bill: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  meeting_request: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  family_logistics: 'bg-pink-500/10 text-pink-600 border-pink-500/20',
+  travel: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+  shopping: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+  work: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+  personal: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  newsletter: 'bg-muted text-muted-foreground',
+  note: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+  other: 'bg-muted text-muted-foreground',
 };
 
 export function EmailActionPipelineCard() {
   const { user } = useAuth();
   const [items, setItems] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanLimit, setScanLimit] = useState('25');
+  const [scanning, setScanning] = useState(false);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
 
   const load = async () => {
     if (!user?.id) return;
@@ -36,24 +71,30 @@ export function EmailActionPipelineCard() {
       .eq('status', 'pending')
       .neq('suggested_action', 'none')
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(20);
     setItems((data ?? []) as Suggestion[]);
   };
 
   useEffect(() => { load(); }, [user?.id]);
 
-  const runClassifier = async () => {
+  const runClassifier = async (limit = 25, force = false) => {
     if (!user?.id) return;
+    setScanning(true);
     setLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('email-classifier', { body: { user_id: user.id } });
+      const { data, error } = await supabase.functions.invoke('email-classifier', {
+        body: { user_id: user.id, limit, force },
+      });
       if (error) throw error;
-      toast.success('Classified recent emails');
+      const n = (data as any)?.classified ?? 0;
+      toast.success(n > 0 ? `Found ${n} new suggestion${n === 1 ? '' : 's'}` : 'No new actions found');
       await load();
     } catch (e) {
-      toast.error('Classification failed');
+      toast.error('Scan failed');
     } finally {
+      setScanning(false);
       setLoading(false);
+      setScanOpen(false);
     }
   };
 
@@ -63,62 +104,185 @@ export function EmailActionPipelineCard() {
   };
 
   const apply = async (item: Suggestion) => {
-    // Mark applied; actual creation flow is left to user via deep-link to email panel
-    await supabase.from('email_classifications').update({ status: 'applied', applied_at: new Date().toISOString() }).eq('id', item.id);
-    setItems(prev => prev.filter(i => i.id !== item.id));
-    toast.success('Marked applied — open Email Hub to finalise');
+    if (!user?.id) return;
+    setApplyingId(item.id);
+    try {
+      const p = item.suggested_payload || {};
+      const titleFromEmail = p.subject || p.title || 'From email';
+      let createdLabel = 'Applied';
+
+      if (item.suggested_action === 'create_task') {
+        const { error } = await supabase.from('tasks').insert({
+          user_id: user.id,
+          title: p.title || titleFromEmail,
+          description: item.reasoning || `From: ${p.from_name || p.from || ''}`,
+          category: 'personal',
+          priority: 'medium',
+          due_date: p.due_iso || null,
+        });
+        if (error) throw error;
+        createdLabel = 'Task created';
+      } else if (item.suggested_action === 'create_event') {
+        const start = p.start_iso ? new Date(p.start_iso) : null;
+        if (!start || isNaN(start.getTime())) {
+          toast.error('No valid date in email — open it to add manually');
+          setApplyingId(null);
+          return;
+        }
+        const end = new Date(start.getTime() + 60 * 60 * 1000);
+        const { error } = await supabase.from('events').insert({
+          user_id: user.id,
+          title: p.title || titleFromEmail,
+          description: item.reasoning || '',
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          location: p.location || null,
+          category: 'personal',
+          created_via: 'email_suggestion',
+        });
+        if (error) throw error;
+        createdLabel = 'Event added';
+      } else if (item.suggested_action === 'create_note') {
+        const { error } = await supabase.from('notes').insert({
+          user_id: user.id,
+          title: p.title || titleFromEmail,
+          content: `${item.reasoning || ''}\n\nFrom: ${p.from_name || p.from || ''}\nSubject: ${p.subject || ''}`.trim(),
+          created_via: 'email_suggestion',
+        });
+        if (error) throw error;
+        createdLabel = 'Note saved';
+      } else if (item.suggested_action === 'create_contract') {
+        // Contracts have a richer flow — defer to email hub but mark applied
+        toast.info('Open the email in Email Hub to confirm contract details');
+        createdLabel = 'Marked for review';
+      }
+
+      await supabase.from('email_classifications')
+        .update({ status: 'applied', applied_at: new Date().toISOString() })
+        .eq('id', item.id);
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      toast.success(createdLabel);
+    } catch (e) {
+      console.error(e);
+      toast.error('Could not apply suggestion');
+    } finally {
+      setApplyingId(null);
+    }
   };
+
+  const ScanDialog = (
+    <Dialog open={scanOpen} onOpenChange={setScanOpen}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            Scan emails for actions
+          </DialogTitle>
+          <DialogDescription>
+            Dori will read your most recent emails and suggest tasks, events, contracts, or notes.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 py-2">
+          <Label className="text-xs">How many recent emails?</Label>
+          <Select value={scanLimit} onValueChange={setScanLimit}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">Last 10</SelectItem>
+              <SelectItem value="25">Last 25</SelectItem>
+              <SelectItem value="50">Last 50</SelectItem>
+              <SelectItem value="100">Last 100</SelectItem>
+              <SelectItem value="200">Last 200</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setScanOpen(false)} disabled={scanning}>Cancel</Button>
+          <Button onClick={() => runClassifier(parseInt(scanLimit, 10), true)} disabled={scanning}>
+            {scanning ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+            Scan now
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   if (!items.length) {
     return (
-      <Card className="p-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Mail className="w-4 h-4" />
-            <span>No email suggestions pending</span>
+      <>
+        <Card className="p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+              <Mail className="w-4 h-4 shrink-0" />
+              <span className="truncate">No email suggestions pending</span>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setScanOpen(true)} disabled={loading}>
+              <Sparkles className="w-3 h-3 mr-1" />
+              Scan emails
+            </Button>
           </div>
-          <Button size="sm" variant="ghost" onClick={runClassifier} disabled={loading}>
-            <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
-            Scan
-          </Button>
-        </div>
-      </Card>
+        </Card>
+        {ScanDialog}
+      </>
     );
   }
 
   return (
-    <Card className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <h3 className="font-semibold text-sm">Email actions ({items.length})</h3>
-        </div>
-        <Button size="sm" variant="ghost" onClick={runClassifier} disabled={loading}>
-          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-      <div className="space-y-2">
-        {items.map(item => (
-          <div key={item.id} className="flex items-start gap-2 p-2 rounded-md bg-muted/40">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <Badge variant="outline" className="text-[10px]">{item.category.replace('_', ' ')}</Badge>
-                <span className="text-xs font-medium truncate">{item.suggested_payload?.subject ?? 'Email'}</span>
-              </div>
-              {item.reasoning && <p className="text-[11px] text-muted-foreground">{item.reasoning}</p>}
-            </div>
-            <div className="flex gap-1">
-              <Button size="sm" variant="default" className="h-7 text-[11px]" onClick={() => apply(item)}>
-                <Plus className="w-3 h-3 mr-1" />
-                {ACTION_LABEL[item.suggested_action] ?? 'Apply'}
-              </Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => dismiss(item.id)}>
-                <X className="w-3 h-3" />
-              </Button>
-            </div>
+    <>
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="w-4 h-4 text-primary shrink-0" />
+            <h3 className="font-semibold text-sm truncate">Email actions ({items.length})</h3>
           </div>
-        ))}
-      </div>
-    </Card>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setScanOpen(true)} disabled={loading}>
+              <Sparkles className="w-3 h-3 mr-1" />
+              Scan
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => runClassifier(25, false)} disabled={loading}>
+              <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {items.map(item => {
+            const Icon = ACTION_ICON[item.suggested_action] ?? Plus;
+            const catClass = CATEGORY_COLOR[item.category] ?? CATEGORY_COLOR.other;
+            const isApplying = applyingId === item.id;
+            return (
+              <div key={item.id} className="flex items-start gap-2 p-2 rounded-md bg-muted/40">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <Badge variant="outline" className={`text-[10px] ${catClass}`}>
+                      {item.category.replace('_', ' ')}
+                    </Badge>
+                    <span className="text-xs font-medium truncate">
+                      {item.suggested_payload?.subject ?? 'Email'}
+                    </span>
+                  </div>
+                  {item.reasoning && (
+                    <p className="text-[11px] text-muted-foreground line-clamp-2">{item.reasoning}</p>
+                  )}
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button size="sm" variant="default" className="h-7 text-[11px]"
+                    onClick={() => apply(item)} disabled={isApplying}>
+                    {isApplying
+                      ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      : <Icon className="w-3 h-3 mr-1" />}
+                    {ACTION_LABEL[item.suggested_action] ?? 'Apply'}
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7"
+                    onClick={() => dismiss(item.id)} disabled={isApplying}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+      {ScanDialog}
+    </>
   );
 }
