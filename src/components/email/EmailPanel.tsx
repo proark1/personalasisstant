@@ -25,6 +25,7 @@ import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { useToast } from '@/hooks/use-toast';
 import { EmailActionPipelineCard } from '@/components/dashboard/EmailActionPipelineCard';
+import { useEmailActionsCount } from '@/hooks/useEmailActionsCount';
 
 function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onArchive, onToggleImportant, icon: Icon, selectMode, selectedIds, onToggleSelect }: {
   title: string;
@@ -133,6 +134,14 @@ export function EmailPanel() {
     unreadCount, priorityCount, flaggedCount, lastSyncTime, handledToday,
   } = useEmails();
   const { addContract } = useContracts(user?.id);
+  const actionsCount = useEmailActionsCount();
+  const [activeTab, setActiveTab] = useState<EmailView | 'actions'>('smart');
+
+  // Keep email-filter view in sync with tab when not on actions
+  const handleTabChange = (v: string) => {
+    setActiveTab(v as any);
+    if (v !== 'actions') setView(v as EmailView);
+  };
   const [selectedThread, setSelectedThread] = useState<EmailThread | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -382,8 +391,6 @@ export function EmailPanel() {
     <div className="space-y-2">
       <StatsBanner unread={unreadCount} priority={priorityCount} handled={handledToday} />
 
-      <EmailActionPipelineCard />
-
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <Input
@@ -399,13 +406,17 @@ export function EmailPanel() {
         )}
       </div>
 
-      <Tabs value={view} onValueChange={(v) => setView(v as EmailView)}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="w-full h-8">
           <TabsTrigger value="smart" className="text-xs gap-1 px-3"><Sparkles className="w-3 h-3" />Smart</TabsTrigger>
           <TabsTrigger value="all" className="text-xs gap-1 px-3"><Inbox className="w-3 h-3" />All</TabsTrigger>
           <TabsTrigger value="flagged" className="text-xs gap-1 px-3">
             <ShieldAlert className="w-3 h-3" />Flagged
             {flaggedCount > 0 && <span className="text-[10px] bg-destructive/20 text-destructive rounded-full px-1 ml-0.5">{flaggedCount}</span>}
+          </TabsTrigger>
+          <TabsTrigger value="actions" className="text-xs gap-1 px-3">
+            <Zap className="w-3 h-3" />Actions
+            {actionsCount > 0 && <span className="text-[10px] bg-primary/20 text-primary rounded-full px-1 ml-0.5">{actionsCount}</span>}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -444,7 +455,11 @@ export function EmailPanel() {
           style={{ y: pullY }}
           onDragEnd={handlePullEnd}
         >
-          {view === 'smart' ? (
+          {activeTab === 'actions' ? (
+            <div className="p-1">
+              <EmailActionPipelineCard variant="list" hideWhenEmpty />
+            </div>
+          ) : view === 'smart' ? (
             <>
               <EmailSection title="Needs Your Attention" count={grouped.attention.length} threads={grouped.attention} onSelect={handleSelect} onArchive={archiveEmail} onToggleImportant={markImportant} selectMode={selectMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
               <EmailSection title="FYI" count={grouped.fyi.length} threads={grouped.fyi} onSelect={handleSelect} onArchive={archiveEmail} onToggleImportant={markImportant} selectMode={selectMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
