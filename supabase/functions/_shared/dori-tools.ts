@@ -707,25 +707,54 @@ function renderLegacy(name: string, args: any): string {
     case 'append_note':
       return `<tool>append_note</tool><note>${JSON.stringify(args.note ?? {})}</note>`;
     case 'task_filter':
-    case 'task_tag':
+      return `<tool>task_filter</tool><filter>${JSON.stringify(args.data ?? {})}</filter>`;
+    case 'task_tag': {
+      const d = args.data ?? {};
+      const action = (d.add?.length ? 'add' : (d.remove?.length ? 'remove' : 'add'));
+      return `<tool>task_tag</tool><action>${action}</action><tag>${JSON.stringify(d)}</tag>`;
+    }
     case 'task_estimate':
+      return `<tool>task_estimate</tool><estimate>${JSON.stringify(args.data ?? {})}</estimate>`;
     case 'task_complete_note':
+      return `<tool>task_complete_note</tool><complete_note>${JSON.stringify(args.data ?? {})}</complete_note>`;
     case 'task_duplicate':
+      return `<tool>task_duplicate</tool><task>${JSON.stringify(args.data ?? {})}</task>`;
     case 'task_subtask':
+      return `<tool>task_subtask</tool><subtask>${JSON.stringify(args.data ?? {})}</subtask>`;
     case 'task_assign':
+      return `<tool>task_assign</tool><assign>${JSON.stringify(args.data ?? {})}</assign>`;
     case 'summarize_emails':
-    case 'email_action':
+      return `<tool>summarize_emails</tool><summary>${JSON.stringify(args.data ?? {})}</summary>`;
+    case 'email_action': {
+      const d = args.data ?? {};
+      return `<tool>email_action</tool><action>${d.action}</action><email>${JSON.stringify(d)}</email>`;
+    }
     case 'period_log':
+      return `<tool>period_log</tool><period>${JSON.stringify(args.data ?? {})}</period>`;
     case 'fasting_log':
-    case 'pantry':
+      return `<tool>fasting_log</tool><fasting>${JSON.stringify(args.data ?? {})}</fasting>`;
+    case 'pantry': {
+      const d = args.data ?? {};
+      return `<tool>pantry</tool><action>${d.action}</action><pantry>${JSON.stringify(d)}</pantry>`;
+    }
     case 'flight_track':
+      return `<tool>flight_track</tool><flight>${JSON.stringify(args.data ?? {})}</flight>`;
     case 'presence':
-    case 'budget':
-    case 'meds':
+      return `<tool>presence</tool><presence>${JSON.stringify(args.data ?? {})}</presence>`;
+    case 'budget': {
+      const d = args.data ?? {};
+      return `<tool>budget</tool><action>${d.action}</action><budget>${JSON.stringify(d)}</budget>`;
+    }
+    case 'meds': {
+      const d = args.data ?? {};
+      return `<tool>meds</tool><action>${d.action}</action><meds>${JSON.stringify(d)}</meds>`;
+    }
     case 'zakat':
+      return `<tool>zakat</tool><zakat>${JSON.stringify(args.data ?? {})}</zakat>`;
     case 'timezone':
+      return `<tool>timezone</tool><timezone>${JSON.stringify(args.data ?? {})}</timezone>`;
     case 'currency':
-      return `<tool>${name}</tool><data>${JSON.stringify(args.data ?? {})}</data>`;
+      return `<tool>currency</tool><currency>${JSON.stringify(args.data ?? {})}</currency>`;
     default:
       console.warn('[toolCallsToLegacyXml] unknown tool name', name);
       return '';
