@@ -444,6 +444,84 @@ TOOL: recent_actions
 Use this when the user asks "what did you just do" / "show your last actions".
 Format: <tool>recent_actions</tool><query>{"limit":5}</query>
 
+TOOL: task_filter
+Filter tasks by status ('blocked','backlog','in_progress','done'), priority, or tag.
+Format: <tool>task_filter</tool><filter>{"status":"blocked","tag":"invoice","priority":"high"}</filter>
+
+TOOL: task_tag
+Add or remove a tag on a single task by title fragment.
+Format: <tool>task_tag</tool><action>add|remove</action><tag>{"query":"pay rent","tag":"finance"}</tag>
+
+TOOL: task_estimate
+Set an estimated duration in minutes on a task.
+Format: <tool>task_estimate</tool><estimate>{"query":"presentation","minutes":45}</estimate>
+
+TOOL: task_complete_note
+Complete a task with a completion comment ("paid via SEPA", "sent to John").
+Format: <tool>task_complete_note</tool><complete_note>{"query":"pay rent","note":"paid via SEPA"}</complete_note>
+
+TOOL: task_duplicate
+Duplicate an existing task (creates a "(copy)" version, status backlog).
+Format: <tool>task_duplicate</tool><task>{"query":"weekly report"}</task>
+
+TOOL: task_subtask
+Add a subtask under a parent task.
+Format: <tool>task_subtask</tool><subtask>{"parent_query":"apartment","title":"call landlord","priority":"high"}</subtask>
+
+TOOL: task_assign
+Assign a task to a person by name or email (resolves against profiles).
+Format: <tool>task_assign</tool><assign>{"task_query":"pickup Lina","assignee":"sarah"}</assign>
+
+TOOL: email_action
+Power-actions on a stored email row (Gmail or Outlook). Action ∈ star|unstar|forward|unsubscribe|snooze|translate.
+Format: <tool>email_action</tool><action>star</action><email>{"email_id":"<uuid>","to":"acc@x.com","snooze_until":"2026-05-08T09:00:00Z","target_lang":"de"}</email>
+Use email_id from the user's recent emails listing.
+
+TOOL: summarize_emails
+AI-summarize the user's unread inbox into a 3-5 bullet briefing.
+Format: <tool>summarize_emails</tool><summary>{"limit":10}</summary>
+
+TOOL: period_log
+Log a menstrual period entry.
+Format: <tool>period_log</tool><period>{"start_date":"2026-05-01","flow":"medium","symptoms":["cramps"]}</period>
+
+TOOL: fasting_log
+Log a fasting day (Ramadan or general).
+Format: <tool>fasting_log</tool><fasting>{"fast_date":"2026-05-01","fast_type":"ramadan","completed":true}</fasting>
+
+TOOL: pantry
+Manage home pantry inventory.
+Format: <tool>pantry</tool><action>add|list|remove</action><pantry>{"item":"olive oil","quantity":1,"unit":"L","category":"oils","expires_on":"2027-01-01"}</pantry>
+
+TOOL: flight_track
+Track a flight and auto-create a 24-hour-before check-in reminder.
+Format: <tool>flight_track</tool><flight>{"flight_number":"EK123","airline":"Emirates","origin":"DXB","destination":"FRA","depart_at":"2026-05-15T08:30:00Z"}</flight>
+
+TOOL: presence
+Set or query household presence ("home", "out", "traveling"). Use query="who" to see everyone.
+Format: <tool>presence</tool><presence>{"status":"out","message":"at gym","expires_at":"2026-05-01T20:00:00Z"}</presence>
+Or: <tool>presence</tool><presence>{"query":"who"}</presence>
+
+TOOL: budget
+Set a monthly category budget or check progress against budgets.
+Format: <tool>budget</tool><action>set|check</action><budget>{"category":"groceries","monthly_limit":400}</budget>
+
+TOOL: meds
+Add or list medications.
+Format: <tool>meds</tool><action>add|list</action><meds>{"name":"Vitamin D","dose":"1000 IU","frequency":"daily"}</meds>
+
+TOOL: zakat
+Compute Zakat (2.5% of net wealth above nisab).
+Format: <tool>zakat</tool><zakat>{"net_wealth":12500,"nisab":5000}</zakat>
+
+TOOL: timezone
+Look up current local time at a city.
+Format: <tool>timezone</tool><timezone>{"location":"Tokyo"}</timezone>
+
+TOOL: currency
+Convert between currencies via Frankfurter.
+Format: <tool>currency</tool><currency>{"amount":100,"from":"EUR","to":"USD"}</currency>
+
 TOOL: manage_note
 Use this to create, search, or delete notes. Replaces the simpler create_note tool.
 Format: <tool>manage_note</tool><action>create|search|delete</action><note>JSON_OBJECT</note>
