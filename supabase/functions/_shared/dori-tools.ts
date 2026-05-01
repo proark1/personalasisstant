@@ -706,6 +706,26 @@ function renderLegacy(name: string, args: any): string {
       return `<tool>bulk_delete_events</tool><bulk>${JSON.stringify(args.bulk ?? {})}</bulk>`;
     case 'append_note':
       return `<tool>append_note</tool><note>${JSON.stringify(args.note ?? {})}</note>`;
+    case 'task_filter':
+    case 'task_tag':
+    case 'task_estimate':
+    case 'task_complete_note':
+    case 'task_duplicate':
+    case 'task_subtask':
+    case 'task_assign':
+    case 'summarize_emails':
+    case 'email_action':
+    case 'period_log':
+    case 'fasting_log':
+    case 'pantry':
+    case 'flight_track':
+    case 'presence':
+    case 'budget':
+    case 'meds':
+    case 'zakat':
+    case 'timezone':
+    case 'currency':
+      return `<tool>${name}</tool><data>${JSON.stringify(args.data ?? {})}</data>`;
     default:
       console.warn('[toolCallsToLegacyXml] unknown tool name', name);
       return '';
