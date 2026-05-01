@@ -62,6 +62,21 @@ const COMMANDS = [
   { command: 'voice',      description: 'Voice replies — /voice on|off' },
   { command: 'linkme',     description: 'Link your Telegram to your Dori user' },
   { command: 'linkworkspace', description: 'Link this group to a workspace' },
+  // Phase 4: new gap-closure commands
+  { command: 'budget',     description: '💸 Set/check budget — /budget set food 500 · /budget check food' },
+  { command: 'period',     description: '🩸 Log period — /period start · /period end' },
+  { command: 'meds',       description: '💊 Log a med — /meds <name>' },
+  { command: 'pantry',     description: '🥫 Pantry inventory — /pantry list · /pantry add eggs 12' },
+  { command: 'fasting',    description: '⏱ Fasting — /fasting start · /fasting end' },
+  { command: 'flight',     description: '✈️ Track flight — /flight LH123 2026-05-10' },
+  { command: 'status',     description: '🏠 Set presence — /status home|away|work|travel' },
+  { command: 'zakat',      description: '🕌 Zakat calc — /zakat 10000' },
+  { command: 'tz',         description: '🌍 Timezone — /tz Tokyo' },
+  { command: 'fx',         description: '💱 Convert — /fx 100 EUR USD' },
+  { command: 'summary',    description: '📧 Summarise unread emails — /summary' },
+  { command: 'subtask',    description: '➕ Add subtask — /subtask <parent> :: <child>' },
+  { command: 'tag',        description: '🏷 Tag a task — /tag <task> +work -urgent' },
+  { command: 'estimate',   description: '⏳ Estimate task — /estimate <task> 30' },
   { command: 'help',       description: 'Show the full command list' },
 ];
 
