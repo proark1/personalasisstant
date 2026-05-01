@@ -110,6 +110,7 @@ read it. Send a <b>voice note</b> and I'll act on what you said.
 /me — your day at a glance
 /today · /tomorrow — tappable cards (✅ Done, ⏰ +1h, 📅 +1d, 🗑)
 /week — next 7 days overview
+/digest — next 7 important things across the whole family (auto-posts every morning)
 /agenda — same as /today
 /overdue — open tasks past their due date
 /free [duration] [day] — e.g. <code>/free 2h thursday</code>
