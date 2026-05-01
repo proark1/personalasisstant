@@ -7750,6 +7750,9 @@ export type Database = {
           link_code: string | null
           link_code_expires_at: string | null
           linked_at: string | null
+          morning_digest_enabled: boolean
+          morning_digest_hour: number
+          morning_digest_last_sent_on: string | null
           owner_user_id: string
           partner_user_id: string | null
           space_member_id: string | null
@@ -7764,6 +7767,9 @@ export type Database = {
           link_code?: string | null
           link_code_expires_at?: string | null
           linked_at?: string | null
+          morning_digest_enabled?: boolean
+          morning_digest_hour?: number
+          morning_digest_last_sent_on?: string | null
           owner_user_id: string
           partner_user_id?: string | null
           space_member_id?: string | null
@@ -7778,6 +7784,9 @@ export type Database = {
           link_code?: string | null
           link_code_expires_at?: string | null
           linked_at?: string | null
+          morning_digest_enabled?: boolean
+          morning_digest_hour?: number
+          morning_digest_last_sent_on?: string | null
           owner_user_id?: string
           partner_user_id?: string | null
           space_member_id?: string | null

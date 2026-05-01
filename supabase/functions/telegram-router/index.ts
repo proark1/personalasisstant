@@ -21,6 +21,7 @@ import { fetchLatestUndoableForUser, runUndo } from '../_shared/dori-undo.ts';
 import { buildDoriContext } from '../_shared/dori-context.ts';
 import { findTimeSlots, rankProposedSlots } from '../_shared/dori-scheduling.ts';
 import { buildWorkspaceWeeklyRecap, formatRecapForTelegram } from '../_shared/dori-recap.ts';
+import { buildSharedFamilyDigest } from '../_shared/telegram-digest.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': Deno.env.get('APP_URL') || '*',
@@ -110,6 +111,7 @@ read it. Send a <b>voice note</b> and I'll act on what you said.
 /me — your day at a glance
 /today · /tomorrow — tappable cards (✅ Done, ⏰ +1h, 📅 +1d, 🗑)
 /week — next 7 days overview
+/digest — next 7 important things across the whole family (auto-posts every morning)
 /agenda — same as /today
 /overdue — open tasks past their due date
 /free [duration] [day] — e.g. <code>/free 2h thursday</code>
@@ -1188,6 +1190,10 @@ Deno.serve(async (req) => {
   }
   if (lower === '/week') {
     await tgSend(chat_id, await handleWeek(supabase, memberIds, household));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+  if (lower === '/digest' || lower === '/morning' || lower === '/family' || lower === '/next7') {
+    await tgSend(chat_id, await buildSharedFamilyDigest(supabase, memberIds, household, { limit: 7, tz: userTimezone, greeting: lower === '/morning', horizonDays: 14 }));
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
   if (/^(show me the calendar|show calendar|what'?s on (my|our) calendar|what do (i|we) have (today|tomorrow|this week)|what are (my|our) next meetings|next meetings|upcoming meetings)[?!.]*$/i.test(trimmed)) {

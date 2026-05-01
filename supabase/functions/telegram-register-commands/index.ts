@@ -15,6 +15,7 @@ const COMMANDS = [
   { command: 'today',      description: "Today's tappable agenda" },
   { command: 'tomorrow',   description: "Tomorrow's tappable agenda" },
   { command: 'week',       description: 'Next 7 days overview' },
+  { command: 'digest',     description: '🌅 Family next-7 important items (auto every morning)' },
   { command: 'overdue',    description: '⚠️ Tasks past their due date' },
   { command: 'free',       description: 'Free slots — /free [2h] [day]' },
   { command: 'agenda',     description: 'Agenda for a date — /agenda YYYY-MM-DD' },
