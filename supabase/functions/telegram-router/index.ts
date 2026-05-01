@@ -1584,6 +1584,21 @@ Deno.serve(async (req) => {
   else if (lower.startsWith('/event ')) { forcedPrefix = 'Create event: '; payloadText = trimmed.slice(7); }
   else if (lower.startsWith('/note ')) { forcedPrefix = 'Save note: '; payloadText = trimmed.slice(6); }
   else if (lower.startsWith('/remind ')) { forcedPrefix = 'Set reminder: '; payloadText = trimmed.slice(8); }
+  // Phase 4: gap-closure shortcuts → chat function will pick the right tool
+  else if (lower === '/budget' || lower.startsWith('/budget ')) { forcedPrefix = 'Budget: '; payloadText = trimmed.slice(7).trim() || 'list'; }
+  else if (lower === '/period' || lower.startsWith('/period ')) { forcedPrefix = 'Log period: '; payloadText = trimmed.slice(7).trim() || 'today'; }
+  else if (lower === '/meds' || lower.startsWith('/meds ')) { forcedPrefix = 'Log medication: '; payloadText = trimmed.slice(5).trim() || 'list'; }
+  else if (lower === '/pantry' || lower.startsWith('/pantry ')) { forcedPrefix = 'Pantry: '; payloadText = trimmed.slice(7).trim() || 'list'; }
+  else if (lower === '/fasting' || lower.startsWith('/fasting ')) { forcedPrefix = 'Fasting: '; payloadText = trimmed.slice(8).trim() || 'status'; }
+  else if (lower.startsWith('/flight ')) { forcedPrefix = 'Track flight: '; payloadText = trimmed.slice(8); }
+  else if (lower === '/status' || lower.startsWith('/status ')) { forcedPrefix = 'Set my presence to: '; payloadText = trimmed.slice(7).trim() || 'home'; }
+  else if (lower.startsWith('/zakat ')) { forcedPrefix = 'Calculate Zakat on: '; payloadText = trimmed.slice(7); }
+  else if (lower.startsWith('/tz ')) { forcedPrefix = 'What time is it in: '; payloadText = trimmed.slice(4); }
+  else if (lower.startsWith('/fx ')) { forcedPrefix = 'Convert currency: '; payloadText = trimmed.slice(4); }
+  else if (lower === '/summary' || lower.startsWith('/summary')) { forcedPrefix = 'Summarise unread emails'; payloadText = ''; }
+  else if (lower.startsWith('/subtask ')) { forcedPrefix = 'Add subtask: '; payloadText = trimmed.slice(9); }
+  else if (lower.startsWith('/tag ')) { forcedPrefix = 'Tag task: '; payloadText = trimmed.slice(5); }
+  else if (lower.startsWith('/estimate ')) { forcedPrefix = 'Estimate task: '; payloadText = trimmed.slice(10); }
 
   // Build short conversation history (6h window, capped at 20 turns each side
   // → keeps Dori coherent across longer pauses without blowing the prompt).
