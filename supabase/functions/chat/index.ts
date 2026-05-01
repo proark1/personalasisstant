@@ -444,6 +444,84 @@ TOOL: recent_actions
 Use this when the user asks "what did you just do" / "show your last actions".
 Format: <tool>recent_actions</tool><query>{"limit":5}</query>
 
+TOOL: task_filter
+Filter tasks by status ('blocked','backlog','in_progress','done'), priority, or tag.
+Format: <tool>task_filter</tool><filter>{"status":"blocked","tag":"invoice","priority":"high"}</filter>
+
+TOOL: task_tag
+Add or remove a tag on a single task by title fragment.
+Format: <tool>task_tag</tool><action>add|remove</action><tag>{"query":"pay rent","tag":"finance"}</tag>
+
+TOOL: task_estimate
+Set an estimated duration in minutes on a task.
+Format: <tool>task_estimate</tool><estimate>{"query":"presentation","minutes":45}</estimate>
+
+TOOL: task_complete_note
+Complete a task with a completion comment ("paid via SEPA", "sent to John").
+Format: <tool>task_complete_note</tool><complete_note>{"query":"pay rent","note":"paid via SEPA"}</complete_note>
+
+TOOL: task_duplicate
+Duplicate an existing task (creates a "(copy)" version, status backlog).
+Format: <tool>task_duplicate</tool><task>{"query":"weekly report"}</task>
+
+TOOL: task_subtask
+Add a subtask under a parent task.
+Format: <tool>task_subtask</tool><subtask>{"parent_query":"apartment","title":"call landlord","priority":"high"}</subtask>
+
+TOOL: task_assign
+Assign a task to a person by name or email (resolves against profiles).
+Format: <tool>task_assign</tool><assign>{"task_query":"pickup Lina","assignee":"sarah"}</assign>
+
+TOOL: email_action
+Power-actions on a stored email row (Gmail or Outlook). Action ∈ star|unstar|forward|unsubscribe|snooze|translate.
+Format: <tool>email_action</tool><action>star</action><email>{"email_id":"<uuid>","to":"acc@x.com","snooze_until":"2026-05-08T09:00:00Z","target_lang":"de"}</email>
+Use email_id from the user's recent emails listing.
+
+TOOL: summarize_emails
+AI-summarize the user's unread inbox into a 3-5 bullet briefing.
+Format: <tool>summarize_emails</tool><summary>{"limit":10}</summary>
+
+TOOL: period_log
+Log a menstrual period entry.
+Format: <tool>period_log</tool><period>{"start_date":"2026-05-01","flow":"medium","symptoms":["cramps"]}</period>
+
+TOOL: fasting_log
+Log a fasting day (Ramadan or general).
+Format: <tool>fasting_log</tool><fasting>{"fast_date":"2026-05-01","fast_type":"ramadan","completed":true}</fasting>
+
+TOOL: pantry
+Manage home pantry inventory.
+Format: <tool>pantry</tool><action>add|list|remove</action><pantry>{"item":"olive oil","quantity":1,"unit":"L","category":"oils","expires_on":"2027-01-01"}</pantry>
+
+TOOL: flight_track
+Track a flight and auto-create a 24-hour-before check-in reminder.
+Format: <tool>flight_track</tool><flight>{"flight_number":"EK123","airline":"Emirates","origin":"DXB","destination":"FRA","depart_at":"2026-05-15T08:30:00Z"}</flight>
+
+TOOL: presence
+Set or query household presence ("home", "out", "traveling"). Use query="who" to see everyone.
+Format: <tool>presence</tool><presence>{"status":"out","message":"at gym","expires_at":"2026-05-01T20:00:00Z"}</presence>
+Or: <tool>presence</tool><presence>{"query":"who"}</presence>
+
+TOOL: budget
+Set a monthly category budget or check progress against budgets.
+Format: <tool>budget</tool><action>set|check</action><budget>{"category":"groceries","monthly_limit":400}</budget>
+
+TOOL: meds
+Add or list medications.
+Format: <tool>meds</tool><action>add|list</action><meds>{"name":"Vitamin D","dose":"1000 IU","frequency":"daily"}</meds>
+
+TOOL: zakat
+Compute Zakat (2.5% of net wealth above nisab).
+Format: <tool>zakat</tool><zakat>{"net_wealth":12500,"nisab":5000}</zakat>
+
+TOOL: timezone
+Look up current local time at a city.
+Format: <tool>timezone</tool><timezone>{"location":"Tokyo"}</timezone>
+
+TOOL: currency
+Convert between currencies via Frankfurter.
+Format: <tool>currency</tool><currency>{"amount":100,"from":"EUR","to":"USD"}</currency>
+
 TOOL: manage_note
 Use this to create, search, or delete notes. Replaces the simpler create_note tool.
 Format: <tool>manage_note</tool><action>create|search|delete</action><note>JSON_OBJECT</note>
@@ -805,7 +883,7 @@ function extractSearchQuery(msg: string): string {
 
 function stripAllToolTags(text: string): string {
   return text
-    .replace(/<tool>[\s\S]*?<\/(?:task|event|note|criteria|plan|item|contact|contract|project|habit|email|reminder|memory|query|type|property|business|member|filter|draft|meeting|target|packing|prep|cancel|wellbeing|bulk|goal|pref|expense|summary|recipe|weather|trip|lang)>/g, '')
+    .replace(/<tool>[\s\S]*?<\/(?:task|event|note|criteria|plan|item|contact|contract|project|habit|email|reminder|memory|query|type|property|business|member|filter|draft|meeting|target|packing|prep|cancel|wellbeing|bulk|goal|pref|expense|summary|recipe|weather|trip|lang|tag|estimate|subtask|assign|period|fasting|pantry|flight|presence|budget|zakat|timezone|currency|snooze|forward|star|unsubscribe|translate|duplicate|complete_note|status_filter)>/g, '')
     .replace(/<tool>[\s\S]*?<\/tool>/g, '')
     .replace(/<action>[\s\S]*?<\/action>/g, '')
     .replace(/\n{3,}/g, '\n\n')
@@ -2521,6 +2599,325 @@ async function executeToolsServerSide(
       });
       out.push({ tool: 'recent_actions', ok: true, message: `<b>🕓 Recent actions</b>\n${lines.join('\n')}` });
     } catch (e) { out.push({ tool: 'recent_actions', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ============================================================================
+  // ROUND 4 — gap-closure tools (tasks richness, email power, life domains)
+  // ============================================================================
+
+  // ---------- task_filter (status='blocked', tags, priority) ----------
+  for (const m of text.matchAll(/<tool>task_filter<\/tool>\s*<filter>(\{[\s\S]*?\})<\/filter>/g)) {
+    const data = safeJSON(m[1]) || {};
+    try {
+      let q = supabase.from('tasks').select('id,title,status,priority,due_date,tags').eq('user_id', userId).eq('trashed', false);
+      if (data.status) q = q.eq('status', String(data.status));
+      if (data.priority) q = q.eq('priority', String(data.priority));
+      if (data.tag) q = q.contains('tags', [String(data.tag)]);
+      const { data: rows } = await q.limit(20);
+      if (!rows?.length) { out.push({ tool: 'task_filter', ok: true, message: '📭 No matching tasks.' }); continue; }
+      const lines = rows.map((r: any, i: number) => `${i+1}. ${r.title} <i>(${r.priority}${r.tags?.length?` · #${r.tags.join(' #')}`:''})</i>`);
+      out.push({ tool: 'task_filter', ok: true, message: `<b>📋 Tasks</b>\n${lines.join('\n')}` });
+    } catch (e) { out.push({ tool: 'task_filter', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- task_tag (add/remove tag on a task by title fragment) ----------
+  for (const m of text.matchAll(/<tool>task_tag<\/tool>\s*<action>(\w+)<\/action>\s*<tag>(\{[\s\S]*?\})<\/tag>/g)) {
+    const action = m[1]; const data = safeJSON(m[2]) || {};
+    if (!data.query || !data.tag) { out.push({ tool: 'task_tag', ok: false, message: 'query and tag required.' }); continue; }
+    try {
+      const { data: rows } = await supabase.from('tasks').select('id,title,tags').eq('user_id', userId).ilike('title', `%${data.query}%`).limit(2);
+      if (!rows?.length) { out.push({ tool: 'task_tag', ok: false, message: `🔍 No task matches "${data.query}".` }); continue; }
+      if (rows.length > 1) { out.push({ tool: 'task_tag', ok: false, message: `🤔 Multiple tasks match. Be more specific.` }); continue; }
+      const t = rows[0]; const cur = new Set<string>(t.tags || []);
+      if (action === 'add') cur.add(String(data.tag).toLowerCase());
+      else cur.delete(String(data.tag).toLowerCase());
+      await supabase.from('tasks').update({ tags: Array.from(cur) }).eq('id', t.id);
+      out.push({ tool: 'task_tag', ok: true, message: `🏷️ ${action === 'add' ? 'Tagged' : 'Untagged'} "${t.title}" → #${data.tag}` });
+    } catch (e) { out.push({ tool: 'task_tag', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- task_estimate ----------
+  for (const m of text.matchAll(/<tool>task_estimate<\/tool>\s*<estimate>(\{[\s\S]*?\})<\/estimate>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.query || data.minutes === undefined) { out.push({ tool: 'task_estimate', ok: false, message: 'query and minutes required.' }); continue; }
+    try {
+      const { data: rows } = await supabase.from('tasks').select('id,title').eq('user_id', userId).ilike('title', `%${data.query}%`).limit(2);
+      if (!rows?.length || rows.length > 1) { out.push({ tool: 'task_estimate', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No task matches.` }); continue; }
+      await supabase.from('tasks').update({ estimate_minutes: Number(data.minutes) }).eq('id', rows[0].id);
+      out.push({ tool: 'task_estimate', ok: true, message: `⏱ Estimated "${rows[0].title}" at ${data.minutes} min.` });
+    } catch (e) { out.push({ tool: 'task_estimate', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- task_complete_with_note ----------
+  for (const m of text.matchAll(/<tool>task_complete_note<\/tool>\s*<complete_note>(\{[\s\S]*?\})<\/complete_note>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.query) { out.push({ tool: 'task_complete_note', ok: false, message: 'query required.' }); continue; }
+    try {
+      const { data: rows } = await supabase.from('tasks').select('id,title').eq('user_id', userId).eq('completed', false).ilike('title', `%${data.query}%`).limit(2);
+      if (!rows?.length || rows.length > 1) { out.push({ tool: 'task_complete_note', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No task matches.` }); continue; }
+      await supabase.from('tasks').update({ completed: true, status: 'done', completion_note: data.note || null }).eq('id', rows[0].id);
+      out.push({ tool: 'task_complete_note', ok: true, message: `✅ Completed "${rows[0].title}"${data.note ? ` — note saved` : ''}.` });
+    } catch (e) { out.push({ tool: 'task_complete_note', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- task_duplicate ----------
+  for (const m of text.matchAll(/<tool>task_duplicate<\/tool>\s*<task>(\{[\s\S]*?\})<\/task>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.query) { out.push({ tool: 'task_duplicate', ok: false, message: 'query required.' }); continue; }
+    try {
+      const { data: rows } = await supabase.from('tasks').select('*').eq('user_id', userId).ilike('title', `%${data.query}%`).limit(2);
+      if (!rows?.length || rows.length > 1) { out.push({ tool: 'task_duplicate', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No task matches.` }); continue; }
+      const src = rows[0];
+      const { id, created_at, updated_at, ...copy } = src;
+      copy.title = `${src.title} (copy)`; copy.completed = false; copy.status = 'backlog'; copy.completion_note = null;
+      const { data: ins } = await supabase.from('tasks').insert(copy).select('id').single();
+      const undoId = await undoCreate('tasks', ins.id, `duplicated task "${copy.title}"`, 'task');
+      out.push({ tool: 'task_duplicate', ok: true, message: `📑 Duplicated → "${copy.title}"`, undoId, entityId: ins.id });
+    } catch (e) { out.push({ tool: 'task_duplicate', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- task_subtask (add child task under a parent) ----------
+  for (const m of text.matchAll(/<tool>task_subtask<\/tool>\s*<subtask>(\{[\s\S]*?\})<\/subtask>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.parent_query || !data.title) { out.push({ tool: 'task_subtask', ok: false, message: 'parent_query and title required.' }); continue; }
+    try {
+      const { data: rows } = await supabase.from('tasks').select('id,title,category').eq('user_id', userId).ilike('title', `%${data.parent_query}%`).limit(2);
+      if (!rows?.length || rows.length > 1) { out.push({ tool: 'task_subtask', ok: false, message: rows?.length ? '🤔 Multiple parents match.' : `🔍 No parent task matches.` }); continue; }
+      const parent = rows[0];
+      const { data: ins } = await supabase.from('tasks').insert({
+        user_id: userId, title: data.title, parent_id: parent.id,
+        category: parent.category, priority: data.priority || 'medium', status: 'backlog',
+      }).select('id').single();
+      const undoId = await undoCreate('tasks', ins.id, `added subtask "${data.title}"`, 'task');
+      out.push({ tool: 'task_subtask', ok: true, message: `➕ Added subtask under "${parent.title}": ${data.title}`, undoId, entityId: ins.id });
+    } catch (e) { out.push({ tool: 'task_subtask', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- task_assign (set main_responsible_id by name) ----------
+  for (const m of text.matchAll(/<tool>task_assign<\/tool>\s*<assign>(\{[\s\S]*?\})<\/assign>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.task_query || !data.assignee) { out.push({ tool: 'task_assign', ok: false, message: 'task_query and assignee required.' }); continue; }
+    try {
+      const { data: tasks } = await supabase.from('tasks').select('id,title').eq('user_id', userId).ilike('title', `%${data.task_query}%`).limit(2);
+      if (!tasks?.length || tasks.length > 1) { out.push({ tool: 'task_assign', ok: false, message: tasks?.length ? '🤔 Multiple tasks match.' : `🔍 No task matches.` }); continue; }
+      const { data: profs } = await supabase.from('profiles').select('id,display_name,email').or(`display_name.ilike.%${data.assignee}%,email.ilike.%${data.assignee}%`).limit(2);
+      if (!profs?.length || profs.length > 1) { out.push({ tool: 'task_assign', ok: false, message: profs?.length ? '🤔 Multiple people match.' : `🔍 No person matches "${data.assignee}".` }); continue; }
+      await supabase.from('tasks').update({ main_responsible_id: profs[0].id }).eq('id', tasks[0].id);
+      out.push({ tool: 'task_assign', ok: true, message: `👤 Assigned "${tasks[0].title}" to ${profs[0].display_name || profs[0].email}.` });
+    } catch (e) { out.push({ tool: 'task_assign', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- email_action (summarize/star/forward/unsubscribe/snooze/translate) ----------
+  for (const m of text.matchAll(/<tool>email_action<\/tool>\s*<action>(\w+)<\/action>\s*<email>(\{[\s\S]*?\})<\/email>/g)) {
+    const action = m[1]; const data = safeJSON(m[2]) || {};
+    try {
+      const r = await invokeInternal('email-actions', userId, { action, ...data });
+      if (!r.ok) { out.push({ tool: 'email_action', ok: false, message: `📧 ${action} failed: ${r.error}` }); continue; }
+      out.push({ tool: 'email_action', ok: true, message: r.body?.message || `📧 ${action} done.` });
+    } catch (e) { out.push({ tool: 'email_action', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- summarize_emails ----------
+  for (const m of text.matchAll(/<tool>summarize_emails<\/tool>\s*<summary>(\{[\s\S]*?\})<\/summary>/g)) {
+    const data = safeJSON(m[1]) || {};
+    try {
+      const limit = Math.min(20, Number(data.limit) || 10);
+      const { data: emails } = await supabase.from('emails').select('subject,from_email,snippet,received_at').eq('user_id', userId).eq('is_read', false).order('received_at', { ascending: false }).limit(limit);
+      if (!emails?.length) { out.push({ tool: 'summarize_emails', ok: true, message: '📭 No unread emails.' }); continue; }
+      const apiKey = Deno.env.get('LOVABLE_API_KEY');
+      if (!apiKey) { out.push({ tool: 'summarize_emails', ok: false, message: 'AI key missing.' }); continue; }
+      const list = emails.map((e: any, i: number) => `${i+1}. From ${e.from_email} — "${e.subject}": ${(e.snippet || '').slice(0, 200)}`).join('\n');
+      const prompt = `Summarize these ${emails.length} unread emails into a 3-5 bullet briefing in the user's language. Group by topic. Highlight anything urgent.\n\n${list}`;
+      const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }] }),
+      }).then(r => r.json()).catch(() => null);
+      const summary = aiResp?.choices?.[0]?.message?.content || 'Summary unavailable.';
+      out.push({ tool: 'summarize_emails', ok: true, message: `📧 <b>Inbox briefing (${emails.length})</b>\n${summary}` });
+    } catch (e) { out.push({ tool: 'summarize_emails', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- period_log ----------
+  for (const m of text.matchAll(/<tool>period_log<\/tool>\s*<period>(\{[\s\S]*?\})<\/period>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const start = data.start_date || new Date().toISOString().slice(0, 10);
+    try {
+      const { data: row } = await supabase.from('period_logs').insert({
+        user_id: userId, start_date: start, end_date: data.end_date || null,
+        flow: data.flow || null, symptoms: data.symptoms || null, notes: data.notes || null,
+      }).select('id').single();
+      const undoId = await undoCreate('period_logs', row.id, `logged period (${start})`, 'period');
+      out.push({ tool: 'period_log', ok: true, message: `🩸 Logged period starting ${start}.`, undoId });
+    } catch (e) { out.push({ tool: 'period_log', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- fasting_log ----------
+  for (const m of text.matchAll(/<tool>fasting_log<\/tool>\s*<fasting>(\{[\s\S]*?\})<\/fasting>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const date = data.fast_date || new Date().toISOString().slice(0, 10);
+    try {
+      const { data: row } = await supabase.from('fasting_logs').upsert({
+        user_id: userId, fast_date: date, fast_type: data.fast_type || 'ramadan',
+        completed: data.completed !== false, notes: data.notes || null,
+      }, { onConflict: 'user_id,fast_date,fast_type' }).select('id').single();
+      out.push({ tool: 'fasting_log', ok: true, message: `🌙 Logged fast on ${date}.`, entityId: row.id });
+    } catch (e) { out.push({ tool: 'fasting_log', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- pantry_manage ----------
+  for (const m of text.matchAll(/<tool>pantry<\/tool>\s*<action>(\w+)<\/action>\s*<pantry>(\{[\s\S]*?\})<\/pantry>/g)) {
+    const action = m[1]; const data = safeJSON(m[2]) || {};
+    try {
+      if (action === 'add') {
+        if (!data.item) { out.push({ tool: 'pantry', ok: false, message: 'item required.' }); continue; }
+        const { data: row } = await supabase.from('pantry_items').insert({
+          user_id: userId, item: data.item, quantity: data.quantity || null,
+          unit: data.unit || null, category: data.category || null, expires_on: data.expires_on || null,
+        }).select('id').single();
+        const undoId = await undoCreate('pantry_items', row.id, `added "${data.item}" to pantry`, 'pantry');
+        out.push({ tool: 'pantry', ok: true, message: `🥫 Added ${data.item} to pantry.`, undoId });
+      } else if (action === 'list') {
+        const { data: rows } = await supabase.from('pantry_items').select('item,quantity,unit,expires_on').eq('user_id', userId).order('item').limit(50);
+        if (!rows?.length) { out.push({ tool: 'pantry', ok: true, message: '📭 Pantry is empty.' }); continue; }
+        const lines = rows.map((r: any, i: number) => `${i+1}. ${r.item}${r.quantity ? ` (${r.quantity}${r.unit||''})` : ''}${r.expires_on ? ` — exp ${r.expires_on}` : ''}`);
+        out.push({ tool: 'pantry', ok: true, message: `<b>🥫 Pantry</b>\n${lines.join('\n')}` });
+      } else if (action === 'remove') {
+        if (!data.query) { out.push({ tool: 'pantry', ok: false, message: 'query required.' }); continue; }
+        const { data: rows } = await supabase.from('pantry_items').select('id,item').eq('user_id', userId).ilike('item', `%${data.query}%`).limit(2);
+        if (!rows?.length || rows.length > 1) { out.push({ tool: 'pantry', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No pantry item matches.` }); continue; }
+        await supabase.from('pantry_items').delete().eq('id', rows[0].id);
+        out.push({ tool: 'pantry', ok: true, message: `🗑️ Removed ${rows[0].item} from pantry.` });
+      }
+    } catch (e) { out.push({ tool: 'pantry', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- flight_track ----------
+  for (const m of text.matchAll(/<tool>flight_track<\/tool>\s*<flight>(\{[\s\S]*?\})<\/flight>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.flight_number || !data.depart_at) { out.push({ tool: 'flight_track', ok: false, message: 'flight_number and depart_at required.' }); continue; }
+    try {
+      const departIso = new Date(data.depart_at).toISOString();
+      const checkin = new Date(new Date(departIso).getTime() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: row } = await supabase.from('flight_tracking').insert({
+        user_id: userId, flight_number: data.flight_number, airline: data.airline || null,
+        origin: data.origin || null, destination: data.destination || null,
+        depart_at: departIso, checkin_reminder_at: checkin,
+      }).select('id').single();
+      const undoId = await undoCreate('flight_tracking', row.id, `tracked flight ${data.flight_number}`, 'flight');
+      out.push({ tool: 'flight_track', ok: true, message: `✈️ Tracking ${data.flight_number} — I'll remind you to check in 24h before.`, undoId });
+    } catch (e) { out.push({ tool: 'flight_track', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- presence ----------
+  for (const m of text.matchAll(/<tool>presence<\/tool>\s*<presence>(\{[\s\S]*?\})<\/presence>/g)) {
+    const data = safeJSON(m[1]) || {};
+    try {
+      if (data.query === 'who') {
+        // Look up presence of household (space members owners)
+        const { data: members } = await supabase.from('space_members').select('owner_id, profiles!space_members_owner_id_fkey(display_name)').eq('member_id', userId).eq('status', 'accepted');
+        const ids = (members || []).map((r: any) => r.owner_id);
+        ids.push(userId);
+        const { data: presences } = await supabase.from('presence_status').select('user_id,status,message,expires_at').in('user_id', ids);
+        const pmap = new Map((presences || []).map((p: any) => [p.user_id, p]));
+        const lines = ids.map((id: string) => {
+          const p = pmap.get(id);
+          const name = id === userId ? 'You' : ((members || []).find((m: any) => m.owner_id === id)?.profiles?.display_name || 'Member');
+          return `• ${name}: ${p?.status || 'unknown'}${p?.message ? ` — ${p.message}` : ''}`;
+        });
+        out.push({ tool: 'presence', ok: true, message: `<b>🏠 Household</b>\n${lines.join('\n')}` });
+      } else {
+        await supabase.from('presence_status').upsert({
+          user_id: userId, status: data.status || 'home', message: data.message || null,
+          expires_at: data.expires_at || null,
+        }, { onConflict: 'user_id' });
+        out.push({ tool: 'presence', ok: true, message: `📍 Status set: ${data.status}${data.message ? ` (${data.message})` : ''}.` });
+      }
+    } catch (e) { out.push({ tool: 'presence', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- budget ----------
+  for (const m of text.matchAll(/<tool>budget<\/tool>\s*<action>(\w+)<\/action>\s*<budget>(\{[\s\S]*?\})<\/budget>/g)) {
+    const action = m[1]; const data = safeJSON(m[2]) || {};
+    try {
+      if (action === 'set') {
+        if (!data.category || data.monthly_limit === undefined) { out.push({ tool: 'budget', ok: false, message: 'category and monthly_limit required.' }); continue; }
+        await supabase.from('financial_budgets').upsert({
+          user_id: userId, category: String(data.category).toLowerCase(),
+          monthly_limit: Number(data.monthly_limit), currency: data.currency || 'EUR',
+        }, { onConflict: 'user_id,category' });
+        out.push({ tool: 'budget', ok: true, message: `💰 Budget set: ${data.category} = €${Number(data.monthly_limit).toFixed(2)}/mo.` });
+      } else if (action === 'check') {
+        const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+        const { data: budgets } = await supabase.from('financial_budgets').select('category,monthly_limit,currency').eq('user_id', userId);
+        if (!budgets?.length) { out.push({ tool: 'budget', ok: true, message: '📭 No budgets set yet.' }); continue; }
+        const { data: exps } = await supabase.from('family_expenses').select('amount,description').eq('user_id', userId).gte('expense_date', monthStart.toISOString().slice(0, 10));
+        const lines = budgets.map((b: any) => {
+          const spent = (exps || []).filter((e: any) => (e.description || '').toLowerCase().includes(b.category)).reduce((s: number, e: any) => s + Number(e.amount), 0);
+          const pct = b.monthly_limit > 0 ? Math.round((spent / b.monthly_limit) * 100) : 0;
+          const bar = pct >= 100 ? '🔴' : pct >= 80 ? '🟡' : '🟢';
+          return `${bar} ${b.category}: €${spent.toFixed(2)}/${b.monthly_limit} (${pct}%)`;
+        });
+        out.push({ tool: 'budget', ok: true, message: `<b>💰 Budgets this month</b>\n${lines.join('\n')}` });
+      }
+    } catch (e) { out.push({ tool: 'budget', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- meds (quick log+list around personal_medications) ----------
+  for (const m of text.matchAll(/<tool>meds<\/tool>\s*<action>(\w+)<\/action>\s*<meds>(\{[\s\S]*?\})<\/meds>/g)) {
+    const action = m[1]; const data = safeJSON(m[2]) || {};
+    try {
+      if (action === 'add') {
+        if (!data.name) { out.push({ tool: 'meds', ok: false, message: 'name required.' }); continue; }
+        const { data: row } = await supabase.from('personal_medications').insert({
+          user_id: userId, name: data.name, dose: data.dose || null,
+          frequency: data.frequency || null, schedule: data.schedule || null,
+          start_date: data.start_date || null, prescriber: data.prescriber || null, reason: data.reason || null,
+        }).select('id').single();
+        const undoId = await undoCreate('personal_medications', row.id, `added med "${data.name}"`, 'medication');
+        out.push({ tool: 'meds', ok: true, message: `💊 Added med: ${data.name}${data.dose ? ` (${data.dose})` : ''}.`, undoId });
+      } else if (action === 'list') {
+        const { data: rows } = await supabase.from('personal_medications').select('name,dose,frequency,refill_date').eq('user_id', userId).eq('is_active', true);
+        if (!rows?.length) { out.push({ tool: 'meds', ok: true, message: '📭 No active medications.' }); continue; }
+        const lines = rows.map((r: any, i: number) => `${i+1}. ${r.name}${r.dose ? ` ${r.dose}` : ''}${r.frequency ? ` · ${r.frequency}` : ''}${r.refill_date ? ` · refill ${r.refill_date}` : ''}`);
+        out.push({ tool: 'meds', ok: true, message: `<b>💊 Medications</b>\n${lines.join('\n')}` });
+      }
+    } catch (e) { out.push({ tool: 'meds', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- zakat (simple 2.5% on net wealth) ----------
+  for (const m of text.matchAll(/<tool>zakat<\/tool>\s*<zakat>(\{[\s\S]*?\})<\/zakat>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const net = Number(data.net_wealth || 0);
+    const nisab = Number(data.nisab || 5000); // rough threshold default
+    if (!Number.isFinite(net) || net <= 0) { out.push({ tool: 'zakat', ok: false, message: 'net_wealth required.' }); continue; }
+    const zakat = net >= nisab ? net * 0.025 : 0;
+    out.push({ tool: 'zakat', ok: true, message: `🕋 Zakat on €${net.toFixed(2)}: ${zakat > 0 ? `€${zakat.toFixed(2)} (2.5%)` : `none — below nisab (€${nisab})`}.` });
+  }
+
+  // ---------- timezone ----------
+  for (const m of text.matchAll(/<tool>timezone<\/tool>\s*<timezone>(\{[\s\S]*?\})<\/timezone>/g)) {
+    const data = safeJSON(m[1]) || {};
+    if (!data.location) { out.push({ tool: 'timezone', ok: false, message: 'location required.' }); continue; }
+    try {
+      const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(data.location)}&count=1`).then(r => r.json()).catch(() => null);
+      const place = geo?.results?.[0];
+      if (!place) { out.push({ tool: 'timezone', ok: false, message: `🌍 Couldn't find "${data.location}".` }); continue; }
+      const local = new Date().toLocaleString('en-US', { timeZone: place.timezone, hour: '2-digit', minute: '2-digit', weekday: 'short' });
+      out.push({ tool: 'timezone', ok: true, message: `🕐 ${place.name}: ${local} (${place.timezone}).` });
+    } catch (e) { out.push({ tool: 'timezone', ok: false, message: `Failed: ${(e as Error).message}` }); }
+  }
+
+  // ---------- currency ----------
+  for (const m of text.matchAll(/<tool>currency<\/tool>\s*<currency>(\{[\s\S]*?\})<\/currency>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const amount = Number(data.amount); const from = String(data.from || 'EUR').toUpperCase(); const to = String(data.to || 'USD').toUpperCase();
+    if (!Number.isFinite(amount)) { out.push({ tool: 'currency', ok: false, message: 'amount required.' }); continue; }
+    try {
+      const r = await fetch(`https://api.frankfurter.app/latest?amount=${amount}&from=${from}&to=${to}`).then(r => r.json()).catch(() => null);
+      const converted = r?.rates?.[to];
+      if (!converted) { out.push({ tool: 'currency', ok: false, message: `Couldn't convert ${from}→${to}.` }); continue; }
+      out.push({ tool: 'currency', ok: true, message: `💱 ${amount} ${from} = ${converted.toFixed(2)} ${to}` });
+    } catch (e) { out.push({ tool: 'currency', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
 
   return out;

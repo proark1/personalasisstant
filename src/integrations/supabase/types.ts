@@ -1659,6 +1659,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_snoozed: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          provider: string
+          resurfaced: boolean
+          snooze_until: string
+          subject: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          provider?: string
+          resurfaced?: boolean
+          snooze_until: string
+          subject?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          provider?: string
+          resurfaced?: boolean
+          snooze_until?: string
+          subject?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       episodic_memories: {
         Row: {
           created_at: string
@@ -3361,6 +3394,36 @@ export type Database = {
           },
         ]
       }
+      fasting_logs: {
+        Row: {
+          completed: boolean
+          created_at: string
+          fast_date: string
+          fast_type: string
+          id: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          fast_date: string
+          fast_type?: string
+          id?: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          fast_date?: string
+          fast_type?: string
+          id?: string
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       financial_accounts: {
         Row: {
           account_type: string
@@ -3530,6 +3593,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      flight_tracking: {
+        Row: {
+          airline: string | null
+          checkin_reminder_at: string | null
+          created_at: string
+          depart_at: string
+          destination: string | null
+          flight_number: string
+          id: string
+          notes: string | null
+          origin: string | null
+          status: string | null
+          trip_event_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          airline?: string | null
+          checkin_reminder_at?: string | null
+          created_at?: string
+          depart_at: string
+          destination?: string | null
+          flight_number: string
+          id?: string
+          notes?: string | null
+          origin?: string | null
+          status?: string | null
+          trip_event_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          airline?: string | null
+          checkin_reminder_at?: string | null
+          created_at?: string
+          depart_at?: string
+          destination?: string | null
+          flight_number?: string
+          id?: string
+          notes?: string | null
+          origin?: string | null
+          status?: string | null
+          trip_event_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       focus_sessions: {
         Row: {
@@ -5351,6 +5462,81 @@ export type Database = {
           },
         ]
       }
+      pantry_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          expires_on: string | null
+          id: string
+          item: string
+          notes: string | null
+          quantity: number | null
+          unit: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          expires_on?: string | null
+          id?: string
+          item: string
+          notes?: string | null
+          quantity?: number | null
+          unit?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          expires_on?: string | null
+          id?: string
+          item?: string
+          notes?: string | null
+          quantity?: number | null
+          unit?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      period_logs: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          flow: string | null
+          id: string
+          notes: string | null
+          start_date: string
+          symptoms: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          flow?: string | null
+          id?: string
+          notes?: string | null
+          start_date: string
+          symptoms?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          flow?: string | null
+          id?: string
+          notes?: string | null
+          start_date?: string
+          symptoms?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       personal_doctors: {
         Row: {
           address: string | null
@@ -5549,6 +5735,30 @@ export type Database = {
           message_id?: string
           message_type?: string
           pinned_by?: string
+        }
+        Relationships: []
+      }
+      presence_status: {
+        Row: {
+          expires_at: string | null
+          message: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          expires_at?: string | null
+          message?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string | null
+          message?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -7358,11 +7568,13 @@ export type Database = {
           checklist: Json | null
           comments: Json | null
           completed: boolean
+          completion_note: string | null
           created_at: string
           created_by_telegram_user_id: number | null
           created_via: string | null
           description: string | null
           due_date: string | null
+          estimate_minutes: number | null
           id: string
           last_reminded_at: string | null
           main_responsible_id: string | null
@@ -7375,6 +7587,7 @@ export type Database = {
           secondary_responsible_id: string | null
           sort_order: number | null
           status: string
+          tags: string[] | null
           title: string
           trashed: boolean
           trashed_at: string | null
@@ -7388,11 +7601,13 @@ export type Database = {
           checklist?: Json | null
           comments?: Json | null
           completed?: boolean
+          completion_note?: string | null
           created_at?: string
           created_by_telegram_user_id?: number | null
           created_via?: string | null
           description?: string | null
           due_date?: string | null
+          estimate_minutes?: number | null
           id?: string
           last_reminded_at?: string | null
           main_responsible_id?: string | null
@@ -7405,6 +7620,7 @@ export type Database = {
           secondary_responsible_id?: string | null
           sort_order?: number | null
           status?: string
+          tags?: string[] | null
           title: string
           trashed?: boolean
           trashed_at?: string | null
@@ -7418,11 +7634,13 @@ export type Database = {
           checklist?: Json | null
           comments?: Json | null
           completed?: boolean
+          completion_note?: string | null
           created_at?: string
           created_by_telegram_user_id?: number | null
           created_via?: string | null
           description?: string | null
           due_date?: string | null
+          estimate_minutes?: number | null
           id?: string
           last_reminded_at?: string | null
           main_responsible_id?: string | null
@@ -7435,6 +7653,7 @@ export type Database = {
           secondary_responsible_id?: string | null
           sort_order?: number | null
           status?: string
+          tags?: string[] | null
           title?: string
           trashed?: boolean
           trashed_at?: string | null
