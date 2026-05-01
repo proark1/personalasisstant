@@ -161,6 +161,15 @@ Reply <b>yes</b> / <b>no</b> to confirm any action I propose.
 /weather &lt;city&gt; — today + tomorrow forecast
 /lang de|en — switch language
 /recent — Dori's last 5 actions
+/tz &lt;city&gt; — local time · /fx 100 EUR USD — convert
+
+<b>🆕 Power tools</b>
+/budget set food 500 · /budget check food
+/pantry list · /pantry add eggs 12
+/meds &lt;name&gt; · /period start|end · /fasting start|end
+/flight LH123 2026-05-10 · /status home|away|work|travel
+/zakat 10000 · /summary (unread emails digest)
+/subtask &lt;parent&gt; :: &lt;child&gt; · /tag &lt;task&gt; +work · /estimate &lt;task&gt; 30
 
 <b>⚙️ Settings</b>
 /quiet on|off · /voice on|off
