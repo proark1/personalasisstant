@@ -864,6 +864,46 @@ Deno.serve(async (req) => {
       // Track if original message was voice — used later to decide voice vs text reply
       const wasVoiceMessage = !!textFromVoice;
 
+      // ---------- FORWARDED MESSAGES → annotate source so the AI knows it's third-party content ----------
+      // Telegram exposes forward provenance via either the new `forward_origin`
+      // object (Bot API 7.0+) or the legacy `forward_from` / `forward_from_chat`
+      // / `forward_sender_name` fields. Without this annotation the AI sees a
+      // bare quote and can mistake it for the user's own thought, then auto-
+      // create tasks/events from someone else's words.
+      const fwdOrigin = (msg as any).forward_origin;
+      let forwardLabel: string | null = null;
+      if (fwdOrigin && typeof fwdOrigin === 'object') {
+        switch (fwdOrigin.type) {
+          case 'user':
+            forwardLabel = fwdOrigin.sender_user?.first_name
+              ? `${fwdOrigin.sender_user.first_name}${fwdOrigin.sender_user.last_name ? ' ' + fwdOrigin.sender_user.last_name : ''}`
+              : fwdOrigin.sender_user?.username
+                ? `@${fwdOrigin.sender_user.username}`
+                : 'a contact';
+            break;
+          case 'hidden_user':
+            forwardLabel = fwdOrigin.sender_user_name || 'a hidden user';
+            break;
+          case 'chat':
+            forwardLabel = fwdOrigin.sender_chat?.title || 'a chat';
+            break;
+          case 'channel':
+            forwardLabel = `the channel "${fwdOrigin.chat?.title || 'unknown'}"`;
+            break;
+        }
+      } else if ((msg as any).forward_from?.first_name) {
+        forwardLabel = (msg as any).forward_from.first_name;
+      } else if ((msg as any).forward_from_chat?.title) {
+        forwardLabel = (msg as any).forward_from_chat.title;
+      } else if ((msg as any).forward_sender_name) {
+        forwardLabel = (msg as any).forward_sender_name;
+      }
+      if (forwardLabel && msg.text) {
+        // Prepend a tagged header so the AI treats the body as third-party.
+        // Kept short to limit token bloat; "[forwarded from X]" is enough
+        // for the model to switch into "should I save this?" framing.
+        msg.text = `[forwarded from ${forwardLabel}]\n${msg.text}`;
+      }
 
       const rawText: string = String(msg.text ?? '').trim();
       if (!rawText) continue;

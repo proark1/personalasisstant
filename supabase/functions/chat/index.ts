@@ -237,6 +237,7 @@ Task JSON fields:
     · "every day" / "daily" → "FREQ=DAILY"
     · "every month" / "monthly" → "FREQ=MONTHLY"
     · "every year" / "annually" → "FREQ=YEARLY"
+    · "every Tuesday until July" → "FREQ=WEEKLY;BYDAY=TU;UNTIL=20260731T235959Z"  (append UNTIL=YYYYMMDDTHHMMSSZ when the user gives an end date / "until X" / "for the next N weeks")
   Weekday codes: MO TU WE TH FR SA SU.
 - "assignee": string (OPTIONAL — only valid inside a workspace; a teammate's display name or @handle. Use the ACTIVE WORKSPACE members list to pick one)
 - "status": "backlog"|"in_progress"|"blocked"|"done" (optional)
@@ -262,6 +263,7 @@ Event JSON fields:
     · "every other Tuesday" → "FREQ=WEEKLY;INTERVAL=2;BYDAY=TU"
     · "every day" → "FREQ=DAILY"
     · "every month on the 5th" → "FREQ=MONTHLY;BYMONTHDAY=5"
+    · "every Tuesday until July" → "FREQ=WEEKLY;BYDAY=TU;UNTIL=20260731T235959Z" (append UNTIL=YYYYMMDDTHHMMSSZ for "until X" / "for the next N weeks")
 - "assignee": string (OPTIONAL — a teammate's display name when inside a workspace)
 
 TOOL: find_time
@@ -455,6 +457,27 @@ Use this when the user explicitly asks to switch interface/reply language.
 Format: <tool>set_language</tool><lang>{"lang":"de"|"en"}</lang>
 Examples: "Switch to German" → lang="de"
 
+TOOL: manage_settings
+Use this when the user wants to change a proactive-assistant preference: morning digest time, quiet hours, the kinds of proactive nudges they get, etc.
+Format: <tool>manage_settings</tool><settings>JSON_OBJECT</settings>
+Settings JSON fields (all optional — only include the keys the user actually wants to change):
+- "morningBriefingTime": "HH:MM" (e.g. "07:30" or "09:00")
+- "eveningReviewTime": "HH:MM"
+- "quietHoursEnabled": boolean
+- "quietHoursStart": "HH:MM"
+- "quietHoursEnd": "HH:MM"
+- "forgottenTasksEnabled": boolean
+- "contractRenewalsEnabled": boolean
+- "contactCheckinsEnabled": boolean
+- "eventPrepEnabled": boolean
+- "habitStreaksEnabled": boolean
+- "weeklyPlanningEnabled": boolean
+- "dailyReviewEnabled": boolean
+- "voiceProactiveEnabled": boolean
+- "pushNotificationsEnabled": boolean
+- "enabled": boolean (master switch for ALL proactive nudges)
+Examples: "Snooze my morning digest to 9am" → {"morningBriefingTime":"09:00"}. "Quiet hours from 11pm to 7am" → {"quietHoursEnabled":true,"quietHoursStart":"23:00","quietHoursEnd":"07:00"}. "Turn off contract renewal nudges" → {"contractRenewalsEnabled":false}.
+
 TOOL: recent_actions
 Use this when the user asks "what did you just do" / "show your last actions".
 Format: <tool>recent_actions</tool><query>{"limit":5}</query>
@@ -565,6 +588,16 @@ Email JSON fields:
 - "gmailMessageId": string (optional — the Message-ID header of the message you're replying to)
 Only use send_email when the user clearly wants to send. For "draft a reply" or "write an email", use compose_email or draft_email_reply instead.
 
+TOOL: send_family_message
+Use this when the user wants the bot to relay a message to another family member ("tell my wife I'm late", "ask Salih if he did his homework", "let mom know dinner is at 7"). Delivered as a Telegram message from the bot to the target's linked private chat. Goes through the approval gate so the user confirms wording before it's sent.
+Format: <tool>send_family_message</tool><msg>JSON_OBJECT</msg>
+Msg JSON fields:
+- "to": string (required — the family member's name, relationship like "wife"/"mom"/"son", or workspace member display name)
+- "body": string (required — the actual message to deliver; write in the recipient's preferred language when known)
+- "fromLabel": string (optional — defaults to the sender's display name; appears as "From <fromLabel>: ..." in the recipient's chat)
+
+Resolution order: (1) workspace_members display_name, (2) family_members name. If neither resolves to a Telegram-linked user, the tool reports back to the sender so they can retry with a clearer name. Do NOT use this for the sender themselves — for self-reminders use set_reminder.
+
 TOOL: get_summary
 Use this to retrieve a summary of specific data the user asks about.
 Format: <tool>get_summary</tool><type>health|email|contacts_due|contract_costs|habits</type>
@@ -575,23 +608,29 @@ Use this to set a timed reminder/alarm for the user.
 Format: <tool>set_reminder</tool><reminder>JSON_OBJECT</reminder>
 Reminder JSON fields:
 - "message": string (required — what to remind the user about)
-- "triggerAt": ISO date string (required — when to trigger the reminder)
+- "triggerAt": ISO date string (required — when the FIRST reminder fires)
+- "recurrenceRule": RRULE string (optional, same mapping as manage_task — emit when the user says "every", "weekly", "every Sunday at 6 PM", "every 3 days", etc.)
 
 When to use:
 - "Remind me in 30 minutes to..." → calculate triggerAt = now + 30 minutes
 - "Remind me at 3pm to..." → set triggerAt to today at 3pm (or tomorrow if 3pm has passed)
 - "Remind me tomorrow morning to..." → set triggerAt to tomorrow at 9am
+- "Remind me every Sunday at 6 PM to call mom" → triggerAt = next Sunday 18:00, recurrenceRule = "FREQ=WEEKLY;BYDAY=SU"
+- "Remind me every weekday at 9 to take my vitamin" → triggerAt = next weekday 09:00, recurrenceRule = "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
 - Always confirm what you set and when it will trigger
 
 TOOL: manage_event
-Use this to UPDATE or DELETE existing calendar events (use schedule_event for creation).
-Format: <tool>manage_event</tool><action>update|delete|search</action><event>JSON_OBJECT</event>
+Use this to UPDATE, DELETE, SEARCH, or LIST existing calendar events (use schedule_event for creation).
+Format: <tool>manage_event</tool><action>update|delete|search|list</action><event>JSON_OBJECT</event>
 Event JSON fields:
-- "query": string (required — matches event title to find it, e.g. "dentist", "team meeting")
-- "title": string (optional — new title)
-- "startTime": ISO date string (optional — new start)
-- "endTime": ISO date string (optional — new end)
-- "location": string (optional — new location)
+- "query": string (REQUIRED for update / delete / search — matches event title, e.g. "dentist", "team meeting"). OMIT for action="list".
+- "limit": number (optional, used with action="list", default 5, max 20)
+- "title": string (optional — new title, update only)
+- "startTime": ISO date string (optional — new start, update only)
+- "endTime": ISO date string (optional — new end, update only)
+- "location": string (optional — new location, update only)
+
+Use action="list" when the user says "show me my next events", "what's on my calendar", "next N entries", etc. Prefer answering from the LIVE CONTEXT block when those events are already there; fall back to action="list" only if context doesn't have them.
 
 TOOL: manage_property
 Use this to create, update, delete, or search the user's properties (homes, apartments, rentals).
@@ -766,6 +805,7 @@ Adapt your tone and suggestions based on time:
 - Afternoon tasks: schedule between 1-5 PM
 - If user says "later" or "when I have time", suggest specific times
 - Consider user's existing tasks when suggesting times
+- "Block my calendar 2-4 PM tomorrow" / "block focus time" / "mark me busy" → use `schedule_event` with `category: "focus"`, a clear title like `🎯 Focus block` (or whatever the user named it), and the requested time range. Treat this as a real event so other planners (find_time, plan_my_week) see the slot as busy. Apply the same pattern for "block this for deep work" / "I'm doing a workout from 6-7" etc.
 
 ## GUIDELINES
 - Be concise and helpful
@@ -820,6 +860,23 @@ You CAN use multiple tools in a single response. For example:
 - Add a contact AND schedule a meeting with them
 - Create multiple tasks at once when breaking down a project
 Just include multiple tool XML blocks in your response. Each will be executed.
+
+## FORWARDED MESSAGES
+If the incoming user turn starts with `[forwarded from <name>]`, the body that follows was written by someone else, NOT the current user. Default behavior:
+- Do NOT silently create tasks/events from third-party text. Instead, briefly summarise what was forwarded (1 sentence) and ASK what to do: save as note, create a task, add an event, save sender as contact, draft a reply, ignore.
+- If the user previously said something like "save anything Mom forwards as a contract reminder", honour that preference.
+- Sender name = the value after `forwarded from`. Treat it as a candidate contact / family-member if the user wants to save it.
+
+## VISION (when the user attaches a photo)
+The photo arrives as a multimodal user turn — describe what you see, THEN propose the matching action:
+- Receipt / bill → `query_expenses` or log via the expense tools, plus a "verify" task.
+- Business card → `manage_contact` create.
+- Flyer / poster / invitation → `schedule_event` (extract date, time, location).
+- Prescription / medication label → `manage_family_member` update with medication notes, plus a refill task.
+- Whiteboard / handwritten notes → `manage_note` create, set tags from the topic.
+- Calendar screenshot → `schedule_event` for each visible entry.
+- Fridge / pantry / outfit / room photo (creative ask) → answer descriptively with 2-3 ideas; do NOT silently create tasks unless the user asks ("save these recipes", "add the missing items to the shopping list").
+- Always say what you see in 1-2 sentences before acting so the user can correct misreads.
 
 ## REASONING GUIDELINES
 Before responding, think step by step:
@@ -1109,6 +1166,19 @@ const MUTATING_TOOLS: MutatingTool[] = [
     classify: () => 'delete',
     summarize: (_a, d) => `📧 Send email to ${d.to}${d.subject ? ` — "${d.subject}"` : ''}`,
   },
+  {
+    // send_family_message is gated like send_email: relaying to a third party
+    // is user-visible and not silently reversible, so the sender must approve
+    // the recipient + body before the bot posts it.
+    tool: 'send_family_message', entity: 'family_message',
+    regex: /<tool>send_family_message<\/tool>\s*<msg>(\{[\s\S]*?\})<\/msg>/g,
+    parse: (m) => {
+      const data = safeParseJson(m[1]); if (!data) return null;
+      return { action: 'send', data, fullMatch: m[0] };
+    },
+    classify: () => 'delete',
+    summarize: (_a, d) => `💬 Send to ${d.to || '(?)'}: "${String(d.body || '').slice(0, 60)}${(d.body || '').length > 60 ? '…' : ''}"`,
+  },
 ];
 
 // Resolve whether a given op on a given entity requires user confirmation.
@@ -1331,17 +1401,28 @@ async function executeToolsServerSide(
     const days = byday.map((d) => dayNames[d] || d).join(', ');
     const every = (n: number, unit: string) =>
       n === 1 ? `every ${unit}` : `every ${n} ${unit}s`;
-    if (freq === 'DAILY') return every(interval, 'day');
-    if (freq === 'WEEKLY') {
-      if (days) return interval === 1 ? `every ${days}` : `every ${interval} weeks on ${days}`;
-      return every(interval, 'week');
+    // "UNTIL=YYYYMMDDTHHMMSSZ" — render as " until 31 Jul" so the confirmation
+    // tells the user the recurrence has an end date.
+    let untilSuffix = '';
+    if (parts.UNTIL) {
+      const m = parts.UNTIL.match(/^(\d{4})(\d{2})(\d{2})/);
+      if (m) {
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        if (!isNaN(d.getTime())) {
+          untilSuffix = ` until ${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
+        }
+      }
     }
-    if (freq === 'MONTHLY') {
-      if (parts.BYMONTHDAY) return `every month on the ${parts.BYMONTHDAY}`;
-      return every(interval, 'month');
-    }
-    if (freq === 'YEARLY') return every(interval, 'year');
-    return rule;
+    let base = rule;
+    if (freq === 'DAILY') base = every(interval, 'day');
+    else if (freq === 'WEEKLY') {
+      base = days
+        ? (interval === 1 ? `every ${days}` : `every ${interval} weeks on ${days}`)
+        : every(interval, 'week');
+    } else if (freq === 'MONTHLY') {
+      base = parts.BYMONTHDAY ? `every month on the ${parts.BYMONTHDAY}` : every(interval, 'month');
+    } else if (freq === 'YEARLY') base = every(interval, 'year');
+    return base + untilSuffix;
   };
 
   // Per-surface undo bookkeeping. Every successful mutation records a short-TTL
@@ -1477,10 +1558,39 @@ async function executeToolsServerSide(
     } catch (e) { out.push({ tool: 'schedule_event', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
 
-  // ---------- manage_event (update / delete / search) ----------
+  // ---------- manage_event (update / delete / search / list) ----------
   for (const m of text.matchAll(/<tool>manage_event<\/tool>\s*<action>(\w+)<\/action>\s*<event>(\{[\s\S]*?\})<\/event>/g)) {
     const action = m[1]; const data = safeJSON(m[2]); if (!data) continue;
     try {
+      // List / empty-query search: surface the next upcoming events instead
+      // of returning a misleading "Could not find event matching ''" error.
+      // Triggered explicitly via action="list" or implicitly when the model
+      // emits search/update/delete with no query.
+      const wantsList = action === 'list' || !data.query;
+      if (wantsList && action !== 'update' && action !== 'delete') {
+        const limit = Math.max(1, Math.min(20, Number(data.limit) || 5));
+        const { data: rows } = await supabase.from('events')
+          .select('id, title, start_time, end_time, location')
+          .eq('user_id', userId)
+          .gte('start_time', new Date().toISOString())
+          .order('start_time').limit(limit);
+        if (!rows || rows.length === 0) {
+          out.push({ tool: 'manage_event', ok: true, message: '📭 No upcoming events.' });
+        } else {
+          const lines = rows.map((e: any) => {
+            const when = new Date(e.start_time).toLocaleString('en-GB', {
+              weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+              timeZone: opts?.timezone,
+            });
+            return `• ${when} — ${e.title}${e.location ? ` @ ${e.location}` : ''}`;
+          });
+          out.push({
+            tool: 'manage_event', ok: true,
+            message: `📅 Next ${rows.length} event${rows.length === 1 ? '' : 's'}:\n${lines.join('\n')}`,
+          });
+        }
+        continue;
+      }
       let target: any = null;
       if (data.query) {
         const { data: rows } = await supabase.from('events').select('*')
@@ -1814,11 +1924,18 @@ async function executeToolsServerSide(
     try {
       const trigger = isoOrNull(data.triggerAt);
       if (!trigger) continue;
-      // Store reminders as scheduled tasks with due_date
+      // Store reminders as scheduled tasks with due_date (+ recurrence_rule
+      // so "every Sunday at 6 PM" fires beyond the first occurrence).
       await supabase.from('tasks').insert({
-        user_id: userId, title: data.message, category: 'personal', priority: 'medium', due_date: trigger,
+        user_id: userId, title: data.message, category: 'personal', priority: 'medium',
+        due_date: trigger,
+        recurrence_rule: data.recurrenceRule || null,
       });
-      out.push({ tool: 'set_reminder', ok: true, message: `⏰ Reminder set for ${new Date(trigger).toLocaleString()}: ${data.message}` });
+      const recurrenceLabel = summarizeRRule(data.recurrenceRule);
+      out.push({
+        tool: 'set_reminder', ok: true,
+        message: `⏰ Reminder set for ${new Date(trigger).toLocaleString()}${recurrenceLabel ? ` (🔁 ${recurrenceLabel})` : ''}: ${data.message}`,
+      });
     } catch (e) { out.push({ tool: 'set_reminder', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
 
@@ -2628,6 +2745,171 @@ async function executeToolsServerSide(
     } catch (e) { out.push({ tool: 'set_language', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
 
+  // ---------- manage_settings (proactive prefs: digest time, quiet hours, nudges) ----------
+  for (const m of text.matchAll(/<tool>manage_settings<\/tool>\s*<settings>(\{[\s\S]*?\})<\/settings>/g)) {
+    const data = safeJSON(m[1]); if (!data || typeof data !== 'object') continue;
+    try {
+      const upd: Record<string, any> = {};
+      const isHHMM = (s: unknown): s is string =>
+        typeof s === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+      const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
+      const keyMap: Array<[string, string, 'time' | 'bool']> = [
+        ['morningBriefingTime', 'morning_briefing_time', 'time'],
+        ['eveningReviewTime', 'evening_review_time', 'time'],
+        ['quietHoursStart', 'quiet_hours_start', 'time'],
+        ['quietHoursEnd', 'quiet_hours_end', 'time'],
+        ['quietHoursEnabled', 'quiet_hours_enabled', 'bool'],
+        ['forgottenTasksEnabled', 'forgotten_tasks_enabled', 'bool'],
+        ['contractRenewalsEnabled', 'contract_renewals_enabled', 'bool'],
+        ['contactCheckinsEnabled', 'contact_checkins_enabled', 'bool'],
+        ['eventPrepEnabled', 'event_prep_enabled', 'bool'],
+        ['habitStreaksEnabled', 'habit_streaks_enabled', 'bool'],
+        ['weeklyPlanningEnabled', 'weekly_planning_enabled', 'bool'],
+        ['dailyReviewEnabled', 'daily_review_enabled', 'bool'],
+        ['voiceProactiveEnabled', 'voice_proactive_enabled', 'bool'],
+        ['pushNotificationsEnabled', 'push_notifications_enabled', 'bool'],
+        ['enabled', 'enabled', 'bool'],
+      ];
+      const friendlyChanges: string[] = [];
+      for (const [inKey, colName, kind] of keyMap) {
+        if (!(inKey in data)) continue;
+        const val = (data as any)[inKey];
+        if (kind === 'time') {
+          if (!isHHMM(val)) continue;
+          upd[colName] = `${val}:00`; // postgres TIME wants HH:MM:SS
+          friendlyChanges.push(`${inKey} → ${val}`);
+        } else {
+          if (!isBool(val)) continue;
+          upd[colName] = val;
+          friendlyChanges.push(`${inKey} → ${val ? 'on' : 'off'}`);
+        }
+      }
+      if (Object.keys(upd).length === 0) {
+        out.push({ tool: 'manage_settings', ok: false, message: 'No valid setting fields provided.' });
+        continue;
+      }
+      // Upsert so first-time users get a row created automatically.
+      const { error } = await supabase.from('proactive_settings')
+        .upsert({ user_id: userId, ...upd, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+      if (error) throw error;
+      out.push({
+        tool: 'manage_settings', ok: true,
+        message: `⚙️ Updated settings: ${friendlyChanges.join(', ')}`,
+      });
+    } catch (e) {
+      out.push({ tool: 'manage_settings', ok: false, message: `Failed: ${(e as Error).message}` });
+    }
+  }
+
+  // ---------- send_family_message (relay a message from the user to another family member's Telegram) ----------
+  for (const m of text.matchAll(/<tool>send_family_message<\/tool>\s*<msg>(\{[\s\S]*?\})<\/msg>/g)) {
+    const data = safeJSON(m[1]);
+    if (!data?.to || !data.body) {
+      out.push({ tool: 'send_family_message', ok: false, message: 'Both "to" and "body" are required.' });
+      continue;
+    }
+    try {
+      const recipientName = String(data.to).trim();
+      const bodyText = String(data.body).slice(0, 3500);
+      // 1) Try workspace members (covers the family-as-workspace case where
+      //    everyone has their own login + Telegram link).
+      let recipientUserId: string | null = null;
+      let recipientDisplay = recipientName;
+      if (opts?.workspaceMembers?.length) {
+        const matchByName = opts.workspaceMembers.find((wm) => {
+          const dn = (wm.display_name || '').toLowerCase();
+          return dn === recipientName.toLowerCase() || dn.includes(recipientName.toLowerCase());
+        });
+        if (matchByName) {
+          recipientUserId = matchByName.user_id;
+          recipientDisplay = matchByName.display_name || recipientName;
+        }
+      }
+      // 2) Fall back to family_members lookup. Map relationship words
+      //    ("wife", "husband", "mom", "dad", "son", "daughter") onto stored
+      //    relationship values so "tell my wife" works without a name.
+      if (!recipientUserId) {
+        const relMap: Record<string, string[]> = {
+          wife: ['spouse'], husband: ['spouse'], partner: ['spouse'],
+          mom: ['parent'], mum: ['parent'], mother: ['parent'],
+          dad: ['parent'], father: ['parent'],
+          son: ['child'], daughter: ['child'], kid: ['child'],
+          brother: ['sibling'], sister: ['sibling'],
+        };
+        const rels = relMap[recipientName.toLowerCase()];
+        let famQuery = supabase.from('family_members')
+          .select('id, name, email, phone, notes, relationship')
+          .eq('user_id', userId).eq('is_active', true).limit(1);
+        if (rels && rels.length > 0) {
+          famQuery = famQuery.in('relationship', rels);
+        } else {
+          famQuery = famQuery.ilike('name', `%${recipientName}%`);
+        }
+        const { data: famRow } = await famQuery;
+        const fam = famRow?.[0];
+        if (fam) {
+          recipientDisplay = fam.name || recipientName;
+          // The family_members row doesn't itself carry a user_id of the
+          // member; we cannot reach a Telegram chat without one. Report
+          // gracefully so the user knows to invite that person to the
+          // workspace if they want bot-relayed messages.
+        }
+      }
+      if (!recipientUserId) {
+        out.push({
+          tool: 'send_family_message', ok: false,
+          message: `I couldn't find a Telegram-linked account for "${recipientName}". They need to be a workspace member with /linkbot done in this bot before I can relay messages to them.`,
+        });
+        continue;
+      }
+      // 3) Resolve recipient's private Telegram chat_id.
+      const { data: link } = await supabase.from('telegram_links')
+        .select('chat_id, is_active').eq('user_id', recipientUserId).maybeSingle();
+      if (!link?.chat_id || link.is_active === false) {
+        out.push({
+          tool: 'send_family_message', ok: false,
+          message: `${recipientDisplay} hasn't linked Telegram with the bot yet — ask them to send /linkbot to enable relayed messages.`,
+        });
+        continue;
+      }
+      // 4) Post via the connector gateway. Same auth shape sendDoriReply uses.
+      let senderName = data.fromLabel as string | undefined;
+      if (!senderName) {
+        const { data: senderProfile } = await supabase.from('profiles')
+          .select('display_name').eq('user_id', userId).maybeSingle();
+        senderName = senderProfile?.display_name || 'Family member';
+      }
+      const fromLabel = String(senderName).slice(0, 80);
+      const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+      const telegramKey = Deno.env.get('TELEGRAM_API_KEY');
+      if (!lovableKey || !telegramKey) {
+        out.push({ tool: 'send_family_message', ok: false, message: 'Telegram bot credentials are not configured server-side.' });
+        continue;
+      }
+      const composed = `💬 <b>From ${fromLabel}</b>\n${bodyText}`;
+      const res = await fetch('https://connector-gateway.lovable.dev/telegram/sendMessage', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableKey}`,
+          'X-Connection-Api-Key': telegramKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ chat_id: link.chat_id, text: composed.slice(0, 4000), parse_mode: 'HTML' }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        out.push({ tool: 'send_family_message', ok: false, message: `Telegram delivery failed (${res.status}): ${errText.slice(0, 200)}` });
+        continue;
+      }
+      out.push({
+        tool: 'send_family_message', ok: true,
+        message: `📨 Sent to ${recipientDisplay} on Telegram: "${bodyText.length > 80 ? bodyText.slice(0, 77) + '…' : bodyText}"`,
+      });
+    } catch (e) {
+      out.push({ tool: 'send_family_message', ok: false, message: `Failed: ${(e as Error).message}` });
+    }
+  }
+
   // ---------- recent_actions ----------
   for (const _m of text.matchAll(/<tool>recent_actions<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
     try {
@@ -3170,11 +3452,9 @@ serve(async (req) => {
 
   try {
     const reqBody = await req.json();
-    const { 
-      messages, 
+    const {
+      messages,
       imageUrl,
-      tasks, 
-      events,
       overdueTasks: clientOverdueTasks,
       todayTasks: clientTodayTasks,
       personality = 'balanced',
@@ -3214,6 +3494,12 @@ serve(async (req) => {
       actionSourceRef?: string | null;
       streamFinalText?: boolean;
     } = reqBody;
+
+    // Telegram / voice surfaces don't ship the user's task and event lists
+    // in the request body the way the web client does. We hydrate from the
+    // DB lower in this handler when both are absent, so keep these mutable.
+    let tasks: ChatRequest['tasks'] = reqBody.tasks;
+    let events: ChatRequest['events'] = reqBody.events;
 
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -3337,6 +3623,75 @@ serve(async (req) => {
         }
       } catch (e) {
         console.warn('[same-channel history hydration] failed', (e as Error).message);
+      }
+    }
+
+    // Telegram / voice never ship the tasks + events arrays the web client
+    // attaches — so when the user asks "show me the next 5 calendar entries"
+    // the AI saw zero context, tried manage_event with an empty query and
+    // surfaced "Could not find event matching ''". Backfill from the DB
+    // (scope-aware) so the same questions answer from context like on web.
+    if (currentChannel !== 'web' && userId !== 'anonymous') {
+      const wsId = activeWorkspace?.id ?? null;
+      const tasksMissing = !Array.isArray(tasks);
+      const eventsMissing = !Array.isArray(events);
+      if (tasksMissing || eventsMissing) {
+        try {
+          const scoped = <T extends { eq: any; is: any }>(q: T): T =>
+            (wsId ? q.eq('workspace_id', wsId) : q.eq('user_id', userId).is('workspace_id', null));
+          const hydrationCalls: Promise<any>[] = [];
+          if (tasksMissing) {
+            hydrationCalls.push(
+              scoped(
+                supabaseAdmin.from('tasks')
+                  .select('id, title, completed, category, priority, due_date')
+                  .eq('completed', false)
+                  .eq('trashed', false),
+              ).order('due_date', { ascending: true, nullsFirst: false }).limit(40),
+            );
+          } else {
+            hydrationCalls.push(Promise.resolve({ data: null }));
+          }
+          if (eventsMissing) {
+            // "Upcoming" means from now forward — no day-boundary math
+            // needed, which keeps the window timezone-independent (the
+            // edge runtime is UTC, so setHours(0,0,0,0) would be ~12h
+            // off for users in Asia / the Americas).
+            const horizonStart = new Date();
+            const horizonEnd = new Date(horizonStart.getTime() + 30 * 24 * 60 * 60 * 1000);
+            hydrationCalls.push(
+              scoped(
+                supabaseAdmin.from('events')
+                  .select('id, title, start_time, end_time')
+                  .gte('start_time', horizonStart.toISOString())
+                  .lte('start_time', horizonEnd.toISOString()),
+              ).order('start_time').limit(40),
+            );
+          } else {
+            hydrationCalls.push(Promise.resolve({ data: null }));
+          }
+          const [tRes, eRes] = await Promise.all(hydrationCalls);
+          if (tasksMissing && tRes?.data) {
+            tasks = (tRes.data as any[]).map((t) => ({
+              id: t.id,
+              title: t.title,
+              completed: !!t.completed,
+              category: t.category || 'personal',
+              priority: t.priority || 'medium',
+              dueDate: t.due_date || undefined,
+            }));
+          }
+          if (eventsMissing && eRes?.data) {
+            events = (eRes.data as any[]).map((e) => ({
+              id: e.id,
+              title: e.title,
+              startTime: e.start_time,
+              endTime: e.end_time,
+            }));
+          }
+        } catch (e) {
+          console.warn('[tasks/events hydration] failed', (e as Error).message);
+        }
       }
     }
 
@@ -3798,7 +4153,11 @@ Do NOT announce this tool to the user — it's silent. Only emit it 0–1 times 
 NEVER treat a user request as a single-module action. Before responding, ask yourself: "Does this touch contacts, calendar, tasks, contracts, family, health, or email?" If 2+ apply, chain the tools in ONE response.
 
 Concrete chains you should execute automatically:
-- "Sarah's birthday next month" → search contacts (find Sarah) + create event (her birthday, recurring yearly) + create task ("Buy gift for Sarah", due 3 days before) + suggest a draft message
+- "Sarah's birthday next month" / "Tugba's birthday is October 1st" → ALWAYS run all three of these in one response:
+    (a) manage_family_member action="create" or "update" with the `birthDate` field so the birthday is stored on the family record (and re-used by proactive reminders next year),
+    (b) schedule_event for the birthday itself with `recurrenceRule: "FREQ=YEARLY"`,
+    (c) manage_task "Buy gift for <name>" with `dueDate` set to 3 days before the birthday (use `recurrenceRule: "FREQ=YEARLY"` so the prep task repeats too).
+  Optionally chain a compose_email or send_family_message draft if the user hints at one.
 - "Plan dinner with the Khans on Friday" → find contact + create calendar event Fri 7pm + create task "Confirm with Khans 1 day before" + offer to draft a WhatsApp/email message
 - "Cancel the Netflix contract" → find contract + propose cancellation email draft + create task "Verify Netflix cancelled" due in 7 days
 - "I have a doctor appointment Tuesday" → create event + create task "Prepare questions for doctor" + check for related family medications/conditions to mention
