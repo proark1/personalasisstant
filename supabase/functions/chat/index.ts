@@ -479,7 +479,8 @@ Settings JSON fields (all optional — only include the keys the user actually w
 - "pushNotificationsEnabled": boolean
 - "enabled": boolean (master switch for ALL proactive nudges)
 - "timezone": IANA timezone string (e.g. "Europe/Berlin", "Asia/Tokyo") — use this when the user says "I'm in Tokyo this week, treat my schedule as Tokyo time" or "set my timezone to UTC". Persists on profiles so reminders, digests, and context all pick it up.
-Examples: "Snooze my morning digest to 9am" → {"morningBriefingTime":"09:00"}. "Quiet hours from 11pm to 7am" → {"quietHoursEnabled":true,"quietHoursStart":"23:00","quietHoursEnd":"07:00"}. "Turn off contract renewal nudges" → {"contractRenewalsEnabled":false}. "I'm in Tokyo for the week" → {"timezone":"Asia/Tokyo"}.
+- "pauseUntil": ISO date string OR a relative phrase the bot will parse — "2 hours", "1h", "30 minutes", "tomorrow", "tomorrow 9am", "tonight". Sets proactive_settings.focus_mode_until and the proactive engine skips every nudge until then. Use this when the user says "be quiet for the next 2 hours", "leave me alone until tomorrow", "pause notifications". Use null / "clear" to lift the pause.
+Examples: "Snooze my morning digest to 9am" → {"morningBriefingTime":"09:00"}. "Quiet hours from 11pm to 7am" → {"quietHoursEnabled":true,"quietHoursStart":"23:00","quietHoursEnd":"07:00"}. "Turn off contract renewal nudges" → {"contractRenewalsEnabled":false}. "I'm in Tokyo for the week" → {"timezone":"Asia/Tokyo"}. "Be quiet for 2 hours" → {"pauseUntil":"2 hours"}. "Leave me alone until tomorrow morning" → {"pauseUntil":"tomorrow 9am"}.
 
 TOOL: recent_actions
 Use this when the user asks "what did you just do" / "show your last actions".
@@ -669,6 +670,34 @@ TOOL: get_capabilities
 Use this when the user asks "what can you do?" / "help" / "what are your features?" / "list your commands". Returns the structured capability sheet so you can summarise it back in the user's language.
 Format: <tool>get_capabilities</tool><q>{}</q>
 
+TOOL: daily_recap
+Use this when the user asks "what did I do today / yesterday / this week" or "give me my standup". Joins completed tasks, attended events, logged habits, and bot mutations to produce a one-screen recap.
+Format: <tool>daily_recap</tool><recap>JSON_OBJECT</recap>
+Recap JSON fields:
+- "period": "today" | "yesterday" | "this_week" | "last_7_days" (default "today")
+
+TOOL: pick_random
+Use this when the user wants the bot to decide for them: "pick one of my open tasks for me to do now", "give me a random note to revisit", "which contact should I check in with today?".
+Format: <tool>pick_random</tool><pick>JSON_OBJECT</pick>
+Pick JSON fields:
+- "kind": "task" | "note" | "contact" | "habit" (required)
+- "filters": object (optional — e.g. {"priority":"high","completed":false})
+
+TOOL: log_symptom
+Track a symptom day-over-day (separate from log_wellbeing which is a single-shot mood/energy snapshot). Use for "headache day 3", "throat still sore", "back pain getting worse".
+Format: <tool>log_symptom</tool><symptom>JSON_OBJECT</symptom>
+Symptom JSON fields:
+- "symptom": string (required — e.g. "headache", "back_pain", "sore_throat")
+- "severity": number 1-10 (optional)
+- "notes": string (optional)
+- "date": ISO date (optional — defaults to today in the user's timezone). Same symptom logged on the same day UPDATES the row instead of duplicating.
+- "query": when set, the tool returns the symptom's streak (consecutive days logged) and recent severity trend instead of writing a new row.
+
+TOOL: manage_anniversary
+Companion to manage_family_member.birthDate for non-birthday yearly milestones (wedding anniversary, work anniversary, sober anniversary). Use action="add" to store the date on a family member and optionally chain a yearly schedule_event + prep manage_task.
+Format: <tool>manage_anniversary</tool><action>add|remove</action><anniversary>JSON_OBJECT</anniversary>
+JSON fields: "memberQuery" (required — matches family member name), "anniversaryDate" (ISO for add), "label" (optional, e.g. "Wedding").
+
 TOOL: get_summary
 Use this to retrieve a summary of specific data the user asks about.
 Format: <tool>get_summary</tool><type>health|email|contacts_due|contract_costs|habits</type>
@@ -740,6 +769,7 @@ Member JSON fields:
 - "name": string (required for create)
 - "relationship": "spouse" | "child" | "parent" | "sibling" | "grandparent" | "other" (required for create)
 - "birthDate": ISO date string (optional)
+- "anniversaryDate": ISO date string (optional — wedding / partnership / work anniversary; powers the same yearly reminder chain birthdays do)
 - "email": string (optional)
 - "phone": string (optional)
 - "schoolName": string (optional)
@@ -877,6 +907,7 @@ Adapt your tone and suggestions based on time:
 - If user says "later" or "when I have time", suggest specific times
 - Consider user's existing tasks when suggesting times
 - "Block my calendar 2-4 PM tomorrow" / "block focus time" / "mark me busy" → use `schedule_event` with `category: "focus"`, a clear title like `🎯 Focus block` (or whatever the user named it), and the requested time range. Treat this as a real event so other planners (find_time, plan_my_week) see the slot as busy. Apply the same pattern for "block this for deep work" / "I'm doing a workout from 6-7" etc.
+- Travel time: when scheduling an event with a `location` and the user hints at travel ("dentist at 3", "soccer game across town"), CHAIN a `set_reminder` for `triggerAt = event.startTime - estimatedMinutes`. Estimate 15 min in-city, 30 min cross-city, 45 min airport, or use any explicit number the user gave. The reminder message should be "🚗 Leave for <event title> (<location>)" so the user sees what's coming. Skip when the event has no location or when the user is clearly home (presence=home, virtual meeting, etc.).
 
 ## GUIDELINES
 - Be concise and helpful
@@ -1903,7 +1934,9 @@ async function executeToolsServerSide(
       if (action === 'create') {
         const { data: f, error } = await supabase.from('family_members').insert({
           user_id: userId, name: data.name, relationship: data.relationship || 'other',
-          birth_date: isoOrNull(data.birthDate), email: data.email || null, phone: data.phone || null,
+          birth_date: isoOrNull(data.birthDate),
+          anniversary_date: data.anniversaryDate ? new Date(isoOrNull(data.anniversaryDate) || data.anniversaryDate).toISOString().slice(0, 10) : null,
+          email: data.email || null, phone: data.phone || null,
           school_name: data.schoolName || null, school_grade: data.schoolGrade || null,
           allergies: data.allergies || null, medical_notes: data.medicalNotes || null,
           notes: data.notes || null,
@@ -1921,6 +1954,10 @@ async function executeToolsServerSide(
           const upd: any = {};
           ['name','relationship','email','phone','notes'].forEach(k => { if (data[k] !== undefined) upd[k] = data[k]; });
           if (data.birthDate) upd.birth_date = isoOrNull(data.birthDate);
+          if (data.anniversaryDate !== undefined) {
+            const iso = data.anniversaryDate ? isoOrNull(data.anniversaryDate) : null;
+            upd.anniversary_date = iso ? new Date(iso).toISOString().slice(0, 10) : null;
+          }
           if (data.schoolName !== undefined) upd.school_name = data.schoolName;
           if (data.schoolGrade !== undefined) upd.school_grade = data.schoolGrade;
           if (data.allergies !== undefined) upd.allergies = data.allergies;
@@ -2875,6 +2912,57 @@ async function executeToolsServerSide(
           friendlyChanges.push(`${inKey} → ${val ? 'on' : 'off'}`);
         }
       }
+      // pauseUntil — natural-language shorthand for proactive_settings.focus_mode_until.
+      // Accepts ISO ("2026-05-17T09:00:00Z"), durations ("2 hours", "30 min", "1h"),
+      // or named phrases ("tomorrow", "tomorrow 9am", "tonight", "clear"/"off").
+      if ('pauseUntil' in (data as any)) {
+        const raw = (data as any).pauseUntil;
+        let target: Date | null = null;
+        let cleared = false;
+        if (raw === null || raw === false || raw === 'clear' || raw === 'off' || raw === '') {
+          cleared = true;
+        } else if (typeof raw === 'string') {
+          const s = raw.trim().toLowerCase();
+          // 1) Duration: "2 hours", "30 min", "1h", "45m".
+          const m = s.match(/^(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minute|minutes|d|day|days)\b/);
+          if (m) {
+            const n = parseFloat(m[1]);
+            const unit = m[2];
+            const minutes = /^h/.test(unit) ? n * 60 : /^d/.test(unit) ? n * 60 * 24 : n;
+            target = new Date(Date.now() + minutes * 60_000);
+          } else if (s === 'tonight') {
+            target = new Date(); target.setHours(23, 0, 0, 0);
+          } else if (s === 'tomorrow' || s === 'tomorrow morning') {
+            target = new Date(); target.setDate(target.getDate() + 1); target.setHours(9, 0, 0, 0);
+          } else {
+            // "tomorrow 9am", "tomorrow at 14:30"
+            const tm = s.match(/^tomorrow(?:\s+at)?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+            if (tm) {
+              let hour = parseInt(tm[1], 10);
+              const min = tm[2] ? parseInt(tm[2], 10) : 0;
+              const ap = tm[3];
+              if (ap === 'pm' && hour < 12) hour += 12;
+              if (ap === 'am' && hour === 12) hour = 0;
+              target = new Date(); target.setDate(target.getDate() + 1); target.setHours(hour, min, 0, 0);
+            } else {
+              // Last resort: ISO parse.
+              const d = new Date(raw);
+              if (!isNaN(d.getTime()) && d.getTime() > Date.now()) target = d;
+            }
+          }
+        }
+        if (cleared) {
+          await supabase.from('proactive_settings')
+            .upsert({ user_id: userId, focus_mode_until: null, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+          friendlyChanges.push('pauseUntil → cleared');
+        } else if (target) {
+          await supabase.from('proactive_settings')
+            .upsert({ user_id: userId, focus_mode_until: target.toISOString(), updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+          friendlyChanges.push(`pauseUntil → ${target.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`);
+        } else {
+          friendlyChanges.push(`pauseUntil → (couldn't parse "${raw}")`);
+        }
+      }
       // Timezone lives on profiles, not proactive_settings — handle it
       // separately so the rest of the proactive_settings upsert stays clean.
       if (typeof (data as any).timezone === 'string') {
@@ -3511,7 +3599,352 @@ async function executeToolsServerSide(
     });
   }
 
+  // ---------- daily_recap ("what did I do today / yesterday / this week") ----------
+  for (const m of text.matchAll(/<tool>daily_recap<\/tool>\s*<recap>(\{[\s\S]*?\})<\/recap>/g)) {
+    const data = safeJSON(m[1]) || {};
+    const period = String(data.period || 'today');
+    try {
+      const now = new Date();
+      let from: Date; let to: Date; let label: string;
+      if (period === 'yesterday') {
+        const y = new Date(now); y.setDate(y.getDate() - 1); y.setHours(0, 0, 0, 0);
+        const end = new Date(y); end.setHours(23, 59, 59, 999);
+        from = y; to = end; label = 'yesterday';
+      } else if (period === 'this_week' || period === 'last_7_days') {
+        const start = new Date(now.getTime() - 7 * 86400000);
+        from = start; to = now; label = 'the last 7 days';
+      } else {
+        const today = new Date(now); today.setHours(0, 0, 0, 0);
+        from = today; to = now; label = 'today';
+      }
+      const fromIso = from.toISOString(); const toIso = to.toISOString();
+      // Parallel fan-out: completed tasks, attended events, habit logs,
+      // bot mutations from the undo log. All scoped to the same window.
+      const [tasksRes, eventsRes, habitsRes, focusRes, undoRes] = await Promise.all([
+        supabase.from('tasks')
+          .select('title, completed_at, priority')
+          .eq('user_id', userId).eq('completed', true)
+          .gte('completed_at', fromIso).lte('completed_at', toIso)
+          .order('completed_at', { ascending: false }).limit(30),
+        supabase.from('events')
+          .select('title, start_time, location')
+          .eq('user_id', userId)
+          .gte('end_time', fromIso).lte('start_time', toIso)
+          .order('start_time').limit(30),
+        supabase.from('habit_logs')
+          .select('log_date, completed_count, habits(name)')
+          .eq('user_id', userId)
+          .gte('log_date', fromIso.slice(0, 10)).lte('log_date', toIso.slice(0, 10))
+          .order('log_date', { ascending: false }).limit(30),
+        supabase.from('focus_sessions')
+          .select('label, duration_minutes, tasks(title)')
+          .eq('user_id', userId).not('ended_at', 'is', null)
+          .gte('started_at', fromIso).lte('started_at', toIso)
+          .limit(30),
+        supabase.from('dori_undo_log')
+          .select('label, op, entity_type, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', fromIso).lte('created_at', toIso)
+          .order('created_at', { ascending: false }).limit(20),
+      ]);
+      const tasks = (tasksRes.data || []) as any[];
+      const events = (eventsRes.data || []) as any[];
+      const habits = (habitsRes.data || []) as any[];
+      const sessions = (focusRes.data || []) as any[];
+      const undos = (undoRes.data || []) as any[];
+      const tz = opts?.timezone;
+      const lines: string[] = [`🗓️ Recap — ${label}`];
+      if (tasks.length > 0) {
+        lines.push(`\n✅ Completed ${tasks.length} task${tasks.length === 1 ? '' : 's'}:`);
+        for (const t of tasks.slice(0, 8)) lines.push(`  • ${t.title}`);
+        if (tasks.length > 8) lines.push(`  … +${tasks.length - 8} more`);
+      }
+      if (events.length > 0) {
+        lines.push(`\n📅 ${events.length} event${events.length === 1 ? '' : 's'}:`);
+        for (const e of events.slice(0, 8)) {
+          const when = new Date(e.start_time).toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+          lines.push(`  • ${when} ${e.title}${e.location ? ` @ ${e.location}` : ''}`);
+        }
+      }
+      if (habits.length > 0) {
+        const counts: Record<string, number> = {};
+        for (const h of habits) {
+          const name = h.habits?.name || 'habit';
+          counts[name] = (counts[name] || 0) + 1;
+        }
+        const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5)
+          .map(([n, c]) => `${n}${c > 1 ? ` ×${c}` : ''}`);
+        lines.push(`\n🌱 Habits: ${top.join(', ')}`);
+      }
+      if (sessions.length > 0) {
+        const totalMin = sessions.reduce((n: number, s: any) => n + (s.duration_minutes || 0), 0);
+        lines.push(`\n🎯 Focus: ${Math.floor(totalMin / 60)}h ${totalMin % 60}m across ${sessions.length} session${sessions.length === 1 ? '' : 's'}`);
+      }
+      if (undos.length > 0) {
+        lines.push(`\n🤖 Bot did: ${undos.slice(0, 5).map((u: any) => u.label || `${u.op} ${u.entity_type}`).join('; ')}`);
+      }
+      if (lines.length === 1) lines.push('(nothing recorded yet — go make some progress)');
+      out.push({ tool: 'daily_recap', ok: true, message: lines.join('\n') });
+    } catch (e) {
+      out.push({ tool: 'daily_recap', ok: false, message: `Failed: ${(e as Error).message}` });
+    }
+  }
 
+  // ---------- pick_random (decide-for-me on tasks / notes / contacts / habits) ----------
+  for (const m of text.matchAll(/<tool>pick_random<\/tool>\s*<pick>(\{[\s\S]*?\})<\/pick>/g)) {
+    const data = safeJSON(m[1]); if (!data?.kind) {
+      out.push({ tool: 'pick_random', ok: false, message: 'kind is required.' });
+      continue;
+    }
+    try {
+      const tableMap: Record<string, { table: string; select: string; defaults: Record<string, any> }> = {
+        task: { table: 'tasks', select: 'id, title, priority, due_date', defaults: { completed: false, trashed: false } },
+        note: { table: 'notes', select: 'id, title, content', defaults: { trashed: false } },
+        contact: { table: 'user_contacts', select: 'id, name, email, phone', defaults: {} },
+        habit: { table: 'habits', select: 'id, name, frequency', defaults: { is_active: true } },
+      };
+      const spec = tableMap[String(data.kind)];
+      if (!spec) {
+        out.push({ tool: 'pick_random', ok: false, message: `Unknown kind "${data.kind}". Use task/note/contact/habit.` });
+        continue;
+      }
+      let q = supabase.from(spec.table).select(spec.select).eq('user_id', userId);
+      for (const [k, v] of Object.entries(spec.defaults)) q = q.eq(k, v);
+      if (data.filters && typeof data.filters === 'object') {
+        for (const [k, v] of Object.entries(data.filters as Record<string, unknown>)) {
+          // Defensive: only allow primitives so the AI can't smuggle exotic
+          // PostgREST operators in through nested objects.
+          if (['string', 'number', 'boolean'].includes(typeof v)) q = q.eq(k, v as any);
+        }
+      }
+      const { data: rows } = await q.limit(200);
+      const candidates = rows || [];
+      if (candidates.length === 0) {
+        out.push({ tool: 'pick_random', ok: true, message: `🤷 Nothing matches — your ${data.kind} list is empty here.` });
+        continue;
+      }
+      const choice = candidates[Math.floor(Math.random() * candidates.length)] as any;
+      const labelMap: Record<string, string> = {
+        task: choice.title, note: choice.title, contact: choice.name, habit: choice.name,
+      };
+      out.push({
+        tool: 'pick_random', ok: true,
+        message: `🎲 Picked: ${labelMap[String(data.kind)] || '(unnamed)'}`,
+        entityId: choice.id,
+      });
+    } catch (e) {
+      out.push({ tool: 'pick_random', ok: false, message: `Failed: ${(e as Error).message}` });
+    }
+  }
+
+  // ---------- log_symptom (multi-day symptom thread, separate from log_wellbeing) ----------
+  for (const m of text.matchAll(/<tool>log_symptom<\/tool>\s*<symptom>(\{[\s\S]*?\})<\/symptom>/g)) {
+    const data = safeJSON(m[1]); if (!data?.symptom) {
+      out.push({ tool: 'log_symptom', ok: false, message: 'symptom is required.' });
+      continue;
+    }
+    try {
+      const symptom = String(data.symptom).toLowerCase().trim().slice(0, 60);
+      // Query mode: report streak + recent severity.
+      if (data.query) {
+        const { data: rows } = await supabase.from('symptom_logs')
+          .select('log_date, severity, notes')
+          .eq('user_id', userId).eq('symptom', symptom)
+          .order('log_date', { ascending: false }).limit(30);
+        const logs = (rows || []) as any[];
+        if (logs.length === 0) {
+          out.push({ tool: 'log_symptom', ok: true, message: `No "${symptom}" logged yet.` });
+          continue;
+        }
+        // Streak: consecutive days ending today (or most recent log).
+        let streak = 1;
+        for (let i = 1; i < logs.length; i++) {
+          const prev = new Date(logs[i - 1].log_date);
+          const cur = new Date(logs[i].log_date);
+          const diff = Math.round((prev.getTime() - cur.getTime()) / 86400000);
+          if (diff === 1) streak++; else break;
+        }
+        const avgSev = logs.filter((l) => typeof l.severity === 'number')
+          .slice(0, 7).reduce((a, b) => a + (b.severity || 0), 0)
+          / Math.max(1, logs.filter((l) => typeof l.severity === 'number').slice(0, 7).length);
+        const sevTxt = isFinite(avgSev) && avgSev > 0 ? `, avg severity ${avgSev.toFixed(1)}/10 over last 7 days` : '';
+        out.push({
+          tool: 'log_symptom', ok: true,
+          message: `🩺 "${symptom}" — day ${streak} (most recent log ${logs[0].log_date})${sevTxt}.`,
+        });
+        continue;
+      }
+      const sev = typeof data.severity === 'number' ? Math.max(1, Math.min(10, Math.round(data.severity))) : null;
+      const today = (() => {
+        if (data.date) {
+          const d = new Date(data.date);
+          if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+        }
+        return new Date().toISOString().slice(0, 10);
+      })();
+      const { error } = await supabase.from('symptom_logs').upsert({
+        user_id: userId, symptom, severity: sev,
+        notes: data.notes || null, log_date: today,
+      }, { onConflict: 'user_id,symptom,log_date' });
+      if (error) throw error;
+      // Compute streak so we can echo "day 3" in the reply.
+      const { data: tail } = await supabase.from('symptom_logs')
+        .select('log_date').eq('user_id', userId).eq('symptom', symptom)
+        .order('log_date', { ascending: false }).limit(30);
+      let streak = 1;
+      const t = (tail || []) as any[];
+      for (let i = 1; i < t.length; i++) {
+        const prev = new Date(t[i - 1].log_date);
+        const cur = new Date(t[i].log_date);
+        const diff = Math.round((prev.getTime() - cur.getTime()) / 86400000);
+        if (diff === 1) streak++; else break;
+      }
+      out.push({
+        tool: 'log_symptom', ok: true,
+        message: `🩺 Logged "${symptom}"${sev ? ` (${sev}/10)` : ''} — day ${streak}.`,
+      });
+    } catch (e) {
+      out.push({ tool: 'log_symptom', ok: false, message: `Failed: ${(e as Error).message}` });
+    }
+  }
+
+  // ---------- manage_anniversary (anniversary_date on family_members) ----------
+  for (const m of text.matchAll(/<tool>manage_anniversary<\/tool>\s*<action>(\w+)<\/action>\s*<anniversary>(\{[\s\S]*?\})<\/anniversary>/g)) {
+    const action = m[1];
+    const data = safeJSON(m[2]); if (!data?.memberQuery) {
+      out.push({ tool: 'manage_anniversary', ok: false, message: 'memberQuery is required.' });
+      continue;
+    }
+    try {
+      const { data: rows } = await supabase.from('family_members')
+        .select('id, name, anniversary_date')
+        .eq('user_id', userId).eq('is_active', true)
+        .ilike('name', `%${data.memberQuery}%`).limit(1);
+      const member = rows?.[0];
+      if (!member) {
+        out.push({ tool: 'manage_anniversary', ok: false, message: `No family member matches "${data.memberQuery}".` });
+        continue;
+      }
+      if (action === 'add') {
+        const dt = isoOrNull(data.anniversaryDate);
+        if (!dt) { out.push({ tool: 'manage_anniversary', ok: false, message: 'Valid anniversaryDate required.' }); continue; }
+        await supabase.from('family_members')
+          .update({ anniversary_date: new Date(dt).toISOString().slice(0, 10) })
+          .eq('id', member.id);
+        out.push({
+          tool: 'manage_anniversary', ok: true,
+          message: `💍 ${data.label ? data.label + ' ' : ''}anniversary saved for ${member.name}: ${new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}.`,
+        });
+      } else if (action === 'remove') {
+        await supabase.from('family_members').update({ anniversary_date: null }).eq('id', member.id);
+        out.push({ tool: 'manage_anniversary', ok: true, message: `Removed anniversary for ${member.name}.` });
+      } else {
+        out.push({ tool: 'manage_anniversary', ok: false, message: `Unknown action "${action}". Use add/remove.` });
+      }
+    } catch (e) {
+      out.push({ tool: 'manage_anniversary', ok: false, message: `Failed: ${(e as Error).message}` });
+    }
+  }
+
+  // ---------- manage_project (full handler — only the prompt entry existed before) ----------
+  for (const m of text.matchAll(/<tool>manage_project<\/tool>\s*<action>(\w+)<\/action>\s*<project>(\{[\s\S]*?\})<\/project>/g)) {
+    const action = m[1];
+    const data = safeJSON(m[2]) || {};
+    try {
+      if (action === 'create') {
+        if (!data.name) { out.push({ tool: 'manage_project', ok: false, message: 'name is required.' }); continue; }
+        const { data: p, error } = await supabase.from('projects').insert({
+          user_id: userId,
+          name: String(data.name).slice(0, 120),
+          description: data.description || null,
+          color: data.color || '#3b82f6',
+        }).select('id, name').single();
+        if (error) throw error;
+        out.push({ tool: 'manage_project', ok: true, message: `📁 Created project: ${p.name}`, entityId: p.id });
+      } else if (action === 'list') {
+        const { data: rows } = await supabase.from('projects')
+          .select('id, name, description, color, is_archived')
+          .eq('user_id', userId).eq('is_archived', false)
+          .order('updated_at', { ascending: false }).limit(20);
+        if (!rows || rows.length === 0) {
+          out.push({ tool: 'manage_project', ok: true, message: '📭 No active projects.' });
+          continue;
+        }
+        out.push({
+          tool: 'manage_project', ok: true,
+          message: `📁 Projects:\n${rows.map((p: any) => `  • ${p.name}${p.description ? ` — ${p.description.slice(0, 60)}` : ''}`).join('\n')}`,
+        });
+      } else if (action === 'get_status') {
+        if (!data.query) { out.push({ tool: 'manage_project', ok: false, message: 'query is required.' }); continue; }
+        const { data: rows } = await supabase.from('projects')
+          .select('id, name, description')
+          .eq('user_id', userId).ilike('name', `%${data.query}%`).limit(1);
+        const project = rows?.[0];
+        if (!project) {
+          out.push({ tool: 'manage_project', ok: false, message: `No project matches "${data.query}".` });
+          continue;
+        }
+        // Fan out: open tasks, recently-completed tasks, future events
+        // (workspace_id link on events is the only event ↔ project tie
+        // we have today, so this is best-effort).
+        const [openRes, doneRes] = await Promise.all([
+          supabase.from('tasks')
+            .select('id, title, priority, due_date')
+            .eq('user_id', userId).eq('project_id', project.id)
+            .eq('completed', false).eq('trashed', false)
+            .order('due_date', { ascending: true, nullsFirst: false }).limit(10),
+          supabase.from('tasks')
+            .select('id, title, completed_at')
+            .eq('user_id', userId).eq('project_id', project.id)
+            .eq('completed', true)
+            .order('completed_at', { ascending: false }).limit(5),
+        ]);
+        const open = (openRes.data || []) as any[];
+        const done = (doneRes.data || []) as any[];
+        const lines: string[] = [`📁 ${project.name}`];
+        if (project.description) lines.push(project.description);
+        lines.push(`\n${open.length} open / ${done.length} recently done`);
+        if (open.length > 0) {
+          lines.push(`\nOpen:`);
+          for (const t of open) {
+            const due = t.due_date ? ` (due ${new Date(t.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })})` : '';
+            const pr = t.priority === 'high' ? '🔴' : t.priority === 'low' ? '⚪️' : '🟡';
+            lines.push(`  ${pr} ${t.title}${due}`);
+          }
+        }
+        if (done.length > 0) {
+          lines.push(`\nRecently done:`);
+          for (const t of done) lines.push(`  ✅ ${t.title}`);
+        }
+        out.push({ tool: 'manage_project', ok: true, message: lines.join('\n'), entityId: project.id });
+      } else if (action === 'update' || action === 'delete') {
+        if (!data.query) { out.push({ tool: 'manage_project', ok: false, message: 'query is required.' }); continue; }
+        const { data: rows } = await supabase.from('projects')
+          .select('id, name').eq('user_id', userId).ilike('name', `%${data.query}%`).limit(1);
+        const project = rows?.[0];
+        if (!project) {
+          out.push({ tool: 'manage_project', ok: false, message: `No project matches "${data.query}".` });
+          continue;
+        }
+        if (action === 'delete') {
+          await supabase.from('projects').update({ is_archived: true }).eq('id', project.id);
+          out.push({ tool: 'manage_project', ok: true, message: `🗄️ Archived project: ${project.name}` });
+        } else {
+          const upd: any = {};
+          if (data.name) upd.name = String(data.name).slice(0, 120);
+          if (data.description !== undefined) upd.description = data.description;
+          if (data.color) upd.color = data.color;
+          if (Object.keys(upd).length === 0) { out.push({ tool: 'manage_project', ok: false, message: 'No fields to update.' }); continue; }
+          await supabase.from('projects').update(upd).eq('id', project.id);
+          out.push({ tool: 'manage_project', ok: true, message: `✏️ Updated project: ${upd.name || project.name}` });
+        }
+      } else {
+        out.push({ tool: 'manage_project', ok: false, message: `Unknown action "${action}". Use create/list/update/delete/get_status.` });
+      }
+    } catch (e) {
+      out.push({ tool: 'manage_project', ok: false, message: `Failed: ${(e as Error).message}` });
+    }
+  }
 
   // ---------- recent_actions ----------
   for (const _m of text.matchAll(/<tool>recent_actions<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
