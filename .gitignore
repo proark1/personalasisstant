@@ -17,6 +17,12 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Migration backups — full database dumps with user data, never commit.
+# See scripts/migration/README.md.
+/backups/
+*.dump
+*.sql.gz
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
