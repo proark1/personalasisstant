@@ -332,14 +332,9 @@ export type Database = {
           created_at: string
           entity_id: string | null
           entity_type: string | null
-          expires_at: string | null
           id: string
-          plan_id: string | null
-          plan_step_id: string | null
           reason: string
           rejected_at: string | null
-          source: string
-          source_ref: string | null
           status: string
           user_id: string
         }
@@ -350,14 +345,9 @@ export type Database = {
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
-          expires_at?: string | null
           id?: string
-          plan_id?: string | null
-          plan_step_id?: string | null
           reason: string
           rejected_at?: string | null
-          source?: string
-          source_ref?: string | null
           status?: string
           user_id: string
         }
@@ -368,14 +358,9 @@ export type Database = {
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
-          expires_at?: string | null
           id?: string
-          plan_id?: string | null
-          plan_step_id?: string | null
           reason?: string
           rejected_at?: string | null
-          source?: string
-          source_ref?: string | null
           status?: string
           user_id?: string
         }
@@ -9076,6 +9061,7 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      is_superadmin: { Args: { check_user_id: string }; Returns: boolean }
       is_workspace_admin: {
         Args: { _user_id: string; _workspace_id: string }
         Returns: boolean
