@@ -245,3 +245,9 @@ verify_jwt = false
 
 [functions.telegram-weekly-briefing]
 verify_jwt = false
+
+[functions.admin-data-export]
+verify_jwt = true
+
+[functions.admin-data-import]
+verify_jwt = true

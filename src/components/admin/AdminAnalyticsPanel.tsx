@@ -6,24 +6,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { 
-  BarChart3, 
-  Users, 
-  Activity, 
-  Zap, 
+import {
+  BarChart3,
+  Users,
+  Activity,
+  Zap,
   TrendingUp,
   Calendar,
   DollarSign,
   MousePointer,
   Bot,
   RefreshCw,
-  ShieldAlert
+  ShieldAlert,
+  Database
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { AnalyticsOverview } from './AnalyticsOverview';
 import { UserAnalyticsTable } from './UserAnalyticsTable';
 import { EventsLog } from './EventsLog';
 import { AIUsagePanel } from './AIUsagePanel';
+import { AdminDataExportImport } from './AdminDataExportImport';
 
 interface AdminAnalyticsPanelProps {
   userId: string;
@@ -189,6 +191,10 @@ export function AdminAnalyticsPanel({ userId }: AdminAnalyticsPanelProps) {
             <Bot className="h-4 w-4" />
             AI Usage
           </TabsTrigger>
+          <TabsTrigger value="data" className="gap-2">
+            <Database className="h-4 w-4" />
+            Data
+          </TabsTrigger>
         </TabsList>
 
         <ScrollArea className="flex-1 p-4">
@@ -206,6 +212,10 @@ export function AdminAnalyticsPanel({ userId }: AdminAnalyticsPanelProps) {
 
           <TabsContent value="ai" className="mt-0">
             <AIUsagePanel aiUsage={aiUsage} />
+          </TabsContent>
+
+          <TabsContent value="data" className="mt-0">
+            <AdminDataExportImport />
           </TabsContent>
         </ScrollArea>
       </Tabs>
