@@ -8,9 +8,9 @@ The migration is staged so the app keeps running between PRs.
 
 | Phase | Scope | Status |
 |------:|-------|:------:|
-| 1a | DB schema bootstrap for Railway (this PR) — no app changes | **in progress** |
-| 1b | Data dump/transform/import scripts (Supabase → Railway) |  |
-| 1c | Provision Railway PG, apply bootstrap, replay data, verify counts |  |
+| 1a | DB schema bootstrap for Railway — no app changes | **done** (#4) |
+| ~~1b~~ | ~~Data dump/transform/import scripts (Supabase → Railway)~~ | **skipped** — fresh start, see below |
+| 1c | Provision Railway PG, apply bootstrap | **runnable** (`db/migration/apply-bootstrap.sh`) |
 | 2  | Replace Supabase Auth with Auth.js (NextAuth) |  |
 | 3  | Convert Deno edge functions → Node services on Railway |  |
 | 4  | Replace `@supabase/supabase-js` client calls with a Postgres client + service modules |  |
@@ -20,6 +20,14 @@ The migration is staged so the app keeps running between PRs.
 
 Each phase is its own draft PR with an explicit test plan. The app stays
 runnable against Supabase until phase 7.
+
+### Why phase 1b was skipped
+
+Phase 1b assumed `pg_dump` access to the source Supabase project. That
+turned out to be unavailable, so the project owner decided to cut over
+to Railway with no data carried across: the bootstrap creates an empty
+schema, no rows are replayed, and every existing user is asked to
+re-sign-up post-cutover. This is captured in the FAQ below.
 
 ## What lives in `db/bootstrap/`
 
@@ -87,15 +95,14 @@ NOT executed by this PR.
 
    ```bash
    export DATABASE_URL="postgres://...railway.app:.../railway"
-   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/bootstrap/00_extensions.sql
-   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/bootstrap/01_auth_js.sql
-   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/bootstrap/02_app_schema.sql
+   ./db/migration/apply-bootstrap.sh
    ```
 
-   Each file is idempotent (every `CREATE` uses `IF NOT EXISTS` where the
+   The script applies the three SQL files in order with
+   `ON_ERROR_STOP=1` and aborts on the first failure. Each file is
+   idempotent on its own (every `CREATE` uses `IF NOT EXISTS` where the
    source migrations did). If any file errors out, fix the underlying
-   migration / squash rule and re-run; nothing is partially applied because
-   of `ON_ERROR_STOP=1`.
+   migration / squash rule and re-run; nothing is partially applied.
 
 4. **Verify** by counting tables:
 
@@ -106,21 +113,20 @@ NOT executed by this PR.
    The number should match (roughly) the unique `CREATE TABLE` count in
    `supabase/migrations/` — at time of writing ~150 unique tables.
 
-## Coming next (Phase 1b)
+## Coming next (Phase 2)
 
-The next PR in this chain will add:
+Replace `supabase.auth.*` with Auth.js. Notes:
 
-- `db/migration/dump-supabase.sh` — `pg_dump --schema=public --data-only --no-owner`
-  against the current Supabase project (read from `SUPABASE_DB_URL`).
-- `db/migration/transform-dump.ts` — rewrites the dump:
-  - Inserts `auth.users` rows into `public.users` (preserving `id`).
-  - Maps `auth.identities` rows into `public.accounts` for OAuth users.
-  - Skips `auth.users.encrypted_password` (Supabase bcrypt hashes are not
-    portable to Auth.js — credentials users will go through a password
-    reset on first post-cutover login).
-- `db/migration/apply-railway.sh` — feeds the transformed dump into Railway.
-- A verification script that compares per-table row counts between
-  Supabase and Railway and prints a diff.
+- The app is a Vite SPA; Auth.js's first-party integrations target
+  Next.js / SvelteKit. For us that means standing up a small Node
+  service (Express or Fastify with `@auth/express`) that owns the
+  callback endpoints and reads/writes the four Auth.js tables in
+  `01_auth_js.sql`. The SPA talks to that service.
+- Only the credentials (email/password) provider is in use today —
+  see `src/contexts/AuthContext.tsx`. Phase 2 ships a fresh signup
+  flow on top of `@auth/core`'s Credentials provider.
+- Decision pending: keep Auth.js, or switch to a SPA-native auth
+  library (Lucia, Clerk, WorkOS). Tracked in the phase-2 PR.
 
 ## FAQ
 
@@ -129,16 +135,23 @@ Because the Supabase dump includes the `auth`, `storage`, `realtime`,
 `extensions`, and `vault` schemas plus a pile of RLS policies and
 GRANTs against Supabase-only roles. Replaying it would fail (missing
 roles, missing extensions) or quietly diverge from the working set.
-The squash script gives us a clean baseline; the data migration
-(Phase 1b) handles the rows separately.
+The squash script gives us a clean baseline.
 
-**Will logins keep working?** OAuth (Google, GitHub, etc.) survives
-the cutover because we preserve `provider` + `providerAccountId` in
-the Auth.js `accounts` table. Password logins do **not** — Supabase
-Auth uses a bcrypt configuration we can't replay in Auth.js's
-credentials provider. Phase 2 ships with a one-time "reset your
-password" email to all credentials users.
+**Why is there no data import (no phase 1b)?** The project owner
+chose to cut over to Railway with no rows carried across from
+Supabase. Every existing user, task, contact, event, contract, note,
+etc. is gone after cutover. The driver was missing DB-level access to
+the source — without the Supabase postgres password we can't
+`pg_dump`. If that access is recovered later, phase 1b can still be
+written; nothing in the current plan precludes it.
 
-**Will user IDs change?** No. We deliberately preserve the
-`auth.users.id` UUID as `public.users.id` so every FK in the app
-schema (e.g. `tasks.user_id`) remains valid without remapping.
+**Will logins keep working?** **No.** This is a fresh database, so
+every user re-signs-up after cutover. Even if data were carried over,
+Supabase Auth's bcrypt hashes aren't portable to Auth.js's credentials
+provider — credentials users would have needed to reset their
+password regardless.
+
+**Will user IDs change?** Yes — they're freshly generated by
+`gen_random_uuid()` on signup against the new schema. The runbook's
+prior promise of preserving `auth.users.id` only held under phase 1b;
+without a data import, all IDs are new.
