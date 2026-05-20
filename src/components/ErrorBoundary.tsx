@@ -15,7 +15,9 @@ function describeError(error: unknown) {
   if (!error) return "Unknown error";
   if (error instanceof Error) {
     const head = `${error.name}: ${error.message}`;
-    return error.stack ? `${head}\n\n${error.stack}` : head;
+    if (!error.stack) return head;
+    // V8 (Chrome/Edge) prefixes the stack with `Name: message`; Firefox/Safari don't.
+    return error.stack.startsWith(error.name) ? error.stack : `${head}\n\n${error.stack}`;
   }
   try {
     return JSON.stringify(error);
