@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useSharedRealtime } from './useSharedRealtime';
 import { toast } from 'sonner';
 
 export type MeetingBotStatus =
@@ -98,19 +99,9 @@ export function useMeetingBots() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    const ch = (supabase as any)
-      .channel(`meeting-bots-${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'meeting_bots',
-        filter: `user_id=eq.${user.id}`,
-      }, () => { refresh(); })
-      .subscribe();
-    return () => { (supabase as any).removeChannel(ch); };
-  }, [user?.id, refresh]);
+  // Routed through the shared coordinator so multiple useMeetingBots()
+  // callers don't each spin up their own channel.
+  useSharedRealtime('meeting_bots', user?.id, () => { refresh(); });
 
   const schedule = useCallback(async (args: ScheduleArgs) => {
     try {

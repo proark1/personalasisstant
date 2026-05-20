@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useSharedRealtime } from './useSharedRealtime';
 import { toast } from 'sonner';
 
 export type PlanStatus =
@@ -116,33 +117,11 @@ export function usePlans() {
   useEffect(() => { refresh(); }, [refresh]);
 
   // Realtime: any change to plans or steps for this user triggers a
-  // refresh. Two channels because postgres_changes only filters one
-  // table at a time.
-  useEffect(() => {
-    if (!user?.id) return;
-    const planCh = (supabase as any)
-      .channel(`plans-${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'dori_action_plans',
-        filter: `user_id=eq.${user.id}`,
-      }, () => { refresh(); })
-      .subscribe();
-    const stepCh = (supabase as any)
-      .channel(`plan-steps-${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'dori_plan_steps',
-        filter: `user_id=eq.${user.id}`,
-      }, () => { refresh(); })
-      .subscribe();
-    return () => {
-      (supabase as any).removeChannel(planCh);
-      (supabase as any).removeChannel(stepCh);
-    };
-  }, [user?.id, refresh]);
+  // refresh. Two subscriptions because postgres_changes only filters
+  // one table at a time. Routed through the shared coordinator so
+  // multiple usePlans() callers don't each spin up their own channel.
+  useSharedRealtime('dori_action_plans', user?.id, () => { refresh(); });
+  useSharedRealtime('dori_plan_steps', user?.id, () => { refresh(); });
 
   const callExec = useCallback(async (planId: string, action: string, extra?: Record<string, unknown>) => {
     setBusyPlanId(planId);
