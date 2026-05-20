@@ -98,11 +98,24 @@ NOT executed by this PR.
    ./db/migration/apply-bootstrap.sh
    ```
 
-   The script applies the three SQL files in order with
-   `ON_ERROR_STOP=1` and aborts on the first failure. Each file is
-   idempotent on its own (every `CREATE` uses `IF NOT EXISTS` where the
-   source migrations did). If any file errors out, fix the underlying
-   migration / squash rule and re-run; nothing is partially applied.
+   The script applies the three SQL files in order. Each individual
+   file runs inside a single transaction (`psql -1` + `ON_ERROR_STOP=1`),
+   so any failure rolls that file back cleanly. The three files are
+   still applied as **three separate transactions**, so a failure on
+   `02_app_schema.sql` leaves `00` and `01` committed.
+
+   Re-running after a partial failure won't work in place: the squash
+   output in `02_app_schema.sql` contains plenty of bare `CREATE`
+   statements (tables, functions, triggers — the source migrations
+   didn't all use `IF NOT EXISTS`), and the second run will hit
+   "already exists" errors. The cleanest recovery is to drop the
+   database — or just the `public` schema — and re-run from a clean
+   slate:
+
+   ```bash
+   psql "$DATABASE_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+   ./db/migration/apply-bootstrap.sh
+   ```
 
 4. **Verify** by counting tables:
 

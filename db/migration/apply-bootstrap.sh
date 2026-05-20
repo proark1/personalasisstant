@@ -2,9 +2,15 @@
 # Applies the Railway PG schema bootstrap in order:
 #   00_extensions.sql  →  01_auth_js.sql  →  02_app_schema.sql
 #
-# Each file is idempotent on its own (CREATE ... IF NOT EXISTS), and the
-# whole script aborts on the first error via -e + ON_ERROR_STOP=1 so a
-# failure leaves the DB in the last good state instead of half-applied.
+# Each individual file is applied inside a single transaction
+# (psql -1 + ON_ERROR_STOP=1) so any failure rolls that file back
+# cleanly. The three files are still applied as separate transactions,
+# so a failure on (e.g.) 02 leaves 00 + 01 committed — re-running
+# without first dropping/recreating the public schema will hit
+# "already exists" errors because 02_app_schema.sql contains plenty
+# of bare CREATE statements (the squash doesn't add IF NOT EXISTS
+# universally). Cleanest recovery: drop the database (or the public
+# schema) and re-run from a clean slate.
 #
 # Usage:
 #   DATABASE_URL="postgres://USER:PASS@HOST:PORT/DB" \
@@ -36,7 +42,7 @@ for f in 00_extensions.sql 01_auth_js.sql 02_app_schema.sql; do
     exit 1
   fi
   echo "==> applying $f"
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$path"
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -1 -q -f "$path"
 done
 
 echo
