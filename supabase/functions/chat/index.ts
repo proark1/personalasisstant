@@ -246,7 +246,7 @@ Task JSON fields:
 - "completionNote": string (optional — for action=complete; appended as a comment)
 - "fromNoteQuery": string (only for action=add — when set, look up the matching note's content and seed the task description from it)
 - "id": string (preferred for update/delete/complete when you have it)
-- "query": string (for update/delete/complete — title fragment to fuzzy-match the task when you don't have an id. Send EITHER id OR query/title for these actions; the executor will look up by title against the user's open tasks and report ambiguity if multiple match.)
+- "query": string (for update/delete/complete — title fragment to fuzzy-match the task when you don't have an id. For UPDATE: use "query" to identify the task and "title" only for the new name (otherwise the executor will treat your new title as the search key and miss). For delete/complete with no id, "query" or "title" may be used as the search key. The executor reports ambiguity if multiple match.)
 
 TOOL: schedule_event
 Use this to schedule calendar events.
@@ -1603,9 +1603,14 @@ async function executeToolsServerSide(
         // of silently picking one and replying "done".
         let targetId: string | undefined = data.id;
         if (!targetId) {
-          const needle = (data.query || data.title || '').trim();
+          // For update, `title` is the NEW value — never use it as the search
+          // key, otherwise the model's rename ("change buy milk to buy oat
+          // milk") would search for the new name and fail. delete/complete
+          // can still fall back to `title` because there's no ambiguity:
+          // there's no "new title" in those flows.
+          const needle = ((action === 'update' ? data.query : (data.query || data.title)) || '').trim();
           if (!needle) {
-            out.push({ tool: 'manage_task', ok: false, message: `I need a task title (or id) to ${action} — which one?` });
+            out.push({ tool: 'manage_task', ok: false, message: `I need a task ${action === 'update' ? 'query' : 'title'} (or id) to ${action} — which one?` });
             continue;
           }
           // Only look at the caller's still-actionable tasks. Completed/
@@ -1613,7 +1618,7 @@ async function executeToolsServerSide(
           // matches a milk task from last month) and the morning digest
           // already excludes them.
           const { data: matches } = await supabase.from('tasks')
-            .select('id, title, completed, trashed')
+            .select('id, title, completed, trashed, due_date')
             .eq('user_id', userId)
             .eq('trashed', false)
             .ilike('title', `%${needle}%`)
@@ -1626,7 +1631,11 @@ async function executeToolsServerSide(
             continue;
           }
           if (candidates.length > 1) {
-            const list = candidates.slice(0, 5).map((r: any, i: number) => `${i + 1}. ${r.title}`).join('\n');
+            const list = candidates.map((r: any, i: number) => {
+              const status = r.completed ? ' (completed)' : '';
+              const due = r.due_date ? ` [due ${new Date(r.due_date).toLocaleDateString()}]` : '';
+              return `${i + 1}. ${r.title}${status}${due}`;
+            }).join('\n');
             out.push({ tool: 'manage_task', ok: false, message: `Multiple tasks match "${needle}":\n${list}\n\nWhich one?` });
             continue;
           }
