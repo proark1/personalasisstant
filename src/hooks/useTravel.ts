@@ -8,8 +8,16 @@ export interface TripBooking { id: string; user_id: string; trip_id: string | nu
 export interface LoyaltyProgram { id: string; user_id: string; program_name: string; program_type: string | null; membership_number: string | null; tier: string | null; points_balance: number | null; expires_at: string | null; notes: string | null; }
 export interface CountryEssential { id: string; user_id: string; country: string; plug_type: string | null; currency: string | null; emergency_number: string | null; embassy_phone: string | null; embassy_address: string | null; language: string | null; notes: string | null; }
 
+// Explicit column lists — keep in sync with the interfaces above so we
+// only pull what the UI actually renders.
+const TRIP_COLS = 'id,user_id,title,destination,destination_country,start_date,end_date,purpose,status,notes,companions';
+const BOOKING_COLS = 'id,user_id,trip_id,booking_type,provider,confirmation_number,start_time,end_time,origin,destination,cost,currency,notes';
+const LOYALTY_COLS = 'id,user_id,program_name,program_type,membership_number,tier,points_balance,expires_at,notes';
+const ESSENTIAL_COLS = 'id,user_id,country,plug_type,currency,emergency_number,embassy_phone,embassy_address,language,notes';
+
 export function useTravel() {
   const { user } = useAuth();
+  const userId = user?.id;
   const [trips, setTrips] = useState<Trip[]>([]);
   const [bookings, setBookings] = useState<TripBooking[]>([]);
   const [loyalty, setLoyalty] = useState<LoyaltyProgram[]>([]);
@@ -17,18 +25,31 @@ export function useTravel() {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = async () => {
-    if (!user) return; setIsLoading(true);
+    if (!userId) return;
+    setIsLoading(true);
     try {
       const [t, b, l, e] = await Promise.all([
-        supabase.from('trips').select('*').eq('user_id', user.id).order('start_date', { ascending: false }),
-        supabase.from('trip_bookings').select('*').eq('user_id', user.id).order('start_time', { ascending: false }),
-        supabase.from('loyalty_programs').select('*').eq('user_id', user.id).order('program_name'),
-        supabase.from('country_essentials').select('*').eq('user_id', user.id).order('country'),
+        supabase.from('trips').select(TRIP_COLS).eq('user_id', userId).order('start_date', { ascending: false }),
+        supabase.from('trip_bookings').select(BOOKING_COLS).eq('user_id', userId).order('start_time', { ascending: false }),
+        supabase.from('loyalty_programs').select(LOYALTY_COLS).eq('user_id', userId).order('program_name'),
+        supabase.from('country_essentials').select(ESSENTIAL_COLS).eq('user_id', userId).order('country'),
       ]);
-      setTrips((t.data as any) || []); setBookings((b.data as any) || []); setLoyalty((l.data as any) || []); setEssentials((e.data as any) || []);
-    } finally { setIsLoading(false); }
+      const firstErr = t.error || b.error || l.error || e.error;
+      if (firstErr) {
+        console.warn('[useTravel] refresh error', firstErr.message);
+        toast.error(firstErr.message);
+      }
+      setTrips((t.data as any) || []);
+      setBookings((b.data as any) || []);
+      setLoyalty((l.data as any) || []);
+      setEssentials((e.data as any) || []);
+    } finally {
+      setIsLoading(false);
+    }
   };
-  useEffect(() => { if (user) refresh(); }, [user]);
+  // Depend on the stable user id, not the user object — Supabase refresh
+  // tokens reissue `user` periodically without the id changing.
+  useEffect(() => { if (userId) refresh(); }, [userId]);
 
   const addTrip = async (p: Partial<Trip>) => { if (!user) return; const { error } = await supabase.from('trips').insert({ ...p, user_id: user.id, title: p.title!, destination: p.destination!, start_date: p.start_date!, end_date: p.end_date! }); if (error) return toast.error(error.message); toast.success('Trip added'); refresh(); };
   const addBooking = async (p: Partial<TripBooking>) => { if (!user) return; const { error } = await supabase.from('trip_bookings').insert({ ...p, user_id: user.id, booking_type: p.booking_type! }); if (error) return toast.error(error.message); toast.success('Booking added'); refresh(); };

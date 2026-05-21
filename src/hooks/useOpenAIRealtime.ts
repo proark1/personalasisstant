@@ -6,9 +6,40 @@ import type { Contact, ContactInput } from '@/hooks/useContacts';
 import type { Contract, ContractInput } from '@/hooks/useContracts';
 import type { Project } from '@/types/flux';
 
+// User + context bags are assembled from a dozen hooks upstream
+// (tasks, contacts, contracts, projects, notes, habits, health, emails,
+// startup ideas, …). Typing every field would duplicate types that
+// already exist on each source hook, so we use index signatures with
+// the keys this hook actually reads spelled out.
+export interface RealtimeUserProfile {
+  full_name?: string | null;
+  preferred_name?: string | null;
+  // Anything the edge function may forward to the model.
+  [key: string]: unknown;
+}
+
+export interface RealtimeContextData {
+  allTasks?: unknown[];
+  allContacts?: unknown[];
+  allEvents?: unknown[];
+  allContracts?: unknown[];
+  allProjects?: unknown[];
+  notesData?: unknown[];
+  habitData?: { habits?: unknown[] } & Record<string, unknown>;
+  healthData?: {
+    isConnected?: boolean;
+    todaySummary?: Record<string, number | undefined>;
+    weeklyData?: Array<Record<string, number | string | undefined>>;
+  };
+  unreadEmails?: unknown[];
+  totalUnreadEmails?: number;
+  startupIdeas?: unknown[];
+  [key: string]: unknown;
+}
+
 interface UseOpenAIRealtimeOptions {
-  userProfile: any;
-  contextData: any;
+  userProfile: RealtimeUserProfile;
+  contextData: RealtimeContextData;
   onTranscript?: (text: string, isFinal: boolean) => void;
   onResponse?: (text: string) => void;
   onError?: (error: string) => void;
