@@ -57,35 +57,36 @@ export function useSpaceMembers(userId: string | undefined) {
 
       if (error) throw error;
 
-      // Fetch profile info for each member
-      const membersWithProfiles = await Promise.all(
-        (data || []).map(async (member) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, display_name, email, avatar_url')
-            .eq('user_id', member.member_id)
-            .maybeSingle();
-          
-          return {
-            ...member,
-            member_profile: profile || undefined,
-          } as SpaceMember;
-        })
-      );
+      // Fetch profile info for all members in one query.
+      const memberIds = Array.from(new Set((data || []).map((m) => m.member_id).filter(Boolean)));
+      const profileMap = new Map<string, NonNullable<SpaceMember['member_profile']>>();
+      if (memberIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, id, display_name, email, avatar_url')
+          .in('user_id', memberIds);
+        for (const p of profiles || []) {
+          profileMap.set(p.user_id, { id: p.id, display_name: p.display_name, email: p.email, avatar_url: p.avatar_url });
+        }
+      }
+
+      const membersWithProfiles = (data || []).map((member) => ({
+        ...member,
+        member_profile: profileMap.get(member.member_id),
+      } as SpaceMember));
 
       setMembers(membersWithProfiles);
 
-      // Fetch share settings for each member
+      // Fetch share settings for all members in one query.
       const settingsMap: Record<string, SpaceShareSettings> = {};
-      for (const member of data || []) {
-        const { data: settings } = await supabase
+      const memberRowIds = (data || []).map((m) => m.id);
+      if (memberRowIds.length > 0) {
+        const { data: settingsRows } = await supabase
           .from('space_share_settings')
           .select('*')
-          .eq('space_member_id', member.id)
-          .maybeSingle();
-        
-        if (settings) {
-          settingsMap[member.id] = settings as SpaceShareSettings;
+          .in('space_member_id', memberRowIds);
+        for (const settings of settingsRows || []) {
+          settingsMap[settings.space_member_id] = settings as SpaceShareSettings;
         }
       }
       setShareSettings(settingsMap);
@@ -109,21 +110,23 @@ export function useSpaceMembers(userId: string | undefined) {
 
       if (error) throw error;
 
-      // Fetch owner profile info
-      const invitationsWithProfiles = await Promise.all(
-        (data || []).map(async (inv) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, display_name, email, avatar_url')
-            .eq('user_id', inv.owner_id)
-            .maybeSingle();
-          
-          return {
-            ...inv,
-            member_profile: profile || undefined,
-          } as SpaceMember;
-        })
-      );
+      // Fetch owner profile info for all invitations in one query.
+      const ownerIds = Array.from(new Set((data || []).map((inv) => inv.owner_id).filter(Boolean)));
+      const profileMap = new Map<string, NonNullable<SpaceMember['member_profile']>>();
+      if (ownerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, id, display_name, email, avatar_url')
+          .in('user_id', ownerIds);
+        for (const p of profiles || []) {
+          profileMap.set(p.user_id, { id: p.id, display_name: p.display_name, email: p.email, avatar_url: p.avatar_url });
+        }
+      }
+
+      const invitationsWithProfiles = (data || []).map((inv) => ({
+        ...inv,
+        member_profile: profileMap.get(inv.owner_id),
+      } as SpaceMember));
 
       setInvitations(invitationsWithProfiles);
     } catch (error) {

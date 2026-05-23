@@ -97,21 +97,39 @@ export function useGroupChat(userId: string | null) {
 
       if (error) throw error;
 
-      // Fetch member profiles and last messages
+      // Fetch profiles for every member across all groups in one query
+      // instead of one query per group.
+      const allMemberIds = Array.from(
+        new Set(
+          (groupsData || []).flatMap(
+            (group) => group.chat_group_members?.map((m: GroupMember) => m.user_id) || [],
+          ),
+        ),
+      );
+      const profileMap = new Map<
+        string,
+        { user_id: string; display_name: string | null; email: string | null; avatar_url: string | null }
+      >();
+      if (allMemberIds.length > 0) {
+        const { data: allProfiles } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, email, avatar_url')
+          .in('user_id', allMemberIds);
+        for (const p of allProfiles || []) {
+          profileMap.set(p.user_id, p);
+        }
+      }
+
+      // Enrich each group with members + its last message.
       const enrichedGroups = await Promise.all(
         (groupsData || []).map(async (group) => {
           const memberIds = group.chat_group_members?.map((m: GroupMember) => m.user_id) || [];
-          
+
           // Initialize group encryption key
           if (isReady && memberIds.length > 0) {
             await initializeGroupKey(group.id, memberIds);
           }
-          
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('user_id, display_name, email, avatar_url')
-            .in('user_id', memberIds);
-          
+
           const { data: lastMsg } = await supabase
             .from('group_messages')
             .select('content, encrypted_content, created_at')
@@ -136,7 +154,7 @@ export function useGroupChat(userId: string | null) {
           
           const members = group.chat_group_members?.map((m: GroupMember) => ({
             ...m,
-            profile: profiles?.find(p => p.user_id === m.user_id),
+            profile: profileMap.get(m.user_id),
           }));
 
           return {

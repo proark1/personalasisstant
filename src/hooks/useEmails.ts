@@ -149,6 +149,19 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
     }
   }, [user]);
 
+  const batchUpdateEmails = useCallback(async (ids: string[], updates: Partial<Email>) => {
+    if (!user || ids.length === 0) return;
+    try {
+      const { error } = await supabase.from('user_emails').update(updates as any).in('id', ids).eq('user_id', user.id);
+      if (error) throw error;
+      const idSet = new Set(ids);
+      setEmails(prev => prev.map(e => idSet.has(e.id) ? { ...e, ...updates } : e));
+    } catch (e) {
+      console.error('Batch update email error:', e);
+      toast.error('Failed to update emails');
+    }
+  }, [user]);
+
   const archiveEmail = useCallback(async (emailId: string) => {
     const emailToArchive = emails.find(e => e.id === emailId);
     if (emailToArchive) lastArchived.current = { id: emailId, email: emailToArchive };
@@ -289,29 +302,29 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
   // Batch operations
   const batchArchive = useCallback(async () => {
     const ids = Array.from(selectedIds);
-    for (const id of ids) await updateEmail(id, { user_archived: true });
+    await batchUpdateEmails(ids, { user_archived: true });
     setEmails(prev => prev.filter(e => !selectedIds.has(e.id)));
     setSelectedIds(new Set());
     setSelectMode(false);
     toast.success(`Archived ${ids.length} emails`);
-  }, [selectedIds, updateEmail]);
+  }, [selectedIds, batchUpdateEmails]);
 
   const batchMarkRead = useCallback(async () => {
     const ids = Array.from(selectedIds);
-    for (const id of ids) await updateEmail(id, { is_read: true });
+    await batchUpdateEmails(ids, { is_read: true });
     setSelectedIds(new Set());
     setSelectMode(false);
     toast.success(`Marked ${ids.length} as read`);
-  }, [selectedIds, updateEmail]);
+  }, [selectedIds, batchUpdateEmails]);
 
   const batchReportSpam = useCallback(async () => {
     const ids = Array.from(selectedIds);
-    for (const id of ids) await updateEmail(id, { user_archived: true, is_spam: true });
+    await batchUpdateEmails(ids, { user_archived: true, is_spam: true });
     setEmails(prev => prev.filter(e => !selectedIds.has(e.id)));
     setSelectedIds(new Set());
     setSelectMode(false);
     toast.success(`Reported ${ids.length} as spam`);
-  }, [selectedIds, updateEmail]);
+  }, [selectedIds, batchUpdateEmails]);
 
   const toggleSelect = useCallback((emailId: string) => {
     setSelectedIds(prev => {

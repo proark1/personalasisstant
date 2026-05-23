@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts, Contact, ContactType, ContactInput, PersonalTier, BusinessLevel, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
@@ -85,6 +85,313 @@ const defaultFormData: ContactFormData = {
   websiteUrl: '',
 };
 
+function getInitials(name: string) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function getTierBadge(contact: Contact) {
+  if (contact.contactType === 'personal' && contact.personalTier) {
+    const tier = PERSONAL_TIERS.find(t => t.value === contact.personalTier);
+    return tier ? <Badge className={`${tier.color} text-white whitespace-nowrap text-xs`}>{tier.label}</Badge> : null;
+  }
+  if (contact.contactType === 'business' && contact.businessLevel) {
+    const level = BUSINESS_LEVELS.find(l => l.value === contact.businessLevel);
+    return level ? <Badge className={`${level.color} text-white whitespace-nowrap text-xs`}>{level.label}</Badge> : null;
+  }
+  return null;
+}
+
+interface ContactCardProps {
+  contact: Contact;
+  onSelect: (contact: Contact) => void;
+  onMarkContacted: (contact: Contact) => void;
+  onEmailTemplate: (contact: Contact) => void;
+  onEdit: (contact: Contact) => void;
+  onDelete: (contact: Contact) => void;
+}
+
+const ContactCard = memo(function ContactCard({ contact, onSelect, onMarkContacted, onEmailTemplate, onEdit, onDelete }: ContactCardProps) {
+  const isDue = contact.nextContactDue && isPast(contact.nextContactDue);
+
+  return (
+    <GlassCard
+      pressable
+      haptic="light"
+      className={`transition-colors ${isDue ? 'border-destructive/50' : ''}`}
+      onClick={() => onSelect(contact)}
+    >
+      <GlassCardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <Avatar className="shrink-0">
+              <AvatarFallback className="bg-primary/10 text-primary">
+                {getInitials(contact.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-medium truncate">{contact.name}</p>
+                {getTierBadge(contact)}
+                {isDue && (
+                  <Badge variant="outline" className="text-orange-500 border-orange-500">
+                    <Bell className="w-3 h-3 mr-1" />
+                    Due
+                  </Badge>
+                )}
+              </div>
+
+              <div className="text-sm text-muted-foreground space-y-1 mt-1">
+                {contact.email && (
+                  <p className="flex items-center gap-1 truncate">
+                    <Mail className="w-3 h-3 shrink-0" />
+                    {contact.email}
+                  </p>
+                )}
+                {contact.phone && (
+                  <p className="flex items-center gap-1">
+                    <Phone className="w-3 h-3 shrink-0" />
+                    {contact.phone}
+                  </p>
+                )}
+                {contact.company && (
+                  <p className="flex items-center gap-1 truncate">
+                    <Building className="w-3 h-3 shrink-0" />
+                    {contact.company}{contact.role && ` • ${contact.role}`}
+                  </p>
+                )}
+                {(contact.city || contact.country) && (
+                  <p className="flex items-center gap-1 truncate">
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    {[contact.city, contact.country].filter(Boolean).join(', ')}
+                  </p>
+                )}
+              </div>
+
+              {/* Social Links */}
+              {(contact.linkedinUrl || contact.twitterUrl || contact.websiteUrl) && (
+                <div className="flex items-center gap-2 mt-2">
+                  {contact.linkedinUrl && (
+                    <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer"
+                       className="text-muted-foreground hover:text-primary transition-colors"
+                       onClick={(e) => e.stopPropagation()}>
+                      <Linkedin className="w-4 h-4" />
+                    </a>
+                  )}
+                  {contact.twitterUrl && (
+                    <a href={contact.twitterUrl} target="_blank" rel="noopener noreferrer"
+                       className="text-muted-foreground hover:text-primary transition-colors"
+                       onClick={(e) => e.stopPropagation()}>
+                      <Twitter className="w-4 h-4" />
+                    </a>
+                  )}
+                  {contact.websiteUrl && (
+                    <a href={contact.websiteUrl} target="_blank" rel="noopener noreferrer"
+                       className="text-muted-foreground hover:text-primary transition-colors"
+                       onClick={(e) => e.stopPropagation()}>
+                      <Globe className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {contact.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {contact.tags.map((tag, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {contact.notes && (
+                <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                  <MessageSquare className="w-3 h-3 inline mr-1" />
+                  {contact.notes}
+                </p>
+              )}
+
+              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Every {contact.contactFrequencyDays}d
+                </span>
+                {contact.lastContactedAt && (
+                  <span>
+                    Last: {formatDistanceToNow(contact.lastContactedAt, { addSuffix: true })}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => { e.stopPropagation(); onMarkContacted(contact); }}
+              className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+              title="Mark as contacted"
+            >
+              <Check className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => { e.stopPropagation(); onEmailTemplate(contact); }}
+              className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+              title="Email template"
+            >
+              <Mail className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => { e.stopPropagation(); onEdit(contact); }}
+              title="Edit"
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => { e.stopPropagation(); onDelete(contact); }}
+              className="text-destructive hover:text-destructive"
+              title="Delete"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </GlassCardContent>
+    </GlassCard>
+  );
+});
+
+interface ContactTableProps {
+  contacts: Contact[];
+  onSelect: (contact: Contact) => void;
+  onMarkContacted: (contact: Contact) => void;
+  onDelete: (contact: Contact) => void;
+}
+
+const ContactTable = memo(function ContactTable({ contacts, onSelect, onMarkContacted, onDelete }: ContactTableProps) {
+  if (contacts.length === 0) {
+    return (
+      <EmptyState icon={Users} title="No contacts found" description="Try a different search term" />
+    );
+  }
+
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Level</TableHead>
+            <TableHead>Company / Role</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Tags</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {contacts.map((contact) => {
+            const isDue = contact.nextContactDue && isPast(contact.nextContactDue);
+            return (
+              <TableRow
+                key={contact.id}
+                className="cursor-pointer"
+                onClick={() => onSelect(contact)}
+              >
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        {getInitials(contact.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p className="font-medium">{contact.name}</p>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {getTierBadge(contact)}
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    {contact.company && <p>{contact.company}</p>}
+                    {contact.role && <p className="text-muted-foreground">{contact.role}</p>}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm text-muted-foreground">
+                    {[contact.city, contact.country].filter(Boolean).join(', ') || '-'}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm">{contact.email || '-'}</span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {contact.tags.slice(0, 2).map((tag, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                    {contact.tags.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{contact.tags.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {isDue ? (
+                    <Badge variant="outline" className="text-orange-500 border-orange-500">
+                      <Bell className="w-3 h-3 mr-1" />
+                      Due
+                    </Badge>
+                  ) : contact.lastContactedAt ? (
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(contact.lastContactedAt, { addSuffix: true })}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Never</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-green-500 hover:text-green-600"
+                      onClick={(e) => { e.stopPropagation(); onMarkContacted(contact); }}
+                      title="Mark as contacted"
+                    >
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={(e) => { e.stopPropagation(); onDelete(contact); }}
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+});
+
 export default function Contacts() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -131,7 +438,7 @@ export default function Contacts() {
     setEditingContact(null);
   };
 
-  const openEditDialog = (contact: Contact) => {
+  const openEditDialog = useCallback((contact: Contact) => {
     setEditingContact(contact);
     setFormData({
       name: contact.name,
@@ -152,7 +459,7 @@ export default function Contacts() {
       websiteUrl: contact.websiteUrl || '',
     });
     setShowAddDialog(true);
-  };
+  }, []);
 
   const handleSubmit = async () => {
     if (saving) return;
@@ -243,12 +550,12 @@ export default function Contacts() {
     setContactToDelete(null);
   };
 
-  const handleMarkContacted = async (contact: Contact) => {
+  const handleMarkContacted = useCallback(async (contact: Contact) => {
     const success = await markContacted(contact.id);
     if (success) {
       toast({ title: `Marked ${contact.name} as contacted` });
     }
-  };
+  }, [markContacted, toast]);
 
   const handleImportContacts = async (contactsToImport: ContactInput[]) => {
     let imported = 0;
@@ -259,10 +566,10 @@ export default function Contacts() {
     toast({ title: `Imported ${imported} contacts` });
   };
 
-  const handleOpenEmailTemplate = (contact: Contact) => {
+  const handleOpenEmailTemplate = useCallback((contact: Contact) => {
     setEmailTemplateContact(contact);
     setShowEmailTemplate(true);
-  };
+  }, []);
 
   const recentContacts = contacts.filter(c => recentContactIds.includes(c.id));
 
@@ -277,297 +584,6 @@ export default function Contacts() {
       c.city?.toLowerCase().includes(query) ||
       c.notes?.toLowerCase().includes(query) ||
       c.tags.some(t => t.toLowerCase().includes(query))
-    );
-  };
-
-  const getTierBadge = (contact: Contact) => {
-    if (contact.contactType === 'personal' && contact.personalTier) {
-      const tier = PERSONAL_TIERS.find(t => t.value === contact.personalTier);
-      return tier ? <Badge className={`${tier.color} text-white whitespace-nowrap text-xs`}>{tier.label}</Badge> : null;
-    }
-    if (contact.contactType === 'business' && contact.businessLevel) {
-      const level = BUSINESS_LEVELS.find(l => l.value === contact.businessLevel);
-      return level ? <Badge className={`${level.color} text-white whitespace-nowrap text-xs`}>{level.label}</Badge> : null;
-    }
-    return null;
-  };
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  const ContactCard = ({ contact }: { contact: Contact }) => {
-    const isDue = contact.nextContactDue && isPast(contact.nextContactDue);
-    
-    return (
-      <GlassCard 
-        pressable
-        haptic="light"
-        className={`transition-colors ${isDue ? 'border-destructive/50' : ''}`}
-        onClick={() => setSelectedContact(contact)}
-      >
-        <GlassCardContent className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-              <Avatar className="shrink-0">
-                <AvatarFallback className="bg-primary/10 text-primary">
-                  {getInitials(contact.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-medium truncate">{contact.name}</p>
-                  {getTierBadge(contact)}
-                  {isDue && (
-                    <Badge variant="outline" className="text-orange-500 border-orange-500">
-                      <Bell className="w-3 h-3 mr-1" />
-                      Due
-                    </Badge>
-                  )}
-                </div>
-                
-                <div className="text-sm text-muted-foreground space-y-1 mt-1">
-                  {contact.email && (
-                    <p className="flex items-center gap-1 truncate">
-                      <Mail className="w-3 h-3 shrink-0" />
-                      {contact.email}
-                    </p>
-                  )}
-                  {contact.phone && (
-                    <p className="flex items-center gap-1">
-                      <Phone className="w-3 h-3 shrink-0" />
-                      {contact.phone}
-                    </p>
-                  )}
-                  {contact.company && (
-                    <p className="flex items-center gap-1 truncate">
-                      <Building className="w-3 h-3 shrink-0" />
-                      {contact.company}{contact.role && ` • ${contact.role}`}
-                    </p>
-                  )}
-                  {(contact.city || contact.country) && (
-                    <p className="flex items-center gap-1 truncate">
-                      <MapPin className="w-3 h-3 shrink-0" />
-                      {[contact.city, contact.country].filter(Boolean).join(', ')}
-                    </p>
-                  )}
-                </div>
-
-                {/* Social Links */}
-                {(contact.linkedinUrl || contact.twitterUrl || contact.websiteUrl) && (
-                  <div className="flex items-center gap-2 mt-2">
-                    {contact.linkedinUrl && (
-                      <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" 
-                         className="text-muted-foreground hover:text-primary transition-colors"
-                         onClick={(e) => e.stopPropagation()}>
-                        <Linkedin className="w-4 h-4" />
-                      </a>
-                    )}
-                    {contact.twitterUrl && (
-                      <a href={contact.twitterUrl} target="_blank" rel="noopener noreferrer"
-                         className="text-muted-foreground hover:text-primary transition-colors"
-                         onClick={(e) => e.stopPropagation()}>
-                        <Twitter className="w-4 h-4" />
-                      </a>
-                    )}
-                    {contact.websiteUrl && (
-                      <a href={contact.websiteUrl} target="_blank" rel="noopener noreferrer"
-                         className="text-muted-foreground hover:text-primary transition-colors"
-                         onClick={(e) => e.stopPropagation()}>
-                        <Globe className="w-4 h-4" />
-                      </a>
-                    )}
-                  </div>
-                )}
-
-                {contact.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {contact.tags.map((tag, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                {contact.notes && (
-                  <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                    <MessageSquare className="w-3 h-3 inline mr-1" />
-                    {contact.notes}
-                  </p>
-                )}
-
-                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    Every {contact.contactFrequencyDays}d
-                  </span>
-                  {contact.lastContactedAt && (
-                    <span>
-                      Last: {formatDistanceToNow(contact.lastContactedAt, { addSuffix: true })}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1 shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => { e.stopPropagation(); handleMarkContacted(contact); }}
-                className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                title="Mark as contacted"
-              >
-                <Check className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => { e.stopPropagation(); handleOpenEmailTemplate(contact); }}
-                className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
-                title="Email template"
-              >
-                <Mail className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => { e.stopPropagation(); openEditDialog(contact); }}
-                title="Edit"
-              >
-                <Pencil className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => { e.stopPropagation(); setContactToDelete(contact); }}
-                className="text-destructive hover:text-destructive"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </GlassCardContent>
-      </GlassCard>
-    );
-  };
-
-  const ContactTable = ({ contacts }: { contacts: Contact[] }) => {
-    if (contacts.length === 0) {
-      return (
-        <EmptyState icon={Users} title="No contacts found" description="Try a different search term" />
-      );
-    }
-
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Level</TableHead>
-              <TableHead>Company / Role</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Tags</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {contacts.map((contact) => {
-              const isDue = contact.nextContactDue && isPast(contact.nextContactDue);
-              return (
-                <TableRow 
-                  key={contact.id} 
-                  className="cursor-pointer"
-                  onClick={() => setSelectedContact(contact)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                          {getInitials(contact.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <p className="font-medium">{contact.name}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {getTierBadge(contact)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      {contact.company && <p>{contact.company}</p>}
-                      {contact.role && <p className="text-muted-foreground">{contact.role}</p>}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {[contact.city, contact.country].filter(Boolean).join(', ') || '-'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{contact.email || '-'}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {contact.tags.slice(0, 2).map((tag, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {contact.tags.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{contact.tags.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {isDue ? (
-                      <Badge variant="outline" className="text-orange-500 border-orange-500">
-                        <Bell className="w-3 h-3 mr-1" />
-                        Due
-                      </Badge>
-                    ) : contact.lastContactedAt ? (
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(contact.lastContactedAt, { addSuffix: true })}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Never</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-green-500 hover:text-green-600"
-                        onClick={(e) => { e.stopPropagation(); handleMarkContacted(contact); }}
-                        title="Mark as contacted"
-                      >
-                        <Check className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={(e) => { e.stopPropagation(); setContactToDelete(contact); }}
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
     );
   };
 
@@ -916,13 +932,26 @@ export default function Contacts() {
                         </div>
                       ) : (
                         filterContacts(personalContacts).map(contact => (
-                          <ContactCard key={contact.id} contact={contact} />
+                          <ContactCard
+                            key={contact.id}
+                            contact={contact}
+                            onSelect={setSelectedContact}
+                            onMarkContacted={handleMarkContacted}
+                            onEmailTemplate={handleOpenEmailTemplate}
+                            onEdit={openEditDialog}
+                            onDelete={setContactToDelete}
+                          />
                         ))
                       )}
                     </div>
                   </ScrollArea>
                 ) : (
-                  <ContactTable contacts={filterContacts(personalContacts)} />
+                  <ContactTable
+                    contacts={filterContacts(personalContacts)}
+                    onSelect={setSelectedContact}
+                    onMarkContacted={handleMarkContacted}
+                    onDelete={setContactToDelete}
+                  />
                 )}
               </TabsContent>
 
@@ -936,13 +965,26 @@ export default function Contacts() {
                         </div>
                       ) : (
                         filterContacts(businessContacts).map(contact => (
-                          <ContactCard key={contact.id} contact={contact} />
+                          <ContactCard
+                            key={contact.id}
+                            contact={contact}
+                            onSelect={setSelectedContact}
+                            onMarkContacted={handleMarkContacted}
+                            onEmailTemplate={handleOpenEmailTemplate}
+                            onEdit={openEditDialog}
+                            onDelete={setContactToDelete}
+                          />
                         ))
                       )}
                     </div>
                   </ScrollArea>
                 ) : (
-                  <ContactTable contacts={filterContacts(businessContacts)} />
+                  <ContactTable
+                    contacts={filterContacts(businessContacts)}
+                    onSelect={setSelectedContact}
+                    onMarkContacted={handleMarkContacted}
+                    onDelete={setContactToDelete}
+                  />
                 )}
               </TabsContent>
 
@@ -956,13 +998,26 @@ export default function Contacts() {
                         </div>
                       ) : (
                         contactsDue.map(contact => (
-                          <ContactCard key={contact.id} contact={contact} />
+                          <ContactCard
+                            key={contact.id}
+                            contact={contact}
+                            onSelect={setSelectedContact}
+                            onMarkContacted={handleMarkContacted}
+                            onEmailTemplate={handleOpenEmailTemplate}
+                            onEdit={openEditDialog}
+                            onDelete={setContactToDelete}
+                          />
                         ))
                       )}
                     </div>
                   </ScrollArea>
                 ) : (
-                  <ContactTable contacts={contactsDue} />
+                  <ContactTable
+                    contacts={contactsDue}
+                    onSelect={setSelectedContact}
+                    onMarkContacted={handleMarkContacted}
+                    onDelete={setContactToDelete}
+                  />
                 )}
               </TabsContent>
 

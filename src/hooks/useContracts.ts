@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { moduleBus } from '@/lib/moduleEventBus';
 import { moduleHealth } from '@/lib/moduleHealth';
@@ -57,9 +58,10 @@ export const CONTRACT_CATEGORIES: { value: ContractCategory; label: string; icon
   { value: 'other', label: 'Other', icon: '📄' },
 ];
 
+const EMPTY_CONTRACTS: Contract[] = [];
+
 export function useContracts(userId: string | undefined) {
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const { notifyContractCreated } = useAppNotifications();
 
   const mapDbToContract = (row: any): Contract => ({
@@ -85,33 +87,33 @@ export function useContracts(userId: string | undefined) {
     updatedAt: new Date(row.updated_at),
   });
 
-  const fetchContracts = useCallback(async () => {
-    if (!userId) {
-      setContracts([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('contracts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('renewal_date', { ascending: true, nullsFirst: false });
-
-    if (error) {
-      console.error('Error fetching contracts:', error);
-      moduleHealth.reportError('contracts', error);
-    } else if (data) {
-      setContracts(data.map(mapDbToContract));
+  // Shared query so every useContracts consumer reads one cached
+  // ['contracts', userId] entry and the cacheCoordinator ['contracts']
+  // invalidations take effect.
+  const query = useQuery({
+    queryKey: ['contracts', userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<Contract[]> => {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('user_id', userId!)
+        .order('renewal_date', { ascending: true, nullsFirst: false });
+      if (error) {
+        moduleHealth.reportError('contracts', error);
+        throw error;
+      }
       moduleHealth.reportSuccess('contracts');
-    }
-    setLoading(false);
-  }, [userId]);
+      return (data || []).map(mapDbToContract);
+    },
+  });
 
-  useEffect(() => {
-    fetchContracts();
-  }, [fetchContracts]);
+  const refetch = useCallback(async () => {
+    await queryClient.refetchQueries({ queryKey: ['contracts', userId] });
+  }, [queryClient, userId]);
+
+  const contracts = query.data ?? EMPTY_CONTRACTS;
+  const loading = query.isLoading;
 
   const addContract = useCallback(async (input: ContractInput): Promise<Contract | null> => {
     if (!userId) return null;
@@ -141,7 +143,7 @@ export function useContracts(userId: string | undefined) {
 
     if (data && !error) {
       const newContract = mapDbToContract(data);
-      setContracts(prev => [...prev, newContract]);
+      queryClient.setQueryData<Contract[]>(['contracts', userId], (prev) => [...(prev ?? []), newContract]);
 
       // Create in-app notification
       notifyContractCreated(newContract.name, newContract.id);
@@ -150,7 +152,7 @@ export function useContracts(userId: string | undefined) {
       return newContract;
     }
     return null;
-  }, [userId, notifyContractCreated]);
+  }, [userId, queryClient, notifyContractCreated]);
 
   const updateContract = useCallback(async (
     id: string,
@@ -180,14 +182,14 @@ export function useContracts(userId: string | undefined) {
       .eq('id', id);
 
     if (!error) {
-      setContracts(prev => prev.map(c =>
+      queryClient.setQueryData<Contract[]>(['contracts', userId], (prev) => (prev ?? []).map(c =>
         c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c
       ));
       moduleBus.emit('contract:updated', { contractId: id, fields: Object.keys(updates) }, 'useContracts');
       return true;
     }
     return false;
-  }, []);
+  }, [userId, queryClient]);
 
   const deleteContract = useCallback(async (id: string): Promise<boolean> => {
     const { error } = await supabase
@@ -197,12 +199,12 @@ export function useContracts(userId: string | undefined) {
       .eq('user_id', userId);
 
     if (!error) {
-      setContracts(prev => prev.filter(c => c.id !== id));
+      queryClient.setQueryData<Contract[]>(['contracts', userId], (prev) => (prev ?? []).filter(c => c.id !== id));
       moduleBus.emit('contract:deleted', { contractId: id }, 'useContracts');
       return true;
     }
     return false;
-  }, []);
+  }, [userId, queryClient]);
 
   // Get contracts expiring soon (within X days)
   const getExpiringContracts = useCallback((withinDays: number = 30) => {
@@ -249,13 +251,13 @@ export function useContracts(userId: string | undefined) {
       .eq('id', id);
 
     if (!error) {
-      setContracts(prev => prev.map(c =>
+      queryClient.setQueryData<Contract[]>(['contracts', userId], (prev) => (prev ?? []).map(c =>
         c.id === id ? { ...c, reminderSnoozedUntil: snoozedUntil, updatedAt: new Date() } : c
       ));
       return true;
     }
     return false;
-  }, []);
+  }, [userId, queryClient]);
 
   // Calculate monthly cost
   const monthlyCost = useMemo(() => {
@@ -312,6 +314,6 @@ export function useContracts(userId: string | undefined) {
     monthlyCost,
     yearlyCost,
     contractsByCategory,
-    refetch: fetchContracts,
+    refetch,
   };
 }

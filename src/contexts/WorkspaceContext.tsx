@@ -185,22 +185,42 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return { ok: true, workspace: result.workspace };
   }, [fetchWorkspaces, setActiveWorkspaceId]);
 
+  const refreshMembers = useCallback(
+    () => fetchMembers(activeWorkspaceId),
+    [fetchMembers, activeWorkspaceId],
+  );
+
+  const value = useMemo(
+    () => ({
+      workspaces,
+      loading,
+      error,
+      activeWorkspaceId,
+      activeWorkspace,
+      members,
+      setActiveWorkspaceId,
+      createWorkspace,
+      joinByCode,
+      refresh: fetchWorkspaces,
+      refreshMembers,
+    }),
+    [
+      workspaces,
+      loading,
+      error,
+      activeWorkspaceId,
+      activeWorkspace,
+      members,
+      setActiveWorkspaceId,
+      createWorkspace,
+      joinByCode,
+      fetchWorkspaces,
+      refreshMembers,
+    ],
+  );
+
   return (
-    <WorkspaceContext.Provider
-      value={{
-        workspaces,
-        loading,
-        error,
-        activeWorkspaceId,
-        activeWorkspace,
-        members,
-        setActiveWorkspaceId,
-        createWorkspace,
-        joinByCode,
-        refresh: fetchWorkspaces,
-        refreshMembers: () => fetchMembers(activeWorkspaceId),
-      }}
-    >
+    <WorkspaceContext.Provider value={value}>
       {children}
     </WorkspaceContext.Provider>
   );

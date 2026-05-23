@@ -412,10 +412,13 @@ export function useDatabase(userId: string | undefined) {
       return newTasks.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     });
 
-    // Update in database
-    for (const { id, sortOrder } of taskOrders) {
-      await supabase.from('tasks').update({ sort_order: sortOrder }).eq('id', id);
-    }
+    // Update in database — fire the per-row updates in parallel instead of
+    // awaiting them one sequential round-trip at a time.
+    await Promise.all(
+      taskOrders.map(({ id, sortOrder }) =>
+        supabase.from('tasks').update({ sort_order: sortOrder }).eq('id', id),
+      ),
+    );
   }, []);
 
   // Event operations

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { moduleBus } from '@/lib/moduleEventBus';
 import { moduleHealth } from '@/lib/moduleHealth';
@@ -72,9 +73,12 @@ export const DEFAULT_FREQUENCIES: Record<PersonalTier | BusinessLevel, number> =
   not_contacted: 0,
 };
 
+// Stable empty reference so consumers don't see a new array identity each render
+// while the query has no data yet.
+const EMPTY_CONTACTS: Contact[] = [];
+
 export function useContacts(userId: string | undefined) {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   const mapDbToContact = (row: any): Contact => {
     const familyRelationshipRaw =
@@ -110,56 +114,35 @@ export function useContacts(userId: string | undefined) {
     };
   };
 
-  const fetchContacts = useCallback(async () => {
-    if (!userId) {
-      // Avoid clearing cached contacts on transient auth/session transitions.
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    // Retry a few times on transient network errors (e.g. "TypeError: Failed to fetch").
-    const maxAttempts = 3;
-    let succeeded = false;
-    let lastErr: unknown = null;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const { data, error } = await supabase
-          .from('user_contacts')
-          .select('*')
-          .eq('user_id', userId)
-          .order('name');
-
-        if (error) throw error;
-
-        setContacts((data || []).map(mapDbToContact));
-        succeeded = true;
-        break;
-      } catch (err) {
-        lastErr = err;
-        const isLast = attempt === maxAttempts;
-        if (isLast) {
-          console.error('Error fetching contacts:', err);
-        } else {
-          await new Promise((r) => setTimeout(r, 250 * attempt));
-          continue;
-        }
+  // Shared query: every component calling useContacts now reads from one
+  // cached ['contacts', userId] entry instead of refetching independently.
+  // The retry/backoff mirrors the previous manual loop.
+  const query = useQuery({
+    queryKey: ['contacts', userId],
+    enabled: !!userId,
+    retry: 2,
+    retryDelay: (attempt) => 250 * (attempt + 1),
+    queryFn: async (): Promise<Contact[]> => {
+      const { data, error } = await supabase
+        .from('user_contacts')
+        .select('*')
+        .eq('user_id', userId!)
+        .order('name');
+      if (error) {
+        moduleHealth.reportError('contacts', error);
+        throw error;
       }
-    }
-
-    if (succeeded) {
       moduleHealth.reportSuccess('contacts');
-    } else if (lastErr) {
-      moduleHealth.reportError('contacts', lastErr);
-    }
+      return (data || []).map(mapDbToContact);
+    },
+  });
 
-    setLoading(false);
-  }, [userId]);
+  const refetch = useCallback(async () => {
+    await queryClient.refetchQueries({ queryKey: ['contacts', userId] });
+  }, [queryClient, userId]);
 
-  useEffect(() => {
-    fetchContacts();
-  }, [fetchContacts]);
+  const contacts = query.data ?? EMPTY_CONTACTS;
+  const loading = query.isLoading;
 
   const addContact = useCallback(async (input: ContactInput): Promise<Contact | null> => {
     if (!userId) return null;
@@ -202,12 +185,14 @@ export function useContacts(userId: string | undefined) {
 
     if (data && !error) {
       const newContact = mapDbToContact(data);
-      setContacts(prev => [...prev, newContact].sort((a, b) => a.name.localeCompare(b.name)));
+      queryClient.setQueryData<Contact[]>(['contacts', userId], (prev) =>
+        [...(prev ?? []), newContact].sort((a, b) => a.name.localeCompare(b.name)),
+      );
       moduleBus.emit('contact:created', { contactId: newContact.id }, 'useContacts');
       return newContact;
     }
     return null;
-  }, [userId]);
+  }, [userId, queryClient]);
 
   const updateContact = useCallback(async (
     id: string,
@@ -248,8 +233,8 @@ export function useContacts(userId: string | undefined) {
         return false;
       }
 
-      setContacts((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c))
+      queryClient.setQueryData<Contact[]>(['contacts', userId], (prev) =>
+        (prev ?? []).map((c) => (c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c)),
       );
       moduleBus.emit('contact:updated', { contactId: id, fields: Object.keys(updates) }, 'useContacts');
       return true;
@@ -257,7 +242,7 @@ export function useContacts(userId: string | undefined) {
       console.error('Error updating contact:', err);
       return false;
     }
-  }, []);
+  }, [userId, queryClient]);
 
   const deleteContact = useCallback(async (id: string): Promise<boolean> => {
     const { error } = await supabase
@@ -266,15 +251,18 @@ export function useContacts(userId: string | undefined) {
       .eq('id', id);
 
     if (!error) {
-      setContacts(prev => prev.filter(c => c.id !== id));
+      queryClient.setQueryData<Contact[]>(['contacts', userId], (prev) =>
+        (prev ?? []).filter(c => c.id !== id),
+      );
       moduleBus.emit('contact:deleted', { contactId: id }, 'useContacts');
       return true;
     }
     return false;
-  }, []);
+  }, [userId, queryClient]);
 
   const markContacted = useCallback(async (id: string): Promise<boolean> => {
-    const contact = contacts.find(c => c.id === id);
+    const current = queryClient.getQueryData<Contact[]>(['contacts', userId]) ?? [];
+    const contact = current.find(c => c.id === id);
     if (!contact) return false;
 
     const now = new Date();
@@ -290,14 +278,14 @@ export function useContacts(userId: string | undefined) {
       .eq('id', id);
 
     if (!error) {
-      setContacts(prev => prev.map(c =>
+      queryClient.setQueryData<Contact[]>(['contacts', userId], (prev) => (prev ?? []).map(c =>
         c.id === id ? { ...c, lastContactedAt: now, nextContactDue: nextDue } : c
       ));
       moduleBus.emit('contact:contacted', { contactId: id }, 'useContacts');
       return true;
     }
     return false;
-  }, [contacts]);
+  }, [userId, queryClient]);
 
   // Get contacts due for follow-up
   const getContactsDue = useCallback(() => {
@@ -332,6 +320,6 @@ export function useContacts(userId: string | undefined) {
     markContacted,
     getContactsDue,
     searchByContext,
-    refetch: fetchContacts,
+    refetch,
   };
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
 import { useDatabase } from '@/hooks/useDatabase';
@@ -38,7 +38,7 @@ import { buildConversationMessages } from '@/lib/conversationMessages';
 import { formatContractCostSummary } from '@/lib/contractCosts';
 import { useAIMemory } from '@/hooks/useAIMemory';
 import { StandardMode } from '@/components/layout/StandardMode';
-import { GhostMode } from '@/components/ghost/GhostMode';
+import { LazyGhostMode, PageFallback } from '@/components/lazy';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { ShareProjectDialog } from '@/components/projects/ShareProjectDialog';
@@ -1066,10 +1066,12 @@ const Index = () => {
           onShareProjectWithEmail={(projectId, email) => shareProject(projectId, email)}
         />
       ) : (
-        <GhostMode 
-          onClose={() => setMode('standard')}
-          onCommand={handleGhostCommand}
-        />
+        <Suspense fallback={<PageFallback />}>
+          <LazyGhostMode
+            onClose={() => setMode('standard')}
+            onCommand={handleGhostCommand}
+          />
+        </Suspense>
       )}
 
       <ProfileSettingsDialog
