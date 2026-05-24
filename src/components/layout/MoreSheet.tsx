@@ -11,6 +11,7 @@ import {
   MoreHorizontal, Mail, CheckSquare, Search, Clock,
   Users, FolderKanban, Activity, BookHeart, GraduationCap,
   Wallet, Plane, Home, Pill, Target, CalendarCheck, Sparkles, Trophy, MapPin,
+  Baby, LineChart, Video,
 } from 'lucide-react';
 
 export type MoreSheetPanel =
@@ -19,7 +20,8 @@ export type MoreSheetPanel =
   | 'startups' | 'news' | 'social' | 'settings' | 'email' | 'tasks'
   | 'projects' | 'activity' | 'journal' | 'learning'
   | 'finances' | 'travel' | 'personal-health' | 'relationships-plus'
-  | 'assistant' | 'challenges' | 'location-reminders';
+  | 'assistant' | 'challenges' | 'location-reminders'
+  | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings';
 
 interface MoreSheetProps {
   open: boolean;
@@ -45,6 +47,9 @@ const allItems = [
   { id: 'relationships-plus' as const, icon: Heart, labelKey: 'nav.relationships', section: 'Family & Home' },
   { id: 'islam' as const, icon: Moon, labelKey: 'nav.islam', section: 'Family & Home' },
   { id: 'challenges' as const, icon: Trophy, labelKey: 'Challenges', section: 'Family & Home' },
+  { id: 'family-members' as const, icon: Users, labelKey: 'Family Members', section: 'Family & Home' },
+  { id: 'family-calendar' as const, icon: CalendarCheck, labelKey: 'Family Calendar', section: 'Family & Home' },
+  { id: 'child-mode' as const, icon: Baby, labelKey: 'Child Mode', section: 'Family & Home' },
 
   // Communication
   { id: 'email' as const, icon: Mail, labelKey: 'nav.email', section: 'Communication' },
@@ -59,9 +64,11 @@ const allItems = [
   { id: 'assets' as const, icon: Home, labelKey: 'nav.assets', section: 'Work & Money' },
   { id: 'travel' as const, icon: Plane, labelKey: 'nav.travel', section: 'Work & Money' },
   { id: 'news' as const, icon: Newspaper, labelKey: 'nav.news', section: 'Work & Money' },
+  { id: 'meetings' as const, icon: Video, labelKey: 'Meeting Bots', section: 'Work & Money' },
 
   // Learn
   { id: 'learning' as const, icon: GraduationCap, labelKey: 'nav.learning', section: 'Learn' },
+  { id: 'correlations' as const, icon: LineChart, labelKey: 'Life Correlations', section: 'Learn' },
 
   // Settings
   { id: 'settings' as const, icon: Settings, labelKey: 'nav.settings', section: 'Settings' },

@@ -42,6 +42,9 @@ import {
   Activity,
   Trophy,
   MapPin,
+  Baby,
+  LineChart,
+  Video,
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,7 +54,7 @@ import { useUnreadEmailCount } from '@/hooks/useUnreadEmailCount';
 
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'cooking' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | 'finances' | 'travel' | 'assets' | 'personal-health' | 'relationships-plus' | 'learning' | 'journal' | 'challenges' | 'location-reminders' | null;
+export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'cooking' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | 'finances' | 'travel' | 'assets' | 'personal-health' | 'relationships-plus' | 'learning' | 'journal' | 'challenges' | 'location-reminders' | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings' | null;
 
 interface SidebarProps {
   onEditProfile?: () => void;
@@ -254,6 +257,9 @@ export function Sidebar({
             <NavItem icon={Pill} label="Personal Health" panel="personal-health" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Flame} label={t('nav.habits')} panel="habits" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Trophy} label="Challenges" panel="challenges" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Users} label="Family Members" panel="family-members" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={CalendarCheck} label="Family Calendar" panel="family-calendar" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Baby} label="Child Mode" panel="child-mode" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Heart} label="Relationships+" panel="relationships-plus" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Moon} label={t('nav.islam') || 'Islam'} panel="islam" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
           </NavGroup>
@@ -274,11 +280,13 @@ export function Sidebar({
             <NavItem icon={Home} label="Properties & Vehicles" panel="assets" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Plane} label="Travel" panel="travel" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Newspaper} label={t('nav.news') || 'Tech News'} panel="news" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Video} label="Meeting Bots" panel="meetings" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
           </NavGroup>
 
           {/* Learn */}
           <NavGroup title="Learn" collapsed={collapsed}>
             <NavItem icon={GraduationCap} label="Learning" panel="learning" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={LineChart} label="Life Correlations" panel="correlations" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
           </NavGroup>
 
           {/* Productivity Tools */}

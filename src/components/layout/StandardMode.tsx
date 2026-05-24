@@ -61,6 +61,11 @@ const LearningPanel = lazy(() => import('../learning/LearningPanel').then(m => (
 const JournalPanel = lazy(() => import('../journal/JournalPanel').then(m => ({ default: m.JournalPanel })));
 const ChallengesPanel = lazy(() => import('../gamification/ChallengesPanel').then(m => ({ default: m.ChallengesPanel })));
 const LocationRemindersPanel = lazy(() => import('../location/LocationRemindersPanel').then(m => ({ default: m.LocationRemindersPanel })));
+const FamilyMembersList = lazy(() => import('../family/FamilyMembersList').then(m => ({ default: m.FamilyMembersList })));
+const FamilyCalendarView = lazy(() => import('../family/FamilyCalendarView').then(m => ({ default: m.FamilyCalendarView })));
+const ChildDashboard = lazy(() => import('../family/ChildDashboard').then(m => ({ default: m.ChildDashboard })));
+const CorrelationsDashboard = lazy(() => import('../insights/CorrelationsDashboard').then(m => ({ default: m.CorrelationsDashboard })));
+const MeetingBotsPanel = lazy(() => import('../assistant/MeetingBotsPanel').then(m => ({ default: m.MeetingBotsPanel })));
 
 interface StandardModeProps {
   tasks: Task[];
@@ -787,6 +792,36 @@ export function StandardMode({
               {activePanel === 'location-reminders' && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
                   <LocationRemindersPanel />
+                </div>
+              )}
+
+              {activePanel === 'family-members' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <FamilyMembersList />
+                </div>
+              )}
+
+              {activePanel === 'family-calendar' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <FamilyCalendarView />
+                </div>
+              )}
+
+              {activePanel === 'child-mode' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <ChildDashboard />
+                </div>
+              )}
+
+              {activePanel === 'correlations' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <CorrelationsDashboard />
+                </div>
+              )}
+
+              {activePanel === 'meetings' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <MeetingBotsPanel />
                 </div>
               )}
             </Suspense>

@@ -28,6 +28,11 @@ import { LearningPanel } from '../learning/LearningPanel';
 import { JournalPanel } from '../journal/JournalPanel';
 import { ChallengesPanel } from '../gamification/ChallengesPanel';
 import { LocationRemindersPanel } from '../location/LocationRemindersPanel';
+import { FamilyMembersList } from '../family/FamilyMembersList';
+import { FamilyCalendarView } from '../family/FamilyCalendarView';
+import { ChildDashboard } from '../family/ChildDashboard';
+import { CorrelationsDashboard } from '../insights/CorrelationsDashboard';
+import { MeetingBotsPanel } from '../assistant/MeetingBotsPanel';
 import { PullToRefresh } from '../shared/PullToRefresh';
 import { ContextualHeader } from './ContextualHeader';
 import { MoreSheet, MoreSheetPanel } from './MoreSheet';
@@ -84,7 +89,8 @@ type Tab = 'dashboard' | 'calendar' | 'chat' | 'tasks' | 'more'
   | 'news' | 'settings' | 'email'
   | 'journal' | 'finances' | 'travel' | 'assets'
   | 'personal-health' | 'relationships-plus' | 'learning' | 'cooking'
-  | 'challenges' | 'location-reminders';
+  | 'challenges' | 'location-reminders'
+  | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings';
 
 const tabTitles: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -298,6 +304,16 @@ export function MobileLayout({
         return <ChallengesPanel />;
       case 'location-reminders':
         return <LocationRemindersPanel />;
+      case 'family-members':
+        return <FamilyMembersList />;
+      case 'family-calendar':
+        return <FamilyCalendarView />;
+      case 'child-mode':
+        return <ChildDashboard />;
+      case 'correlations':
+        return <CorrelationsDashboard />;
+      case 'meetings':
+        return <MeetingBotsPanel />;
       default:
         return null;
     }
