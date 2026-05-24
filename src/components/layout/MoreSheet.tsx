@@ -10,7 +10,7 @@ import {
   Building2, Briefcase, Newspaper, MessageCircle, Settings,
   MoreHorizontal, Mail, CheckSquare, Search, Clock,
   Users, FolderKanban, Activity, BookHeart, GraduationCap,
-  Wallet, Plane, Home, Pill, Target, CalendarCheck, Sparkles,
+  Wallet, Plane, Home, Pill, Target, CalendarCheck, Sparkles, Trophy, MapPin,
 } from 'lucide-react';
 
 export type MoreSheetPanel =
@@ -19,7 +19,7 @@ export type MoreSheetPanel =
   | 'startups' | 'news' | 'social' | 'settings' | 'email' | 'tasks'
   | 'projects' | 'activity' | 'journal' | 'learning'
   | 'finances' | 'travel' | 'personal-health' | 'relationships-plus'
-  | 'assistant';
+  | 'assistant' | 'challenges' | 'location-reminders';
 
 interface MoreSheetProps {
   open: boolean;
@@ -34,6 +34,7 @@ const allItems = [
   { id: 'notes' as const, icon: StickyNote, labelKey: 'nav.notes', section: 'Assistant & Capture' },
   { id: 'journal' as const, icon: BookHeart, labelKey: 'nav.journal', section: 'Assistant & Capture' },
   { id: 'activity' as const, icon: Activity, labelKey: 'nav.activity', section: 'Assistant & Capture' },
+  { id: 'location-reminders' as const, icon: MapPin, labelKey: 'Location Reminders', section: 'Assistant & Capture' },
 
   // Family & Home
   { id: 'family' as const, icon: Users, labelKey: 'nav.familyHub', section: 'Family & Home' },
@@ -43,6 +44,7 @@ const allItems = [
   { id: 'habits' as const, icon: Flame, labelKey: 'nav.habits', section: 'Family & Home' },
   { id: 'relationships-plus' as const, icon: Heart, labelKey: 'nav.relationships', section: 'Family & Home' },
   { id: 'islam' as const, icon: Moon, labelKey: 'nav.islam', section: 'Family & Home' },
+  { id: 'challenges' as const, icon: Trophy, labelKey: 'Challenges', section: 'Family & Home' },
 
   // Communication
   { id: 'email' as const, icon: Mail, labelKey: 'nav.email', section: 'Communication' },

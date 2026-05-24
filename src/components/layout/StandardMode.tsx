@@ -59,6 +59,8 @@ const PersonalHealthPanel = lazy(() => import('../health/PersonalHealthPanel').t
 const RelationshipsPlusPanel = lazy(() => import('../relationships/RelationshipsPlusPanel').then(m => ({ default: m.RelationshipsPlusPanel })));
 const LearningPanel = lazy(() => import('../learning/LearningPanel').then(m => ({ default: m.LearningPanel })));
 const JournalPanel = lazy(() => import('../journal/JournalPanel').then(m => ({ default: m.JournalPanel })));
+const ChallengesPanel = lazy(() => import('../gamification/ChallengesPanel').then(m => ({ default: m.ChallengesPanel })));
+const LocationRemindersPanel = lazy(() => import('../location/LocationRemindersPanel').then(m => ({ default: m.LocationRemindersPanel })));
 
 interface StandardModeProps {
   tasks: Task[];
@@ -773,6 +775,18 @@ export function StandardMode({
               {activePanel === 'journal' && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
                   <JournalPanel />
+                </div>
+              )}
+
+              {activePanel === 'challenges' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <ChallengesPanel />
+                </div>
+              )}
+
+              {activePanel === 'location-reminders' && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <LocationRemindersPanel />
                 </div>
               )}
             </Suspense>

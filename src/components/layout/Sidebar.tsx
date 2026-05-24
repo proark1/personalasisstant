@@ -40,6 +40,8 @@ import {
   Users,
   FolderKanban,
   Activity,
+  Trophy,
+  MapPin,
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
@@ -49,7 +51,7 @@ import { useUnreadEmailCount } from '@/hooks/useUnreadEmailCount';
 
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'cooking' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | 'finances' | 'travel' | 'assets' | 'personal-health' | 'relationships-plus' | 'learning' | 'journal' | null;
+export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'cooking' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | 'finances' | 'travel' | 'assets' | 'personal-health' | 'relationships-plus' | 'learning' | 'journal' | 'challenges' | 'location-reminders' | null;
 
 interface SidebarProps {
   onEditProfile?: () => void;
@@ -241,6 +243,7 @@ export function Sidebar({
             <NavItem icon={StickyNote} label={t('nav.notes')} panel="notes" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={BookHeart} label="Journal" panel="journal" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Activity} label="Activity Feed" panel="activity" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={MapPin} label="Location Reminders" panel="location-reminders" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
           </NavGroup>
 
           {/* Family & Home */}
@@ -250,6 +253,7 @@ export function Sidebar({
             <NavItem icon={Heart} label={t('nav.health') || 'Health Hub'} panel="health" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Pill} label="Personal Health" panel="personal-health" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Flame} label={t('nav.habits')} panel="habits" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+            <NavItem icon={Trophy} label="Challenges" panel="challenges" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Heart} label="Relationships+" panel="relationships-plus" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
             <NavItem icon={Moon} label={t('nav.islam') || 'Islam'} panel="islam" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
           </NavGroup>

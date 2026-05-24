@@ -26,6 +26,8 @@ import { PersonalHealthPanel } from '../health/PersonalHealthPanel';
 import { RelationshipsPlusPanel } from '../relationships/RelationshipsPlusPanel';
 import { LearningPanel } from '../learning/LearningPanel';
 import { JournalPanel } from '../journal/JournalPanel';
+import { ChallengesPanel } from '../gamification/ChallengesPanel';
+import { LocationRemindersPanel } from '../location/LocationRemindersPanel';
 import { PullToRefresh } from '../shared/PullToRefresh';
 import { ContextualHeader } from './ContextualHeader';
 import { MoreSheet, MoreSheetPanel } from './MoreSheet';
@@ -81,7 +83,8 @@ type Tab = 'dashboard' | 'calendar' | 'chat' | 'tasks' | 'more'
   | 'notes' | 'habits' | 'islam' | 'properties' | 'startups'
   | 'news' | 'settings' | 'email'
   | 'journal' | 'finances' | 'travel' | 'assets'
-  | 'personal-health' | 'relationships-plus' | 'learning' | 'cooking';
+  | 'personal-health' | 'relationships-plus' | 'learning' | 'cooking'
+  | 'challenges' | 'location-reminders';
 
 const tabTitles: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -289,6 +292,10 @@ export function MobileLayout({
         return <LearningPanel />;
       case 'journal':
         return <JournalPanel />;
+      case 'challenges':
+        return <ChallengesPanel />;
+      case 'location-reminders':
+        return <LocationRemindersPanel />;
       default:
         return null;
     }
