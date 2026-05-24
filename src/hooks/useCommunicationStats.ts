@@ -25,6 +25,43 @@ export interface CommunicationDashboard {
   recentActivity: { date: string; messages: number; calls: number }[];
 }
 
+type RecentActivity = { date: string; messages: number; calls: number };
+
+// Real last-7-days activity from direct_messages + call_sessions, bucketed by
+// day. Replaces the previous Math.random() fabrication.
+async function fetchRecentActivity(userId: string): Promise<RecentActivity[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - 6);
+  since.setHours(0, 0, 0, 0);
+  const sinceIso = since.toISOString();
+
+  const [msgRes, callRes] = await Promise.all([
+    supabase
+      .from('direct_messages')
+      .select('created_at')
+      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+      .gte('created_at', sinceIso),
+    supabase
+      .from('call_sessions')
+      .select('created_at')
+      .or(`caller_id.eq.${userId},callee_id.eq.${userId}`)
+      .gte('created_at', sinceIso),
+  ]);
+
+  const dayKey = (d: string | Date) => new Date(d).toISOString().split('T')[0];
+  const msgByDay = new Map<string, number>();
+  const callByDay = new Map<string, number>();
+  for (const m of msgRes.data || []) msgByDay.set(dayKey(m.created_at), (msgByDay.get(dayKey(m.created_at)) || 0) + 1);
+  for (const c of callRes.data || []) callByDay.set(dayKey(c.created_at), (callByDay.get(dayKey(c.created_at)) || 0) + 1);
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const date = d.toISOString().split('T')[0];
+    return { date, messages: msgByDay.get(date) || 0, calls: callByDay.get(date) || 0 };
+  });
+}
+
 export function useCommunicationStats() {
   const { user } = useAuth();
   const [stats, setStats] = useState<CommunicationStat[]>([]);
@@ -66,7 +103,8 @@ export function useCommunicationStats() {
         }));
 
         setStats(mappedStats);
-        calculateDashboard(mappedStats);
+        const recentActivity = await fetchRecentActivity(user.id);
+        calculateDashboard(mappedStats, recentActivity);
       }
     } finally {
       setLoading(false);
@@ -74,7 +112,7 @@ export function useCommunicationStats() {
   }, [user]);
 
   // Calculate dashboard metrics
-  const calculateDashboard = useCallback((statsData: CommunicationStat[]) => {
+  const calculateDashboard = useCallback((statsData: CommunicationStat[], recentActivity: RecentActivity[]) => {
     const totalMessages = statsData.reduce((sum, s) => sum + s.totalMessagesSent + s.totalMessagesReceived, 0);
     const totalCalls = statsData.reduce((sum, s) => sum + s.totalCalls, 0);
     const totalCallMinutes = statsData.reduce((sum, s) => sum + s.totalCallDurationSeconds, 0) / 60;
@@ -95,17 +133,6 @@ export function useCommunicationStats() {
     const neglectedContacts = statsData
       .filter(s => !s.lastInteractionAt || s.lastInteractionAt < thirtyDaysAgo)
       .slice(0, 5);
-
-    // Generate recent activity (mock data based on totals - in real app, would query time-series data)
-    const recentActivity = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      return {
-        date: date.toISOString().split('T')[0],
-        messages: Math.floor(Math.random() * (totalMessages / 7) * 2),
-        calls: Math.floor(Math.random() * (totalCalls / 7) * 2),
-      };
-    });
 
     setDashboard({
       totalContacts: statsData.length,
