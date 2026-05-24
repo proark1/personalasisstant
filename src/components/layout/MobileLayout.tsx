@@ -19,6 +19,13 @@ import { StartupWorkspacePanel } from '../startup/StartupWorkspacePanel';
 import { TechNewsPanel } from '../news/TechNewsPanel';
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
 import { EmailPanel } from '../email/EmailPanel';
+import { FinancesPanel } from '../finances/FinancesPanel';
+import { TravelPanel } from '../travel/TravelPanel';
+import { AssetsPanel } from '../assets/AssetsPanel';
+import { PersonalHealthPanel } from '../health/PersonalHealthPanel';
+import { RelationshipsPlusPanel } from '../relationships/RelationshipsPlusPanel';
+import { LearningPanel } from '../learning/LearningPanel';
+import { JournalPanel } from '../journal/JournalPanel';
 import { PullToRefresh } from '../shared/PullToRefresh';
 import { ContextualHeader } from './ContextualHeader';
 import { MoreSheet, MoreSheetPanel } from './MoreSheet';
@@ -72,7 +79,9 @@ interface MobileLayoutProps {
 type Tab = 'dashboard' | 'calendar' | 'chat' | 'tasks' | 'more'
   | 'social' | 'family' | 'health' | 'contacts' | 'contracts'
   | 'notes' | 'habits' | 'islam' | 'properties' | 'startups'
-  | 'news' | 'settings' | 'email';
+  | 'news' | 'settings' | 'email'
+  | 'journal' | 'finances' | 'travel' | 'assets'
+  | 'personal-health' | 'relationships-plus' | 'learning' | 'cooking';
 
 const tabTitles: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -264,6 +273,22 @@ export function MobileLayout({
         return <TechNewsPanel />;
       case 'email':
         return <EmailPanel />;
+      case 'cooking':
+        return <CookingPanel />;
+      case 'finances':
+        return <FinancesPanel />;
+      case 'travel':
+        return <TravelPanel />;
+      case 'assets':
+        return <AssetsPanel />;
+      case 'personal-health':
+        return <PersonalHealthPanel />;
+      case 'relationships-plus':
+        return <RelationshipsPlusPanel />;
+      case 'learning':
+        return <LearningPanel />;
+      case 'journal':
+        return <JournalPanel />;
       default:
         return null;
     }
