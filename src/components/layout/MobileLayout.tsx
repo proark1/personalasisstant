@@ -179,7 +179,9 @@ export function MobileLayout({
   }, [vibrate]);
 
   const handleMoreNavigate = useCallback((panel: MoreSheetPanel) => {
-    setActiveTab(panel as Tab);
+    // 'assistant' has no standalone mobile panel — it is the Dori chat view,
+    // so route it there instead of falling through to a blank screen.
+    setActiveTab(panel === 'assistant' ? 'chat' : (panel as Tab));
   }, []);
 
   // Scroll to top on panel change
