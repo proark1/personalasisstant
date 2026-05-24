@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchWithRetry } from '@/lib/fetchWithTimeout';
 import { moduleBus } from '@/lib/moduleEventBus';
@@ -57,11 +58,11 @@ interface SharedItem {
   permission: 'view' | 'edit';
 }
 
+const EMPTY_TASKS: Task[] = [];
+const EMPTY_EVENTS: CalendarEvent[] = [];
+
 export function useDatabase(userId: string | undefined) {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [trashedTasks, setTrashedTasks] = useState<Task[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Convert DB task to app Task
   const dbTaskToTask = (dbTask: DbTask): Task => ({
@@ -102,87 +103,101 @@ export function useDatabase(userId: string | undefined) {
     recurrenceEnd: dbEvent.recurrence_end ? new Date(dbEvent.recurrence_end) : undefined,
   });
 
-  // Fetch all data — runs in parallel with structured error handling so one
-  // failing slice (e.g. trashed) doesn't block the others.
-  const fetchData = useCallback(async () => {
-    if (!userId) {
-      setTasks([]);
-      setTrashedTasks([]);
-      setEvents([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    const [tasksResult, trashedResult, eventsResult] = await Promise.allSettled([
-      supabase
+  // Shared queries: tasks, trashed tasks, and events each live under their own
+  // key so every consumer dedupes onto one cached entry and the cacheCoordinator
+  // ['tasks']/['events'] invalidations take effect.
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<Task[]> => {
+      const { data, error } = await supabase
         .from('tasks')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', userId!)
         .eq('trashed', false)
         .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: false }),
-      supabase
+        .order('created_at', { ascending: false });
+      if (error) { moduleHealth.reportError('tasks', error); throw error; }
+      moduleHealth.reportSuccess('tasks');
+      return (data ?? []).map(dbTaskToTask);
+    },
+  });
+
+  const trashedQuery = useQuery({
+    queryKey: ['trashed-tasks', userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<Task[]> => {
+      const { data, error } = await supabase
         .from('tasks')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', userId!)
         .eq('trashed', true)
-        .order('trashed_at', { ascending: false }),
-      supabase
+        .order('trashed_at', { ascending: false });
+      if (error) { moduleHealth.reportError('tasks', error); throw error; }
+      return (data ?? []).map(dbTaskToTask);
+    },
+  });
+
+  const eventsQuery = useQuery({
+    queryKey: ['events', userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<CalendarEvent[]> => {
+      const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('user_id', userId)
-        .order('start_time', { ascending: true }),
-    ]);
-
-    if (tasksResult.status === 'fulfilled' && !tasksResult.value.error) {
-      setTasks((tasksResult.value.data ?? []).map(dbTaskToTask));
-      moduleHealth.reportSuccess('tasks');
-    } else {
-      moduleHealth.reportError(
-        'tasks',
-        tasksResult.status === 'rejected' ? tasksResult.reason : tasksResult.value.error,
-      );
-    }
-
-    if (trashedResult.status === 'fulfilled' && !trashedResult.value.error) {
-      setTrashedTasks((trashedResult.value.data ?? []).map(dbTaskToTask));
-    } else {
-      moduleHealth.reportError(
-        'tasks',
-        trashedResult.status === 'rejected' ? trashedResult.reason : trashedResult.value.error,
-      );
-    }
-
-    if (eventsResult.status === 'fulfilled' && !eventsResult.value.error) {
-      setEvents((eventsResult.value.data ?? []).map(dbEventToEvent));
+        .eq('user_id', userId!)
+        .order('start_time', { ascending: true });
+      if (error) { moduleHealth.reportError('events', error); throw error; }
       moduleHealth.reportSuccess('events');
-    } else {
-      moduleHealth.reportError(
-        'events',
-        eventsResult.status === 'rejected' ? eventsResult.reason : eventsResult.value.error,
-      );
-    }
+      return (data ?? []).map(dbEventToEvent);
+    },
+  });
 
-    setLoading(false);
-  }, [userId]);
+  const tasks = tasksQuery.data ?? EMPTY_TASKS;
+  const trashedTasks = trashedQuery.data ?? EMPTY_TASKS;
+  const events = eventsQuery.data ?? EMPTY_EVENTS;
+  const loading = tasksQuery.isLoading || eventsQuery.isLoading;
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const setTasksCache = useCallback(
+    (updater: (prev: Task[]) => Task[]) =>
+      queryClient.setQueryData<Task[]>(['tasks', userId], (prev) => updater(prev ?? [])),
+    [queryClient, userId],
+  );
+  const setTrashedCache = useCallback(
+    (updater: (prev: Task[]) => Task[]) =>
+      queryClient.setQueryData<Task[]>(['trashed-tasks', userId], (prev) => updater(prev ?? [])),
+    [queryClient, userId],
+  );
+  const setEventsCache = useCallback(
+    (updater: (prev: CalendarEvent[]) => CalendarEvent[]) =>
+      queryClient.setQueryData<CalendarEvent[]>(['events', userId], (prev) => updater(prev ?? [])),
+    [queryClient, userId],
+  );
 
-  // Subscribe to realtime changes via the shared coordinator. Multiple hooks
-  // listening to the same table now share one underlying channel.
+  // Subscribe to realtime changes via the shared coordinator. Row changes
+  // invalidate the affected query (which refetches) instead of refetching all.
   useEffect(() => {
     if (!userId) return;
-    const offTasks = subscribeToTable('tasks', userId, () => fetchData());
-    const offEvents = subscribeToTable('events', userId, () => fetchData());
+    const offTasks = subscribeToTable('tasks', userId, () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', userId] });
+      queryClient.invalidateQueries({ queryKey: ['trashed-tasks', userId] });
+    });
+    const offEvents = subscribeToTable('events', userId, () => {
+      queryClient.invalidateQueries({ queryKey: ['events', userId] });
+    });
     return () => {
       offTasks();
       offEvents();
     };
-  }, [userId, fetchData]);
+  }, [userId, queryClient]);
+
+  const refetch = useCallback(async () => {
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ['tasks', userId] }),
+      queryClient.refetchQueries({ queryKey: ['trashed-tasks', userId] }),
+      queryClient.refetchQueries({ queryKey: ['events', userId] }),
+    ]);
+  }, [queryClient, userId]);
 
   // Task operations
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> => {
@@ -220,10 +235,10 @@ export function useDatabase(userId: string | undefined) {
     if (!data) throw new Error('Task create failed');
 
     const newTask = dbTaskToTask(data as unknown as DbTask);
-    setTasks(prev => [newTask, ...prev]);
+    setTasksCache(prev => [newTask, ...prev]);
     moduleBus.emit('task:created', { taskId: newTask.id, projectId: newTask.projectId }, 'useDatabase');
     return newTask;
-  }, [userId]);
+  }, [userId, setTasksCache]);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     const safeJson = (value: unknown) => {
@@ -277,13 +292,13 @@ export function useDatabase(userId: string | undefined) {
     if (error) throw error;
     if (!data) throw new Error('Task update not permitted or task not found');
 
-    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
+    setTasksCache(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
     if (updates.completed === true) {
       moduleBus.emit('task:completed', { taskId: id }, 'useDatabase');
     } else {
       moduleBus.emit('task:updated', { taskId: id, fields: Object.keys(updates) }, 'useDatabase');
     }
-  }, []);
+  }, [setTasksCache]);
 
   const deleteTask = useCallback(async (id: string) => {
     const { error } = await supabase
@@ -292,11 +307,11 @@ export function useDatabase(userId: string | undefined) {
       .eq('id', id);
 
     if (!error) {
-      setTasks(prev => prev.filter(t => t.id !== id));
-      setTrashedTasks(prev => prev.filter(t => t.id !== id));
+      setTasksCache(prev => prev.filter(t => t.id !== id));
+      setTrashedCache(prev => prev.filter(t => t.id !== id));
       moduleBus.emit('task:deleted', { taskId: id }, 'useDatabase');
     }
-  }, []);
+  }, [setTasksCache, setTrashedCache]);
 
   // Move task to trash (soft delete)
   const trashTask = useCallback(async (id: string) => {
@@ -309,13 +324,13 @@ export function useDatabase(userId: string | undefined) {
       const task = tasks.find(t => t.id === id);
       if (task) {
         const trashedTask = { ...task, trashed: true, trashedAt: new Date() };
-        setTasks(prev => prev.filter(t => t.id !== id));
-        setTrashedTasks(prev => [trashedTask, ...prev]);
+        setTasksCache(prev => prev.filter(t => t.id !== id));
+        setTrashedCache(prev => [trashedTask, ...prev]);
         moduleBus.emit('task:trashed', { taskId: id }, 'useDatabase');
       }
     }
     return { error };
-  }, [tasks]);
+  }, [tasks, setTasksCache, setTrashedCache]);
 
   // Restore task from trash
   const restoreTask = useCallback(async (id: string) => {
@@ -328,12 +343,12 @@ export function useDatabase(userId: string | undefined) {
       const task = trashedTasks.find(t => t.id === id);
       if (task) {
         const restoredTask = { ...task, trashed: false, trashedAt: undefined };
-        setTrashedTasks(prev => prev.filter(t => t.id !== id));
-        setTasks(prev => [restoredTask, ...prev]);
+        setTrashedCache(prev => prev.filter(t => t.id !== id));
+        setTasksCache(prev => [restoredTask, ...prev]);
       }
     }
     return { error };
-  }, [trashedTasks]);
+  }, [trashedTasks, setTasksCache, setTrashedCache]);
 
   // Permanently delete a trashed task
   const permanentlyDeleteTask = useCallback(async (id: string) => {
@@ -343,10 +358,10 @@ export function useDatabase(userId: string | undefined) {
       .eq('id', id);
 
     if (!error) {
-      setTrashedTasks(prev => prev.filter(t => t.id !== id));
+      setTrashedCache(prev => prev.filter(t => t.id !== id));
     }
     return { error };
-  }, []);
+  }, [setTrashedCache]);
 
   // Empty entire trash
   const emptyTrash = useCallback(async () => {
@@ -359,10 +374,10 @@ export function useDatabase(userId: string | undefined) {
       .in('id', trashedIds);
 
     if (!error) {
-      setTrashedTasks([]);
+      setTrashedCache(() => []);
     }
     return { error };
-  }, [trashedTasks]);
+  }, [trashedTasks, setTrashedCache]);
 
   const deleteTasks = useCallback(async (ids: string[]): Promise<{ error: string | null }> => {
     if (ids.length === 0) return { error: null };
@@ -388,11 +403,11 @@ export function useDatabase(userId: string | undefined) {
     }
 
     if (!hasError) {
-      setTasks(prev => prev.filter(t => !ids.includes(t.id)));
+      setTasksCache(prev => prev.filter(t => !ids.includes(t.id)));
       return { error: null };
     }
     return { error: 'Failed to delete some tasks' };
-  }, []);
+  }, [setTasksCache]);
 
   const toggleTaskComplete = useCallback(async (id: string) => {
     const task = tasks.find(t => t.id === id);
@@ -403,7 +418,7 @@ export function useDatabase(userId: string | undefined) {
 
   const reorderTasks = useCallback(async (taskOrders: { id: string; sortOrder: number }[]) => {
     // Update local state immediately for optimistic UI
-    setTasks(prev => {
+    setTasksCache(prev => {
       const newTasks = [...prev];
       taskOrders.forEach(({ id, sortOrder }) => {
         const task = newTasks.find(t => t.id === id);
@@ -419,7 +434,7 @@ export function useDatabase(userId: string | undefined) {
         supabase.from('tasks').update({ sort_order: sortOrder }).eq('id', id),
       ),
     );
-  }, []);
+  }, [setTasksCache]);
 
   // Event operations
   const addEvent = useCallback(async (event: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent | null> => {
@@ -443,14 +458,14 @@ export function useDatabase(userId: string | undefined) {
 
     if (data && !error) {
       const newEvent = dbEventToEvent(data);
-      setEvents(prev => [...prev, newEvent].sort((a, b) =>
+      setEventsCache(prev => [...prev, newEvent].sort((a, b) =>
         a.startTime.getTime() - b.startTime.getTime()
       ));
       moduleBus.emit('event:created', { eventId: newEvent.id }, 'useDatabase');
       return newEvent;
     }
     return null;
-  }, [userId]);
+  }, [userId, setEventsCache]);
 
   const updateEvent = useCallback(async (id: string, updates: Partial<CalendarEvent>) => {
     const dbUpdates: Record<string, unknown> = {};
@@ -469,10 +484,10 @@ export function useDatabase(userId: string | undefined) {
       .eq('id', id);
 
     if (!error) {
-      setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+      setEventsCache(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
       moduleBus.emit('event:updated', { eventId: id, fields: Object.keys(updates) }, 'useDatabase');
     }
-  }, []);
+  }, [setEventsCache]);
 
   const deleteEvent = useCallback(async (id: string) => {
     const { error } = await supabase
@@ -481,10 +496,10 @@ export function useDatabase(userId: string | undefined) {
       .eq('id', id);
 
     if (!error) {
-      setEvents(prev => prev.filter(e => e.id !== id));
+      setEventsCache(prev => prev.filter(e => e.id !== id));
       moduleBus.emit('event:deleted', { eventId: id }, 'useDatabase');
     }
-  }, []);
+  }, [setEventsCache]);
 
   // Sharing operations
   const shareItem = useCallback(async (
@@ -698,6 +713,6 @@ export function useDatabase(userId: string | undefined) {
     removeShare,
     getRecentContacts,
     fetchSharedWithMe,
-    refetch: fetchData,
+    refetch,
   };
 }

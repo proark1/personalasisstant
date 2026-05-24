@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      user_settings: {
+        Row: {
+          settings: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          settings?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          settings?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       activity_feed: {
         Row: {
           action: string

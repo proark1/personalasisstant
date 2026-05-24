@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { UserSettings, defaultSettings, ThemeMode, ColorScheme } from '@/types/flux';
+import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
+import { useAuth } from './useAuth';
 
 const SETTINGS_KEY = 'darai-settings';
 
 export function useSettings() {
+  const { user } = useAuth();
   const [settings, setSettings] = useState<UserSettings>(() => {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
@@ -18,25 +22,66 @@ export function useSettings() {
 
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    
+
     // Apply theme
     document.documentElement.classList.remove('light', 'dark', 'colorful');
     document.documentElement.classList.add(settings.theme);
-    
+
     // Apply color scheme via CSS custom properties
     applyColorScheme(settings.colorScheme);
   }, [settings]);
 
+  // Load cloud settings once per user. Cloud wins when a row exists; if the
+  // user_settings table is missing (migration not applied yet) or the query
+  // fails, we silently keep the local settings — so this degrades gracefully.
+  const cloudLoadedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user || cloudLoadedFor.current === user.id) return;
+    cloudLoadedFor.current = user.id;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('settings')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (cancelled || error || !data?.settings) return;
+        setSettings(prev => ({ ...defaultSettings, ...prev, ...(data.settings as Partial<UserSettings>) }));
+      } catch {
+        /* table missing / offline — keep local settings */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // Write-through to the cloud (fire-and-forget; ignored if the table is absent).
+  const persistCloud = useCallback((next: UserSettings) => {
+    if (!user) return;
+    void supabase
+      .from('user_settings')
+      .upsert(
+        { user_id: user.id, settings: next as unknown as Json, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' },
+      )
+      .then(({ error }) => { if (error) { /* table missing / offline — ignore */ } });
+  }, [user]);
+
   const updateSettings = useCallback((updates: Partial<UserSettings>) => {
-    setSettings(prev => ({ ...prev, ...updates }));
-  }, []);
+    setSettings(prev => {
+      const next = { ...prev, ...updates };
+      persistCloud(next);
+      return next;
+    });
+  }, [persistCloud]);
 
   const updateNotifications = useCallback((updates: Partial<UserSettings['notifications']>) => {
-    setSettings(prev => ({
-      ...prev,
-      notifications: { ...prev.notifications, ...updates },
-    }));
-  }, []);
+    setSettings(prev => {
+      const next = { ...prev, notifications: { ...prev.notifications, ...updates } };
+      persistCloud(next);
+      return next;
+    });
+  }, [persistCloud]);
 
   return { settings, updateSettings, updateNotifications };
 }
