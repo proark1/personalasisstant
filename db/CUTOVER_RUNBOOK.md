@@ -40,10 +40,10 @@ in front of your Railway Postgres, and the app keeps working:
    - `PGRST_DB_ANON_ROLE=anon`
    - `PGRST_JWT_SECRET` = a long random secret (shared with the auth service)
 
-3. **Auth** — see the open decision below. If GoTrue (`supabase/gotrue` /
-   `supabase/auth` image): `GOTRUE_DB_DRIVER=postgres`, `DATABASE_URL`,
-   `GOTRUE_JWT_SECRET` = **the same secret as `PGRST_JWT_SECRET`**,
-   `GOTRUE_SITE_URL`, SMTP vars for email.
+3. **GoTrue** (`supabase/gotrue` / `supabase/auth` image):
+   `GOTRUE_DB_DRIVER=postgres`, `DATABASE_URL`, `GOTRUE_JWT_SECRET` = **the same
+   secret as `PGRST_JWT_SECRET`**, `GOTRUE_SITE_URL`, SMTP vars for email.
+   After it boots once, run `db/bootstrap/04_gotrue_bridge.sql` (see below).
 
 4. **Realtime** (`supabase/realtime` image) — env per its docs; same JWT secret.
    Reads the WAL, so Postgres needs `wal_level=logical`.
@@ -63,23 +63,26 @@ VITE_SUPABASE_PUBLISHABLE_KEY=<anon JWT signed with the shared secret, {"role":"
 The "anon key" / "service key" are just JWTs signed with the shared secret
 carrying `{"role":"anon"}` / `{"role":"service_role"}`. Mint them once.
 
-## OPEN DECISION — auth issuer (blocks Phase 2)
+## Auth issuer — GoTrue (decided)
 
-The Phase-1 bootstrap (`01_auth_js.sql`) created **Auth.js** tables
-(`public.users`, accounts, sessions) and the squash rewrote app FKs to
-`public.users`. That conflicts with GoTrue, which manages its own
-`auth.users`. Pick one:
+GoTrue self-hosted, so all 22 `supabase.auth.*` calls keep working unchanged.
+GoTrue owns its own `auth.users`; the app's FKs point at `public.users` (squash
+rewrite). `db/bootstrap/04_gotrue_bridge.sql` reconciles the two:
 
-- **GoTrue** — keeps all 22 `supabase.auth.*` calls working unchanged.
-  Requires: let GoTrue own `auth.users`, and either FK app tables to
-  `auth.users(id)` (revert that squash rewrite) or mirror `auth.users` →
-  `public.users` via a trigger. Least frontend work.
-- **Auth.js** — matches the current bootstrap, but requires rewriting the 22
-  `supabase.auth.*` calls (mostly `src/contexts/AuthContext.tsx`) to call an
-  Auth.js Node service, and minting a PostgREST JWT from the Auth.js session.
+- mirrors `auth.users.id`/email → `public.users` (so app FKs resolve), and
+- recreates the "make a `public.profiles` row on signup" trigger the squash
+  stripped (the app reads profiles in 42 places).
 
-`auth.uid()` (defined in `03_rls_policies.sql`) reads the JWT `sub` either way,
-so the data layer + RLS are agnostic to this choice.
+GoTrue builds the `auth` schema on first boot, so **`04` must run AFTER the
+GoTrue service has started once** — it is NOT part of `apply-bootstrap.sh`:
+
+```bash
+# after GoTrue is up:
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f db/bootstrap/04_gotrue_bridge.sql
+```
+
+`auth.uid()` (in `03_rls_policies.sql`) reads the JWT `sub` that GoTrue mints,
+so RLS lines up with `public.users.id` = `auth.users.id`.
 
 ## Phases & test gates
 
