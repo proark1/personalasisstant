@@ -210,7 +210,7 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
           </GlassCard>
         );
 
-      case 'focus_stats':
+      case 'focus_stats': {
         const todayFocus = 0;
         const dailyGoal = 120;
         return (
@@ -230,6 +230,7 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
             </GlassCardContent>
           </GlassCard>
         );
+      }
 
       case 'quick_add':
         return (

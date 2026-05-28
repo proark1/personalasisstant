@@ -368,8 +368,8 @@ function findCorrelations(metrics: HealthMetric[], checkins: DailyCheckin[]) {
   }
 
   // Check exercise vs energy
-  let exerciseDays: number[] = [];
-  let noExerciseDays: number[] = [];
+  const exerciseDays: number[] = [];
+  const noExerciseDays: number[] = [];
 
   dates.forEach(date => {
     const d = metricsByDate[date];
@@ -400,8 +400,8 @@ function findCorrelations(metrics: HealthMetric[], checkins: DailyCheckin[]) {
   }
 
   // Check sleep vs stress
-  let goodSleepStress: number[] = [];
-  let badSleepStress: number[] = [];
+  const goodSleepStress: number[] = [];
+  const badSleepStress: number[] = [];
 
   dates.forEach(date => {
     const d = metricsByDate[date];
@@ -428,8 +428,8 @@ function findCorrelations(metrics: HealthMetric[], checkins: DailyCheckin[]) {
   }
 
   // Check deep sleep vs next-day energy
-  let goodDeepSleepEnergy: number[] = [];
-  let badDeepSleepEnergy: number[] = [];
+  const goodDeepSleepEnergy: number[] = [];
+  const badDeepSleepEnergy: number[] = [];
 
   for (let i = 0; i < dates.length - 1; i++) {
     const today = metricsByDate[dates[i]];

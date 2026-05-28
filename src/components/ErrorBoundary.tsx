@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: unknown) {
     // Keep console noise minimal but preserve a real signal for iOS/Safari debugging.
-    // eslint-disable-next-line no-console
+     
     console.error("[ErrorBoundary] Uncaught error", error);
   }
 

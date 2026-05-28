@@ -25,7 +25,7 @@ function runSwKillswitchOnce(): boolean {
   const hasSw = "serviceWorker" in navigator;
   const hasCaches = "caches" in window;
   if (!hasSw && !hasCaches) {
-    try { window.localStorage.setItem(KILLSWITCH_FLAG, "1"); } catch {}
+    try { window.localStorage.setItem(KILLSWITCH_FLAG, "1"); } catch { /* ignore */ }
     return false;
   }
   // Persist the flag *and confirm it stuck* before we trigger the

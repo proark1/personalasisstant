@@ -61,7 +61,6 @@ export function usePersonalizedNews(options: UsePersonalizedNewsOptions = {}) {
   // Get location and then fetch news
   useEffect(() => {
     let isCancelled = false;
-    let locationTimeoutId: NodeJS.Timeout;
     let fallbackTimeoutId: NodeJS.Timeout;
     
     const getLocationAndFetch = async () => {
@@ -144,7 +143,7 @@ export function usePersonalizedNews(options: UsePersonalizedNewsOptions = {}) {
     };
 
     // Small delay to let component mount properly
-    locationTimeoutId = setTimeout(getLocationAndFetch, 100);
+    const locationTimeoutId = setTimeout(getLocationAndFetch, 100);
 
     return () => {
       isCancelled = true;

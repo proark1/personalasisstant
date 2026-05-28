@@ -393,11 +393,12 @@ export function useOpenAIRealtime({
               relevantTasks = tasks.filter((t: any) => !t.completed && t.dueDate && t.dueDate < todayStr);
               summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} overdue task(s)` : 'No overdue tasks';
               break;
-            case 'upcoming':
+            case 'upcoming': {
               const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
               relevantTasks = tasks.filter((t: any) => !t.completed && t.dueDate && t.dueDate >= todayStr && t.dueDate <= nextWeek);
               summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} task(s) coming up` : 'No upcoming tasks';
               break;
+            }
             default:
               relevantTasks = tasks.filter((t: any) => !t.completed);
               summary = `You have ${relevantTasks.length} pending task(s)`;

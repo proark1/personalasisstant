@@ -100,7 +100,7 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
     try {
       audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleR8cXP///+WWQB8Yn/');
       audioRef.current.play().catch(() => {});
-    } catch (e) {}
+    } catch (e) { /* ignore */ }
 
     if (mode === 'focus') {
       const focusDuration = TIMER_PRESETS.focus / 60;

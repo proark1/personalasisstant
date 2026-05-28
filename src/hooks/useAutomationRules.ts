@@ -206,15 +206,17 @@ export function useAutomationRules() {
     try {
       // Execute the action based on type
       switch (rule.actionType) {
-        case 'add_xp':
+        case 'add_xp': {
           const xpAmount = (rule.actionConfig.amount as number) || 10;
           // Add XP through gamification hook (would need to be integrated)
           toast.success(`+${xpAmount} XP!`, { description: rule.name });
           break;
-        case 'show_notification':
+        }
+        case 'show_notification': {
           const message = (rule.actionConfig.message as string) || 'Automation triggered!';
           toast.info(message);
           break;
+        }
         case 'create_reminder':
           // Would create a reminder/notification
           toast.info('Reminder created!');

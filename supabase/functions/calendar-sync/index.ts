@@ -166,7 +166,7 @@ serve(async (req) => {
 
     let importedCount = 0;
     let updatedCount = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     for (const googleEvent of googleEvents) {
       try {

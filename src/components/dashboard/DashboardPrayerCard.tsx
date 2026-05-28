@@ -62,7 +62,7 @@ export function DashboardPrayerCard({ onNavigate }: DashboardPrayerCardProps) {
     try {
       const saved = localStorage.getItem('prayer-notifications');
       if (saved) return JSON.parse(saved).enabled === true;
-    } catch {}
+    } catch { /* ignore */ }
     return false;
   });
   const [notifDismissed, setNotifDismissed] = useState(() => {
@@ -167,7 +167,7 @@ export function DashboardPrayerCard({ onNavigate }: DashboardPrayerCardProps) {
           localStorage.setItem('prayer-notif-prompt-dismissed', 'true');
           return;
         }
-      } catch {}
+      } catch { /* ignore */ }
       if (!('Notification' in window)) {
         toast.error('Notifications not supported in this browser');
         return;
@@ -379,7 +379,7 @@ export async function fetchPrayerTimesForTimeline(): Promise<{ name: string; tim
               resolve(PRAYERS.map(name => ({ name, time: t[name] })));
               return;
             }
-          } catch {}
+          } catch { /* ignore */ }
           resolve([]);
         },
         () => resolve([]),

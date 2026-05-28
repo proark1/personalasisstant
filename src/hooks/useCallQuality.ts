@@ -93,7 +93,7 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
     const updateStats = async () => {
       try {
         const report = await peerConnection.getStats();
-        let newStats: Partial<CallQualityStats> = {
+        const newStats: Partial<CallQualityStats> = {
           connectionState: peerConnection.connectionState,
           iceConnectionState: peerConnection.iceConnectionState,
         };

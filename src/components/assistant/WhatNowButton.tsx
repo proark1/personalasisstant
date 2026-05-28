@@ -37,6 +37,9 @@ export function WhatNowButton({
   const [isLoading, setIsLoading] = useState(false);
   const [suggestion, setSuggestion] = useState<AISuggestion | null>(null);
   const { todayMorning } = useDailyCheckins();
+  // Hook order matters — call useLanguage here so it runs on every
+  // render regardless of the `variant === 'fab'` branch below.
+  const { t } = useLanguage();
 
   const getSuggestion = useCallback(async () => {
     setIsLoading(true);
@@ -175,8 +178,6 @@ export function WhatNowButton({
     );
   }
 
-  const { t } = useLanguage();
-  
   return (
     <>
       <Button

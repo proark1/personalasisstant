@@ -71,7 +71,7 @@ export function IslamMoreTab({ hijriToday, islamicEvents }: IslamMoreTabProps) {
           data.address?.municipality || data.address?.county || data.address?.state;
         if (city) { setLocationName(city); return; }
       }
-    } catch {}
+    } catch { /* ignore */ }
     setLocationName('');
   }, []);
 

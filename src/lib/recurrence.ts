@@ -48,7 +48,7 @@ export function parseRRuleString(rrule: string): RecurrenceRule | null {
       case 'BYDAY':
         rule.daysOfWeek = value.split(',').map(d => dayMap[d]).filter((d): d is number => d !== undefined);
         break;
-      case 'UNTIL':
+      case 'UNTIL': {
         // Parse RRULE date format: YYYYMMDDTHHMMSSZ
         const year = value.slice(0, 4);
         const month = value.slice(4, 6);
@@ -58,6 +58,7 @@ export function parseRRuleString(rrule: string): RecurrenceRule | null {
           rule.endDate = parsed;
         }
         break;
+      }
     }
   }
   

@@ -1109,14 +1109,14 @@ Deno.serve(async (req) => {
     }
     const body = trimmed.slice('/schedule '.length).trim();
     // Pull the @mentions and the duration off the end.
-    const mentionRegex = /@([a-zA-Z0-9_\-]+)/g;
+    const mentionRegex = /@([a-zA-Z0-9_-]+)/g;
     const mentions = [...body.matchAll(mentionRegex)].map((m) => m[1]);
     const durMatch = body.match(/\bfor\s+(\d+)\s*(m(?:in)?|mins|minutes|h(?:r)?|hrs|hours)?/i);
     const durationMinutes = durMatch
       ? (durMatch[2]?.toLowerCase().startsWith('h') ? Number(durMatch[1]) * 60 : Number(durMatch[1]))
       : 30;
     const title = body
-      .replace(/\bwith\s+@[\w\-]+(?:\s+@[\w\-]+)*/i, '')
+      .replace(/\bwith\s+@[\w-]+(?:\s+@[\w-]+)*/i, '')
       .replace(/\bfor\s+\d+\s*(m(?:in)?|mins|minutes|h(?:r)?|hrs|hours)?/i, '')
       .trim() || 'Meeting';
 

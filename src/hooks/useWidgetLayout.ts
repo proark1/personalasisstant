@@ -39,7 +39,7 @@ export function useWidgetLayout() {
         });
         return merged.sort((a: Widget, b: Widget) => a.order - b.order);
       }
-    } catch {}
+    } catch { /* ignore */ }
     return DEFAULT_WIDGETS;
   });
 

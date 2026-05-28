@@ -78,7 +78,7 @@ serve(async (req) => {
       const daysOverdue = Math.floor((now.getTime() - new Date(task.due_date).getTime()) / (1000 * 60 * 60 * 24));
       
       // Suggest rescheduling to tomorrow or next week based on priority
-      let suggestedDate = new Date(now);
+      const suggestedDate = new Date(now);
       if (task.priority === 'high') {
         suggestedDate.setDate(suggestedDate.getDate() + 1); // Tomorrow
       } else if (daysOverdue > 7) {
@@ -163,7 +163,7 @@ serve(async (req) => {
                 existingItems.add(typeof item === 'string' ? item.toLowerCase() : item.name?.toLowerCase());
               });
             }
-          } catch (e) {}
+          } catch (e) { /* ignore */ }
         });
 
         const newIngredients = [...new Set(allIngredients)].filter(

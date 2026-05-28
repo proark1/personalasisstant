@@ -72,13 +72,14 @@ export function parseICS(content: string): CalendarEvent[] {
       case 'LOCATION':
         currentEvent.location = value;
         break;
-      case 'ATTENDEE':
+      case 'ATTENDEE': {
         if (!currentEvent.attendees) currentEvent.attendees = [];
         // Extract name from CN= or use email
         const cnMatch = value.match(/CN=([^;:]+)/i);
         const mailtoMatch = value.match(/mailto:([^;]+)/i);
         currentEvent.attendees.push(cnMatch?.[1] || mailtoMatch?.[1] || value);
         break;
+      }
     }
   };
 

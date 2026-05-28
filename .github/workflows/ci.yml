@@ -26,12 +26,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Lint baseline: main has ~54 pre-existing errors (PR #28 added the
-      # workflow but it didn't run on its own merge, so this is the first
-      # PR where lint was actually gated). Baseline-tracking until the
-      # backlog is paid down. Flip continue-on-error to false once at zero.
+      # Lint is gated. Errors block; warnings are still allowed
+      # (~940 `@typescript-eslint/no-explicit-any` flags being paid down).
       - name: Lint
-        continue-on-error: true
         run: bun run lint
 
       # Tracking only — there are pre-existing errors that the team is

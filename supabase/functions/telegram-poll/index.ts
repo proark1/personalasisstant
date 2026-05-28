@@ -21,8 +21,8 @@ import {
   tgEditReplyMarkup,
 } from '../_shared/telegram-inline.ts';
 import { buildDoriContext } from '../_shared/dori-context.ts';
-import {
 import { strictAppOrigin } from '../_shared/cors.ts';
+import {
   fetchLatestUndoableForUser,
   fetchUndoable,
   runUndo,

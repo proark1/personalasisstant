@@ -300,6 +300,7 @@ export function EmailPanel() {
   const pullY = useMotionValue(0);
   const pullOpacity = useTransform(pullY, [0, 60], [0, 1]);
   const pullRotate = useTransform(pullY, [0, 60], [0, 360]);
+  const pullHeight = useTransform(pullY, [0, 60], [0, 40]);
   const isPulling = useRef(false);
 
   const handlePullEnd = useCallback(() => {
@@ -438,7 +439,7 @@ export function EmailPanel() {
       {/* Pull-to-refresh indicator */}
       <motion.div
         className="flex items-center justify-center py-2 overflow-hidden"
-        style={{ opacity: pullOpacity, height: useTransform(pullY, [0, 60], [0, 40]) }}
+        style={{ opacity: pullOpacity, height: pullHeight }}
       >
         <motion.div style={{ rotate: pullRotate }}>
           <RefreshCw className="w-4 h-4 text-primary" />

@@ -97,7 +97,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
 /** Render inline formatting: **bold**, *italic*, `code`, [link](url), citation [1] */
 function renderInline(text: string): React.ReactNode {
   // Combined regex for all inline patterns
-  const regex = /(\*\*(.+?)\*\*)|(\*(.+?)\*)|(`(.+?)`)|(\[([^\]]+)\]\((https?:\/\/[^\)]+)\))/g;
+  const regex = /(\*\*(.+?)\*\*)|(\*(.+?)\*)|(`(.+?)`)|(\[([^\]]+)\]\((https?:\/\/[^)]+)\))/g;
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;

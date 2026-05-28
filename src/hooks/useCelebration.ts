@@ -38,13 +38,13 @@ export function useCelebration() {
         });
         break;
 
-      case 'streak':
+      case 'streak': {
         // Epic celebration for streak milestones
         const duration = 2000;
         const animationEnd = Date.now() + duration;
         const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
 
-        const randomInRange = (min: number, max: number) => 
+        const randomInRange = (min: number, max: number) =>
           Math.random() * (max - min) + min;
 
         const interval = setInterval(() => {
@@ -70,6 +70,7 @@ export function useCelebration() {
           });
         }, 250);
         break;
+      }
     }
   }, []);
 

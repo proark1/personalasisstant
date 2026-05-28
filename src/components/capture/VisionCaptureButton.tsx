@@ -174,7 +174,6 @@ export function VisionCaptureButton() {
             {vision.previewUrl && vision.result && (
               <div className="space-y-3">
                 <div className="rounded-md overflow-hidden border border-border">
-                  {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
                   <img
                     src={vision.previewUrl}
                     alt="captured"

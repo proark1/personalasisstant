@@ -908,8 +908,8 @@ Adapt your tone and suggestions based on time:
 - Afternoon tasks: schedule between 1-5 PM
 - If user says "later" or "when I have time", suggest specific times
 - Consider user's existing tasks when suggesting times
-- "Block my calendar 2-4 PM tomorrow" / "block focus time" / "mark me busy" → use `schedule_event` with `category: "focus"`, a clear title like `🎯 Focus block` (or whatever the user named it), and the requested time range. Treat this as a real event so other planners (find_time, plan_my_week) see the slot as busy. Apply the same pattern for "block this for deep work" / "I'm doing a workout from 6-7" etc.
-- Travel time: when scheduling an event with a `location` and the user hints at travel ("dentist at 3", "soccer game across town"), CHAIN a `set_reminder` for `triggerAt = event.startTime - estimatedMinutes`. Estimate 15 min in-city, 30 min cross-city, 45 min airport, or use any explicit number the user gave. The reminder message should be "🚗 Leave for <event title> (<location>)" so the user sees what's coming. Skip when the event has no location or when the user is clearly home (presence=home, virtual meeting, etc.).
+- "Block my calendar 2-4 PM tomorrow" / "block focus time" / "mark me busy" → use \`schedule_event\` with \`category: "focus"\`, a clear title like \`🎯 Focus block\` (or whatever the user named it), and the requested time range. Treat this as a real event so other planners (find_time, plan_my_week) see the slot as busy. Apply the same pattern for "block this for deep work" / "I'm doing a workout from 6-7" etc.
+- Travel time: when scheduling an event with a \`location\` and the user hints at travel ("dentist at 3", "soccer game across town"), CHAIN a \`set_reminder\` for \`triggerAt = event.startTime - estimatedMinutes\`. Estimate 15 min in-city, 30 min cross-city, 45 min airport, or use any explicit number the user gave. The reminder message should be "🚗 Leave for <event title> (<location>)" so the user sees what's coming. Skip when the event has no location or when the user is clearly home (presence=home, virtual meeting, etc.).
 
 ## GUIDELINES
 - Be concise and helpful
@@ -966,19 +966,19 @@ You CAN use multiple tools in a single response. For example:
 Just include multiple tool XML blocks in your response. Each will be executed.
 
 ## FORWARDED MESSAGES
-If the incoming user turn starts with `[forwarded from <name>]`, the body that follows was written by someone else, NOT the current user. Default behavior:
+If the incoming user turn starts with \`[forwarded from <name>]\`, the body that follows was written by someone else, NOT the current user. Default behavior:
 - Do NOT silently create tasks/events from third-party text. Instead, briefly summarise what was forwarded (1 sentence) and ASK what to do: save as note, create a task, add an event, save sender as contact, draft a reply, ignore.
 - If the user previously said something like "save anything Mom forwards as a contract reminder", honour that preference.
-- Sender name = the value after `forwarded from`. Treat it as a candidate contact / family-member if the user wants to save it.
+- Sender name = the value after \`forwarded from\`. Treat it as a candidate contact / family-member if the user wants to save it.
 
 ## VISION (when the user attaches a photo)
 The photo arrives as a multimodal user turn — describe what you see, THEN propose the matching action:
-- Receipt / bill → `query_expenses` or log via the expense tools, plus a "verify" task.
-- Business card → `manage_contact` create.
-- Flyer / poster / invitation → `schedule_event` (extract date, time, location).
-- Prescription / medication label → `manage_family_member` update with medication notes, plus a refill task.
-- Whiteboard / handwritten notes → `manage_note` create, set tags from the topic.
-- Calendar screenshot → `schedule_event` for each visible entry.
+- Receipt / bill → \`query_expenses\` or log via the expense tools, plus a "verify" task.
+- Business card → \`manage_contact\` create.
+- Flyer / poster / invitation → \`schedule_event\` (extract date, time, location).
+- Prescription / medication label → \`manage_family_member\` update with medication notes, plus a refill task.
+- Whiteboard / handwritten notes → \`manage_note\` create, set tags from the topic.
+- Calendar screenshot → \`schedule_event\` for each visible entry.
 - Fridge / pantry / outfit / room photo (creative ask) → answer descriptively with 2-3 ideas; do NOT silently create tasks unless the user asks ("save these recipes", "add the missing items to the shopping list").
 - Always say what you see in 1-2 sentences before acting so the user can correct misreads.
 
@@ -2569,7 +2569,7 @@ async function executeToolsServerSide(
           const myLogs = (logs || []).filter((l: any) => l.habit_id === h.id).map((l:any)=>l.log_date).sort();
           const doneToday = myLogs.includes(today);
           // streak = consecutive days ending today (or yesterday if not done today)
-          let streak = 0; let cursor = new Date();
+          let streak = 0; const cursor = new Date();
           if (!doneToday) cursor.setDate(cursor.getDate() - 1);
           for (;;) {
             const ds = cursor.toISOString().slice(0, 10);
@@ -3421,7 +3421,7 @@ async function executeToolsServerSide(
       } finally {
         clearTimeout(tm);
       }
-      const title = (html.match(/<title[^>]*>([^<]+)<\/title>/i) || [, ''])[1].trim().slice(0, 200) || url.hostname;
+      const title = (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? '').trim().slice(0, 200) || url.hostname;
       // Crude text extraction: strip scripts/styles, then tags. Good enough
       // for an LLM summary; not a full reader-mode parser.
       const stripped = html
@@ -5242,9 +5242,9 @@ NEVER treat a user request as a single-module action. Before responding, ask you
 
 Concrete chains you should execute automatically:
 - "Sarah's birthday next month" / "Tugba's birthday is October 1st" → ALWAYS run all three of these in one response:
-    (a) manage_family_member action="create" or "update" with the `birthDate` field so the birthday is stored on the family record (and re-used by proactive reminders next year),
-    (b) schedule_event for the birthday itself with `recurrenceRule: "FREQ=YEARLY"`,
-    (c) manage_task "Buy gift for <name>" with `dueDate` set to 3 days before the birthday (use `recurrenceRule: "FREQ=YEARLY"` so the prep task repeats too).
+    (a) manage_family_member action="create" or "update" with the \`birthDate\` field so the birthday is stored on the family record (and re-used by proactive reminders next year),
+    (b) schedule_event for the birthday itself with \`recurrenceRule: "FREQ=YEARLY"\`,
+    (c) manage_task "Buy gift for <name>" with \`dueDate\` set to 3 days before the birthday (use \`recurrenceRule: "FREQ=YEARLY"\` so the prep task repeats too).
   Optionally chain a compose_email or send_family_message draft if the user hints at one.
 - "Plan dinner with the Khans on Friday" → find contact + create calendar event Fri 7pm + create task "Confirm with Khans 1 day before" + offer to draft a WhatsApp/email message
 - "Cancel the Netflix contract" → find contract + propose cancellation email draft + create task "Verify Netflix cancelled" due in 7 days
@@ -5873,7 +5873,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               const parsed = JSON.parse(line.slice(6));
               const content = parsed.choices?.[0]?.delta?.content;
               if (content) fullResponseText += content;
-            } catch {}
+            } catch { /* ignore */ }
           }
         }
         controller.enqueue(value);

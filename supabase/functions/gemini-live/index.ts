@@ -107,8 +107,8 @@ function detectTaskCommand(input: string, allTasks?: TaskItem[]): { command: str
   
   // Create task patterns
   const createPatterns = [
-    /(?:create|add|new|make)\s+(?:a\s+)?(?:new\s+)?task\s*(?:called|named|titled)?\s*[:\-]?\s*["']?(.+?)["']?$/i,
-    /(?:erstell|hinzufüg|neu)\s+(?:eine?\s+)?(?:neue?\s+)?(?:aufgabe|task)\s*(?:mit|names?)?\s*[:\-]?\s*["']?(.+?)["']?$/i,
+    /(?:create|add|new|make)\s+(?:a\s+)?(?:new\s+)?task\s*(?:called|named|titled)?\s*[:-]?\s*["']?(.+?)["']?$/i,
+    /(?:erstell|hinzufüg|neu)\s+(?:eine?\s+)?(?:neue?\s+)?(?:aufgabe|task)\s*(?:mit|names?)?\s*[:-]?\s*["']?(.+?)["']?$/i,
     /(?:remind me to|i need to|i have to|i should|i must)\s+(.+)/i,
     /(?:erinner mich an|ich muss|ich sollte)\s+(.+)/i,
   ];
@@ -487,7 +487,7 @@ serve(async (req) => {
           }
           break;
           
-        case 'reschedule':
+        case 'reschedule': {
           const newDate = parseNaturalDate(details.newDateText);
           if (details.taskId && newDate) {
             voiceAction = {
@@ -504,6 +504,7 @@ serve(async (req) => {
             responseText = `I didn't understand the date "${details.newDateText}". Try saying "tomorrow" or a specific day like "Monday".`;
           }
           break;
+        }
           
         case 'edit':
           if (details.taskId) {

@@ -56,7 +56,7 @@ const logHealthDebug = (label: string, extra?: Record<string, unknown>) => {
     const href = typeof window !== 'undefined' ? window.location.href : 'unknown';
     const isRemoteWebview = href.startsWith('http://') || href.startsWith('https://');
 
-    // eslint-disable-next-line no-console
+     
     console.log(`[AppleHealth][${label}]`, {
       platform: Capacitor.getPlatform(),
       isNative,
@@ -354,7 +354,7 @@ export function useAppleHealth() {
     logHealthDebug('diagnostics_start');
     
     const timestamp = new Date().toISOString();
-    let newDebugInfo: HealthDebugInfo = {
+    const newDebugInfo: HealthDebugInfo = {
       ...debugInfo,
       diagnosticsRan: true,
       diagnosticsTimestamp: timestamp,

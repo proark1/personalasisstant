@@ -32,7 +32,7 @@ export function useEncryption() {
       setIsInitializing(true);
       try {
         // Try to get existing private key from IndexedDB
-        let existingPrivateKey = await getPrivateKey(user.id);
+        const existingPrivateKey = await getPrivateKey(user.id);
 
         if (existingPrivateKey) {
           setPrivateKey(existingPrivateKey);
