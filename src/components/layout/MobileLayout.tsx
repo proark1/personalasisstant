@@ -64,7 +64,7 @@ interface MobileLayoutProps {
   onImportEvents?: (events: CalendarEvent[]) => void;
   onSendMessage: (content: string) => void;
   thinkingStatus?: string;
-  actionCards?: { type: string; action: string; title: string; details?: string }[];
+  actionCards?: import('../assistant/ActionCard').ActionCardData[];
   doriStats?: { overdueTasks?: number; unreadEmails?: number; habitsAtRisk?: number; todayEvents?: number; pendingTasks?: number };
   onVoiceMode: () => void;
   onEditProfile?: () => void;
@@ -180,7 +180,7 @@ export function MobileLayout({
             isProcessing={isProcessing}
             onVoiceMode={onVoiceMode}
             thinkingStatus={thinkingStatus}
-            actionCards={actionCards as any}
+            actionCards={actionCards}
             stats={doriStats}
           />
         );

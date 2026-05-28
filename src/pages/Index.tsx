@@ -47,6 +47,13 @@ import { MorningBriefing } from '@/components/notifications/MorningBriefing';
 import { WeeklyReviewDialog } from '@/components/review/WeeklyReviewDialog';
 import { CallProvider } from '@/components/calling/CallProvider';
 import { CalendarEvent, ChatMessage, AppMode, Task } from '@/types/flux';
+import type { ActionCardData } from '@/components/assistant/ActionCard';
+import {
+  aiInFlight,
+  canCreateAiAction,
+  recordAiActions,
+  remainingAiActions,
+} from '@/lib/aiActionGuard';
 import { useToast } from '@/hooks/use-toast';
 import { isAfter, isBefore, addDays } from 'date-fns';
 import { Contract as SmartContract } from '@/hooks/useSmartContext';
@@ -276,7 +283,7 @@ const Index = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [thinkingStatus, setThinkingStatus] = useState<string | undefined>();
-  const [actionCards, setActionCards] = useState<{ type: string; action: string; title: string; details?: string }[]>([]);
+  const [actionCards, setActionCards] = useState<ActionCardData[]>([]);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [shareDialog, setShareDialog] = useState<{
     type: 'task' | 'event';
@@ -328,6 +335,30 @@ const Index = () => {
     prevModeRef.current = mode;
   }, [mode, refetch]);
 
+  // Undo an AI action — deletes the entity Dori just created. Triggered by
+  // the "Undo" button on action cards via a `dori:undo-action` event.
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const detail = (e as CustomEvent<{ type: string; id: string }>).detail;
+      if (!detail?.type || !detail?.id) return;
+      try {
+        switch (detail.type) {
+          case 'task': await deleteTask(detail.id); break;
+          case 'event': await deleteEvent(detail.id); break;
+          case 'note': await deleteNote(detail.id); break;
+          case 'contact': await deleteContact(detail.id); break;
+          default: return;
+        }
+        toast({ title: 'Undone', description: `${detail.type} removed` });
+      } catch (err) {
+        console.error('Undo failed:', err);
+        toast({ variant: 'destructive', title: "Couldn't undo", description: 'Please remove it manually.' });
+      }
+    };
+    window.addEventListener('dori:undo-action', handler as EventListener);
+    return () => window.removeEventListener('dori:undo-action', handler as EventListener);
+  }, [deleteTask, deleteEvent, deleteNote, deleteContact, toast]);
+
   const addMessage = useCallback((message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
     const newMessage: ChatMessage = {
       ...message,
@@ -366,7 +397,7 @@ const Index = () => {
     setThinkingStatus(classifyThinkingStatus(userText));
 
     let assistantContent = '';
-    const collectedCards: { type: string; action: string; title: string; details?: string }[] = [];
+    const collectedCards: ActionCardData[] = [];
     
     // Rate limit task/event creation per message to prevent runaway loops
     const MAX_TASKS_PER_MESSAGE = 10;
@@ -607,6 +638,20 @@ const Index = () => {
                 console.warn('Duplicate task title skipped:', taskTitle);
                 return;
               }
+
+              // Daily quota backstop — protects against runaway loops.
+              if (!canCreateAiAction(user?.id)) {
+                collectedCards.push({ type: 'task', action: 'Created', title: taskTitleRaw, status: 'failed', details: `Daily limit reached (${remainingAiActions(user?.id)} left). Try again tomorrow.` });
+                return;
+              }
+
+              // Cross-turn dedup: block if an identical task is already being
+              // created by a concurrent message.
+              if (!aiInFlight.claim('task', taskTitleRaw)) {
+                console.warn('Task already in flight, skipping concurrent dup:', taskTitle);
+                return;
+              }
+
               createdTaskTitles.add(taskTitle);
               tasksCreatedThisMessage++;
 
@@ -614,43 +659,54 @@ const Index = () => {
               const recurrenceRule = toolCall.task.recurrenceRule;
               const recurrenceEnd = toolCall.task.recurrenceEnd;
 
-              // If a task with same title already exists but is missing scheduling fields,
-              // update it instead of creating a duplicate.
-              const existing = tasks.find(
-                (t) => t.title.toLowerCase().trim() === taskTitle
-              );
+              try {
+                // If a task with same title already exists but is missing scheduling fields,
+                // update it instead of creating a duplicate.
+                const existing = tasks.find(
+                  (t) => t.title.toLowerCase().trim() === taskTitle
+                );
 
-              if (
-                existing &&
-                (dueDate || recurrenceRule || recurrenceEnd) &&
-                !existing.dueDate &&
-                !existing.recurrenceRule
-              ) {
-                await updateTask(existing.id, {
-                  dueDate: dueDate ?? existing.dueDate,
-                  recurrenceRule: recurrenceRule ?? existing.recurrenceRule,
-                  recurrenceEnd: recurrenceEnd ?? existing.recurrenceEnd,
+                if (
+                  existing &&
+                  (dueDate || recurrenceRule || recurrenceEnd) &&
+                  !existing.dueDate &&
+                  !existing.recurrenceRule
+                ) {
+                  await updateTask(existing.id, {
+                    dueDate: dueDate ?? existing.dueDate,
+                    recurrenceRule: recurrenceRule ?? existing.recurrenceRule,
+                    recurrenceEnd: recurrenceEnd ?? existing.recurrenceEnd,
+                  });
+                  toast({
+                    title: 'Task Updated',
+                    description: `${existing.title} scheduled`,
+                  });
+                  return;
+                }
+
+                const newTask = await addTask({
+                  title: taskTitleRaw,
+                  category: toolCall.task.category || settings.defaultTaskCategory,
+                  priority: toolCall.task.priority || settings.defaultTaskPriority,
+                  completed: false,
+                  dueDate,
+                  recurrenceRule,
+                  recurrenceEnd,
                 });
-                toast({
-                  title: 'Task Updated',
-                  description: `${existing.title} scheduled`,
-                });
-                return;
-              }
 
-              const newTask = await addTask({
-                title: taskTitleRaw,
-                category: toolCall.task.category || settings.defaultTaskCategory,
-                priority: toolCall.task.priority || settings.defaultTaskPriority,
-                completed: false,
-                dueDate,
-                recurrenceRule,
-                recurrenceEnd,
-              });
-
-              if (newTask) {
-                toast({ title: 'Task Added', description: newTask.title });
-                collectedCards.push({ type: 'task', action: 'Created', title: newTask.title, details: dueDate ? `Due: ${new Date(dueDate).toLocaleDateString()}` : undefined });
+                if (newTask) {
+                  recordAiActions(user?.id, 1);
+                  toast({ title: 'Task Added', description: newTask.title });
+                  collectedCards.push({ type: 'task', action: 'Created', title: newTask.title, details: dueDate ? `Due: ${new Date(dueDate).toLocaleDateString()}` : undefined, undo: { type: 'task', id: newTask.id } });
+                }
+              } catch (err) {
+                // Surface the failure instead of letting it vanish — the model
+                // may have already "said" it created the task.
+                console.error('Task creation failed:', err);
+                collectedCards.push({ type: 'task', action: 'Created', title: taskTitleRaw, status: 'failed' });
+                toast({ variant: 'destructive', title: "Couldn't add task", description: taskTitleRaw });
+              } finally {
+                aiInFlight.release('task', taskTitleRaw);
               }
             } else if (toolCall.action === 'complete' && toolCall.task.id) {
               await toggleTaskComplete(toolCall.task.id);
@@ -671,26 +727,48 @@ const Index = () => {
             }
             const evt = toolCall.event as Partial<CalendarEvent>;
             // Dedupe: skip if we already created an event with this title in this message
-            const eventTitle = (evt.title || 'New Event').toLowerCase().trim();
+            const eventTitleRaw = evt.title || 'New Event';
+            const eventTitle = eventTitleRaw.toLowerCase().trim();
             if (createdEventTitles.has(eventTitle)) {
               console.warn('Duplicate event title skipped:', eventTitle);
               return;
             }
+
+            // Daily quota backstop.
+            if (!canCreateAiAction(user?.id)) {
+              collectedCards.push({ type: 'event', action: 'Scheduled', title: eventTitleRaw, status: 'failed', details: 'Daily limit reached. Try again tomorrow.' });
+              return;
+            }
+            // Cross-turn dedup against concurrent messages.
+            if (!aiInFlight.claim('event', eventTitleRaw)) {
+              console.warn('Event already in flight, skipping concurrent dup:', eventTitle);
+              return;
+            }
+
             createdEventTitles.add(eventTitle);
             eventsCreatedThisMessage++;
 
-            const newEvent = await addEvent({
-              title: evt.title || 'New Event',
-              startTime: evt.startTime instanceof Date ? evt.startTime : evt.startTime ? new Date(evt.startTime) : new Date(),
-              endTime: evt.endTime instanceof Date ? evt.endTime : evt.endTime ? new Date(evt.endTime) : new Date(Date.now() + 60 * 60 * 1000),
-              location: evt.location,
-              attendees: evt.attendees,
-              recurrenceRule: evt.recurrenceRule,
-              recurrenceEnd: evt.recurrenceEnd,
-            });
-            if (newEvent) {
-              toast({ title: 'Event Scheduled', description: newEvent.title });
-              collectedCards.push({ type: 'event', action: 'Scheduled', title: newEvent.title });
+            try {
+              const newEvent = await addEvent({
+                title: eventTitleRaw,
+                startTime: evt.startTime instanceof Date ? evt.startTime : evt.startTime ? new Date(evt.startTime) : new Date(),
+                endTime: evt.endTime instanceof Date ? evt.endTime : evt.endTime ? new Date(evt.endTime) : new Date(Date.now() + 60 * 60 * 1000),
+                location: evt.location,
+                attendees: evt.attendees,
+                recurrenceRule: evt.recurrenceRule,
+                recurrenceEnd: evt.recurrenceEnd,
+              });
+              if (newEvent) {
+                recordAiActions(user?.id, 1);
+                toast({ title: 'Event Scheduled', description: newEvent.title });
+                collectedCards.push({ type: 'event', action: 'Scheduled', title: newEvent.title, undo: { type: 'event', id: newEvent.id } });
+              }
+            } catch (err) {
+              console.error('Event creation failed:', err);
+              collectedCards.push({ type: 'event', action: 'Scheduled', title: eventTitleRaw, status: 'failed' });
+              toast({ variant: 'destructive', title: "Couldn't schedule event", description: eventTitleRaw });
+            } finally {
+              aiInFlight.release('event', eventTitleRaw);
             }
           } else if (toolCall.tool === 'create_note' && toolCall.note) {
             const noteTitle = toolCall.note.title || 'Voice Note';
@@ -699,8 +777,9 @@ const Index = () => {
             
             const newNote = await createNote(noteTitle, noteContent, noteTags);
             if (newNote) {
+              recordAiActions(user?.id, 1);
               toast({ title: 'Note Saved', description: noteTitle });
-              collectedCards.push({ type: 'note', action: 'Saved', title: noteTitle });
+              collectedCards.push({ type: 'note', action: 'Saved', title: noteTitle, undo: newNote.id ? { type: 'note', id: newNote.id } : undefined });
             }
           } else if (toolCall.tool === 'manage_contact' && toolCall.contact) {
             const { action, contact } = toolCall;
@@ -716,7 +795,7 @@ const Index = () => {
                 contactType: (contact.contactType === 'business' ? 'business' : 'personal') as 'personal' | 'business',
                 notes: contact.notes || '',
               });
-              if (result) { toast({ title: 'Contact Added', description: contact.name }); collectedCards.push({ type: 'contact', action: 'Added', title: contact.name }); }
+              if (result) { recordAiActions(user?.id, 1); toast({ title: 'Contact Added', description: contact.name }); collectedCards.push({ type: 'contact', action: 'Added', title: contact.name, undo: (result as { id?: string })?.id ? { type: 'contact', id: (result as { id: string }).id } : undefined }); }
             } else if (action === 'delete' && contact.query) {
               const match = contacts.find(c => c.name.toLowerCase().includes(contact.query!.toLowerCase()));
               if (match) {

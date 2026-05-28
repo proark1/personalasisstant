@@ -1,4 +1,5 @@
-import { CheckSquare, Calendar, FileText, User, ShoppingCart, Briefcase, Target, Mail, Bell } from 'lucide-react';
+import { useState } from 'react';
+import { CheckSquare, Calendar, FileText, User, ShoppingCart, Briefcase, Target, Mail, Bell, AlertTriangle, Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ActionCardData {
@@ -6,6 +7,10 @@ export interface ActionCardData {
   action: string;
   title: string;
   details?: string;
+  /** Whether the underlying mutation actually succeeded. Defaults to success. */
+  status?: 'success' | 'failed';
+  /** When present, the action can be undone (deletes the created entity). */
+  undo?: { type: string; id: string };
 }
 
 const ICONS: Record<string, React.ElementType> = {
@@ -23,20 +28,56 @@ const ICONS: Record<string, React.ElementType> = {
 
 export function ActionCard({ data }: { data: ActionCardData }) {
   const Icon = ICONS[data.type] || CheckSquare;
+  const failed = data.status === 'failed';
+  const [undone, setUndone] = useState(false);
+
+  const handleUndo = () => {
+    if (!data.undo) return;
+    window.dispatchEvent(new CustomEvent('dori:undo-action', { detail: data.undo }));
+    setUndone(true);
+  };
 
   return (
-    <div className={cn('rounded-lg border border-border/50 bg-muted/30 px-3 py-2 mt-2 flex items-center gap-3 animate-fade-in')}>
+    <div
+      className={cn(
+        'rounded-lg border px-3 py-2 mt-2 flex items-center gap-3 animate-fade-in',
+        failed
+          ? 'border-destructive/40 bg-destructive/5'
+          : 'border-border/50 bg-muted/30',
+        undone && 'opacity-60',
+      )}
+    >
       <div className="w-8 h-8 rounded-md bg-background flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4 text-muted-foreground" />
+        {failed ? (
+          <AlertTriangle className="w-4 h-4 text-destructive" />
+        ) : (
+          <Icon className="w-4 h-4 text-muted-foreground" />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase font-medium text-muted-foreground">{data.action}</span>
+          <span className={cn('text-[10px] uppercase font-medium', failed ? 'text-destructive' : 'text-muted-foreground')}>
+            {undone ? 'Undone' : failed ? "Couldn't " + data.action.toLowerCase() : data.action}
+          </span>
         </div>
         <p className="text-sm font-medium truncate">{data.title}</p>
-        {data.details && <p className="text-xs text-muted-foreground truncate">{data.details}</p>}
+        {failed
+          ? <p className="text-xs text-destructive/80 truncate">{data.details || 'Nothing was saved — please try again.'}</p>
+          : data.details && <p className="text-xs text-muted-foreground truncate">{data.details}</p>}
       </div>
-      <div className="text-primary text-xs font-medium">✓</div>
+
+      {!failed && data.undo && !undone && (
+        <button
+          type="button"
+          onClick={handleUndo}
+          className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`Undo: ${data.title}`}
+        >
+          <Undo2 className="w-3 h-3" />
+          Undo
+        </button>
+      )}
+      {!failed && !data.undo && !undone && <div className="text-primary text-xs font-medium">✓</div>}
     </div>
   );
 }
