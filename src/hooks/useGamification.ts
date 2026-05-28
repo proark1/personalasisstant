@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -296,7 +297,7 @@ export function useGamification() {
         .from('user_xp')
         .update({
           [field]: (userXP[field as keyof UserXP] as number || 0) + amount
-        })
+        } as TablesUpdate<'user_xp'>)
         .eq('id', userXP.id);
 
       if (error) throw error;

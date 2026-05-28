@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { Project } from '@/types/flux';
 import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
 
@@ -88,7 +89,7 @@ export function useProjects(userId: string | undefined) {
 
     const { error } = await supabase
       .from('projects')
-      .update(dbUpdates)
+      .update(dbUpdates as TablesUpdate<'projects'>)
       .eq('id', id);
 
     if (!error) {

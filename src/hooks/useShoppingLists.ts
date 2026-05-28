@@ -102,9 +102,11 @@ export function useShoppingLists() {
     if (!user?.id) return null;
 
     try {
+      // `items` is a client-only relation, not a column on shopping_lists.
+      const { items: _items, ...listFields } = list;
       const { data, error } = await supabase
         .from('shopping_lists')
-        .insert({ ...list, user_id: user.id })
+        .insert({ ...listFields, user_id: user.id })
         .select()
         .single();
 
@@ -121,9 +123,11 @@ export function useShoppingLists() {
 
   const updateList = async (id: string, updates: Partial<ShoppingList>) => {
     try {
+      // Strip the client-only `items` relation before persisting.
+      const { items: _items, ...updateFields } = updates;
       const { data, error } = await supabase
         .from('shopping_lists')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...updateFields, updated_at: new Date().toISOString() })
         .eq('id', id)
         .eq('user_id', user?.id)
         .select()

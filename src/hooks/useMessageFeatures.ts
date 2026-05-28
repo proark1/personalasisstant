@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -243,16 +244,14 @@ export function useMessageFeatures() {
 
   // Edit a message
   const editMessage = useCallback(async (messageId: string, newContent: string, messageType: 'direct' | 'group') => {
-    const table = messageType === 'direct' ? 'direct_messages' : 'group_messages';
-    
-    const { error } = await supabase
-      .from(table)
-      .update({ 
-        content: newContent, 
-        is_edited: true, 
-        edited_at: new Date().toISOString() 
-      })
-      .eq('id', messageId);
+    // Branch on the concrete table so the payload type-checks against a
+    // single table (a dynamic union table name collapses it to `never`).
+    // Cast preserves the existing write behavior; is_edited/edited_at are
+    // not in the generated types for these tables.
+    const patch = { content: newContent, is_edited: true, edited_at: new Date().toISOString() };
+    const { error } = messageType === 'direct'
+      ? await supabase.from('direct_messages').update(patch as TablesUpdate<'direct_messages'>).eq('id', messageId)
+      : await supabase.from('group_messages').update(patch as TablesUpdate<'group_messages'>).eq('id', messageId);
 
     if (error) {
       toast.error('Failed to edit message');
@@ -265,16 +264,14 @@ export function useMessageFeatures() {
 
   // Delete a message (soft delete)
   const deleteMessage = useCallback(async (messageId: string, messageType: 'direct' | 'group') => {
-    const table = messageType === 'direct' ? 'direct_messages' : 'group_messages';
-    
-    const { error } = await supabase
-      .from(table)
-      .update({ 
-        is_deleted: true, 
-        deleted_at: new Date().toISOString(),
-        content: 'This message was deleted'
-      })
-      .eq('id', messageId);
+    const patch = {
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+      content: 'This message was deleted',
+    };
+    const { error } = messageType === 'direct'
+      ? await supabase.from('direct_messages').update(patch as TablesUpdate<'direct_messages'>).eq('id', messageId)
+      : await supabase.from('group_messages').update(patch as TablesUpdate<'group_messages'>).eq('id', messageId);
 
     if (error) {
       toast.error('Failed to delete message');

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { moduleBus } from '@/lib/moduleEventBus';
 import { moduleHealth } from '@/lib/moduleHealth';
 
@@ -225,7 +226,7 @@ export function useContacts(userId: string | undefined) {
 
       const { error } = await supabase
         .from('user_contacts')
-        .update(dbUpdates)
+        .update(dbUpdates as TablesUpdate<'user_contacts'>)
         .eq('id', id);
 
       if (error) {

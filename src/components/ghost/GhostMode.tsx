@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AudioVisualizer } from './AudioVisualizer';
-import { useOpenAIRealtime } from '@/hooks/useOpenAIRealtime';
+import { useOpenAIRealtime, type RealtimeUserProfile, type RealtimeContextData } from '@/hooks/useOpenAIRealtime';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useDatabase } from '@/hooks/useDatabase';
 import { useContacts } from '@/hooks/useContacts';
@@ -185,8 +185,10 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
     setMicMuted: setMicMutedInEngine,
     debugTimings,
   } = useOpenAIRealtime({
-    userProfile: profile,
-    contextData,
+    // The realtime hook's profile/context "bag" types use index signatures
+    // that the concrete app types don't declare; cast at this boundary.
+    userProfile: profile as unknown as RealtimeUserProfile,
+    contextData: contextData as unknown as RealtimeContextData,
     onTranscript: (text, isFinal) => {
       setDisplayTranscript(text);
       // Check for voice commands to end session

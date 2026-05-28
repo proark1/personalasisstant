@@ -24,22 +24,39 @@ export interface RealtimeUserProfile {
   [key: string]: unknown;
 }
 
+// Minimal element shapes the tool dispatcher actually reads off the
+// context bag. The index signature keeps every other field as `unknown`
+// (same looseness as the previous `unknown[]`), so spelling out the few
+// hot properties only removes errors — it never tightens anything that
+// wasn't already accessed.
+interface RealtimeTaskItem { id: string; title: string; completed: boolean; [k: string]: unknown; }
+interface RealtimeNamedItem { id: string; name: string; [k: string]: unknown; }
+interface RealtimeEmailItem {
+  id: string;
+  from_email?: string;
+  from?: string;
+  subject?: string;
+  thread_id?: string;
+  gmail_message_id?: string;
+  [k: string]: unknown;
+}
+
 export interface RealtimeContextData {
-  allTasks?: unknown[];
-  allContacts?: unknown[];
-  allEvents?: unknown[];
-  allContracts?: unknown[];
-  allProjects?: unknown[];
-  notesData?: unknown[];
-  habitData?: { habits?: unknown[] } & Record<string, unknown>;
+  allTasks?: RealtimeTaskItem[];
+  allContacts?: RealtimeNamedItem[];
+  allEvents?: Array<{ id: string; title: string; [k: string]: unknown }>;
+  allContracts?: RealtimeNamedItem[];
+  allProjects?: RealtimeNamedItem[];
+  notesData?: Array<{ id: string; title: string; [k: string]: unknown }>;
+  habitData?: { habits?: RealtimeNamedItem[] } & Record<string, unknown>;
   healthData?: {
     isConnected?: boolean;
     todaySummary?: Record<string, number | undefined>;
     weeklyData?: Array<Record<string, number | string | undefined>>;
   };
-  unreadEmails?: unknown[];
+  unreadEmails?: RealtimeEmailItem[];
   totalUnreadEmails?: number;
-  startupIdeas?: unknown[];
+  startupIdeas?: RealtimeNamedItem[];
   [key: string]: unknown;
 }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesInsert } from '@/integrations/supabase/types';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -160,7 +161,7 @@ export function useProactiveSettings() {
     try {
       const { error } = await supabase
         .from('proactive_settings')
-        .upsert(newSettings, { onConflict: 'user_id' });
+        .upsert(newSettings as TablesInsert<'proactive_settings'>, { onConflict: 'user_id' });
 
       if (error) {
         console.error('Error updating proactive settings:', error);

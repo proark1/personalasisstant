@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { moduleBus } from '@/lib/moduleEventBus';
 import { moduleHealth } from '@/lib/moduleHealth';
 import { useAppNotifications } from './useAppNotifications';
@@ -178,7 +179,7 @@ export function useContracts(userId: string | undefined) {
 
     const { error } = await supabase
       .from('contracts')
-      .update(dbUpdates)
+      .update(dbUpdates as TablesUpdate<'contracts'>)
       .eq('id', id);
 
     if (!error) {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
-import { Json } from '@/integrations/supabase/types';
+import { Json, TablesUpdate } from '@/integrations/supabase/types';
 import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
 
 export interface FamilyMember {
@@ -165,7 +165,7 @@ export function useFamilyMembers() {
 
       const { data, error } = await supabase
         .from('family_members')
-        .update(dbUpdates)
+        .update(dbUpdates as TablesUpdate<'family_members'>)
         .eq('id', id)
         .select()
         .single();

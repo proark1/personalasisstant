@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
 
@@ -125,7 +126,7 @@ export function useNotes(userId: string | undefined) {
 
       const { error } = await supabase
         .from('notes')
-        .update(dbUpdates)
+        .update(dbUpdates as TablesUpdate<'notes'>)
         .eq('id', noteId);
 
       if (error) throw error;

@@ -231,7 +231,7 @@ export function useLocationReminders() {
       // Web fallback - use navigator.geolocation.watchPosition
       const id = navigator.geolocation.watchPosition(
         (pos) => {
-          const position: Position = {
+          const position = {
             coords: {
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
@@ -242,7 +242,7 @@ export function useLocationReminders() {
               speed: pos.coords.speed,
             },
             timestamp: pos.timestamp,
-          };
+          } as Position;
           setCurrentPosition(position);
           checkTriggers(position);
         },
@@ -285,7 +285,7 @@ export function useLocationReminders() {
         return new Promise((resolve) => {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
-              const position: Position = {
+              const position = {
                 coords: {
                   latitude: pos.coords.latitude,
                   longitude: pos.coords.longitude,
@@ -296,7 +296,7 @@ export function useLocationReminders() {
                   speed: pos.coords.speed,
                 },
                 timestamp: pos.timestamp,
-              };
+              } as Position;
               setCurrentPosition(position);
               resolve(position);
             },

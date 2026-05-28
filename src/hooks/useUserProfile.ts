@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { UserProfile } from './useSmartContext';
 
 export function useUserProfile() {
@@ -83,7 +84,7 @@ export function useUserProfile() {
 
       const { error: updateError } = await supabase
         .from('profiles')
-        .update(dbUpdates)
+        .update(dbUpdates as TablesUpdate<'profiles'>)
         .eq('user_id', user.id);
 
       if (updateError) throw updateError;

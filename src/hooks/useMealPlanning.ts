@@ -133,9 +133,11 @@ export function useMealPlanning() {
     if (!user?.id) return null;
 
     try {
+      // `ingredients` is a separate table, not a column on recipes.
+      const { ingredients: _ingredients, ...recipeFields } = recipe;
       const { data, error } = await supabase
         .from('recipes')
-        .insert({ ...recipe, user_id: user.id })
+        .insert({ ...recipeFields, user_id: user.id })
         .select()
         .single();
 
@@ -152,9 +154,10 @@ export function useMealPlanning() {
 
   const updateRecipe = async (id: string, updates: Partial<Recipe>) => {
     try {
+      const { ingredients: _ingredients, ...updateFields } = updates;
       const { data, error } = await supabase
         .from('recipes')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...updateFields, updated_at: new Date().toISOString() })
         .eq('id', id)
         .eq('user_id', user?.id)
         .select()
@@ -247,9 +250,11 @@ export function useMealPlanning() {
     if (!user?.id) return null;
 
     try {
+      // `recipe` is the joined record, not a column on meal_plans.
+      const { recipe: _recipe, ...planFields } = plan;
       const { data, error } = await supabase
         .from('meal_plans')
-        .insert({ ...plan, user_id: user.id })
+        .insert({ ...planFields, user_id: user.id })
         .select()
         .single();
 
@@ -285,9 +290,10 @@ export function useMealPlanning() {
 
   const updateMealPlan = async (id: string, updates: Partial<MealPlan>) => {
     try {
+      const { recipe: _recipe, ...updateFields } = updates;
       const { data, error } = await supabase
         .from('meal_plans')
-        .update(updates)
+        .update(updateFields)
         .eq('id', id)
         .select()
         .single();

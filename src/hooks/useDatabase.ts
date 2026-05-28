@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { fetchWithRetry } from '@/lib/fetchWithTimeout';
 import { moduleBus } from '@/lib/moduleEventBus';
 import { moduleHealth } from '@/lib/moduleHealth';
@@ -273,7 +274,7 @@ export function useDatabase(userId: string | undefined) {
     const runUpdate = async () => {
       const result = await supabase
         .from('tasks')
-        .update(dbUpdates)
+        .update(dbUpdates as TablesUpdate<'tasks'>)
         .eq('id', id)
         .select('id')
         .maybeSingle();
@@ -480,7 +481,7 @@ export function useDatabase(userId: string | undefined) {
 
     const { error } = await supabase
       .from('events')
-      .update(dbUpdates)
+      .update(dbUpdates as TablesUpdate<'events'>)
       .eq('id', id);
 
     if (!error) {

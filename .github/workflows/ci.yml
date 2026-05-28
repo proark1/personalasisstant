@@ -31,13 +31,11 @@ jobs:
       - name: Lint
         run: bun run lint
 
-      # Tracking only — there are pre-existing errors that the team is
-      # paying down. Surfacing them on every PR keeps the count honest
-      # without blocking unrelated work. Flip continue-on-error to false
-      # once the baseline reaches zero (see tsconfig.app.json).
+      # Type-check is gated now that the baseline is zero. New type
+      # errors block the PR. (Strict-mode flags are being enabled
+      # phase-by-phase in tsconfig.app.json; this guards the current
+      # config.)
       - name: Type-check (no emit)
-        id: typecheck
-        continue-on-error: true
         run: bunx tsc --noEmit -p tsconfig.app.json
 
       - name: Test

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { WeeklyReview, Task } from '@/types/flux';
 import { startOfWeek, format } from 'date-fns';
 
@@ -77,7 +78,7 @@ export function useWeeklyReview(userId: string | undefined) {
       // Update existing
       const { data, error } = await supabase
         .from('weekly_reviews')
-        .update(dbUpdates)
+        .update(dbUpdates as TablesUpdate<'weekly_reviews'>)
         .eq('id', currentReview.id)
         .select()
         .single();

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -152,7 +153,7 @@ export function useAutomationRules() {
 
       const { error } = await supabase
         .from('automation_rules')
-        .update(updateData)
+        .update(updateData as TablesUpdate<'automation_rules'>)
         .eq('id', ruleId)
         .eq('user_id', user.id);
 
