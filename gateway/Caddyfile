@@ -7,6 +7,7 @@
 #   POSTGREST_URL e.g. http://postgrest.railway.internal:3000
 #   GOTRUE_URL    e.g. http://gotrue.railway.internal:9999
 #   REALTIME_URL  e.g. http://realtime.railway.internal:4000   (optional until Realtime is deployed)
+#   FUNCTIONS_URL e.g. http://edge-functions.railway.internal:9000  (optional until edge fns deployed)
 #   APP_ORIGIN    your app's origin for CORS, or * (default)
 
 {
@@ -37,6 +38,9 @@
 	}
 	handle_path /realtime/v1/* {
 		reverse_proxy {$REALTIME_URL}
+	}
+	handle_path /functions/v1/* {
+		reverse_proxy {$FUNCTIONS_URL}
 	}
 	handle {
 		respond "darai gateway ok" 200
