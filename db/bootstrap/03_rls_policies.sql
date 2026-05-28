@@ -403,30 +403,6 @@ CREATE POLICY "Users can delete own contracts"
 ON public.contracts FOR DELETE
 USING (auth.uid() = user_id);
 
--- 20251217154645_62802852-05b0-4a61-85db-146c281fb784.sql
-DROP POLICY IF EXISTS "Users can upload their own contract documents" ON storage.objects;
--- Create RLS policies for contract documents bucket
-CREATE POLICY "Users can upload their own contract documents"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'contract-documents' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-DROP POLICY IF EXISTS "Users can view their own contract documents" ON storage.objects;
-CREATE POLICY "Users can view their own contract documents"
-ON storage.objects FOR SELECT
-USING (
-  bucket_id = 'contract-documents' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-DROP POLICY IF EXISTS "Users can delete their own contract documents" ON storage.objects;
-CREATE POLICY "Users can delete their own contract documents"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'contract-documents' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-
 -- 20251218213303_42ee374e-8f08-4775-9897-9bcd5a404df4.sql
 -- Enable RLS on all new tables
 ALTER TABLE public.space_members ENABLE ROW LEVEL SECURITY;
@@ -553,29 +529,6 @@ CREATE POLICY "Recipients can mark messages as read"
 ON public.direct_messages
 FOR UPDATE
 USING (auth.uid() = recipient_id);
-
--- 20251218223628_c4e2d219-4092-4163-b160-c7592f491e4e.sql
-DROP POLICY IF EXISTS "Users can upload chat attachments" ON storage.objects;
--- Storage policy: users can upload their own attachments
-CREATE POLICY "Users can upload chat attachments"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'chat-attachments' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-DROP POLICY IF EXISTS "Chat attachments are publicly accessible" ON storage.objects;
--- Storage policy: anyone can view chat attachments (public bucket)
-CREATE POLICY "Chat attachments are publicly accessible"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'chat-attachments');
-DROP POLICY IF EXISTS "Users can delete their own chat attachments" ON storage.objects;
--- Storage policy: users can delete their own attachments
-CREATE POLICY "Users can delete their own chat attachments"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'chat-attachments' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
 
 -- 20251218224319_31dabc89-eac7-4f9e-9cc9-8f964a07e175.sql
 -- Enable RLS
@@ -1014,23 +967,6 @@ DROP POLICY IF EXISTS "Users can update own documents" ON public.family_document
 CREATE POLICY "Users can update own documents" ON public.family_documents FOR UPDATE USING (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Users can delete own documents" ON public.family_documents;
 CREATE POLICY "Users can delete own documents" ON public.family_documents FOR DELETE USING (auth.uid() = user_id);
-DROP POLICY IF EXISTS "Users can upload their own documents" ON storage.objects;
--- Storage policies for family-documents bucket
-CREATE POLICY "Users can upload their own documents"
-ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'family-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
-DROP POLICY IF EXISTS "Users can view their own documents" ON storage.objects;
-CREATE POLICY "Users can view their own documents"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'family-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
-DROP POLICY IF EXISTS "Users can delete their own documents" ON storage.objects;
-CREATE POLICY "Users can delete their own documents"
-ON storage.objects FOR DELETE
-USING (bucket_id = 'family-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
-DROP POLICY IF EXISTS "Users can update their own documents" ON storage.objects;
-CREATE POLICY "Users can update their own documents"
-ON storage.objects FOR UPDATE
-USING (bucket_id = 'family-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- 20251219120439_1d9c6f4b-9c05-4fd9-a9ee-dc4ad7c509fc.sql
 -- Enable RLS
@@ -1535,15 +1471,6 @@ DROP POLICY IF EXISTS "Users can create their own preferences" ON public.news_pr
 CREATE POLICY "Users can create their own preferences" ON public.news_preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Users can update their own preferences" ON public.news_preferences;
 CREATE POLICY "Users can update their own preferences" ON public.news_preferences FOR UPDATE USING (auth.uid() = user_id);
-DROP POLICY IF EXISTS "Users can view their own property docs" ON storage.objects;
--- Storage policies for property documents
-CREATE POLICY "Users can view their own property docs" ON storage.objects FOR SELECT USING (bucket_id = 'property-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
-DROP POLICY IF EXISTS "Users can upload their own property docs" ON storage.objects;
-CREATE POLICY "Users can upload their own property docs" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'property-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
-DROP POLICY IF EXISTS "Users can update their own property docs" ON storage.objects;
-CREATE POLICY "Users can update their own property docs" ON storage.objects FOR UPDATE USING (bucket_id = 'property-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
-DROP POLICY IF EXISTS "Users can delete their own property docs" ON storage.objects;
-CREATE POLICY "Users can delete their own property docs" ON storage.objects FOR DELETE USING (bucket_id = 'property-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- 20251228113104_40b8888d-d9b1-4e60-b922-e0efdce825c9.sql
 -- Enable Row Level Security
@@ -1589,30 +1516,6 @@ CREATE POLICY "Users can delete their own hifz progress"
 ON public.quran_hifz_progress 
 FOR DELETE 
 USING (auth.uid() = user_id);
-
--- 20251228140354_539ea304-45b6-4303-8c73-a1a37b878dfd.sql
-DROP POLICY IF EXISTS "Users can upload their own call recordings" ON storage.objects;
--- RLS policies for call-recordings bucket
-CREATE POLICY "Users can upload their own call recordings"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'call-recordings' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-DROP POLICY IF EXISTS "Users can view their own call recordings" ON storage.objects;
-CREATE POLICY "Users can view their own call recordings"
-ON storage.objects FOR SELECT
-USING (
-  bucket_id = 'call-recordings' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-DROP POLICY IF EXISTS "Users can delete their own call recordings" ON storage.objects;
-CREATE POLICY "Users can delete their own call recordings"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'call-recordings' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
 
 -- 20251228214727_806c5754-c9ab-4257-93e4-24eec9210b85.sql
 -- Enable RLS
@@ -2567,16 +2470,6 @@ ON public.message_read_receipts
 FOR SELECT
 TO authenticated
 USING (auth.uid() = user_id);
-DROP POLICY IF EXISTS "Chat attachments are publicly accessible" ON storage.objects;
-DROP POLICY IF EXISTS "Users can read their own chat attachments" ON storage.objects;
-CREATE POLICY "Users can read their own chat attachments"
-ON storage.objects
-FOR SELECT
-TO authenticated
-USING (
-  bucket_id = 'chat-attachments'
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
 
 -- 20260419175258_3c80f34b-e97b-49ae-afa6-aee388ec4444.sql
 -- 1. Lock down service-only tables (RLS enabled, no end-user policies)

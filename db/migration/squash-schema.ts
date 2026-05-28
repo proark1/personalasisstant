@@ -370,7 +370,15 @@ function main() {
     for (const raw of stmts) {
       if (shouldSkip(raw)) {
         skipped++;
-        if (isRlsStatement(raw)) { rlsFromFile.push(rewriteRls(raw)); rls++; }
+        if (isRlsStatement(raw)) {
+          // Drop policies that target Supabase-only schemas (e.g. storage.objects)
+          // — those tables don't exist in the self-hosted Railway stack.
+          const noComments = raw
+            .replace(/\/\*[\s\S]*?\*\//g, ' ')
+            .replace(/--[^\n]*/g, ' ');
+          const supabaseOnly = /\b(storage|vault|realtime|net|extensions|cron)\s*\./i.test(noComments);
+          if (!supabaseOnly) { rlsFromFile.push(rewriteRls(raw)); rls++; }
+        }
         continue;
       }
       let after = rewrite(raw);
