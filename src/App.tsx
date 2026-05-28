@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { AnimatePresence, motion } from "framer-motion";
@@ -37,7 +38,28 @@ import {
 const LazyWorkspaces = lazy(() => import("@/pages/Workspaces"));
 const LazyActivity = lazy(() => import("@/pages/Activity"));
 
+// Throttle toasts so a burst of failing queries (e.g. session expired,
+// every panel re-fetching at once) doesn't spam the user.
+let lastErrorToastAt = 0;
+function maybeToastError(err: unknown, queryKey?: readonly unknown[]) {
+  const now = Date.now();
+  if (now - lastErrorToastAt < 3000) return;
+  lastErrorToastAt = now;
+  const message = err instanceof Error ? err.message : 'Something went wrong loading your data.';
+  toast.error(message, {
+    description: queryKey ? `If this persists, please refresh the page.` : undefined,
+  });
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (err, query) => {
+      // Background refetches that still have cached data don't need a
+      // user-visible toast — the UI keeps showing the cached value.
+      if (query.state.data !== undefined) return;
+      maybeToastError(err, query.queryKey);
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,

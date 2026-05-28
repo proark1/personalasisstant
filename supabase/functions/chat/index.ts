@@ -17,9 +17,10 @@ import {
 } from "../_shared/dori-conversation-state.ts";
 import { decideRoute, type Specialist } from "../_shared/dori-router.ts";
 import { NATIVE_TOOLS, toolCallsToLegacyXml } from "../_shared/dori-tools.ts";
+import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("APP_URL") || "*",
+  "Access-Control-Allow-Origin": strictAppOrigin(),
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   'X-Content-Type-Options': 'nosniff',
 };

@@ -18,12 +18,34 @@ export interface QuotaCheck {
   over_cap: boolean;
 }
 
+// In-memory cache of the last successful quota check, keyed by user_id.
+// Used as fail-soft fallback when the RPC is temporarily unavailable: we
+// keep enforcing the previously-observed cap rather than letting users
+// rack up unbounded spend during a DB hiccup. TTL is short so a user
+// who just paid for more headroom isn't blocked for long.
+const QUOTA_CACHE_TTL_MS = 5 * 60 * 1000;
+const quotaCache = new Map<string, { value: QuotaCheck; expiresAt: number }>();
+
+function cacheGet(userId: string): QuotaCheck | null {
+  const hit = quotaCache.get(userId);
+  if (!hit) return null;
+  if (Date.now() > hit.expiresAt) {
+    quotaCache.delete(userId);
+    return null;
+  }
+  return hit.value;
+}
+
+function cacheSet(userId: string, value: QuotaCheck) {
+  quotaCache.set(userId, { value, expiresAt: Date.now() + QUOTA_CACHE_TTL_MS });
+}
+
 export async function checkQuota(supabase: any, userId: string): Promise<QuotaCheck> {
   try {
     const { data, error } = await supabase.rpc('check_ai_quota', { p_user_id: userId });
     if (error) throw error;
     const r = Array.isArray(data) ? data[0] : data;
-    return {
+    const result: QuotaCheck = {
       allowed: !!r?.allowed,
       used_cents: Number(r?.used_cents ?? 0),
       cap_cents: Number(r?.cap_cents ?? 500),
@@ -31,10 +53,29 @@ export async function checkQuota(supabase: any, userId: string): Promise<QuotaCh
       used_pct: Number(r?.used_pct ?? 0),
       over_cap: !!r?.over_cap,
     };
+    cacheSet(userId, result);
+    return result;
   } catch (e) {
-    // Fail-open on RPC errors — we'd rather charge than break the user.
-    console.warn('[ai-quota.checkQuota] failed, allowing call', (e as Error).message);
-    return { allowed: true, used_cents: 0, cap_cents: 500, headroom_cents: 500, used_pct: 0, over_cap: false };
+    // Fail-soft, not fail-open. If we have a recent successful check,
+    // re-use it. Otherwise deny the call — better to surface a 503-style
+    // message than to let one DB outage burn unbounded AI spend.
+    const cached = cacheGet(userId);
+    if (cached) {
+      console.warn(
+        '[ai-quota.checkQuota] RPC failed, serving cached value',
+        (e as Error).message,
+      );
+      return cached;
+    }
+    console.error('[ai-quota.checkQuota] RPC failed with no cache, denying', (e as Error).message);
+    return {
+      allowed: false,
+      used_cents: 0,
+      cap_cents: 0,
+      headroom_cents: 0,
+      used_pct: 0,
+      over_cap: true,
+    };
   }
 }
 
@@ -57,12 +98,19 @@ export async function assertWithinQuota(supabase: any, userId: string): Promise<
         request_data: { used_cents: q.used_cents, cap_cents: q.cap_cents },
       });
     } catch { /* ignore */ }
+    // cap_cents == 0 is the sentinel that the quota service was
+    // unreachable AND no cached value was available. Surface that
+    // explicitly so the client can retry rather than think it's locked
+    // out for the rest of the month.
+    const isServiceDown = q.cap_cents === 0;
     const err = new Error(
-      `AI monthly cap reached (${(q.used_cents / 100).toFixed(2)} / ${(q.cap_cents / 100).toFixed(2)} USD). ` +
-      'Wait until next month or ask the operator to bump your cap.',
+      isServiceDown
+        ? 'AI quota service unavailable. Please retry shortly.'
+        : `AI monthly cap reached (${(q.used_cents / 100).toFixed(2)} / ${(q.cap_cents / 100).toFixed(2)} USD). ` +
+          'Wait until next month or ask the operator to bump your cap.',
     );
     (err as any).quota = q;
-    (err as any).code = 'quota_exceeded';
+    (err as any).code = isServiceDown ? 'quota_service_unavailable' : 'quota_exceeded';
     throw err;
   }
   return q;

@@ -22,6 +22,7 @@ import {
 } from '../_shared/telegram-inline.ts';
 import { buildDoriContext } from '../_shared/dori-context.ts';
 import {
+import { strictAppOrigin } from '../_shared/cors.ts';
   fetchLatestUndoableForUser,
   fetchUndoable,
   runUndo,
@@ -31,7 +32,7 @@ const MAX_RUNTIME_MS = 55_000;
 const MIN_REMAINING_MS = 5_000;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get('APP_URL') || '*',
+  'Access-Control-Allow-Origin': strictAppOrigin(),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 

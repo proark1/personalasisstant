@@ -20,9 +20,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { adminClient, resolveUserId } from '../_shared/auth.ts';
+import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get('APP_URL') || '*',
+  'Access-Control-Allow-Origin': strictAppOrigin(),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 

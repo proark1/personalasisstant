@@ -22,9 +22,10 @@ import { buildDoriContext } from '../_shared/dori-context.ts';
 import { findTimeSlots, rankProposedSlots } from '../_shared/dori-scheduling.ts';
 import { buildWorkspaceWeeklyRecap, formatRecapForTelegram } from '../_shared/dori-recap.ts';
 import { buildSharedFamilyDigest } from '../_shared/telegram-digest.ts';
+import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get('APP_URL') || '*',
+  'Access-Control-Allow-Origin': strictAppOrigin(),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 

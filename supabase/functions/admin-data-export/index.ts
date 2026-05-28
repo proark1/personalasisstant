@@ -9,6 +9,7 @@
 //   export_auth_users → auth.users page (page, perPage)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { strictAppOrigin } from '../_shared/cors.ts';
 
 // Echo the caller's Origin instead of pinning to APP_URL — preview
 // deploys can land on rotating subdomains, and a static APP_URL
@@ -16,7 +17,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 // admin JWT check below, so the echoed origin doesn't open up anything
 // that wasn't already protected.
 function buildCors(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "*";
+  const origin = req.headers.get("origin") || strictAppOrigin();
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

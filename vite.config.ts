@@ -3,8 +3,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
+import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vitejs.dev/config/
+// ANALYZE=1 bun run build → also emits dist/stats.html with treemap.
+const enableVisualizer = process.env.ANALYZE === "1";
+
 export default defineConfig(() => ({
   test: {
     environment: "jsdom",
@@ -140,6 +144,12 @@ export default defineConfig(() => ({
           },
         ],
       },
+    }),
+    enableVisualizer && visualizer({
+      filename: "dist/stats.html",
+      gzipSize: true,
+      brotliSize: true,
+      template: "treemap",
     }),
   ].filter(Boolean),
   resolve: {

@@ -4,9 +4,10 @@
 // already sent for that local date.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildSharedFamilyDigest } from '../_shared/telegram-digest.ts';
+import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': strictAppOrigin(),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 

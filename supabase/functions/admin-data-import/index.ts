@@ -14,11 +14,12 @@
 // just shows up in the error list returned to the client.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { strictAppOrigin } from '../_shared/cors.ts';
 
 // Echo the caller's Origin so preview deploys on rotating subdomains
 // all pass the CORS preflight. Admin JWT check below still gates every action.
 function buildCors(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "*";
+  const origin = req.headers.get("origin") || strictAppOrigin();
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
