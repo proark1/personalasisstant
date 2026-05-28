@@ -224,6 +224,17 @@ function rewrite(stmt: string): string {
   out = out.replace(/REFERENCES\s+auth\s*\.\s*users\s*\(\s*id\s*\)/gi, 'REFERENCES public.users(id)');
   out = out.replace(/REFERENCES\s+auth\s*\.\s*users\b/gi, 'REFERENCES public.users');
 
+  // CREATE TRIGGER → CREATE OR REPLACE TRIGGER (PG 14+). The squash output
+  // contains overlapping migrations that re-define the same trigger, and
+  // CREATE TRIGGER has no IF NOT EXISTS — without OR REPLACE the bootstrap
+  // fails on the second occurrence with "trigger already exists." Railway
+  // Postgres is 14+, so OR REPLACE is supported.
+  if (/^CREATE\s+TRIGGER\b/.test(statementHead(stmt))) {
+    // Case-SENSITIVE so we hit the uppercase SQL keyword and not lowercase
+    // English in comments like "-- Create trigger for projects updated_at".
+    out = out.replace(/\bCREATE\s+TRIGGER\b/, 'CREATE OR REPLACE TRIGGER');
+  }
+
   // auth.uid() / auth.role() outside policy bodies — these survive into
   // function bodies, CHECK constraints, DEFAULTs. Replace with NULL and
   // annotate so a human can review the call site later.

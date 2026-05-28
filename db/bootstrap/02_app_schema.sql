@@ -104,15 +104,15 @@ END;
 $$ LANGUAGE plpgsql SET search_path = public;
 
 -- Create update triggers
-CREATE TRIGGER update_profiles_updated_at
+CREATE OR REPLACE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_tasks_updated_at
+CREATE OR REPLACE TRIGGER update_tasks_updated_at
   BEFORE UPDATE ON public.tasks
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_events_updated_at
+CREATE OR REPLACE TRIGGER update_events_updated_at
   BEFORE UPDATE ON public.events
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -283,13 +283,13 @@ ADD COLUMN attachments jsonb DEFAULT '[]',
 ADD COLUMN comments jsonb DEFAULT '[]';
 
 -- Create trigger for projects updated_at
-CREATE TRIGGER update_projects_updated_at
+CREATE OR REPLACE TRIGGER update_projects_updated_at
 BEFORE UPDATE ON public.projects
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Create trigger for weekly_reviews updated_at
-CREATE TRIGGER update_weekly_reviews_updated_at
+CREATE OR REPLACE TRIGGER update_weekly_reviews_updated_at
 BEFORE UPDATE ON public.weekly_reviews
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -388,7 +388,7 @@ CREATE TABLE public.user_contacts (
 );
 
 -- Trigger for updated_at
-CREATE TRIGGER update_user_contacts_updated_at
+CREATE OR REPLACE TRIGGER update_user_contacts_updated_at
   BEFORE UPDATE ON public.user_contacts
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
@@ -448,7 +448,7 @@ CREATE TABLE public.contracts (
 );
 
 -- Trigger for updated_at
-CREATE TRIGGER update_contracts_updated_at
+CREATE OR REPLACE TRIGGER update_contracts_updated_at
 BEFORE UPDATE ON public.contracts
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -554,13 +554,13 @@ CREATE TABLE public.user_notifications (
 );
 
 -- Create trigger for updated_at on space_members
-CREATE TRIGGER update_space_members_updated_at
+CREATE OR REPLACE TRIGGER update_space_members_updated_at
 BEFORE UPDATE ON public.space_members
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Create trigger for updated_at on space_share_settings
-CREATE TRIGGER update_space_share_settings_updated_at
+CREATE OR REPLACE TRIGGER update_space_share_settings_updated_at
 BEFORE UPDATE ON public.space_share_settings
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -810,22 +810,22 @@ END;
 $$;
 
 -- Create triggers for notifications
-CREATE TRIGGER notify_on_task_insert
+CREATE OR REPLACE TRIGGER notify_on_task_insert
 AFTER INSERT ON public.tasks
 FOR EACH ROW
 EXECUTE FUNCTION public.notify_space_members_on_task();
 
-CREATE TRIGGER notify_on_event_insert
+CREATE OR REPLACE TRIGGER notify_on_event_insert
 AFTER INSERT ON public.events
 FOR EACH ROW
 EXECUTE FUNCTION public.notify_space_members_on_event();
 
-CREATE TRIGGER notify_on_contract_insert
+CREATE OR REPLACE TRIGGER notify_on_contract_insert
 AFTER INSERT ON public.contracts
 FOR EACH ROW
 EXECUTE FUNCTION public.notify_space_members_on_contract();
 
-CREATE TRIGGER notify_on_contact_insert
+CREATE OR REPLACE TRIGGER notify_on_contact_insert
 AFTER INSERT ON public.user_contacts
 FOR EACH ROW
 EXECUTE FUNCTION public.notify_space_members_on_contact();
@@ -870,7 +870,7 @@ CREATE INDEX idx_call_sessions_callee ON public.call_sessions(callee_id);
 CREATE INDEX idx_call_sessions_status ON public.call_sessions(status);
 
 -- Create trigger for updating updated_at
-CREATE TRIGGER update_call_sessions_updated_at
+CREATE OR REPLACE TRIGGER update_call_sessions_updated_at
 BEFORE UPDATE ON public.call_sessions
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -1105,17 +1105,17 @@ CREATE TABLE public.offline_sync_queue (
 );
 
 -- Update triggers for updated_at columns
-CREATE TRIGGER update_notes_updated_at
+CREATE OR REPLACE TRIGGER update_notes_updated_at
 BEFORE UPDATE ON public.notes
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_habits_updated_at
+CREATE OR REPLACE TRIGGER update_habits_updated_at
 BEFORE UPDATE ON public.habits
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_goals_updated_at
+CREATE OR REPLACE TRIGGER update_goals_updated_at
 BEFORE UPDATE ON public.goals
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -1225,7 +1225,7 @@ CREATE TABLE public.family_members (
 );
 
 -- Trigger for updated_at
-CREATE TRIGGER update_family_members_updated_at
+CREATE OR REPLACE TRIGGER update_family_members_updated_at
   BEFORE UPDATE ON public.family_members
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
@@ -1248,7 +1248,7 @@ CREATE TABLE public.household_tasks (
 );
 
 -- Trigger for updated_at
-CREATE TRIGGER update_household_tasks_updated_at
+CREATE OR REPLACE TRIGGER update_household_tasks_updated_at
   BEFORE UPDATE ON public.household_tasks
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
@@ -1535,7 +1535,7 @@ CREATE TABLE public.push_tokens (
 );
 
 -- Create function to update timestamps
-CREATE TRIGGER update_push_tokens_updated_at
+CREATE OR REPLACE TRIGGER update_push_tokens_updated_at
 BEFORE UPDATE ON public.push_tokens
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -1564,7 +1564,7 @@ CREATE TABLE public.notification_preferences (
 );
 
 -- Create trigger for updated_at
-CREATE TRIGGER update_notification_preferences_updated_at
+CREATE OR REPLACE TRIGGER update_notification_preferences_updated_at
 BEFORE UPDATE ON public.notification_preferences
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -1650,7 +1650,7 @@ $$;
 -- Create trigger on shared_items table
 DROP TRIGGER IF EXISTS on_item_shared ON shared_items;
 
-CREATE TRIGGER on_item_shared
+CREATE OR REPLACE TRIGGER on_item_shared
   AFTER INSERT ON shared_items
   FOR EACH ROW
   EXECUTE FUNCTION notify_shared_item();
@@ -1804,15 +1804,15 @@ CREATE TABLE public.brain_dumps (
 );
 
 -- Triggers for updated_at
-CREATE TRIGGER update_daily_checkins_updated_at
+CREATE OR REPLACE TRIGGER update_daily_checkins_updated_at
   BEFORE UPDATE ON public.daily_checkins
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_user_xp_updated_at
+CREATE OR REPLACE TRIGGER update_user_xp_updated_at
   BEFORE UPDATE ON public.user_xp
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_nudge_rules_updated_at
+CREATE OR REPLACE TRIGGER update_nudge_rules_updated_at
   BEFORE UPDATE ON public.nudge_rules
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -2141,7 +2141,7 @@ CREATE TABLE public.location_triggers (
 );
 
 -- Trigger for updated_at
-CREATE TRIGGER update_location_triggers_updated_at
+CREATE OR REPLACE TRIGGER update_location_triggers_updated_at
 BEFORE UPDATE ON public.location_triggers
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -2299,7 +2299,7 @@ CREATE INDEX idx_weekly_reports_user_week ON public.weekly_coach_reports(user_id
 -- Updated_at trigger for ai_memory
 -- ============================================
 
-CREATE TRIGGER update_ai_memory_updated_at
+CREATE OR REPLACE TRIGGER update_ai_memory_updated_at
   BEFORE UPDATE ON public.ai_memory
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
@@ -2524,7 +2524,7 @@ CREATE INDEX idx_quran_hifz_user_id ON public.quran_hifz_progress(user_id);
 CREATE INDEX idx_quran_hifz_status ON public.quran_hifz_progress(status);
 
 -- Create trigger for automatic timestamp updates
-CREATE TRIGGER update_quran_hifz_updated_at
+CREATE OR REPLACE TRIGGER update_quran_hifz_updated_at
 BEFORE UPDATE ON public.quran_hifz_progress
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -2822,7 +2822,7 @@ CREATE INDEX idx_quran_progress_user_date ON public.quran_reading_progress (user
 CREATE INDEX idx_quran_goals_user ON public.quran_reading_goals (user_id);
 
 -- Create trigger for updating goals timestamp
-CREATE TRIGGER update_quran_reading_goals_updated_at
+CREATE OR REPLACE TRIGGER update_quran_reading_goals_updated_at
 BEFORE UPDATE ON public.quran_reading_goals
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
@@ -2900,7 +2900,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 -- Create trigger for share notifications
 DROP TRIGGER IF EXISTS on_item_shared ON public.shared_items;
 
-CREATE TRIGGER on_item_shared
+CREATE OR REPLACE TRIGGER on_item_shared
   AFTER INSERT ON public.shared_items
   FOR EACH ROW
   EXECUTE FUNCTION public.notify_on_share();
@@ -3033,15 +3033,15 @@ WHERE NOT EXISTS (SELECT 1 FROM public.challenges WHERE title = 'Connection Keep
 -- Create triggers for updating timestamps (only if they don't exist)
 DROP TRIGGER IF EXISTS update_life_scores_updated_at ON public.life_scores;
 
-CREATE TRIGGER update_life_scores_updated_at BEFORE UPDATE ON public.life_scores FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER update_life_scores_updated_at BEFORE UPDATE ON public.life_scores FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 DROP TRIGGER IF EXISTS update_automation_rules_updated_at ON public.automation_rules;
 
-CREATE TRIGGER update_automation_rules_updated_at BEFORE UPDATE ON public.automation_rules FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER update_automation_rules_updated_at BEFORE UPDATE ON public.automation_rules FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 DROP TRIGGER IF EXISTS update_user_challenges_updated_at ON public.user_challenges;
 
-CREATE TRIGGER update_user_challenges_updated_at BEFORE UPDATE ON public.user_challenges FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER update_user_challenges_updated_at BEFORE UPDATE ON public.user_challenges FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ──────────────────────────────────────────────────────────────────────
 -- 20260301103811_87afccbc-036b-4b27-98c8-bc4749c2625e.sql
@@ -3098,11 +3098,11 @@ CREATE INDEX idx_user_emails_category ON public.user_emails(user_id, category);
 CREATE INDEX idx_user_emails_contact ON public.user_emails(matched_contact_id);
 
 -- Trigger for updated_at
-CREATE TRIGGER update_user_emails_updated_at
+CREATE OR REPLACE TRIGGER update_user_emails_updated_at
   BEFORE UPDATE ON public.user_emails
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_email_sender_rules_updated_at
+CREATE OR REPLACE TRIGGER update_email_sender_rules_updated_at
   BEFORE UPDATE ON public.email_sender_rules
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -3147,7 +3147,7 @@ CREATE INDEX idx_telegram_links_chat_id ON public.telegram_links(chat_id);
 
 CREATE INDEX idx_telegram_links_link_code ON public.telegram_links(link_code);
 
-CREATE TRIGGER update_telegram_links_updated_at
+CREATE OR REPLACE TRIGGER update_telegram_links_updated_at
   BEFORE UPDATE ON public.telegram_links
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -3224,7 +3224,7 @@ CREATE TABLE IF NOT EXISTS public.telegram_group_links (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER update_telegram_group_links_updated_at
+CREATE OR REPLACE TRIGGER update_telegram_group_links_updated_at
   BEFORE UPDATE ON public.telegram_group_links
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -3317,7 +3317,7 @@ CREATE TABLE public.dori_learned_preferences (
 
 CREATE INDEX idx_dori_prefs_user ON public.dori_learned_preferences (user_id, confidence DESC);
 
-CREATE TRIGGER update_dori_prefs_updated_at
+CREATE OR REPLACE TRIGGER update_dori_prefs_updated_at
   BEFORE UPDATE ON public.dori_learned_preferences
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -3485,7 +3485,7 @@ CREATE INDEX idx_episodic_memories_user_date ON public.episodic_memories(user_id
 
 CREATE INDEX idx_episodic_memories_location ON public.episodic_memories(user_id, location);
 
-CREATE TRIGGER update_episodic_memories_updated_at
+CREATE OR REPLACE TRIGGER update_episodic_memories_updated_at
   BEFORE UPDATE ON public.episodic_memories
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -3515,7 +3515,7 @@ CREATE UNIQUE INDEX idx_learned_routines_fingerprint ON public.learned_routines(
 
 CREATE INDEX idx_learned_routines_status ON public.learned_routines(user_id, status);
 
-CREATE TRIGGER update_learned_routines_updated_at
+CREATE OR REPLACE TRIGGER update_learned_routines_updated_at
   BEFORE UPDATE ON public.learned_routines
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -3617,7 +3617,7 @@ CREATE TABLE public.morning_thread_items (
 
 CREATE INDEX idx_morning_thread_user_date ON public.morning_thread_items(user_id, thread_date DESC, rank);
 
-CREATE TRIGGER update_family_agent_groups_updated_at
+CREATE OR REPLACE TRIGGER update_family_agent_groups_updated_at
   BEFORE UPDATE ON public.family_agent_groups
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -3646,7 +3646,7 @@ CREATE TABLE public.family_health_records (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_health_records_updated BEFORE UPDATE ON public.family_health_records FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_health_records_updated BEFORE UPDATE ON public.family_health_records FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Emergency contacts
 CREATE TABLE public.family_emergency_contacts (
@@ -3664,7 +3664,7 @@ CREATE TABLE public.family_emergency_contacts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_emergency_contacts_updated BEFORE UPDATE ON public.family_emergency_contacts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_emergency_contacts_updated BEFORE UPDATE ON public.family_emergency_contacts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Growth log
 CREATE TABLE public.family_growth_log (
@@ -3715,7 +3715,7 @@ CREATE TABLE public.family_insurance (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_insurance_updated BEFORE UPDATE ON public.family_insurance FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_insurance_updated BEFORE UPDATE ON public.family_insurance FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Important documents (passport, ID, visa with expiry tracking)
 CREATE TABLE public.family_important_documents (
@@ -3737,7 +3737,7 @@ CREATE TABLE public.family_important_documents (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_important_docs_updated BEFORE UPDATE ON public.family_important_documents FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_important_docs_updated BEFORE UPDATE ON public.family_important_documents FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE INDEX idx_important_docs_expiry ON public.family_important_documents(user_id, expiry_date) WHERE expiry_date IS NOT NULL;
 
@@ -3767,7 +3767,7 @@ CREATE TABLE public.family_school_calendar (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_school_cal_updated BEFORE UPDATE ON public.family_school_calendar FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_school_cal_updated BEFORE UPDATE ON public.family_school_calendar FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Pickup rota
 CREATE TABLE public.family_pickup_rota (
@@ -3786,7 +3786,7 @@ CREATE TABLE public.family_pickup_rota (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_rota_updated BEFORE UPDATE ON public.family_pickup_rota FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_rota_updated BEFORE UPDATE ON public.family_pickup_rota FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Classmates & friends
 CREATE TABLE public.family_classmates (
@@ -3805,7 +3805,7 @@ CREATE TABLE public.family_classmates (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_classmates_updated BEFORE UPDATE ON public.family_classmates FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_classmates_updated BEFORE UPDATE ON public.family_classmates FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Equipment inventory
 CREATE TABLE public.family_equipment (
@@ -3825,7 +3825,7 @@ CREATE TABLE public.family_equipment (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_equipment_updated BEFORE UPDATE ON public.family_equipment FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_equipment_updated BEFORE UPDATE ON public.family_equipment FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Homework / weekly subject schedule
 CREATE TABLE public.family_homework_schedule (
@@ -3869,7 +3869,7 @@ CREATE TABLE public.family_chores (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_family_chores_updated BEFORE UPDATE ON public.family_chores FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_family_chores_updated BEFORE UPDATE ON public.family_chores FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Family Chore Completions (log)
 CREATE TABLE public.family_chore_completions (
@@ -3910,7 +3910,7 @@ CREATE TABLE public.family_meal_preferences (
   UNIQUE(family_member_id)
 );
 
-CREATE TRIGGER trg_meal_prefs_updated BEFORE UPDATE ON public.family_meal_preferences FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_meal_prefs_updated BEFORE UPDATE ON public.family_meal_preferences FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Family Sleep Schedule
 CREATE TABLE public.family_sleep_schedule (
@@ -3928,7 +3928,7 @@ CREATE TABLE public.family_sleep_schedule (
   UNIQUE(family_member_id)
 );
 
-CREATE TRIGGER trg_sleep_sched_updated BEFORE UPDATE ON public.family_sleep_schedule FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_sleep_sched_updated BEFORE UPDATE ON public.family_sleep_schedule FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE INDEX idx_family_chores_user ON public.family_chores(user_id, is_active);
 
@@ -3958,7 +3958,7 @@ CREATE TABLE public.family_traditions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_traditions_updated BEFORE UPDATE ON public.family_traditions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_traditions_updated BEFORE UPDATE ON public.family_traditions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Pets
 CREATE TABLE public.pets (
@@ -3985,7 +3985,7 @@ CREATE TABLE public.pets (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_pets_updated BEFORE UPDATE ON public.pets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_pets_updated BEFORE UPDATE ON public.pets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Household Maintenance
 CREATE TABLE public.household_maintenance (
@@ -4007,7 +4007,7 @@ CREATE TABLE public.household_maintenance (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_maintenance_updated BEFORE UPDATE ON public.household_maintenance FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_maintenance_updated BEFORE UPDATE ON public.household_maintenance FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Vehicle Records
 CREATE TABLE public.vehicle_records (
@@ -4031,7 +4031,7 @@ CREATE TABLE public.vehicle_records (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_vehicles_updated BEFORE UPDATE ON public.vehicle_records FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_vehicles_updated BEFORE UPDATE ON public.vehicle_records FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE INDEX idx_traditions_user ON public.family_traditions(user_id, next_occurrence);
 
@@ -4119,7 +4119,7 @@ CREATE TABLE IF NOT EXISTS public.financial_accounts (
 
 DROP TRIGGER IF EXISTS trg_fa_updated ON public.financial_accounts;
 
-CREATE TRIGGER trg_fa_updated BEFORE UPDATE ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_fa_updated BEFORE UPDATE ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.financial_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4151,7 +4151,7 @@ CREATE TABLE IF NOT EXISTS public.financial_budgets (
 
 DROP TRIGGER IF EXISTS trg_fb_updated ON public.financial_budgets;
 
-CREATE TRIGGER trg_fb_updated BEFORE UPDATE ON public.financial_budgets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_fb_updated BEFORE UPDATE ON public.financial_budgets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.financial_goals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4170,7 +4170,7 @@ CREATE TABLE IF NOT EXISTS public.financial_goals (
 
 DROP TRIGGER IF EXISTS trg_fg_updated ON public.financial_goals;
 
-CREATE TRIGGER trg_fg_updated BEFORE UPDATE ON public.financial_goals FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_fg_updated BEFORE UPDATE ON public.financial_goals FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.receipts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4204,7 +4204,7 @@ CREATE TABLE IF NOT EXISTS public.trips (
 
 DROP TRIGGER IF EXISTS trg_trips_updated ON public.trips;
 
-CREATE TRIGGER trg_trips_updated BEFORE UPDATE ON public.trips FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_trips_updated BEFORE UPDATE ON public.trips FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.trip_bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4240,7 +4240,7 @@ CREATE TABLE IF NOT EXISTS public.loyalty_programs (
 
 DROP TRIGGER IF EXISTS trg_lp_updated ON public.loyalty_programs;
 
-CREATE TRIGGER trg_lp_updated BEFORE UPDATE ON public.loyalty_programs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_lp_updated BEFORE UPDATE ON public.loyalty_programs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.packing_lists (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4254,7 +4254,7 @@ CREATE TABLE IF NOT EXISTS public.packing_lists (
 
 DROP TRIGGER IF EXISTS trg_pl_updated ON public.packing_lists;
 
-CREATE TRIGGER trg_pl_updated BEFORE UPDATE ON public.packing_lists FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_pl_updated BEFORE UPDATE ON public.packing_lists FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.country_essentials (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4274,7 +4274,7 @@ CREATE TABLE IF NOT EXISTS public.country_essentials (
 
 DROP TRIGGER IF EXISTS trg_ce_updated ON public.country_essentials;
 
-CREATE TRIGGER trg_ce_updated BEFORE UPDATE ON public.country_essentials FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_ce_updated BEFORE UPDATE ON public.country_essentials FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ============ PROPERTIES & VEHICLES (user_properties to avoid collision) ============
 CREATE TABLE IF NOT EXISTS public.user_properties (
@@ -4299,7 +4299,7 @@ CREATE TABLE IF NOT EXISTS public.user_properties (
 
 DROP TRIGGER IF EXISTS trg_prop_updated ON public.user_properties;
 
-CREATE TRIGGER trg_prop_updated BEFORE UPDATE ON public.user_properties FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_prop_updated BEFORE UPDATE ON public.user_properties FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.vehicles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4322,7 +4322,7 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
 
 DROP TRIGGER IF EXISTS trg_veh_updated ON public.vehicles;
 
-CREATE TRIGGER trg_veh_updated BEFORE UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_veh_updated BEFORE UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.maintenance_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4359,7 +4359,7 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
 
 DROP TRIGGER IF EXISTS trg_inv_updated ON public.inventory_items;
 
-CREATE TRIGGER trg_inv_updated BEFORE UPDATE ON public.inventory_items FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_inv_updated BEFORE UPDATE ON public.inventory_items FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ============ PERSONAL HEALTH ============
 CREATE TABLE IF NOT EXISTS public.personal_medications (
@@ -4382,7 +4382,7 @@ CREATE TABLE IF NOT EXISTS public.personal_medications (
 
 DROP TRIGGER IF EXISTS trg_pm_updated ON public.personal_medications;
 
-CREATE TRIGGER trg_pm_updated BEFORE UPDATE ON public.personal_medications FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_pm_updated BEFORE UPDATE ON public.personal_medications FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.personal_doctors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4402,7 +4402,7 @@ CREATE TABLE IF NOT EXISTS public.personal_doctors (
 
 DROP TRIGGER IF EXISTS trg_pd_updated ON public.personal_doctors;
 
-CREATE TRIGGER trg_pd_updated BEFORE UPDATE ON public.personal_doctors FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_pd_updated BEFORE UPDATE ON public.personal_doctors FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.lab_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4469,7 +4469,7 @@ CREATE TABLE IF NOT EXISTS public.friend_circles (
 
 DROP TRIGGER IF EXISTS trg_fc_updated ON public.friend_circles;
 
-CREATE TRIGGER trg_fc_updated BEFORE UPDATE ON public.friend_circles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_fc_updated BEFORE UPDATE ON public.friend_circles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.friend_circle_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4499,7 +4499,7 @@ CREATE TABLE IF NOT EXISTS public.books (
 
 DROP TRIGGER IF EXISTS trg_books_updated ON public.books;
 
-CREATE TRIGGER trg_books_updated BEFORE UPDATE ON public.books FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_books_updated BEFORE UPDATE ON public.books FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.courses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4519,7 +4519,7 @@ CREATE TABLE IF NOT EXISTS public.courses (
 
 DROP TRIGGER IF EXISTS trg_courses_updated ON public.courses;
 
-CREATE TRIGGER trg_courses_updated BEFORE UPDATE ON public.courses FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_courses_updated BEFORE UPDATE ON public.courses FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.skills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4537,7 +4537,7 @@ CREATE TABLE IF NOT EXISTS public.skills (
 
 DROP TRIGGER IF EXISTS trg_skills_updated ON public.skills;
 
-CREATE TRIGGER trg_skills_updated BEFORE UPDATE ON public.skills FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_skills_updated BEFORE UPDATE ON public.skills FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ============ MEMORIES & JOURNAL ============
 CREATE TABLE IF NOT EXISTS public.journal_entries (
@@ -4556,7 +4556,7 @@ CREATE TABLE IF NOT EXISTS public.journal_entries (
 
 DROP TRIGGER IF EXISTS trg_je_updated ON public.journal_entries;
 
-CREATE TRIGGER trg_je_updated BEFORE UPDATE ON public.journal_entries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_je_updated BEFORE UPDATE ON public.journal_entries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.life_milestones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4586,7 +4586,7 @@ CREATE TABLE IF NOT EXISTS public.bucket_list (
 
 DROP TRIGGER IF EXISTS trg_bl_updated ON public.bucket_list;
 
-CREATE TRIGGER trg_bl_updated BEFORE UPDATE ON public.bucket_list FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_bl_updated BEFORE UPDATE ON public.bucket_list FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ──────────────────────────────────────────────────────────────────────
 -- 20260419112133_ace464db-5989-4d0c-a956-8d4fa51fde0d.sql
@@ -4871,7 +4871,7 @@ $$;
 
 DROP TRIGGER IF EXISTS workspaces_add_owner ON public.workspaces;
 
-CREATE TRIGGER workspaces_add_owner
+CREATE OR REPLACE TRIGGER workspaces_add_owner
   AFTER INSERT ON public.workspaces
   FOR EACH ROW EXECUTE FUNCTION public.add_owner_to_new_workspace();
 
@@ -4883,7 +4883,7 @@ $$;
 
 DROP TRIGGER IF EXISTS workspaces_touch_updated ON public.workspaces;
 
-CREATE TRIGGER workspaces_touch_updated
+CREATE OR REPLACE TRIGGER workspaces_touch_updated
   BEFORE UPDATE ON public.workspaces
   FOR EACH ROW EXECUTE FUNCTION public.touch_workspace_updated_at();
 
@@ -4983,7 +4983,7 @@ CREATE TABLE IF NOT EXISTS public.user_location_settings (
 
 CREATE INDEX idx_user_location_settings_user_id ON public.user_location_settings(user_id);
 
-CREATE TRIGGER update_user_location_settings_updated_at
+CREATE OR REPLACE TRIGGER update_user_location_settings_updated_at
   BEFORE UPDATE ON public.user_location_settings
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -5046,7 +5046,7 @@ $$;
 
 DROP TRIGGER IF EXISTS task_comments_fill_workspace_trg ON public.task_comments;
 
-CREATE TRIGGER task_comments_fill_workspace_trg
+CREATE OR REPLACE TRIGGER task_comments_fill_workspace_trg
   BEFORE INSERT ON public.task_comments
   FOR EACH ROW EXECUTE FUNCTION public.task_comments_fill_workspace();
 
@@ -5148,7 +5148,7 @@ CREATE TABLE IF NOT EXISTS public.islamic_notification_settings (
 
 CREATE INDEX idx_islamic_notification_settings_user_id ON public.islamic_notification_settings(user_id);
 
-CREATE TRIGGER update_islamic_notification_settings_updated_at
+CREATE OR REPLACE TRIGGER update_islamic_notification_settings_updated_at
   BEFORE UPDATE ON public.islamic_notification_settings
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -5260,7 +5260,7 @@ CREATE INDEX IF NOT EXISTS dori_semantic_memories_user_recent_idx
 CREATE INDEX IF NOT EXISTS dori_semantic_memories_workspace_idx
   ON public.dori_semantic_memories (user_id, workspace_id, created_at DESC);
 
-CREATE TRIGGER update_dori_semantic_memories_updated_at
+CREATE OR REPLACE TRIGGER update_dori_semantic_memories_updated_at
   BEFORE UPDATE ON public.dori_semantic_memories
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -5502,7 +5502,7 @@ CREATE INDEX IF NOT EXISTS kg_entities_user_recent_idx
 CREATE INDEX IF NOT EXISTS kg_entities_aliases_gin
   ON public.kg_entities USING GIN (aliases);
 
-CREATE TRIGGER update_kg_entities_updated_at
+CREATE OR REPLACE TRIGGER update_kg_entities_updated_at
   BEFORE UPDATE ON public.kg_entities
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -5567,13 +5567,13 @@ $$;
 
 DROP TRIGGER IF EXISTS kg_mentions_count_ins ON public.kg_mentions;
 
-CREATE TRIGGER kg_mentions_count_ins
+CREATE OR REPLACE TRIGGER kg_mentions_count_ins
   AFTER INSERT ON public.kg_mentions
   FOR EACH ROW EXECUTE FUNCTION public.kg_mentions_after_insert();
 
 DROP TRIGGER IF EXISTS kg_mentions_count_del ON public.kg_mentions;
 
-CREATE TRIGGER kg_mentions_count_del
+CREATE OR REPLACE TRIGGER kg_mentions_count_del
   AFTER DELETE ON public.kg_mentions
   FOR EACH ROW EXECUTE FUNCTION public.kg_mentions_after_delete();
 
@@ -6058,7 +6058,7 @@ CREATE INDEX IF NOT EXISTS dori_action_plans_expiry_idx
   ON public.dori_action_plans (expires_at)
   WHERE status NOT IN ('completed', 'aborted', 'failed');
 
-CREATE TRIGGER update_dori_action_plans_updated_at
+CREATE OR REPLACE TRIGGER update_dori_action_plans_updated_at
   BEFORE UPDATE ON public.dori_action_plans
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -6110,7 +6110,7 @@ CREATE INDEX IF NOT EXISTS dori_plan_steps_user_pending_idx
   ON public.dori_plan_steps (user_id, plan_id)
   WHERE status IN ('pending', 'awaiting_confirm', 'running');
 
-CREATE TRIGGER update_dori_plan_steps_updated_at
+CREATE OR REPLACE TRIGGER update_dori_plan_steps_updated_at
   BEFORE UPDATE ON public.dori_plan_steps
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -6447,7 +6447,7 @@ CREATE INDEX IF NOT EXISTS meeting_bots_event_idx
   ON public.meeting_bots (event_id)
   WHERE event_id IS NOT NULL;
 
-CREATE TRIGGER update_meeting_bots_updated_at
+CREATE OR REPLACE TRIGGER update_meeting_bots_updated_at
   BEFORE UPDATE ON public.meeting_bots
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -6519,7 +6519,7 @@ CREATE INDEX IF NOT EXISTS bank_connections_user_active_idx
   ON public.bank_connections (user_id, status)
   WHERE status IN ('good', 'reauth_required');
 
-CREATE TRIGGER update_bank_connections_updated_at
+CREATE OR REPLACE TRIGGER update_bank_connections_updated_at
   BEFORE UPDATE ON public.bank_connections
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -6780,7 +6780,7 @@ CREATE INDEX IF NOT EXISTS trip_segments_user_idx
 CREATE INDEX IF NOT EXISTS trip_segments_trip_idx
   ON public.trip_segments (trip_id, idx);
 
-CREATE TRIGGER update_trip_segments_updated_at
+CREATE OR REPLACE TRIGGER update_trip_segments_updated_at
   BEFORE UPDATE ON public.trip_segments
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -6978,7 +6978,7 @@ CREATE INDEX IF NOT EXISTS vision_captures_user_active_idx
   ON public.vision_captures (user_id, status, updated_at DESC)
   WHERE status NOT IN ('committed', 'discarded');
 
-CREATE TRIGGER update_vision_captures_updated_at
+CREATE OR REPLACE TRIGGER update_vision_captures_updated_at
   BEFORE UPDATE ON public.vision_captures
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -7047,7 +7047,7 @@ CREATE INDEX IF NOT EXISTS schedule_proposals_user_active_idx
   ON public.schedule_proposals (user_id, range_start DESC)
   WHERE status IN ('draft', 'reviewed', 'accepted');
 
-CREATE TRIGGER update_schedule_proposals_updated_at
+CREATE OR REPLACE TRIGGER update_schedule_proposals_updated_at
   BEFORE UPDATE ON public.schedule_proposals
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -7173,11 +7173,11 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_add_workspace_owner ON public.workspaces;
 
-CREATE TRIGGER trg_add_workspace_owner
+CREATE OR REPLACE TRIGGER trg_add_workspace_owner
   AFTER INSERT ON public.workspaces
   FOR EACH ROW EXECUTE FUNCTION public.add_workspace_owner_as_member();
 
-CREATE TRIGGER update_workspaces_updated_at
+CREATE OR REPLACE TRIGGER update_workspaces_updated_at
   BEFORE UPDATE ON public.workspaces
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -7213,7 +7213,7 @@ CREATE TABLE IF NOT EXISTS public.islamic_notification_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER update_islamic_notif_settings_updated_at
+CREATE OR REPLACE TRIGGER update_islamic_notif_settings_updated_at
   BEFORE UPDATE ON public.islamic_notification_settings
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -7233,7 +7233,7 @@ CREATE TABLE IF NOT EXISTS public.user_location_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER update_user_location_settings_updated_at
+CREATE OR REPLACE TRIGGER update_user_location_settings_updated_at
   BEFORE UPDATE ON public.user_location_settings
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -7359,7 +7359,7 @@ COMMENT ON COLUMN public.ai_quotas.monthly_cap_cents IS
 
 -- No user-level INSERT/UPDATE/DELETE — operators manage via service role.
 
-CREATE TRIGGER update_ai_quotas_updated_at
+CREATE OR REPLACE TRIGGER update_ai_quotas_updated_at
   BEFORE UPDATE ON public.ai_quotas
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -7620,7 +7620,7 @@ $$;
 
 DROP TRIGGER IF EXISTS lock_auto_action_proposal_trg ON public.auto_actions_log;
 
-CREATE TRIGGER lock_auto_action_proposal_trg
+CREATE OR REPLACE TRIGGER lock_auto_action_proposal_trg
   BEFORE UPDATE ON public.auto_actions_log
   FOR EACH ROW EXECUTE FUNCTION public.lock_auto_action_proposal();
 
@@ -7724,13 +7724,13 @@ ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
 CREATE INDEX IF NOT EXISTS idx_tasks_tags ON public.tasks USING GIN(tags);
 
 -- updated_at triggers where needed
-CREATE TRIGGER trg_period_logs_updated BEFORE UPDATE ON public.period_logs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_period_logs_updated BEFORE UPDATE ON public.period_logs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER trg_pantry_updated BEFORE UPDATE ON public.pantry_items FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_pantry_updated BEFORE UPDATE ON public.pantry_items FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER trg_flights_updated BEFORE UPDATE ON public.flight_tracking FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_flights_updated BEFORE UPDATE ON public.flight_tracking FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER trg_presence_updated BEFORE UPDATE ON public.presence_status FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE OR REPLACE TRIGGER trg_presence_updated BEFORE UPDATE ON public.presence_status FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ──────────────────────────────────────────────────────────────────────
 -- 20260501224734_76130ae3-3708-41b9-924c-9df2378ce69c.sql
