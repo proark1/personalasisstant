@@ -45,17 +45,21 @@ export function useWeather() {
       const weatherData = await weatherResponse.json();
       const current = weatherData.current;
       
-      // Reverse geocode to get location name
-      const geoResponse = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?latitude=${latitude}&longitude=${longitude}&count=1`
-      );
-      
+      // Reverse geocode to get location name. Open-Meteo's geocoding API
+      // only supports forward lookups (by name), so a lat/lon query 400s.
+      // BigDataCloud's reverse-geocode-client endpoint is keyless and maps
+      // coordinates → city.
       let locationName = 'Your location';
-      if (geoResponse.ok) {
-        const geoData = await geoResponse.json();
-        if (geoData.results?.[0]) {
-          locationName = geoData.results[0].name;
+      try {
+        const geoResponse = await fetch(
+          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+        );
+        if (geoResponse.ok) {
+          const geoData = await geoResponse.json();
+          locationName = geoData.city || geoData.locality || geoData.principalSubdivision || locationName;
         }
+      } catch {
+        /* keep the fallback label — a missing city name shouldn't break weather */
       }
 
       const { condition, icon } = getWeatherCondition(current.weather_code);

@@ -37,7 +37,12 @@
 	handle_path /auth/v1/* {
 		reverse_proxy {$GOTRUE_URL}
 	}
-	handle_path /realtime/v1/* {
+	handle /realtime/v1/* {
+		# supabase-js connects to /realtime/v1/websocket, but the realtime
+		# server (Phoenix) mounts its socket at /socket/websocket. Rewrite
+		# the prefix rather than stripping it (handle_path would leave a bare
+		# /websocket, which 404s). reverse_proxy auto-upgrades the WebSocket.
+		uri replace /realtime/v1 /socket
 		reverse_proxy {$REALTIME_URL}
 	}
 	handle_path /functions/v1/* {
