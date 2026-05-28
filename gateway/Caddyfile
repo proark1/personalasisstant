@@ -41,14 +41,38 @@
 		reverse_proxy {$REALTIME_URL}
 	}
 	handle_path /functions/v1/* {
+		# Answer the CORS preflight here at the gateway instead of
+		# proxying OPTIONS to the edge runtime. If a function crashes at
+		# module load (missing env var, etc.) the dispatcher returns 503;
+		# were we proxying the preflight, that 503 would fail the browser's
+		# preflight check ("does not have HTTP ok status") and mask the
+		# real error. Answering locally keeps CORS working regardless.
+		@fnpreflight method OPTIONS
+		respond @fnpreflight 204
+
 		# Edge functions can be slow (AI completions, gmail sync, etc.).
 		# Default Caddy timeouts (~30s) would cut them off — raise to 5
 		# minutes to match the worker timeout in main/index.ts.
+		#
+		# flush_interval -1 disables response buffering so chat's
+		# text/event-stream tokens reach the browser incrementally.
+		#
+		# header_down strips the functions' own CORS headers: each function
+		# sets Access-Control-Allow-Origin via strictAppOrigin(), and the
+		# gateway's global header block already sets it. Two values on one
+		# response makes the browser reject it, so we keep only the gateway's.
 		reverse_proxy {$EDGE_FUNCTIONS_URL} {
 			transport http {
 				read_timeout 5m
 				write_timeout 5m
 			}
+			flush_interval -1
+			header_down -Access-Control-Allow-Origin
+			header_down -Access-Control-Allow-Headers
+			header_down -Access-Control-Allow-Methods
+			header_down -Access-Control-Expose-Headers
+			header_down -Access-Control-Allow-Credentials
+			header_down -Access-Control-Max-Age
 		}
 	}
 	handle {
