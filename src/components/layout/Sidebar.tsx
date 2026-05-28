@@ -6,51 +6,22 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import {
-  LayoutDashboard,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   Sparkles,
   LogOut,
-  BookUser,
   Target,
   CalendarCheck,
-  Calendar,
-  Settings,
-  CheckSquare,
   Zap,
-  FileText,
-  MessageCircle,
-  Flame,
-  StickyNote,
   BarChart3,
-  Utensils,
-  Moon,
-  Briefcase,
-  Newspaper,
-  Heart,
-  Mail,
-  Wallet,
-  Plane,
-  Home,
-  Pill,
-  GraduationCap,
-  BookHeart,
-  Users,
-  FolderKanban,
-  Activity,
-  Trophy,
-  MapPin,
-  Baby,
-  LineChart,
-  Video,
 } from 'lucide-react';
 import { TaskCategory } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useUnreadEmailCount } from '@/hooks/useUnreadEmailCount';
-
+import { NAV_AREAS, SETTINGS_ITEM, areaForPanel, type NavItem as NavConfigItem } from '@/config/navigation';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
 export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'cooking' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | 'finances' | 'travel' | 'assets' | 'personal-health' | 'relationships-plus' | 'learning' | 'journal' | 'challenges' | 'location-reminders' | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings' | null;
@@ -117,13 +88,19 @@ function NavItem({ icon: Icon, label, panel, activePanel, collapsed, onClick, ba
 
 interface NavGroupProps {
   title: string;
+  icon: React.ElementType;
   collapsed: boolean;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }
 
-function NavGroup({ title, collapsed, defaultOpen = true, children }: NavGroupProps) {
+function NavGroup({ title, icon: Icon, collapsed, defaultOpen = false, children }: NavGroupProps) {
   const [open, setOpen] = useState(defaultOpen);
+
+  // When the active panel moves into this area, make sure it's revealed.
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
 
   if (collapsed) {
     return <div className="space-y-0.5">{children}</div>;
@@ -131,14 +108,15 @@ function NavGroup({ title, collapsed, defaultOpen = true, children }: NavGroupPr
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-1.5 group cursor-pointer">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</span>
+      <CollapsibleTrigger className="flex items-center gap-2 w-full px-3 py-1.5 group cursor-pointer rounded-md hover:bg-sidebar-accent/50 transition-colors">
+        <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium text-foreground/80">{title}</span>
         <ChevronDown className={cn(
-          "w-3 h-3 text-muted-foreground transition-transform duration-200",
+          "w-3.5 h-3.5 text-muted-foreground ml-auto transition-transform duration-200",
           !open && "-rotate-90"
         )} />
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-0.5">
+      <CollapsibleContent className="space-y-0.5 pt-0.5 pl-2">
         {children}
       </CollapsibleContent>
     </Collapsible>
@@ -185,6 +163,9 @@ export function Sidebar({
     }
   };
 
+  const label = (item: NavConfigItem) => t(item.labelKey || '') || item.label;
+  const activeArea = areaForPanel(activePanel ?? '')?.id;
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside
@@ -196,7 +177,7 @@ export function Sidebar({
         {/* Header */}
         <div className="h-14 flex items-center justify-between px-3 border-b border-sidebar-border">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
             {!collapsed && <span className="font-semibold text-foreground">DarAI</span>}
@@ -217,7 +198,7 @@ export function Sidebar({
             <Button
               variant="default"
               className={cn(
-                "w-full gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90",
+                "w-full gap-2",
                 collapsed ? "justify-center px-0" : "justify-start"
               )}
               onClick={onOpenTodayFocus}
@@ -230,67 +211,51 @@ export function Sidebar({
 
         <Separator className="my-2 mx-2" />
 
-        {/* Navigation */}
-        <nav className="flex-1 px-2 space-y-2 overflow-y-auto pb-2">
-          {/* My Day */}
-          <NavGroup title="My Day" collapsed={collapsed}>
-            <NavItem icon={LayoutDashboard} label={t('nav.dashboard')} panel="dashboard" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={CheckSquare} label={t('nav.tasks')} panel="tasks" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Calendar} label={t('nav.calendar')} panel="calendar" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-          </NavGroup>
+        {/* Navigation — 7 areas, only the active one expanded */}
+        <nav className="flex-1 px-2 space-y-1 overflow-y-auto pb-2">
+          {NAV_AREAS.map((area) => {
+            // A single-item area (e.g. Home) renders as a plain nav row.
+            if (area.items.length === 1) {
+              const only = area.items[0];
+              return (
+                <NavItem
+                  key={area.id}
+                  icon={only.icon}
+                  label={label(only)}
+                  panel={only.id as ActivePanel}
+                  activePanel={activePanel}
+                  collapsed={collapsed}
+                  onClick={handlePanelClick}
+                />
+              );
+            }
+            return (
+              <NavGroup
+                key={area.id}
+                title={area.label}
+                icon={area.icon}
+                collapsed={collapsed}
+                defaultOpen={activeArea === area.id}
+              >
+                {area.items.map((item) => (
+                  <NavItem
+                    key={item.id}
+                    icon={item.icon}
+                    label={label(item)}
+                    panel={item.id as ActivePanel}
+                    activePanel={activePanel}
+                    collapsed={collapsed}
+                    onClick={handlePanelClick}
+                    badge={item.id === 'email' ? (unreadCount || undefined) : undefined}
+                  />
+                ))}
+              </NavGroup>
+            );
+          })}
 
-          {/* Assistant & Capture */}
-          <NavGroup title="Assistant & Capture" collapsed={collapsed}>
-            <NavItem icon={Sparkles} label={t('nav.assistant')} panel="assistant" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={StickyNote} label={t('nav.notes')} panel="notes" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={BookHeart} label="Journal" panel="journal" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Activity} label="Activity Feed" panel="activity" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={MapPin} label="Location Reminders" panel="location-reminders" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-          </NavGroup>
-
-          {/* Family & Home */}
-          <NavGroup title="Family & Home" collapsed={collapsed}>
-            <NavItem icon={Users} label="Family Hub" panel="family" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Utensils} label={t('nav.cooking') || 'Cooking'} panel="cooking" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Heart} label={t('nav.health') || 'Health Hub'} panel="health" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Pill} label="Personal Health" panel="personal-health" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Flame} label={t('nav.habits')} panel="habits" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Trophy} label="Challenges" panel="challenges" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Users} label="Family Members" panel="family-members" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={CalendarCheck} label="Family Calendar" panel="family-calendar" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Baby} label="Child Mode" panel="child-mode" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Heart} label="Relationships+" panel="relationships-plus" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Moon} label={t('nav.islam') || 'Islam'} panel="islam" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-          </NavGroup>
-
-          {/* Communication */}
-          <NavGroup title="Communication" collapsed={collapsed}>
-            <NavItem icon={Mail} label={t('nav.email') || 'Email'} panel="email" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} badge={unreadCount || undefined} />
-            <NavItem icon={MessageCircle} label={t('nav.social')} panel="social" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={BookUser} label={t('nav.contacts')} panel="contacts" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-          </NavGroup>
-
-          {/* Work & Money */}
-          <NavGroup title="Work & Money" collapsed={collapsed}>
-            <NavItem icon={FolderKanban} label="Projects" panel="projects" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Briefcase} label={t('nav.startups') || 'Startups'} panel="startups" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={FileText} label={t('nav.contracts')} panel="contracts" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Wallet} label="Finances" panel="finances" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Home} label="Properties & Vehicles" panel="assets" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Plane} label="Travel" panel="travel" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Newspaper} label={t('nav.news') || 'Tech News'} panel="news" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={Video} label="Meeting Bots" panel="meetings" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-          </NavGroup>
-
-          {/* Learn */}
-          <NavGroup title="Learn" collapsed={collapsed}>
-            <NavItem icon={GraduationCap} label="Learning" panel="learning" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-            <NavItem icon={LineChart} label="Life Correlations" panel="correlations" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
-          </NavGroup>
-
-          {/* Productivity Tools */}
+          {/* Productivity tools (modals, not panels) */}
           {(onOpenFocusTimer || onOpenWeeklyReview) && (
-            <NavGroup title="Productivity" collapsed={collapsed}>
+            <NavGroup title="Productivity" icon={Target} collapsed={collapsed}>
               {onOpenFocusTimer && (
                 <NavItem icon={Target} label={t('nav.focusMode')} panel={null} activePanel={activePanel} collapsed={collapsed} onClick={() => onOpenFocusTimer()} />
               )}
@@ -303,7 +268,7 @@ export function Sidebar({
 
         {/* Footer */}
         <div className="p-2 border-t border-sidebar-border space-y-0.5">
-          <NavItem icon={Settings} label={t('nav.settings')} panel="settings" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+          <NavItem icon={SETTINGS_ITEM.icon} label={t(SETTINGS_ITEM.labelKey || '') || SETTINGS_ITEM.label} panel="settings" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
 
           {isAdmin && (
             <NavItem icon={BarChart3} label={t('nav.admin')} panel="admin" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />

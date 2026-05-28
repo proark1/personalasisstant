@@ -33,8 +33,6 @@ import { StaggerContainer, StaggerItem } from '@/components/ui/page-transition';
 import { PanelSkeleton } from '@/components/ui/panel-skeleton';
 import { useSmartTaskSuggestions } from '@/hooks/useSmartTaskSuggestions';
 import { Task, TaskCategory, CalendarEvent } from '@/types/flux';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { isSameDay, subDays, startOfDay, endOfDay, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -63,7 +61,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
   const [overdueContacts, setOverdueContacts] = useState<any[]>([]);
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [view, setView] = useState<'today' | 'insights'>('today');
   const { t } = useLanguage();
   const { profile } = useAuth();
   const { todayScore } = useLifeScore();
@@ -215,70 +213,91 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
           <QuickActionsBar onNavigate={onNavigate} />
         </StaggerItem>
 
-        {/* Tier 2: Key actionable content */}
+        {/* Today / Insights segmented control — keeps the default view calm */}
         <StaggerItem className="col-span-full">
-          <div className="flex items-center gap-3">
-            <div className="shrink-0">
-              <WeatherCard />
-            </div>
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <StatPills
-                streak={stats.streak}
-                completedToday={stats.completedToday}
-                completedThisWeek={stats.completedThisWeek}
-                lifeScore={todayScore?.overallScore}
-                onNavigate={onNavigate}
-              />
-            </div>
+          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-muted">
+            {(['today', 'insights'] as const).map((v) => {
+              const alertCount = contractAlerts.length + overdueContacts.length;
+              return (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5",
+                    view === v
+                      ? "bg-card text-foreground shadow-soft"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {v === 'today' ? 'Today' : 'Insights'}
+                  {v === 'insights' && alertCount > 0 && (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] justify-center">
+                      {alertCount}
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </StaggerItem>
 
-        <StaggerItem className="col-span-full">
-          <DashboardPrayerCard onNavigate={onNavigate} />
-        </StaggerItem>
-
-        <StaggerItem className="col-span-full">
-          <TodayTimeline tasks={tasks} events={events} onNavigate={onNavigate} onCompleteTask={handleCompleteTask} />
-        </StaggerItem>
-
-        {/* Tier 3: Secondary — collapsible */}
-        <StaggerItem className="col-span-full">
-          <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <ChevronDown className={cn("w-4 h-4 transition-transform", moreOpen && "rotate-180")} />
-              <span className="font-medium">Insights & Alerts</span>
-              {(contractAlerts.length > 0 || overdueContacts.length > 0) && (
-                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] justify-center">
-                  {contractAlerts.length + overdueContacts.length}
-                </Badge>
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pt-2">
-                <div className="md:col-span-3"><MorningThreadCard /></div>
-                <div className="md:col-span-3"><LifeScoreCommentaryCard /></div>
-                <div className="md:col-span-3"><ConflictAlertsCard /></div>
-                <div className="md:col-span-3"><TravelIntelCard /></div>
-                <div className="md:col-span-3"><EmailActionPipelineCard /></div>
-                <div className="md:col-span-2"><MeetingBriefsCard /></div>
-                <div className="md:col-span-1"><EnergyCoachCard /></div>
-                <div className="md:col-span-2"><LearnedRoutinesCard /></div>
-                <div className="md:col-span-1"><EpisodicMemoriesCard /></div>
-                <div className="md:col-span-3"><MentalLoadCard /></div>
-                <div className="md:col-span-2"><DailyBriefingCard /></div>
-                <div className="md:col-span-1">
-                  <SmartInsightCard tasks={tasks} emails={emails} contracts={contractAlerts} contacts={overdueContacts} events={events} />
+        {/* Today: the essentials only */}
+        {view === 'today' && (
+          <>
+            <StaggerItem className="col-span-full">
+              <div className="flex items-center gap-3">
+                <div className="shrink-0">
+                  <WeatherCard />
                 </div>
-                {contractAlerts.length > 0 && (
-                  <div className="md:col-span-2"><ContractAlertsCard contracts={contractAlerts} onNavigate={onNavigate} /></div>
-                )}
-                {overdueContacts.length > 0 && (
-                  <div className="md:col-span-1"><ContactRemindersCard contacts={overdueContacts} onNavigate={onNavigate} /></div>
-                )}
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <StatPills
+                    streak={stats.streak}
+                    completedToday={stats.completedToday}
+                    completedThisWeek={stats.completedThisWeek}
+                    lifeScore={todayScore?.overallScore}
+                    onNavigate={onNavigate}
+                  />
+                </div>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </StaggerItem>
+            </StaggerItem>
+
+            <StaggerItem className="col-span-full">
+              <DashboardPrayerCard onNavigate={onNavigate} />
+            </StaggerItem>
+
+            <StaggerItem className="col-span-full">
+              <TodayTimeline tasks={tasks} events={events} onNavigate={onNavigate} onCompleteTask={handleCompleteTask} />
+            </StaggerItem>
+          </>
+        )}
+
+        {/* Insights: the deeper, opt-in detail */}
+        {view === 'insights' && (
+          <StaggerItem className="col-span-full">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              <div className="md:col-span-3"><MorningThreadCard /></div>
+              <div className="md:col-span-3"><LifeScoreCommentaryCard /></div>
+              <div className="md:col-span-3"><ConflictAlertsCard /></div>
+              <div className="md:col-span-3"><TravelIntelCard /></div>
+              <div className="md:col-span-3"><EmailActionPipelineCard /></div>
+              <div className="md:col-span-2"><MeetingBriefsCard /></div>
+              <div className="md:col-span-1"><EnergyCoachCard /></div>
+              <div className="md:col-span-2"><LearnedRoutinesCard /></div>
+              <div className="md:col-span-1"><EpisodicMemoriesCard /></div>
+              <div className="md:col-span-3"><MentalLoadCard /></div>
+              <div className="md:col-span-2"><DailyBriefingCard /></div>
+              <div className="md:col-span-1">
+                <SmartInsightCard tasks={tasks} emails={emails} contracts={contractAlerts} contacts={overdueContacts} events={events} />
+              </div>
+              {contractAlerts.length > 0 && (
+                <div className="md:col-span-2"><ContractAlertsCard contracts={contractAlerts} onNavigate={onNavigate} /></div>
+              )}
+              {overdueContacts.length > 0 && (
+                <div className="md:col-span-1"><ContactRemindersCard contacts={overdueContacts} onNavigate={onNavigate} /></div>
+              )}
+            </div>
+          </StaggerItem>
+        )}
       </StaggerContainer>
     </div>
   );

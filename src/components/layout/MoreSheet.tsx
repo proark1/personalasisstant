@@ -5,22 +5,10 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useHaptics } from '@/hooks/useHaptics';
-import {
-  BookUser, FileText, StickyNote, Flame, Heart, Utensils, Moon, Briefcase, Newspaper, MessageCircle, Settings,
-  MoreHorizontal, Mail, Search, Clock,
-  Users, FolderKanban, Activity, BookHeart, GraduationCap,
-  Wallet, Plane, Home, Pill, CalendarCheck, Sparkles, Trophy, MapPin,
-  Baby, LineChart, Video,
-} from 'lucide-react';
+import { MoreHorizontal, Search, Clock } from 'lucide-react';
+import { NAV_AREAS, SETTINGS_ITEM, type NavItem } from '@/config/navigation';
 
-export type MoreSheetPanel =
-  | 'contacts' | 'contracts' | 'notes' | 'habits'
-  | 'health' | 'family' | 'cooking' | 'islam' | 'properties' | 'assets'
-  | 'startups' | 'news' | 'social' | 'settings' | 'email' | 'tasks'
-  | 'projects' | 'activity' | 'journal' | 'learning'
-  | 'finances' | 'travel' | 'personal-health' | 'relationships-plus'
-  | 'assistant' | 'challenges' | 'location-reminders'
-  | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings';
+export type MoreSheetPanel = string;
 
 interface MoreSheetProps {
   open: boolean;
@@ -29,48 +17,14 @@ interface MoreSheetProps {
   activePanel?: string;
 }
 
-const allItems = [
-  // Assistant & Capture
-  { id: 'assistant' as const, icon: Sparkles, labelKey: 'nav.assistant', section: 'Assistant & Capture' },
-  { id: 'notes' as const, icon: StickyNote, labelKey: 'nav.notes', section: 'Assistant & Capture' },
-  { id: 'journal' as const, icon: BookHeart, labelKey: 'nav.journal', section: 'Assistant & Capture' },
-  { id: 'activity' as const, icon: Activity, labelKey: 'nav.activity', section: 'Assistant & Capture' },
-  { id: 'location-reminders' as const, icon: MapPin, labelKey: 'Location Reminders', section: 'Assistant & Capture' },
+interface SheetItem extends NavItem {
+  section: string;
+}
 
-  // Family & Home
-  { id: 'family' as const, icon: Users, labelKey: 'nav.familyHub', section: 'Family & Home' },
-  { id: 'cooking' as const, icon: Utensils, labelKey: 'nav.cooking', section: 'Family & Home' },
-  { id: 'health' as const, icon: Heart, labelKey: 'nav.health', section: 'Family & Home' },
-  { id: 'personal-health' as const, icon: Pill, labelKey: 'nav.personalHealth', section: 'Family & Home' },
-  { id: 'habits' as const, icon: Flame, labelKey: 'nav.habits', section: 'Family & Home' },
-  { id: 'relationships-plus' as const, icon: Heart, labelKey: 'nav.relationships', section: 'Family & Home' },
-  { id: 'islam' as const, icon: Moon, labelKey: 'nav.islam', section: 'Family & Home' },
-  { id: 'challenges' as const, icon: Trophy, labelKey: 'Challenges', section: 'Family & Home' },
-  { id: 'family-members' as const, icon: Users, labelKey: 'Family Members', section: 'Family & Home' },
-  { id: 'family-calendar' as const, icon: CalendarCheck, labelKey: 'Family Calendar', section: 'Family & Home' },
-  { id: 'child-mode' as const, icon: Baby, labelKey: 'Child Mode', section: 'Family & Home' },
-
-  // Communication
-  { id: 'email' as const, icon: Mail, labelKey: 'nav.email', section: 'Communication' },
-  { id: 'social' as const, icon: MessageCircle, labelKey: 'nav.social', section: 'Communication' },
-  { id: 'contacts' as const, icon: BookUser, labelKey: 'nav.contacts', section: 'Communication' },
-
-  // Work & Money
-  { id: 'projects' as const, icon: FolderKanban, labelKey: 'nav.projects', section: 'Work & Money' },
-  { id: 'startups' as const, icon: Briefcase, labelKey: 'nav.startups', section: 'Work & Money' },
-  { id: 'contracts' as const, icon: FileText, labelKey: 'nav.contracts', section: 'Work & Money' },
-  { id: 'finances' as const, icon: Wallet, labelKey: 'nav.finances', section: 'Work & Money' },
-  { id: 'assets' as const, icon: Home, labelKey: 'nav.assets', section: 'Work & Money' },
-  { id: 'travel' as const, icon: Plane, labelKey: 'nav.travel', section: 'Work & Money' },
-  { id: 'news' as const, icon: Newspaper, labelKey: 'nav.news', section: 'Work & Money' },
-  { id: 'meetings' as const, icon: Video, labelKey: 'Meeting Bots', section: 'Work & Money' },
-
-  // Learn
-  { id: 'learning' as const, icon: GraduationCap, labelKey: 'nav.learning', section: 'Learn' },
-  { id: 'correlations' as const, icon: LineChart, labelKey: 'Life Correlations', section: 'Learn' },
-
-  // Settings
-  { id: 'settings' as const, icon: Settings, labelKey: 'nav.settings', section: 'Settings' },
+// Flatten the shared nav config into the flat, sectioned list the sheet wants.
+const allItems: SheetItem[] = [
+  ...NAV_AREAS.flatMap((area) => area.items.map((item) => ({ ...item, section: area.label }))),
+  { ...SETTINGS_ITEM, section: 'Settings' },
 ];
 
 const RECENTS_KEY = 'moresheet-recents';
@@ -92,7 +46,7 @@ const staggerContainer = {
   show: { opacity: 1, transition: { staggerChildren: 0.03 } },
 };
 const staggerItem = {
-  hidden: { opacity: 0, scale: 0.9 },
+  hidden: { opacity: 0, scale: 0.96 },
   show: { opacity: 1, scale: 1, transition: { duration: 0.2, ease: 'easeOut' } },
 };
 
@@ -106,6 +60,8 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
     if (open) { setRecents(getRecents()); setSearch(''); }
   }, [open]);
 
+  const labelOf = (item: SheetItem) => t(item.labelKey || '') || item.label;
+
   const handleSelect = (panel: MoreSheetPanel) => {
     vibrate('light');
     addRecent(panel);
@@ -116,24 +72,21 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
   const filtered = useMemo(() => {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
-    return allItems.filter(i => {
-      const label = t(i.labelKey) || i.labelKey.split('.').pop() || '';
-      return label.toLowerCase().includes(q) || i.id.includes(q);
-    });
+    return allItems.filter(i => labelOf(i).toLowerCase().includes(q) || i.id.includes(q));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, t]);
 
   const recentItems = useMemo(() =>
-    recents.map(id => allItems.find(i => i.id === id)).filter(Boolean) as typeof allItems,
+    recents.map(id => allItems.find(i => i.id === id)).filter(Boolean) as SheetItem[],
     [recents]
   );
 
   const sections = useMemo(() => {
     const items = filtered || allItems;
-    const groups: Record<string, typeof allItems> = {};
+    const groups: Record<string, SheetItem[]> = {};
     items.forEach(item => {
-      const s = item.section;
-      if (!groups[s]) groups[s] = [];
-      groups[s].push(item);
+      if (!groups[item.section]) groups[item.section] = [];
+      groups[item.section].push(item);
     });
     return Object.entries(groups);
   }, [filtered]);
@@ -149,7 +102,7 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search panels..."
+              placeholder="Search..."
               className="pl-8 h-9 text-sm bg-muted border-0"
             />
           </div>
@@ -172,7 +125,7 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
                     )}
                   >
                     <item.icon className="w-3.5 h-3.5" />
-                    {t(item.labelKey) || item.labelKey.split('.').pop()}
+                    {labelOf(item)}
                   </button>
                 ))}
               </div>
@@ -180,10 +133,10 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
           )}
 
           {/* Sections */}
-          {sections.map(([label, items]) => (
-            <div key={label}>
+          {sections.map(([sectionLabel, items]) => (
+            <div key={sectionLabel}>
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                {label}
+                {sectionLabel}
               </span>
               <motion.div
                 className="grid grid-cols-3 gap-2 mt-2"
@@ -200,16 +153,15 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
                       onClick={() => handleSelect(item.id)}
                       className={cn(
                         "flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all",
-                        "active:scale-95 touch-manipulation",
-                        "border border-transparent",
+                        "active:scale-95 touch-manipulation border",
                         isActive
                           ? "bg-primary/10 text-primary border-primary/20"
-                          : "text-muted-foreground hover:bg-muted glass-card"
+                          : "text-muted-foreground border-border bg-card hover:bg-muted"
                       )}
                     >
                       <item.icon className="w-5 h-5" />
                       <span className="text-xs font-medium truncate w-full text-center">
-                        {t(item.labelKey) || item.labelKey.split('.').pop()}
+                        {labelOf(item)}
                       </span>
                     </motion.button>
                   );
@@ -219,7 +171,7 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
           ))}
 
           {filtered && filtered.length === 0 && (
-            <p className="text-center text-sm text-muted-foreground py-4">No panels found</p>
+            <p className="text-center text-sm text-muted-foreground py-4">Nothing found</p>
           )}
         </div>
       </DrawerContent>

@@ -37,16 +37,10 @@ import { ContextualHeader } from './ContextualHeader';
 import { MoreSheet, MoreSheetPanel } from './MoreSheet';
 
 import { useNotifications } from '@/hooks/useNotifications';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { useHaptics } from '@/hooks/useHaptics';
 import { Task, CalendarEvent, ChatMessage, UserSettings, Project } from '@/types/flux';
 import { SidebarFilter } from './Sidebar';
-import {
-  LayoutDashboard,
-  Calendar,
-  Mail,
-  Heart,
-} from 'lucide-react';
+import { MOBILE_PRIMARY_TABS, panelLabel } from '@/config/navigation';
 import doriFish from '@/assets/dori-fish.png';
 
 interface MobileLayoutProps {
@@ -91,39 +85,11 @@ type Tab = 'dashboard' | 'calendar' | 'chat' | 'tasks' | 'more'
   | 'challenges' | 'location-reminders'
   | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings';
 
-const tabTitles: Record<string, string> = {
-  dashboard: 'Dashboard',
-  calendar: 'Calendar',
-  chat: 'Dori AI',
-  tasks: 'Tasks',
-  social: 'Social',
-  family: 'Cooking',
-  health: 'Health',
-  contacts: 'Contacts',
-  contracts: 'Contracts',
-  notes: 'Notes',
-  habits: 'Habits',
-  islam: 'Islam',
-  properties: 'Properties',
-  startups: 'Startups',
-  news: 'Tech News',
-  settings: 'Settings',
-  email: 'Email',
-};
-
 const panelTransition = {
   initial: { opacity: 0, y: 6 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -6 },
   transition: { duration: 0.2, ease: 'easeOut' },
-};
-
-const tabLabels: Record<string, string> = {
-  dashboard: 'Home',
-  calendar: 'Calendar',
-  dori: 'Dori',
-  email: 'Email',
-  health: 'Health',
 };
 
 export function MobileLayout({
@@ -163,7 +129,6 @@ export function MobileLayout({
   const [moreOpen, setMoreOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { t } = useLanguage();
   const { vibrate } = useHaptics();
   const {
     notifications,
@@ -198,18 +163,12 @@ export function MobileLayout({
   const displayTasks = filter === 'shared' ? sharedTasks : tasks;
   const displayEvents = filter === 'shared' ? sharedEvents : events;
 
-  const primaryTabs = [
-    { id: 'dashboard' as const, icon: LayoutDashboard },
-    { id: 'calendar' as const, icon: Calendar },
-    { id: 'dori' as const, icon: null as typeof LayoutDashboard | null, isCenter: true },
-    { id: 'email' as const, icon: Mail },
-    { id: 'health' as const, icon: Heart },
-  ];
+  const primaryTabs = MOBILE_PRIMARY_TABS;
 
   // Always show the header so the burger menu is reachable from every tab.
   // Chat has its own internal header, so we still suppress it there.
   const showHeader = activeTab !== 'chat';
-  const headerTitle = tabTitles[activeTab] || t(`nav.${activeTab}`) || 'DarAI';
+  const headerTitle = activeTab === 'chat' ? 'Dori' : panelLabel(activeTab);
 
   const renderPanel = () => {
     switch (activeTab) {
@@ -361,7 +320,7 @@ export function MobileLayout({
         <div className="h-16 flex items-center justify-around px-1">
           {primaryTabs.map((tab) => {
             const isActive = !tab.isCenter && activeTab === tab.id;
-            const label = tabLabels[tab.id] || '';
+            const label = tab.label;
 
             return (
               <button
