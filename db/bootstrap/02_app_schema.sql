@@ -7278,11 +7278,7 @@ ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS hadith
 ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS prayer_reminders_enabled BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS prayer_reminder_minutes_before INTEGER NOT NULL DEFAULT 5;
 ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS prayer_reminders_for_all_five BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS prayer_reminders_selected TEXT[] NOT NULL DEFAULT ARRAY['Fajr';
-ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS 'Dhuhr';
-ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS 'Asr';
-ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS 'Maghrib';
-ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS 'Isha'];
+ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS prayer_reminders_selected TEXT[] NOT NULL DEFAULT ARRAY['Fajr','Dhuhr','Asr','Maghrib','Isha'];
 ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS notification_language TEXT NOT NULL DEFAULT 'en';
 ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'UTC';
 ALTER TABLE public.islamic_notification_settings ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
@@ -7958,19 +7954,19 @@ ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS -- on Q3 plan"). NULL
 ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS since the task title covers
   -- it; either label or task_id must be present (enforced in the tool
   -- handler so we don't reject historic backfills).
-  label text;
-ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'personal'
-    CHECK (category IN ('business', 'personal', 'family', 'shared', 'focus'));
-ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS started_at timestamptz NOT NULL DEFAULT now();
-ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS ended_at timestamptz;
-ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS duration_minutes integer GENERATED ALWAYS AS (
+  label text,
+  category text NOT NULL DEFAULT 'personal'
+    CHECK (category IN ('business', 'personal', 'family', 'shared', 'focus')),
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz,
+  duration_minutes integer GENERATED ALWAYS AS (
     CASE
       WHEN ended_at IS NULL THEN NULL
       ELSE GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (ended_at - started_at)) / 60)::integer)
     END
-  ) STORED;
-ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS workspace_id uuid;
-ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+  ) STORED,
+  workspace_id uuid,
+  created_at timestamptz NOT NULL DEFAULT now();
 
 -- At most one open (ended_at IS NULL) session per user. Partial unique
 -- index is the postgres-idiomatic way to express "only one row matching

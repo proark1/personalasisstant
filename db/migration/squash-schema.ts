@@ -285,11 +285,26 @@ function extractColumnDefs(stmt: string): string[] {
   const body = stmt.slice(start + 1, end);
   const parts: string[] = [];
   let buf = '';
-  depth = 0;
-  for (const ch of body) {
-    if (ch === '(') depth++;
-    else if (ch === ')') depth--;
-    if (ch === ',' && depth === 0) {
+  let pdepth = 0;     // ( )
+  let bdepth = 0;     // [ ]  (ARRAY['a','b'])
+  let inString = false;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    if (inString) {
+      buf += ch;
+      if (ch === "'") {
+        // '' is an escaped quote, not a string end.
+        if (body[i + 1] === "'") { buf += body[++i]; }
+        else inString = false;
+      }
+      continue;
+    }
+    if (ch === "'") { inString = true; buf += ch; continue; }
+    if (ch === '(') pdepth++;
+    else if (ch === ')') pdepth--;
+    else if (ch === '[') bdepth++;
+    else if (ch === ']') bdepth--;
+    if (ch === ',' && pdepth === 0 && bdepth === 0) {
       parts.push(buf.trim());
       buf = '';
     } else {
