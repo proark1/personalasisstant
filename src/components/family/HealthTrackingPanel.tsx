@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Pill, Calendar, Syringe, Plus, Trash2, AlertCircle } from 'lucide-react';
-import { format, isPast, isFuture } from 'date-fns';
+import { format, isPast } from 'date-fns';
 import { AddMedicationDialog } from './AddMedicationDialog';
 import { AddAppointmentDialog } from './AddAppointmentDialog';
 import { AddVaccinationDialog } from './AddVaccinationDialog';

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { UserSettings, defaultSettings, ThemeMode, ColorScheme } from '@/types/flux';
+import { UserSettings, defaultSettings, ColorScheme } from '@/types/flux';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from './useAuth';

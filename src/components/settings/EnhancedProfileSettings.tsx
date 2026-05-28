@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToast } from '@/hooks/use-toast';
-import { X, Plus, Briefcase, MapPin, Target, Sparkles, User, Building, Brain, Calendar } from 'lucide-react';
+import { X, Plus, MapPin, Target, Sparkles, User, Building, Brain, Calendar } from 'lucide-react';
 
 interface EnhancedProfileSettingsProps {
   onClose?: () => void;

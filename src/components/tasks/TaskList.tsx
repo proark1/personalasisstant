@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Task, TaskCategory, TaskPriority, Project, TimeFilter } from '@/types/flux';
+import { Task, TaskPriority, Project, TimeFilter } from '@/types/flux';
 import type { Contact } from '@/hooks/useContacts';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
 import { getRecurrenceDescription } from '@/lib/recurrence';
@@ -57,11 +57,10 @@ import {
   Filter,
   Users,
   Sparkles,
-  Clock,
   Target,
   Eraser,
 } from 'lucide-react';
-import { format, isPast, isToday, isTomorrow, isThisWeek, isThisMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, formatDistanceToNow } from 'date-fns';
+import { format, isPast, isToday, isTomorrow, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
 
 import { SidebarFilter } from '@/components/layout/Sidebar';

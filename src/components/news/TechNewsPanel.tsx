@@ -9,8 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   Newspaper, Bookmark, ExternalLink, RefreshCw, Check, Search,
-  Trash2, BookmarkCheck, Settings2, X, Lightbulb, TrendingUp,
-  Sparkles, Filter,
+  Trash2, BookmarkCheck, Settings2, X,
+  Sparkles,
 } from 'lucide-react';
 import { useTechNews } from '@/hooks/useTechNews';
 import { cn } from '@/lib/utils';

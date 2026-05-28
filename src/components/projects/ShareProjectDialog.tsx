@@ -8,7 +8,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Users, 
   UserPlus, 
-  X, 
   Loader2,
   Crown,
   Trash2

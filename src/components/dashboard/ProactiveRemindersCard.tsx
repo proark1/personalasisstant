@@ -13,8 +13,7 @@ import {
   FileText, 
   Calendar, 
   Users, 
-  Zap,
-  ChevronRight
+  Zap
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';

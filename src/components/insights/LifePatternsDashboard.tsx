@@ -10,7 +10,6 @@ import { useDailyCheckins } from '@/hooks/useDailyCheckins';
 import { 
   Brain, 
   TrendingUp, 
-  TrendingDown, 
   Sparkles, 
   RefreshCw, 
   Moon, 
@@ -19,12 +18,10 @@ import {
   Heart,
   Dumbbell,
   X,
-  AlertCircle,
-  CheckCircle,
   Info
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 const CATEGORY_ICONS: Record<string, any> = {
   sleep: Moon,

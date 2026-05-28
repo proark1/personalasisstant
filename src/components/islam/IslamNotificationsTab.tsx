@@ -7,17 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+
+
 import { motion } from 'framer-motion';
 import { staggerItem, staggerContainer } from '@/components/ui/panel-shell';
-import { Bell, Moon, Calendar, BookOpen, Zap, Loader2 } from 'lucide-react';
+import { Moon, Calendar, BookOpen, Zap, Loader2 } from 'lucide-react';
 import { useIslamicNotifications } from '@/hooks/useIslamicNotifications';
 
 const PRAYER_NAMES = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];

@@ -7,7 +7,6 @@ import { useAIAssistant } from '@/hooks/useAIAssistant';
 import { 
   Sparkles, 
   CalendarClock, 
-  ListTodo, 
   Loader2, 
   Clock, 
   CheckCircle2,

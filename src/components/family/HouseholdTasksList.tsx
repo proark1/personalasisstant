@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Clock, AlertTriangle, User } from 'lucide-react';
-import { useHouseholdTasks, HouseholdTask } from '@/hooks/useHouseholdTasks';
+import { useHouseholdTasks } from '@/hooks/useHouseholdTasks';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { AddHouseholdTaskDialog } from './AddHouseholdTaskDialog';
 import { format, isPast, isToday } from 'date-fns';

@@ -9,7 +9,7 @@ import { Slider } from '@/components/ui/slider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { UserSettings, ThemeMode, ColorScheme, TaskCategory, TaskPriority, AssistantPersonality, personalityConfigs } from '@/types/flux';
+import { UserSettings, ColorScheme, TaskCategory, TaskPriority, personalityConfigs } from '@/types/flux';
 import { 
   X, 
   User, 

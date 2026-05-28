@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Task, CalendarEvent } from '@/types/flux';
 
 // Single source of truth for the searchable surface — used by the hook,
 // the filter pills, and any other consumer that wants to enumerate types.

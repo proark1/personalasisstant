@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GlassCard as Card } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Moon, BookOpen,
-  RefreshCw, ChevronLeft, ChevronRight, Search, Loader2,
-  Volume2, VolumeX, Pause, Play, ZoomIn, ZoomOut, Heart, Clock, GraduationCap,
-  Bookmark, BookmarkCheck, X, FileText, LayoutGrid, TrendingUp, Type, CheckCircle2,
+  Moon, BookOpen, ChevronLeft, ChevronRight, Search,
+  Volume2, Pause, Play, ZoomIn, ZoomOut, Heart, Clock, GraduationCap,
+  Bookmark, BookmarkCheck, X, FileText, LayoutGrid, TrendingUp, CheckCircle2,
   Home, MoreHorizontal, Bell, MapPin
 } from 'lucide-react';
 import DOMPurify from 'dompurify';

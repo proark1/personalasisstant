@@ -10,7 +10,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
-import { List, Grid3X3, X, LayoutGrid, Activity } from 'lucide-react';
+import { List, Grid3X3, X, Activity } from 'lucide-react';
 import { TaskViewSwitcher, TaskView } from '../tasks/TaskViewSwitcher';
 import { PanelFallback } from '@/components/lazy/LazyLoader';
 import { ContextualHeader } from './ContextualHeader';

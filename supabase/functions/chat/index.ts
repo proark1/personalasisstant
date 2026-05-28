@@ -15,7 +15,7 @@ import {
   type Channel,
   type RecentEntity,
 } from "../_shared/dori-conversation-state.ts";
-import { decideRoute, type Specialist } from "../_shared/dori-router.ts";
+import { decideRoute } from "../_shared/dori-router.ts";
 import { NATIVE_TOOLS, toolCallsToLegacyXml } from "../_shared/dori-tools.ts";
 import { strictAppOrigin } from '../_shared/cors.ts';
 

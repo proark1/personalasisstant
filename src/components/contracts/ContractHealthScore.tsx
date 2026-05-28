@@ -1,6 +1,4 @@
 import { Contract } from '@/hooks/useContracts';
-import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { 
   TrendingUp, 

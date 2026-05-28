@@ -20,7 +20,6 @@
 // Returns the new proposal row with parsed blocks.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { adminClient, resolveUserId } from '../_shared/auth.ts';
 import { assertWithinQuota } from '../_shared/ai-quota.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';

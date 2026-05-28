@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChevronLeft, ChevronRight, Plus, BookOpen, ShoppingCart, Utensils, Trash2, GripVertical, Sunrise, Sun, Moon, Apple } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, isToday as isDateToday } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday as isDateToday } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
 import { AddRecipeDialog } from './AddRecipeDialog';
 import { AddMealPlanDialog } from './AddMealPlanDialog';

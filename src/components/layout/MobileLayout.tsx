@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DoriPanel } from '../assistant/DoriPanel';
-import { ChatPanel } from '../chat/ChatPanel';
 import { TeamChatPanel } from '../chat/TeamChatPanel';
 import { CalendarHubPanel } from '../calendar/CalendarHubPanel';
 import { SettingsPanelContent } from '../settings/SettingsPanelContent';

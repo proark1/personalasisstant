@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CalendarEvent, Task, TaskPriority } from '@/types/flux';
+import { CalendarEvent, Task } from '@/types/flux';
 import { parseICS, validateICSFile } from '@/lib/icsParser';
 import { useToast } from '@/hooks/use-toast';
 import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,6 @@ import { staggerItem, staggerContainer } from '@/components/ui/panel-shell';
 import {
   Compass, MapPin, RefreshCw, Calendar, BookOpen
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format, differenceInDays } from 'date-fns';
 import { HadithTab } from './HadithTab';

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AudioRecorder, encodeAudioForAPI, AudioQueue, parseNaturalDate, fuzzyMatchTask } from '@/utils/RealtimeAudio';
+import { AudioRecorder, AudioQueue, parseNaturalDate, fuzzyMatchTask } from '@/utils/RealtimeAudio';
 import {
   fuzzyMatchByName,
   fuzzyMatchContact,

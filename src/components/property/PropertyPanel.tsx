@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Home, Building, MapPin, Plus, FileText, Wrench, CheckSquare, Pencil, Trash2, TrendingUp, TrendingDown, Check, X, Ruler } from 'lucide-react';
-import { useProperties, Property, PropertyMaintenance } from '@/hooks/useProperties';
+import { useProperties, PropertyMaintenance } from '@/hooks/useProperties';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { PanelShell } from '@/components/ui/panel-shell';

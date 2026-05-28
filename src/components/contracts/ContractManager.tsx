@@ -9,7 +9,6 @@ import { SnoozeReminderDialog } from './SnoozeReminderDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { SectionHeader } from '@/components/ui/section-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { motion } from 'framer-motion';
 import { staggerContainer } from '@/components/ui/panel-shell';
@@ -32,7 +31,6 @@ import {
   Plus, 
   Search, 
   DollarSign, 
-  Calendar, 
   AlertTriangle, 
   LayoutGrid, 
   List, 
@@ -41,12 +39,10 @@ import {
   FileText,
   CalendarPlus,
   Clock,
-  Sparkles,
   Loader2
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSmartContractReminders } from '@/hooks/useSmartContractReminders';
 import { useContractAI } from '@/hooks/useContractAI';

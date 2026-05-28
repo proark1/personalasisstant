@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,8 +20,6 @@ import {
   Search,
   MoreVertical,
   Camera,
-  Mic,
-  Smile,
   Check,
   CheckCheck
 } from 'lucide-react';
@@ -35,12 +33,11 @@ import { OnlineIndicator } from '@/components/calling/OnlineIndicator';
 import { VoiceRecordButton } from './VoiceRecordButton';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { MessageReactions } from './MessageReactions';
-import { ReadReceipt } from './ReadReceipt';
 import { CreateGroupDialog } from './CreateGroupDialog';
 import { EmojiPicker } from './EmojiPicker';
 import { TypingIndicator } from './TypingIndicator';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
-import { format, isToday, isYesterday, isSameDay } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { showMessageNotification } from '@/lib/notificationSounds';

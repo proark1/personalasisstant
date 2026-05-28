@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Contact } from '@/hooks/useContacts';
-import { Task, CalendarEvent } from '@/types/flux';
 
 // Keywords for detecting intent and filtering relevant data
 const INTENT_KEYWORDS = {

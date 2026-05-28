@@ -12,7 +12,6 @@ import {
   DragOverEvent,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -36,7 +35,6 @@ import {
   Minus,
   ArrowDownCircle,
   LayoutGrid,
-  List,
   Trash2,
 } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';

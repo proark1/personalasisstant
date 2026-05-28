@@ -1,17 +1,15 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useAppleHealth, DailyHealthSummary, HealthDebugInfo } from '@/hooks/useAppleHealth';
+import { useAppleHealth, DailyHealthSummary } from '@/hooks/useAppleHealth';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useHealthTracking } from '@/hooks/useHealthTracking';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { AddHealthMetricDialog } from './AddHealthMetricDialog';
 import { HealthTrackingPanel } from '@/components/family/HealthTrackingPanel';
 import { AgeBasedCheckupsPanel } from './AgeBasedCheckupsPanel';
@@ -31,7 +29,6 @@ import {
   TrendingUp,
   Calendar,
   Pill,
-  Syringe,
   Clock,
   AlertCircle,
   Loader2,
@@ -50,7 +47,7 @@ import {
   Info,
   ExternalLink,
 } from 'lucide-react';
-import { format, parseISO, subDays, addDays, isSameDay, startOfDay } from 'date-fns';
+import { format, parseISO, subDays, addDays, isSameDay } from 'date-fns';
 
 export function HealthHubPanel() {
   const [activeTab, setActiveTab] = useState('coach');

@@ -4,14 +4,13 @@ import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
 import { XPDisplay } from '@/components/gamification/XPDisplay';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Task } from '@/types/flux';
-import { SmartSuggestion, TaskSuggestion } from '@/hooks/useSmartTaskSuggestions';
+import { SmartSuggestion } from '@/hooks/useSmartTaskSuggestions';
 import { cn } from '@/lib/utils';
 import {
   Sparkles, Play, RefreshCw, Clock, Zap, Lightbulb,
-  ChevronDown, Target, Settings,
+  ChevronDown, Settings,
 } from 'lucide-react';
 
 interface DashboardHeroProps {

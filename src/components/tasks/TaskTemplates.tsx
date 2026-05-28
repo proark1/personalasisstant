@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent } from '@/components/ui/card';
 import { TaskTemplate, useTaskTemplates } from '@/hooks/useTaskTemplates';
-import { Task, TaskCategory, TaskPriority } from '@/types/flux';
+import { TaskCategory, TaskPriority } from '@/types/flux';
 import { toast } from 'sonner';
 import { 
   LayoutTemplate, 

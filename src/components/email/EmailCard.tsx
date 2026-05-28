@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { reconstructSender } from '@/lib/emailSender';
-import { Shield, ShieldAlert, ChevronRight, Archive, Star, Check, Clock } from 'lucide-react';
+import { Shield, ShieldAlert, ChevronRight, Archive, Star, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { GlassCard } from '@/components/ui/glass-card';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';

@@ -16,14 +16,13 @@ import {
   Plus,
   Calendar,
   Clock,
-  Lightbulb,
   RefreshCw,
   Loader2,
   CheckCircle2,
   Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, isToday, isTomorrow } from 'date-fns';
+import { format, isToday } from 'date-fns';
 
 interface WidgetGridProps {
   widgets: Widget[];

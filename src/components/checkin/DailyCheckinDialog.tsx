@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { useDailyCheckins } from '@/hooks/useDailyCheckins';
 import { useGamification, XP_VALUES } from '@/hooks/useGamification';
 import { 
-  Sun, Moon, Battery, BatteryLow, BatteryMedium, BatteryFull, Check,
+  Sun, Moon, BatteryLow, BatteryMedium, BatteryFull, Check,
   Activity, Brain, Users, Coffee, Wine, Droplets, Smartphone, Pill
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';

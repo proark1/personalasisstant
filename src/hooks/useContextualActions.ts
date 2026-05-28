@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { format, isAfter, isBefore, addDays } from 'date-fns';
+import { format, addDays } from 'date-fns';
 
 export interface QuickAction {
   id: string;

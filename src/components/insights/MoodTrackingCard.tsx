@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { useMoodTracking } from '@/hooks/useMoodTracking';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Smile, Frown, Meh, Zap, Battery, TrendingUp, TrendingDown, Minus, X } from 'lucide-react';
+import { Smile, Frown, Meh, Zap, Battery, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

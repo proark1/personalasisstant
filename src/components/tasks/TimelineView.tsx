@@ -13,9 +13,8 @@ import {
   CalendarClock,
   HelpCircle,
   Sparkles,
-  Calendar as CalendarIcon,
 } from 'lucide-react';
-import { format, isPast, isToday, isTomorrow, isThisWeek, startOfWeek, endOfWeek, isWithinInterval, addDays } from 'date-fns';
+import { format, isPast, isToday, isTomorrow, endOfWeek } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface TimelineViewProps {

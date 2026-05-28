@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { usePublicHolidays, PublicHoliday } from '@/hooks/usePublicHolidays';
+import { usePublicHolidays } from '@/hooks/usePublicHolidays';
 import { useIslamicHolidays, IslamicHoliday } from '@/hooks/useIslamicHolidays';
 import { 
   ChevronLeft, 

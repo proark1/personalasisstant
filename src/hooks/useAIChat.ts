@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Task, CalendarEvent, AssistantPersonality } from '@/types/flux';
-import { UserProfile, SmartContext, buildContextSummary } from './useSmartContext';
+import { UserProfile } from './useSmartContext';
 import { Contact } from './useContacts';
 import { supabase } from '@/integrations/supabase/client';
 

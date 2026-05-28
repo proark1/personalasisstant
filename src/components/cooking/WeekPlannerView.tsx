@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { useMealPlanning, MealPlan } from '@/hooks/useMealPlanning';
+import { useMealPlanning } from '@/hooks/useMealPlanning';
 import { useShoppingLists } from '@/hooks/useShoppingLists';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GlassCard } from '@/components/ui/glass-card';
 import { ChevronLeft, ChevronRight, Plus, ShoppingCart, Sunrise, Sun, Moon, Apple, Trash2 } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday as isDateToday, addDays, subDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday as isDateToday } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
 import { AddMealPlanDialog } from '@/components/family/AddMealPlanDialog';
 import { toast } from 'sonner';

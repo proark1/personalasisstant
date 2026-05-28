@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, ReactNode } from 'react';
-import { X, Sun, Calendar, CheckCircle2, Flame, Clock, Users, FileText, Zap, FolderKanban, Battery, BatteryLow, BatteryFull, AlertTriangle, Moon, CloudSun, Newspaper, MapPin, Loader2, Volume2 } from 'lucide-react';
+import { X, Sun, Calendar, CheckCircle2, Flame, Users, FileText, Zap, FolderKanban, Battery, BatteryLow, BatteryFull, Moon, Newspaper, MapPin, Loader2, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,6 @@ import { Contract } from '@/hooks/useContracts';
 import { useWeather } from '@/hooks/useWeather';
 import { usePersonalizedNews } from '@/hooks/usePersonalizedNews';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useHaptics } from '@/hooks/useHaptics';
 import { isToday, isTomorrow, isPast, differenceInDays, startOfDay, format, addDays, isWithinInterval, endOfDay, getHours } from 'date-fns';
 import { cn } from '@/lib/utils';
 

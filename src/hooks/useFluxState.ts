@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Task, CalendarEvent, ChatMessage, AppMode, TaskCategory, TaskPriority } from '@/types/flux';
+import { Task, CalendarEvent, ChatMessage, AppMode } from '@/types/flux';
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
 

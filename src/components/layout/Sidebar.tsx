@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,6 @@ import {
   BarChart3,
   Utensils,
   Moon,
-  Building2,
   Briefcase,
   Newspaper,
   Heart,

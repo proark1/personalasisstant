@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Task, CalendarEvent } from '@/types/flux';
 import { useDailyCheckins } from '@/hooks/useDailyCheckins';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Sparkles, Play, Clock, Brain, Coffee, Target, Loader2, RefreshCw } from 'lucide-react';
+import { Sparkles, Play, Brain, Coffee, Target, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WhatNowButtonProps {

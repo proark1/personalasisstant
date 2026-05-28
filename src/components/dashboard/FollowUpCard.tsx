@@ -14,7 +14,7 @@ import {
   Flame,
   Calendar
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const FOLLOW_UP_ICONS: Record<string, React.ReactNode> = {

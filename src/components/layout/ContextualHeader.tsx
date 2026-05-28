@@ -1,12 +1,11 @@
 import { Button } from '@/components/ui/button';
-import { Search, Bell, Menu } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { DoriNotificationIcon } from '@/components/assistant/DoriNotificationIcon';
 import { AssistantHubSheet } from '@/components/hub/AssistantHubSheet';
 import { VisionCaptureButton } from '@/components/capture/VisionCaptureButton';
 import { SchedulePlannerSheet } from '@/components/schedule/SchedulePlannerSheet';
 import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ContextualHeaderProps {

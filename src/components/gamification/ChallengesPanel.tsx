@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useChallenges } from '@/hooks/useChallenges';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Trophy, Target, CheckCircle, Clock, Plus, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { MilestoneCelebration } from './MilestoneCelebration';
 
 export function ChallengesPanel() {

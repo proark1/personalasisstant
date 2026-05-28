@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, X, Send } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 import { useChatAI } from '@/hooks/useChatAI';
 import { motion, AnimatePresence } from 'framer-motion';
 

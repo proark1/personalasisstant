@@ -6,7 +6,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2, X, User, ChevronDown, ChevronUp } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { useAuth } from '@/hooks/useAuth';
-import { cn } from '@/lib/utils';
 
 interface ComposeEmailSheetProps {
   open: boolean;

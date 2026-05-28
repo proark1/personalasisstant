@@ -1,7 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
 import { 
   Bell, 
-  Check, 
   Trash2, 
   CheckCheck, 
   X,

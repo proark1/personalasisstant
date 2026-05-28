@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Sparkles, MapPin, Cloud, Sun, CloudRain } from 'lucide-react';
 import { useFamilyAssistant } from '@/hooks/useFamilyAssistant';
-import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
+import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { useWeather } from '@/hooks/useWeather';
 import { ScrollArea } from '@/components/ui/scroll-area';
 

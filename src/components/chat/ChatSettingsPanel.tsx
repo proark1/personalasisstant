@@ -5,16 +5,12 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { 
   Bell, 
   BellOff, 
-  Clock, 
-  Shield, 
   UserX, 
-  Star,
-  Settings2
+  Star
 } from 'lucide-react';
 import { useChatSettings } from '@/hooks/useChatSettings';
 

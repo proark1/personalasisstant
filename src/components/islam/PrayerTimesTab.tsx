@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Clock, MapPin, RefreshCw, Bell, BellOff, Sun, Sunrise, Sunset, Moon as MoonIcon, Check, Volume2, ExternalLink, AlertCircle, CheckCircle2, Circle } from 'lucide-react';
+import { Clock, MapPin, RefreshCw, Bell, BellOff, Sun, Sunrise, Sunset, Moon as MoonIcon, Volume2, ExternalLink, AlertCircle, CheckCircle2, Circle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Capacitor } from '@capacitor/core';

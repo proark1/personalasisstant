@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { 
   Compass, BookOpen, Clock, RefreshCw, MapPin, Navigation, 
-  ChevronLeft, ChevronRight, Search, Loader2, Volume2, VolumeX,
+  ChevronLeft, ChevronRight, Search, Loader2, Volume2,
   Pause, Play, ZoomIn, ZoomOut, Settings
 } from 'lucide-react';
 import { toast } from 'sonner';

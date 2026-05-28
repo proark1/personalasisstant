@@ -5,15 +5,14 @@ import { useContactAI, RelationshipInsights } from '@/hooks/useContactAI';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { 
-  Phone, Mail, Building, MapPin, Linkedin, Twitter, Globe, 
-  Clock, MessageSquare, Calendar, Video, Sparkles, TrendingUp,
-  AlertCircle, CheckCircle, Star, Heart
+  Phone, Mail, Building, MapPin, Linkedin, Twitter, Globe, MessageSquare, Calendar, Video, Sparkles, TrendingUp,
+  AlertCircle, CheckCircle
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 

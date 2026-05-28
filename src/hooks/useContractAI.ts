@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ContractInput, ContractCategory, CostFrequency } from './useContracts';
+import { ContractCategory, CostFrequency } from './useContracts';
 import { useToast } from './use-toast';
 
 interface ExtractedContractData {

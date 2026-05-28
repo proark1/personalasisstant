@@ -37,7 +37,6 @@ import {
   Loader2,
   PhoneCall,
   PhoneOff,
-  Bug,
   MessageSquare,
   Sparkles,
   Waves,

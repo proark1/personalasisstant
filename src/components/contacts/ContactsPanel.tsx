@@ -1,9 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useContacts, Contact, ContactType, ContactInput, PersonalTier, BusinessLevel, FamilyRelationship, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
+import { useState } from 'react';
+import { useContacts, Contact, ContactType, ContactInput, PersonalTier, BusinessLevel, FamilyRelationship } from '@/hooks/useContacts';
 import { useContactInteractions } from '@/hooks/useContactInteractions';
 import { useItemSharing } from '@/hooks/useItemSharing';
 import { PanelShell, staggerItem } from '@/components/ui/panel-shell';
-import { EmptyState } from '@/components/ui/empty-state';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { ContactProfileCard } from '@/components/contacts/ContactProfileCard';
 import { ContactNetworkHealth } from '@/components/contacts/ContactNetworkHealth';
@@ -25,13 +24,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { motion } from 'framer-motion';
 import { 
-  UserPlus, Trash2, Search, Users, Briefcase, 
-  Phone, Mail, Building, Clock, Bell, MessageSquare, Check, Pencil,
-  Linkedin, Twitter, Globe, MapPin, Cake, Share2, LayoutGrid, List,
+  UserPlus, Search, Users, Briefcase, Mail, Building, Clock, Bell, Check, Pencil, Cake, LayoutGrid, List,
   TrendingUp, Calendar, Heart
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatDistanceToNow, isPast, differenceInDays, format } from 'date-fns';
+import { formatDistanceToNow, isPast, differenceInDays } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 
 const PERSONAL_TIERS: { value: PersonalTier; label: string; color: string }[] = [

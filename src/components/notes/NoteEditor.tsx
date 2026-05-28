@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { 
   ArrowLeft, 
   Pin, 
@@ -16,8 +15,7 @@ import {
   Trash2,
   Save
 } from 'lucide-react';
-import { Note, LinkedItem } from '@/hooks/useNotes';
-import { cn } from '@/lib/utils';
+import { Note } from '@/hooks/useNotes';
 import DOMPurify from 'dompurify';
 
 interface NoteEditorProps {

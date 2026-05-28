@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Task } from '@/types/flux';
-import { differenceInMinutes, isPast, isToday, addMinutes } from 'date-fns';
+import { differenceInMinutes, isToday, addMinutes } from 'date-fns';
 import { usePushNotifications } from './usePushNotifications';
 
 interface UseTaskNotificationsOptions {

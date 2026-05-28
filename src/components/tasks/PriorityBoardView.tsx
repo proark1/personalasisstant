@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Task, TaskPriority } from '@/types/flux';
 import { SwipeableTaskItem } from './SwipeableTaskItem';

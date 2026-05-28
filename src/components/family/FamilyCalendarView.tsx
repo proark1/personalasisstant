@@ -3,10 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, ChevronLeft, ChevronRight, Calendar, MapPin, User } from 'lucide-react';
-import { useFamilyEvents, FamilyEvent } from '@/hooks/useFamilyEvents';
+import { useFamilyEvents } from '@/hooks/useFamilyEvents';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { AddFamilyEventDialog } from './AddFamilyEventDialog';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay, addMonths, subMonths } from 'date-fns';
 
 const eventTypeColors: Record<string, string> = {
   birthday: 'bg-pink-500',

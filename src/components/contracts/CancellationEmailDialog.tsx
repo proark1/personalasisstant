@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Contract } from '@/hooks/useContracts';
 import { useContractAI } from '@/hooks/useContractAI';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Copy, Mail, FileText, Loader2, Sparkles } from 'lucide-react';
+import { Copy, Mail, Loader2, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 

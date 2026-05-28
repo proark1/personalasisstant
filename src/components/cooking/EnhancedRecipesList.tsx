@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Clock, Users, Trash2, BookOpen, Search, ChefHat } from 'lucide-react';
+import { Clock, Users, Trash2, BookOpen, Search } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RecipeDetailDialog } from '@/components/family/RecipeDetailDialog';
 import { cn } from '@/lib/utils';

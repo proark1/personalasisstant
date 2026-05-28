@@ -6,11 +6,10 @@ import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useHaptics } from '@/hooks/useHaptics';
 import {
-  BookUser, FileText, StickyNote, Flame, Heart, Utensils, Moon,
-  Building2, Briefcase, Newspaper, MessageCircle, Settings,
-  MoreHorizontal, Mail, CheckSquare, Search, Clock,
+  BookUser, FileText, StickyNote, Flame, Heart, Utensils, Moon, Briefcase, Newspaper, MessageCircle, Settings,
+  MoreHorizontal, Mail, Search, Clock,
   Users, FolderKanban, Activity, BookHeart, GraduationCap,
-  Wallet, Plane, Home, Pill, Target, CalendarCheck, Sparkles, Trophy, MapPin,
+  Wallet, Plane, Home, Pill, CalendarCheck, Sparkles, Trophy, MapPin,
   Baby, LineChart, Video,
 } from 'lucide-react';
 

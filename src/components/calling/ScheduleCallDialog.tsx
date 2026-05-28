@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { CalendarIcon, Clock, Video, Phone, Users } from 'lucide-react';
+import { CalendarIcon, Video, Phone, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { useCallFeatures } from '@/hooks/useCallFeatures';
 import { useSpaceMembers } from '@/hooks/useSpaceMembers';

@@ -1,7 +1,6 @@
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { Button } from '@/components/ui/button';
+import { GlassCard, GlassCardContent, GlassCardHeader } from '@/components/ui/glass-card';
 import { Badge } from '@/components/ui/badge';
-import { useSmartScheduling, SchedulingSuggestion } from '@/hooks/useSmartScheduling';
+import { useSmartScheduling } from '@/hooks/useSmartScheduling';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   Lightbulb, 

@@ -1,7 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/ui/glass-card';
-import { staggerItem, staggerContainer } from '@/components/ui/panel-shell';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,9 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { 
-  Search, BookOpen, Check, Clock, AlertCircle, Play, Pause, RotateCcw,
-  ChevronLeft, ChevronRight, Target, Trophy, Calendar, Volume2, VolumeX,
-  Eye, EyeOff, Repeat, Star, Brain, Zap, ArrowRight, X
+  Search, BookOpen, Check, AlertCircle, Play, Pause,
+  ChevronLeft, ChevronRight, Target, Trophy, Volume2,
+  Eye, EyeOff, Repeat, Star, Brain, Zap, ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';

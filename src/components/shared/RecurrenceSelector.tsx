@@ -7,7 +7,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Repeat, X, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
-import { recurrencePresets, getRecurrenceDescription, toRRuleString, parseRRuleString } from '@/lib/recurrence';
+import { recurrencePresets, getRecurrenceDescription, toRRuleString } from '@/lib/recurrence';
 import { RecurrenceFrequency } from '@/types/flux';
 
 interface RecurrenceSelectorProps {

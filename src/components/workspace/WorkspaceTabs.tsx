@@ -7,17 +7,11 @@ import {
   Users, 
   ShoppingCart, 
   Plus,
-  X,
-  MoreHorizontal,
-  Pencil
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+
+
 import {
   Dialog,
   DialogContent,

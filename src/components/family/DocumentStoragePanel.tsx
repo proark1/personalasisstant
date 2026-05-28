@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useFamilyDocuments, FamilyDocument } from '@/hooks/useFamilyDocuments';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { 
-  FileText, Upload, Trash2, Download, AlertCircle, Search,
+  FileText, Upload, Trash2, AlertCircle, Search,
   CreditCard, Shield, FileCheck, Folder, Eye
 } from 'lucide-react';
 import { format, isPast, isFuture } from 'date-fns';

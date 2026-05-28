@@ -7,19 +7,12 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle,
-  DialogFooter 
-} from '@/components/ui/dialog';
+
+
 import { 
   Users, 
   UserPlus, 
   Mail, 
-  Settings2, 
   Trash2, 
   Check, 
   X,
@@ -35,7 +28,7 @@ import {
   ShieldAlert,
   ShieldCheck
 } from 'lucide-react';
-import { useSpaceMembers, SpaceMember, SpaceShareSettings } from '@/hooks/useSpaceMembers';
+import { useSpaceMembers, SpaceMember } from '@/hooks/useSpaceMembers';
 import { CallButton } from '@/components/calling/CallButton';
 import { OnlineIndicator } from '@/components/calling/OnlineIndicator';
 import { useCall } from '@/components/calling/CallProvider';

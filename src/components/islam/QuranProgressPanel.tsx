@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +16,7 @@ import {
   BookOpen, 
   TrendingUp, 
   Settings, 
-  CheckCircle2,
-  Calendar
+  CheckCircle2
 } from 'lucide-react';
 import { useQuranReadingProgress } from '@/hooks/useQuranReadingProgress';
 import { cn } from '@/lib/utils';

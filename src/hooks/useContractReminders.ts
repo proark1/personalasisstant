@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Contract } from './useContracts';
 import { Task } from '@/types/flux';
-import { isPast, differenceInDays, format } from 'date-fns';
+import { differenceInDays, format } from 'date-fns';
 
 interface UseContractRemindersProps {
   contracts: Contract[];

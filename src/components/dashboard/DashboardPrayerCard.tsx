@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Bell, BellOff, Sunrise, Sun, Sunset, Moon as MoonIcon, Check, Circle, ChevronRight } from 'lucide-react';
+import { Bell, Sunrise, Sun, Sunset, Moon as MoonIcon, Check, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useHaptics } from '@/hooks/useHaptics';
