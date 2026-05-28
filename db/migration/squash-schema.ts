@@ -187,10 +187,14 @@ function shouldSkip(stmt: string): boolean {
   if (/^CREATE\s+EXTENSION\b.*\bPG_NET\b/.test(head)) return true;
   if (/^CREATE\s+EXTENSION\b.*\bSUPABASE_VAULT\b/.test(head)) return true;
 
-  // Anything touching Supabase-managed schemas.
-  if (/\b(storage|vault|realtime|net|extensions|cron)\s*\./i.test(stmt) &&
-      // …but allow plain words like "storage" in comments only if the dotted
-      // form actually appears. The regex above already requires the dot.
+  // Anything touching Supabase-managed schemas. Strip SQL comments first so
+  // prose like "…rotate through Vault." (sentence period) in a column comment
+  // doesn't get treated as a schema-qualified reference — that bug stripped
+  // the bank_connections CREATE TABLE because of a "Vault." in its comments.
+  const noComments = stmt
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--[^\n]*/g, ' ');
+  if (/\b(storage|vault|realtime|net|extensions|cron)\s*\./i.test(noComments) &&
       true) {
     // Allow EXTENSION statements that target `extensions` schema — except
     // pg_net which we already excluded above.
