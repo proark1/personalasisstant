@@ -446,7 +446,7 @@ export function StandardMode({
         <div className="flex-1 overflow-hidden">
           <Suspense fallback={<PanelFallback />}>
             {fullscreenPanel === 'chat' && (
-                  <ChatPanel 
+                  <ChatPanel
                     messages={messages}
                     onSendMessage={onSendMessage}
                     isProcessing={isProcessing}
@@ -454,6 +454,7 @@ export function StandardMode({
                     onToggleFullscreen={() => setFullscreenPanel(null)}
                     onVoiceMode={onVoiceMode}
                     contacts={contacts}
+                    proactiveStats={doriStats}
                   />
             )}
             {fullscreenPanel === 'tasks' && (
@@ -548,13 +549,14 @@ export function StandardMode({
               {/* AI Assistant Panel */}
               {activePanel === 'assistant' && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                  <ChatPanel 
+                  <ChatPanel
                     messages={messages}
                     onSendMessage={onSendMessage}
                     isProcessing={isProcessing}
                     onToggleFullscreen={() => setFullscreenPanel('chat')}
                     onVoiceMode={onVoiceMode}
                     contacts={contacts}
+                    proactiveStats={doriStats}
                   />
                 </div>
               )}
