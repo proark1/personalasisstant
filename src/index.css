@@ -27,121 +27,121 @@ body::before {
     /* Quran font variable - can be changed dynamically */
     --quran-font: 'Amiri';
     
-    /* Light theme */
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    /* Light theme — Emerald on clean cool-neutral */
+    --background: 0 0% 98%;
+    --foreground: 215 28% 14%;
 
-    --card: 0 0% 98%;
-    --card-foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 215 28% 14%;
 
-    --primary: 187 94% 43%;
+    --primary: 160 84% 39%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 160 16% 95%;
+    --secondary-foreground: 215 25% 20%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 210 16% 96%;
+    --muted-foreground: 215 14% 45%;
 
-    --accent: 270 60% 50%;
+    --accent: 173 80% 40%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 187 94% 43%;
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
+    --ring: 160 84% 39%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    --glass: 220 14% 96%;
-    --glass-border: 220 13% 85%;
-    --glow-primary: 187 94% 43%;
-    --glow-accent: 270 60% 50%;
-    
-    --ghost-bg: 250 45% 5%;
-    --ghost-primary: 270 80% 60%;
-    --ghost-secondary: 187 94% 50%;
+    --glass: 0 0% 100%;
+    --glass-border: 214 20% 90%;
+    --glow-primary: 160 84% 39%;
+    --glow-accent: 173 80% 40%;
+
+    --ghost-bg: 200 45% 5%;
+    --ghost-primary: 160 84% 45%;
+    --ghost-secondary: 173 80% 50%;
 
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
     --info: 199 89% 48%;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 187 94% 43%;
+    --sidebar-background: 180 14% 98%;
+    --sidebar-foreground: 215 28% 14%;
+    --sidebar-primary: 160 84% 39%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 187 94% 43%;
+    --sidebar-accent: 160 25% 94%;
+    --sidebar-accent-foreground: 160 60% 20%;
+    --sidebar-border: 214 20% 90%;
+    --sidebar-ring: 160 84% 39%;
 
     /* WhatsApp-style chat colors */
-    --chat-bg: 226 28% 95%;
-    --chat-outgoing: 115 54% 85%;
+    --chat-bg: 210 16% 96%;
+    --chat-outgoing: 150 58% 88%;
     --chat-incoming: 0 0% 100%;
   }
 
   .dark {
-    /* Deep space dark theme */
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    /* Deep near-black emerald */
+    --background: 160 24% 6%;
+    --foreground: 150 20% 96%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 160 20% 9%;
+    --card-foreground: 150 20% 96%;
 
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 160 20% 9%;
+    --popover-foreground: 150 20% 96%;
 
-    --primary: 187 94% 43%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 158 75% 45%;
+    --primary-foreground: 160 30% 6%;
 
-    --secondary: 250 45% 20%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 160 20% 16%;
+    --secondary-foreground: 150 20% 96%;
 
-    --muted: 222 47% 12%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 160 18% 14%;
+    --muted-foreground: 155 12% 60%;
 
-    --accent: 270 60% 50%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 173 70% 42%;
+    --accent-foreground: 160 30% 6%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 150 20% 96%;
 
-    --border: 222 30% 18%;
-    --input: 222 30% 15%;
-    --ring: 187 94% 43%;
+    --border: 160 20% 16%;
+    --input: 160 20% 14%;
+    --ring: 158 75% 45%;
 
-    --glass: 222 47% 10%;
-    --glass-border: 222 30% 20%;
-    --glow-primary: 187 94% 43%;
-    --glow-accent: 270 60% 50%;
-    
-    --ghost-bg: 250 45% 5%;
-    --ghost-primary: 270 80% 60%;
-    --ghost-secondary: 187 94% 50%;
+    --glass: 160 20% 11%;
+    --glass-border: 160 20% 18%;
+    --glow-primary: 158 75% 45%;
+    --glow-accent: 173 70% 42%;
+
+    --ghost-bg: 160 30% 5%;
+    --ghost-primary: 158 75% 50%;
+    --ghost-secondary: 173 70% 50%;
 
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
     --info: 199 89% 48%;
 
-    --sidebar-background: 222 47% 7%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 187 94% 43%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 47% 12%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 30% 15%;
-    --sidebar-ring: 187 94% 43%;
+    --sidebar-background: 160 24% 7%;
+    --sidebar-foreground: 150 20% 96%;
+    --sidebar-primary: 158 75% 45%;
+    --sidebar-primary-foreground: 160 30% 6%;
+    --sidebar-accent: 160 20% 14%;
+    --sidebar-accent-foreground: 150 20% 96%;
+    --sidebar-border: 160 20% 14%;
+    --sidebar-ring: 158 75% 45%;
 
     /* WhatsApp-style chat colors - dark mode */
-    --chat-bg: 222 47% 10%;
-    --chat-outgoing: 167 60% 25%;
-    --chat-incoming: 222 47% 15%;
+    --chat-bg: 160 20% 11%;
+    --chat-outgoing: 160 50% 24%;
+    --chat-incoming: 160 20% 15%;
   }
 
   /* Colorful/Playful Theme - White base with vibrant accents! */

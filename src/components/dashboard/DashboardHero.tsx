@@ -59,7 +59,7 @@ export function DashboardHero({
 
   return (
     <GlassCard variant="gradient" glow className="overflow-hidden">
-      <GlassCardContent className="p-4 md:p-5">
+      <GlassCardContent className="p-5 md:p-6">
         {/* Top: greeting + settings */}
         <div className="flex items-start justify-between gap-2 mb-1">
           <motion.div

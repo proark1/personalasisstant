@@ -462,7 +462,7 @@ export function StandardMode({
         <div className="flex-1 min-w-0 min-h-0 flex overflow-hidden">
  
           {/* Main Content Area - Only one panel at a time */}
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 overflow-hidden p-2">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3 overflow-hidden p-3 md:p-5">
             <AnimatePresence mode="wait">
             <motion.div
               key={activePanel}

@@ -179,12 +179,12 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
   };
 
   if (loading) {
-    return <div className="h-full p-3 md:p-4"><PanelSkeleton variant="grid" /></div>;
+    return <div className="h-full p-4 md:p-6"><PanelSkeleton variant="grid" /></div>;
   }
 
   return (
-    <div className="h-full overflow-y-auto p-3 md:p-4 pb-20">
-      <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+    <div className="h-full overflow-y-auto p-4 md:p-6 pb-24">
+      <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Slim check-in banner */}
         <StaggerItem className="col-span-full">
           <CheckinPrompt />
@@ -274,7 +274,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         {/* Insights: the deeper, opt-in detail */}
         {view === 'insights' && (
           <StaggerItem className="col-span-full">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               <div className="md:col-span-3"><MorningThreadCard /></div>
               <div className="md:col-span-3"><LifeScoreCommentaryCard /></div>
               <div className="md:col-span-3"><ConflictAlertsCard /></div>
