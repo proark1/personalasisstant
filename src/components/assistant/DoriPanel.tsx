@@ -203,7 +203,7 @@ export function DoriPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="h-14 px-4 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-accent/5">
+      <div className="h-16 px-4 md:px-6 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-accent/5">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-sm">Dori</h3>
         </div>

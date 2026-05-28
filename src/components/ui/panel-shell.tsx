@@ -61,29 +61,29 @@ export function PanelShell({
   return (
     <div className={cn("flex flex-col h-full min-w-0 max-w-full overflow-hidden", className)}>
       {/* Header */}
-      <div className={cn("px-3 md:px-4 py-3 border-b border-border shrink-0", headerClassName)}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
+      <div className={cn("px-4 md:px-6 py-4 border-b border-border shrink-0", headerClassName)}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
             {Icon && <Icon className="w-5 h-5 text-primary shrink-0" />}
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-foreground truncate">{title}</h2>
+              <h2 className="text-lg md:text-xl font-semibold tracking-tight text-foreground truncate">{title}</h2>
               {subtitle && (
-                <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+                <p className="text-sm text-muted-foreground truncate">{subtitle}</p>
               )}
             </div>
           </div>
-          {actions && <div className="flex items-center gap-1 shrink-0">{actions}</div>}
+          {actions && <div className="flex items-center gap-1.5 shrink-0">{actions}</div>}
         </div>
-        {headerExtra && <div className="mt-3">{headerExtra}</div>}
+        {headerExtra && <div className="mt-4">{headerExtra}</div>}
       </div>
 
       {/* Body */}
       {loading ? (
-        <div className={cn("flex-1 p-3 md:p-4", contentClassName)}>
+        <div className={cn("flex-1 p-4 md:p-6", contentClassName)}>
           <PanelSkeleton variant={loadingVariant} />
         </div>
       ) : empty ? (
-        <div className="flex-1 flex items-center justify-center p-3 md:p-4">
+        <div className="flex-1 flex items-center justify-center p-4 md:p-6">
           <EmptyState
             icon={emptyIcon}
             title={emptyTitle || "Nothing here yet"}
@@ -98,7 +98,7 @@ export function PanelShell({
           animate="show"
           className={cn(
             "flex-1 overflow-y-auto scroll-fade",
-            !noPadding && "p-3 md:p-4",
+            !noPadding && "p-4 md:p-6",
             contentClassName
           )}
         >
