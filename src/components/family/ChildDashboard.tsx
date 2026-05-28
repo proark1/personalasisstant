@@ -94,7 +94,7 @@ export function ChildDashboard() {
       isFromContacts: false,
       sourceMember: m,
     })),
-    ...childContacts.map(({ contact, rel }) => ({
+    ...childContacts.map(({ contact, rel }): ChildDisplay => ({
       id: contact.id,
       name: contact.name,
       birth_date: null,

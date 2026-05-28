@@ -32,7 +32,7 @@ const importOptional = (m: OptionalNativeModule): Promise<any> => {
     return Promise.reject(new Error(`Module not allowlisted: ${m}`));
   }
   const spec: string = m;
-  return import(/* @vite-ignore */ spec).catch(() => null);
+  return import(/* @vite-ignore */ spec).catch((): null => null);
 };
 
 export function useNativeCamera(): NativeCameraApi {
@@ -41,7 +41,7 @@ export function useNativeCamera(): NativeCameraApi {
   useEffect(() => {
     (async () => {
       try {
-        const core = await import('@capacitor/core').catch(() => null);
+        const core = await import('@capacitor/core').catch((): null => null);
         if (!core?.Capacitor?.isNativePlatform?.()) return;
         const camera = await importOptional('@capacitor/camera');
         if (camera?.Camera) setAvailable(true);

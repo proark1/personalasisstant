@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildVoiceContextData } from "./voiceContextBuilder";
+import { buildVoiceContextData, type BuildVoiceContextInputs } from "./voiceContextBuilder";
 import type { Task, CalendarEvent, Project } from "@/types/flux";
 import type { Contact } from "@/hooks/useContacts";
 import type { Contract } from "@/hooks/useContracts";
@@ -18,7 +18,7 @@ const familyContext = {
   shopping: { urgentLists: [], totalItemsNeeded: 0 },
 } as unknown as Parameters<typeof buildVoiceContextData>[0]["familyContext"];
 
-function emptyInputs() {
+function emptyInputs(): BuildVoiceContextInputs {
   return {
     tasks: [] as Task[],
     events: [] as CalendarEvent[],

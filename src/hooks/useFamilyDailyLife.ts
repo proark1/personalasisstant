@@ -103,7 +103,7 @@ export function useFamilyDailyLife() {
     fetchAll();
   };
 
-  const addAllowance = async (data: Partial<FamilyAllowance>) => {
+  const addAllowance = async (data: Partial<FamilyAllowance>): Promise<null | void> => {
     if (!user) return null;
     const { error } = await supabase.from('family_allowance').insert({
       ...data,

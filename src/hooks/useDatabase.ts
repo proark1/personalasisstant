@@ -343,7 +343,7 @@ export function useDatabase(userId: string | undefined) {
     if (!error) {
       const task = trashedTasks.find(t => t.id === id);
       if (task) {
-        const restoredTask = { ...task, trashed: false, trashedAt: undefined };
+        const restoredTask: Task = { ...task, trashed: false, trashedAt: undefined };
         setTrashedCache(prev => prev.filter(t => t.id !== id));
         setTasksCache(prev => [restoredTask, ...prev]);
       }

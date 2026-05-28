@@ -5,7 +5,7 @@ import { useProactiveSettings } from './useProactiveSettings';
 
 const LAST_AUTO_PLAY_KEY = 'dori_last_morning_autoplay';
 
-export function useMorningAutoPlay() {
+export function useMorningAutoPlay(): null {
   const { user } = useAuth();
   const { playBriefing } = useMorningBriefing();
   const { settings } = useProactiveSettings();

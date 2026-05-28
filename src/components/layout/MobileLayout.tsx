@@ -202,7 +202,7 @@ export function MobileLayout({
   const primaryTabs = [
     { id: 'dashboard' as const, icon: LayoutDashboard },
     { id: 'calendar' as const, icon: Calendar },
-    { id: 'dori' as const, icon: null, isCenter: true },
+    { id: 'dori' as const, icon: null as typeof LayoutDashboard | null, isCenter: true },
     { id: 'email' as const, icon: Mail },
     { id: 'health' as const, icon: Heart },
   ];

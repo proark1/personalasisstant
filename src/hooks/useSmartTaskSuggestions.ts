@@ -93,7 +93,7 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
             checkin: checkinData,
           },
         });
-      })().catch((err) => ({ data: null, error: err instanceof Error ? err : new Error(String(err)) }));
+      })().catch((err) => ({ data: null as unknown, error: err instanceof Error ? err : new Error(String(err)) }));
       
       const timeoutPromise = new Promise<'timeout'>((resolve) =>
         setTimeout(() => resolve('timeout'), 5000)

@@ -94,7 +94,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
     circuitNodesRef.current = Array.from({ length: nodeCount }, (_, i) => ({
       x: Math.random(),
       y: Math.random(),
-      connections: [],
+      connections: [] as number[],
       pulse: Math.random() * Math.PI * 2,
       active: Math.random() > 0.5,
     }));

@@ -89,7 +89,12 @@ export function useSpaceSharedData(userId: string | undefined) {
       const allContacts: SpaceSharedContact[] = [];
 
       for (const membership of memberships) {
-        const settings = membership.space_share_settings?.[0];
+        // Supabase types the embedded join as a single row, but the
+        // runtime returns an array — index into it via an array cast.
+        const shareSettings = membership.space_share_settings as unknown;
+        const settings = (Array.isArray(shareSettings) ? shareSettings[0] : shareSettings) as
+          | Record<string, unknown>
+          | undefined;
         if (!settings) continue;
 
         // Get owner profile

@@ -72,8 +72,8 @@ export function NudgeOverlay({ nudge, onDismiss }: NudgeOverlayProps) {
 
   if (!isVisible || !nudge) return null;
 
-  const Icon = NUDGE_ICONS[nudge.type];
-  const borderColor = NUDGE_COLORS[nudge.type];
+  const Icon = NUDGE_ICONS[nudge.type as keyof typeof NUDGE_ICONS];
+  const borderColor = NUDGE_COLORS[nudge.type as keyof typeof NUDGE_COLORS];
 
   return (
     <div 
