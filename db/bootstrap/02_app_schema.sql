@@ -4634,12 +4634,6 @@ CREATE INDEX IF NOT EXISTS idx_ai_usage_user_created ON public.ai_usage(user_id,
 CREATE INDEX IF NOT EXISTS idx_chat_messages_user_created ON public.chat_messages(user_id, created_at DESC);
 
 -- ──────────────────────────────────────────────────────────────────────
--- 20260421100000_telegram_status_rpc.sql
--- ──────────────────────────────────────────────────────────────────────
-
-REVOKE ALL ON FUNCTION public.telegram_status() FROM PUBLIC;
-
--- ──────────────────────────────────────────────────────────────────────
 -- 20260424120000_dori_action_confirmations.sql
 -- ──────────────────────────────────────────────────────────────────────
 
@@ -4928,8 +4922,6 @@ BEGIN
   RETURN true;
 END;
 $$;
-
-REVOKE ALL ON FUNCTION public.increment_workspace_invite_uses(uuid) FROM PUBLIC;
 
 -- ──────────────────────────────────────────────────────────────────────
 -- 20260425000000_dori_quiet_and_onboarding.sql
@@ -7897,10 +7889,6 @@ AS $$
   )
 $$;
 
-REVOKE ALL ON FUNCTION public.is_superadmin(uuid) FROM PUBLIC;
-
-REVOKE ALL ON FUNCTION public.is_admin(uuid) FROM PUBLIC;
-
 NOTIFY pgrst, 'reload schema';
 
 -- ──────────────────────────────────────────────────────────────────────
@@ -7973,8 +7961,6 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.admin_list_public_tables() FROM PUBLIC;
-
 CREATE OR REPLACE FUNCTION public.admin_table_primary_key(p_table text)
 RETURNS text[]
 LANGUAGE plpgsql
@@ -8001,8 +7987,6 @@ BEGIN
   RETURN cols;
 END;
 $$;
-
-REVOKE ALL ON FUNCTION public.admin_table_primary_key(text) FROM PUBLIC;
 
 -- TRUNCATE the named public table. Admin only — used by the import flow
 -- in 'replace' mode. CASCADE is intentionally omitted: if FKs would
@@ -8044,8 +8028,6 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.admin_truncate_table(text) FROM PUBLIC;
-
 -- ──────────────────────────────────────────────────────────────────────
 -- 20260519000000_fix_admin_rls_recursion.sql
 -- ──────────────────────────────────────────────────────────────────────
@@ -8080,8 +8062,6 @@ AS $$
     WHERE user_id = check_user_id AND role = 'superadmin'
   )
 $$;
-
-REVOKE ALL ON FUNCTION public.is_superadmin(uuid) FROM PUBLIC;
 
 -- Refresh PostgREST's schema cache. Also picks up any earlier migration
 -- (dori_active_plans view, schedule_proposals table, …) that the cache

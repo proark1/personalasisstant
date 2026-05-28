@@ -172,6 +172,13 @@ function shouldSkip(stmt: string): boolean {
   if (/^(CREATE|ALTER|DROP)\s+POLICY\b/.test(head)) return true;
   if (/^ALTER\s+TABLE\b.*\b(ENABLE|DISABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY\b/.test(head)) return true;
 
+  // REVOKE/GRANT on a function — would fail with "function does not exist"
+  // when the CREATE FUNCTION was stripped because its body referenced a
+  // Supabase-only schema (cron./storage./etc.). These statements are security
+  // hardening; actual access on the self-hosted stack is controlled by the
+  // public-schema role GRANTs in 03_rls_policies.sql.
+  if (/^(REVOKE|GRANT)\b.*\bON\s+FUNCTION\b/.test(head)) return true;
+
   // Realtime publications.
   if (/^(ALTER|CREATE|DROP)\s+PUBLICATION\b/.test(head)) return true;
 
