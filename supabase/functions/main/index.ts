@@ -47,7 +47,12 @@ async function getWorker(servicePath: string) {
     workerTimeoutMs: TIMEOUT_MS,
     noModuleCache: false,
     importMapPath: null,
-    envVars: [],
+    // Pass the host process env into the worker isolate. Without this the
+    // worker starts with no environment at all, so Deno.env.get('APP_URL')
+    // (and every other key the functions read — SUPABASE_URL, GEMINI_API_KEY,
+    // service-role JWT, etc.) returns undefined. strictAppOrigin() then throws
+    // "CORS misconfigured: set APP_URL" at module load and the worker dies.
+    envVars: Object.entries(Deno.env.toObject()),
     forceCreate: false,
     netAccessDisabled: false,
   });
