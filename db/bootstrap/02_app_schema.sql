@@ -351,6 +351,8 @@ CREATE TABLE public.shared_project_members (
 -- Drop the old simple contacts table and create an enhanced one
 DROP TABLE IF EXISTS public.user_contacts;
 
+DROP TABLE IF EXISTS public.user_contacts CASCADE;
+
 -- Create enhanced contacts table with relationship management
 CREATE TABLE public.user_contacts (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -7108,6 +7110,8 @@ ALTER TABLE public.proactive_settings
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS locale TEXT;
 
+DROP TABLE IF EXISTS public.workspaces CASCADE;
+
 -- ============ Workspaces ============
 CREATE TABLE IF NOT EXISTS public.workspaces (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -7121,6 +7125,8 @@ CREATE TABLE IF NOT EXISTS public.workspaces (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+DROP TABLE IF EXISTS public.workspace_members CASCADE;
+
 CREATE TABLE IF NOT EXISTS public.workspace_members (
   workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
   user_id UUID NOT NULL,
@@ -7129,6 +7135,8 @@ CREATE TABLE IF NOT EXISTS public.workspace_members (
   joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (workspace_id, user_id)
 );
+
+DROP TABLE IF EXISTS public.workspace_invite_codes CASCADE;
 
 CREATE TABLE IF NOT EXISTS public.workspace_invite_codes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -7181,6 +7189,8 @@ CREATE OR REPLACE TRIGGER update_workspaces_updated_at
   BEFORE UPDATE ON public.workspaces
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TABLE IF EXISTS public.task_comments CASCADE;
+
 -- ============ task_comments ============
 CREATE TABLE IF NOT EXISTS public.task_comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -7192,6 +7202,8 @@ CREATE TABLE IF NOT EXISTS public.task_comments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON public.task_comments(task_id);
+
+DROP TABLE IF EXISTS public.islamic_notification_settings CASCADE;
 
 -- ============ islamic_notification_settings ============
 CREATE TABLE IF NOT EXISTS public.islamic_notification_settings (
@@ -7217,6 +7229,8 @@ CREATE OR REPLACE TRIGGER update_islamic_notif_settings_updated_at
   BEFORE UPDATE ON public.islamic_notification_settings
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TABLE IF EXISTS public.user_location_settings CASCADE;
+
 -- ============ user_location_settings ============
 CREATE TABLE IF NOT EXISTS public.user_location_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -7236,6 +7250,8 @@ CREATE TABLE IF NOT EXISTS public.user_location_settings (
 CREATE OR REPLACE TRIGGER update_user_location_settings_updated_at
   BEFORE UPDATE ON public.user_location_settings
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TABLE IF EXISTS public.dori_undo_log CASCADE;
 
 -- ============ dori_undo_log ============
 CREATE TABLE IF NOT EXISTS public.dori_undo_log (
@@ -7831,6 +7847,8 @@ CREATE TABLE IF NOT EXISTS public.recurrence_exceptions (
 
 CREATE INDEX IF NOT EXISTS recurrence_exceptions_user_idx
   ON public.recurrence_exceptions (user_id, parent_kind, parent_id);
+
+DROP TABLE IF EXISTS public.focus_sessions CASCADE;
 
 CREATE TABLE IF NOT EXISTS public.focus_sessions (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,

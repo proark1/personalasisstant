@@ -340,10 +340,12 @@ function main() {
 
   const parts: string[] = [banner];
   const rlsParts: string[] = [RLS_PRELUDE];
+  const seenTables = new Set<string>();
   let kept = 0;
   let skipped = 0;
   let rewritten = 0;
   let rls = 0;
+  let droppedDupes = 0;
 
   for (const file of files) {
     const sql = readFileSync(join(migrationsDir, file), 'utf8');
@@ -357,7 +359,24 @@ function main() {
         if (isRlsStatement(raw)) { rlsFromFile.push(rewriteRls(raw)); rls++; }
         continue;
       }
-      const after = rewrite(raw);
+      let after = rewrite(raw);
+
+      // Detect a CREATE TABLE whose target was already created earlier in the
+      // squash, and prepend DROP TABLE IF EXISTS ... CASCADE so the later
+      // schema wins. Without this, a "CREATE TABLE IF NOT EXISTS X" that
+      // redefines an earlier X is silently a no-op, and follow-up statements
+      // that reference its new columns (e.g. focus_sessions.ended_at) fail.
+      const head = statementHead(after);
+      const tableMatch = head.match(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"?PUBLIC"?\s*\.\s*)?"?(\w+)"?/);
+      if (tableMatch) {
+        const tableName = tableMatch[1].toLowerCase();
+        if (seenTables.has(tableName)) {
+          after = `DROP TABLE IF EXISTS public.${tableName} CASCADE;\n\n${after}`;
+          droppedDupes++;
+        }
+        seenTables.add(tableName);
+      }
+
       if (after !== raw) rewritten++;
       keptFromFile.push(after);
       kept++;
@@ -380,7 +399,7 @@ function main() {
   rlsParts.push("\nNOTIFY pgrst, 'reload schema';");
   writeFileSync(rlsOutFile, rlsParts.join('\n') + '\n', 'utf8');
 
-  console.log(`[squash] kept=${kept} skipped=${skipped} rewritten=${rewritten} rls=${rls}`);
+  console.log(`[squash] kept=${kept} skipped=${skipped} rewritten=${rewritten} rls=${rls} dupe-tables=${droppedDupes}`);
   console.log(`[squash] wrote ${outFile}`);
   console.log(`[squash] wrote ${rlsOutFile} (${rls} RLS statements)`);
 }
