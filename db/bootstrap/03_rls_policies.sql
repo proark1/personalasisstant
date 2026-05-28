@@ -3177,4 +3177,30 @@ CREATE POLICY "Users can update their own settings"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+-- 20260528120000_briefings.sql
+ALTER TABLE public.briefings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own briefings" ON public.briefings;
+CREATE POLICY "Users can view their own briefings"
+  ON public.briefings FOR SELECT
+  USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own briefings" ON public.briefings;
+CREATE POLICY "Users can insert their own briefings"
+  ON public.briefings FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own briefings" ON public.briefings;
+CREATE POLICY "Users can update their own briefings"
+  ON public.briefings FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own briefings" ON public.briefings;
+CREATE POLICY "Users can delete their own briefings"
+  ON public.briefings FOR DELETE
+  USING (auth.uid() = user_id);
+ALTER TABLE public.briefing_deliveries ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own briefing deliveries" ON public.briefing_deliveries;
+-- Read-only for owners; rows are written by the service role from the cron.
+CREATE POLICY "Users can view their own briefing deliveries"
+  ON public.briefing_deliveries FOR SELECT
+  USING (auth.uid() = user_id);
+
 NOTIFY pgrst, 'reload schema';
