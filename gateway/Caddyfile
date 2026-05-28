@@ -7,7 +7,13 @@
 #   POSTGREST_URL e.g. http://postgrest.railway.internal:3000
 #   GOTRUE_URL    e.g. http://gotrue.railway.internal:9999
 #   REALTIME_URL  e.g. http://realtime.railway.internal:4000   (optional until Realtime is deployed)
-#   FUNCTIONS_URL e.g. http://edge-functions.railway.internal:9000  (optional until edge fns deployed)
+#   FUNCTIONS_HOST the edge-functions service's PUBLIC domain, e.g.
+#                 edge-functions-production-d480.up.railway.app  (bare host, no scheme/port).
+#                 We use the public domain rather than the private .railway.internal one
+#                 because supabase/edge-runtime binds IPv4-only and Railway's private
+#                 network is IPv6-only — private routing can't reach it. The public
+#                 domain works, but Railway's edge routes by Host header, so we rewrite
+#                 the Host to the upstream domain (see the /functions/v1 block).
 #   APP_ORIGIN    your app's origin for CORS, or * (default)
 
 {
@@ -40,7 +46,20 @@
 		reverse_proxy {$REALTIME_URL}
 	}
 	handle_path /functions/v1/* {
-		reverse_proxy {$FUNCTIONS_URL}
+		# Proxy to the edge-functions public domain over HTTPS. The Host
+		# header must match the upstream domain or Railway's edge can't
+		# route it (it routes by Host). The functions set their own CORS
+		# headers, so strip them on the way back to avoid duplicate
+		# Access-Control-* headers (the gateway's global header block
+		# already adds them, and browsers reject duplicates).
+		reverse_proxy https://{$FUNCTIONS_HOST} {
+			header_up Host {$FUNCTIONS_HOST}
+			header_down -Access-Control-Allow-Origin
+			header_down -Access-Control-Allow-Headers
+			header_down -Access-Control-Allow-Methods
+			header_down -Access-Control-Expose-Headers
+			header_down -Access-Control-Max-Age
+		}
 	}
 	handle {
 		respond "darai gateway ok" 200
