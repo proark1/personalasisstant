@@ -38,6 +38,7 @@ import { buildConversationMessages } from '@/lib/conversationMessages';
 import { formatContractCostSummary } from '@/lib/contractCosts';
 import { useAIMemory } from '@/hooks/useAIMemory';
 import { StandardMode } from '@/components/layout/StandardMode';
+import { BrandedLoader } from '@/components/ui/branded-loader';
 import { LazyGhostMode, PageFallback } from '@/components/lazy';
 import { ProfileSettingsDialog } from '@/components/settings/ProfileSettingsDialog';
 import { ShareDialog } from '@/components/sharing/ShareDialog';
@@ -981,11 +982,7 @@ const Index = () => {
   }, [signOut]);
 
   if (dbLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-primary">Loading your data...</div>
-      </div>
-    );
+    return <BrandedLoader message="Loading your day…" />;
   }
 
   return (

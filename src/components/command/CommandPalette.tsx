@@ -10,6 +10,7 @@ import {
   CommandShortcut,
 } from '@/components/ui/command';
 import { NAV_AREAS, SETTINGS_ITEM, type NavItem } from '@/config/navigation';
+import { prefetchPanel } from '@/lib/panelPrefetch';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Sparkles, Search, ArrowRight } from 'lucide-react';
 
@@ -143,6 +144,7 @@ export function CommandPalette({
                   key={item.id}
                   value={`${label} ${item.id}`}
                   onSelect={() => dismiss(() => onNavigate(item.id))}
+                  onMouseEnter={() => prefetchPanel(item.id)}
                 >
                   <Icon className="text-muted-foreground" />
                   <span>{label}</span>
