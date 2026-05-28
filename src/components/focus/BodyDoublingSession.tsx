@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Task } from '@/types/flux';
@@ -69,7 +70,8 @@ export function BodyDoublingSession({
   const [ambientSound, setAmbientSound] = useState('none');
   const [showCheckin, setShowCheckin] = useState(false);
   const [checkinCount, setCheckinCount] = useState(0);
-  
+  const [confirmEndOpen, setConfirmEndOpen] = useState(false);
+
   const sessionStartRef = useRef<Date | null>(null);
   const nextCheckinRef = useRef<number>(0);
 
@@ -168,17 +170,28 @@ export function BodyDoublingSession({
 
   const handleClose = () => {
     if (isRunning) {
-      // Confirm before closing active session
-      if (window.confirm('End your body doubling session?')) {
-        resetSession();
-        onClose();
-      }
+      // Confirm before closing an active session (styled dialog, not native).
+      setConfirmEndOpen(true);
     } else {
       onClose();
     }
   };
 
   return (
+    <>
+    <ConfirmDialog
+      open={confirmEndOpen}
+      onOpenChange={setConfirmEndOpen}
+      title="End your body doubling session?"
+      description="Your timer will stop and the session will reset."
+      confirmLabel="End session"
+      cancelLabel="Keep going"
+      destructive
+      onConfirm={() => {
+        resetSession();
+        onClose();
+      }}
+    />
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -377,5 +390,6 @@ export function BodyDoublingSession({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
