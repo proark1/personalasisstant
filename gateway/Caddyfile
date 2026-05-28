@@ -1,13 +1,15 @@
 # Single-origin gateway for the self-hosted stack. supabase-js calls
-# <VITE_SUPABASE_URL>/rest/v1/*, /auth/v1/*, /realtime/v1/* — this routes each
-# path prefix to the right Railway service and adds the CORS the browser needs.
+# <VITE_SUPABASE_URL>/rest/v1/*, /auth/v1/*, /realtime/v1/*, /functions/v1/* —
+# this routes each path prefix to the right Railway service and adds the
+# CORS the browser needs.
 #
 # Required env (set on the Railway service):
-#   PORT          provided by Railway
-#   POSTGREST_URL e.g. http://postgrest.railway.internal:3000
-#   GOTRUE_URL    e.g. http://gotrue.railway.internal:9999
-#   REALTIME_URL  e.g. http://realtime.railway.internal:4000   (optional until Realtime is deployed)
-#   APP_ORIGIN    your app's origin for CORS, or * (default)
+#   PORT             provided by Railway
+#   POSTGREST_URL    e.g. http://postgrest.railway.internal:3000
+#   GOTRUE_URL       e.g. http://gotrue.railway.internal:9999
+#   REALTIME_URL     e.g. http://realtime.railway.internal:4000   (optional until Realtime is deployed)
+#   EDGE_FUNCTIONS_URL  e.g. http://edge-runtime.railway.internal:9000
+#   APP_ORIGIN       your app's origin for CORS, or * (default)
 
 {
 	admin off
@@ -37,6 +39,17 @@
 	}
 	handle_path /realtime/v1/* {
 		reverse_proxy {$REALTIME_URL}
+	}
+	handle_path /functions/v1/* {
+		# Edge functions can be slow (AI completions, gmail sync, etc.).
+		# Default Caddy timeouts (~30s) would cut them off — raise to 5
+		# minutes to match the worker timeout in main/index.ts.
+		reverse_proxy {$EDGE_FUNCTIONS_URL} {
+			transport http {
+				read_timeout 5m
+				write_timeout 5m
+			}
+		}
 	}
 	handle {
 		respond "darai gateway ok" 200
