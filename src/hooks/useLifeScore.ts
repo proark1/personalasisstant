@@ -38,13 +38,14 @@ export function useLifeScore() {
       const today = format(new Date(), 'yyyy-MM-dd');
       const weekAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
 
-      // Fetch today's score
+      // Fetch today's score (maybeSingle: returns null when no row yet,
+      // avoiding the 406 PGRST116 that .single() raises for new users).
       const { data: todayData } = await supabase
         .from('life_scores')
         .select('*')
         .eq('user_id', user.id)
         .eq('score_date', today)
-        .single();
+        .maybeSingle();
 
       if (todayData) {
         setTodayScore({
