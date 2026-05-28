@@ -13,7 +13,14 @@
     "moduleDetection": "force",
     "moduleResolution": "bundler",
     "noEmit": true,
-    "noFallthroughCasesInSwitch": false,
+    // ─── Strict mode rollout, phased ────────────────────────────────
+    // Step 1 (done): noFallthroughCasesInSwitch flips switch-fallthrough
+    // bugs into errors. Zero-cost: no existing failures.
+    // Step 2 (todo): noUnusedLocals + noUnusedParameters.
+    // Step 3 (todo): strictNullChecks (biggest bug-catcher; ~500-line fixup).
+    // Step 4 (todo): noImplicitAny — replaces ~200 `any` usages.
+    // Step 5 (todo): strict: true to lock it in.
+    "noFallthroughCasesInSwitch": true,
     "noImplicitAny": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,

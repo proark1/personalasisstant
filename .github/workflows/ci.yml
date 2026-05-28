@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel in-progress runs when new commits land on the same PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (lint, type-check, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      # Tracking only — there are pre-existing errors that the team is
+      # paying down. Surfacing them on every PR keeps the count honest
+      # without blocking unrelated work. Flip continue-on-error to false
+      # once the baseline reaches zero (see tsconfig.app.json).
+      - name: Type-check (no emit)
+        id: typecheck
+        continue-on-error: true
+        run: bunx tsc --noEmit -p tsconfig.app.json
+
+      - name: Test
+        run: bun run test
+
+      - name: Build
+        env:
+          # Build uses placeholder Supabase config — real values come
+          # from the deploy environment, not CI.
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: placeholder-anon-key
+          VITE_SUPABASE_PROJECT_ID: placeholder
+        run: bun run build
+
+  edge-functions:
+    name: Edge functions (deno check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v1.x
+
+      - name: Type-check all edge functions
+        run: |
+          set -e
+          fail=0
+          for fn in supabase/functions/*/index.ts; do
+            echo "::group::deno check $fn"
+            if ! deno check --no-lock "$fn"; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
