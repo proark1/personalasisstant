@@ -293,10 +293,25 @@ function extractColumnDefs(stmt: string): string[] {
     if (inString) {
       buf += ch;
       if (ch === "'") {
-        // '' is an escaped quote, not a string end.
         if (body[i + 1] === "'") { buf += body[++i]; }
         else inString = false;
       }
+      continue;
+    }
+    // Line comment — copy through end of line so a comma inside doesn't split.
+    if (ch === '-' && body[i + 1] === '-') {
+      const nl = body.indexOf('\n', i);
+      const stop = nl === -1 ? body.length : nl + 1;
+      buf += body.slice(i, stop);
+      i = stop - 1;
+      continue;
+    }
+    // Block comment.
+    if (ch === '/' && body[i + 1] === '*') {
+      const close = body.indexOf('*/', i + 2);
+      const stop = close === -1 ? body.length : close + 2;
+      buf += body.slice(i, stop);
+      i = stop - 1;
       continue;
     }
     if (ch === "'") { inString = true; buf += ch; continue; }

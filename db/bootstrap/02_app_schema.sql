@@ -7950,23 +7950,22 @@ CREATE TABLE IF NOT EXISTS public.focus_sessions (
 ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS id uuid NOT NULL DEFAULT gen_random_uuid();
 ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS user_id uuid NOT NULL;
 ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS task_id uuid REFERENCES public.tasks(id) ON DELETE SET NULL;
-ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS -- on Q3 plan"). NULL when task_id is set;
-ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS since the task title covers
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS -- on Q3 plan"). NULL when task_id is set, since the task title covers
   -- it; either label or task_id must be present (enforced in the tool
   -- handler so we don't reject historic backfills).
-  label text,
-  category text NOT NULL DEFAULT 'personal'
-    CHECK (category IN ('business', 'personal', 'family', 'shared', 'focus')),
-  started_at timestamptz NOT NULL DEFAULT now(),
-  ended_at timestamptz,
-  duration_minutes integer GENERATED ALWAYS AS (
+  label text;
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'personal'
+    CHECK (category IN ('business', 'personal', 'family', 'shared', 'focus'));
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS started_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS ended_at timestamptz;
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS duration_minutes integer GENERATED ALWAYS AS (
     CASE
       WHEN ended_at IS NULL THEN NULL
       ELSE GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (ended_at - started_at)) / 60)::integer)
     END
-  ) STORED,
-  workspace_id uuid,
-  created_at timestamptz NOT NULL DEFAULT now();
+  ) STORED;
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS workspace_id uuid;
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
 -- At most one open (ended_at IS NULL) session per user. Partial unique
 -- index is the postgres-idiomatic way to express "only one row matching
