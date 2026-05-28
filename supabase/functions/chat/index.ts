@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { recordUndo } from "../_shared/dori-undo.ts";
 import { buildDoriContext, formatContextForAI } from "../_shared/dori-context.ts";
 import { findTimeSlots, rankProposedSlots } from "../_shared/dori-scheduling.ts";
