@@ -18,6 +18,10 @@ import { InfrastructureProvider } from "@/components/InfrastructureProvider";
 import { useMorningAutoPlay } from "@/hooks/useMorningAutoPlay";
 import { TopLoader } from "@/components/ui/top-loader";
 import { BrandedLoader } from "@/components/ui/branded-loader";
+import { installGlobalErrorTelemetry } from "@/lib/telemetry";
+
+// Capture uncaught errors + unhandled rejections app-wide (once).
+installGlobalErrorTelemetry();
 import Landing from "@/pages/Landing";
 import CalendarCallback from "@/pages/CalendarCallback";
 import { lazy } from "react";

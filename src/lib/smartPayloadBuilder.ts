@@ -6,18 +6,37 @@ import { FamilyMember } from '@/hooks/useFamilyMembers';
 import { ShoppingList } from '@/hooks/useShoppingLists';
 import { moduleHealth, type ModuleId } from './moduleHealth';
 
-// Keyword categories for smart context injection
+// Keyword categories for smart context injection. Kept broad (with common
+// synonyms + German) so intent is caught even when the user doesn't use the
+// "canonical" word — the previous lists were narrow enough to miss obvious
+// phrasings (e.g. "subscriptions", "bill", "feeling swamped").
 const CONTEXT_TRIGGERS = {
-  email: ['email', 'inbox', 'unread', 'mail', 'message from', 'reply to', 'e-mail', 'gmail'],
-  notes: ['note', 'notes', 'wrote', 'saved', 'remember', 'jot down', 'write down', 'notiz'],
-  habits: ['habit', 'streak', 'routine', 'consistency', 'daily routine', 'gewohnheit'],
-  family: ['family', 'kids', 'children', 'school', 'kindergarten', 'wife', 'husband', 'son', 'daughter', 'spouse', 'kinder', 'schule', 'familie'],
-  shopping: ['shopping', 'groceries', 'buy', 'shopping list', 'einkauf', 'einkaufen'],
-  contacts: ['who do i know', 'contact', 'investor', 'developer', 'designer', 'advisor', 'mentor', 'engineer', 'sales', 'marketing', 'lawyer', 'legal', 'accountant', 'finance', 'meeting with', 'call with'],
-  contracts: ['contract', 'subscription', 'cost', 'renewal', 'cancel', 'how much', 'spending', 'budget', 'expense', 'vertrag', 'kosten'],
-  cooking: ['recipe', 'meal', 'cook', 'dinner', 'lunch', 'breakfast', 'essen', 'kochen', 'rezept'],
+  email: ['email', 'inbox', 'unread', 'mail', 'message from', 'reply to', 'e-mail', 'gmail', 'outlook', 'respond to', 'forward', 'cc ', 'sender'],
+  notes: ['note', 'notes', 'wrote', 'saved', 'remember', 'jot down', 'write down', 'notiz', 'memo', 'i noted', 'remind me what'],
+  habits: ['habit', 'streak', 'routine', 'consistency', 'daily routine', 'gewohnheit', 'track', 'every day', 'keep up', 'stay on track'],
+  family: ['family', 'kids', 'children', 'school', 'kindergarten', 'wife', 'husband', 'son', 'daughter', 'spouse', 'kinder', 'schule', 'familie', 'partner', 'mom', 'dad', 'mother', 'father', 'parents', 'household'],
+  shopping: ['shopping', 'groceries', 'buy', 'shopping list', 'einkauf', 'einkaufen', 'pick up', 'store', 'supermarket', 'need to get'],
+  contacts: ['who do i know', 'contact', 'investor', 'developer', 'designer', 'advisor', 'mentor', 'engineer', 'sales', 'marketing', 'lawyer', 'legal', 'accountant', 'finance', 'meeting with', 'call with', 'reach out', 'follow up with', 'introduce', 'connect me', 'recruiter', 'client', 'colleague'],
+  contracts: ['contract', 'subscription', 'subscriptions', 'cost', 'renewal', 'renew', 'cancel', 'how much', 'spending', 'budget', 'expense', 'vertrag', 'kosten', 'bill', 'bills', 'invoice', 'payment', 'monthly fee', 'plan', 'provider'],
+  cooking: ['recipe', 'meal', 'cook', 'dinner', 'lunch', 'breakfast', 'essen', 'kochen', 'rezept', 'food', 'eat', 'menu'],
+  // Emotional / overload signals — when present, surface the user's habits &
+  // routines so Dori can reason about wellbeing, not just tasks.
+  wellbeing: ['stressed', 'overwhelmed', 'overwhelm', 'burned out', 'burnt out', 'burnout', 'exhausted', 'tired', 'anxious', 'anxiety', "can't focus", 'cant focus', 'swamped', 'too much', 'struggling', 'no energy', 'gestresst', 'überfordert', 'erschöpft', 'müde'],
   location: [] as string[], // Filled dynamically from contact cities
 };
+
+export type ContextIntent = keyof typeof CONTEXT_TRIGGERS;
+
+/**
+ * Pure, testable intent detector — returns which context categories a message
+ * touches. Exposed for unit testing and reuse outside the payload builder.
+ */
+export function detectContextIntents(message: string): ContextIntent[] {
+  const lower = message.toLowerCase();
+  return (Object.keys(CONTEXT_TRIGGERS) as ContextIntent[]).filter(
+    (cat) => cat !== 'location' && CONTEXT_TRIGGERS[cat].some((kw) => lower.includes(kw)),
+  );
+}
 
 const LOCATIONS = [
   'dubai', 'uae', 'london', 'uk', 'new york', 'nyc', 'usa', 'berlin', 'germany',
@@ -210,8 +229,9 @@ export function buildSmartPayload({
     }));
   }
 
-  // Habits
-  if (matchesCategory(lowerMsg, CONTEXT_TRIGGERS.habits) && habits && habits.length > 0) {
+  // Habits — also surfaced when the user signals stress/overwhelm, so Dori
+  // can reason about routines and wellbeing rather than only the task list.
+  if ((matchesCategory(lowerMsg, CONTEXT_TRIGGERS.habits) || matchesCategory(lowerMsg, CONTEXT_TRIGGERS.wellbeing)) && habits && habits.length > 0) {
     payload.habitsSummary = habits.slice(0, 10);
   }
 

@@ -4474,7 +4474,12 @@ async function loadDoriIntelligence(
   let memoriesBlock = '';
   if (memories && memories.length > 0) {
     memoriesBlock += `\n\n## LONG-TERM MEMORY (${workspaceId ? 'workspace' : 'personal'} scope)`;
-    memoriesBlock += '\nFacts, preferences, and patterns saved in prior turns. Reference them naturally.';
+    memoriesBlock += '\nFacts, preferences, and patterns saved in prior turns, ordered most-confident first.';
+    memoriesBlock += '\nHow to use them:';
+    memoriesBlock += '\n- Apply relevant memories silently to personalise your answer and any actions (e.g. default times, names, preferences).';
+    memoriesBlock += '\n- Weight earlier (higher-confidence) items above later ones; if two memories conflict, trust the more recent/specific one.';
+    memoriesBlock += "\n- Only rely on a memory that actually fits the current request — don't force-fit unrelated facts.";
+    memoriesBlock += "\n- If a memory seems stale or contradicts what the user just said, prefer the user's current message and quietly update your understanding.";
     for (const m of (memories as any[])) {
       memoriesBlock += `\n- [${m.memory_type}]${m.category ? ` (${m.category})` : ''} ${m.key}: "${m.value}"`;
     }

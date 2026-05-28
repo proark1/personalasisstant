@@ -13,6 +13,13 @@ import { format } from 'date-fns';
 
 const EMPTY_CONTACTS: Contact[] = [];
 
+interface ProactiveStats {
+  overdueTasks?: number;
+  unreadEmails?: number;
+  todayEvents?: number;
+  pendingTasks?: number;
+}
+
 interface ChatPanelProps {
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
@@ -21,6 +28,27 @@ interface ChatPanelProps {
   onToggleFullscreen?: () => void;
   onVoiceMode?: () => void;
   contacts?: Contact[];
+  /** Live counts used to surface proactive opener prompts in the empty state. */
+  proactiveStats?: ProactiveStats;
+}
+
+/**
+ * Build opener suggestions tailored to what's actually pending right now, so
+ * Dori's empty state nudges the user instead of showing generic examples.
+ * Brings a slice of the (previously Telegram-only) proactivity into web chat.
+ */
+function buildOpenerSuggestions(stats?: ProactiveStats): string[] {
+  const out: string[] = [];
+  if (stats?.overdueTasks && stats.overdueTasks > 0) out.push('Reschedule my overdue tasks');
+  if (stats?.todayEvents && stats.todayEvents > 0) out.push("Prep me for today's meetings");
+  if (stats?.unreadEmails && stats.unreadEmails > 0) out.push('Summarize my unread emails');
+  if (stats?.pendingTasks && stats.pendingTasks > 0) out.push('What should I focus on next?');
+  // Always offer a couple of evergreen actions to round things out.
+  for (const s of ['Plan my day', 'Add a task']) {
+    if (out.length >= 4) break;
+    if (!out.includes(s)) out.push(s);
+  }
+  return out.slice(0, 4);
 }
 
 export function ChatPanel({
@@ -31,6 +59,7 @@ export function ChatPanel({
   onToggleFullscreen,
   onVoiceMode,
   contacts = EMPTY_CONTACTS,
+  proactiveStats,
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [contactSuggestions, setContactSuggestions] = useState<ContactSuggestion[]>([]);
@@ -155,13 +184,13 @@ export function ChatPanel({
               Ask me to manage tasks, schedule events, brainstorm ideas, or search the web.
             </p>
             <div className="flex flex-wrap gap-2 mt-4 justify-center">
-              {['Add a task', 'Schedule meeting', 'Search latest news'].map((suggestion) => (
+              {buildOpenerSuggestions(proactiveStats).map((suggestion) => (
                 <Button
                   key={suggestion}
                   variant="outline"
                   size="sm"
                   className="text-xs"
-                  onClick={() => setInput(suggestion)}
+                  onClick={() => onSendMessage(suggestion)}
                 >
                   {suggestion}
                 </Button>
