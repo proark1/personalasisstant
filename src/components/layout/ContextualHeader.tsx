@@ -50,9 +50,31 @@ export function ContextualHeader({
       </div>
       <div className="flex items-center gap-1">
         {onOpenSearch && (
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onOpenSearch}>
-            <Search className="w-4.5 h-4.5" />
-          </Button>
+          <>
+            {/* Desktop: a command-bar pill — the "Ask Dori or jump anywhere" front door. */}
+            <button
+              type="button"
+              onClick={onOpenSearch}
+              aria-label="Open command palette — ask Dori or search"
+              className="hidden md:flex items-center gap-2 h-9 pl-3 pr-2 rounded-full border border-border bg-muted/40 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Search className="w-4 h-4" aria-hidden="true" />
+              <span>Ask Dori or search…</span>
+              <kbd className="ml-1 hidden lg:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 font-mono text-[10px] text-muted-foreground">
+                ⌘K
+              </kbd>
+            </button>
+            {/* Mobile: compact icon button. */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden h-9 w-9"
+              onClick={onOpenSearch}
+              aria-label="Open command palette"
+            >
+              <Search className="w-4.5 h-4.5" />
+            </Button>
+          </>
         )}
         <DoriNotificationIcon />
         <VisionCaptureButton />

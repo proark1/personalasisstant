@@ -137,8 +137,14 @@ export function ChatPanel({
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages — aria-live so assistant replies are announced to AT users */}
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        aria-label="Conversation with Dori"
+      >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-4">
@@ -210,12 +216,12 @@ export function ChatPanel({
           ))
         )}
         {isProcessing && (
-          <div className="flex gap-3 animate-fade-in">
+          <div className="flex gap-3 animate-fade-in" aria-label="Dori is thinking">
             <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
-              <Bot className="w-4 h-4 text-primary" />
+              <Bot className="w-4 h-4 text-primary" aria-hidden="true" />
             </div>
             <div className="glass-panel rounded-xl px-4 py-3">
-              <div className="flex gap-1">
+              <div className="flex gap-1" aria-hidden="true">
                 <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
                 <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />

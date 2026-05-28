@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { prefetchPanel } from '@/lib/panelPrefetch';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -48,6 +49,8 @@ interface NavItemProps {
 
 function NavItem({ icon: Icon, label, panel, activePanel, collapsed, onClick, badge }: NavItemProps) {
   const isActive = activePanel === panel;
+  // Warm the panel's chunk on hover/focus so the click feels instant.
+  const warm = () => prefetchPanel(panel as string);
   const btn = (
     <Button
       variant={isActive ? 'secondary' : 'ghost'}
@@ -57,6 +60,8 @@ function NavItem({ icon: Icon, label, panel, activePanel, collapsed, onClick, ba
         isActive && "bg-sidebar-accent text-sidebar-primary font-medium"
       )}
       onClick={() => onClick(panel)}
+      onMouseEnter={warm}
+      onFocus={warm}
     >
       {isActive && (
         <motion.div

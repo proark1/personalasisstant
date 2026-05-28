@@ -17,6 +17,7 @@ import { InfrastructureProvider } from "@/components/InfrastructureProvider";
 
 import { useMorningAutoPlay } from "@/hooks/useMorningAutoPlay";
 import { TopLoader } from "@/components/ui/top-loader";
+import { BrandedLoader } from "@/components/ui/branded-loader";
 import Landing from "@/pages/Landing";
 import CalendarCallback from "@/pages/CalendarCallback";
 import { lazy } from "react";
@@ -81,11 +82,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-primary">Loading...</div>
-      </div>
-    );
+    return <BrandedLoader />;
   }
 
   if (!user) {
@@ -99,11 +96,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-primary">Loading...</div>
-      </div>
-    );
+    return <BrandedLoader />;
   }
 
   if (user) {

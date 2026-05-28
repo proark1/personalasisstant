@@ -31,6 +31,9 @@ import { MorningThreadCard } from './MorningThreadCard';
 import { MentalLoadCard } from './MentalLoadCard';
 import { StaggerContainer, StaggerItem } from '@/components/ui/page-transition';
 import { PanelSkeleton } from '@/components/ui/panel-skeleton';
+import { CustomizableCard } from './CustomizableCard';
+import { useDashboardLayout } from '@/hooks/useDashboardLayout';
+import { Sliders, Check } from 'lucide-react';
 import { useSmartTaskSuggestions } from '@/hooks/useSmartTaskSuggestions';
 import { Task, TaskCategory, CalendarEvent } from '@/types/flux';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +70,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
   const { todayScore } = useLifeScore();
   const { suggestion, loading: sugLoading, refresh: refreshSuggestion } = useSmartTaskSuggestions(tasks, events);
   const { celebrate, checkStreak } = useCelebration();
+  const { isHidden, toggleCard, customizing, setCustomizing, hiddenCount, resetCards } = useDashboardLayout();
 
   const handleStartTask = (taskId: string | null, _title: string) => {
     onNavigate?.('tasks');
@@ -215,29 +219,58 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
 
         {/* Today / Insights segmented control — keeps the default view calm */}
         <StaggerItem className="col-span-full">
-          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-muted">
-            {(['today', 'insights'] as const).map((v) => {
-              const alertCount = contractAlerts.length + overdueContacts.length;
-              return (
+          <div className="flex items-center justify-between gap-2">
+            <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-muted">
+              {(['today', 'insights'] as const).map((v) => {
+                const alertCount = contractAlerts.length + overdueContacts.length;
+                return (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5",
+                      view === v
+                        ? "bg-card text-foreground shadow-soft"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {v === 'today' ? 'Today' : 'Insights'}
+                    {v === 'insights' && alertCount > 0 && (
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] justify-center">
+                        {alertCount}
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Customize insight cards */}
+            {view === 'insights' && (
+              <div className="flex items-center gap-2">
+                {customizing && hiddenCount > 0 && (
+                  <button
+                    onClick={resetCards}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Reset
+                  </button>
+                )}
                 <button
-                  key={v}
-                  onClick={() => setView(v)}
+                  onClick={() => setCustomizing(!customizing)}
+                  aria-pressed={customizing}
                   className={cn(
-                    "px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5",
-                    view === v
-                      ? "bg-card text-foreground shadow-soft"
-                      : "text-muted-foreground hover:text-foreground"
+                    "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    customizing
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {v === 'today' ? 'Today' : 'Insights'}
-                  {v === 'insights' && alertCount > 0 && (
-                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] justify-center">
-                      {alertCount}
-                    </Badge>
-                  )}
+                  {customizing ? <Check className="h-3.5 w-3.5" /> : <Sliders className="h-3.5 w-3.5" />}
+                  {customizing ? 'Done' : 'Customize'}
                 </button>
-              );
-            })}
+              </div>
+            )}
           </div>
         </StaggerItem>
 
@@ -274,26 +307,52 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         {/* Insights: the deeper, opt-in detail */}
         {view === 'insights' && (
           <StaggerItem className="col-span-full">
+            {customizing && (
+              <p className="text-sm text-muted-foreground mb-3">
+                Hide cards you don't use — your dashboard, your way. Changes save automatically.
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              <div className="md:col-span-3"><MorningThreadCard /></div>
-              <div className="md:col-span-3"><LifeScoreCommentaryCard /></div>
-              <div className="md:col-span-3"><ConflictAlertsCard /></div>
-              <div className="md:col-span-3"><TravelIntelCard /></div>
-              <div className="md:col-span-3"><EmailActionPipelineCard /></div>
-              <div className="md:col-span-2"><MeetingBriefsCard /></div>
-              <div className="md:col-span-1"><EnergyCoachCard /></div>
-              <div className="md:col-span-2"><LearnedRoutinesCard /></div>
-              <div className="md:col-span-1"><EpisodicMemoriesCard /></div>
-              <div className="md:col-span-3"><MentalLoadCard /></div>
-              <div className="md:col-span-2"><DailyBriefingCard /></div>
-              <div className="md:col-span-1">
-                <SmartInsightCard tasks={tasks} emails={emails} contracts={contractAlerts} contacts={overdueContacts} events={events} />
-              </div>
+              {([
+                { id: 'morning-thread', label: 'Morning Thread', span: 'md:col-span-3', node: <MorningThreadCard /> },
+                { id: 'life-score', label: 'Life Score', span: 'md:col-span-3', node: <LifeScoreCommentaryCard /> },
+                { id: 'conflict-alerts', label: 'Conflict Alerts', span: 'md:col-span-3', node: <ConflictAlertsCard /> },
+                { id: 'travel-intel', label: 'Travel Intel', span: 'md:col-span-3', node: <TravelIntelCard /> },
+                { id: 'email-pipeline', label: 'Email Pipeline', span: 'md:col-span-3', node: <EmailActionPipelineCard /> },
+                { id: 'meeting-briefs', label: 'Meeting Briefs', span: 'md:col-span-2', node: <MeetingBriefsCard /> },
+                { id: 'energy-coach', label: 'Energy Coach', span: 'md:col-span-1', node: <EnergyCoachCard /> },
+                { id: 'learned-routines', label: 'Learned Routines', span: 'md:col-span-2', node: <LearnedRoutinesCard /> },
+                { id: 'episodic-memories', label: 'Episodic Memories', span: 'md:col-span-1', node: <EpisodicMemoriesCard /> },
+                { id: 'mental-load', label: 'Mental Load', span: 'md:col-span-3', node: <MentalLoadCard /> },
+                { id: 'daily-briefing', label: 'Daily Briefing', span: 'md:col-span-2', node: <DailyBriefingCard /> },
+                {
+                  id: 'smart-insight',
+                  label: 'Smart Insight',
+                  span: 'md:col-span-1',
+                  node: <SmartInsightCard tasks={tasks} emails={emails} contracts={contractAlerts} contacts={overdueContacts} events={events} />,
+                },
+              ] as const).map((card) => (
+                <CustomizableCard
+                  key={card.id}
+                  id={card.id}
+                  label={card.label}
+                  className={card.span}
+                  customizing={customizing}
+                  hidden={isHidden(card.id)}
+                  onToggle={toggleCard}
+                >
+                  {card.node}
+                </CustomizableCard>
+              ))}
               {contractAlerts.length > 0 && (
-                <div className="md:col-span-2"><ContractAlertsCard contracts={contractAlerts} onNavigate={onNavigate} /></div>
+                <CustomizableCard id="contract-alerts" label="Contract Alerts" className="md:col-span-2" customizing={customizing} hidden={isHidden('contract-alerts')} onToggle={toggleCard}>
+                  <ContractAlertsCard contracts={contractAlerts} onNavigate={onNavigate} />
+                </CustomizableCard>
               )}
               {overdueContacts.length > 0 && (
-                <div className="md:col-span-1"><ContactRemindersCard contacts={overdueContacts} onNavigate={onNavigate} /></div>
+                <CustomizableCard id="contact-reminders" label="Contact Reminders" className="md:col-span-1" customizing={customizing} hidden={isHidden('contact-reminders')} onToggle={toggleCard}>
+                  <ContactRemindersCard contacts={overdueContacts} onNavigate={onNavigate} />
+                </CustomizableCard>
               )}
             </div>
           </StaggerItem>

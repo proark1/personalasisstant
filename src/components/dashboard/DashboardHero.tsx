@@ -44,15 +44,34 @@ export function DashboardHero({
     return `Good evening${name ? `, ${name}` : ''}`;
   }, [userName]);
 
+  const isEvening = new Date().getHours() >= 18;
+
   const summary = useMemo(() => {
     const todayTasks = tasks.filter(t => !t.completed && !t.trashed);
     const overdue = todayTasks.filter(t => t.dueDate && t.dueDate < new Date());
     const count = todayTasks.length;
+    // Evening: lead with a wrap-up of what got done today.
+    if (isEvening) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const doneToday = tasks.filter(t => t.completed && t.createdAt && t.createdAt >= today).length;
+      if (doneToday > 0) return `${doneToday} done today${count > 0 ? ` · ${count} left for tomorrow` : ' · all clear 🎉'}`;
+    }
     if (overdue.length > 0)
       return `${overdue.length} overdue · ${count} total to do`;
     if (count === 0) return "You're all caught up! 🎉";
     return `${count} task${count > 1 ? 's' : ''} to focus on today`;
-  }, [tasks]);
+  }, [tasks, isEvening]);
+
+  // Time-aware prompts that hand the conversation to Dori (event-bus).
+  const doriPrompts = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return ['Plan my day', "What's my top priority?"];
+    if (hour < 18) return ['What should I focus on now?', 'Any deadlines today?'];
+    return ['Wrap up my day', 'Prep me for tomorrow'];
+  }, []);
+
+  const askDori = (text: string) =>
+    window.dispatchEvent(new CustomEvent('dori:ask', { detail: { text } }));
 
   const rec = suggestion?.recommendation;
   const energy = rec ? energyConfig[rec.energy] : null;
@@ -81,6 +100,20 @@ export function DashboardHero({
           >
             <Settings className="w-4 h-4 text-muted-foreground" />
           </Button>
+        </div>
+
+        {/* Ask-Dori quick prompts — time-aware entry into the daily flow */}
+        <div className="flex flex-wrap gap-1.5 mt-2.5 mb-3">
+          {doriPrompts.map((prompt) => (
+            <button
+              key={prompt}
+              onClick={() => askDori(prompt)}
+              className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Sparkles className="w-3 h-3" aria-hidden="true" />
+              {prompt}
+            </button>
+          ))}
         </div>
 
         {/* XP row */}

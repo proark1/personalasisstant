@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo, Suspense, lazy } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { CommandPalette, type CommandPaletteAction } from '../command/CommandPalette';
 import { Sidebar, SidebarFilter, ActivePanel } from './Sidebar';
 import { useDeepLinkHandler } from '@/hooks/useDeepLinkHandler';
 import { MobileLayout } from './MobileLayout';
@@ -10,7 +11,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
-import { List, Grid3X3, X, Activity } from 'lucide-react';
+import { List, Grid3X3, X, Activity, Plus, Timer, Mic, CalendarCheck, Target } from 'lucide-react';
 import { TaskViewSwitcher, TaskView } from '../tasks/TaskViewSwitcher';
 import { PanelFallback } from '@/components/lazy/LazyLoader';
 import { ContextualHeader } from './ContextualHeader';
@@ -181,11 +182,56 @@ export function StandardMode({
   const [showTodayFocus, setShowTodayFocus] = useState(false);
   
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
-  const [activePanel, setActivePanel] = useState<ActivePanel>('tasks');
-  const [familyDefaultTab, setFamilyDefaultTab] = useState<string>('tasks');
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // --- URL-routable panels (#3) -----------------------------------------
+  // The active panel lives in the `?panel=` query param so refreshes,
+  // shared links, and the browser/mobile back button all work. React state
+  // is kept in sync as a fast local mirror.
+  const panelFromUrl = (searchParams.get('panel') as ActivePanel) || 'tasks';
+  const [activePanel, setActivePanelState] = useState<ActivePanel>(panelFromUrl);
+  const [familyDefaultTab, setFamilyDefaultTab] = useState<string>('tasks');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
+
+  // Sync state when the URL changes underneath us (back/forward, deep links).
+  useEffect(() => {
+    if (panelFromUrl !== activePanel) setActivePanelState(panelFromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelFromUrl]);
+
+  // Single entry point for changing panels: updates both state and the URL.
+  const setActivePanel = useCallback(
+    (panel: ActivePanel) => {
+      setActivePanelState(panel);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (!panel || panel === 'tasks') next.delete('panel');
+          else next.set('panel', panel);
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+
+  // Navigate honouring the "cooking" → Family/meals alias used by the sidebar.
+  const goToPanel = useCallback(
+    (panelId: string) => {
+      if (panelId === 'cooking') {
+        setActivePanel('family');
+        setFamilyDefaultTab('meals');
+      } else {
+        setActivePanel(panelId as ActivePanel);
+        setFamilyDefaultTab('tasks');
+      }
+    },
+    [setActivePanel],
+  );
 
   // Deep-linking from push notifications, AI replies, etc. — listens for
   // `dori:open-entity` window events and routes to the right surface.
@@ -261,18 +307,52 @@ export function StandardMode({
     });
   };
 
-  // Keyboard shortcut for global search (Cmd+K)
+  // Keyboard shortcut for the command palette (Cmd/Ctrl+K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setShowGlobalSearch(true);
+        setShowCommandPalette((prev) => !prev);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Quick actions surfaced at the top of the command palette.
+  const commandActions = useMemo<CommandPaletteAction[]>(
+    () => [
+      { id: 'new-task', label: 'New task', icon: Plus, keywords: 'add create todo', run: () => goToPanel('tasks') },
+      { id: 'voice', label: 'Talk to Dori (voice)', icon: Mic, keywords: 'voice ghost speak', run: onVoiceMode },
+      { id: 'focus-timer', label: 'Start focus timer', icon: Timer, keywords: 'pomodoro deep work', run: () => setShowFocusTimer(true) },
+      { id: 'today-focus', label: "Today's focus", icon: Target, keywords: 'now priorities', run: () => setShowTodayFocus(true) },
+      ...(onOpenWeeklyReview
+        ? [{ id: 'weekly-review', label: 'Weekly review', icon: CalendarCheck, keywords: 'recap reflect', run: onOpenWeeklyReview } as CommandPaletteAction]
+        : []),
+    ],
+    [goToPanel, onVoiceMode, onOpenWeeklyReview],
+  );
+
+  // Ask Dori from the palette: open the assistant, then send the message.
+  const handleAskDori = useCallback(
+    (text: string) => {
+      setActivePanel('assistant');
+      onSendMessage(text);
+    },
+    [setActivePanel, onSendMessage],
+  );
+
+  // Let any surface (dashboard hero prompts, cards, etc.) hand a prompt to
+  // Dori via a `dori:ask` window event — reuses the app's event-bus pattern.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const text = (e as CustomEvent<{ text?: string }>).detail?.text;
+      if (text) handleAskDori(text);
+    };
+    window.addEventListener('dori:ask', handler as EventListener);
+    return () => window.removeEventListener('dori:ask', handler as EventListener);
+  }, [handleAskDori]);
 
   // Handle search result selection
   const handleSelectSearchResult = (result: SearchResult) => {
@@ -434,15 +514,7 @@ export function StandardMode({
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenWeeklyReview={onOpenWeeklyReview}
         onOpenTodayFocus={() => setShowTodayFocus(true)}
-        onPanelChange={(p) => {
-          if (p === 'cooking') {
-            setActivePanel('family');
-            setFamilyDefaultTab('meals');
-          } else {
-            setActivePanel(p);
-            setFamilyDefaultTab('tasks');
-          }
-        }}
+        onPanelChange={(p) => goToPanel(p as string)}
         activePanel={activePanel}
       />
       
@@ -450,7 +522,7 @@ export function StandardMode({
         {/* Desktop Content Header */}
         <ContextualHeader
           title={panelTitle}
-          onOpenSearch={() => setShowGlobalSearch(true)}
+          onOpenSearch={() => setShowCommandPalette(true)}
           notifications={[]}
           onMarkRead={() => {}}
           onMarkAllRead={() => {}}
@@ -847,6 +919,16 @@ export function StandardMode({
           tasks={tasks}
           isOpen={showFocusTimer}
           onClose={() => setShowFocusTimer(false)}
+        />
+
+        {/* Command palette (⌘K) — fast nav + actions + Ask Dori */}
+        <CommandPalette
+          open={showCommandPalette}
+          onOpenChange={setShowCommandPalette}
+          onNavigate={goToPanel}
+          onAskDori={handleAskDori}
+          onOpenSearch={onSearch ? () => setShowGlobalSearch(true) : undefined}
+          actions={commandActions}
         />
 
         {/* Global Search */}
