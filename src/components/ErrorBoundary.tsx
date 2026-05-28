@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/telemetry";
 
 type Props = {
   children: React.ReactNode;
@@ -32,8 +33,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: unknown) {
     // Keep console noise minimal but preserve a real signal for iOS/Safari debugging.
-     
+
     console.error("[ErrorBoundary] Uncaught error", error);
+    // Bridge to telemetry so crashes are queryable, not just console-only.
+    void reportClientError(error, { kind: "react.errorBoundary" });
   }
 
   private handleReload = () => {
