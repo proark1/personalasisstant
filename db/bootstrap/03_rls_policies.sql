@@ -44,16 +44,21 @@ ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shared_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_contacts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
 -- Profiles policies
 CREATE POLICY "Users can view all profiles" ON public.profiles
   FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own tasks" ON public.tasks;
 -- Tasks policies
 CREATE POLICY "Users can view own tasks" ON public.tasks
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view shared tasks" ON public.tasks;
 CREATE POLICY "Users can view shared tasks" ON public.tasks
   FOR SELECT USING (
     EXISTS (
@@ -63,10 +68,13 @@ CREATE POLICY "Users can view shared tasks" ON public.tasks
       AND shared_with_id = auth.uid()
     )
   );
+DROP POLICY IF EXISTS "Users can insert own tasks" ON public.tasks;
 CREATE POLICY "Users can insert own tasks" ON public.tasks
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own tasks" ON public.tasks;
 CREATE POLICY "Users can update own tasks" ON public.tasks
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update shared tasks with edit permission" ON public.tasks;
 CREATE POLICY "Users can update shared tasks with edit permission" ON public.tasks
   FOR UPDATE USING (
     EXISTS (
@@ -77,11 +85,14 @@ CREATE POLICY "Users can update shared tasks with edit permission" ON public.tas
       AND permission = 'edit'
     )
   );
+DROP POLICY IF EXISTS "Users can delete own tasks" ON public.tasks;
 CREATE POLICY "Users can delete own tasks" ON public.tasks
   FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own events" ON public.events;
 -- Events policies
 CREATE POLICY "Users can view own events" ON public.events
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view shared events" ON public.events;
 CREATE POLICY "Users can view shared events" ON public.events
   FOR SELECT USING (
     EXISTS (
@@ -91,10 +102,13 @@ CREATE POLICY "Users can view shared events" ON public.events
       AND shared_with_id = auth.uid()
     )
   );
+DROP POLICY IF EXISTS "Users can insert own events" ON public.events;
 CREATE POLICY "Users can insert own events" ON public.events
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own events" ON public.events;
 CREATE POLICY "Users can update own events" ON public.events
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update shared events with edit permission" ON public.events;
 CREATE POLICY "Users can update shared events with edit permission" ON public.events
   FOR UPDATE USING (
     EXISTS (
@@ -105,20 +119,27 @@ CREATE POLICY "Users can update shared events with edit permission" ON public.ev
       AND permission = 'edit'
     )
   );
+DROP POLICY IF EXISTS "Users can delete own events" ON public.events;
 CREATE POLICY "Users can delete own events" ON public.events
   FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view items shared with them" ON public.shared_items;
 -- Shared items policies
 CREATE POLICY "Users can view items shared with them" ON public.shared_items
   FOR SELECT USING (auth.uid() = owner_id OR auth.uid() = shared_with_id);
+DROP POLICY IF EXISTS "Users can share their own items" ON public.shared_items;
 CREATE POLICY "Users can share their own items" ON public.shared_items
   FOR INSERT WITH CHECK (auth.uid() = owner_id);
+DROP POLICY IF EXISTS "Users can delete shares they created" ON public.shared_items;
 CREATE POLICY "Users can delete shares they created" ON public.shared_items
   FOR DELETE USING (auth.uid() = owner_id);
+DROP POLICY IF EXISTS "Users can view own contacts" ON public.user_contacts;
 -- User contacts policies
 CREATE POLICY "Users can view own contacts" ON public.user_contacts
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can add contacts" ON public.user_contacts;
 CREATE POLICY "Users can add contacts" ON public.user_contacts
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own contacts" ON public.user_contacts;
 CREATE POLICY "Users can delete own contacts" ON public.user_contacts
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -127,39 +148,56 @@ CREATE POLICY "Users can delete own contacts" ON public.user_contacts
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.focus_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own chat messages" ON public.chat_messages;
 -- RLS policies for chat_messages
 CREATE POLICY "Users can view their own chat messages" ON public.chat_messages FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can create their own chat messages" ON public.chat_messages FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can update their own chat messages" ON public.chat_messages FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can delete their own chat messages" ON public.chat_messages FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own task templates" ON public.task_templates;
 -- RLS policies for task_templates
 CREATE POLICY "Users can view their own task templates" ON public.task_templates FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own task templates" ON public.task_templates;
 CREATE POLICY "Users can create their own task templates" ON public.task_templates FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own task templates" ON public.task_templates;
 CREATE POLICY "Users can update their own task templates" ON public.task_templates FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own task templates" ON public.task_templates;
 CREATE POLICY "Users can delete their own task templates" ON public.task_templates FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own focus sessions" ON public.focus_sessions;
 -- RLS policies for focus_sessions
 CREATE POLICY "Users can view their own focus sessions" ON public.focus_sessions FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own focus sessions" ON public.focus_sessions;
 CREATE POLICY "Users can create their own focus sessions" ON public.focus_sessions FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own focus sessions" ON public.focus_sessions;
 CREATE POLICY "Users can update their own focus sessions" ON public.focus_sessions FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own focus sessions" ON public.focus_sessions;
 CREATE POLICY "Users can delete their own focus sessions" ON public.focus_sessions FOR DELETE USING (auth.uid() = user_id);
 
 -- 20251217133552_7e13d204-6424-4c0a-85b8-eee25cede9f4.sql
 -- Enable RLS on tags
 ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own tags" ON public.tags;
 CREATE POLICY "Users can view their own tags"
 ON public.tags FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own tags" ON public.tags;
 CREATE POLICY "Users can create their own tags"
 ON public.tags FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own tags" ON public.tags;
 CREATE POLICY "Users can update their own tags"
 ON public.tags FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own tags" ON public.tags;
 CREATE POLICY "Users can delete their own tags"
 ON public.tags FOR DELETE
 USING (auth.uid() = user_id);
 -- Enable RLS on task_tags
 ALTER TABLE public.task_tags ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view task_tags for their tasks" ON public.task_tags;
 CREATE POLICY "Users can view task_tags for their tasks"
 ON public.task_tags FOR SELECT
 USING (EXISTS (
@@ -167,6 +205,7 @@ USING (EXISTS (
   WHERE tasks.id = task_tags.task_id 
   AND tasks.user_id = auth.uid()
 ));
+DROP POLICY IF EXISTS "Users can create task_tags for their tasks" ON public.task_tags;
 CREATE POLICY "Users can create task_tags for their tasks"
 ON public.task_tags FOR INSERT
 WITH CHECK (EXISTS (
@@ -174,6 +213,7 @@ WITH CHECK (EXISTS (
   WHERE tasks.id = task_tags.task_id 
   AND tasks.user_id = auth.uid()
 ));
+DROP POLICY IF EXISTS "Users can delete task_tags for their tasks" ON public.task_tags;
 CREATE POLICY "Users can delete task_tags for their tasks"
 ON public.task_tags FOR DELETE
 USING (EXISTS (
@@ -185,29 +225,38 @@ USING (EXISTS (
 -- 20251217135038_7b79c086-ea83-41f4-aeb7-5ce5c871366f.sql
 -- Enable RLS on projects
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own projects" ON public.projects;
 -- Projects RLS policies
 CREATE POLICY "Users can view own projects" ON public.projects
 FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own projects" ON public.projects;
 CREATE POLICY "Users can create own projects" ON public.projects
 FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own projects" ON public.projects;
 CREATE POLICY "Users can update own projects" ON public.projects
 FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own projects" ON public.projects;
 CREATE POLICY "Users can delete own projects" ON public.projects
 FOR DELETE USING (auth.uid() = user_id);
 -- Enable RLS on weekly_reviews
 ALTER TABLE public.weekly_reviews ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own reviews" ON public.weekly_reviews;
 -- Weekly reviews RLS policies
 CREATE POLICY "Users can view own reviews" ON public.weekly_reviews
 FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own reviews" ON public.weekly_reviews;
 CREATE POLICY "Users can create own reviews" ON public.weekly_reviews
 FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own reviews" ON public.weekly_reviews;
 CREATE POLICY "Users can update own reviews" ON public.weekly_reviews
 FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own reviews" ON public.weekly_reviews;
 CREATE POLICY "Users can delete own reviews" ON public.weekly_reviews
 FOR DELETE USING (auth.uid() = user_id);
 
 -- 20251217140433_237d338d-dde7-4bf7-b402-f65f6aefa553.sql
 ALTER TABLE public.activity_feed ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view activity for items they own or are shared with" ON public.activity_feed;
 CREATE POLICY "Users can view activity for items they own or are shared with"
 ON public.activity_feed
 FOR SELECT
@@ -220,19 +269,23 @@ USING (
     AND shared_items.shared_with_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Users can create activity entries" ON public.activity_feed;
 CREATE POLICY "Users can create activity entries"
 ON public.activity_feed
 FOR INSERT
 WITH CHECK (actor_id = auth.uid());
 ALTER TABLE public.search_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own search history" ON public.search_history;
 CREATE POLICY "Users can view own search history"
 ON public.search_history
 FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own search history" ON public.search_history;
 CREATE POLICY "Users can create own search history"
 ON public.search_history
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own search history" ON public.search_history;
 CREATE POLICY "Users can delete own search history"
 ON public.search_history
 FOR DELETE
@@ -241,11 +294,13 @@ USING (auth.uid() = user_id);
 -- 20251217143808_9d580fdf-64c9-4ab4-880a-23b260460d41.sql
 -- Enable RLS
 ALTER TABLE public.shared_project_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view projects shared with them" ON public.shared_project_members;
 -- Policies for shared_project_members
 CREATE POLICY "Users can view projects shared with them"
 ON public.shared_project_members
 FOR SELECT
 USING (auth.uid() = user_id OR auth.uid() = owner_id);
+DROP POLICY IF EXISTS "Project owners can share their projects" ON public.shared_project_members;
 CREATE POLICY "Project owners can share their projects"
 ON public.shared_project_members
 FOR INSERT
@@ -253,10 +308,12 @@ WITH CHECK (
   auth.uid() = owner_id AND
   EXISTS (SELECT 1 FROM public.projects WHERE id = project_id AND user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "Project owners can remove shares" ON public.shared_project_members;
 CREATE POLICY "Project owners can remove shares"
 ON public.shared_project_members
 FOR DELETE
 USING (auth.uid() = owner_id);
+DROP POLICY IF EXISTS "Users can view shared projects" ON public.projects;
 -- Update projects RLS to allow viewing shared projects
 CREATE POLICY "Users can view shared projects"
 ON public.projects
@@ -267,6 +324,7 @@ USING (
     WHERE project_id = projects.id AND user_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Users can view tasks in shared projects" ON public.tasks;
 -- Allow shared members to view tasks in shared projects
 CREATE POLICY "Users can view tasks in shared projects"
 ON public.tasks
@@ -278,6 +336,7 @@ USING (
     WHERE p.id = tasks.project_id AND spm.user_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Users can add tasks to shared projects" ON public.tasks;
 -- Allow shared members to add tasks to shared projects
 CREATE POLICY "Users can add tasks to shared projects"
 ON public.tasks
@@ -289,6 +348,7 @@ WITH CHECK (
     WHERE spm.project_id = tasks.project_id AND spm.user_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Users can update tasks in shared projects" ON public.tasks;
 -- Allow shared members to update tasks in shared projects
 CREATE POLICY "Users can update tasks in shared projects"
 ON public.tasks
@@ -304,16 +364,20 @@ USING (
 -- 20251217150617_bdb860af-546d-4f17-af45-01e6bba450f8.sql
 -- Enable RLS
 ALTER TABLE public.user_contacts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own contacts" ON public.user_contacts;
 -- RLS policies
 CREATE POLICY "Users can view own contacts"
   ON public.user_contacts FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create contacts" ON public.user_contacts;
 CREATE POLICY "Users can create contacts"
   ON public.user_contacts FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own contacts" ON public.user_contacts;
 CREATE POLICY "Users can update own contacts"
   ON public.user_contacts FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own contacts" ON public.user_contacts;
 CREATE POLICY "Users can delete own contacts"
   ON public.user_contacts FOR DELETE
   USING (auth.uid() = user_id);
@@ -321,21 +385,26 @@ CREATE POLICY "Users can delete own contacts"
 -- 20251217153350_b557ca7e-665a-4b79-900f-4c4f60b926a8.sql
 -- Enable RLS
 ALTER TABLE public.contracts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own contracts" ON public.contracts;
 -- RLS Policies
 CREATE POLICY "Users can view own contracts"
 ON public.contracts FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own contracts" ON public.contracts;
 CREATE POLICY "Users can create own contracts"
 ON public.contracts FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own contracts" ON public.contracts;
 CREATE POLICY "Users can update own contracts"
 ON public.contracts FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own contracts" ON public.contracts;
 CREATE POLICY "Users can delete own contracts"
 ON public.contracts FOR DELETE
 USING (auth.uid() = user_id);
 
 -- 20251217154645_62802852-05b0-4a61-85db-146c281fb784.sql
+DROP POLICY IF EXISTS "Users can upload their own contract documents" ON storage.objects;
 -- Create RLS policies for contract documents bucket
 CREATE POLICY "Users can upload their own contract documents"
 ON storage.objects FOR INSERT
@@ -343,12 +412,14 @@ WITH CHECK (
   bucket_id = 'contract-documents' 
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
+DROP POLICY IF EXISTS "Users can view their own contract documents" ON storage.objects;
 CREATE POLICY "Users can view their own contract documents"
 ON storage.objects FOR SELECT
 USING (
   bucket_id = 'contract-documents' 
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
+DROP POLICY IF EXISTS "Users can delete their own contract documents" ON storage.objects;
 CREATE POLICY "Users can delete their own contract documents"
 ON storage.objects FOR DELETE
 USING (
@@ -361,20 +432,24 @@ USING (
 ALTER TABLE public.space_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.space_share_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Owners can manage their space members" ON public.space_members;
 -- RLS policies for space_members
 CREATE POLICY "Owners can manage their space members"
 ON public.space_members
 FOR ALL
 USING (auth.uid() = owner_id);
+DROP POLICY IF EXISTS "Members can view their memberships" ON public.space_members;
 CREATE POLICY "Members can view their memberships"
 ON public.space_members
 FOR SELECT
 USING (auth.uid() = member_id);
+DROP POLICY IF EXISTS "Members can update their membership status" ON public.space_members;
 CREATE POLICY "Members can update their membership status"
 ON public.space_members
 FOR UPDATE
 USING (auth.uid() = member_id)
 WITH CHECK (auth.uid() = member_id);
+DROP POLICY IF EXISTS "Owners can manage share settings" ON public.space_share_settings;
 -- RLS policies for space_share_settings
 CREATE POLICY "Owners can manage share settings"
 ON public.space_share_settings
@@ -384,6 +459,7 @@ USING (EXISTS (
   WHERE sm.id = space_share_settings.space_member_id
   AND sm.owner_id = auth.uid()
 ));
+DROP POLICY IF EXISTS "Members can view their share settings" ON public.space_share_settings;
 CREATE POLICY "Members can view their share settings"
 ON public.space_share_settings
 FOR SELECT
@@ -392,38 +468,46 @@ USING (EXISTS (
   WHERE sm.id = space_share_settings.space_member_id
   AND sm.member_id = auth.uid()
 ));
+DROP POLICY IF EXISTS "Users can view their own notifications" ON public.user_notifications;
 -- RLS policies for user_notifications
 CREATE POLICY "Users can view their own notifications"
 ON public.user_notifications
 FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own notifications" ON public.user_notifications;
 CREATE POLICY "Users can update their own notifications"
 ON public.user_notifications
 FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own notifications" ON public.user_notifications;
 CREATE POLICY "Users can delete their own notifications"
 ON public.user_notifications
 FOR DELETE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "System can insert notifications for any user" ON public.user_notifications;
 CREATE POLICY "System can insert notifications for any user"
 ON public.user_notifications
 FOR INSERT
 WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can view shared tasks based on category permissions" ON public.tasks;
 -- Add RLS policy for tasks to allow viewing shared tasks
 CREATE POLICY "Users can view shared tasks based on category permissions"
 ON public.tasks
 FOR SELECT
 USING (public.can_view_shared_task(tasks));
+DROP POLICY IF EXISTS "Users can view shared events based on category permissions" ON public.events;
 -- Add RLS policy for events to allow viewing shared events
 CREATE POLICY "Users can view shared events based on category permissions"
 ON public.events
 FOR SELECT
 USING (public.can_view_shared_event(events));
+DROP POLICY IF EXISTS "Users can view shared contracts" ON public.contracts;
 -- Add RLS policy for contracts to allow viewing shared contracts
 CREATE POLICY "Users can view shared contracts"
 ON public.contracts
 FOR SELECT
 USING (public.can_view_shared_contracts(user_id));
+DROP POLICY IF EXISTS "Users can view shared contacts" ON public.user_contacts;
 -- Add RLS policy for contacts to allow viewing shared contacts
 CREATE POLICY "Users can view shared contacts"
 ON public.user_contacts
@@ -433,15 +517,18 @@ USING (public.can_view_shared_contacts(user_id));
 -- 20251218222503_74322790-4e6e-4b29-9dd1-4533295b41f2.sql
 -- Enable Row Level Security
 ALTER TABLE public.call_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own calls" ON public.call_sessions;
 -- Create policies for call sessions
 CREATE POLICY "Users can view their own calls"
 ON public.call_sessions
 FOR SELECT
 USING (auth.uid() = caller_id OR auth.uid() = callee_id);
+DROP POLICY IF EXISTS "Users can create calls" ON public.call_sessions;
 CREATE POLICY "Users can create calls"
 ON public.call_sessions
 FOR INSERT
 WITH CHECK (auth.uid() = caller_id);
+DROP POLICY IF EXISTS "Users can update their own calls" ON public.call_sessions;
 CREATE POLICY "Users can update their own calls"
 ON public.call_sessions
 FOR UPDATE
@@ -450,21 +537,25 @@ USING (auth.uid() = caller_id OR auth.uid() = callee_id);
 -- 20251218223107_d985865e-f8fd-408a-8de7-e3f05ad3d8a2.sql
 -- Enable Row Level Security
 ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own messages" ON public.direct_messages;
 -- Create policies for direct messages
 CREATE POLICY "Users can view their own messages"
 ON public.direct_messages
 FOR SELECT
 USING (auth.uid() = sender_id OR auth.uid() = recipient_id);
+DROP POLICY IF EXISTS "Users can send messages" ON public.direct_messages;
 CREATE POLICY "Users can send messages"
 ON public.direct_messages
 FOR INSERT
 WITH CHECK (auth.uid() = sender_id);
+DROP POLICY IF EXISTS "Recipients can mark messages as read" ON public.direct_messages;
 CREATE POLICY "Recipients can mark messages as read"
 ON public.direct_messages
 FOR UPDATE
 USING (auth.uid() = recipient_id);
 
 -- 20251218223628_c4e2d219-4092-4163-b160-c7592f491e4e.sql
+DROP POLICY IF EXISTS "Users can upload chat attachments" ON storage.objects;
 -- Storage policy: users can upload their own attachments
 CREATE POLICY "Users can upload chat attachments"
 ON storage.objects FOR INSERT
@@ -472,10 +563,12 @@ WITH CHECK (
   bucket_id = 'chat-attachments' 
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
+DROP POLICY IF EXISTS "Chat attachments are publicly accessible" ON storage.objects;
 -- Storage policy: anyone can view chat attachments (public bucket)
 CREATE POLICY "Chat attachments are publicly accessible"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'chat-attachments');
+DROP POLICY IF EXISTS "Users can delete their own chat attachments" ON storage.objects;
 -- Storage policy: users can delete their own attachments
 CREATE POLICY "Users can delete their own chat attachments"
 ON storage.objects FOR DELETE
@@ -490,6 +583,7 @@ ALTER TABLE public.chat_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.group_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.group_message_reads ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view groups they belong to" ON public.chat_groups;
 -- Chat groups policies
 CREATE POLICY "Users can view groups they belong to"
 ON public.chat_groups FOR SELECT
@@ -499,9 +593,11 @@ USING (
     WHERE group_id = chat_groups.id AND user_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Users can create groups" ON public.chat_groups;
 CREATE POLICY "Users can create groups"
 ON public.chat_groups FOR INSERT
 WITH CHECK (auth.uid() = created_by);
+DROP POLICY IF EXISTS "Group admins can update groups" ON public.chat_groups;
 CREATE POLICY "Group admins can update groups"
 ON public.chat_groups FOR UPDATE
 USING (
@@ -510,6 +606,7 @@ USING (
     WHERE group_id = chat_groups.id AND user_id = auth.uid() AND role = 'admin'
   )
 );
+DROP POLICY IF EXISTS "Users can view group members" ON public.chat_group_members;
 -- Group members policies
 CREATE POLICY "Users can view group members"
 ON public.chat_group_members FOR SELECT
@@ -519,6 +616,7 @@ USING (
     WHERE m.group_id = chat_group_members.group_id AND m.user_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Group admins can add members" ON public.chat_group_members;
 CREATE POLICY "Group admins can add members"
 ON public.chat_group_members FOR INSERT
 WITH CHECK (
@@ -531,6 +629,7 @@ WITH CHECK (
     WHERE g.id = chat_group_members.group_id AND g.created_by = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Group admins can remove members" ON public.chat_group_members;
 CREATE POLICY "Group admins can remove members"
 ON public.chat_group_members FOR DELETE
 USING (
@@ -539,6 +638,7 @@ USING (
     WHERE m.group_id = chat_group_members.group_id AND m.user_id = auth.uid() AND m.role = 'admin'
   ) OR user_id = auth.uid()
 );
+DROP POLICY IF EXISTS "Group members can view messages" ON public.group_messages;
 -- Group messages policies
 CREATE POLICY "Group members can view messages"
 ON public.group_messages FOR SELECT
@@ -548,6 +648,7 @@ USING (
     WHERE group_id = group_messages.group_id AND user_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Group members can send messages" ON public.group_messages;
 CREATE POLICY "Group members can send messages"
 ON public.group_messages FOR INSERT
 WITH CHECK (
@@ -557,13 +658,16 @@ WITH CHECK (
     WHERE group_id = group_messages.group_id AND user_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Senders can update their messages" ON public.group_messages;
 CREATE POLICY "Senders can update their messages"
 ON public.group_messages FOR UPDATE
 USING (auth.uid() = sender_id);
+DROP POLICY IF EXISTS "Users can mark messages as read" ON public.group_message_reads;
 -- Group message reads policies
 CREATE POLICY "Users can mark messages as read"
 ON public.group_message_reads FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Group members can view read status" ON public.group_message_reads;
 CREATE POLICY "Group members can view read status"
 ON public.group_message_reads FOR SELECT
 USING (
@@ -575,6 +679,7 @@ USING (
 );
 -- Update direct messages update policy for reactions
 DROP POLICY IF EXISTS "Recipients can mark messages as read" ON public.direct_messages;
+DROP POLICY IF EXISTS "Users can update messages they're part of" ON public.direct_messages;
 CREATE POLICY "Users can update messages they're part of"
 ON public.direct_messages FOR UPDATE
 USING ((auth.uid() = sender_id) OR (auth.uid() = recipient_id));
@@ -584,11 +689,13 @@ USING ((auth.uid() = sender_id) OR (auth.uid() = recipient_id));
 DROP POLICY IF EXISTS "Users can view group members" ON public.chat_group_members;
 DROP POLICY IF EXISTS "Group admins can add members" ON public.chat_group_members;
 DROP POLICY IF EXISTS "Group admins can remove members" ON public.chat_group_members;
+DROP POLICY IF EXISTS "Users can view group members" ON public.chat_group_members;
 -- Recreate policies using the security definer functions
 CREATE POLICY "Users can view group members" 
 ON public.chat_group_members 
 FOR SELECT 
 USING (public.is_group_member(auth.uid(), group_id));
+DROP POLICY IF EXISTS "Group admins can add members" ON public.chat_group_members;
 CREATE POLICY "Group admins can add members" 
 ON public.chat_group_members 
 FOR INSERT 
@@ -596,6 +703,7 @@ WITH CHECK (
   public.is_group_admin(auth.uid(), group_id) OR 
   public.is_group_creator(auth.uid(), group_id)
 );
+DROP POLICY IF EXISTS "Group admins can remove members" ON public.chat_group_members;
 CREATE POLICY "Group admins can remove members" 
 ON public.chat_group_members 
 FOR DELETE 
@@ -607,16 +715,19 @@ USING (
 -- 20251219023208_8d523730-19c3-474a-85ec-72b9735b80e0.sql
 -- Enable RLS
 ALTER TABLE public.call_recordings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own recordings" ON public.call_recordings;
 -- Users can view their own recordings (as caller or callee)
 CREATE POLICY "Users can view their own recordings"
 ON public.call_recordings
 FOR SELECT
 USING (auth.uid() = caller_id OR auth.uid() = callee_id);
+DROP POLICY IF EXISTS "Users can insert their own recordings" ON public.call_recordings;
 -- Users can insert their own recordings
 CREATE POLICY "Users can insert their own recordings"
 ON public.call_recordings
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own recordings" ON public.call_recordings;
 -- Users can delete their own recordings
 CREATE POLICY "Users can delete their own recordings"
 ON public.call_recordings
@@ -624,66 +735,83 @@ FOR DELETE
 USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own notes" ON public.notes;
 -- CRUD policies for notes
 CREATE POLICY "Users can view own notes"
 ON public.notes FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own notes" ON public.notes;
 CREATE POLICY "Users can create own notes"
 ON public.notes FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own notes" ON public.notes;
 CREATE POLICY "Users can update own notes"
 ON public.notes FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own notes" ON public.notes;
 CREATE POLICY "Users can delete own notes"
 ON public.notes FOR DELETE
 USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.habits ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own habits" ON public.habits;
 -- CRUD policies for habits
 CREATE POLICY "Users can view own habits"
 ON public.habits FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own habits" ON public.habits;
 CREATE POLICY "Users can create own habits"
 ON public.habits FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own habits" ON public.habits;
 CREATE POLICY "Users can update own habits"
 ON public.habits FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own habits" ON public.habits;
 CREATE POLICY "Users can delete own habits"
 ON public.habits FOR DELETE
 USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.habit_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own habit logs" ON public.habit_logs;
 -- CRUD policies for habit_logs
 CREATE POLICY "Users can view own habit logs"
 ON public.habit_logs FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own habit logs" ON public.habit_logs;
 CREATE POLICY "Users can create own habit logs"
 ON public.habit_logs FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own habit logs" ON public.habit_logs;
 CREATE POLICY "Users can update own habit logs"
 ON public.habit_logs FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own habit logs" ON public.habit_logs;
 CREATE POLICY "Users can delete own habit logs"
 ON public.habit_logs FOR DELETE
 USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own goals" ON public.goals;
 -- CRUD policies for goals
 CREATE POLICY "Users can view own goals"
 ON public.goals FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own goals" ON public.goals;
 CREATE POLICY "Users can create own goals"
 ON public.goals FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own goals" ON public.goals;
 CREATE POLICY "Users can update own goals"
 ON public.goals FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own goals" ON public.goals;
 CREATE POLICY "Users can delete own goals"
 ON public.goals FOR DELETE
 USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.offline_sync_queue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage own sync queue" ON public.offline_sync_queue;
 -- CRUD policies
 CREATE POLICY "Users can manage own sync queue"
 ON public.offline_sync_queue FOR ALL
@@ -694,27 +822,34 @@ USING (auth.uid() = user_id);
 ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can insert their own analytics events" ON public.analytics_events;
 -- Analytics events policies - users can insert their own events, admins can view all
 CREATE POLICY "Users can insert their own analytics events"
 ON public.analytics_events FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins can view all analytics events" ON public.analytics_events;
 CREATE POLICY "Admins can view all analytics events"
 ON public.analytics_events FOR SELECT
 USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Service role can insert ai usage" ON public.ai_usage;
 -- AI usage policies - service role inserts, admins can view
 CREATE POLICY "Service role can insert ai usage"
 ON public.ai_usage FOR INSERT
 WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can view all ai usage" ON public.ai_usage;
 CREATE POLICY "Admins can view all ai usage"
 ON public.ai_usage FOR SELECT
 USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can view their own ai usage" ON public.ai_usage;
 CREATE POLICY "Users can view their own ai usage"
 ON public.ai_usage FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins can view admin users" ON public.admin_users;
 -- Admin users policies
 CREATE POLICY "Admins can view admin users"
 ON public.admin_users FOR SELECT
 USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Admins can manage admin users" ON public.admin_users;
 CREATE POLICY "Admins can manage admin users"
 ON public.admin_users FOR ALL
 USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid() AND role = 'superadmin'));
@@ -722,46 +857,58 @@ USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid() AND r
 -- 20251219110914_63170d9b-2659-4396-9b6d-c9156743a449.sql
 -- Enable RLS
 ALTER TABLE public.family_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own family members" ON public.family_members;
 -- RLS policies
 CREATE POLICY "Users can view own family members"
   ON public.family_members FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own family members" ON public.family_members;
 CREATE POLICY "Users can create own family members"
   ON public.family_members FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own family members" ON public.family_members;
 CREATE POLICY "Users can update own family members"
   ON public.family_members FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own family members" ON public.family_members;
 CREATE POLICY "Users can delete own family members"
   ON public.family_members FOR DELETE
   USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.household_tasks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own household tasks" ON public.household_tasks;
 -- RLS policies for household_tasks
 CREATE POLICY "Users can view own household tasks"
   ON public.household_tasks FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own household tasks" ON public.household_tasks;
 CREATE POLICY "Users can create own household tasks"
   ON public.household_tasks FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own household tasks" ON public.household_tasks;
 CREATE POLICY "Users can update own household tasks"
   ON public.household_tasks FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own household tasks" ON public.household_tasks;
 CREATE POLICY "Users can delete own household tasks"
   ON public.household_tasks FOR DELETE
   USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.family_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own family events" ON public.family_events;
 -- RLS policies for family_events
 CREATE POLICY "Users can view own family events"
   ON public.family_events FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own family events" ON public.family_events;
 CREATE POLICY "Users can create own family events"
   ON public.family_events FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own family events" ON public.family_events;
 CREATE POLICY "Users can update own family events"
   ON public.family_events FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own family events" ON public.family_events;
 CREATE POLICY "Users can delete own family events"
   ON public.family_events FOR DELETE
   USING (auth.uid() = user_id);
@@ -770,15 +917,23 @@ CREATE POLICY "Users can delete own family events"
 -- Enable RLS
 ALTER TABLE public.shopping_lists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shopping_list_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can create own shopping lists" ON public.shopping_lists;
 -- RLS policies for shopping_lists
 CREATE POLICY "Users can create own shopping lists" ON public.shopping_lists FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own shopping lists" ON public.shopping_lists;
 CREATE POLICY "Users can view own shopping lists" ON public.shopping_lists FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own shopping lists" ON public.shopping_lists;
 CREATE POLICY "Users can update own shopping lists" ON public.shopping_lists FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own shopping lists" ON public.shopping_lists;
 CREATE POLICY "Users can delete own shopping lists" ON public.shopping_lists FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create items in own lists" ON public.shopping_list_items;
 -- RLS policies for shopping_list_items
 CREATE POLICY "Users can create items in own lists" ON public.shopping_list_items FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view items in own lists" ON public.shopping_list_items;
 CREATE POLICY "Users can view items in own lists" ON public.shopping_list_items FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update items in own lists" ON public.shopping_list_items;
 CREATE POLICY "Users can update items in own lists" ON public.shopping_list_items FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete items in own lists" ON public.shopping_list_items;
 CREATE POLICY "Users can delete items in own lists" ON public.shopping_list_items FOR DELETE USING (auth.uid() = user_id);
 
 -- 20251219114234_73d263ba-305e-4409-a69a-9c053a400921.sql
@@ -786,20 +941,32 @@ CREATE POLICY "Users can delete items in own lists" ON public.shopping_list_item
 ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recipe_ingredients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meal_plans ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can create own recipes" ON public.recipes;
 -- RLS policies for recipes
 CREATE POLICY "Users can create own recipes" ON public.recipes FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own recipes" ON public.recipes;
 CREATE POLICY "Users can view own recipes" ON public.recipes FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own recipes" ON public.recipes;
 CREATE POLICY "Users can update own recipes" ON public.recipes FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own recipes" ON public.recipes;
 CREATE POLICY "Users can delete own recipes" ON public.recipes FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own ingredients" ON public.recipe_ingredients;
 -- RLS policies for recipe_ingredients
 CREATE POLICY "Users can create own ingredients" ON public.recipe_ingredients FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own ingredients" ON public.recipe_ingredients;
 CREATE POLICY "Users can view own ingredients" ON public.recipe_ingredients FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own ingredients" ON public.recipe_ingredients;
 CREATE POLICY "Users can update own ingredients" ON public.recipe_ingredients FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own ingredients" ON public.recipe_ingredients;
 CREATE POLICY "Users can delete own ingredients" ON public.recipe_ingredients FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own meal plans" ON public.meal_plans;
 -- RLS policies for meal_plans
 CREATE POLICY "Users can create own meal plans" ON public.meal_plans FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own meal plans" ON public.meal_plans;
 CREATE POLICY "Users can view own meal plans" ON public.meal_plans FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own meal plans" ON public.meal_plans;
 CREATE POLICY "Users can update own meal plans" ON public.meal_plans FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own meal plans" ON public.meal_plans;
 CREATE POLICY "Users can delete own meal plans" ON public.meal_plans FOR DELETE USING (auth.uid() = user_id);
 
 -- 20251219115128_847fff62-1455-4c5a-8328-4531519c2643.sql
@@ -807,40 +974,60 @@ CREATE POLICY "Users can delete own meal plans" ON public.meal_plans FOR DELETE 
 ALTER TABLE public.family_medications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.family_appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.family_vaccinations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can create own medications" ON public.family_medications;
 -- RLS policies for medications
 CREATE POLICY "Users can create own medications" ON public.family_medications FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own medications" ON public.family_medications;
 CREATE POLICY "Users can view own medications" ON public.family_medications FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own medications" ON public.family_medications;
 CREATE POLICY "Users can update own medications" ON public.family_medications FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own medications" ON public.family_medications;
 CREATE POLICY "Users can delete own medications" ON public.family_medications FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own appointments" ON public.family_appointments;
 -- RLS policies for appointments
 CREATE POLICY "Users can create own appointments" ON public.family_appointments FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own appointments" ON public.family_appointments;
 CREATE POLICY "Users can view own appointments" ON public.family_appointments FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own appointments" ON public.family_appointments;
 CREATE POLICY "Users can update own appointments" ON public.family_appointments FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own appointments" ON public.family_appointments;
 CREATE POLICY "Users can delete own appointments" ON public.family_appointments FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own vaccinations" ON public.family_vaccinations;
 -- RLS policies for vaccinations
 CREATE POLICY "Users can create own vaccinations" ON public.family_vaccinations FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own vaccinations" ON public.family_vaccinations;
 CREATE POLICY "Users can view own vaccinations" ON public.family_vaccinations FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own vaccinations" ON public.family_vaccinations;
 CREATE POLICY "Users can update own vaccinations" ON public.family_vaccinations FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own vaccinations" ON public.family_vaccinations;
 CREATE POLICY "Users can delete own vaccinations" ON public.family_vaccinations FOR DELETE USING (auth.uid() = user_id);
 
 -- 20251219115843_59700a56-b256-4ab6-80da-28eac6a42888.sql
 -- Enable RLS
 ALTER TABLE public.family_documents ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can create own documents" ON public.family_documents;
 -- RLS policies for documents
 CREATE POLICY "Users can create own documents" ON public.family_documents FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own documents" ON public.family_documents;
 CREATE POLICY "Users can view own documents" ON public.family_documents FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own documents" ON public.family_documents;
 CREATE POLICY "Users can update own documents" ON public.family_documents FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own documents" ON public.family_documents;
 CREATE POLICY "Users can delete own documents" ON public.family_documents FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can upload their own documents" ON storage.objects;
 -- Storage policies for family-documents bucket
 CREATE POLICY "Users can upload their own documents"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'family-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+DROP POLICY IF EXISTS "Users can view their own documents" ON storage.objects;
 CREATE POLICY "Users can view their own documents"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'family-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+DROP POLICY IF EXISTS "Users can delete their own documents" ON storage.objects;
 CREATE POLICY "Users can delete their own documents"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'family-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+DROP POLICY IF EXISTS "Users can update their own documents" ON storage.objects;
 CREATE POLICY "Users can update their own documents"
 ON storage.objects FOR UPDATE
 USING (bucket_id = 'family-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
@@ -849,41 +1036,53 @@ USING (bucket_id = 'family-documents' AND auth.uid()::text = (storage.foldername
 -- Enable RLS
 ALTER TABLE public.family_budget_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.family_expenses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own categories" ON public.family_budget_categories;
 -- RLS policies for family_budget_categories
 CREATE POLICY "Users can view own categories" ON public.family_budget_categories
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own categories" ON public.family_budget_categories;
 CREATE POLICY "Users can create own categories" ON public.family_budget_categories
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own categories" ON public.family_budget_categories;
 CREATE POLICY "Users can update own categories" ON public.family_budget_categories
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own categories" ON public.family_budget_categories;
 CREATE POLICY "Users can delete own categories" ON public.family_budget_categories
   FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own expenses" ON public.family_expenses;
 -- RLS policies for family_expenses
 CREATE POLICY "Users can view own expenses" ON public.family_expenses
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own expenses" ON public.family_expenses;
 CREATE POLICY "Users can create own expenses" ON public.family_expenses
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own expenses" ON public.family_expenses;
 CREATE POLICY "Users can update own expenses" ON public.family_expenses
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own expenses" ON public.family_expenses;
 CREATE POLICY "Users can delete own expenses" ON public.family_expenses
   FOR DELETE USING (auth.uid() = user_id);
 
 -- 20251222012025_e3b9a30a-ac51-4a14-8ae2-823843f54c3f.sql
 -- Enable Row Level Security
 ALTER TABLE public.push_tokens ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own push tokens" ON public.push_tokens;
 -- Users can only manage their own tokens
 CREATE POLICY "Users can view their own push tokens"
 ON public.push_tokens
 FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own push tokens" ON public.push_tokens;
 CREATE POLICY "Users can insert their own push tokens"
 ON public.push_tokens
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own push tokens" ON public.push_tokens;
 CREATE POLICY "Users can update their own push tokens"
 ON public.push_tokens
 FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own push tokens" ON public.push_tokens;
 CREATE POLICY "Users can delete their own push tokens"
 ON public.push_tokens
 FOR DELETE
@@ -892,15 +1091,18 @@ USING (auth.uid() = user_id);
 -- 20251222012312_ced536d2-ddf2-411c-b30e-5012a1064534.sql
 -- Enable Row Level Security
 ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own notification preferences" ON public.notification_preferences;
 -- Users can only manage their own preferences
 CREATE POLICY "Users can view their own notification preferences"
 ON public.notification_preferences
 FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own notification preferences" ON public.notification_preferences;
 CREATE POLICY "Users can insert their own notification preferences"
 ON public.notification_preferences
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own notification preferences" ON public.notification_preferences;
 CREATE POLICY "Users can update their own notification preferences"
 ON public.notification_preferences
 FOR UPDATE
@@ -909,19 +1111,23 @@ USING (auth.uid() = user_id);
 -- 20251222204615_398d8570-00c6-4f21-a199-0b95978fb28f.sql
 -- Enable Row Level Security
 ALTER TABLE public.health_metrics ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own health metrics" ON public.health_metrics;
 -- Create policies for user access
 CREATE POLICY "Users can view their own health metrics" 
 ON public.health_metrics 
 FOR SELECT 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own health metrics" ON public.health_metrics;
 CREATE POLICY "Users can create their own health metrics" 
 ON public.health_metrics 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own health metrics" ON public.health_metrics;
 CREATE POLICY "Users can update their own health metrics" 
 ON public.health_metrics 
 FOR UPDATE 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own health metrics" ON public.health_metrics;
 CREATE POLICY "Users can delete their own health metrics" 
 ON public.health_metrics 
 FOR DELETE 
@@ -930,71 +1136,94 @@ USING (auth.uid() = user_id);
 -- 20251224132706_40672740-19a5-4f8b-84e0-b865a7a8cb39.sql
 -- Enable RLS
 ALTER TABLE public.daily_checkins ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own checkins" ON public.daily_checkins;
 -- RLS Policies
 CREATE POLICY "Users can view own checkins" ON public.daily_checkins
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own checkins" ON public.daily_checkins;
 CREATE POLICY "Users can create own checkins" ON public.daily_checkins
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own checkins" ON public.daily_checkins;
 CREATE POLICY "Users can update own checkins" ON public.daily_checkins
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own checkins" ON public.daily_checkins;
 CREATE POLICY "Users can delete own checkins" ON public.daily_checkins
   FOR DELETE USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.user_xp ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own xp" ON public.user_xp;
 -- RLS Policies
 CREATE POLICY "Users can view own xp" ON public.user_xp
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own xp" ON public.user_xp;
 CREATE POLICY "Users can create own xp" ON public.user_xp
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own xp" ON public.user_xp;
 CREATE POLICY "Users can update own xp" ON public.user_xp
   FOR UPDATE USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.ai_insights ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own insights" ON public.ai_insights;
 -- RLS Policies
 CREATE POLICY "Users can view own insights" ON public.ai_insights
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own insights" ON public.ai_insights;
 CREATE POLICY "Users can create own insights" ON public.ai_insights
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own insights" ON public.ai_insights;
 CREATE POLICY "Users can update own insights" ON public.ai_insights
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own insights" ON public.ai_insights;
 CREATE POLICY "Users can delete own insights" ON public.ai_insights
   FOR DELETE USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.nudge_rules ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own nudge rules" ON public.nudge_rules;
 -- RLS Policies
 CREATE POLICY "Users can view own nudge rules" ON public.nudge_rules
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own nudge rules" ON public.nudge_rules;
 CREATE POLICY "Users can create own nudge rules" ON public.nudge_rules
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own nudge rules" ON public.nudge_rules;
 CREATE POLICY "Users can update own nudge rules" ON public.nudge_rules
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own nudge rules" ON public.nudge_rules;
 CREATE POLICY "Users can delete own nudge rules" ON public.nudge_rules
   FOR DELETE USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.brain_dumps ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own brain dumps" ON public.brain_dumps;
 -- RLS Policies
 CREATE POLICY "Users can view own brain dumps" ON public.brain_dumps
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own brain dumps" ON public.brain_dumps;
 CREATE POLICY "Users can create own brain dumps" ON public.brain_dumps
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own brain dumps" ON public.brain_dumps;
 CREATE POLICY "Users can update own brain dumps" ON public.brain_dumps
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own brain dumps" ON public.brain_dumps;
 CREATE POLICY "Users can delete own brain dumps" ON public.brain_dumps
   FOR DELETE USING (auth.uid() = user_id);
 
 -- 20251224204512_a5095bb0-9f43-470d-8997-c897e4d5300f.sql
 -- Enable RLS on group_encryption_keys
 ALTER TABLE public.group_encryption_keys ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own group keys" ON public.group_encryption_keys;
 -- RLS policies for group_encryption_keys
 CREATE POLICY "Users can view their own group keys"
 ON public.group_encryption_keys FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own group keys" ON public.group_encryption_keys;
 CREATE POLICY "Users can insert their own group keys"
 ON public.group_encryption_keys FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own group keys" ON public.group_encryption_keys;
 CREATE POLICY "Users can update their own group keys"
 ON public.group_encryption_keys FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own group keys" ON public.group_encryption_keys;
 CREATE POLICY "Users can delete their own group keys"
 ON public.group_encryption_keys FOR DELETE
 USING (auth.uid() = user_id);
@@ -1002,11 +1231,13 @@ USING (auth.uid() = user_id);
 -- 20251224215550_f6dbbe91-501d-498f-a61b-ab2292855308.sql
 -- Enable RLS
 ALTER TABLE public.public_holidays ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view public holidays" ON public.public_holidays;
 -- Everyone can view public holidays (read-only reference data)
 CREATE POLICY "Anyone can view public holidays"
 ON public.public_holidays
 FOR SELECT
 USING (true);
+DROP POLICY IF EXISTS "Service role can manage public holidays" ON public.public_holidays;
 -- Only service role can modify (managed data)
 CREATE POLICY "Service role can manage public holidays"
 ON public.public_holidays
@@ -1016,35 +1247,47 @@ USING (auth.role() = 'service_role');
 -- 20251225231210_30b27a18-30df-433f-8ec9-55a6eee4834f.sql
 -- Enable RLS
 ALTER TABLE public.user_patterns ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own patterns" ON public.user_patterns;
 -- Create RLS policies for user_patterns
 CREATE POLICY "Users can view own patterns" ON public.user_patterns
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own patterns" ON public.user_patterns;
 CREATE POLICY "Users can create own patterns" ON public.user_patterns
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own patterns" ON public.user_patterns;
 CREATE POLICY "Users can update own patterns" ON public.user_patterns
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own patterns" ON public.user_patterns;
 CREATE POLICY "Users can delete own patterns" ON public.user_patterns
   FOR DELETE USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.external_calendar_connections ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own calendar connections" ON public.external_calendar_connections;
 -- Create RLS policies
 CREATE POLICY "Users can view own calendar connections" ON public.external_calendar_connections
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own calendar connections" ON public.external_calendar_connections;
 CREATE POLICY "Users can create own calendar connections" ON public.external_calendar_connections
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own calendar connections" ON public.external_calendar_connections;
 CREATE POLICY "Users can update own calendar connections" ON public.external_calendar_connections
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own calendar connections" ON public.external_calendar_connections;
 CREATE POLICY "Users can delete own calendar connections" ON public.external_calendar_connections
   FOR DELETE USING (auth.uid() = user_id);
 -- Enable RLS
 ALTER TABLE public.weekly_summaries ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own weekly summaries" ON public.weekly_summaries;
 -- Create RLS policies
 CREATE POLICY "Users can view own weekly summaries" ON public.weekly_summaries
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own weekly summaries" ON public.weekly_summaries;
 CREATE POLICY "Users can create own weekly summaries" ON public.weekly_summaries
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own weekly summaries" ON public.weekly_summaries;
 CREATE POLICY "Users can update own weekly summaries" ON public.weekly_summaries
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own weekly summaries" ON public.weekly_summaries;
 CREATE POLICY "Users can delete own weekly summaries" ON public.weekly_summaries
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -1053,43 +1296,57 @@ CREATE POLICY "Users can delete own weekly summaries" ON public.weekly_summaries
 ALTER TABLE public.proactive_reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reminder_delivery_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.proactive_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own reminders" ON public.proactive_reminders;
 -- RLS Policies for proactive_reminders
 CREATE POLICY "Users can view own reminders" ON public.proactive_reminders
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own reminders" ON public.proactive_reminders;
 CREATE POLICY "Users can create own reminders" ON public.proactive_reminders
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own reminders" ON public.proactive_reminders;
 CREATE POLICY "Users can update own reminders" ON public.proactive_reminders
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own reminders" ON public.proactive_reminders;
 CREATE POLICY "Users can delete own reminders" ON public.proactive_reminders
   FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role can manage all reminders" ON public.proactive_reminders;
 CREATE POLICY "Service role can manage all reminders" ON public.proactive_reminders
   FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can view own delivery logs" ON public.reminder_delivery_log;
 -- RLS Policies for reminder_delivery_log
 CREATE POLICY "Users can view own delivery logs" ON public.reminder_delivery_log
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role can manage delivery logs" ON public.reminder_delivery_log;
 CREATE POLICY "Service role can manage delivery logs" ON public.reminder_delivery_log
   FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can view own settings" ON public.proactive_settings;
 -- RLS Policies for proactive_settings
 CREATE POLICY "Users can view own settings" ON public.proactive_settings
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own settings" ON public.proactive_settings;
 CREATE POLICY "Users can create own settings" ON public.proactive_settings
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own settings" ON public.proactive_settings;
 CREATE POLICY "Users can update own settings" ON public.proactive_settings
   FOR UPDATE USING (auth.uid() = user_id);
 
 -- 20251226002859_0197af5e-6e51-42a5-bd85-293bf6d70103.sql
 -- Enable RLS on follow_up_queue
 ALTER TABLE public.follow_up_queue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own follow-ups" ON public.follow_up_queue;
 -- RLS policies for follow_up_queue
 CREATE POLICY "Users can view their own follow-ups" 
 ON public.follow_up_queue FOR SELECT 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own follow-ups" ON public.follow_up_queue;
 CREATE POLICY "Users can create their own follow-ups" 
 ON public.follow_up_queue FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own follow-ups" ON public.follow_up_queue;
 CREATE POLICY "Users can update their own follow-ups" 
 ON public.follow_up_queue FOR UPDATE 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own follow-ups" ON public.follow_up_queue;
 CREATE POLICY "Users can delete their own follow-ups" 
 ON public.follow_up_queue FOR DELETE 
 USING (auth.uid() = user_id);
@@ -1097,16 +1354,20 @@ USING (auth.uid() = user_id);
 -- 20251226012152_7c0da0c3-bb8d-43a0-bde7-979fd6d2144e.sql
 -- Enable RLS
 ALTER TABLE public.location_triggers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own location triggers" ON public.location_triggers;
 -- RLS Policies
 CREATE POLICY "Users can view their own location triggers"
 ON public.location_triggers FOR SELECT
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own location triggers" ON public.location_triggers;
 CREATE POLICY "Users can create their own location triggers"
 ON public.location_triggers FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own location triggers" ON public.location_triggers;
 CREATE POLICY "Users can update their own location triggers"
 ON public.location_triggers FOR UPDATE
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own location triggers" ON public.location_triggers;
 CREATE POLICY "Users can delete their own location triggers"
 ON public.location_triggers FOR DELETE
 USING (auth.uid() = user_id);
@@ -1121,118 +1382,184 @@ ALTER TABLE public.day_predictions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.auto_actions_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.weekly_coach_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_memory ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own correlations" ON public.life_correlations;
 -- ============================================
 -- RLS Policies
 -- ============================================
 
 -- Life Correlations policies
 CREATE POLICY "Users can view own correlations" ON public.life_correlations FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own correlations" ON public.life_correlations;
 CREATE POLICY "Users can create own correlations" ON public.life_correlations FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own correlations" ON public.life_correlations;
 CREATE POLICY "Users can update own correlations" ON public.life_correlations FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own correlations" ON public.life_correlations;
 CREATE POLICY "Users can delete own correlations" ON public.life_correlations FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own predictions" ON public.day_predictions;
 -- Day Predictions policies
 CREATE POLICY "Users can view own predictions" ON public.day_predictions FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own predictions" ON public.day_predictions;
 CREATE POLICY "Users can create own predictions" ON public.day_predictions FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own predictions" ON public.day_predictions;
 CREATE POLICY "Users can update own predictions" ON public.day_predictions FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own predictions" ON public.day_predictions;
 CREATE POLICY "Users can delete own predictions" ON public.day_predictions FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own auto actions" ON public.auto_actions_log;
 -- Auto Actions Log policies
 CREATE POLICY "Users can view own auto actions" ON public.auto_actions_log FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own auto actions" ON public.auto_actions_log;
 CREATE POLICY "Users can create own auto actions" ON public.auto_actions_log FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own auto actions" ON public.auto_actions_log;
 CREATE POLICY "Users can update own auto actions" ON public.auto_actions_log FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own auto actions" ON public.auto_actions_log;
 CREATE POLICY "Users can delete own auto actions" ON public.auto_actions_log FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own reports" ON public.weekly_coach_reports;
 -- Weekly Coach Reports policies
 CREATE POLICY "Users can view own reports" ON public.weekly_coach_reports FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own reports" ON public.weekly_coach_reports;
 CREATE POLICY "Users can create own reports" ON public.weekly_coach_reports FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own reports" ON public.weekly_coach_reports;
 CREATE POLICY "Users can update own reports" ON public.weekly_coach_reports FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own reports" ON public.weekly_coach_reports;
 CREATE POLICY "Users can delete own reports" ON public.weekly_coach_reports FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view own memories" ON public.ai_memory;
 -- AI Memory policies
 CREATE POLICY "Users can view own memories" ON public.ai_memory FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own memories" ON public.ai_memory;
 CREATE POLICY "Users can create own memories" ON public.ai_memory FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own memories" ON public.ai_memory;
 CREATE POLICY "Users can update own memories" ON public.ai_memory FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own memories" ON public.ai_memory;
 CREATE POLICY "Users can delete own memories" ON public.ai_memory FOR DELETE USING (auth.uid() = user_id);
 
 -- 20251227002928_7fd0fece-ca6c-4e8e-acf2-72cb70a99b19.sql
 -- Enable RLS on islamic tables
 ALTER TABLE public.ramadan_tracker ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dhikr_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own ramadan data" ON public.ramadan_tracker;
 -- RLS Policies for ramadan_tracker
 CREATE POLICY "Users can view their own ramadan data" ON public.ramadan_tracker FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own ramadan data" ON public.ramadan_tracker;
 CREATE POLICY "Users can create their own ramadan data" ON public.ramadan_tracker FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own ramadan data" ON public.ramadan_tracker;
 CREATE POLICY "Users can update their own ramadan data" ON public.ramadan_tracker FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own ramadan data" ON public.ramadan_tracker;
 CREATE POLICY "Users can delete their own ramadan data" ON public.ramadan_tracker FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own dhikr data" ON public.dhikr_logs;
 -- RLS Policies for dhikr_logs
 CREATE POLICY "Users can view their own dhikr data" ON public.dhikr_logs FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own dhikr data" ON public.dhikr_logs;
 CREATE POLICY "Users can create their own dhikr data" ON public.dhikr_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own dhikr data" ON public.dhikr_logs;
 CREATE POLICY "Users can update their own dhikr data" ON public.dhikr_logs FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own dhikr data" ON public.dhikr_logs;
 CREATE POLICY "Users can delete their own dhikr data" ON public.dhikr_logs FOR DELETE USING (auth.uid() = user_id);
 -- Enable RLS on property tables
 ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.property_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.property_maintenance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.property_checklists ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own properties" ON public.properties;
 -- RLS Policies for properties
 CREATE POLICY "Users can view their own properties" ON public.properties FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own properties" ON public.properties;
 CREATE POLICY "Users can create their own properties" ON public.properties FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own properties" ON public.properties;
 CREATE POLICY "Users can update their own properties" ON public.properties FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own properties" ON public.properties;
 CREATE POLICY "Users can delete their own properties" ON public.properties FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own property documents" ON public.property_documents;
 -- RLS Policies for property_documents
 CREATE POLICY "Users can view their own property documents" ON public.property_documents FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own property documents" ON public.property_documents;
 CREATE POLICY "Users can create their own property documents" ON public.property_documents FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own property documents" ON public.property_documents;
 CREATE POLICY "Users can update their own property documents" ON public.property_documents FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own property documents" ON public.property_documents;
 CREATE POLICY "Users can delete their own property documents" ON public.property_documents FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own maintenance" ON public.property_maintenance;
 -- RLS Policies for property_maintenance
 CREATE POLICY "Users can view their own maintenance" ON public.property_maintenance FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own maintenance" ON public.property_maintenance;
 CREATE POLICY "Users can create their own maintenance" ON public.property_maintenance FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own maintenance" ON public.property_maintenance;
 CREATE POLICY "Users can update their own maintenance" ON public.property_maintenance FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own maintenance" ON public.property_maintenance;
 CREATE POLICY "Users can delete their own maintenance" ON public.property_maintenance FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own checklists" ON public.property_checklists;
 -- RLS Policies for property_checklists
 CREATE POLICY "Users can view their own checklists" ON public.property_checklists FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own checklists" ON public.property_checklists;
 CREATE POLICY "Users can create their own checklists" ON public.property_checklists FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own checklists" ON public.property_checklists;
 CREATE POLICY "Users can update their own checklists" ON public.property_checklists FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own checklists" ON public.property_checklists;
 CREATE POLICY "Users can delete their own checklists" ON public.property_checklists FOR DELETE USING (auth.uid() = user_id);
 -- Enable RLS on startup tables
 ALTER TABLE public.startup_workspaces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.startup_metrics ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own workspaces" ON public.startup_workspaces;
 -- RLS Policies for startup_workspaces
 CREATE POLICY "Users can view their own workspaces" ON public.startup_workspaces FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own workspaces" ON public.startup_workspaces;
 CREATE POLICY "Users can create their own workspaces" ON public.startup_workspaces FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own workspaces" ON public.startup_workspaces;
 CREATE POLICY "Users can update their own workspaces" ON public.startup_workspaces FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own workspaces" ON public.startup_workspaces;
 CREATE POLICY "Users can delete their own workspaces" ON public.startup_workspaces FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own metrics" ON public.startup_metrics;
 -- RLS Policies for startup_metrics
 CREATE POLICY "Users can view their own metrics" ON public.startup_metrics FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own metrics" ON public.startup_metrics;
 CREATE POLICY "Users can create their own metrics" ON public.startup_metrics FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own metrics" ON public.startup_metrics;
 CREATE POLICY "Users can update their own metrics" ON public.startup_metrics FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own metrics" ON public.startup_metrics;
 CREATE POLICY "Users can delete their own metrics" ON public.startup_metrics FOR DELETE USING (auth.uid() = user_id);
 -- Enable RLS on news tables
 ALTER TABLE public.saved_articles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.news_preferences ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own articles" ON public.saved_articles;
 -- RLS Policies for saved_articles
 CREATE POLICY "Users can view their own articles" ON public.saved_articles FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own articles" ON public.saved_articles;
 CREATE POLICY "Users can create their own articles" ON public.saved_articles FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own articles" ON public.saved_articles;
 CREATE POLICY "Users can update their own articles" ON public.saved_articles FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own articles" ON public.saved_articles;
 CREATE POLICY "Users can delete their own articles" ON public.saved_articles FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own preferences" ON public.news_preferences;
 -- RLS Policies for news_preferences
 CREATE POLICY "Users can view their own preferences" ON public.news_preferences FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own preferences" ON public.news_preferences;
 CREATE POLICY "Users can create their own preferences" ON public.news_preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own preferences" ON public.news_preferences;
 CREATE POLICY "Users can update their own preferences" ON public.news_preferences FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own property docs" ON storage.objects;
 -- Storage policies for property documents
 CREATE POLICY "Users can view their own property docs" ON storage.objects FOR SELECT USING (bucket_id = 'property-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+DROP POLICY IF EXISTS "Users can upload their own property docs" ON storage.objects;
 CREATE POLICY "Users can upload their own property docs" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'property-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+DROP POLICY IF EXISTS "Users can update their own property docs" ON storage.objects;
 CREATE POLICY "Users can update their own property docs" ON storage.objects FOR UPDATE USING (bucket_id = 'property-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+DROP POLICY IF EXISTS "Users can delete their own property docs" ON storage.objects;
 CREATE POLICY "Users can delete their own property docs" ON storage.objects FOR DELETE USING (bucket_id = 'property-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- 20251228113104_40b8888d-d9b1-4e60-b922-e0efdce825c9.sql
 -- Enable Row Level Security
 ALTER TABLE public.hadith_favorites ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own hadith favorites" ON public.hadith_favorites;
 -- Create policies for user access
 CREATE POLICY "Users can view their own hadith favorites" 
 ON public.hadith_favorites 
 FOR SELECT 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own hadith favorites" ON public.hadith_favorites;
 CREATE POLICY "Users can create their own hadith favorites" 
 ON public.hadith_favorites 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own hadith favorites" ON public.hadith_favorites;
 CREATE POLICY "Users can delete their own hadith favorites" 
 ON public.hadith_favorites 
 FOR DELETE 
@@ -1241,25 +1568,30 @@ USING (auth.uid() = user_id);
 -- 20251228113745_6c18b6d4-fb33-476e-8ba3-1044a751b1f7.sql
 -- Enable Row Level Security
 ALTER TABLE public.quran_hifz_progress ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own hifz progress" ON public.quran_hifz_progress;
 -- Create policies for user access
 CREATE POLICY "Users can view their own hifz progress" 
 ON public.quran_hifz_progress 
 FOR SELECT 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create their own hifz progress" ON public.quran_hifz_progress;
 CREATE POLICY "Users can create their own hifz progress" 
 ON public.quran_hifz_progress 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own hifz progress" ON public.quran_hifz_progress;
 CREATE POLICY "Users can update their own hifz progress" 
 ON public.quran_hifz_progress 
 FOR UPDATE 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own hifz progress" ON public.quran_hifz_progress;
 CREATE POLICY "Users can delete their own hifz progress" 
 ON public.quran_hifz_progress 
 FOR DELETE 
 USING (auth.uid() = user_id);
 
 -- 20251228140354_539ea304-45b6-4303-8c73-a1a37b878dfd.sql
+DROP POLICY IF EXISTS "Users can upload their own call recordings" ON storage.objects;
 -- RLS policies for call-recordings bucket
 CREATE POLICY "Users can upload their own call recordings"
 ON storage.objects FOR INSERT
@@ -1267,12 +1599,14 @@ WITH CHECK (
   bucket_id = 'call-recordings' 
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
+DROP POLICY IF EXISTS "Users can view their own call recordings" ON storage.objects;
 CREATE POLICY "Users can view their own call recordings"
 ON storage.objects FOR SELECT
 USING (
   bucket_id = 'call-recordings' 
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
+DROP POLICY IF EXISTS "Users can delete their own call recordings" ON storage.objects;
 CREATE POLICY "Users can delete their own call recordings"
 ON storage.objects FOR DELETE
 USING (
@@ -1283,19 +1617,23 @@ USING (
 -- 20251228214727_806c5754-c9ab-4257-93e4-24eec9210b85.sql
 -- Enable RLS
 ALTER TABLE public.contact_interactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own interactions" ON public.contact_interactions;
 -- RLS policies for contact_interactions
 CREATE POLICY "Users can view own interactions" 
 ON public.contact_interactions 
 FOR SELECT 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own interactions" ON public.contact_interactions;
 CREATE POLICY "Users can create own interactions" 
 ON public.contact_interactions 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own interactions" ON public.contact_interactions;
 CREATE POLICY "Users can update own interactions" 
 ON public.contact_interactions 
 FOR UPDATE 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own interactions" ON public.contact_interactions;
 CREATE POLICY "Users can delete own interactions" 
 ON public.contact_interactions 
 FOR DELETE 
@@ -1313,39 +1651,72 @@ ALTER TABLE public.scheduled_calls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_chat_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.message_read_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.communication_stats ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pinned_messages_select" ON public.pinned_messages;
 -- RLS Policies
 CREATE POLICY "pinned_messages_select" ON public.pinned_messages FOR SELECT USING (true);
+DROP POLICY IF EXISTS "pinned_messages_insert" ON public.pinned_messages;
 CREATE POLICY "pinned_messages_insert" ON public.pinned_messages FOR INSERT WITH CHECK (auth.uid() = pinned_by);
+DROP POLICY IF EXISTS "pinned_messages_delete" ON public.pinned_messages;
 CREATE POLICY "pinned_messages_delete" ON public.pinned_messages FOR DELETE USING (auth.uid() = pinned_by);
+DROP POLICY IF EXISTS "starred_messages_select" ON public.starred_messages;
 CREATE POLICY "starred_messages_select" ON public.starred_messages FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "starred_messages_insert" ON public.starred_messages;
 CREATE POLICY "starred_messages_insert" ON public.starred_messages FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "starred_messages_delete" ON public.starred_messages;
 CREATE POLICY "starred_messages_delete" ON public.starred_messages FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "scheduled_messages_select" ON public.scheduled_messages;
 CREATE POLICY "scheduled_messages_select" ON public.scheduled_messages FOR SELECT USING (auth.uid() = sender_id);
+DROP POLICY IF EXISTS "scheduled_messages_insert" ON public.scheduled_messages;
 CREATE POLICY "scheduled_messages_insert" ON public.scheduled_messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
+DROP POLICY IF EXISTS "scheduled_messages_update" ON public.scheduled_messages;
 CREATE POLICY "scheduled_messages_update" ON public.scheduled_messages FOR UPDATE USING (auth.uid() = sender_id);
+DROP POLICY IF EXISTS "scheduled_messages_delete" ON public.scheduled_messages;
 CREATE POLICY "scheduled_messages_delete" ON public.scheduled_messages FOR DELETE USING (auth.uid() = sender_id);
+DROP POLICY IF EXISTS "voicemails_select" ON public.voicemails;
 CREATE POLICY "voicemails_select" ON public.voicemails FOR SELECT USING (auth.uid() = recipient_id OR auth.uid() = caller_id);
+DROP POLICY IF EXISTS "voicemails_insert" ON public.voicemails;
 CREATE POLICY "voicemails_insert" ON public.voicemails FOR INSERT WITH CHECK (auth.uid() = caller_id);
+DROP POLICY IF EXISTS "voicemails_update" ON public.voicemails;
 CREATE POLICY "voicemails_update" ON public.voicemails FOR UPDATE USING (auth.uid() = recipient_id);
+DROP POLICY IF EXISTS "voicemails_delete" ON public.voicemails;
 CREATE POLICY "voicemails_delete" ON public.voicemails FOR DELETE USING (auth.uid() = recipient_id);
+DROP POLICY IF EXISTS "blocked_users_select" ON public.blocked_users;
 CREATE POLICY "blocked_users_select" ON public.blocked_users FOR SELECT USING (auth.uid() = blocker_id);
+DROP POLICY IF EXISTS "blocked_users_insert" ON public.blocked_users;
 CREATE POLICY "blocked_users_insert" ON public.blocked_users FOR INSERT WITH CHECK (auth.uid() = blocker_id);
+DROP POLICY IF EXISTS "blocked_users_delete" ON public.blocked_users;
 CREATE POLICY "blocked_users_delete" ON public.blocked_users FOR DELETE USING (auth.uid() = blocker_id);
+DROP POLICY IF EXISTS "call_notes_select" ON public.call_notes;
 CREATE POLICY "call_notes_select" ON public.call_notes FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "call_notes_insert" ON public.call_notes;
 CREATE POLICY "call_notes_insert" ON public.call_notes FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "call_notes_update" ON public.call_notes;
 CREATE POLICY "call_notes_update" ON public.call_notes FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "call_notes_delete" ON public.call_notes;
 CREATE POLICY "call_notes_delete" ON public.call_notes FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "scheduled_calls_select" ON public.scheduled_calls;
 CREATE POLICY "scheduled_calls_select" ON public.scheduled_calls FOR SELECT USING (auth.uid() = organizer_id OR auth.uid() = ANY(participant_ids));
+DROP POLICY IF EXISTS "scheduled_calls_insert" ON public.scheduled_calls;
 CREATE POLICY "scheduled_calls_insert" ON public.scheduled_calls FOR INSERT WITH CHECK (auth.uid() = organizer_id);
+DROP POLICY IF EXISTS "scheduled_calls_update" ON public.scheduled_calls;
 CREATE POLICY "scheduled_calls_update" ON public.scheduled_calls FOR UPDATE USING (auth.uid() = organizer_id);
+DROP POLICY IF EXISTS "scheduled_calls_delete" ON public.scheduled_calls;
 CREATE POLICY "scheduled_calls_delete" ON public.scheduled_calls FOR DELETE USING (auth.uid() = organizer_id);
+DROP POLICY IF EXISTS "user_chat_settings_select" ON public.user_chat_settings;
 CREATE POLICY "user_chat_settings_select" ON public.user_chat_settings FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "user_chat_settings_insert" ON public.user_chat_settings;
 CREATE POLICY "user_chat_settings_insert" ON public.user_chat_settings FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "user_chat_settings_update" ON public.user_chat_settings;
 CREATE POLICY "user_chat_settings_update" ON public.user_chat_settings FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "message_read_receipts_select" ON public.message_read_receipts;
 CREATE POLICY "message_read_receipts_select" ON public.message_read_receipts FOR SELECT USING (true);
+DROP POLICY IF EXISTS "message_read_receipts_insert" ON public.message_read_receipts;
 CREATE POLICY "message_read_receipts_insert" ON public.message_read_receipts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "communication_stats_select" ON public.communication_stats;
 CREATE POLICY "communication_stats_select" ON public.communication_stats FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "communication_stats_insert" ON public.communication_stats;
 CREATE POLICY "communication_stats_insert" ON public.communication_stats FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "communication_stats_update" ON public.communication_stats;
 CREATE POLICY "communication_stats_update" ON public.communication_stats FOR UPDATE USING (auth.uid() = user_id);
 
 -- 20260101103609_323fb8bd-0a9e-48cb-bbc9-596418680f0b.sql
@@ -1353,38 +1724,49 @@ CREATE POLICY "communication_stats_update" ON public.communication_stats FOR UPD
 ALTER TABLE public.assistant_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assistant_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.startup_ideas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own conversations" ON public.assistant_conversations;
 -- RLS policies for assistant_conversations
 CREATE POLICY "Users can view own conversations" ON public.assistant_conversations
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own conversations" ON public.assistant_conversations;
 CREATE POLICY "Users can create own conversations" ON public.assistant_conversations
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own conversations" ON public.assistant_conversations;
 CREATE POLICY "Users can update own conversations" ON public.assistant_conversations
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own conversations" ON public.assistant_conversations;
 CREATE POLICY "Users can delete own conversations" ON public.assistant_conversations
   FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view messages from own conversations" ON public.assistant_messages;
 -- RLS policies for assistant_messages
 CREATE POLICY "Users can view messages from own conversations" ON public.assistant_messages
   FOR SELECT USING (EXISTS (
     SELECT 1 FROM public.assistant_conversations 
     WHERE id = conversation_id AND user_id = auth.uid()
   ));
+DROP POLICY IF EXISTS "Users can create messages in own conversations" ON public.assistant_messages;
 CREATE POLICY "Users can create messages in own conversations" ON public.assistant_messages
   FOR INSERT WITH CHECK (EXISTS (
     SELECT 1 FROM public.assistant_conversations 
     WHERE id = conversation_id AND user_id = auth.uid()
   ));
+DROP POLICY IF EXISTS "Users can delete messages from own conversations" ON public.assistant_messages;
 CREATE POLICY "Users can delete messages from own conversations" ON public.assistant_messages
   FOR DELETE USING (EXISTS (
     SELECT 1 FROM public.assistant_conversations 
     WHERE id = conversation_id AND user_id = auth.uid()
   ));
+DROP POLICY IF EXISTS "Users can view own startup ideas" ON public.startup_ideas;
 -- RLS policies for startup_ideas
 CREATE POLICY "Users can view own startup ideas" ON public.startup_ideas
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create own startup ideas" ON public.startup_ideas;
 CREATE POLICY "Users can create own startup ideas" ON public.startup_ideas
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own startup ideas" ON public.startup_ideas;
 CREATE POLICY "Users can update own startup ideas" ON public.startup_ideas
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own startup ideas" ON public.startup_ideas;
 CREATE POLICY "Users can delete own startup ideas" ON public.startup_ideas
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -1392,28 +1774,34 @@ CREATE POLICY "Users can delete own startup ideas" ON public.startup_ideas
 -- Enable Row Level Security
 ALTER TABLE public.quran_reading_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quran_reading_goals ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own reading progress" ON public.quran_reading_progress;
 -- Create policies for reading progress
 CREATE POLICY "Users can view their own reading progress" 
 ON public.quran_reading_progress 
 FOR SELECT 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own reading progress" ON public.quran_reading_progress;
 CREATE POLICY "Users can insert their own reading progress" 
 ON public.quran_reading_progress 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own reading progress" ON public.quran_reading_progress;
 CREATE POLICY "Users can delete their own reading progress" 
 ON public.quran_reading_progress 
 FOR DELETE 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own reading goals" ON public.quran_reading_goals;
 -- Create policies for reading goals
 CREATE POLICY "Users can view their own reading goals" 
 ON public.quran_reading_goals 
 FOR SELECT 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own reading goals" ON public.quran_reading_goals;
 CREATE POLICY "Users can insert their own reading goals" 
 ON public.quran_reading_goals 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own reading goals" ON public.quran_reading_goals;
 CREATE POLICY "Users can update their own reading goals" 
 ON public.quran_reading_goals 
 FOR UPDATE 
@@ -1422,26 +1810,31 @@ USING (auth.uid() = user_id);
 -- 20260109085206_a992ecab-bbcd-43ad-ae1e-f036f601d969.sql
 -- Enable RLS
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own notifications" ON public.notifications;
 -- Users can only see their own notifications
 CREATE POLICY "Users can view their own notifications" 
 ON public.notifications 
 FOR SELECT 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own notifications" ON public.notifications;
 -- Users can update their own notifications (mark as read)
 CREATE POLICY "Users can update their own notifications" 
 ON public.notifications 
 FOR UPDATE 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own notifications" ON public.notifications;
 -- Users can delete their own notifications
 CREATE POLICY "Users can delete their own notifications" 
 ON public.notifications 
 FOR DELETE 
 USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
 -- System can insert notifications (via trigger)
 CREATE POLICY "System can insert notifications" 
 ON public.notifications 
 FOR INSERT 
 WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can view contracts shared with them" ON public.contracts;
 -- Add RLS policies for contracts to allow shared access
 CREATE POLICY "Users can view contracts shared with them"
 ON public.contracts
@@ -1455,6 +1848,7 @@ USING (
     AND shared_with_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Users can update contracts shared with edit permission" ON public.contracts;
 -- Allow users with edit permission to update shared contracts
 CREATE POLICY "Users can update contracts shared with edit permission"
 ON public.contracts
@@ -1469,6 +1863,7 @@ USING (
     AND permission = 'edit'
   )
 );
+DROP POLICY IF EXISTS "Users can view contacts shared with them" ON public.user_contacts;
 -- Add RLS policies for user_contacts to allow shared access
 CREATE POLICY "Users can view contacts shared with them"
 ON public.user_contacts
@@ -1482,6 +1877,7 @@ USING (
     AND shared_with_id = auth.uid()
   )
 );
+DROP POLICY IF EXISTS "Users can update contacts shared with edit permission" ON public.user_contacts;
 -- Allow users with edit permission to update shared contacts
 CREATE POLICY "Users can update contacts shared with edit permission"
 ON public.user_contacts
@@ -1506,66 +1902,89 @@ ALTER TABLE public.life_scores ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view their own life scores" ON public.life_scores;
 DROP POLICY IF EXISTS "Users can insert their own life scores" ON public.life_scores;
 DROP POLICY IF EXISTS "Users can update their own life scores" ON public.life_scores;
+DROP POLICY IF EXISTS "Users can view their own life scores" ON public.life_scores;
 CREATE POLICY "Users can view their own life scores" ON public.life_scores FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own life scores" ON public.life_scores;
 CREATE POLICY "Users can insert their own life scores" ON public.life_scores FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own life scores" ON public.life_scores;
 CREATE POLICY "Users can update their own life scores" ON public.life_scores FOR UPDATE USING (auth.uid() = user_id);
 ALTER TABLE public.mood_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view their own mood logs" ON public.mood_logs;
 DROP POLICY IF EXISTS "Users can insert their own mood logs" ON public.mood_logs;
 DROP POLICY IF EXISTS "Users can delete their own mood logs" ON public.mood_logs;
+DROP POLICY IF EXISTS "Users can view their own mood logs" ON public.mood_logs;
 CREATE POLICY "Users can view their own mood logs" ON public.mood_logs FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own mood logs" ON public.mood_logs;
 CREATE POLICY "Users can insert their own mood logs" ON public.mood_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own mood logs" ON public.mood_logs;
 CREATE POLICY "Users can delete their own mood logs" ON public.mood_logs FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.automation_rules ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view their own automation rules" ON public.automation_rules;
 DROP POLICY IF EXISTS "Users can insert their own automation rules" ON public.automation_rules;
 DROP POLICY IF EXISTS "Users can update their own automation rules" ON public.automation_rules;
 DROP POLICY IF EXISTS "Users can delete their own automation rules" ON public.automation_rules;
+DROP POLICY IF EXISTS "Users can view their own automation rules" ON public.automation_rules;
 CREATE POLICY "Users can view their own automation rules" ON public.automation_rules FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own automation rules" ON public.automation_rules;
 CREATE POLICY "Users can insert their own automation rules" ON public.automation_rules FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own automation rules" ON public.automation_rules;
 CREATE POLICY "Users can update their own automation rules" ON public.automation_rules FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own automation rules" ON public.automation_rules;
 CREATE POLICY "Users can delete their own automation rules" ON public.automation_rules FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.challenges ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view global challenges" ON public.challenges;
 DROP POLICY IF EXISTS "Anyone can view global challenges" ON public.challenges;
 CREATE POLICY "Anyone can view global challenges" ON public.challenges FOR SELECT USING (is_global = true);
 ALTER TABLE public.user_challenges ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view their own challenges" ON public.user_challenges;
 DROP POLICY IF EXISTS "Users can join challenges" ON public.user_challenges;
 DROP POLICY IF EXISTS "Users can update their challenges" ON public.user_challenges;
+DROP POLICY IF EXISTS "Users can view their own challenges" ON public.user_challenges;
 CREATE POLICY "Users can view their own challenges" ON public.user_challenges FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can join challenges" ON public.user_challenges;
 CREATE POLICY "Users can join challenges" ON public.user_challenges FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their challenges" ON public.user_challenges;
 CREATE POLICY "Users can update their challenges" ON public.user_challenges FOR UPDATE USING (auth.uid() = user_id);
 
 -- 20260301103811_87afccbc-036b-4b27-98c8-bc4749c2625e.sql
 -- Enable RLS
 ALTER TABLE public.user_emails ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_sender_rules ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own emails" ON public.user_emails;
 -- RLS policies for user_emails
 CREATE POLICY "Users can view their own emails"
   ON public.user_emails FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own emails" ON public.user_emails;
 CREATE POLICY "Users can insert their own emails"
   ON public.user_emails FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own emails" ON public.user_emails;
 CREATE POLICY "Users can update their own emails"
   ON public.user_emails FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own emails" ON public.user_emails;
 CREATE POLICY "Users can delete their own emails"
   ON public.user_emails FOR DELETE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own email rules" ON public.email_sender_rules;
 -- RLS policies for email_sender_rules
 CREATE POLICY "Users can view their own email rules"
   ON public.email_sender_rules FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own email rules" ON public.email_sender_rules;
 CREATE POLICY "Users can insert their own email rules"
   ON public.email_sender_rules FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own email rules" ON public.email_sender_rules;
 CREATE POLICY "Users can update their own email rules"
   ON public.email_sender_rules FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own email rules" ON public.email_sender_rules;
 CREATE POLICY "Users can delete their own email rules"
   ON public.email_sender_rules FOR DELETE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role can manage all emails" ON public.user_emails;
 -- Service role policy for gmail-sync edge function to insert emails
 CREATE POLICY "Service role can manage all emails"
   ON public.user_emails FOR ALL
@@ -1574,19 +1993,23 @@ CREATE POLICY "Service role can manage all emails"
 
 -- 20260301103821_8d259399-8ef3-45f8-ae42-bd7d91cfac7f.sql
 -- Drop the overly permissive service role policy (service role bypasses RLS anyway)
-DROP POLICY "Service role can manage all emails" ON public.user_emails;
+DROP POLICY IF EXISTS "Service role can manage all emails" ON public.user_emails;
 
 -- 20260417012516_6a68e36c-32b2-4962-9dd4-67ae0a05159c.sql
 ALTER TABLE public.telegram_links ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view their own telegram link" ON public.telegram_links;
 CREATE POLICY "Users view their own telegram link"
   ON public.telegram_links FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert their own telegram link" ON public.telegram_links;
 CREATE POLICY "Users insert their own telegram link"
   ON public.telegram_links FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update their own telegram link" ON public.telegram_links;
 CREATE POLICY "Users update their own telegram link"
   ON public.telegram_links FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete their own telegram link" ON public.telegram_links;
 CREATE POLICY "Users delete their own telegram link"
   ON public.telegram_links FOR DELETE
   USING (auth.uid() = user_id);
@@ -1595,29 +2018,35 @@ ALTER TABLE public.telegram_messages ENABLE ROW LEVEL SECURITY;
 
 -- 20260417071105_340c6cc0-e54e-4054-8784-b0a2d684d1db.sql
 ALTER TABLE public.meeting_reminders_sent ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own meeting reminders" ON public.meeting_reminders_sent;
 CREATE POLICY "Users view own meeting reminders"
   ON public.meeting_reminders_sent FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "System inserts meeting reminders" ON public.meeting_reminders_sent;
 CREATE POLICY "System inserts meeting reminders"
   ON public.meeting_reminders_sent FOR INSERT
   WITH CHECK (true);
 
 -- 20260417162210_c52a8469-50d9-464d-a23c-b74d825d706d.sql
 ALTER TABLE public.telegram_group_links ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Owner manages group link" ON public.telegram_group_links;
 CREATE POLICY "Owner manages group link"
   ON public.telegram_group_links
   FOR ALL
   USING (auth.uid() = owner_user_id)
   WITH CHECK (auth.uid() = owner_user_id);
+DROP POLICY IF EXISTS "Partner can view group link" ON public.telegram_group_links;
 CREATE POLICY "Partner can view group link"
   ON public.telegram_group_links
   FOR SELECT
   USING (auth.uid() = partner_user_id);
 ALTER TABLE public.telegram_user_map ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "User can view own telegram mapping" ON public.telegram_user_map;
 CREATE POLICY "User can view own telegram mapping"
   ON public.telegram_user_map
   FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "User can manage own telegram mapping" ON public.telegram_user_map;
 CREATE POLICY "User can manage own telegram mapping"
   ON public.telegram_user_map
   FOR ALL
@@ -1626,6 +2055,7 @@ CREATE POLICY "User can manage own telegram mapping"
 
 -- 20260417223001_a83e1f0f-e1b2-40c7-96a7-695ac6ed902d.sql
 ALTER TABLE public.telegram_assistant_replies ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role manages assistant replies" ON public.telegram_assistant_replies;
 -- Service role only — no public access. Edge functions use service key.
 CREATE POLICY "Service role manages assistant replies"
   ON public.telegram_assistant_replies
@@ -1635,101 +2065,144 @@ CREATE POLICY "Service role manages assistant replies"
 
 -- 20260418004554_0251271d-db07-4cd4-89a9-801d5a0ed437.sql
 ALTER TABLE public.dori_conversations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own dori conversations" ON public.dori_conversations;
 CREATE POLICY "Users view own dori conversations"
   ON public.dori_conversations FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own dori conversations" ON public.dori_conversations;
 CREATE POLICY "Users insert own dori conversations"
   ON public.dori_conversations FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own dori conversations" ON public.dori_conversations;
 CREATE POLICY "Users delete own dori conversations"
   ON public.dori_conversations FOR DELETE
   USING (auth.uid() = user_id);
 ALTER TABLE public.dori_learned_preferences ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own dori prefs" ON public.dori_learned_preferences;
 CREATE POLICY "Users view own dori prefs"
   ON public.dori_learned_preferences FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own dori prefs" ON public.dori_learned_preferences;
 CREATE POLICY "Users insert own dori prefs"
   ON public.dori_learned_preferences FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own dori prefs" ON public.dori_learned_preferences;
 CREATE POLICY "Users update own dori prefs"
   ON public.dori_learned_preferences FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own dori prefs" ON public.dori_learned_preferences;
 CREATE POLICY "Users delete own dori prefs"
   ON public.dori_learned_preferences FOR DELETE
   USING (auth.uid() = user_id);
 
 -- 20260418005117_19533977-4c10-4b99-a478-3d8138c18c1a.sql
 ALTER TABLE public.dori_proactive_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view their own proactive log" ON public.dori_proactive_log;
 CREATE POLICY "Users view their own proactive log"
   ON public.dori_proactive_log FOR SELECT
   USING (auth.uid() = user_id);
 
 -- 20260418122102_f8a2a1b4-6dca-4d6b-9671-d4b6d9ec28ed.sql
 ALTER TABLE public.email_classifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own_email_class_select" ON public.email_classifications;
 CREATE POLICY "own_email_class_select" ON public.email_classifications FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_email_class_insert" ON public.email_classifications;
 CREATE POLICY "own_email_class_insert" ON public.email_classifications FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_email_class_update" ON public.email_classifications;
 CREATE POLICY "own_email_class_update" ON public.email_classifications FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_email_class_delete" ON public.email_classifications;
 CREATE POLICY "own_email_class_delete" ON public.email_classifications FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.proactive_feedback ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own_pf_select" ON public.proactive_feedback;
 CREATE POLICY "own_pf_select" ON public.proactive_feedback FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_pf_insert" ON public.proactive_feedback;
 CREATE POLICY "own_pf_insert" ON public.proactive_feedback FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_pf_update" ON public.proactive_feedback;
 CREATE POLICY "own_pf_update" ON public.proactive_feedback FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_pf_delete" ON public.proactive_feedback;
 CREATE POLICY "own_pf_delete" ON public.proactive_feedback FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.detected_conflicts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own_dc_select" ON public.detected_conflicts;
 CREATE POLICY "own_dc_select" ON public.detected_conflicts FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_dc_insert" ON public.detected_conflicts;
 CREATE POLICY "own_dc_insert" ON public.detected_conflicts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_dc_update" ON public.detected_conflicts;
 CREATE POLICY "own_dc_update" ON public.detected_conflicts FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_dc_delete" ON public.detected_conflicts;
 CREATE POLICY "own_dc_delete" ON public.detected_conflicts FOR DELETE USING (auth.uid() = user_id);
 
 -- 20260418122459_d8bb12f2-a60a-4087-924e-a67e6bdf3679.sql
 ALTER TABLE public.detected_trips ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own_dt_select" ON public.detected_trips;
 CREATE POLICY "own_dt_select" ON public.detected_trips FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_dt_insert" ON public.detected_trips;
 CREATE POLICY "own_dt_insert" ON public.detected_trips FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_dt_update" ON public.detected_trips;
 CREATE POLICY "own_dt_update" ON public.detected_trips FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_dt_delete" ON public.detected_trips;
 CREATE POLICY "own_dt_delete" ON public.detected_trips FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.meeting_briefs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own_mb_select" ON public.meeting_briefs;
 CREATE POLICY "own_mb_select" ON public.meeting_briefs FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_mb_insert" ON public.meeting_briefs;
 CREATE POLICY "own_mb_insert" ON public.meeting_briefs FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_mb_update" ON public.meeting_briefs;
 CREATE POLICY "own_mb_update" ON public.meeting_briefs FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own_mb_delete" ON public.meeting_briefs;
 CREATE POLICY "own_mb_delete" ON public.meeting_briefs FOR DELETE USING (auth.uid() = user_id);
 
 -- 20260418122852_da507f58-5206-460c-89ff-1e47264f7eee.sql
 ALTER TABLE public.episodic_memories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own episodic memories" ON public.episodic_memories;
 CREATE POLICY "Users view own episodic memories" ON public.episodic_memories
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own episodic memories" ON public.episodic_memories;
 CREATE POLICY "Users insert own episodic memories" ON public.episodic_memories
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own episodic memories" ON public.episodic_memories;
 CREATE POLICY "Users update own episodic memories" ON public.episodic_memories
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own episodic memories" ON public.episodic_memories;
 CREATE POLICY "Users delete own episodic memories" ON public.episodic_memories
   FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.learned_routines ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own learned routines" ON public.learned_routines;
 CREATE POLICY "Users view own learned routines" ON public.learned_routines
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own learned routines" ON public.learned_routines;
 CREATE POLICY "Users insert own learned routines" ON public.learned_routines
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own learned routines" ON public.learned_routines;
 CREATE POLICY "Users update own learned routines" ON public.learned_routines
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own learned routines" ON public.learned_routines;
 CREATE POLICY "Users delete own learned routines" ON public.learned_routines
   FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.life_score_commentary ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own life score commentary" ON public.life_score_commentary;
 CREATE POLICY "Users view own life score commentary" ON public.life_score_commentary
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own life score commentary" ON public.life_score_commentary;
 CREATE POLICY "Users insert own life score commentary" ON public.life_score_commentary
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own life score commentary" ON public.life_score_commentary;
 CREATE POLICY "Users update own life score commentary" ON public.life_score_commentary
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own life score commentary" ON public.life_score_commentary;
 CREATE POLICY "Users delete own life score commentary" ON public.life_score_commentary
   FOR DELETE USING (auth.uid() = user_id);
 
 -- 20260418123323_9bb167a0-a22e-4ea2-b133-f87cd54947c4.sql
 ALTER TABLE public.family_agent_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.family_agent_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Owner can manage group" ON public.family_agent_groups;
 -- Group policies
 CREATE POLICY "Owner can manage group" ON public.family_agent_groups
   FOR ALL USING (auth.uid() = owner_id) WITH CHECK (auth.uid() = owner_id);
+DROP POLICY IF EXISTS "Members can view group" ON public.family_agent_groups;
 CREATE POLICY "Members can view group" ON public.family_agent_groups
   FOR SELECT USING (public.is_family_agent_member(auth.uid(), id));
+DROP POLICY IF EXISTS "Owner can manage members" ON public.family_agent_members;
 -- Member policies
 CREATE POLICY "Owner can manage members" ON public.family_agent_members
   FOR ALL USING (
@@ -1738,230 +2211,349 @@ CREATE POLICY "Owner can manage members" ON public.family_agent_members
   WITH CHECK (
     EXISTS (SELECT 1 FROM public.family_agent_groups g WHERE g.id = group_id AND g.owner_id = auth.uid())
   );
+DROP POLICY IF EXISTS "Members can view fellow members" ON public.family_agent_members;
 CREATE POLICY "Members can view fellow members" ON public.family_agent_members
   FOR SELECT USING (public.is_family_agent_member(auth.uid(), group_id) OR user_id = auth.uid());
+DROP POLICY IF EXISTS "Member can accept own invite" ON public.family_agent_members;
 CREATE POLICY "Member can accept own invite" ON public.family_agent_members
   FOR UPDATE USING (user_id = auth.uid());
 ALTER TABLE public.mental_load_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Members view group load" ON public.mental_load_log;
 CREATE POLICY "Members view group load" ON public.mental_load_log
   FOR SELECT USING (public.is_family_agent_member(auth.uid(), group_id));
+DROP POLICY IF EXISTS "Members log own entries" ON public.mental_load_log;
 CREATE POLICY "Members log own entries" ON public.mental_load_log
   FOR INSERT WITH CHECK (handled_by = auth.uid() AND public.is_family_agent_member(auth.uid(), group_id));
+DROP POLICY IF EXISTS "Owner can edit load entries" ON public.mental_load_log;
 CREATE POLICY "Owner can edit load entries" ON public.mental_load_log
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM public.family_agent_groups g WHERE g.id = group_id AND g.owner_id = auth.uid())
   );
+DROP POLICY IF EXISTS "Owner can delete load entries" ON public.mental_load_log;
 CREATE POLICY "Owner can delete load entries" ON public.mental_load_log
   FOR DELETE USING (
     EXISTS (SELECT 1 FROM public.family_agent_groups g WHERE g.id = group_id AND g.owner_id = auth.uid())
   );
 ALTER TABLE public.morning_thread_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own thread" ON public.morning_thread_items;
 CREATE POLICY "Users view own thread" ON public.morning_thread_items
   FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own thread" ON public.morning_thread_items;
 CREATE POLICY "Users insert own thread" ON public.morning_thread_items
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own thread" ON public.morning_thread_items;
 CREATE POLICY "Users update own thread" ON public.morning_thread_items
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own thread" ON public.morning_thread_items;
 CREATE POLICY "Users delete own thread" ON public.morning_thread_items
   FOR DELETE USING (auth.uid() = user_id);
 
 -- 20260418123847_dc5cfd99-a257-4384-ab2d-ebf69d5c4b4e.sql
 ALTER TABLE public.family_health_records ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own health records select" ON public.family_health_records;
 CREATE POLICY "own health records select" ON public.family_health_records FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own health records insert" ON public.family_health_records;
 CREATE POLICY "own health records insert" ON public.family_health_records FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own health records update" ON public.family_health_records;
 CREATE POLICY "own health records update" ON public.family_health_records FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own health records delete" ON public.family_health_records;
 CREATE POLICY "own health records delete" ON public.family_health_records FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_emergency_contacts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own emergency contacts select" ON public.family_emergency_contacts;
 CREATE POLICY "own emergency contacts select" ON public.family_emergency_contacts FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own emergency contacts insert" ON public.family_emergency_contacts;
 CREATE POLICY "own emergency contacts insert" ON public.family_emergency_contacts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own emergency contacts update" ON public.family_emergency_contacts;
 CREATE POLICY "own emergency contacts update" ON public.family_emergency_contacts FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own emergency contacts delete" ON public.family_emergency_contacts;
 CREATE POLICY "own emergency contacts delete" ON public.family_emergency_contacts FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_growth_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own growth log select" ON public.family_growth_log;
 CREATE POLICY "own growth log select" ON public.family_growth_log FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own growth log insert" ON public.family_growth_log;
 CREATE POLICY "own growth log insert" ON public.family_growth_log FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own growth log update" ON public.family_growth_log;
 CREATE POLICY "own growth log update" ON public.family_growth_log FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own growth log delete" ON public.family_growth_log;
 CREATE POLICY "own growth log delete" ON public.family_growth_log FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_sick_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own sick log select" ON public.family_sick_log;
 CREATE POLICY "own sick log select" ON public.family_sick_log FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own sick log insert" ON public.family_sick_log;
 CREATE POLICY "own sick log insert" ON public.family_sick_log FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own sick log update" ON public.family_sick_log;
 CREATE POLICY "own sick log update" ON public.family_sick_log FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own sick log delete" ON public.family_sick_log;
 CREATE POLICY "own sick log delete" ON public.family_sick_log FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_insurance ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own insurance select" ON public.family_insurance;
 CREATE POLICY "own insurance select" ON public.family_insurance FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own insurance insert" ON public.family_insurance;
 CREATE POLICY "own insurance insert" ON public.family_insurance FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own insurance update" ON public.family_insurance;
 CREATE POLICY "own insurance update" ON public.family_insurance FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own insurance delete" ON public.family_insurance;
 CREATE POLICY "own insurance delete" ON public.family_insurance FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_important_documents ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own important docs select" ON public.family_important_documents;
 CREATE POLICY "own important docs select" ON public.family_important_documents FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own important docs insert" ON public.family_important_documents;
 CREATE POLICY "own important docs insert" ON public.family_important_documents FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own important docs update" ON public.family_important_documents;
 CREATE POLICY "own important docs update" ON public.family_important_documents FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own important docs delete" ON public.family_important_documents;
 CREATE POLICY "own important docs delete" ON public.family_important_documents FOR DELETE USING (auth.uid() = user_id);
 
 -- 20260418124227_9ad634a1-2046-4342-a897-fc3a2152f3ad.sql
 ALTER TABLE public.family_school_calendar ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own school cal select" ON public.family_school_calendar;
 CREATE POLICY "own school cal select" ON public.family_school_calendar FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own school cal insert" ON public.family_school_calendar;
 CREATE POLICY "own school cal insert" ON public.family_school_calendar FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own school cal update" ON public.family_school_calendar;
 CREATE POLICY "own school cal update" ON public.family_school_calendar FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own school cal delete" ON public.family_school_calendar;
 CREATE POLICY "own school cal delete" ON public.family_school_calendar FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_pickup_rota ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rota select" ON public.family_pickup_rota;
 CREATE POLICY "own rota select" ON public.family_pickup_rota FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own rota insert" ON public.family_pickup_rota;
 CREATE POLICY "own rota insert" ON public.family_pickup_rota FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own rota update" ON public.family_pickup_rota;
 CREATE POLICY "own rota update" ON public.family_pickup_rota FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own rota delete" ON public.family_pickup_rota;
 CREATE POLICY "own rota delete" ON public.family_pickup_rota FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_classmates ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own classmates select" ON public.family_classmates;
 CREATE POLICY "own classmates select" ON public.family_classmates FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own classmates insert" ON public.family_classmates;
 CREATE POLICY "own classmates insert" ON public.family_classmates FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own classmates update" ON public.family_classmates;
 CREATE POLICY "own classmates update" ON public.family_classmates FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own classmates delete" ON public.family_classmates;
 CREATE POLICY "own classmates delete" ON public.family_classmates FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_equipment ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own equipment select" ON public.family_equipment;
 CREATE POLICY "own equipment select" ON public.family_equipment FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own equipment insert" ON public.family_equipment;
 CREATE POLICY "own equipment insert" ON public.family_equipment FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own equipment update" ON public.family_equipment;
 CREATE POLICY "own equipment update" ON public.family_equipment FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own equipment delete" ON public.family_equipment;
 CREATE POLICY "own equipment delete" ON public.family_equipment FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_homework_schedule ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own homework select" ON public.family_homework_schedule;
 CREATE POLICY "own homework select" ON public.family_homework_schedule FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own homework insert" ON public.family_homework_schedule;
 CREATE POLICY "own homework insert" ON public.family_homework_schedule FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own homework update" ON public.family_homework_schedule;
 CREATE POLICY "own homework update" ON public.family_homework_schedule FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own homework delete" ON public.family_homework_schedule;
 CREATE POLICY "own homework delete" ON public.family_homework_schedule FOR DELETE USING (auth.uid() = user_id);
 
 -- 20260418124543_f08a0f19-3545-463c-8777-c5b2641f291a.sql
 ALTER TABLE public.family_chores ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own family_chores select" ON public.family_chores;
 CREATE POLICY "own family_chores select" ON public.family_chores FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own family_chores insert" ON public.family_chores;
 CREATE POLICY "own family_chores insert" ON public.family_chores FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own family_chores update" ON public.family_chores;
 CREATE POLICY "own family_chores update" ON public.family_chores FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own family_chores delete" ON public.family_chores;
 CREATE POLICY "own family_chores delete" ON public.family_chores FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_chore_completions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own chore_completions select" ON public.family_chore_completions;
 CREATE POLICY "own chore_completions select" ON public.family_chore_completions FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own chore_completions insert" ON public.family_chore_completions;
 CREATE POLICY "own chore_completions insert" ON public.family_chore_completions FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own chore_completions update" ON public.family_chore_completions;
 CREATE POLICY "own chore_completions update" ON public.family_chore_completions FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own chore_completions delete" ON public.family_chore_completions;
 CREATE POLICY "own chore_completions delete" ON public.family_chore_completions FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_allowance ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own allowance select" ON public.family_allowance;
 CREATE POLICY "own allowance select" ON public.family_allowance FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own allowance insert" ON public.family_allowance;
 CREATE POLICY "own allowance insert" ON public.family_allowance FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own allowance update" ON public.family_allowance;
 CREATE POLICY "own allowance update" ON public.family_allowance FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own allowance delete" ON public.family_allowance;
 CREATE POLICY "own allowance delete" ON public.family_allowance FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_meal_preferences ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own meal_prefs select" ON public.family_meal_preferences;
 CREATE POLICY "own meal_prefs select" ON public.family_meal_preferences FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own meal_prefs insert" ON public.family_meal_preferences;
 CREATE POLICY "own meal_prefs insert" ON public.family_meal_preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own meal_prefs update" ON public.family_meal_preferences;
 CREATE POLICY "own meal_prefs update" ON public.family_meal_preferences FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own meal_prefs delete" ON public.family_meal_preferences;
 CREATE POLICY "own meal_prefs delete" ON public.family_meal_preferences FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.family_sleep_schedule ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own sleep_sched select" ON public.family_sleep_schedule;
 CREATE POLICY "own sleep_sched select" ON public.family_sleep_schedule FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own sleep_sched insert" ON public.family_sleep_schedule;
 CREATE POLICY "own sleep_sched insert" ON public.family_sleep_schedule FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own sleep_sched update" ON public.family_sleep_schedule;
 CREATE POLICY "own sleep_sched update" ON public.family_sleep_schedule FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own sleep_sched delete" ON public.family_sleep_schedule;
 CREATE POLICY "own sleep_sched delete" ON public.family_sleep_schedule FOR DELETE USING (auth.uid() = user_id);
 
 -- 20260418125139_2ffde2c2-a0a6-4c2b-b5e1-9fc64a62088b.sql
 ALTER TABLE public.family_traditions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own traditions select" ON public.family_traditions;
 CREATE POLICY "own traditions select" ON public.family_traditions FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own traditions insert" ON public.family_traditions;
 CREATE POLICY "own traditions insert" ON public.family_traditions FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own traditions update" ON public.family_traditions;
 CREATE POLICY "own traditions update" ON public.family_traditions FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own traditions delete" ON public.family_traditions;
 CREATE POLICY "own traditions delete" ON public.family_traditions FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.pets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own pets select" ON public.pets;
 CREATE POLICY "own pets select" ON public.pets FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own pets insert" ON public.pets;
 CREATE POLICY "own pets insert" ON public.pets FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own pets update" ON public.pets;
 CREATE POLICY "own pets update" ON public.pets FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own pets delete" ON public.pets;
 CREATE POLICY "own pets delete" ON public.pets FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.household_maintenance ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own maintenance select" ON public.household_maintenance;
 CREATE POLICY "own maintenance select" ON public.household_maintenance FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own maintenance insert" ON public.household_maintenance;
 CREATE POLICY "own maintenance insert" ON public.household_maintenance FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own maintenance update" ON public.household_maintenance;
 CREATE POLICY "own maintenance update" ON public.household_maintenance FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own maintenance delete" ON public.household_maintenance;
 CREATE POLICY "own maintenance delete" ON public.household_maintenance FOR DELETE USING (auth.uid() = user_id);
 ALTER TABLE public.vehicle_records ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own vehicles select" ON public.vehicle_records;
 CREATE POLICY "own vehicles select" ON public.vehicle_records FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own vehicles insert" ON public.vehicle_records;
 CREATE POLICY "own vehicles insert" ON public.vehicle_records FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own vehicles update" ON public.vehicle_records;
 CREATE POLICY "own vehicles update" ON public.vehicle_records FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own vehicles delete" ON public.vehicle_records;
 CREATE POLICY "own vehicles delete" ON public.vehicle_records FOR DELETE USING (auth.uid() = user_id);
 
 -- 20260419105957_21564b40-7158-404a-b1aa-16b47e075d33.sql
 ALTER TABLE public.financial_accounts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own financial_accounts" ON public.financial_accounts;
+DROP POLICY IF EXISTS "own financial_accounts" ON public.financial_accounts;
 CREATE POLICY "own financial_accounts" ON public.financial_accounts FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.financial_transactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own financial_transactions" ON public.financial_transactions;
 DROP POLICY IF EXISTS "own financial_transactions" ON public.financial_transactions;
 CREATE POLICY "own financial_transactions" ON public.financial_transactions FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.financial_budgets ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own financial_budgets" ON public.financial_budgets;
+DROP POLICY IF EXISTS "own financial_budgets" ON public.financial_budgets;
 CREATE POLICY "own financial_budgets" ON public.financial_budgets FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.financial_goals ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own financial_goals" ON public.financial_goals;
 DROP POLICY IF EXISTS "own financial_goals" ON public.financial_goals;
 CREATE POLICY "own financial_goals" ON public.financial_goals FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.receipts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own receipts" ON public.receipts;
+DROP POLICY IF EXISTS "own receipts" ON public.receipts;
 CREATE POLICY "own receipts" ON public.receipts FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own trips" ON public.trips;
 DROP POLICY IF EXISTS "own trips" ON public.trips;
 CREATE POLICY "own trips" ON public.trips FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.trip_bookings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own trip_bookings" ON public.trip_bookings;
+DROP POLICY IF EXISTS "own trip_bookings" ON public.trip_bookings;
 CREATE POLICY "own trip_bookings" ON public.trip_bookings FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.loyalty_programs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own loyalty_programs" ON public.loyalty_programs;
 DROP POLICY IF EXISTS "own loyalty_programs" ON public.loyalty_programs;
 CREATE POLICY "own loyalty_programs" ON public.loyalty_programs FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.packing_lists ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own packing_lists" ON public.packing_lists;
+DROP POLICY IF EXISTS "own packing_lists" ON public.packing_lists;
 CREATE POLICY "own packing_lists" ON public.packing_lists FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.country_essentials ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own country_essentials" ON public.country_essentials;
 DROP POLICY IF EXISTS "own country_essentials" ON public.country_essentials;
 CREATE POLICY "own country_essentials" ON public.country_essentials FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.user_properties ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own user_properties" ON public.user_properties;
+DROP POLICY IF EXISTS "own user_properties" ON public.user_properties;
 CREATE POLICY "own user_properties" ON public.user_properties FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own vehicles" ON public.vehicles;
 DROP POLICY IF EXISTS "own vehicles" ON public.vehicles;
 CREATE POLICY "own vehicles" ON public.vehicles FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.maintenance_log ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own maintenance_log" ON public.maintenance_log;
+DROP POLICY IF EXISTS "own maintenance_log" ON public.maintenance_log;
 CREATE POLICY "own maintenance_log" ON public.maintenance_log FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own inventory_items" ON public.inventory_items;
 DROP POLICY IF EXISTS "own inventory_items" ON public.inventory_items;
 CREATE POLICY "own inventory_items" ON public.inventory_items FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.personal_medications ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own personal_medications" ON public.personal_medications;
+DROP POLICY IF EXISTS "own personal_medications" ON public.personal_medications;
 CREATE POLICY "own personal_medications" ON public.personal_medications FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.personal_doctors ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own personal_doctors" ON public.personal_doctors;
 DROP POLICY IF EXISTS "own personal_doctors" ON public.personal_doctors;
 CREATE POLICY "own personal_doctors" ON public.personal_doctors FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.lab_results ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own lab_results" ON public.lab_results;
+DROP POLICY IF EXISTS "own lab_results" ON public.lab_results;
 CREATE POLICY "own lab_results" ON public.lab_results FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.workouts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own workouts" ON public.workouts;
 DROP POLICY IF EXISTS "own workouts" ON public.workouts;
 CREATE POLICY "own workouts" ON public.workouts FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.contact_special_dates ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own contact_special_dates" ON public.contact_special_dates;
+DROP POLICY IF EXISTS "own contact_special_dates" ON public.contact_special_dates;
 CREATE POLICY "own contact_special_dates" ON public.contact_special_dates FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.gift_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own gift_log" ON public.gift_log;
 DROP POLICY IF EXISTS "own gift_log" ON public.gift_log;
 CREATE POLICY "own gift_log" ON public.gift_log FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.friend_circles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own friend_circles" ON public.friend_circles;
+DROP POLICY IF EXISTS "own friend_circles" ON public.friend_circles;
 CREATE POLICY "own friend_circles" ON public.friend_circles FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.friend_circle_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own friend_circle_members" ON public.friend_circle_members;
 DROP POLICY IF EXISTS "own friend_circle_members" ON public.friend_circle_members;
 CREATE POLICY "own friend_circle_members" ON public.friend_circle_members FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.books ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own books" ON public.books;
+DROP POLICY IF EXISTS "own books" ON public.books;
 CREATE POLICY "own books" ON public.books FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own courses" ON public.courses;
 DROP POLICY IF EXISTS "own courses" ON public.courses;
 CREATE POLICY "own courses" ON public.courses FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.skills ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own skills" ON public.skills;
+DROP POLICY IF EXISTS "own skills" ON public.skills;
 CREATE POLICY "own skills" ON public.skills FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own journal_entries" ON public.journal_entries;
 DROP POLICY IF EXISTS "own journal_entries" ON public.journal_entries;
 CREATE POLICY "own journal_entries" ON public.journal_entries FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.life_milestones ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own life_milestones" ON public.life_milestones;
+DROP POLICY IF EXISTS "own life_milestones" ON public.life_milestones;
 CREATE POLICY "own life_milestones" ON public.life_milestones FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.bucket_list ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own bucket_list" ON public.bucket_list;
 DROP POLICY IF EXISTS "own bucket_list" ON public.bucket_list;
 CREATE POLICY "own bucket_list" ON public.bucket_list FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- 20260419124150_56f6a90b-f7ef-4186-a0e5-c0e4f4cb91e7.sql
 -- 1) profiles: restrict SELECT to own profile
 DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 CREATE POLICY "Users can view their own profile"
 ON public.profiles
 FOR SELECT
@@ -1969,12 +2561,14 @@ TO authenticated
 USING (auth.uid() = user_id);
 -- 2) message_read_receipts: restrict SELECT to own receipts
 DROP POLICY IF EXISTS message_read_receipts_select ON public.message_read_receipts;
+DROP POLICY IF EXISTS "message_read_receipts_select" ON public.message_read_receipts;
 CREATE POLICY message_read_receipts_select
 ON public.message_read_receipts
 FOR SELECT
 TO authenticated
 USING (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Chat attachments are publicly accessible" ON storage.objects;
+DROP POLICY IF EXISTS "Users can read their own chat attachments" ON storage.objects;
 CREATE POLICY "Users can read their own chat attachments"
 ON storage.objects
 FOR SELECT
@@ -1987,40 +2581,51 @@ USING (
 -- 20260419175258_3c80f34b-e97b-49ae-afa6-aee388ec4444.sql
 -- 1. Lock down service-only tables (RLS enabled, no end-user policies)
 DROP POLICY IF EXISTS "service_only_telegram_bot_state" ON public.telegram_bot_state;
+DROP POLICY IF EXISTS "service_only_telegram_bot_state" ON public.telegram_bot_state;
 CREATE POLICY "service_only_telegram_bot_state" ON public.telegram_bot_state
   FOR ALL TO authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS "service_only_telegram_messages" ON public.telegram_messages;
 DROP POLICY IF EXISTS "service_only_telegram_messages" ON public.telegram_messages;
 CREATE POLICY "service_only_telegram_messages" ON public.telegram_messages
   FOR ALL TO authenticated USING (false) WITH CHECK (false);
 -- 2. Replace permissive INSERT policies (anyone-authenticated could insert) with self-only
 DROP POLICY IF EXISTS "System can insert notifications for any user" ON public.user_notifications;
+DROP POLICY IF EXISTS "Users can insert own notifications" ON public.user_notifications;
 CREATE POLICY "Users can insert own notifications" ON public.user_notifications
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can insert own notifications" ON public.notifications;
 CREATE POLICY "Users can insert own notifications" ON public.notifications
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Service role can insert ai usage" ON public.ai_usage;
+DROP POLICY IF EXISTS "Users can insert own ai usage" ON public.ai_usage;
 CREATE POLICY "Users can insert own ai usage" ON public.ai_usage
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 DROP POLICY IF EXISTS "System inserts meeting reminders" ON public.meeting_reminders_sent;
+DROP POLICY IF EXISTS "Users can insert own meeting reminders" ON public.meeting_reminders_sent;
 CREATE POLICY "Users can insert own meeting reminders" ON public.meeting_reminders_sent
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 -- 20260419175316_727fb8e4-ead0-4401-9701-2c5ee76998f1.sql
 DROP POLICY IF EXISTS "Service role can manage all reminders" ON public.proactive_reminders;
+DROP POLICY IF EXISTS "service_role_only_proactive_reminders" ON public.proactive_reminders;
 CREATE POLICY "service_role_only_proactive_reminders" ON public.proactive_reminders
   FOR ALL TO authenticated USING (false) WITH CHECK (false);
 DROP POLICY IF EXISTS "Service role can manage delivery logs" ON public.reminder_delivery_log;
+DROP POLICY IF EXISTS "service_role_only_reminder_delivery_log" ON public.reminder_delivery_log;
 CREATE POLICY "service_role_only_reminder_delivery_log" ON public.reminder_delivery_log
   FOR ALL TO authenticated USING (false) WITH CHECK (false);
 
 -- 20260421132539_4659409a-c1c6-41c0-86ae-c2c8589f0570.sql
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
 CREATE POLICY "Admins can view all profiles" ON public.profiles FOR SELECT USING (public.is_admin(auth.uid()));
 
 -- 20260424180000_dori_telegram_richer_ux.sql
 ALTER TABLE public.dori_undo_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own undo rows" ON public.dori_undo_log;
 CREATE POLICY "Users can read own undo rows"
   ON public.dori_undo_log FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role manages undo rows" ON public.dori_undo_log;
 CREATE POLICY "Service role manages undo rows"
   ON public.dori_undo_log FOR ALL USING (true) WITH CHECK (true);
 
@@ -2030,62 +2635,99 @@ ALTER TABLE public.workspaces              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_members       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_invite_codes  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_telegram_links ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Members read workspace" ON public.workspaces;
 -- workspaces: visible to any member; owner/admin can update; service role does anything.
 CREATE POLICY "Members read workspace"         ON public.workspaces FOR SELECT USING (public.is_workspace_member(id));
+DROP POLICY IF EXISTS "Owner creates workspace" ON public.workspaces;
 CREATE POLICY "Owner creates workspace"        ON public.workspaces FOR INSERT WITH CHECK (owner_id = auth.uid());
+DROP POLICY IF EXISTS "Owner admin update workspace" ON public.workspaces;
 CREATE POLICY "Owner admin update workspace"   ON public.workspaces FOR UPDATE USING (public.workspace_role(id) IN ('owner', 'admin'));
+DROP POLICY IF EXISTS "Owner delete workspace" ON public.workspaces;
 CREATE POLICY "Owner delete workspace"         ON public.workspaces FOR DELETE USING (owner_id = auth.uid());
+DROP POLICY IF EXISTS "Service role manages workspaces" ON public.workspaces;
 CREATE POLICY "Service role manages workspaces" ON public.workspaces FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Member reads workspace membership" ON public.workspace_members;
 -- workspace_members: member sees own + other members; owner/admin can invite or remove.
 CREATE POLICY "Member reads workspace membership"   ON public.workspace_members FOR SELECT USING (public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Admin writes workspace membership" ON public.workspace_members;
 CREATE POLICY "Admin writes workspace membership"   ON public.workspace_members FOR INSERT WITH CHECK (public.workspace_role(workspace_id) IN ('owner', 'admin'));
+DROP POLICY IF EXISTS "Admin updates workspace membership" ON public.workspace_members;
 CREATE POLICY "Admin updates workspace membership"  ON public.workspace_members FOR UPDATE USING (public.workspace_role(workspace_id) IN ('owner', 'admin'));
+DROP POLICY IF EXISTS "Admin removes workspace membership" ON public.workspace_members;
 CREATE POLICY "Admin removes workspace membership"  ON public.workspace_members FOR DELETE USING (public.workspace_role(workspace_id) IN ('owner', 'admin') OR user_id = auth.uid());
+DROP POLICY IF EXISTS "Service role manages membership" ON public.workspace_members;
 CREATE POLICY "Service role manages membership"     ON public.workspace_members FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Member reads invite codes" ON public.workspace_invite_codes;
 -- invite codes: members can view (to share); admins can create/revoke.
 CREATE POLICY "Member reads invite codes"           ON public.workspace_invite_codes FOR SELECT USING (public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Admin creates invite codes" ON public.workspace_invite_codes;
 CREATE POLICY "Admin creates invite codes"          ON public.workspace_invite_codes FOR INSERT WITH CHECK (public.workspace_role(workspace_id) IN ('owner', 'admin'));
+DROP POLICY IF EXISTS "Admin updates invite codes" ON public.workspace_invite_codes;
 CREATE POLICY "Admin updates invite codes"          ON public.workspace_invite_codes FOR UPDATE USING (public.workspace_role(workspace_id) IN ('owner', 'admin'));
+DROP POLICY IF EXISTS "Service role manages invite codes" ON public.workspace_invite_codes;
 CREATE POLICY "Service role manages invite codes"   ON public.workspace_invite_codes FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Member reads tg links" ON public.workspace_telegram_links;
 -- telegram links
 CREATE POLICY "Member reads tg links"               ON public.workspace_telegram_links FOR SELECT USING (public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Admin writes tg links" ON public.workspace_telegram_links;
 CREATE POLICY "Admin writes tg links"               ON public.workspace_telegram_links FOR ALL USING (public.workspace_role(workspace_id) IN ('owner', 'admin')) WITH CHECK (public.workspace_role(workspace_id) IN ('owner', 'admin'));
+DROP POLICY IF EXISTS "Service role manages tg links" ON public.workspace_telegram_links;
 CREATE POLICY "Service role manages tg links"       ON public.workspace_telegram_links FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Workspace members read tasks" ON public.tasks;
 -- Extend existing RLS: let workspace members see/edit collaborative rows in
 -- the workspace. The existing personal-data policies (user_id = auth.uid())
 -- stay in place; these new policies ADD access when workspace_id matches.
 
 CREATE POLICY "Workspace members read tasks"        ON public.tasks  FOR SELECT USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members write tasks" ON public.tasks;
 CREATE POLICY "Workspace members write tasks"       ON public.tasks  FOR INSERT WITH CHECK (workspace_id IS NULL OR public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members update tasks" ON public.tasks;
 CREATE POLICY "Workspace members update tasks"      ON public.tasks  FOR UPDATE USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members delete tasks" ON public.tasks;
 CREATE POLICY "Workspace members delete tasks"      ON public.tasks  FOR DELETE USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members read events" ON public.events;
 CREATE POLICY "Workspace members read events"       ON public.events FOR SELECT USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members write events" ON public.events;
 CREATE POLICY "Workspace members write events"      ON public.events FOR INSERT WITH CHECK (workspace_id IS NULL OR public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members update events" ON public.events;
 CREATE POLICY "Workspace members update events"     ON public.events FOR UPDATE USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members delete events" ON public.events;
 CREATE POLICY "Workspace members delete events"     ON public.events FOR DELETE USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members read notes" ON public.notes;
 CREATE POLICY "Workspace members read notes"        ON public.notes  FOR SELECT USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members write notes" ON public.notes;
 CREATE POLICY "Workspace members write notes"       ON public.notes  FOR INSERT WITH CHECK (workspace_id IS NULL OR public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members update notes" ON public.notes;
 CREATE POLICY "Workspace members update notes"      ON public.notes  FOR UPDATE USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members delete notes" ON public.notes;
 CREATE POLICY "Workspace members delete notes"      ON public.notes  FOR DELETE USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members read projects" ON public.projects;
 CREATE POLICY "Workspace members read projects"     ON public.projects FOR SELECT USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members write projects" ON public.projects;
 CREATE POLICY "Workspace members write projects"    ON public.projects FOR INSERT WITH CHECK (workspace_id IS NULL OR public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members update projects" ON public.projects;
 CREATE POLICY "Workspace members update projects"   ON public.projects FOR UPDATE USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members delete projects" ON public.projects;
 CREATE POLICY "Workspace members delete projects"   ON public.projects FOR DELETE USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
 
 -- 20260425000001_user_location_settings.sql
 ALTER TABLE public.user_location_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage their own location settings" ON public.user_location_settings;
 CREATE POLICY "Users manage their own location settings"
   ON public.user_location_settings FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update their own location settings" ON public.user_location_settings;
 CREATE POLICY "Users update their own location settings"
   ON public.user_location_settings FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert their own location settings" ON public.user_location_settings;
 CREATE POLICY "Users insert their own location settings"
   ON public.user_location_settings FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- 20260425120000_team_polish_chunk_b.sql
 ALTER TABLE public.task_comments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Read task comments" ON public.task_comments;
 -- Access follows the comment's own workspace_id when set, otherwise
 -- the author (for personal-task comments). RLS no longer has to join
 -- back to the tasks table on every read.
@@ -2095,6 +2737,7 @@ CREATE POLICY "Read task comments"
     (workspace_id IS NULL AND author_id = auth.uid())
     OR (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id))
   );
+DROP POLICY IF EXISTS "Write task comments" ON public.task_comments;
 CREATE POLICY "Write task comments"
   ON public.task_comments FOR INSERT
   WITH CHECK (
@@ -2102,20 +2745,25 @@ CREATE POLICY "Write task comments"
       workspace_id IS NULL OR public.is_workspace_member(workspace_id)
     )
   );
+DROP POLICY IF EXISTS "Author deletes own task comment" ON public.task_comments;
 CREATE POLICY "Author deletes own task comment"
   ON public.task_comments FOR DELETE
   USING (author_id = auth.uid());
+DROP POLICY IF EXISTS "Service role manages task comments" ON public.task_comments;
 CREATE POLICY "Service role manages task comments"
   ON public.task_comments FOR ALL USING (true) WITH CHECK (true);
 
 -- 20260425200000_islamic_notifications.sql
 ALTER TABLE public.islamic_notification_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage their own Islamic notification settings" ON public.islamic_notification_settings;
 CREATE POLICY "Users manage their own Islamic notification settings"
   ON public.islamic_notification_settings FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update their own Islamic notification settings" ON public.islamic_notification_settings;
 CREATE POLICY "Users update their own Islamic notification settings"
   ON public.islamic_notification_settings FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert their own Islamic notification settings" ON public.islamic_notification_settings;
 CREATE POLICY "Users insert their own Islamic notification settings"
   ON public.islamic_notification_settings FOR INSERT
   WITH CHECK (auth.uid() = user_id);
@@ -2124,127 +2772,162 @@ ALTER TABLE public.islamic_daily_hadith_sent ENABLE ROW LEVEL SECURITY;
 
 -- 20260425230000_assistant_intelligence_uplift.sql
 ALTER TABLE public.dori_semantic_memories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own semantic memories" ON public.dori_semantic_memories;
 CREATE POLICY "Users view own semantic memories"
   ON public.dori_semantic_memories FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own semantic memories" ON public.dori_semantic_memories;
 CREATE POLICY "Users insert own semantic memories"
   ON public.dori_semantic_memories FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own semantic memories" ON public.dori_semantic_memories;
 CREATE POLICY "Users delete own semantic memories"
   ON public.dori_semantic_memories FOR DELETE
   USING (auth.uid() = user_id);
 ALTER TABLE public.dori_conversation_state ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own conv state" ON public.dori_conversation_state;
 CREATE POLICY "Users view own conv state"
   ON public.dori_conversation_state FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users upsert own conv state" ON public.dori_conversation_state;
 CREATE POLICY "Users upsert own conv state"
   ON public.dori_conversation_state FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own conv state" ON public.dori_conversation_state;
 CREATE POLICY "Users update own conv state"
   ON public.dori_conversation_state FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own conv state" ON public.dori_conversation_state;
 CREATE POLICY "Users delete own conv state"
   ON public.dori_conversation_state FOR DELETE
   USING (auth.uid() = user_id);
 ALTER TABLE public.dori_task_stats ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own task stats" ON public.dori_task_stats;
 CREATE POLICY "Users view own task stats"
   ON public.dori_task_stats FOR SELECT
   USING (auth.uid() = user_id);
 ALTER TABLE public.dori_intent_routing ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own routing log" ON public.dori_intent_routing;
 CREATE POLICY "Users view own routing log"
   ON public.dori_intent_routing FOR SELECT
   USING (auth.uid() = user_id);
 
 -- 20260426120000_persistent_memory_kg.sql
 ALTER TABLE public.kg_entities ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own kg entities" ON public.kg_entities;
 CREATE POLICY "Users view own kg entities"
   ON public.kg_entities FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own kg entities" ON public.kg_entities;
 CREATE POLICY "Users insert own kg entities"
   ON public.kg_entities FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own kg entities" ON public.kg_entities;
 CREATE POLICY "Users update own kg entities"
   ON public.kg_entities FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own kg entities" ON public.kg_entities;
 CREATE POLICY "Users delete own kg entities"
   ON public.kg_entities FOR DELETE
   USING (auth.uid() = user_id);
 ALTER TABLE public.kg_mentions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own kg mentions" ON public.kg_mentions;
 CREATE POLICY "Users view own kg mentions"
   ON public.kg_mentions FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own kg mentions" ON public.kg_mentions;
 CREATE POLICY "Users insert own kg mentions"
   ON public.kg_mentions FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own kg mentions" ON public.kg_mentions;
 CREATE POLICY "Users delete own kg mentions"
   ON public.kg_mentions FOR DELETE
   USING (auth.uid() = user_id);
 ALTER TABLE public.memory_provenance ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own provenance" ON public.memory_provenance;
 CREATE POLICY "Users view own provenance"
   ON public.memory_provenance FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own provenance" ON public.memory_provenance;
 CREATE POLICY "Users insert own provenance"
   ON public.memory_provenance FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own provenance" ON public.memory_provenance;
 CREATE POLICY "Users delete own provenance"
   ON public.memory_provenance FOR DELETE
   USING (auth.uid() = user_id);
 ALTER TABLE public.memory_redactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own redactions" ON public.memory_redactions;
 CREATE POLICY "Users view own redactions"
   ON public.memory_redactions FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own redactions" ON public.memory_redactions;
 CREATE POLICY "Users insert own redactions"
   ON public.memory_redactions FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- 20260426170000_dori_action_plans.sql
 ALTER TABLE public.dori_action_plans ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own plans" ON public.dori_action_plans;
 CREATE POLICY "Users view own plans"
   ON public.dori_action_plans FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own plans" ON public.dori_action_plans;
 CREATE POLICY "Users insert own plans"
   ON public.dori_action_plans FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own plans" ON public.dori_action_plans;
 CREATE POLICY "Users update own plans"
   ON public.dori_action_plans FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own plans" ON public.dori_action_plans;
 CREATE POLICY "Users delete own plans"
   ON public.dori_action_plans FOR DELETE
   USING (auth.uid() = user_id);
 ALTER TABLE public.dori_plan_steps ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own plan steps" ON public.dori_plan_steps;
 CREATE POLICY "Users view own plan steps"
   ON public.dori_plan_steps FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own plan steps" ON public.dori_plan_steps;
 CREATE POLICY "Users insert own plan steps"
   ON public.dori_plan_steps FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own plan steps" ON public.dori_plan_steps;
 CREATE POLICY "Users update own plan steps"
   ON public.dori_plan_steps FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own plan steps" ON public.dori_plan_steps;
 CREATE POLICY "Users delete own plan steps"
   ON public.dori_plan_steps FOR DELETE
   USING (auth.uid() = user_id);
 
 -- 20260426210000_meeting_bots.sql
 ALTER TABLE public.meeting_bots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own meeting bots" ON public.meeting_bots;
 CREATE POLICY "Users view own meeting bots"
   ON public.meeting_bots FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own meeting bots" ON public.meeting_bots;
 CREATE POLICY "Users insert own meeting bots"
   ON public.meeting_bots FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own meeting bots" ON public.meeting_bots;
 CREATE POLICY "Users update own meeting bots"
   ON public.meeting_bots FOR UPDATE
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own meeting bots" ON public.meeting_bots;
 CREATE POLICY "Users delete own meeting bots"
   ON public.meeting_bots FOR DELETE
   USING (auth.uid() = user_id);
 
 -- 20260427000000_financial_os.sql
 ALTER TABLE public.bank_connections ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own bank connections" ON public.bank_connections;
 CREATE POLICY "Users view own bank connections"
   ON public.bank_connections FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own bank connections" ON public.bank_connections;
 -- We deliberately DO NOT expose INSERT / UPDATE policies — the
 -- access_token is sensitive. All writes go through the service role
 -- via the plaid-* edge functions.
@@ -2255,29 +2938,37 @@ CREATE POLICY "Users delete own bank connections"
 
 -- 20260427040000_travel_concierge.sql
 ALTER TABLE public.trip_segments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own trip segments" ON public.trip_segments;
 CREATE POLICY "Users view own trip segments"
   ON public.trip_segments FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own trip segments" ON public.trip_segments;
 CREATE POLICY "Users insert own trip segments"
   ON public.trip_segments FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own trip segments" ON public.trip_segments;
 CREATE POLICY "Users update own trip segments"
   ON public.trip_segments FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own trip segments" ON public.trip_segments;
 CREATE POLICY "Users delete own trip segments"
   ON public.trip_segments FOR DELETE USING (auth.uid() = user_id);
 -- Public read — forecasts aren't user-specific; multi-tenant cache
 -- hit benefits everyone. Writes are service-role only via the edge fn.
 ALTER TABLE public.weather_snapshots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read weather" ON public.weather_snapshots;
 CREATE POLICY "Anyone can read weather"
   ON public.weather_snapshots FOR SELECT
   USING (true);
 
 -- 20260427090000_vision_captures.sql
 ALTER TABLE public.vision_captures ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own vision captures" ON public.vision_captures;
 CREATE POLICY "Users view own vision captures"
   ON public.vision_captures FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own vision captures" ON public.vision_captures;
 CREATE POLICY "Users insert own vision captures"
   ON public.vision_captures FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users discard own vision captures" ON public.vision_captures;
 -- Updates go through the edge functions (service role) so the
 -- detected_kind / extracted fields can't be tampered with by the user
 -- before commit. We expose UPDATE only for the discard path: the user
@@ -2286,18 +2977,23 @@ CREATE POLICY "Users discard own vision captures"
   ON public.vision_captures FOR UPDATE
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own vision captures" ON public.vision_captures;
 CREATE POLICY "Users delete own vision captures"
   ON public.vision_captures FOR DELETE
   USING (auth.uid() = user_id);
 
 -- 20260427110000_predictive_scheduler.sql
 ALTER TABLE public.schedule_proposals ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own schedule proposals" ON public.schedule_proposals;
 CREATE POLICY "Users view own schedule proposals"
   ON public.schedule_proposals FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own schedule proposals" ON public.schedule_proposals;
 CREATE POLICY "Users insert own schedule proposals"
   ON public.schedule_proposals FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own schedule proposals" ON public.schedule_proposals;
 CREATE POLICY "Users update own schedule proposals"
   ON public.schedule_proposals FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users delete own schedule proposals" ON public.schedule_proposals;
 CREATE POLICY "Users delete own schedule proposals"
   ON public.schedule_proposals FOR DELETE USING (auth.uid() = user_id);
 
@@ -2305,138 +3001,181 @@ CREATE POLICY "Users delete own schedule proposals"
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_invite_codes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Members can view their workspaces" ON public.workspaces;
 -- workspaces policies
 CREATE POLICY "Members can view their workspaces"
   ON public.workspaces FOR SELECT TO authenticated
   USING (public.is_workspace_member(auth.uid(), id) OR owner_id = auth.uid());
+DROP POLICY IF EXISTS "Users can create workspaces" ON public.workspaces;
 CREATE POLICY "Users can create workspaces"
   ON public.workspaces FOR INSERT TO authenticated
   WITH CHECK (owner_id = auth.uid());
+DROP POLICY IF EXISTS "Owners and admins can update workspaces" ON public.workspaces;
 CREATE POLICY "Owners and admins can update workspaces"
   ON public.workspaces FOR UPDATE TO authenticated
   USING (public.is_workspace_admin(auth.uid(), id) OR owner_id = auth.uid());
+DROP POLICY IF EXISTS "Owners can delete workspaces" ON public.workspaces;
 CREATE POLICY "Owners can delete workspaces"
   ON public.workspaces FOR DELETE TO authenticated
   USING (owner_id = auth.uid());
+DROP POLICY IF EXISTS "Members can view membership of their workspaces" ON public.workspace_members;
 -- workspace_members policies
 CREATE POLICY "Members can view membership of their workspaces"
   ON public.workspace_members FOR SELECT TO authenticated
   USING (public.is_workspace_member(auth.uid(), workspace_id));
+DROP POLICY IF EXISTS "Admins can add members" ON public.workspace_members;
 CREATE POLICY "Admins can add members"
   ON public.workspace_members FOR INSERT TO authenticated
   WITH CHECK (public.is_workspace_admin(auth.uid(), workspace_id) OR user_id = auth.uid());
+DROP POLICY IF EXISTS "Admins can update members" ON public.workspace_members;
 CREATE POLICY "Admins can update members"
   ON public.workspace_members FOR UPDATE TO authenticated
   USING (public.is_workspace_admin(auth.uid(), workspace_id));
+DROP POLICY IF EXISTS "Admins can remove members" ON public.workspace_members;
 CREATE POLICY "Admins can remove members"
   ON public.workspace_members FOR DELETE TO authenticated
   USING (public.is_workspace_admin(auth.uid(), workspace_id) OR user_id = auth.uid());
+DROP POLICY IF EXISTS "Admins can view invite codes" ON public.workspace_invite_codes;
 -- workspace_invite_codes policies
 CREATE POLICY "Admins can view invite codes"
   ON public.workspace_invite_codes FOR SELECT TO authenticated
   USING (public.is_workspace_admin(auth.uid(), workspace_id));
+DROP POLICY IF EXISTS "Admins can create invite codes" ON public.workspace_invite_codes;
 CREATE POLICY "Admins can create invite codes"
   ON public.workspace_invite_codes FOR INSERT TO authenticated
   WITH CHECK (public.is_workspace_admin(auth.uid(), workspace_id) AND created_by = auth.uid());
+DROP POLICY IF EXISTS "Admins can update invite codes" ON public.workspace_invite_codes;
 CREATE POLICY "Admins can update invite codes"
   ON public.workspace_invite_codes FOR UPDATE TO authenticated
   USING (public.is_workspace_admin(auth.uid(), workspace_id));
+DROP POLICY IF EXISTS "Admins can delete invite codes" ON public.workspace_invite_codes;
 CREATE POLICY "Admins can delete invite codes"
   ON public.workspace_invite_codes FOR DELETE TO authenticated
   USING (public.is_workspace_admin(auth.uid(), workspace_id));
 ALTER TABLE public.task_comments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view comments on their tasks" ON public.task_comments;
 CREATE POLICY "Users can view comments on their tasks"
   ON public.task_comments FOR SELECT TO authenticated
   USING (
     EXISTS (SELECT 1 FROM public.tasks t WHERE t.id = task_id AND t.user_id = auth.uid())
     OR author_id = auth.uid()
   );
+DROP POLICY IF EXISTS "Users can comment on their tasks" ON public.task_comments;
 CREATE POLICY "Users can comment on their tasks"
   ON public.task_comments FOR INSERT TO authenticated
   WITH CHECK (
     author_id = auth.uid()
     AND EXISTS (SELECT 1 FROM public.tasks t WHERE t.id = task_id AND t.user_id = auth.uid())
   );
+DROP POLICY IF EXISTS "Authors can delete their comments" ON public.task_comments;
 CREATE POLICY "Authors can delete their comments"
   ON public.task_comments FOR DELETE TO authenticated
   USING (author_id = auth.uid());
 ALTER TABLE public.islamic_notification_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage their own islamic notif settings" ON public.islamic_notification_settings;
 CREATE POLICY "Users manage their own islamic notif settings"
   ON public.islamic_notification_settings FOR ALL TO authenticated
   USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 ALTER TABLE public.user_location_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage their own location settings" ON public.user_location_settings;
 CREATE POLICY "Users manage their own location settings"
   ON public.user_location_settings FOR ALL TO authenticated
   USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 ALTER TABLE public.dori_undo_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view their own undo log" ON public.dori_undo_log;
 CREATE POLICY "Users view their own undo log"
   ON public.dori_undo_log FOR SELECT TO authenticated
   USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users insert into their own undo log" ON public.dori_undo_log;
 CREATE POLICY "Users insert into their own undo log"
   ON public.dori_undo_log FOR INSERT TO authenticated
   WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users update their own undo log" ON public.dori_undo_log;
 CREATE POLICY "Users update their own undo log"
   ON public.dori_undo_log FOR UPDATE TO authenticated
   USING (user_id = auth.uid());
 
 -- 20260427200000_ai_quotas.sql
 ALTER TABLE public.ai_quotas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own ai quota" ON public.ai_quotas;
 CREATE POLICY "Users view own ai quota"
   ON public.ai_quotas FOR SELECT USING (auth.uid() = user_id);
 
 -- 20260427230000_workspace_rls_hardening.sql
+DROP POLICY IF EXISTS "Workspace members read tasks" ON public.tasks;
 -- tasks
 CREATE POLICY "Workspace members read tasks"   ON public.tasks  FOR SELECT
   USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members write tasks" ON public.tasks;
 CREATE POLICY "Workspace members write tasks"  ON public.tasks  FOR INSERT
   WITH CHECK (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id) AND user_id = auth.uid());
+DROP POLICY IF EXISTS "Workspace members update tasks" ON public.tasks;
 CREATE POLICY "Workspace members update tasks" ON public.tasks  FOR UPDATE
   USING      (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id))
   WITH CHECK (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members delete tasks" ON public.tasks;
 CREATE POLICY "Workspace members delete tasks" ON public.tasks  FOR DELETE
   USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members read events" ON public.events;
 -- events
 CREATE POLICY "Workspace members read events"   ON public.events FOR SELECT
   USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members write events" ON public.events;
 CREATE POLICY "Workspace members write events"  ON public.events FOR INSERT
   WITH CHECK (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id) AND user_id = auth.uid());
+DROP POLICY IF EXISTS "Workspace members update events" ON public.events;
 CREATE POLICY "Workspace members update events" ON public.events FOR UPDATE
   USING      (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id))
   WITH CHECK (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members delete events" ON public.events;
 CREATE POLICY "Workspace members delete events" ON public.events FOR DELETE
   USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members read notes" ON public.notes;
 -- notes
 CREATE POLICY "Workspace members read notes"   ON public.notes  FOR SELECT
   USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members write notes" ON public.notes;
 CREATE POLICY "Workspace members write notes"  ON public.notes  FOR INSERT
   WITH CHECK (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id) AND user_id = auth.uid());
+DROP POLICY IF EXISTS "Workspace members update notes" ON public.notes;
 CREATE POLICY "Workspace members update notes" ON public.notes  FOR UPDATE
   USING      (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id))
   WITH CHECK (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members delete notes" ON public.notes;
 CREATE POLICY "Workspace members delete notes" ON public.notes  FOR DELETE
   USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members read projects" ON public.projects;
 -- projects
 CREATE POLICY "Workspace members read projects"   ON public.projects FOR SELECT
   USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members write projects" ON public.projects;
 CREATE POLICY "Workspace members write projects"  ON public.projects FOR INSERT
   WITH CHECK (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id) AND user_id = auth.uid());
+DROP POLICY IF EXISTS "Workspace members update projects" ON public.projects;
 CREATE POLICY "Workspace members update projects" ON public.projects FOR UPDATE
   USING      (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id))
   WITH CHECK (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
+DROP POLICY IF EXISTS "Workspace members delete projects" ON public.projects;
 CREATE POLICY "Workspace members delete projects" ON public.projects FOR DELETE
   USING (workspace_id IS NOT NULL AND public.is_workspace_member(workspace_id));
 
 -- 20260501103501_c4dda7c0-9fea-4e96-8d49-55f019792d3e.sql
 ALTER TABLE public.period_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own period_logs" ON public.period_logs;
 CREATE POLICY "own period_logs" ON public.period_logs USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.fasting_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own fasting_logs" ON public.fasting_logs;
 CREATE POLICY "own fasting_logs" ON public.fasting_logs USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.pantry_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own pantry_items" ON public.pantry_items;
 CREATE POLICY "own pantry_items" ON public.pantry_items USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.flight_tracking ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own flights" ON public.flight_tracking;
 CREATE POLICY "own flights" ON public.flight_tracking USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.presence_status ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own presence" ON public.presence_status;
 CREATE POLICY "own presence" ON public.presence_status USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "space members can view presence" ON public.presence_status;
 CREATE POLICY "space members can view presence" ON public.presence_status FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM public.space_members sm
@@ -2446,29 +3185,35 @@ CREATE POLICY "space members can view presence" ON public.presence_status FOR SE
   )
 );
 ALTER TABLE public.email_snoozed ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own email_snoozed" ON public.email_snoozed;
 CREATE POLICY "own email_snoozed" ON public.email_snoozed USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- 20260516120000_recurrence_exceptions_and_focus_sessions.sql
 ALTER TABLE public.recurrence_exceptions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own exceptions" ON public.recurrence_exceptions;
 CREATE POLICY "Users manage own exceptions"
   ON public.recurrence_exceptions FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.focus_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own focus sessions" ON public.focus_sessions;
 CREATE POLICY "Users manage own focus sessions"
   ON public.focus_sessions FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 ALTER TABLE public.telegram_documents ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users read own documents" ON public.telegram_documents;
 CREATE POLICY "Users read own documents"
   ON public.telegram_documents FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role writes documents" ON public.telegram_documents;
 CREATE POLICY "Service role writes documents"
   ON public.telegram_documents FOR ALL
   USING (true) WITH CHECK (true);
 
 -- 20260517090000_symptom_logs_and_anniversary.sql
 ALTER TABLE public.symptom_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own symptom logs" ON public.symptom_logs;
 CREATE POLICY "Users manage own symptom logs"
   ON public.symptom_logs FOR ALL
   USING (auth.uid() = user_id)
@@ -2476,17 +3221,21 @@ CREATE POLICY "Users manage own symptom logs"
 
 -- 20260517111541_00ced022-7d84-45d7-8d58-f5febc8dc5ba.sql
 DROP POLICY IF EXISTS "Admins can view all analytics events" ON public.analytics_events;
+DROP POLICY IF EXISTS "Admins can view all analytics events" ON public.analytics_events;
 CREATE POLICY "Admins can view all analytics events"
 ON public.analytics_events FOR SELECT
 USING (public.is_admin(auth.uid()));
+DROP POLICY IF EXISTS "Admins can view all ai usage" ON public.ai_usage;
 DROP POLICY IF EXISTS "Admins can view all ai usage" ON public.ai_usage;
 CREATE POLICY "Admins can view all ai usage"
 ON public.ai_usage FOR SELECT
 USING (public.is_admin(auth.uid()));
 DROP POLICY IF EXISTS "Admins can view admin users" ON public.admin_users;
+DROP POLICY IF EXISTS "Admins can view admin users" ON public.admin_users;
 CREATE POLICY "Admins can view admin users"
 ON public.admin_users FOR SELECT
 USING (public.is_admin(auth.uid()));
+DROP POLICY IF EXISTS "Admins can manage admin users" ON public.admin_users;
 DROP POLICY IF EXISTS "Admins can manage admin users" ON public.admin_users;
 CREATE POLICY "Admins can manage admin users"
 ON public.admin_users FOR ALL
@@ -2496,19 +3245,23 @@ WITH CHECK (public.is_superadmin(auth.uid()));
 -- 20260519000000_fix_admin_rls_recursion.sql
 -- analytics_events
 DROP POLICY IF EXISTS "Admins can view all analytics events" ON public.analytics_events;
+DROP POLICY IF EXISTS "Admins can view all analytics events" ON public.analytics_events;
 CREATE POLICY "Admins can view all analytics events"
 ON public.analytics_events FOR SELECT
 USING (public.is_admin(auth.uid()));
 -- ai_usage
+DROP POLICY IF EXISTS "Admins can view all ai usage" ON public.ai_usage;
 DROP POLICY IF EXISTS "Admins can view all ai usage" ON public.ai_usage;
 CREATE POLICY "Admins can view all ai usage"
 ON public.ai_usage FOR SELECT
 USING (public.is_admin(auth.uid()));
 -- admin_users itself — both of these self-referenced the table.
 DROP POLICY IF EXISTS "Admins can view admin users" ON public.admin_users;
+DROP POLICY IF EXISTS "Admins can view admin users" ON public.admin_users;
 CREATE POLICY "Admins can view admin users"
 ON public.admin_users FOR SELECT
 USING (public.is_admin(auth.uid()));
+DROP POLICY IF EXISTS "Admins can manage admin users" ON public.admin_users;
 DROP POLICY IF EXISTS "Admins can manage admin users" ON public.admin_users;
 CREATE POLICY "Admins can manage admin users"
 ON public.admin_users FOR ALL
@@ -2517,12 +3270,15 @@ WITH CHECK (public.is_superadmin(auth.uid()));
 
 -- 20260524120000_create_user_settings.sql
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own settings" ON public.user_settings;
 CREATE POLICY "Users can view their own settings"
   ON public.user_settings FOR SELECT
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own settings" ON public.user_settings;
 CREATE POLICY "Users can insert their own settings"
   ON public.user_settings FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own settings" ON public.user_settings;
 CREATE POLICY "Users can update their own settings"
   ON public.user_settings FOR UPDATE
   USING (auth.uid() = user_id)
