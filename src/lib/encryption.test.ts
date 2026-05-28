@@ -40,8 +40,9 @@ describe("encryption — symmetric (group messages)", () => {
   it("rejects tampered ciphertext", async () => {
     const key = await generateSymmetricKey();
     const ct = await encryptWithSymmetricKey("secret", key);
-    // Flip the last base64 char to a different valid one.
-    const tampered = ct.slice(0, -2) + (ct.at(-2) === "A" ? "B" : "A") + ct.slice(-1);
+    // Flip the second-to-last base64 char to a different valid one.
+    const penultimate = ct.charAt(ct.length - 2);
+    const tampered = ct.slice(0, -2) + (penultimate === "A" ? "B" : "A") + ct.slice(-1);
     await expect(decryptWithSymmetricKey(tampered, key)).rejects.toThrow();
   });
 
