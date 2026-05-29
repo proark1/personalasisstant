@@ -94,8 +94,8 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[85vh] bg-background">
-        <div className="mx-auto w-12 h-1.5 rounded-full bg-muted-foreground/20 my-3" />
-        <div className="px-4 pb-8 space-y-4">
+        <div className="mx-auto w-12 h-1.5 rounded-full bg-muted-foreground/20 my-3 shrink-0" />
+        <div className="px-4 pb-8 space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
