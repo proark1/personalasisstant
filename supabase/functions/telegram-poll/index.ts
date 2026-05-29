@@ -677,18 +677,51 @@ function escape(s: string): string {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  // Public (cron-only by convention, matching email-autopilot). No in-function
-  // auth gate: verify_jwt = false in config.toml and any auth check requires
-  // operator setup (Vault + env var) to stay in sync with the cron, which
-  // previously broke the integration whenever they drifted. Supabase's
-  // built-in function rate limits + timeouts bound worst-case abuse, and
-  // expensive paths (voice transcription) only fire on real Telegram inputs.
+  // Public: verify_jwt = false in config.toml. This endpoint is hit two ways —
+  // by Telegram's webhook (POSTing a single Update) or by a scheduler doing
+  // getUpdates polling. Telegram webhook calls carry no JWT, so the JWT gate
+  // must stay off; instead, webhook deliveries are authenticated by an optional
+  // shared secret (TELEGRAM_WEBHOOK_SECRET, see below). Supabase's built-in
+  // function rate limits + timeouts bound worst-case abuse, and expensive paths
+  // (voice transcription) only fire on real Telegram inputs.
   const startTime = Date.now();
   const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY')!;
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabase = createClient(supabaseUrl, serviceKey);
+
+  // ── Webhook vs polling ──────────────────────────────────────────────────
+  // Telegram delivers updates two ways: it can POST each update to a webhook
+  // URL (instant, no scheduler), or we pull them with getUpdates (polling).
+  // A webhook delivery POSTs a single Update object; the cron/poll caller
+  // sends `{}`. We detect the mode from the body and, in webhook mode, run the
+  // exact same per-update pipeline below for that one update. When a webhook is
+  // registered Telegram disables getUpdates, so the poll path is simply never
+  // taken — the two never run at once.
+  let webhookUpdate: any = null;
+  try {
+    const body = await req.json();
+    if (body && (body.update_id !== undefined || body.message || body.callback_query)) {
+      webhookUpdate = body;
+    }
+  } catch { /* no/invalid JSON body → polling mode */ }
+  const isWebhook = webhookUpdate !== null;
+
+  // Optional shared-secret check for webhook deliveries. When
+  // TELEGRAM_WEBHOOK_SECRET is set (and registered via setWebhook's
+  // secret_token), Telegram echoes it back in this header on every call. We
+  // reject mismatches so a leaked function URL can't be used to spoof updates.
+  const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
+  if (isWebhook && webhookSecret) {
+    const got = req.headers.get('x-telegram-bot-api-secret-token');
+    if (got !== webhookSecret) {
+      console.warn('[telegram-poll] webhook secret mismatch — rejecting');
+      return new Response(JSON.stringify({ error: 'forbidden' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }
 
   const { data: state } = await supabase
     .from('telegram_bot_state')
@@ -700,26 +733,32 @@ Deno.serve(async (req) => {
   let processed = 0;
   console.log(`[telegram-poll] tick: offset=${currentOffset}`);
 
-  while (Date.now() - startTime < MAX_RUNTIME_MS - MIN_REMAINING_MS) {
-    const remainingMs = MAX_RUNTIME_MS - (Date.now() - startTime);
-    const timeout = Math.min(50, Math.floor(remainingMs / 1000) - 5);
-    if (timeout < 1) break;
+  while (isWebhook || Date.now() - startTime < MAX_RUNTIME_MS - MIN_REMAINING_MS) {
+    let updates: any[];
+    if (isWebhook) {
+      // Single pushed update — process it once, then break out below.
+      updates = [webhookUpdate];
+    } else {
+      const remainingMs = MAX_RUNTIME_MS - (Date.now() - startTime);
+      const timeout = Math.min(50, Math.floor(remainingMs / 1000) - 5);
+      if (timeout < 1) break;
 
-    let data: any;
-    try {
-      data = await tg(
-        'getUpdates',
-        { offset: currentOffset, timeout, allowed_updates: ['message', 'callback_query'] },
-        TELEGRAM_API_KEY,
-      );
-      // (voice/audio arrive inside 'message' updates — no extra allowed_updates needed)
-    } catch (e) {
-      console.error('getUpdates failed:', e);
-      break;
+      let data: any;
+      try {
+        data = await tg(
+          'getUpdates',
+          { offset: currentOffset, timeout, allowed_updates: ['message', 'callback_query'] },
+          TELEGRAM_API_KEY,
+        );
+        // (voice/audio arrive inside 'message' updates — no extra allowed_updates needed)
+      } catch (e) {
+        console.error('getUpdates failed:', e);
+        break;
+      }
+
+      updates = data.result ?? [];
+      if (updates.length === 0) continue;
     }
-
-    const updates = data.result ?? [];
-    if (updates.length === 0) continue;
 
     // Opportunistically expire any pending confirmations whose TTL has passed.
     // Cheap; prevents stale prompts from quietly succeeding.
@@ -1711,9 +1750,12 @@ Deno.serve(async (req) => {
         }
       }
     }
+
+    // Webhook delivery is a single update — never loop for more.
+    if (isWebhook) break;
   }
 
-  return new Response(JSON.stringify({ ok: true, processed, finalOffset: currentOffset }), {
+  return new Response(JSON.stringify({ ok: true, mode: isWebhook ? 'webhook' : 'poll', processed, finalOffset: currentOffset }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 });

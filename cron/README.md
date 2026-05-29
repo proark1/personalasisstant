@@ -7,8 +7,11 @@ available on our self-hosted Railway Postgres (see
 `pg_net`, and `supabase_vault` were intentionally dropped at cutover, and
 `db/migration/squash-schema.ts` strips every `cron.`/`net.`/`vault.` statement).
 
-Without this service nothing recurring runs: the Telegram bot is never polled
-(so it never replies), and no daily/weekly briefings or background syncs fire.
+Without this service no recurring **briefings/background syncs** fire.
+
+> Telegram **replies** are not handled here — they come in via webhook (see
+> [`supabase/functions/telegram-poll/WEBHOOK.md`](../supabase/functions/telegram-poll/WEBHOOK.md)),
+> which is instant and needs no scheduler.
 
 ## What it runs
 
@@ -17,7 +20,6 @@ migration, evaluated in **UTC**:
 
 | Function | Schedule | Purpose |
 |---|---|---|
-| `telegram-poll` | `* * * * *` (every minute, non-overlapping) | Polls Telegram & replies — **this is what makes the bot answer** |
 | `briefing-dispatch-cron` | `*/15 * * * *` | Custom daily briefings (timezone-aware) |
 | `telegram-weekly-briefing` | `0 * * * *` | Weekly calendar briefing (Mon 08:00 local) |
 | `telegram-family-morning-digest` | `0 * * * *` | Family group morning digest |

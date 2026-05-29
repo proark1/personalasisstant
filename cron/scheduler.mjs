@@ -25,12 +25,12 @@ const PORT = Number(process.env.PORT) || 8080;
 const DISABLED = process.env.CRON_DISABLED === '1';
 
 // Each job mirrors a former pg_cron entry: { name → function path, schedule }.
-// `solo: true` means "never run two of these concurrently" — telegram-poll
-// long-polls for ~55s, so a fresh minute tick must not start a second poll
-// while the previous one is still draining updates (it would fight over the
-// Telegram getUpdates offset).
+//
+// NOTE: telegram-poll is intentionally NOT here. Inbound Telegram updates are
+// delivered by webhook (see supabase/functions/telegram-poll/WEBHOOK.md) — the
+// bot replies instantly with no polling. Registering a webhook also disables
+// getUpdates on Telegram's side, so a poll job here would just 409 every tick.
 const JOBS = [
-  { name: 'telegram-poll',                   schedule: '* * * * *',   solo: true },
   { name: 'briefing-dispatch-cron',          schedule: '*/15 * * * *' },
   { name: 'telegram-weekly-briefing',        schedule: '0 * * * *' },
   { name: 'telegram-family-morning-digest',  schedule: '0 * * * *' },
