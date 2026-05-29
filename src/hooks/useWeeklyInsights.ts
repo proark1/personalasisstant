@@ -117,9 +117,26 @@ export function useWeeklyInsights() {
         ? energies.sort((a, b) => energies.filter(e => e === b).length - energies.filter(e => e === a).length)[0]
         : 'Unknown';
 
-      const completionRate = tasksCreated > 0 
-        ? Math.round((tasksCompleted / tasksCreated) * 100) 
+      const completionRate = tasksCreated > 0
+        ? Math.round((tasksCompleted / tasksCreated) * 100)
         : 0;
+
+      // Derive the user's most productive hours from when tasks were actually
+      // completed this week (updated_at is set when a task is marked done),
+      // instead of a hardcoded placeholder. Falls back to [] when there's no
+      // data so downstream insights don't reason about fabricated hours.
+      const hourCounts = new Map<number, number>();
+      for (const t of completedTasks || []) {
+        if (!t.updated_at) continue;
+        const hour = new Date(t.updated_at).getHours();
+        hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+      }
+      const productiveHours = [...hourCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([hour]) => hour)
+        .sort((a, b) => a - b)
+        .map(hour => `${hour}:00`);
 
       setWeeklyStats({
         tasksCompleted,
@@ -128,7 +145,7 @@ export function useWeeklyInsights() {
         habitsCompleted,
         averageMood,
         averageEnergy,
-        productiveHours: ['9:00', '10:00', '14:00'], // Placeholder - would need more data
+        productiveHours,
         completionRate,
       });
     } catch (error) {

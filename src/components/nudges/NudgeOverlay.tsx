@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { X, Clock, Coffee, Droplets, AlertTriangle, Brain, Play } from 'lucide-react';
+import { X, Clock, Coffee, Droplets, AlertTriangle, Brain, Play, HelpCircle, BellOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Nudge } from '@/hooks/useSmartNudges';
+import type { ProactiveOutcome } from '@/lib/telemetry';
 
 interface NudgeOverlayProps {
   nudge: Nudge | null;
   onDismiss: (nudgeId?: string) => void;
+  /** Mute this whole nudge type for good. */
+  onMute?: (nudge: Nudge) => void;
+  /** Record the user's response for tuning + the proactivity metric. */
+  onFeedback?: (nudge: Nudge, outcome: ProactiveOutcome) => void;
 }
 
 const NUDGE_ICONS = {
@@ -28,14 +33,16 @@ const NUDGE_COLORS = {
   stuck_detection: 'border-l-muted-foreground',
 };
 
-export function NudgeOverlay({ nudge, onDismiss }: NudgeOverlayProps) {
+export function NudgeOverlay({ nudge, onDismiss, onMute, onFeedback }: NudgeOverlayProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
 
   useEffect(() => {
     if (nudge) {
       setIsVisible(true);
       setIsExiting(false);
+      setShowWhy(false);
     } else {
       setIsExiting(true);
       const timer = setTimeout(() => {
@@ -46,28 +53,40 @@ export function NudgeOverlay({ nudge, onDismiss }: NudgeOverlayProps) {
     }
   }, [nudge]);
 
-  // Auto-dismiss low priority nudges after 10 seconds
+  // Auto-dismiss low priority nudges after 10 seconds. This is a passive
+  // timeout, not an explicit signal, so it doesn't record feedback.
   useEffect(() => {
     if (nudge && nudge.priority === 'low') {
       const timer = setTimeout(() => {
-        handleDismiss();
+        close();
       }, 10000);
       return () => clearTimeout(timer);
     }
   }, [nudge]);
 
-  const handleDismiss = () => {
+  // Animate out, then clear the active nudge.
+  const close = () => {
     setIsExiting(true);
     setTimeout(() => {
       onDismiss(nudge?.id);
     }, 300);
   };
 
+  const handleDismiss = () => {
+    if (nudge) onFeedback?.(nudge, 'dismissed');
+    close();
+  };
+
+  const handleMute = () => {
+    if (nudge) onMute?.(nudge);
+  };
+
   const handleAction = () => {
+    if (nudge) onFeedback?.(nudge, 'accepted');
     if (nudge?.action?.onClick) {
       nudge.action.onClick();
     }
-    handleDismiss();
+    close();
   };
 
   if (!isVisible || !nudge) return null;
@@ -116,16 +135,41 @@ export function NudgeOverlay({ nudge, onDismiss }: NudgeOverlayProps) {
               <p className="text-sm text-muted-foreground mt-1">
                 {nudge.message}
               </p>
-              
-              {nudge.action && (
-                <Button
-                  size="sm"
-                  className="mt-3"
-                  onClick={handleAction}
-                >
-                  {nudge.action.label}
-                </Button>
+
+              {/* "Why am I seeing this?" — transparency for proactive nudges. */}
+              {nudge.reason && showWhy && (
+                <p className="text-xs text-muted-foreground/80 mt-2 rounded-md bg-muted/50 p-2">
+                  {nudge.reason}
+                </p>
               )}
+
+              <div className="flex items-center gap-3 mt-3">
+                {nudge.action && (
+                  <Button size="sm" onClick={handleAction}>
+                    {nudge.action.label}
+                  </Button>
+                )}
+                {nudge.reason && (
+                  <button
+                    type="button"
+                    onClick={() => setShowWhy((v) => !v)}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5" />
+                    {showWhy ? 'Hide' : 'Why this?'}
+                  </button>
+                )}
+                {onMute && (
+                  <button
+                    type="button"
+                    onClick={handleMute}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <BellOff className="w-3.5 h-3.5" />
+                    Don't show these
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>

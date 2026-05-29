@@ -164,7 +164,7 @@ export function BrainDumpFAB({ className, collapsed = false }: BrainDumpFABProps
     return (
       <div className={cn("relative", className)}>
         {isExpanded && (
-          <GlassCard className="absolute top-full left-0 mt-2 w-72 shadow-lg z-50 animate-in slide-in-from-top-2 duration-200">
+          <GlassCard className="absolute top-full right-0 mt-2 w-72 shadow-lg z-50 animate-in slide-in-from-top-2 duration-200">
             <GlassCardContent className="p-3">
               <div className="flex items-center gap-2">
                 <Button

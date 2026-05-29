@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 /**
  * Lightweight client-error telemetry.
@@ -68,6 +69,50 @@ export async function reportClientError(error: unknown, context?: Record<string,
   } catch {
     /* telemetry must never break the app */
   }
+}
+
+/**
+ * Generic product-analytics event. Reuses the same `analytics_events` table as
+ * error telemetry so we have one queryable home for both. Best-effort: never
+ * throws, skipped for anonymous users (RLS-scoped table).
+ *
+ * North-star: "proactive actions accepted per day" is derived from events with
+ * category `proactive` and type `proactive_action_accepted`.
+ */
+export async function trackEvent(
+  eventType: string,
+  eventCategory: string,
+  data?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const { data: auth } = await supabase.auth.getUser();
+    const userId = auth?.user?.id;
+    if (!userId) return;
+
+    await supabase.from('analytics_events').insert({
+      user_id: userId,
+      event_type: eventType,
+      event_category: eventCategory,
+      page_path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+      session_id: sessionId(),
+      event_data: (data ?? {}) as Json,
+    });
+  } catch {
+    /* analytics must never break the app */
+  }
+}
+
+/** Categories/types used for the proactivity north-star metric. */
+export const PROACTIVE_CATEGORY = 'proactive';
+export type ProactiveOutcome = 'accepted' | 'dismissed' | 'muted';
+
+/** Record how a user responded to a proactive surface (nudge, suggestion, …). */
+export function trackProactiveOutcome(
+  surface: string,
+  outcome: ProactiveOutcome,
+  data?: Record<string, unknown>,
+): void {
+  void trackEvent(`proactive_action_${outcome}`, PROACTIVE_CATEGORY, { surface, ...data });
 }
 
 let installed = false;

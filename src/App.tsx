@@ -82,15 +82,31 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+function ProtectedRoute({
+  children,
+  requireOnboarding = true,
+}: {
+  children: React.ReactNode;
+  /** When true (default), new users who haven't finished onboarding are sent to /onboarding. */
+  requireOnboarding?: boolean;
+}) {
+  const { user, loading, profile, profileLoading } = useAuth();
 
-  if (loading) {
+  // Wait for both auth and the profile fetch so we don't flash the dashboard
+  // before we know the user's onboarding status.
+  if (loading || (user && profileLoading)) {
     return <BrandedLoader />;
   }
 
   if (!user) {
     return <Navigate to="/landing" replace />;
+  }
+
+  // Route brand-new users through onboarding first. Only redirect when we have
+  // a profile and it's explicitly incomplete — a missing/failed profile fetch
+  // shouldn't trap the user out of the app.
+  if (requireOnboarding && profile && profile.onboarding_completed !== true) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;
@@ -239,7 +255,7 @@ function AppContent() {
           <Route
             path="/onboarding"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireOnboarding={false}>
                 <LazyOnboarding />
               </ProtectedRoute>
             }

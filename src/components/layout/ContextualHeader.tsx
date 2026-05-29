@@ -4,6 +4,7 @@ import { NotificationCenter } from '@/components/notifications/NotificationCente
 import { DoriNotificationIcon } from '@/components/assistant/DoriNotificationIcon';
 import { AssistantHubSheet } from '@/components/hub/AssistantHubSheet';
 import { VisionCaptureButton } from '@/components/capture/VisionCaptureButton';
+import { BrainDumpFAB } from '@/components/capture/BrainDumpFAB';
 import { SchedulePlannerSheet } from '@/components/schedule/SchedulePlannerSheet';
 import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -77,6 +78,8 @@ export function ContextualHeader({
           </>
         )}
         <DoriNotificationIcon />
+        {/* Frictionless capture — jot any thought; AI sorts it into tasks/notes/events. */}
+        <BrainDumpFAB className="static" />
         <VisionCaptureButton />
         <SchedulePlannerSheet />
         <AssistantHubSheet />

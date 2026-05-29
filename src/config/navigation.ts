@@ -63,8 +63,9 @@ export interface NavArea {
 }
 
 /**
- * The 7 top-level areas. Daily-use surfaces sit at the top; the long tail is
- * tucked inside an area rather than exposed as its own flat row.
+ * The top-level areas, ordered by daily use. Each groups a coherent set of
+ * surfaces (Family is its own area rather than scattered across People/Life),
+ * and the long tail is tucked inside an area rather than exposed as a flat row.
  */
 export const NAV_AREAS: NavArea[] = [
   {
@@ -98,18 +99,19 @@ export const NAV_AREAS: NavArea[] = [
     ],
   },
   {
+    // Communication & relationships — the people you reach out to.
     id: 'people',
     label: 'People',
-    icon: Users,
+    icon: MessageCircle,
     items: [
       { id: 'email', label: 'Email', labelKey: 'nav.email', icon: Mail },
       { id: 'social', label: 'Team Chat', labelKey: 'nav.social', icon: MessageCircle },
       { id: 'contacts', label: 'Contacts', labelKey: 'nav.contacts', icon: BookUser },
       { id: 'relationships-plus', label: 'Relationships+', labelKey: 'nav.relationships', icon: Heart },
-      { id: 'family-members', label: 'Family Members', icon: Users },
     ],
   },
   {
+    // Personal wellbeing — slimmed so it's no longer a 9-item catch-all.
     id: 'life',
     label: 'Life',
     icon: Heart,
@@ -117,11 +119,21 @@ export const NAV_AREAS: NavArea[] = [
       { id: 'health', label: 'Health', labelKey: 'nav.health', icon: Heart },
       { id: 'personal-health', label: 'Personal Health', labelKey: 'nav.personalHealth', icon: Pill },
       { id: 'habits', label: 'Habits', labelKey: 'nav.habits', icon: Flame },
-      { id: 'cooking', label: 'Cooking', labelKey: 'nav.cooking', icon: Utensils },
       { id: 'islam', label: 'Islam', labelKey: 'nav.islam', icon: Moon },
       { id: 'challenges', label: 'Challenges', icon: Trophy },
+    ],
+  },
+  {
+    // All family surfaces in one coherent place instead of split across
+    // People and Life.
+    id: 'family',
+    label: 'Family',
+    icon: Users,
+    items: [
       { id: 'family', label: 'Family Hub', labelKey: 'nav.familyHub', icon: Users },
+      { id: 'family-members', label: 'Family Members', icon: Users },
       { id: 'family-calendar', label: 'Family Calendar', icon: CalendarCheck },
+      { id: 'cooking', label: 'Cooking', labelKey: 'nav.cooking', icon: Utensils },
       { id: 'child-mode', label: 'Child Mode', icon: Baby },
     ],
   },

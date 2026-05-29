@@ -8,6 +8,7 @@ export interface Profile {
   display_name: string | null;
   email: string | null;
   avatar_url: string | null;
+  onboarding_completed?: boolean | null;
 }
 
 interface AuthContextType {
@@ -15,10 +16,14 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  /** True until the profile row has been fetched at least once for the signed-in user. */
+  profileLoading: boolean;
   signUp: (email: string, password: string, displayName?: string) => Promise<any>;
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<any>;
   updateProfile: (updates: Partial<Profile>) => Promise<any>;
+  /** Re-fetch the profile row (e.g. after onboarding completes). */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -28,29 +33,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    
-    if (data && !error) {
-      setProfile(data as Profile);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (data && !error) {
+        setProfile(data as Profile);
+      }
+    } finally {
+      // Resolve the gate regardless of success so a failed fetch doesn't trap
+      // the user on a loading screen.
+      setProfileLoading(false);
     }
   }, []);
+
+  const refreshProfile = useCallback(async () => {
+    if (user) await fetchProfile(user.id);
+  }, [user, fetchProfile]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
+          setProfileLoading(true);
           setTimeout(() => fetchProfile(session.user.id), 0);
         } else {
           setProfile(null);
+          setProfileLoading(false);
         }
       }
     );
@@ -60,6 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
+      } else {
+        setProfileLoading(false);
       }
       setLoading(false);
     });
@@ -105,8 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const value = useMemo(
-    () => ({ user, session, profile, loading, signUp, signIn, signOut, updateProfile }),
-    [user, session, profile, loading, signUp, signIn, signOut, updateProfile],
+    () => ({ user, session, profile, loading, profileLoading, signUp, signIn, signOut, updateProfile, refreshProfile }),
+    [user, session, profile, loading, profileLoading, signUp, signIn, signOut, updateProfile, refreshProfile],
   );
 
   return (

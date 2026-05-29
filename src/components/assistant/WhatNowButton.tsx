@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { trackProactiveOutcome } from '@/lib/telemetry';
 import { Task, CalendarEvent } from '@/types/flux';
 import { useDailyCheckins } from '@/hooks/useDailyCheckins';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -146,6 +147,7 @@ export function WhatNowButton({
   };
 
   const handleStartTask = (task: Task) => {
+    trackProactiveOutcome('what_now', 'accepted', { taskId: task.id });
     onStartTask?.(task);
     setOpen(false);
   };

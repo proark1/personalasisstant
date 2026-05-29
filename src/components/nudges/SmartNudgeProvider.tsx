@@ -8,7 +8,14 @@ interface SmartNudgeProviderProps {
 }
 
 export function SmartNudgeProvider({ tasks, events }: SmartNudgeProviderProps) {
-  const { activeNudge, dismissNudge } = useSmartNudges(tasks, events);
+  const { activeNudge, dismissNudge, muteNudgeType, recordFeedback } = useSmartNudges(tasks, events);
 
-  return <NudgeOverlay nudge={activeNudge} onDismiss={dismissNudge} />;
+  return (
+    <NudgeOverlay
+      nudge={activeNudge}
+      onDismiss={dismissNudge}
+      onMute={muteNudgeType}
+      onFeedback={recordFeedback}
+    />
+  );
 }

@@ -2,12 +2,19 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Task, CalendarEvent } from '@/types/flux';
+import { trackProactiveOutcome, type ProactiveOutcome } from '@/lib/telemetry';
+
+export type NudgeType =
+  | 'time_blindness' | 'break_reminder' | 'transition' | 'hydration'
+  | 'task_start' | 'stuck_detection' | 'pattern_insight' | 'wellness_alert';
 
 export interface Nudge {
   id: string;
-  type: 'time_blindness' | 'break_reminder' | 'transition' | 'hydration' | 'task_start' | 'stuck_detection' | 'pattern_insight' | 'wellness_alert';
+  type: NudgeType;
   title: string;
   message: string;
+  /** Plain-language explanation surfaced behind "Why am I seeing this?". */
+  reason?: string;
   action?: {
     label: string;
     onClick: () => void;
@@ -15,6 +22,17 @@ export interface Nudge {
   dismissable?: boolean;
   priority: 'low' | 'medium' | 'high';
   icon?: string;
+}
+
+const MUTED_TYPES_KEY = 'dori.mutedNudgeTypes';
+
+function readMutedTypes(): Set<NudgeType> {
+  try {
+    const raw = localStorage.getItem(MUTED_TYPES_KEY);
+    return new Set(raw ? (JSON.parse(raw) as NudgeType[]) : []);
+  } catch {
+    return new Set();
+  }
 }
 
 interface NudgeSettings {
@@ -58,6 +76,7 @@ export function useSmartNudges(
   const [activeNudge, setActiveNudge] = useState<Nudge | null>(null);
   const [settings, setSettings] = useState<NudgeSettings>(DEFAULT_SETTINGS);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [mutedTypes, setMutedTypes] = useState<Set<NudgeType>>(readMutedTypes);
   const [patterns, setPatterns] = useState<UserPattern[]>([]);
   
   // Timers
@@ -102,6 +121,12 @@ export function useSmartNudges(
     }
   }, [activeTaskId]);
 
+  // Record how the user responded to a nudge so proactivity can be tuned and
+  // measured (feeds the proactivity north-star metric).
+  const recordFeedback = useCallback((nudge: Nudge, outcome: ProactiveOutcome) => {
+    trackProactiveOutcome('smart_nudge', outcome, { nudgeType: nudge.type, nudgeId: nudge.id });
+  }, []);
+
   const dismissNudge = useCallback((nudgeId?: string) => {
     if (nudgeId) {
       setDismissed(prev => new Set([...prev, nudgeId]));
@@ -109,10 +134,22 @@ export function useSmartNudges(
     setActiveNudge(null);
   }, []);
 
+  // "Don't show these" — mute a whole nudge type for good (persisted locally)
+  // and record the signal.
+  const muteNudgeType = useCallback((nudge: Nudge) => {
+    recordFeedback(nudge, 'muted');
+    setMutedTypes(prev => {
+      const next = new Set(prev).add(nudge.type);
+      try { localStorage.setItem(MUTED_TYPES_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+    setActiveNudge(null);
+  }, [recordFeedback]);
+
   const showNudge = useCallback((nudge: Nudge) => {
-    if (dismissed.has(nudge.id)) return;
+    if (dismissed.has(nudge.id) || mutedTypes.has(nudge.type)) return;
     setActiveNudge(nudge);
-  }, [dismissed]);
+  }, [dismissed, mutedTypes]);
 
   const takeBreak = useCallback(() => {
     lastBreakRef.current = new Date();
@@ -146,6 +183,7 @@ export function useSmartNudges(
           type: 'pattern_insight' as const,
           title: '💡 Pattern Insight',
           message: pattern.description,
+          reason: `Based on a detected pattern in your data (confidence ${Math.round(pattern.confidence_score * 100)}%).`,
           priority: 'medium' as const,
           dismissable: true,
         };
@@ -159,6 +197,7 @@ export function useSmartNudges(
           type: 'pattern_insight' as const,
           title: '📊 Productivity Insight',
           message: pattern.description,
+          reason: `Based on a detected pattern in your data (confidence ${Math.round(pattern.confidence_score * 100)}%).`,
           priority: 'low' as const,
           dismissable: true,
         };
@@ -172,6 +211,7 @@ export function useSmartNudges(
           type: 'wellness_alert' as const,
           title: '🌟 Wellness Tip',
           message: pattern.description,
+          reason: `Based on a detected pattern in your data (confidence ${Math.round(pattern.confidence_score * 100)}%).`,
           priority: 'low' as const,
           dismissable: true,
         };
@@ -185,6 +225,7 @@ export function useSmartNudges(
           type: 'wellness_alert' as const,
           title: '🏃 Activity Reminder',
           message: pattern.description,
+          reason: `Based on a detected pattern in your data (confidence ${Math.round(pattern.confidence_score * 100)}%).`,
           priority: 'medium' as const,
           dismissable: true,
         };
@@ -216,6 +257,7 @@ export function useSmartNudges(
         type: 'transition' as const,
         title: '⏰ Upcoming Event',
         message: `"${upcomingEvent.title}" starts in ${minutesUntil} minutes. Time to wrap up!`,
+        reason: 'You have a calendar event starting within the next 10 minutes.',
         priority: 'high' as const,
         dismissable: true,
       };
@@ -236,6 +278,7 @@ export function useSmartNudges(
         type: 'break_reminder' as const,
         title: '🧘 Time for a Break',
         message: `You've been focused for ${Math.round(timeSinceBreak)} minutes. Your brain needs a quick reset!`,
+        reason: `You've been active for ${Math.round(timeSinceBreak)} min without a break (reminder set to every ${settings.breakIntervalMinutes} min).`,
         action: {
           label: 'Take 5 min break',
           onClick: takeBreak,
@@ -260,6 +303,7 @@ export function useSmartNudges(
         type: 'hydration' as const,
         title: '💧 Hydration Check',
         message: "Your brain works better when hydrated. Time for some water!",
+        reason: `It's been about ${settings.hydrationIntervalMinutes} min since your last hydration reminder.`,
         action: {
           label: 'Done!',
           onClick: drinkWater,
@@ -288,6 +332,7 @@ export function useSmartNudges(
         type: 'time_blindness' as const,
         title: '⏱️ Time Check',
         message: `You've been on "${activeTask?.title || 'this task'}" for 30 minutes. Still on track?`,
+        reason: 'You started this task about 30 minutes ago — a gentle time check.',
         priority: 'medium' as const,
         dismissable: true,
       };
@@ -299,6 +344,7 @@ export function useSmartNudges(
         type: 'time_blindness' as const,
         title: '🕐 Hour Mark',
         message: `One hour on "${activeTask?.title || 'this task'}". Consider breaking it into smaller pieces?`,
+        reason: "You've been on this task for an hour — long stretches are easier in smaller pieces.",
         priority: 'high' as const,
         dismissable: true,
       };
@@ -325,6 +371,7 @@ export function useSmartNudges(
           type: 'stuck_detection' as const,
           title: '🤔 Feeling Stuck?',
           message: `How about starting with just 2 minutes on "${topTask.title}"?`,
+          reason: 'You have open tasks but none active for 15+ minutes.',
           priority: 'medium' as const,
           dismissable: true,
         };
@@ -410,6 +457,8 @@ export function useSmartNudges(
   return {
     activeNudge,
     dismissNudge,
+    muteNudgeType,
+    recordFeedback,
     settings,
     setSettings,
     takeBreak,

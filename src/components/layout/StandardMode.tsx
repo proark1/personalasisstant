@@ -446,7 +446,7 @@ export function StandardMode({
     return (
       <div className="fixed inset-0 z-50 bg-background flex flex-col">
         <div className="h-14 px-4 flex items-center justify-end border-b border-border">
-          <Button variant="ghost" size="icon" onClick={() => setFullscreenPanel(null)}>
+          <Button variant="ghost" size="icon" aria-label="Exit fullscreen" onClick={() => setFullscreenPanel(null)}>
             <X className="w-5 h-5" />
           </Button>
         </div>

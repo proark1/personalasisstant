@@ -40,7 +40,7 @@ const USE_CASES: UseCase[] = [
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [step, setStep] = useState(0);
   const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
@@ -49,6 +49,47 @@ export default function Onboarding() {
   const [isCompleting, setIsCompleting] = useState(false);
 
   const totalSteps = 4;
+
+  // First-value seeding: based on the use-cases a new user picks, drop a few
+  // real, actionable starter tasks into their plan so the dashboard isn't empty
+  // when they arrive. Best-effort — failures never block onboarding.
+  const STARTER_TASKS: Record<string, { title: string; category: 'business' | 'personal' | 'family'; priority: 'high' | 'medium' | 'low' }[]> = {
+    work: [{ title: 'Plan my top 3 priorities for this week', category: 'business', priority: 'high' }],
+    personal: [{ title: 'Set one personal goal for this month', category: 'personal', priority: 'medium' }],
+    family: [{ title: 'Add an upcoming family event to the calendar', category: 'family', priority: 'medium' }],
+    health: [{ title: 'Schedule a 20-minute walk today', category: 'personal', priority: 'medium' }],
+    calendar: [{ title: 'Connect Google Calendar from Settings', category: 'personal', priority: 'medium' }],
+  };
+
+  const seedStarterTasks = async () => {
+    if (!user) return;
+    // Don't clutter the plan of anyone who already has tasks (e.g. existing
+    // users passing back through onboarding) — only seed for a truly empty plan.
+    const { count } = await supabase
+      .from('tasks')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+    if (count && count > 0) return;
+
+    const seen = new Set<string>();
+    const rows = [
+      // A universal first task that teaches the core interaction.
+      { user_id: user.id, title: 'Tap the circle to mark this task done ✅', category: 'personal', priority: 'low', completed: false, status: 'backlog', sort_order: 0 },
+    ];
+    let order = 1;
+    for (const useCase of selectedUseCases) {
+      for (const t of STARTER_TASKS[useCase] ?? []) {
+        if (seen.has(t.title)) continue;
+        seen.add(t.title);
+        rows.push({ user_id: user.id, title: t.title, category: t.category, priority: t.priority, completed: false, status: 'backlog', sort_order: order++ });
+      }
+    }
+    try {
+      await supabase.from('tasks').insert(rows as never);
+    } catch (err) {
+      console.error('Failed to seed starter tasks:', err);
+    }
+  };
 
   const toggleUseCase = (id: string) => {
     setSelectedUseCases(prev => 
@@ -62,6 +103,9 @@ export default function Onboarding() {
     setIsCompleting(true);
     
     try {
+      // Match on user_id — that's how the rest of the app (AuthContext) reads
+      // the profile row. Using `id` here previously updated the wrong row, so
+      // onboarding_completed never persisted and the wizard could re-trigger.
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -73,9 +117,16 @@ export default function Onboarding() {
             completedAt: new Date().toISOString(),
           },
         })
-        .eq('id', user.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // Seed a starter plan so the dashboard has real content on first arrival.
+      await seedStarterTasks();
+
+      // Refresh the cached profile so the route guard sees onboarding as done
+      // and lets the user into the app instead of bouncing back here.
+      await refreshProfile();
 
       if (enableNotifications && 'Notification' in window) {
         await Notification.requestPermission();
@@ -88,7 +139,7 @@ export default function Onboarding() {
       });
 
       toast({ title: 'Welcome to DarAI!', description: "You're all set up." });
-      
+
       setTimeout(() => navigate('/'), 1500);
     } catch (error) {
       console.error('Failed to complete onboarding:', error);

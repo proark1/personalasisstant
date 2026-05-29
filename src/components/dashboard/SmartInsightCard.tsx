@@ -1,9 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
-import { Lightbulb, Brain, TrendingUp, Mail, FileText, Users, Calendar } from 'lucide-react';
+import { Lightbulb, Brain, TrendingUp, Mail, FileText, Users, Calendar, LineChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Insight {
   id: string;
@@ -22,9 +24,32 @@ interface SmartInsightCardProps {
 }
 
 export function SmartInsightCard({ tasks = [], emails = [], contracts = [], contacts = [], events = [] }: SmartInsightCardProps) {
+  const { user } = useAuth();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [topPattern, setTopPattern] = useState<{ id: string; description: string; confidence_score: number } | null>(null);
 
-  const insights = useMemo<Insight[]>(() => {
+  // Surface the user's strongest cross-module life-correlation (e.g. "your
+  // worst-sleep weeks have the most evening meetings") as a headline insight —
+  // this is the value a single-purpose app can't offer.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('user_patterns')
+        .select('id, description, confidence_score')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .gte('confidence_score', 0.6)
+        .order('confidence_score', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled && data) setTopPattern(data as typeof topPattern);
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const baseInsights = useMemo<Insight[]>(() => {
     const result: Insight[] = [];
     const incompleteTasks = tasks.filter((t: any) => !t.completed && !t.trashed);
     const highPriority = incompleteTasks.filter((t: any) => t.priority === 'high');
@@ -144,6 +169,19 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
 
     return result;
   }, [tasks, emails, contracts, contacts, events]);
+
+  // Lead with the life-correlation pattern when we have one.
+  const insights = useMemo<Insight[]>(() => {
+    if (!topPattern) return baseInsights;
+    const patternInsight: Insight = {
+      id: `pattern-${topPattern.id}`,
+      icon: <LineChart className="w-5 h-5" />,
+      title: 'Life Pattern',
+      content: `${topPattern.description} (${Math.round(topPattern.confidence_score * 100)}% confidence)`,
+      color: 'from-primary/10 to-accent/10',
+    };
+    return [patternInsight, ...baseInsights];
+  }, [topPattern, baseInsights]);
 
   useEffect(() => {
     if (insights.length <= 1) return;
