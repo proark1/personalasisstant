@@ -733,6 +733,10 @@ Deno.serve(async (req) => {
   let processed = 0;
   console.log(`[telegram-poll] tick: offset=${currentOffset}`);
 
+  // The per-update pipeline (AI round-trip, tools, voice/photo) can take many
+  // seconds. We wrap the loop so a webhook delivery can ACK Telegram instantly
+  // and finish the work in the background — see the dispatch logic below.
+  const runLoop = async (): Promise<void> => {
   while (isWebhook || Date.now() - startTime < MAX_RUNTIME_MS - MIN_REMAINING_MS) {
     let updates: any[];
     if (isWebhook) {
@@ -1754,8 +1758,32 @@ Deno.serve(async (req) => {
     // Webhook delivery is a single update — never loop for more.
     if (isWebhook) break;
   }
+  };
 
-  return new Response(JSON.stringify({ ok: true, mode: isWebhook ? 'webhook' : 'poll', processed, finalOffset: currentOffset }), {
+  if (isWebhook) {
+    // ACK Telegram immediately, then finish processing in the background.
+    // A webhook call must return quickly: the AI round-trip routinely takes
+    // longer than the worker's response budget, and making Telegram wait for
+    // it returns 500 (→ Telegram retries, the queue backs up, and the worker
+    // is killed mid-flight). Returning 200 now and handing the work to
+    // EdgeRuntime.waitUntil keeps the isolate alive long enough to send the
+    // reply. The user still sees the "🤔 Thinking…" placeholder right away and
+    // the answer once it's ready.
+    const work = runLoop().catch((e) => console.error('[telegram-poll] webhook processing error', e));
+    const er = (globalThis as any).EdgeRuntime;
+    if (er && typeof er.waitUntil === 'function') {
+      er.waitUntil(work);
+    } else {
+      // Local / non-edge-runtime contexts: just await it.
+      await work;
+    }
+    return new Response(JSON.stringify({ ok: true, mode: 'webhook' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  await runLoop();
+  return new Response(JSON.stringify({ ok: true, mode: 'poll', processed, finalOffset: currentOffset }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 });
