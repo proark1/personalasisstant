@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CommandPalette, type CommandPaletteAction } from '../command/CommandPalette';
 import { Sidebar, SidebarFilter, ActivePanel } from './Sidebar';
 import { useDeepLinkHandler } from '@/hooks/useDeepLinkHandler';
-import { MobileLayout } from './MobileLayout';
 import { RealtimeNotificationCenter } from '../notifications/RealtimeNotificationCenter';
+import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { Task, CalendarEvent, ChatMessage, Project, UserSettings } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -21,6 +21,10 @@ import type { SearchResult, SearchFilters } from '@/hooks/useGlobalSearch';
 import type { Contact } from '@/hooks/useContacts';
 
 // Lazy load feature panels for code splitting
+// MobileLayout is desktop-dead-weight, so keep it out of the main chunk —
+// it's only rendered on small screens.
+const MobileLayout = lazy(() => import('./MobileLayout').then(m => ({ default: m.MobileLayout })));
+const WhatNowButton = lazy(() => import('../assistant/WhatNowButton').then(m => ({ default: m.WhatNowButton })));
 const ChatPanel = lazy(() => import('../chat/ChatPanel').then(m => ({ default: m.ChatPanel })));
 const TeamChatPanel = lazy(() => import('../chat/TeamChatPanel').then(m => ({ default: m.TeamChatPanel })));
 const TaskList = lazy(() => import('../tasks/TaskList').then(m => ({ default: m.TaskList })));
@@ -400,6 +404,7 @@ export function StandardMode({
   // Use mobile layout on small screens
   if (isMobile) {
     return (
+      <Suspense fallback={<PanelFallback />}>
       <MobileLayout
         userId={user?.id || ''}
         tasks={tasks}
@@ -431,6 +436,7 @@ export function StandardMode({
         onUpdateSettings={onUpdateSettings}
         onUpdateNotifications={onUpdateNotifications}
       />
+      </Suspense>
     );
   }
 
@@ -905,8 +911,24 @@ export function StandardMode({
         </div>
       </main>
 
+      {/* Proactive surfaces (desktop) — previously only mounted on mobile.
+          ADHD-style smart nudges (hydration/break/stuck detection) and the
+          floating "What now?" assistant that suggests the best next task. */}
+      <SmartNudgeProvider tasks={tasks} events={events} />
+
       {/* Today Focus View */}
       <Suspense fallback={null}>
+        <WhatNowButton
+          tasks={tasks}
+          events={events}
+          variant="fab"
+          onStartTask={() => {
+            setSelectedProjectId(undefined);
+            setFilter('all');
+            setActivePanel('tasks');
+          }}
+        />
+
         {showTodayFocus && (
           <TodayFocusView
             tasks={tasks}

@@ -1,37 +1,44 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, Suspense, lazy } from 'react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DoriPanel } from '../assistant/DoriPanel';
-import { TeamChatPanel } from '../chat/TeamChatPanel';
-import { CalendarHubPanel } from '../calendar/CalendarHubPanel';
-import { SettingsPanelContent } from '../settings/SettingsPanelContent';
-import { CookingPanel } from '../cooking/CookingPanel';
-import { DashboardPanel } from '../dashboard/DashboardPanel';
-import { HealthHubPanel } from '../health/HealthHubPanel';
-import { ContactsPanel } from '../contacts/ContactsPanel';
-import { ContractsPanel } from '../contracts/ContractsPanel';
-import { NotesPanel } from '../notes/NotesPanel';
-import { HabitsPanel } from '../habits/HabitsPanel';
-import { IslamEnhancedPanel } from '../islam/IslamEnhancedPanel';
-import { PropertyPanel } from '../property/PropertyPanel';
-import { StartupWorkspacePanel } from '../startup/StartupWorkspacePanel';
-import { TechNewsPanel } from '../news/TechNewsPanel';
+import { PanelFallback } from '@/components/lazy/LazyLoader';
+// Feature panels are lazy-loaded so they are code-split into their own chunks
+// instead of being inlined into the main bundle. (Statically importing them
+// here previously pulled every panel into the Index chunk, cancelling out the
+// lazy() splitting StandardMode already does for the desktop path.)
+const DoriPanel = lazy(() => import('../assistant/DoriPanel').then(m => ({ default: m.DoriPanel })));
+const TeamChatPanel = lazy(() => import('../chat/TeamChatPanel').then(m => ({ default: m.TeamChatPanel })));
+const CalendarHubPanel = lazy(() => import('../calendar/CalendarHubPanel').then(m => ({ default: m.CalendarHubPanel })));
+const SettingsPanelContent = lazy(() => import('../settings/SettingsPanelContent').then(m => ({ default: m.SettingsPanelContent })));
+const CookingPanel = lazy(() => import('../cooking/CookingPanel').then(m => ({ default: m.CookingPanel })));
+const DashboardPanel = lazy(() => import('../dashboard/DashboardPanel').then(m => ({ default: m.DashboardPanel })));
+const HealthHubPanel = lazy(() => import('../health/HealthHubPanel').then(m => ({ default: m.HealthHubPanel })));
+const ContactsPanel = lazy(() => import('../contacts/ContactsPanel').then(m => ({ default: m.ContactsPanel })));
+const ContractsPanel = lazy(() => import('../contracts/ContractsPanel').then(m => ({ default: m.ContractsPanel })));
+const NotesPanel = lazy(() => import('../notes/NotesPanel').then(m => ({ default: m.NotesPanel })));
+const HabitsPanel = lazy(() => import('../habits/HabitsPanel').then(m => ({ default: m.HabitsPanel })));
+const IslamEnhancedPanel = lazy(() => import('../islam/IslamEnhancedPanel').then(m => ({ default: m.IslamEnhancedPanel })));
+const PropertyPanel = lazy(() => import('../property/PropertyPanel').then(m => ({ default: m.PropertyPanel })));
+const StartupWorkspacePanel = lazy(() => import('../startup/StartupWorkspacePanel').then(m => ({ default: m.StartupWorkspacePanel })));
+const TechNewsPanel = lazy(() => import('../news/TechNewsPanel').then(m => ({ default: m.TechNewsPanel })));
+const EmailPanel = lazy(() => import('../email/EmailPanel').then(m => ({ default: m.EmailPanel })));
+const FinancesPanel = lazy(() => import('../finances/FinancesPanel').then(m => ({ default: m.FinancesPanel })));
+const TravelPanel = lazy(() => import('../travel/TravelPanel').then(m => ({ default: m.TravelPanel })));
+const AssetsPanel = lazy(() => import('../assets/AssetsPanel').then(m => ({ default: m.AssetsPanel })));
+const PersonalHealthPanel = lazy(() => import('../health/PersonalHealthPanel').then(m => ({ default: m.PersonalHealthPanel })));
+const RelationshipsPlusPanel = lazy(() => import('../relationships/RelationshipsPlusPanel').then(m => ({ default: m.RelationshipsPlusPanel })));
+const LearningPanel = lazy(() => import('../learning/LearningPanel').then(m => ({ default: m.LearningPanel })));
+const JournalPanel = lazy(() => import('../journal/JournalPanel').then(m => ({ default: m.JournalPanel })));
+const ChallengesPanel = lazy(() => import('../gamification/ChallengesPanel').then(m => ({ default: m.ChallengesPanel })));
+const LocationRemindersPanel = lazy(() => import('../location/LocationRemindersPanel').then(m => ({ default: m.LocationRemindersPanel })));
+const FamilyMembersList = lazy(() => import('../family/FamilyMembersList').then(m => ({ default: m.FamilyMembersList })));
+const FamilyCalendarView = lazy(() => import('../family/FamilyCalendarView').then(m => ({ default: m.FamilyCalendarView })));
+const ChildDashboard = lazy(() => import('../family/ChildDashboard').then(m => ({ default: m.ChildDashboard })));
+const CorrelationsDashboard = lazy(() => import('../insights/CorrelationsDashboard').then(m => ({ default: m.CorrelationsDashboard })));
+const MeetingBotsPanel = lazy(() => import('../assistant/MeetingBotsPanel').then(m => ({ default: m.MeetingBotsPanel })));
+// Layout chrome + the always-mounted nudge provider stay eager — they're small
+// and needed on first paint.
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
-import { EmailPanel } from '../email/EmailPanel';
-import { FinancesPanel } from '../finances/FinancesPanel';
-import { TravelPanel } from '../travel/TravelPanel';
-import { AssetsPanel } from '../assets/AssetsPanel';
-import { PersonalHealthPanel } from '../health/PersonalHealthPanel';
-import { RelationshipsPlusPanel } from '../relationships/RelationshipsPlusPanel';
-import { LearningPanel } from '../learning/LearningPanel';
-import { JournalPanel } from '../journal/JournalPanel';
-import { ChallengesPanel } from '../gamification/ChallengesPanel';
-import { LocationRemindersPanel } from '../location/LocationRemindersPanel';
-import { FamilyMembersList } from '../family/FamilyMembersList';
-import { FamilyCalendarView } from '../family/FamilyCalendarView';
-import { ChildDashboard } from '../family/ChildDashboard';
-import { CorrelationsDashboard } from '../insights/CorrelationsDashboard';
-import { MeetingBotsPanel } from '../assistant/MeetingBotsPanel';
 import { PullToRefresh } from '../shared/PullToRefresh';
 import { ContextualHeader } from './ContextualHeader';
 import { MoreSheet, MoreSheetPanel } from './MoreSheet';
@@ -309,7 +316,9 @@ export function MobileLayout({
               ref={scrollRef}
               className="h-full overflow-y-auto"
             >
-              {renderPanel()}
+              <Suspense fallback={<PanelFallback />}>
+                {renderPanel()}
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </PullToRefresh>
