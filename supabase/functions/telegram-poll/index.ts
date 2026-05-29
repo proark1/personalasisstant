@@ -932,9 +932,25 @@ Deno.serve(async (req) => {
             } else if (bytes && isPdf) {
               extracted = extractPdfText(bytes).slice(0, 30_000);
             }
-            if (extracted.trim().length > 0) {
+            // Resolve the owning app user. This branch runs before the 1:1
+            // `link` lookup further down, so we can't use that variable here
+            // (it's in the temporal dead zone). Resolve independently: the
+            // linked personal chat first, then the sender's user mapping
+            // (covers group members who've linked their account).
+            let docUserId: string | null = null;
+            {
+              const { data: docLink } = await supabase.from('telegram_links')
+                .select('user_id').eq('chat_id', chatId).eq('is_active', true).maybeSingle();
+              docUserId = (docLink?.user_id as string | undefined) ?? null;
+              if (!docUserId && msg.from?.id) {
+                const { data: mapped } = await supabase.from('telegram_user_map')
+                  .select('user_id').eq('telegram_user_id', msg.from.id).maybeSingle();
+                docUserId = (mapped?.user_id as string | undefined) ?? null;
+              }
+            }
+            if (extracted.trim().length > 0 && docUserId) {
               await supabase.from('telegram_documents').upsert({
-                user_id: link.user_id,
+                user_id: docUserId,
                 filename: msg.document.file_name || 'document',
                 mime_type: mime,
                 size_bytes: msg.document.file_size || null,
