@@ -111,20 +111,25 @@ Deno.serve(async (req: Request) => {
       dropRetryBody();
       return res;
     } catch (staleErr) {
-      // Only retry when the failure was effectively immediate: that means the
-      // cached isolate was dead and never ran the handler (the observed stale
-      // failures return in tens of ms). A SLOW failure means the worker DID run
-      // and hit a wall-clock/OOM limit — retrying would redo the work and risk
-      // duplicate side effects (double briefing sends, double tool actions), so
-      // we let it surface instead.
+      // Only retry when the failure looks like a dead/stale cached isolate that
+      // never ran the handler — those return near-instantly. Do NOT retry if:
+      //  (a) the failure was slow (the handler ran, then hit a wall-clock/OOM
+      //      limit), or
+      //  (b) the error explicitly signals a timeout/OOM (covers a rare fast OOM
+      //      on a huge allocation).
+      // Retrying a request whose handler already ran would redo non-idempotent
+      // work — double briefing sends, double tool actions, double charges.
       const elapsed = Date.now() - startedAt;
-      if (elapsed > STALE_RETRY_MAX_MS) {
+      const errMsg = staleErr instanceof Error ? staleErr.message : String(staleErr);
+      const ranAndFailed = elapsed > STALE_RETRY_MAX_MS
+        || /timed?\s*out|timeout|wall.?clock|memory|oom/i.test(errMsg);
+      if (ranAndFailed) {
         dropRetryBody();
         throw staleErr;
       }
       console.warn(
         `[main] ${fnName} worker failed in ${elapsed}ms, forcing fresh isolate:`,
-        staleErr instanceof Error ? staleErr.message : staleErr,
+        errMsg,
       );
       const fresh = await spawnWorker(servicePath, true);
       return await fresh.fetch(retryReq);
