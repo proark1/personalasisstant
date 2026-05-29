@@ -190,13 +190,86 @@ function isHelpRequest(lower: string): boolean {
 }
 
 // ─── Household resolution ────────────────────────────────────────────────
-async function getHouseholdMembers(supabase: any, ownerId: string, partnerId: string | null) {
-  const ids = [ownerId, partnerId].filter(Boolean) as string[];
+// Unions the owner, optional partner, and every active roster member that has
+// an app account (telegram_group_members) so digests/calendars/shopping reads
+// cover the whole family. `groupLinkId` is optional for backwards-compat.
+async function getHouseholdMembers(
+  supabase: any,
+  ownerId: string,
+  partnerId: string | null,
+  groupLinkId?: string | null,
+) {
+  const ids = new Set<string>([ownerId, partnerId].filter(Boolean) as string[]);
+  if (groupLinkId) {
+    const { data: members } = await supabase
+      .from('telegram_group_members')
+      .select('user_id')
+      .eq('group_link_id', groupLinkId)
+      .eq('status', 'active')
+      .not('user_id', 'is', null);
+    (members || []).forEach((m: any) => { if (m.user_id) ids.add(m.user_id); });
+  }
+  const idList = [...ids];
   const { data: profiles } = await supabase
-    .from('profiles').select('user_id, display_name, email').in('user_id', ids);
+    .from('profiles').select('user_id, display_name, email').in('user_id', idList);
   const map = new Map<string, string>();
   (profiles || []).forEach((p: any) => map.set(p.user_id, p.display_name || (p.email?.split('@')[0]) || 'Member'));
-  return { ids, nameOf: (uid: string) => map.get(uid) || 'Member', multi: ids.length > 1 };
+  return { ids: idList, nameOf: (uid: string) => map.get(uid) || 'Member', multi: idList.length > 1 };
+}
+
+// Auto-onboard a pre-authorized family member. If this Telegram user matches a
+// roster row (by bound telegram id, else by @username) we activate the row,
+// bind the telegram identity, and — when the row points at an app account —
+// map it so Dori acts as that member. Telegram-only members are recognized but
+// their actions attribute to the household owner. Returns the resolved app
+// user id (or the prior value when there's no account to map to).
+// Defensive: any error (e.g. table not migrated yet) leaves behavior unchanged.
+async function acceptRosterMember(
+  supabase: any,
+  groupLinkId: string,
+  telegramUserId: number | null | undefined,
+  username: string | null | undefined,
+  firstName: string | null | undefined,
+  alreadyMappedUserId: string | null,
+): Promise<string | null> {
+  if (!telegramUserId) return alreadyMappedUserId;
+  const uname = (username || '').replace(/^@/, '').toLowerCase().trim();
+  try {
+    let row: any = null;
+    const { data: byId } = await supabase.from('telegram_group_members')
+      .select('id, user_id').eq('group_link_id', groupLinkId)
+      .eq('telegram_user_id', telegramUserId).maybeSingle();
+    row = byId || null;
+    if (!row && uname) {
+      const { data: byName } = await supabase.from('telegram_group_members')
+        .select('id, user_id').eq('group_link_id', groupLinkId)
+        .ilike('telegram_username', uname).maybeSingle();
+      row = byName || null;
+    }
+    if (!row) return alreadyMappedUserId; // not pre-authorized → unchanged
+
+    await supabase.from('telegram_group_members').update({
+      telegram_user_id: telegramUserId,
+      telegram_username: uname || null,
+      display_name: firstName || null,
+      status: 'active',
+      joined_at: new Date().toISOString(),
+    }).eq('id', row.id);
+
+    if (row.user_id) {
+      await supabase.from('telegram_user_map').upsert({
+        telegram_user_id: telegramUserId,
+        user_id: row.user_id,
+        telegram_username: uname || null,
+        telegram_first_name: firstName || null,
+      }, { onConflict: 'telegram_user_id' });
+      return row.user_id;
+    }
+    return alreadyMappedUserId; // recognized Telegram-only member → owner-scoped
+  } catch (e) {
+    console.error('acceptRosterMember failed (continuing):', (e as Error).message);
+    return alreadyMappedUserId;
+  }
 }
 
 // ─── Slash command handlers ─────────────────────────────────────────────
@@ -954,16 +1027,13 @@ Deno.serve(async (req) => {
   // Resolve group → owner + partner
   const { data: group } = await supabase
     .from('telegram_group_links')
-    .select('owner_user_id, partner_user_id')
+    .select('id, owner_user_id, partner_user_id')
     .eq('chat_id', chat_id).eq('is_active', true).maybeSingle();
 
   if (!group) {
     await tgSend(chat_id, '🔒 This group is not linked to a Dori family space yet.');
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
-
-  const household = await getHouseholdMembers(supabase, group.owner_user_id, group.partner_user_id);
-  const memberIds = household.ids;
 
   // Resolve sender → app user
   let senderUserId: string | null = null;
@@ -972,7 +1042,20 @@ Deno.serve(async (req) => {
       .select('user_id').eq('telegram_user_id', telegram_user_id).maybeSingle();
     if (mapped) senderUserId = mapped.user_id;
   }
+
+  // Auto-accept by @username: if this Telegram user isn't mapped yet but their
+  // username was pre-authorized on the family roster, bind them now so Dori
+  // starts acting for them (no /linkme code needed). Their actions land in the
+  // shared family space; if their roster row points at an app account, we use
+  // it, otherwise we attribute to the owner (household-scoped).
+  senderUserId = await acceptRosterMember(
+    supabase, group.id, telegram_user_id, telegram_username, telegram_first_name, senderUserId,
+  );
+
   const userForChat = senderUserId || group.owner_user_id;
+
+  const household = await getHouseholdMembers(supabase, group.owner_user_id, group.partner_user_id, group.id);
+  const memberIds = household.ids;
 
   // Pull the caller's timezone so every formatted time in digests /
   // standups / recaps / scheduled slots is in their local clock, not UTC.
@@ -1650,6 +1733,9 @@ Deno.serve(async (req) => {
         'x-telegram-user-id': userForChat,
         'x-dori-channel': channel,
         'x-dori-channel-ref': String(chat_id),
+        // Tag new calendar events with the family household so every member's
+        // individual calendar shows them. Personal/workspace chats omit this.
+        ...(workspace_id ? {} : { 'x-dori-household': String(group.id) }),
       },
       body: JSON.stringify({
         messages: conversationMessages,
@@ -1658,6 +1744,7 @@ Deno.serve(async (req) => {
         actionSource: channel,
         actionSourceRef: String(chat_id),
         workspaceId: workspace_id || undefined,
+        householdId: workspace_id ? undefined : group.id,
       }),
     });
 

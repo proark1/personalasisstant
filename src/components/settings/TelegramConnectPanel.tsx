@@ -35,6 +35,33 @@ export function TelegramConnectPanel() {
   const [groupAddUrl, setGroupAddUrl] = useState<string | null>(null);
   const [botUsername, setBotUsername] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [members, setMembers] = useState<Array<{ id: string; telegram_username: string | null; display_name: string | null; status: string; role: string }>>([]);
+  const [newUsername, setNewUsername] = useState('');
+  const [memberBusy, setMemberBusy] = useState(false);
+
+  const fetchMembers = async () => {
+    const { data, error: e } = await supabase.functions.invoke('telegram-link', { body: { action: 'family_members_list' } });
+    if (!e && data?.members) setMembers(data.members);
+  };
+
+  const addMember = async () => {
+    const uname = newUsername.replace(/^@/, '').trim();
+    if (!uname) return;
+    setMemberBusy(true);
+    try {
+      const { data, error: e } = await supabase.functions.invoke('telegram-link', { body: { action: 'family_member_add', username: uname } });
+      if (e || data?.error) { toast({ title: 'Could not add member', description: data?.error || e?.message, variant: 'destructive' }); }
+      else { setMembers(data.members || []); setNewUsername(''); }
+    } finally { setMemberBusy(false); }
+  };
+
+  const removeMember = async (id: string) => {
+    setMemberBusy(true);
+    try {
+      const { data } = await supabase.functions.invoke('telegram-link', { body: { action: 'family_member_remove', id } });
+      if (data?.members) setMembers(data.members);
+    } finally { setMemberBusy(false); }
+  };
 
   const fetchLink = async () => {
     if (!user) return;
@@ -48,6 +75,8 @@ export function TelegramConnectPanel() {
   };
 
   useEffect(() => { fetchLink(); }, [user?.id]);
+
+  useEffect(() => { if (group?.is_active) fetchMembers(); }, [group?.is_active]);
 
   useEffect(() => {
     if ((!code && !groupCode) || (link?.is_active && group?.is_active)) return;
@@ -201,9 +230,40 @@ export function TelegramConnectPanel() {
               <p className="text-sm text-muted-foreground">
                 Linked to <span className="font-medium text-foreground">{group.title || 'your family group'}</span>. Dori posts reminders here, and either of you can write naturally — "buy milk", "dentist Friday 4pm" — and it goes straight into your shared space.
               </p>
-              {!group.partner_user_id && (
-                <p className="text-xs text-muted-foreground">💡 Invite your partner to your space (Settings → Space Members) so their items also share to this group.</p>
-              )}
+              <div className="rounded-md border p-3 space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2"><Users className="w-4 h-4" /> Family members</p>
+                <p className="text-xs text-muted-foreground">
+                  Pre-authorize people by their Telegram @username. Once they post in the group, Dori recognizes them automatically and acts on their messages — no codes needed. Their tasks and events go into your shared family space.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addMember(); }}
+                    placeholder="@username"
+                    className="flex-1 h-9 px-3 rounded-md border bg-background text-sm"
+                  />
+                  <Button size="sm" onClick={addMember} disabled={memberBusy || !newUsername.trim()}>
+                    {memberBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
+                  </Button>
+                </div>
+                {members.length > 0 && (
+                  <ul className="space-y-1">
+                    {members.map((m) => (
+                      <li key={m.id} className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">{m.display_name || (m.telegram_username ? `@${m.telegram_username}` : 'Member')}</span>
+                        <Badge variant={m.status === 'active' ? 'secondary' : 'outline'} className="text-[10px]">
+                          {m.role === 'owner' ? 'you' : m.status === 'active' ? 'active' : 'invited'}
+                        </Badge>
+                        {m.role !== 'owner' && (
+                          <button onClick={() => removeMember(m.id)} disabled={memberBusy}
+                            className="ml-auto text-xs text-muted-foreground hover:text-destructive">Remove</button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <Button variant="outline" size="sm" onClick={() => handleUnlink('group')}>
                 <Unlink className="w-3 h-3 mr-2" /> Disconnect group
               </Button>

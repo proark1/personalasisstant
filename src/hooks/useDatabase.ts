@@ -144,14 +144,23 @@ export function useDatabase(userId: string | undefined) {
     queryKey: ['events', userId],
     enabled: !!userId,
     queryFn: async (): Promise<CalendarEvent[]> => {
+      // Own events plus shared family-household events. RLS restricts the
+      // household_id-not-null rows to households this user belongs to, so a
+      // single shared family event surfaces in every member's calendar.
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('user_id', userId!)
+        .or(`user_id.eq.${userId!},household_id.not.is.null`)
         .order('start_time', { ascending: true });
       if (error) { moduleHealth.reportError('events', error); throw error; }
       moduleHealth.reportSuccess('events');
-      return (data ?? []).map(dbEventToEvent);
+      // De-dupe (an event I created in the family group matches both clauses).
+      const seen = new Set<string>();
+      return (data ?? []).filter((e: any) => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        return true;
+      }).map(dbEventToEvent);
     },
   });
 
