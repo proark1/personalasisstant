@@ -38,15 +38,14 @@ const MEMORY_LIMIT_MB = 256;
 // Override with EDGE_WORKER_TIMEOUT_MS if needed.
 const TIMEOUT_MS = Number(Deno.env.get("EDGE_WORKER_TIMEOUT_MS")) || 150_000;
 
-// Pre-built worker cache keyed by service path. The runtime itself
-// caches workers but having an explicit map lets us short-circuit
-// pathological re-imports under load.
-const workers = new Map<string, { fetch: (req: Request) => Promise<Response> }>();
-
-async function getWorker(servicePath: string) {
-  let w = workers.get(servicePath);
-  if (w) return w;
-  w = await EdgeRuntime.userWorkers.create({
+// Spawn (or reuse) the worker for a function. We deliberately do NOT cache the
+// worker handle ourselves: the runtime already reuses a live isolate when one
+// exists (forceCreate:false). A handle held past the isolate's wall-clock
+// lifetime goes stale, and reusing it throws "Function unavailable" forever —
+// which is exactly what broke the infrequently-called cron functions. `force`
+// requests a brand-new isolate, used to recover from a stale/dead one.
+function spawnWorker(servicePath: string, force = false) {
+  return EdgeRuntime.userWorkers.create({
     servicePath,
     memoryLimitMb: MEMORY_LIMIT_MB,
     workerTimeoutMs: TIMEOUT_MS,
@@ -58,11 +57,9 @@ async function getWorker(servicePath: string) {
     // service-role JWT, etc.) returns undefined. strictAppOrigin() then throws
     // "CORS misconfigured: set APP_URL" at module load and the worker dies.
     envVars: Object.entries(Deno.env.toObject()),
-    forceCreate: false,
+    forceCreate: force,
     netAccessDisabled: false,
   });
-  workers.set(servicePath, w);
-  return w;
 }
 
 function json(body: unknown, status = 200) {
@@ -95,9 +92,26 @@ Deno.serve(async (req: Request) => {
   }
 
   const servicePath = `${FUNCTIONS_DIR}/${fnName}`;
+  // Keep a clone so we can retry once on a fresh isolate if the first attempt
+  // hits a reclaimed/stale worker. clone() is cheap unless the body is actually
+  // re-read (only on the retry path).
+  const retryReq = req.clone();
   try {
-    const worker = await getWorker(servicePath);
-    return await worker.fetch(req);
+    try {
+      const worker = await spawnWorker(servicePath);
+      return await worker.fetch(req);
+    } catch (staleErr) {
+      // A reused isolate was likely torn down after its wall-clock lifetime;
+      // the handle is dead. Force a brand-new isolate and retry once. If this
+      // also fails, it's a real startup error and falls through to the outer
+      // catch below.
+      console.warn(
+        `[main] ${fnName} worker failed, forcing fresh isolate:`,
+        staleErr instanceof Error ? staleErr.message : staleErr,
+      );
+      const fresh = await spawnWorker(servicePath, true);
+      return await fresh.fetch(retryReq);
+    }
   } catch (e) {
     // Most common reason: the function directory doesn't exist (typo)
     // or the function failed to start (missing env var at module load,
