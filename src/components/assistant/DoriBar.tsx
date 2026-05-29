@@ -2,13 +2,14 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useNextUp } from '@/hooks/useNextUp';
 import { useDoriConversation } from '@/contexts/DoriConversationContext';
+import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 import { MarkdownRenderer } from '@/components/chat/MarkdownRenderer';
 import { ActionCard } from './ActionCard';
-import { Mic, Send, Sparkles, Loader2, Calendar, CheckSquare, ArrowRight, X, Maximize2 } from 'lucide-react';
+import { Mic, Send, Sparkles, Loader2, Calendar, CheckSquare, ArrowRight, X, Maximize2, Square, Headphones } from 'lucide-react';
 import doriFish from '@/assets/dori-fish.png';
 
 interface DoriBarProps {
-  /** Opens full voice mode. */
+  /** Opens full (realtime) voice mode. */
   onVoiceMode: () => void;
   /** Hide the bar (e.g. when the user is already in the full assistant panel). */
   hidden?: boolean;
@@ -16,9 +17,10 @@ interface DoriBarProps {
 
 /**
  * The persistent "Dori spine" — an always-present bar at the bottom of every
- * screen. Ask Dori anything from anywhere; the reply (and any action cards)
- * stream into an inline popover so you never leave your current panel. Voice is
- * one tap away and your next proactive item shows inline. Backed by
+ * screen. Ask Dori anything (typed or spoken) from anywhere; the reply and any
+ * action cards stream into an inline popover so you never leave your current
+ * panel. The mic does inline push-to-talk dictation (Web Speech API) and only
+ * falls back to full-screen voice when dictation isn't supported. Backed by
  * DoriConversationContext, so it drives the same 71-tool brain Index owns.
  */
 export function DoriBar({ onVoiceMode, hidden }: DoriBarProps) {
@@ -36,6 +38,23 @@ export function DoriBar({ onVoiceMode, hidden }: DoriBarProps) {
     send(trimmed);
     setText('');
   }, [send]);
+
+  // Inline push-to-talk: transcribe speech into the bar and auto-send the final
+  // result, so you can talk to Dori without the full-screen voice swap.
+  const { isListening, isSupported: voiceSupported, startListening, stopListening } = useVoiceRecognition({
+    continuous: false,
+    onTranscript: (transcript, isFinal) => {
+      setText(transcript);
+      if (isFinal && transcript.trim()) ask(transcript);
+    },
+  });
+
+  const handleMic = () => {
+    // No Web Speech API (e.g. some browsers) → fall back to full voice mode.
+    if (!voiceSupported) { onVoiceMode(); return; }
+    if (isListening) stopListening();
+    else { setText(''); startListening(); }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -77,6 +96,10 @@ export function DoriBar({ onVoiceMode, hidden }: DoriBarProps) {
               <span className="text-sm font-semibold">Dori</span>
             </div>
             <div className="flex items-center gap-1">
+              <button type="button" onClick={onVoiceMode} aria-label="Full voice mode"
+                className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <Headphones className="w-3.5 h-3.5" />
+              </button>
               <button type="button" onClick={expand} aria-label="Open full assistant"
                 className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 <Maximize2 className="w-3.5 h-3.5" />
@@ -137,7 +160,7 @@ export function DoriBar({ onVoiceMode, hidden }: DoriBarProps) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask Dori anything…"
+          placeholder={isListening ? 'Listening…' : 'Ask Dori anything…'}
           aria-label="Ask Dori anything"
           className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
@@ -158,11 +181,17 @@ export function DoriBar({ onVoiceMode, hidden }: DoriBarProps) {
 
         <button
           type="button"
-          onClick={onVoiceMode}
-          aria-label="Talk to Dori"
-          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          onClick={handleMic}
+          aria-label={isListening ? 'Stop listening' : 'Talk to Dori'}
+          aria-pressed={isListening}
+          className={cn(
+            'shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors',
+            isListening
+              ? 'bg-destructive/15 text-destructive animate-pulse'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+          )}
         >
-          <Mic className="w-4 h-4" />
+          {isListening ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-4 h-4" />}
         </button>
 
         {text.trim() ? (
