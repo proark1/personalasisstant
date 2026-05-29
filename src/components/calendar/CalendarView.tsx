@@ -40,6 +40,7 @@ import {
   subMonths,
   parseISO
 } from 'date-fns';
+import { toValidDate, formatSafe } from '@/lib/safeDate';
 
 type ViewMode = 'week' | 'month';
 
@@ -202,7 +203,9 @@ export function CalendarView({
     const map = new Map<string, CalendarItem[]>();
     
     calendarItems.forEach(item => {
-      const dateKey = format(item.date, 'yyyy-MM-dd');
+      const validDate = toValidDate(item.date);
+      if (!validDate) return;
+      const dateKey = format(validDate, 'yyyy-MM-dd');
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }
@@ -350,7 +353,7 @@ export function CalendarView({
                 </span>
               )}
               {item.type === 'event' && (
-                <span className="font-medium">{format(item.date, 'HH:mm')} </span>
+                <span className="font-medium">{formatSafe(item.date, 'HH:mm')} </span>
               )}
               <span className="truncate">{item.title}</span>
             </button>

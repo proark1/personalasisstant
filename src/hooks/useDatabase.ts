@@ -6,6 +6,7 @@ import { fetchWithRetry } from '@/lib/fetchWithTimeout';
 import { moduleBus } from '@/lib/moduleEventBus';
 import { moduleHealth } from '@/lib/moduleHealth';
 import { subscribeToTable } from '@/lib/realtimeCoordinator';
+import { toValidDate } from '@/lib/safeDate';
 import { Task, CalendarEvent, TaskCategory, TaskPriority, TaskStatus } from '@/types/flux';
 
 interface DbTask {
@@ -76,9 +77,9 @@ export function useDatabase(userId: string | undefined) {
     completed: dbTask.completed,
     createdAt: new Date(dbTask.created_at),
     updatedAt: dbTask.updated_at ? new Date(dbTask.updated_at) : undefined,
-    dueDate: dbTask.due_date ? new Date(dbTask.due_date) : undefined,
+    dueDate: toValidDate(dbTask.due_date) ?? undefined,
     recurrenceRule: dbTask.recurrence_rule || undefined,
-    recurrenceEnd: dbTask.recurrence_end ? new Date(dbTask.recurrence_end) : undefined,
+    recurrenceEnd: toValidDate(dbTask.recurrence_end) ?? undefined,
     parentId: dbTask.parent_id || undefined,
     sortOrder: dbTask.sort_order ?? 0,
     reminderBefore: dbTask.reminder_before ?? undefined,
@@ -92,18 +93,31 @@ export function useDatabase(userId: string | undefined) {
     trashedAt: dbTask.trashed_at ? new Date(dbTask.trashed_at) : undefined,
   });
 
-  // Convert DB event to app CalendarEvent
-  const dbEventToEvent = (dbEvent: DbEvent): CalendarEvent => ({
-    id: dbEvent.id,
-    title: dbEvent.title,
-    description: dbEvent.description || undefined,
-    startTime: new Date(dbEvent.start_time),
-    endTime: new Date(dbEvent.end_time),
-    location: dbEvent.location || undefined,
-    attendees: dbEvent.attendees || undefined,
-    recurrenceRule: dbEvent.recurrence_rule || undefined,
-    recurrenceEnd: dbEvent.recurrence_end ? new Date(dbEvent.recurrence_end) : undefined,
-  });
+  // Convert DB event to app CalendarEvent. start_time/end_time are NOT NULL in
+  // the schema, but a single malformed value (legacy rows, odd timezone
+  // strings, all-day imports) used to render an Invalid Date and crash the
+  // whole calendar. Coerce defensively: an event always keeps a valid start
+  // (falling back to "now") and a valid end (falling back to start + 1h) so it
+  // still surfaces instead of disappearing.
+  const dbEventToEvent = (dbEvent: DbEvent): CalendarEvent => {
+    const startTime = toValidDate(dbEvent.start_time) ?? new Date();
+    const parsedEnd = toValidDate(dbEvent.end_time);
+    const endTime =
+      parsedEnd && parsedEnd.getTime() >= startTime.getTime()
+        ? parsedEnd
+        : new Date(startTime.getTime() + 60 * 60 * 1000);
+    return {
+      id: dbEvent.id,
+      title: dbEvent.title,
+      description: dbEvent.description || undefined,
+      startTime,
+      endTime,
+      location: dbEvent.location || undefined,
+      attendees: dbEvent.attendees || undefined,
+      recurrenceRule: dbEvent.recurrence_rule || undefined,
+      recurrenceEnd: toValidDate(dbEvent.recurrence_end) ?? undefined,
+    };
+  };
 
   // Shared queries: tasks, trashed tasks, and events each live under their own
   // key so every consumer dedupes onto one cached entry and the cacheCoordinator

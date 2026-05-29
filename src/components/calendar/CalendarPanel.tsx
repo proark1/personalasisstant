@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { format, isToday, isTomorrow, startOfDay, isPast } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
+import { toValidDate, formatSafe } from '@/lib/safeDate';
 
 interface CalendarPanelProps {
   events: CalendarEvent[];
@@ -143,7 +144,11 @@ export function CalendarPanel({
     const itemsByDate = new Map<string, CalendarItem[]>();
 
     calendarItems.forEach(item => {
-      const dateKey = startOfDay(item.date).toISOString();
+      // Guard against an unparseable date — startOfDay(Invalid).toISOString()
+      // throws and would blank the entire agenda.
+      const validDate = toValidDate(item.date);
+      if (!validDate) return;
+      const dateKey = startOfDay(validDate).toISOString();
       if (!itemsByDate.has(dateKey)) {
         itemsByDate.set(dateKey, []);
       }
@@ -370,9 +375,9 @@ export function CalendarPanel({
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            {item.type === 'event' && item.endTime 
-              ? `${format(item.date, 'h:mm a')} - ${format(item.endTime, 'h:mm a')}`
-              : format(item.date, 'h:mm a')
+            {item.type === 'event' && item.endTime
+              ? `${formatSafe(item.date, 'h:mm a')} - ${formatSafe(item.endTime, 'h:mm a')}`
+              : formatSafe(item.date, 'h:mm a')
             }
           </span>
           {item.location && (

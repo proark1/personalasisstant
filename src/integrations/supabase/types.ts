@@ -1874,6 +1874,7 @@ export type Database = {
           family_member_id: string | null
           gmail_history_id: string | null
           id: string
+          is_default: boolean
           last_sync_error: string | null
           last_synced_at: string | null
           name: string
@@ -1899,6 +1900,7 @@ export type Database = {
           family_member_id?: string | null
           gmail_history_id?: string | null
           id?: string
+          is_default?: boolean
           last_sync_error?: string | null
           last_synced_at?: string | null
           name: string
@@ -1924,6 +1926,7 @@ export type Database = {
           family_member_id?: string | null
           gmail_history_id?: string | null
           id?: string
+          is_default?: boolean
           last_sync_error?: string | null
           last_synced_at?: string | null
           name?: string
