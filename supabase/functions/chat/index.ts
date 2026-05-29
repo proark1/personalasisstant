@@ -1336,6 +1336,9 @@ interface ServerExecOpts {
   sourceRef?: string | null;
   // When set, every NEW row the executor creates is tagged with this workspace.
   workspaceId?: string | null;
+  // When set, NEW calendar events are tagged with this household (family group)
+  // so they're visible to every member's individual calendar via RLS.
+  householdId?: string | null;
   // Member list used to resolve assignee names ("Alice" / "@alice") to user ids.
   workspaceMembers?: WorkspaceMemberCtx[];
   // User's IANA timezone — makes find_time and date summaries locale-correct.
@@ -1717,9 +1720,12 @@ async function executeToolsServerSide(
           location: data.location || null, attendees: data.attendees || null,
           recurrence_rule: data.recurrenceRule || null, category: data.category || 'personal',
           workspace_id: opts?.workspaceId || null,
+          household_id: opts?.householdId || null,
           assignee_id: assigneeId,
         },
-        ['workspace_id', 'assignee_id'],
+        // household_id is listed as droppable so a stale schema cache (or an
+        // environment where the migration hasn't run yet) still inserts the event.
+        ['workspace_id', 'household_id', 'assignee_id'],
         'id, title, start_time',
       );
       if (error) throw error;
@@ -4651,6 +4657,7 @@ serve(async (req) => {
         source: actionSource,
         sourceRef: actionSourceRef ?? null,
         workspaceId: activeWorkspace?.id ?? null,
+        householdId,
         workspaceMembers: activeWorkspace?.members,
         timezone: preformedTz,
       });
@@ -4671,6 +4678,11 @@ serve(async (req) => {
     const telegramUserIdHeader = req.headers.get('x-telegram-user-id');
     const tgChannelHint = req.headers.get('x-dori-channel'); // 'tg_private' | 'tg_family'
     const tgChannelRef = req.headers.get('x-dori-channel-ref') || null;
+    // Family-group household (telegram_group_links.id). When present, NEW
+    // calendar events are tagged with it so every member's individual calendar
+    // shows the shared event (via RLS). Carried by header or body.
+    const householdId = (reqBody.householdId as string | undefined)
+      || req.headers.get('x-dori-household') || null;
     const currentChannel = telegramUserIdHeader
       ? (tgChannelHint === 'tg_family' ? 'tg_family' : 'tg_private')
       : 'web';
@@ -5589,6 +5601,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
                 source: effectiveSource,
                 sourceRef: effectiveSourceRef,
                 workspaceId: activeWorkspace?.id ?? null,
+                householdId,
                 workspaceMembers: activeWorkspace?.members,
                 timezone: userTimezone,
               });
@@ -5694,6 +5707,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
           source: effectiveSource,
           sourceRef: effectiveSourceRef,
           workspaceId: activeWorkspace?.id ?? null,
+          householdId,
           workspaceMembers: activeWorkspace?.members,
           timezone: userTimezone,
         });

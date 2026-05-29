@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     // the generate path (which upserts is_active:false and can disconnect a
     // linked user when a newer frontend calls an action the deployed backend
     // doesn't yet understand).
-    const KNOWN_ACTIONS = new Set(['generate', 'unlink', 'diagnose']);
+    const KNOWN_ACTIONS = new Set(['generate', 'unlink', 'diagnose', 'family_members_list', 'family_member_add', 'family_member_remove']);
     if (!KNOWN_ACTIONS.has(action)) {
       return new Response(JSON.stringify({ error: `Unknown action: ${action}` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -158,6 +158,58 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // ── Family roster management (settings UI) ───────────────────────────
+    // The caller must own a family group link. Members are pre-authorized by
+    // @username; when they post in the group, telegram-router auto-accepts them.
+    if (action === 'family_members_list' || action === 'family_member_add' || action === 'family_member_remove') {
+      const { data: groupLink } = await admin
+        .from('telegram_group_links')
+        .select('id')
+        .eq('owner_user_id', user.id)
+        .maybeSingle();
+      if (!groupLink) {
+        return new Response(JSON.stringify({ error: 'No family group yet. Create a family group link first.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (action === 'family_member_add') {
+        const uname = String(body.username || '').replace(/^@/, '').trim().toLowerCase();
+        if (!uname || !/^[a-z0-9_]{3,}$/.test(uname)) {
+          return new Response(JSON.stringify({ error: 'Enter a valid Telegram @username (letters, numbers, underscore).' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const { error: upErr } = await admin.from('telegram_group_members').upsert({
+          group_link_id: groupLink.id,
+          telegram_username: uname,
+          display_name: body.display_name ? String(body.display_name).slice(0, 80) : null,
+          role: 'member',
+          status: 'invited',
+        }, { onConflict: 'group_link_id,telegram_username' });
+        if (upErr) {
+          return new Response(JSON.stringify({ error: upErr.message }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } else if (action === 'family_member_remove') {
+        const id = String(body.id || '');
+        if (id) {
+          await admin.from('telegram_group_members').delete()
+            .eq('id', id).eq('group_link_id', groupLink.id);
+        }
+      }
+
+      const { data: members } = await admin
+        .from('telegram_group_members')
+        .select('id, telegram_username, display_name, status, role, joined_at')
+        .eq('group_link_id', groupLink.id)
+        .order('created_at', { ascending: true });
+      return new Response(JSON.stringify({ ok: true, members: members || [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Generate code
     const code = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
     const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -173,14 +225,29 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      await admin.from('telegram_group_links').upsert({
+      const { data: upserted } = await admin.from('telegram_group_links').upsert({
         owner_user_id: user.id,
         partner_user_id: partner?.member_id ?? null,
         space_member_id: partner?.id ?? null,
         link_code: code,
         link_code_expires_at: expires,
         is_active: false,
-      }, { onConflict: 'owner_user_id' });
+      }, { onConflict: 'owner_user_id' }).select('id').maybeSingle();
+
+      // Ensure the owner has an active roster row so the household resolves and
+      // members added by @username can be auto-accepted. Best-effort.
+      if (upserted?.id) {
+        try {
+          const { data: existing } = await admin.from('telegram_group_members')
+            .select('id').eq('group_link_id', upserted.id).eq('user_id', user.id).maybeSingle();
+          if (!existing) {
+            await admin.from('telegram_group_members').insert({
+              group_link_id: upserted.id, user_id: user.id,
+              role: 'owner', status: 'active', joined_at: new Date().toISOString(),
+            });
+          }
+        } catch (e) { console.error('owner roster seed failed', e); }
+      }
 
       // Group bots cannot use ?start= deep link from a group; user must add bot then send /linkfamily <code>
       const addToGroupUrl = botUsername ? `https://t.me/${botUsername}?startgroup=true` : null;
