@@ -31,7 +31,12 @@ declare const EdgeRuntime: {
 
 const FUNCTIONS_DIR = "/home/deno/functions";
 const MEMORY_LIMIT_MB = 256;
-const TIMEOUT_MS = 60_000;
+// Per-worker wall-clock limit. The AI pipeline (chat → web search + LLM +
+// tools, then the streamed reply) regularly needs more than a minute end to
+// end; at 60s the supervisor killed the isolate mid-request, surfacing as a
+// 500 to the Telegram webhook (and silently dropped replies under polling).
+// Override with EDGE_WORKER_TIMEOUT_MS if needed.
+const TIMEOUT_MS = Number(Deno.env.get("EDGE_WORKER_TIMEOUT_MS")) || 150_000;
 
 // Pre-built worker cache keyed by service path. The runtime itself
 // caches workers but having an explicit map lets us short-circuit
