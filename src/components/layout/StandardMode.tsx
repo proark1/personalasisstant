@@ -5,6 +5,7 @@ import { Sidebar, SidebarFilter, ActivePanel } from './Sidebar';
 import { useDeepLinkHandler } from '@/hooks/useDeepLinkHandler';
 import { RealtimeNotificationCenter } from '../notifications/RealtimeNotificationCenter';
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
+import { DoriBar } from '../assistant/DoriBar';
 import { useAuth } from '@/hooks/useAuth';
 import { Task, CalendarEvent, ChatMessage, Project, UserSettings } from '@/types/flux';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -27,6 +28,10 @@ import type { Contact } from '@/hooks/useContacts';
 const MobileLayout = lazy(() => import('./MobileLayout').then(m => ({ default: m.MobileLayout })));
 const WhatNowButton = lazy(() => import('../assistant/WhatNowButton').then(m => ({ default: m.WhatNowButton })));
 const ChatPanel = lazy(() => import('../chat/ChatPanel').then(m => ({ default: m.ChatPanel })));
+// Desktop now uses the richer DoriPanel (action cards + Next Up) for the
+// assistant surface — the same component mobile uses — instead of the leaner
+// ChatPanel, which silently dropped Dori's action results.
+const DoriPanel = lazy(() => import('../assistant/DoriPanel').then(m => ({ default: m.DoriPanel })));
 const TeamChatPanel = lazy(() => import('../chat/TeamChatPanel').then(m => ({ default: m.TeamChatPanel })));
 const TaskList = lazy(() => import('../tasks/TaskList').then(m => ({ default: m.TaskList })));
 const KanbanBoard = lazy(() => import('../tasks/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
@@ -557,14 +562,15 @@ export function StandardMode({
               {/* AI Assistant Panel */}
               {activePanel === 'assistant' && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                  <ChatPanel
+                  <DoriPanel
                     messages={messages}
                     onSendMessage={onSendMessage}
                     isProcessing={isProcessing}
-                    onToggleFullscreen={() => setFullscreenPanel('chat')}
                     onVoiceMode={onVoiceMode}
                     contacts={contacts}
-                    proactiveStats={doriStats}
+                    thinkingStatus={thinkingStatus}
+                    actionCards={actionCards}
+                    stats={doriStats}
                   />
                 </div>
               )}
@@ -912,6 +918,15 @@ export function StandardMode({
             </AnimatePresence>
           </div>
         </div>
+
+        {/* The persistent Dori spine — ask from any panel, see what's next,
+            jump to voice. Hidden on the assistant panel (you're already there). */}
+        <DoriBar
+          isProcessing={isProcessing}
+          thinkingStatus={thinkingStatus}
+          onVoiceMode={onVoiceMode}
+          hidden={activePanel === 'assistant'}
+        />
       </main>
 
       {/* Proactive surfaces (desktop) — previously only mounted on mobile.
