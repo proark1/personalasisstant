@@ -31,6 +31,23 @@ export function useUserProfile() {
       }
 
       if (data) {
+        // Telegram and cron paths can't detect a timezone, so the web client is
+        // the source of truth. The first time we see an empty timezone, capture
+        // the browser's and persist it — otherwise Dori resolves "today"/
+        // "tonight" in UTC and schedules on the wrong day near midnight.
+        const browserTz =
+          typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
+        const effectiveTz = data.timezone || browserTz || null;
+        if (!data.timezone && browserTz) {
+          void supabase
+            .from('profiles')
+            .update({ timezone: browserTz })
+            .eq('user_id', user.id)
+            .then(({ error: tzErr }) => {
+              if (tzErr) console.warn('Failed to persist timezone:', tzErr.message);
+            });
+        }
+
         setProfile({
           id: data.id,
           displayName: data.display_name,
@@ -45,7 +62,7 @@ export function useUserProfile() {
           locationCity: data.location_city,
           locationCountry: data.location_country,
           preferredWorkHours: data.preferred_work_hours,
-          timezone: data.timezone,
+          timezone: effectiveTz,
           locale: data.locale ?? undefined,
         });
       }

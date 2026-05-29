@@ -67,6 +67,30 @@ export function ymdIn(iso: string | Date, tz?: string): string {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(d);
 }
+// Full local "now" for the AI prompt, e.g. "Saturday, 30 May 2026, 00:55".
+// Edge runtimes default to UTC, so the AI must be told the user's local clock
+// explicitly — otherwise "today" near midnight resolves to the wrong day.
+export function fmtNowLocal(iso: string | Date, tz?: string): string {
+  const d = typeof iso === 'string' ? new Date(iso) : iso;
+  return d.toLocaleString('en-GB', {
+    timeZone: tz, weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+}
+// Current UTC offset for `tz` at instant `iso`, formatted like "+02:00".
+// Empty/unknown tz → "+00:00".
+export function tzOffset(iso: string | Date, tz?: string): string {
+  if (!tz) return '+00:00';
+  try {
+    const d = typeof iso === 'string' ? new Date(iso) : iso;
+    const name = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' })
+      .formatToParts(d).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    const m = name.match(/([+-])(\d{2}):?(\d{2})/);
+    return m ? `${m[1]}${m[2]}:${m[3]}` : '+00:00';
+  } catch {
+    return '+00:00';
+  }
+}
 // Whole-calendar-days between two YMDs. Positive if `later > earlier`.
 export function daysBetweenYmd(earlier: string, later: string): number {
   const [y1, m1, d1] = earlier.split('-').map(Number);
@@ -178,7 +202,11 @@ export function formatContextForAI(ctx: DoriContext, callerName?: string): strin
   const parts: string[] = [];
   parts.push(`## LIVE CONTEXT (auto-refreshed every turn)`);
   parts.push(`Scope: ${ctx.scope === 'workspace' ? `workspace (${ctx.workspaceId})` : 'personal'}.`);
-  parts.push(`Now: ${ctx.now}${tz ? ` (user tz: ${tz})` : ''}.`);
+  if (tz) {
+    parts.push(`Now: ${fmtNowLocal(ctx.now, tz)} — user timezone ${tz} (UTC${tzOffset(ctx.now, tz)}). This is the user's LOCAL clock; resolve every relative date/time they mention ("today", "tonight", "tomorrow", "9:30") against it, and emit timestamps with this UTC offset.`);
+  } else {
+    parts.push(`Now: ${ctx.now} (UTC — the user's timezone is unknown, so treat times as UTC).`);
+  }
 
   if (ctx.overdueCount > 0) {
     parts.push(`⚠️ ${name} has ${ctx.overdueCount} overdue task${ctx.overdueCount === 1 ? '' : 's'}. Surface them early when relevant.`);

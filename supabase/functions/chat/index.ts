@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { recordUndo } from "../_shared/dori-undo.ts";
-import { buildDoriContext, formatContextForAI } from "../_shared/dori-context.ts";
+import { buildDoriContext, formatContextForAI, fmtNowLocal, tzOffset } from "../_shared/dori-context.ts";
 import { findTimeSlots, rankProposedSlots } from "../_shared/dori-scheduling.ts";
 import {
   retrieveRelevantMemories,
@@ -193,10 +193,6 @@ const personalityPrompts: Record<string, string> = {
   creative: 'Be playful, creative, and imaginative. Use metaphors and storytelling. Make productivity feel like an adventure. Inject humor and fun into interactions.',
 };
 
-// Get current hour for context-aware responses
-const currentHour = new Date().getHours();
-const timeContext = currentHour < 12 ? 'morning' : currentHour < 17 ? 'afternoon' : 'evening';
-
 const baseSystemPrompt = `You are DarAI, an intelligent AI productivity assistant that KNOWS the user AND THEIR FAMILY personally. You help users manage tasks, schedule events, connect with contacts, coordinate family activities, and stay organized.
 
 ## CRITICAL: RESPONDING TO PERSONAL IDENTITY QUESTIONS
@@ -215,10 +211,10 @@ After successfully executing a tool (like creating a task, event, etc.), you MUS
 - Always end your response with a helpful, context-aware question.
 
 
-## CURRENT CONTEXT
-- Current date and time: ${new Date().toISOString()}
-- Time of day: ${timeContext}
-- Day of week: ${new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+## CURRENT DATE & TIME
+- Your single source of truth for "now" is the "Now:" line inside the "## LIVE CONTEXT" block further down this prompt. It carries the current date, weekday, local time, the user's IANA timezone, and their current UTC offset.
+- ALWAYS resolve relative dates and times the user gives — "today", "tonight", "tomorrow", "this evening", "next Friday", "in 2 hours", "at 9:30" — against that LOCAL time, NEVER against UTC. (Near midnight the UTC date is often a day off — trust the local "Now:".)
+- When you emit any timestamp (startTime, endTime, dueDate, triggerAt, renewalDate, birthDate, …), write full ISO 8601 that INCLUDES the user's UTC offset from LIVE CONTEXT (e.g. 2026-05-30T09:30:00+02:00). Never emit a bare local time without an offset.
 
 ## AVAILABLE TOOLS
 
@@ -5386,6 +5382,12 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
       liveContextBlock = '\n\n' + formatContextForAI(ctx, userProfile?.displayName);
     } catch (e) {
       console.warn('buildDoriContext failed', e);
+      // The base prompt deliberately carries no date, so guarantee the model
+      // still gets a current "Now:" (in the user's tz) even if context fails.
+      const nowIso = new Date().toISOString();
+      liveContextBlock = userTimezone
+        ? `\n\n## LIVE CONTEXT\nNow: ${fmtNowLocal(nowIso, userTimezone)} — user timezone ${userTimezone} (UTC${tzOffset(nowIso, userTimezone)}). Interpret relative dates/times against this local clock and emit timestamps with this offset.`
+        : `\n\n## LIVE CONTEXT\nNow: ${nowIso} (UTC — user timezone unknown).`;
     }
 
     let workspaceBlock = '';
