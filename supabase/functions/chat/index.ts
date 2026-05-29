@@ -1343,6 +1343,51 @@ interface ServerExecOpts {
   workspaceMembers?: WorkspaceMemberCtx[];
   // User's IANA timezone — makes find_time and date summaries locale-correct.
   timezone?: string;
+  // The user's raw message text. Used as a deterministic fallback to infer a
+  // recurrence rule for schedule_event when the model omits one ("every Friday").
+  userText?: string;
+}
+
+// Deterministic natural-language → RRULE fallback. Only fires on explicit
+// recurrence triggers ("every", "each", "weekly"/"daily"/...) to avoid turning
+// one-off events into repeats. `startISO` supplies the weekday when the phrase
+// says "every week" without naming a day. Returns null when nothing matches.
+function inferRecurrenceFromText(text: string, startISO: string): string | null {
+  const t = (text || '').toLowerCase();
+  if (!/\b(every|each|recurring|repeat|weekly|daily|monthly|yearly|annually|biweekly|fortnight)\b/.test(t)) {
+    return null;
+  }
+  const interval = /\b(every other|bi-?weekly|fortnight|every 2 weeks|every two weeks)\b/.test(t) ? 2 : 1;
+  const intervalPart = interval > 1 ? `;INTERVAL=${interval}` : '';
+
+  if (/\b(daily|every day|each day)\b/.test(t)) return `FREQ=DAILY${intervalPart}`;
+  if (/\b(every weekday|weekdays|each weekday)\b/.test(t)) return 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR';
+  if (/\b(monthly|every month|each month)\b/.test(t)) return `FREQ=MONTHLY${intervalPart}`;
+  if (/\b(yearly|annually|every year|each year)\b/.test(t)) return `FREQ=YEARLY${intervalPart}`;
+
+  const DAY: Record<string, string> = {
+    sunday: 'SU', sun: 'SU', monday: 'MO', mon: 'MO', tuesday: 'TU', tue: 'TU', tues: 'TU',
+    wednesday: 'WE', wed: 'WE', thursday: 'TH', thu: 'TH', thurs: 'TH',
+    friday: 'FR', fri: 'FR', saturday: 'SA', sat: 'SA',
+  };
+  const days: string[] = [];
+  for (const [name, code] of Object.entries(DAY)) {
+    if (new RegExp(`\\b${name}\\b`).test(t) && !days.includes(code)) days.push(code);
+  }
+  const weeklyTrigger = /\b(weekly|biweekly|every week|each week|every other|fortnight)\b/.test(t) || days.length > 0;
+  if (weeklyTrigger) {
+    let byday = days;
+    if (byday.length === 0) {
+      // "every week" with no named day → use the start date's weekday.
+      const wd = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][new Date(startISO).getUTCDay()];
+      byday = [wd];
+    }
+    // Preserve a stable Mon→Sun order.
+    const order = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+    byday.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    return `FREQ=WEEKLY${intervalPart};BYDAY=${byday.join(',')}`;
+  }
+  return null;
 }
 
 // Fire-and-forget notification to a teammate when something gets assigned
@@ -1691,6 +1736,12 @@ async function executeToolsServerSide(
     try {
       const start = isoOrNull(data.startTime)!;
       const end = isoOrNull(data.endTime) || new Date(new Date(start).getTime() + 60 * 60 * 1000).toISOString();
+      // Deterministic recurrence fallback: if the model didn't emit a rule but
+      // the user clearly asked for a repeat ("every Friday", "weekly"), infer it.
+      if (!data.recurrenceRule && opts?.userText) {
+        const inferred = inferRecurrenceFromText(opts.userText, start);
+        if (inferred) data.recurrenceRule = inferred;
+      }
       // Inline conflict probe: warn (don't block) if the requested window
       // overlaps any existing event for this user. Cheap query, fires
       // before the insert so the confirmation message can flag it.
@@ -4639,6 +4690,13 @@ serve(async (req) => {
       }
     }
 
+    // Family-group household (telegram_group_links.id). When present, NEW
+    // calendar events are tagged with it so every member's individual calendar
+    // shows the shared event (via RLS). Carried by header or body. Defined here
+    // (before the preformed-tool path) so both code paths can use it.
+    const householdId = (reqBody.householdId as string | undefined)
+      || req.headers.get('x-dori-household') || null;
+
     // preformedToolText path: skip AI call, just execute the queued tool XML directly.
     if (preformedToolText && executeServerSide && userId && userId !== 'anonymous') {
       const supabaseAdminEarly = createClient(
@@ -4678,11 +4736,6 @@ serve(async (req) => {
     const telegramUserIdHeader = req.headers.get('x-telegram-user-id');
     const tgChannelHint = req.headers.get('x-dori-channel'); // 'tg_private' | 'tg_family'
     const tgChannelRef = req.headers.get('x-dori-channel-ref') || null;
-    // Family-group household (telegram_group_links.id). When present, NEW
-    // calendar events are tagged with it so every member's individual calendar
-    // shows the shared event (via RLS). Carried by header or body.
-    const householdId = (reqBody.householdId as string | undefined)
-      || req.headers.get('x-dori-household') || null;
     const currentChannel = telegramUserIdHeader
       ? (tgChannelHint === 'tg_family' ? 'tg_family' : 'tg_private')
       : 'web';
@@ -5604,6 +5657,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
                 householdId,
                 workspaceMembers: activeWorkspace?.members,
                 timezone: userTimezone,
+                userText: lastUserMsg,
               });
               allExecResults.push(...roundResults);
               for (const r of roundResults) {
@@ -5710,6 +5764,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
           householdId,
           workspaceMembers: activeWorkspace?.members,
           timezone: userTimezone,
+          userText: lastUserMsg,
         });
         allExecResults.push(...roundResults);
 
