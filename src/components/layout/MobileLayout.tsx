@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, Suspense, lazy } from 'react'
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelFallback } from '@/components/lazy/LazyLoader';
+import { PanelErrorBoundary } from '@/components/PanelErrorBoundary';
 // Feature panels are lazy-loaded so they are code-split into their own chunks
 // instead of being inlined into the main bundle. (Statically importing them
 // here previously pulled every panel into the Index chunk, cancelling out the
@@ -316,9 +317,11 @@ export function MobileLayout({
               ref={scrollRef}
               className="h-full overflow-y-auto"
             >
-              <Suspense fallback={<PanelFallback />}>
-                {renderPanel()}
-              </Suspense>
+              <PanelErrorBoundary panelName={headerTitle}>
+                <Suspense fallback={<PanelFallback />}>
+                  {renderPanel()}
+                </Suspense>
+              </PanelErrorBoundary>
             </motion.div>
           </AnimatePresence>
         </PullToRefresh>

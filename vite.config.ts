@@ -9,7 +9,15 @@ import { visualizer } from "rollup-plugin-visualizer";
 // ANALYZE=1 bun run build → also emits dist/stats.html with treemap.
 const enableVisualizer = process.env.ANALYZE === "1";
 
-export default defineConfig(() => ({
+export default defineConfig(({ mode }) => ({
+  // Strip dev-only logging from production bundles. console.log/info/debug are
+  // marked pure so the minifier drops them (their return value is never used);
+  // console.error/warn are kept on purpose — the ErrorBoundary and telemetry
+  // rely on them for iOS/Safari crash signal. `debugger` statements are dropped.
+  esbuild:
+    mode === "production"
+      ? { pure: ["console.log", "console.info", "console.debug"], drop: ["debugger"] }
+      : {},
   test: {
     environment: "jsdom",
     globals: true,

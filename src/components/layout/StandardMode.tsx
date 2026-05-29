@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { List, Grid3X3, X, Activity, Plus, Timer, Mic, CalendarCheck, Target } from 'lucide-react';
 import { TaskViewSwitcher, TaskView } from '../tasks/TaskViewSwitcher';
 import { PanelFallback } from '@/components/lazy/LazyLoader';
+import { PanelErrorBoundary } from '@/components/PanelErrorBoundary';
 import { ContextualHeader } from './ContextualHeader';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ActivityItem } from '@/hooks/useActivityFeed';
@@ -551,6 +552,7 @@ export function StandardMode({
               transition={{ duration: 0.2 }}
               className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 overflow-hidden"
             >
+            <PanelErrorBoundary panelName={panelTitle}>
             <Suspense fallback={<PanelFallback />}>
               {/* AI Assistant Panel */}
               {activePanel === 'assistant' && (
@@ -905,6 +907,7 @@ export function StandardMode({
                 </div>
               )}
             </Suspense>
+            </PanelErrorBoundary>
             </motion.div>
             </AnimatePresence>
           </div>
