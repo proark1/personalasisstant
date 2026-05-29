@@ -75,6 +75,7 @@ export function useDatabase(userId: string | undefined) {
     status: (dbTask.status as TaskStatus) || 'backlog',
     completed: dbTask.completed,
     createdAt: new Date(dbTask.created_at),
+    updatedAt: dbTask.updated_at ? new Date(dbTask.updated_at) : undefined,
     dueDate: dbTask.due_date ? new Date(dbTask.due_date) : undefined,
     recurrenceRule: dbTask.recurrence_rule || undefined,
     recurrenceEnd: dbTask.recurrence_end ? new Date(dbTask.recurrence_end) : undefined,

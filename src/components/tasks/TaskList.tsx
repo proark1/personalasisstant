@@ -482,19 +482,18 @@ function SortableTaskItem({
 }
 
 // --- Stats Bar Component ---
-function TaskStatsBar({ 
-  remaining, 
-  overdue, 
-  completedToday, 
-  totalToday 
-}: { 
-  remaining: number; 
-  overdue: number; 
-  completedToday: number; 
-  totalToday: number;
+function TaskStatsBar({
+  remaining,
+  overdue,
+  completedToday,
+  progressPercent,
+}: {
+  remaining: number;
+  overdue: number;
+  completedToday: number;
+  progressPercent: number;
 }) {
-  const progressPercent = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
-  
+
   return (
     <div className="px-4 py-2.5 border-b border-border bg-muted/30">
       <div className="flex items-center gap-4 text-xs">
@@ -655,11 +654,14 @@ export function TaskList({
 
   // Stats
   const overdueTasks = incompleteTasks.filter(t => t.dueDate && isPast(t.dueDate) && !isToday(t.dueDate));
-  const completedToday = completedTasks.filter(t => {
-    // Use createdAt as a proxy — ideally we'd have a completedAt field
-    return true; // Count all completed in view as "today" for now
-  });
+  // "Done today" counts tasks last touched today (updatedAt changes when a task
+  // is completed) — a close proxy until a dedicated completedAt field exists.
+  const completedTodayCount = completedTasks.filter(t => t.updatedAt && isToday(t.updatedAt)).length;
   const totalForProgress = incompleteTasks.length + completedTasks.length;
+  // Progress bar reflects overall completion of the current view.
+  const overallProgressPercent = totalForProgress > 0
+    ? Math.round((completedTasks.length / totalForProgress) * 100)
+    : 0;
 
   // Completed section controls
   const MAX_VISIBLE_COMPLETED = 5;
@@ -868,8 +870,8 @@ export function TaskList({
         <TaskStatsBar 
           remaining={incompleteTasks.length}
           overdue={overdueTasks.length}
-          completedToday={completedTasks.length}
-          totalToday={totalForProgress}
+          completedToday={completedTodayCount}
+          progressPercent={overallProgressPercent}
         />
       )}
 
