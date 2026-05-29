@@ -92,6 +92,23 @@ export function expandRecurrence(
 }
 
 /**
+ * Apply the time-of-day (hours/minutes/seconds/ms) from `timeSource` onto the
+ * calendar day in `day`. The recurrence engine iterates on start-of-day dates,
+ * so without this every recurring instance would collapse to 00:00 and events
+ * would render at midnight.
+ */
+function withTimeOfDay(day: Date, timeSource: Date): Date {
+  const d = new Date(day);
+  d.setHours(
+    timeSource.getHours(),
+    timeSource.getMinutes(),
+    timeSource.getSeconds(),
+    timeSource.getMilliseconds(),
+  );
+  return d;
+}
+
+/**
  * Expand recurring items (tasks or events) into all instances within a range
  */
 export function expandRecurringItems<T extends {
@@ -130,19 +147,37 @@ export function expandRecurringItems<T extends {
       );
 
       instances.forEach((instance, index) => {
-        result.push({
+        const expanded: T & { instanceDate?: Date; isRecurrenceInstance?: boolean } = {
           ...item,
           id: index === 0 ? item.id : `${item.id}-instance-${index}`,
           instanceDate: instance.date,
           isRecurrenceInstance: index > 0,
-          ...(item.dueDate ? { dueDate: instance.date } : {}),
-          ...(item.startTime ? {
-            startTime: instance.date,
-            endTime: item.startTime && (item as any).endTime
-              ? new Date(instance.date.getTime() + ((item as any).endTime.getTime() - item.startTime.getTime()))
-              : undefined
-          } : {}),
-        });
+        };
+
+        // Tasks keep their original time-of-day on the recurring day.
+        if (item.dueDate) {
+          const due = withTimeOfDay(instance.date, item.dueDate);
+          expanded.dueDate = due;
+          expanded.instanceDate = due;
+        }
+
+        // Events keep their time-of-day and preserve the original duration.
+        // endTime is never left undefined — a one-hour default is used when the
+        // source event has no (or an invalid) end — so downstream formatters
+        // can't hit an "Invalid time value" and crash the calendar.
+        if (item.startTime) {
+          const start = withTimeOfDay(instance.date, item.startTime);
+          const sourceEnd = (item as { endTime?: Date }).endTime;
+          const durationMs =
+            sourceEnd instanceof Date && !Number.isNaN(sourceEnd.getTime())
+              ? Math.max(0, sourceEnd.getTime() - item.startTime.getTime())
+              : 60 * 60 * 1000;
+          (expanded as { startTime?: Date }).startTime = start;
+          (expanded as { endTime?: Date }).endTime = new Date(start.getTime() + durationMs);
+          expanded.instanceDate = start;
+        }
+
+        result.push(expanded);
       });
     }
   });

@@ -6,8 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 export interface CalendarConnection {
   id: string;
   user_id: string;
-  provider: 'google' | 'outlook' | 'apple' | 'ics';
-  auth_type?: 'oauth' | 'caldav' | 'ics';
+  provider: 'local' | 'google' | 'outlook' | 'apple' | 'ics';
+  auth_type?: 'local' | 'oauth' | 'caldav' | 'ics';
   name: string;
   color: string | null;
   calendar_id: string | null;
@@ -16,6 +16,7 @@ export interface CalendarConnection {
   sync_direction?: 'one_way_pull' | 'one_way_push' | 'two_way';
   last_synced_at: string | null;
   last_sync_error?: string | null;
+  is_default?: boolean;
   created_at: string;
 }
 
@@ -36,8 +37,9 @@ export function useCalendarConnections() {
     try {
       const { data, error } = await supabase
         .from('external_calendar_connections')
-        .select('id, user_id, provider, auth_type, name, color, calendar_id, external_calendar_id, sync_enabled, sync_direction, last_synced_at, last_sync_error, created_at')
+        .select('id, user_id, provider, auth_type, name, color, calendar_id, external_calendar_id, sync_enabled, sync_direction, last_synced_at, last_sync_error, is_default, created_at')
         .eq('user_id', user.id)
+        .order('is_default', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -189,6 +191,15 @@ export function useCalendarConnections() {
     try {
       // First, delete all events from this connection
       const connection = connections.find(c => c.id === connectionId);
+      // The built-in standard calendar can't be disconnected — it's the home
+      // for local/manual/Dori/Telegram events.
+      if (connection?.is_default || connection?.provider === 'local') {
+        toast({
+          title: 'Built-in calendar',
+          description: 'Your standard DarAI calendar cannot be removed.',
+        });
+        return;
+      }
       if (connection) {
         await supabase
           .from('events')

@@ -8305,4 +8305,63 @@ CREATE TABLE IF NOT EXISTS public.briefing_deliveries (
 CREATE INDEX IF NOT EXISTS briefing_deliveries_user_id_idx
   ON public.briefing_deliveries (user_id, generated_at DESC);
 
+-- ============================================================
+-- Standard (local) calendar for every user
+-- Each user gets a built-in "DarAI Calendar" so the calendar surface is never
+-- empty; linked Google/Outlook/Apple connections appear alongside it and their
+-- events flow into the same unified events table.
+-- ============================================================
+ALTER TABLE public.external_calendar_connections
+  ADD COLUMN IF NOT EXISTS is_default boolean NOT NULL DEFAULT false;
+
+ALTER TABLE public.external_calendar_connections
+  DROP CONSTRAINT IF EXISTS external_calendar_connections_provider_check;
+ALTER TABLE public.external_calendar_connections
+  ADD CONSTRAINT external_calendar_connections_provider_check
+  CHECK (provider IN ('local', 'google', 'outlook', 'apple', 'ics'));
+
+ALTER TABLE public.external_calendar_connections
+  DROP CONSTRAINT IF EXISTS external_calendar_connections_auth_type_check;
+ALTER TABLE public.external_calendar_connections
+  ADD CONSTRAINT external_calendar_connections_auth_type_check
+  CHECK (auth_type IN ('local', 'oauth', 'caldav', 'ics'));
+
+CREATE UNIQUE INDEX IF NOT EXISTS external_calendar_connections_one_default
+  ON public.external_calendar_connections (user_id)
+  WHERE is_default;
+
+CREATE OR REPLACE FUNCTION public.ensure_default_calendar(p_user_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.external_calendar_connections
+    (user_id, provider, auth_type, name, color, sync_enabled, is_default)
+  SELECT p_user_id, 'local', 'local', 'DarAI Calendar', '#14b8a6', false, true
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.external_calendar_connections
+    WHERE user_id = p_user_id AND is_default
+  );
+END;
+$$;
+
+-- Recreate handle_new_user so new signups also get their standard calendar.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (user_id, email, display_name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data ->> 'display_name', split_part(NEW.email, '@', 1))
+  );
+  PERFORM public.ensure_default_calendar(NEW.id);
+  RETURN NEW;
+END;
+$$;
+
 NOTIFY pgrst, 'reload schema';

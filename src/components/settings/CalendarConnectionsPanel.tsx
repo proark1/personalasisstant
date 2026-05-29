@@ -48,12 +48,14 @@ function ConnectionCard({
   onDisconnect: () => void;
   onToggleSync: (enabled: boolean) => void;
 }) {
+  const isLocal = connection.is_default || connection.provider === 'local';
+
   const getProviderIcon = () => {
     switch (connection.provider) {
       case 'google': return <GoogleIcon />;
       case 'outlook': return <OutlookIcon />;
       case 'apple': return <AppleIcon />;
-      default: return <Calendar className="h-5 w-5" />;
+      default: return <Calendar className="h-5 w-5 text-primary" />;
     }
   };
 
@@ -62,6 +64,7 @@ function ConnectionCard({
       case 'google': return 'Google Calendar';
       case 'outlook': return 'Outlook Calendar';
       case 'apple': return 'iCloud Calendar';
+      case 'local': return 'Built-in calendar';
       default: return 'Calendar';
     }
   };
@@ -73,43 +76,62 @@ function ConnectionCard({
           <div className="flex items-start gap-3">
             <div className="mt-0.5">{getProviderIcon()}</div>
             <div className="space-y-1">
-              <p className="font-medium text-sm">{connection.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-sm">{connection.name}</p>
+                {isLocal && (
+                  <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                    Default
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
                 {getProviderName()}
-                {connection.sync_direction === 'two_way' && ' · two-way sync'}
+                {!isLocal && connection.sync_direction === 'two_way' && ' · two-way sync'}
               </p>
-              {connection.last_synced_at && (
+              {isLocal ? (
                 <p className="text-xs text-muted-foreground">
-                  Last synced {formatDistanceToNow(new Date(connection.last_synced_at), { addSuffix: true })}
+                  Your manual, Dori &amp; Telegram events live here.
                 </p>
-              )}
-              {connection.last_sync_error && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {connection.last_sync_error}
-                </p>
+              ) : (
+                <>
+                  {connection.last_synced_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Last synced {formatDistanceToNow(new Date(connection.last_synced_at), { addSuffix: true })}
+                    </p>
+                  )}
+                  {connection.last_sync_error && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {connection.last_sync_error}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Auto-sync</span>
-            <Switch checked={connection.sync_enabled} onCheckedChange={onToggleSync} />
-          </div>
+          {!isLocal && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Auto-sync</span>
+              <Switch checked={connection.sync_enabled} onCheckedChange={onToggleSync} />
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 mt-4">
-          <Button variant="outline" size="sm" onClick={onSync} disabled={syncing} className="flex-1">
-            {syncing ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Syncing...</>
-            ) : (
-              <><RefreshCw className="h-4 w-4 mr-2" />Sync Now</>
-            )}
-          </Button>
-          <Button variant="outline" size="sm" onClick={onDisconnect} className="text-destructive hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        {!isLocal && (
+          <div className="flex items-center gap-2 mt-4">
+            <Button variant="outline" size="sm" onClick={onSync} disabled={syncing} className="flex-1">
+              {syncing ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Syncing...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" />Sync Now</>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={onDisconnect} className="text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

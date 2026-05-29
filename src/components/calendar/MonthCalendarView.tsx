@@ -33,6 +33,7 @@ import {
   parseISO
 } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
+import { toValidDate, formatSafe } from '@/lib/safeDate';
 import { EditTaskModal } from '../tasks/EditTaskModal';
 import {
   Dialog,
@@ -129,7 +130,9 @@ export function MonthCalendarView({
     const map = new Map<string, (Task & { isRecurrenceInstance?: boolean })[]>();
     expandedTasks.forEach(task => {
       if (task.dueDate && !task.parentId) {
-        const dateKey = format(new Date(task.dueDate), 'yyyy-MM-dd');
+        const due = toValidDate(task.dueDate);
+        if (!due) return;
+        const dateKey = format(due, 'yyyy-MM-dd');
         if (!map.has(dateKey)) {
           map.set(dateKey, []);
         }
@@ -143,7 +146,9 @@ export function MonthCalendarView({
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     expandedEvents.forEach(event => {
-      const dateKey = format(new Date(event.startTime), 'yyyy-MM-dd');
+      const start = toValidDate(event.startTime);
+      if (!start) return;
+      const dateKey = format(start, 'yyyy-MM-dd');
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }
@@ -413,7 +418,7 @@ export function MonthCalendarView({
                         <span className="font-medium">{event.title}</span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {format(new Date(event.startTime), 'h:mm a')} - {format(new Date(event.endTime), 'h:mm a')}
+                        {formatSafe(event.startTime, 'h:mm a')} - {formatSafe(event.endTime, 'h:mm a')}
                       </p>
                       {event.location && (
                         <p className="text-xs text-muted-foreground mt-1">📍 {event.location}</p>
@@ -581,7 +586,7 @@ export function MonthCalendarView({
                             <div className="flex-1 min-w-0">
                               <span className="text-sm font-medium block">{event.title}</span>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(event.startTime), 'h:mm a')} - {format(new Date(event.endTime), 'h:mm a')}
+                                {formatSafe(event.startTime, 'h:mm a')} - {formatSafe(event.endTime, 'h:mm a')}
                               </span>
                               {event.location && (
                                 <span className="text-xs text-muted-foreground block">📍 {event.location}</span>
