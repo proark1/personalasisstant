@@ -54,7 +54,7 @@ serve(async (req) => {
     });
   }
 
-  let totals = { imported: 0, updated: 0, pushed: 0, errors: 0, connections: 0 };
+  const totals = { imported: 0, updated: 0, pushed: 0, errors: 0, connections: 0 };
 
   for (const conn of (connections || []) as CalendarConnection[]) {
     try {
