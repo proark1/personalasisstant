@@ -67,7 +67,7 @@ Set these on the `edge-runtime` service (not the gateway):
 
 | Var | Used by |
 |---|---|
-| `GEMINI_API_KEY` | `chat`, `gemini-live`, embeddings, TTS |
+| `GEMINI_API_KEY` | `chat`, `gemini-live`, embeddings, TTS, `morning-briefing` + `briefing-dispatch-cron` (news via Google Search grounding) |
 | `OPENAI_API_KEY` | `openai-realtime-session`, TTS, STT |
 | `TELEGRAM_API_KEY` | `telegram-*` family |
 | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Calendar/Gmail OAuth |
