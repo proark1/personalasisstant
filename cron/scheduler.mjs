@@ -42,6 +42,7 @@ const JOBS = [
   { name: 'plaid-sync-cron',                 schedule: '15 * * * *' },
   { name: 'meeting-bot-reconciler-cron',     schedule: '*/30 * * * *' },
   { name: 'trip-prep-cron',                  schedule: '0 9 * * *' },
+  { name: 'calendar-sync-all',               schedule: '*/15 * * * *' },
 ];
 
 // ── Minimal 5-field cron matcher (UTC) ─────────────────────────────────────
