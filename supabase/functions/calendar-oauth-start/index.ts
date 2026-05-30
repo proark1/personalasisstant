@@ -65,8 +65,10 @@ serve(async (req) => {
     const state = btoa(statePayload) + '.' + sigHex;
     
     const scopes = [
-      'https://www.googleapis.com/auth/calendar.readonly',
-      'https://www.googleapis.com/auth/calendar.events.readonly',
+      // Read/write calendar events — required for two-way sync (pull AND push).
+      // calendar.events covers listing events and creating/updating/deleting
+      // them, so it replaces the previous read-only calendar scopes.
+      'https://www.googleapis.com/auth/calendar.events',
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.send',
     ].join(' ');
