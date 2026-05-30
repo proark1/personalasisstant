@@ -19,6 +19,7 @@ interface CalendarHubPanelProps {
   userId: string;
   onRefresh?: () => Promise<void>;
   tasks: Task[];
+  sharedTasks?: Task[];
   events: CalendarEvent[];
   filter: SidebarFilter;
   projects?: Project[];
@@ -42,6 +43,7 @@ type HubView = 'focus' | 'tasks' | 'calendar';
 export function CalendarHubPanel({
   userId,
   tasks,
+  sharedTasks = [],
   events,
   filter,
   projects = [],
@@ -103,6 +105,7 @@ export function CalendarHubPanel({
         return (
           <TaskList
             tasks={tasks}
+            sharedTasks={sharedTasks}
             filter={filter}
             onFilterChange={onFilterChange}
             onToggleComplete={onToggleTaskComplete}
