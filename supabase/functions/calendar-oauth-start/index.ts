@@ -65,8 +65,12 @@ serve(async (req) => {
     const state = btoa(statePayload) + '.' + sigHex;
     
     const scopes = [
+      // calendar.readonly — lets the OAuth callback list the user's calendars
+      // (calendarList.list) to pick their primary calendar.
       'https://www.googleapis.com/auth/calendar.readonly',
-      'https://www.googleapis.com/auth/calendar.events.readonly',
+      // calendar.events — read/write events, required for two-way sync to PUSH
+      // (create/update/delete) locally-created events to Google.
+      'https://www.googleapis.com/auth/calendar.events',
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.send',
     ].join(' ');

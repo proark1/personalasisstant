@@ -28,6 +28,7 @@ migration, evaluated in **UTC**:
 | `plaid-sync-cron` | `15 * * * *` | Financial account sync |
 | `meeting-bot-reconciler-cron` | `*/30 * * * *` | Meeting bot reconciliation |
 | `trip-prep-cron` | `0 9 * * *` | Trip preparation |
+| `calendar-sync-all` | `*/15 * * * *` | Two-way Google/Apple calendar sync |
 
 The hourly/15-min functions are themselves timezone-aware and dedupe per local
 day, so pinging them every hour/15 min is correct — they decide when to actually
