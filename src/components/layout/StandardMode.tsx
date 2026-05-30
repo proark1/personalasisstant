@@ -50,6 +50,7 @@ const NotesPanel = lazy(() => import('../notes/NotesPanel').then(m => ({ default
 const HabitsPanel = lazy(() => import('../habits/HabitsPanel').then(m => ({ default: m.HabitsPanel })));
 const AdminAnalyticsPanel = lazy(() => import('../admin/AdminAnalyticsPanel').then(m => ({ default: m.AdminAnalyticsPanel })));
 const FamilyPanel = lazy(() => import('../family/FamilyPanel').then(m => ({ default: m.FamilyPanel })));
+const CookingPanel = lazy(() => import('../cooking/CookingPanel').then(m => ({ default: m.CookingPanel })));
 const IslamPanel = lazy(() => import('../islam/IslamPanel').then(m => ({ default: m.IslamPanel })));
 const IslamEnhancedPanel = lazy(() => import('../islam/IslamEnhancedPanel').then(m => ({ default: m.IslamEnhancedPanel })));
 const PropertyPanel = lazy(() => import('../property/PropertyPanel').then(m => ({ default: m.PropertyPanel })));
@@ -203,7 +204,6 @@ export function StandardMode({
   // is kept in sync as a fast local mirror.
   const panelFromUrl = (searchParams.get('panel') as ActivePanel) || 'tasks';
   const [activePanel, setActivePanelState] = useState<ActivePanel>(panelFromUrl);
-  const [familyDefaultTab, setFamilyDefaultTab] = useState<string>('tasks');
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
 
   // Sync state when the URL changes underneath us (back/forward, deep links).
@@ -229,16 +229,12 @@ export function StandardMode({
     [setSearchParams],
   );
 
-  // Navigate honouring the "cooking" → Family/meals alias used by the sidebar.
+  // Each nav id maps 1:1 to a panel. "Family Hub" (family) and "Cooking"
+  // (cooking) are distinct surfaces per src/config/navigation.ts, so there's
+  // no aliasing — this just narrows the string from the nav config to ActivePanel.
   const goToPanel = useCallback(
     (panelId: string) => {
-      if (panelId === 'cooking') {
-        setActivePanel('family');
-        setFamilyDefaultTab('meals');
-      } else {
-        setActivePanel(panelId as ActivePanel);
-        setFamilyDefaultTab('tasks');
-      }
+      setActivePanel(panelId as ActivePanel);
     },
     [setActivePanel],
   );
@@ -267,7 +263,8 @@ export function StandardMode({
       contracts: t('nav.contracts'),
       notes: t('nav.notes'),
       habits: t('nav.habits'),
-      family: t('nav.cooking') || 'Cooking',
+      family: t('nav.familyHub') || 'Family Hub',
+      cooking: t('nav.cooking') || 'Cooking',
       islam: t('nav.islam') || 'Islam',
       health: t('nav.health') || 'Health',
       email: t('nav.email') || 'Email',
@@ -422,6 +419,7 @@ export function StandardMode({
         userId={user?.id || ''}
         tasks={tasks}
         events={events}
+        sharedTasks={sharedTasks}
         sharedEvents={sharedEvents}
         messages={messages}
         isProcessing={isProcessing}
@@ -780,10 +778,17 @@ export function StandardMode({
                 </div>
               )}
 
-              {/* Family Panel */}
+              {/* Family Hub Panel */}
               {activePanel === 'family' && user?.id && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
-                  <FamilyPanel defaultTab={familyDefaultTab} />
+                  <FamilyPanel />
+                </div>
+              )}
+
+              {/* Cooking Panel — distinct from the Family Hub (recipes, meal planning) */}
+              {activePanel === 'cooking' && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <CookingPanel />
                 </div>
               )}
 

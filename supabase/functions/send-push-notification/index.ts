@@ -1,3 +1,13 @@
+// ⚠️ IN-APP-ONLY — this function does NOT deliver native push (APNs/FCM/Expo).
+//
+// Despite the name, it only inserts rows into `user_notifications` and logs
+// that it "would" send to native devices. The real delivery path is the
+// `push-delivery` function (Expo + Telegram + in-app). This is kept only so
+// existing callers keep creating in-app notifications.
+//
+// TODO(push): once the Expo-vs-APNs/FCM decision is made and real native
+// delivery is wired up, fold this into push-delivery or remove it. Removing a
+// deployed edge function is a separate ops step, so it lives on for now.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from '../_shared/cors.ts';
@@ -105,17 +115,21 @@ serve(async (req) => {
       console.log(`Created ${sentCount} in-app notifications`);
     }
 
-    // Log notification delivery for iOS/Android tokens (placeholder for actual push service integration)
+    // Native push is NOT delivered here — APNs/FCM are not configured. These
+    // tokens are counted for visibility only; nothing is sent to the devices.
     if (iosTokens.length > 0) {
-      console.log(`Would send to ${iosTokens.length} iOS devices (APNs not configured)`);
+      console.log(`[send-push-notification] NOT delivering native push to ${iosTokens.length} iOS device(s) — APNs not configured (in-app only)`);
     }
     if (androidTokens.length > 0) {
-      console.log(`Would send to ${androidTokens.length} Android devices (FCM not configured)`);
+      console.log(`[send-push-notification] NOT delivering native push to ${androidTokens.length} Android device(s) — FCM not configured (in-app only)`);
     }
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: errors.length === 0,
+        delivery: 'in_app_only',
+        native_push_sent: 0,
+        in_app_created: sentCount,
         sent: sentCount,
         tokens_found: tokens.length,
         ios_tokens: iosTokens.length,

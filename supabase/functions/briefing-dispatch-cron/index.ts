@@ -103,6 +103,12 @@ async function tgSend(chatId: number, text: string): Promise<boolean> {
   }
 }
 
+// NOTE: this targets `send-push-notification`, which is IN-APP-ONLY today
+// (no native APNs/FCM). We deliberately do NOT route to `push-delivery` here:
+// this cron already sends its own Telegram message (the 'telegram' channel
+// above), while push-delivery independently sends Telegram + in-app, which
+// would double-deliver. When real native push lands, give briefings their own
+// device-push path rather than reusing the proactive-reminder pipeline.
 async function sendPush(userId: string, title: string, body: string, briefingId: string): Promise<boolean> {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {

@@ -12,6 +12,7 @@ const TeamChatPanel = lazy(() => import('../chat/TeamChatPanel').then(m => ({ de
 const CalendarHubPanel = lazy(() => import('../calendar/CalendarHubPanel').then(m => ({ default: m.CalendarHubPanel })));
 const SettingsPanelContent = lazy(() => import('../settings/SettingsPanelContent').then(m => ({ default: m.SettingsPanelContent })));
 const CookingPanel = lazy(() => import('../cooking/CookingPanel').then(m => ({ default: m.CookingPanel })));
+const FamilyPanel = lazy(() => import('../family/FamilyPanel').then(m => ({ default: m.FamilyPanel })));
 const DashboardPanel = lazy(() => import('../dashboard/DashboardPanel').then(m => ({ default: m.DashboardPanel })));
 const HealthHubPanel = lazy(() => import('../health/HealthHubPanel').then(m => ({ default: m.HealthHubPanel })));
 const ContactsPanel = lazy(() => import('../contacts/ContactsPanel').then(m => ({ default: m.ContactsPanel })));
@@ -200,6 +201,7 @@ export function MobileLayout({
           <CalendarHubPanel
             userId={userId}
             tasks={displayTasks}
+            sharedTasks={sharedTasks}
             events={displayEvents}
             filter={filter}
             projects={projects}
@@ -227,7 +229,7 @@ export function MobileLayout({
           />
         ) : null;
       case 'family':
-        return <CookingPanel />;
+        return <FamilyPanel />;
       case 'dashboard':
         return <DashboardPanel key={refreshKey} userId={userId} onNavigate={handleTabChange} />;
       case 'health':

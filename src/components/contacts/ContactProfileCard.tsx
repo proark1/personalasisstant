@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Contact } from '@/hooks/useContacts';
 import { useContactInteractions, ContactInteraction, InteractionType } from '@/hooks/useContactInteractions';
 import { useContactAI, RelationshipInsights } from '@/hooks/useContactAI';
@@ -50,16 +50,16 @@ export function ContactProfileCard({
   const [newNote, setNewNote] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
+  const loadInteractions = useCallback(async () => {
+    const data = await getInteractions(contact.id);
+    setInteractions(data);
+  }, [getInteractions, contact.id]);
+
   useEffect(() => {
     if (open && userId) {
       loadInteractions();
     }
-  }, [open, contact.id, userId]);
-
-  const loadInteractions = async () => {
-    const data = await getInteractions(contact.id);
-    setInteractions(data);
-  };
+  }, [open, userId, loadInteractions]);
 
   const handleLoadStarters = async () => {
     const starters = await getConversationStarters(contact);
