@@ -1088,18 +1088,28 @@ interface MutatingTool {
   preflight?: (
     action: string,
     data: any,
-    ctx: { supabase: any; userId: string },
+    ctx: { supabase: any; userId: string; timezone?: string },
   ) => Promise<{ ok: false; message: string } | { ok: true; summary?: string } | null>;
 }
 
 // Short, human-readable date for confirmation/summary lines, e.g. "Sat 06 Jun, 18:00".
-const fmtEventWhen = (s?: string | null): string | null => {
+// Formats in the user's timezone when known; Edge Functions default to UTC
+// otherwise, and an invalid tz falls back to UTC rather than throwing.
+const fmtEventWhen = (s?: string | null, tz?: string): string | null => {
   if (!s) return null;
   const dt = new Date(s);
   if (isNaN(dt.getTime())) return null;
-  return dt.toLocaleString('en-GB', {
-    weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-  });
+  try {
+    return dt.toLocaleString('en-GB', {
+      weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+      timeZone: tz,
+    });
+  } catch {
+    return dt.toLocaleString('en-GB', {
+      weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+      timeZone: 'UTC',
+    });
+  }
 };
 
 const safeParseJson = (s: string): any => { try { return JSON.parse(s); } catch { return null; } };
@@ -1160,7 +1170,7 @@ const MUTATING_TOOLS: MutatingTool[] = [
     },
     // Resolve the event before prompting so a missing event is reported up
     // front, and so the confirmation can show the real old→new change.
-    preflight: async (action, d, { supabase, userId }) => {
+    preflight: async (action, d, { supabase, userId, timezone }) => {
       if ((action !== 'update' && action !== 'delete') || !d.query) return null;
       const { data: rows } = await supabase.from('events').select('*')
         .eq('user_id', userId).ilike('title', `%${d.query}%`)
@@ -1169,14 +1179,14 @@ const MUTATING_TOOLS: MutatingTool[] = [
       const target = rows?.[0];
       if (!target) return { ok: false, message: `Could not find event matching "${d.query}"` };
       if (action === 'delete') {
-        const when = fmtEventWhen(target.start_time);
+        const when = fmtEventWhen(target.start_time, timezone);
         return { ok: true, summary: `Delete event: ${target.title}${when ? ` (${when})` : ''}` };
       }
       const bits: string[] = [];
       if (d.title && d.title !== target.title) bits.push(`rename to "${d.title}"`);
       if (d.startTime) {
-        const oldW = fmtEventWhen(target.start_time);
-        const newW = fmtEventWhen(d.startTime);
+        const oldW = fmtEventWhen(target.start_time, timezone);
+        const newW = fmtEventWhen(d.startTime, timezone);
         if (newW && newW !== oldW) bits.push(`move ${oldW ? `from ${oldW} ` : ''}to ${newW}`);
       }
       if (d.location !== undefined && d.location && d.location !== target.location) {
@@ -1556,7 +1566,7 @@ async function executeToolsServerSide(
         // found, tell the user now instead of queueing a confirmation that would
         // only fail with "could not find" *after* they tap Yes.
         if (spec.preflight) {
-          const pf = await spec.preflight(parsed.action, parsed.data, { supabase, userId });
+          const pf = await spec.preflight(parsed.action, parsed.data, { supabase, userId, timezone: opts?.timezone });
           if (pf && !pf.ok) {
             out.push({ tool: spec.tool, ok: false, message: pf.message });
             strippedText = strippedText.replace(parsed.fullMatch, '');
