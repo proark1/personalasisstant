@@ -1,3 +1,11 @@
+// ⚠️ IN-APP-ONLY — this function does NOT deliver native push (APNs/FCM).
+//
+// It creates an in-app `user_notifications` row for the incoming call and logs
+// that it "would" send APNs/FCM. That means a *backgrounded* device is NOT
+// woken by a real push — only foreground/realtime in-app delivery works today.
+//
+// TODO(push): wire real APNs/FCM (or Expo) delivery so incoming calls ring on
+// locked/backgrounded devices.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from '../_shared/cors.ts';
@@ -76,16 +84,15 @@ serve(async (req) => {
       tokens.map(async ({ token, platform }) => {
         try {
           if (platform === 'ios') {
-            // For iOS, we'd use APNs - this requires APNs credentials
-            // For now, log that we would send
-            console.log('[call-push] Would send APNs to:', token.substring(0, 20) + '...');
-            return { success: true, platform };
+            // APNs not configured — nothing is delivered to the device.
+            console.log('[call-push] NOT delivering APNs (not configured) to:', token.substring(0, 20) + '...');
+            return { delivered: false, platform, reason: 'APNs not configured' };
           } else if (platform === 'android') {
-            // For Android, we'd use FCM - this requires FCM credentials
-            console.log('[call-push] Would send FCM to:', token.substring(0, 20) + '...');
-            return { success: true, platform };
+            // FCM not configured — nothing is delivered to the device.
+            console.log('[call-push] NOT delivering FCM (not configured) to:', token.substring(0, 20) + '...');
+            return { delivered: false, platform, reason: 'FCM not configured' };
           }
-          return { success: false, platform, error: 'Unknown platform' };
+          return { delivered: false, platform, error: 'Unknown platform' };
         } catch (e) {
           console.error('[call-push] Error sending to', platform, ':', e);
           return { success: false, platform, error: String(e) };
@@ -111,10 +118,11 @@ serve(async (req) => {
     console.log('[call-push] Notification created');
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Notifications sent',
-        results 
+      JSON.stringify({
+        success: true,
+        delivery: 'in_app_only',
+        message: 'In-app call notification created; native push not configured',
+        results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

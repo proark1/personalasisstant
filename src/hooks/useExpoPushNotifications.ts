@@ -5,8 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
-// Expo Push Token format: ExponentPushToken[xxxxxx] or ExpoPushToken[xxxxxx]
-// For Capacitor apps, we'll use the native token and store it
+// Capacitor's PushNotifications plugin yields a NATIVE APNs/FCM token, not an
+// Expo push token. We persist the native token as-is and do NOT synthesize an
+// `ExponentPushToken[...]` from it — Expo only delivers to tokens it minted
+// server-side, so a fabricated token is rejected by Expo's push API
+// (DeviceNotRegistered). Real native delivery (APNs/FCM) or genuine Expo token
+// acquisition is a server-side concern; see supabase/functions/push-delivery.
 
 export function useExpoPushNotifications() {
   const { user } = useAuth();
@@ -133,14 +137,13 @@ export function useExpoPushNotifications() {
     const registrationListener = PushNotifications.addListener('registration', async (tokenData: Token) => {
       console.log('Push registration success:', tokenData.value);
       setToken(tokenData.value);
-      
-      // For iOS/Android, we can try to get an Expo push token
-      // In a real app, you'd use expo-notifications or a server-side conversion
-      // For now, we'll store the native token and let the server handle it
-      const expoFormatToken = `ExponentPushToken[${tokenData.value.substring(0, 22)}]`;
-      setExpoPushToken(expoFormatToken);
-      
-      await saveTokenToDatabase(tokenData.value, expoFormatToken);
+
+      // Store ONLY the real native token. We have no genuine Expo push token
+      // here, so we leave it null rather than fabricating one (a faked
+      // `ExponentPushToken[...]` is rejected by Expo's push API).
+      setExpoPushToken(null);
+
+      await saveTokenToDatabase(tokenData.value);
     });
 
     // Listen for registration errors
