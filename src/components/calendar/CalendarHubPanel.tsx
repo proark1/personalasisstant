@@ -77,6 +77,11 @@ export function CalendarHubPanel({
         return (
           <KanbanBoard
             tasks={tasks}
+            // KanbanBoard merges tasks + sharedTasks unconditionally, so it
+            // can show shared cards alongside personal ones. When the parent
+            // has already swapped `tasks` to the shared list (filter==='shared'),
+            // pass [] here to avoid rendering each shared task twice.
+            sharedTasks={filter === 'shared' ? [] : sharedTasks}
             projects={projects}
             onUpdateTask={onUpdateTask || (() => {})}
             onToggleComplete={onToggleTaskComplete}

@@ -68,7 +68,12 @@ export function AssistantOutreachBubble() {
   // `lastSpokenNewestId` ref ensures we speak each newest reminder only once,
   // even though the effect re-runs when `isSpeaking` toggles back to false.
   useEffect(() => {
-    if (!voiceEnabled || !settings?.voice_proactive_enabled) return;
+    if (!voiceEnabled || !settings?.voice_proactive_enabled) {
+      // Clear the "already spoken" memory while voice is off so toggling it
+      // back on re-announces the current newest reminder.
+      lastSpokenNewestId.current = null;
+      return;
+    }
     const newest = unreadReminders[0];
     if (!newest || isSpeaking) return;
     if (lastSpokenNewestId.current === newest.id) return;

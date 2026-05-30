@@ -95,7 +95,7 @@ serve(async (req) => {
           return { delivered: false, platform, error: 'Unknown platform' };
         } catch (e) {
           console.error('[call-push] Error sending to', platform, ':', e);
-          return { success: false, platform, error: String(e) };
+          return { delivered: false, platform, error: String(e) };
         }
       })
     );

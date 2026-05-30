@@ -126,7 +126,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: errors.length === 0,
         delivery: 'in_app_only',
         native_push_sent: 0,
         in_app_created: sentCount,
