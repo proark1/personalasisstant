@@ -101,18 +101,19 @@ function parseItems(text: string): RawNewsItem[] {
   return [];
 }
 
-// Build the set of publisher domains Gemini grounded on, taken from the
-// groundingChunk titles (which are typically registrable domains such as
-// "techcrunch.com"). Used to validate the model's self-reported article URLs.
+// Build the set of publisher domains Gemini grounded on. The groundingChunk
+// `web.uri` is an opaque vertexaisearch redirect (its host carries no publisher
+// info), so the only domain signal is `web.title` — usually the registrable
+// domain ("techcrunch.com"), occasionally a page title that embeds it. Extract
+// any domain-like token anchored on a real TLD; a title with none simply
+// contributes nothing and that item falls back to the citation link.
 function buildGroundedDomains(chunks: GroundingChunk[]): Set<string> {
   const domains = new Set<string>();
-  const domainRe = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
+  // Anchored on an alphabetic TLD so noise like "1.5" in a title is ignored.
+  const domainRe = /[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/gi;
   for (const c of chunks) {
-    const title = (c?.web?.title || "")
-      .trim()
-      .toLowerCase()
-      .replace(/^www\./, "");
-    if (domainRe.test(title)) domains.add(title);
+    const matches = (c?.web?.title || "").toLowerCase().match(domainRe);
+    for (const d of matches ?? []) domains.add(d.replace(/^www\./, ""));
   }
   return domains;
 }
