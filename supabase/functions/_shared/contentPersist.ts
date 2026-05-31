@@ -39,12 +39,15 @@ export async function persistDailyBatch(
   ideas: ContentIdea[],
   generatedOn: string,
 ): Promise<any[]> {
-  await admin
+  const { error: deleteError } = await admin
     .from("content_ideas")
     .delete()
     .eq("user_id", userId)
     .eq("generated_on", generatedOn)
     .eq("status", "new");
+  // Throw on failure: silently proceeding would insert a second batch on top of
+  // the old one, leaving duplicate active ideas for the day.
+  if (deleteError) throw new Error(deleteError.message);
 
   if (ideas.length === 0) return [];
 

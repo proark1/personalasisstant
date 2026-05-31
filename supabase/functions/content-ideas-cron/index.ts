@@ -48,7 +48,7 @@ function escapeHtml(s: string): string {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function localParts(now: Date, tz: string) {
+function partsIn(now: Date, tz: string) {
   const hour = parseInt(
     new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", hour12: false }).format(now), 10,
   );
@@ -59,6 +59,18 @@ function localParts(now: Date, tz: string) {
     timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(now);
   return { hour, minute, date };
+}
+
+// A malformed timezone (bad profile/location data) makes Intl.DateTimeFormat
+// throw a RangeError. This runs in the top-level `due` filter, so without a
+// guard one bad row would crash the whole cron tick for every user. Fall back
+// to UTC instead.
+function localParts(now: Date, tz: string) {
+  try {
+    return partsIn(now, tz);
+  } catch {
+    return partsIn(now, "UTC");
+  }
 }
 
 async function loadTimezoneMap(supabase: any, userIds: string[]): Promise<Map<string, string>> {
@@ -194,9 +206,13 @@ Deno.serve(async (req) => {
         profileLike, locMap.get(p.user_id), p.ideas_per_day || 10, p.trending_ratio ?? 0.5, avoid,
       );
       await persistDailyBatch(supabase, p.user_id, ideas, date);
-      await supabase.from("creator_profiles")
+      // Throw on failure: if we can't stamp last_generated_on, this user stays
+      // "due" and would be regenerated every tick (wasted quota + notify spam).
+      // dispatchOne runs inside a per-user catch, so this won't affect others.
+      const { error: stampErr } = await supabase.from("creator_profiles")
         .update({ last_generated_on: date, updated_at: new Date().toISOString() })
         .eq("user_id", p.user_id);
+      if (stampErr) throw new Error(stampErr.message);
 
       const channels = p.channels || [];
       if (channels.includes("telegram")) {

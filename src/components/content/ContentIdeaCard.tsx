@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import {
   ThumbsUp, X, CalendarPlus, Clapperboard, ExternalLink, CalendarClock, Trash2, Check,
 } from 'lucide-react';
@@ -40,8 +41,14 @@ export function ContentIdeaCard({ idea, onLike, onDismiss, onWriteScripts, onSch
 
   const confirmSchedule = () => {
     // datetime-local has no timezone; interpret it as local and send ISO.
-    const iso = new Date(when).toISOString();
-    onSchedule(iso, duration);
+    // Guard an empty/invalid value (e.g. the user cleared the field) — otherwise
+    // new Date('').toISOString() throws RangeError and crashes the handler.
+    const parsed = new Date(when);
+    if (Number.isNaN(parsed.getTime())) {
+      toast.error('Pick a valid date and time');
+      return;
+    }
+    onSchedule(parsed.toISOString(), duration);
     setScheduleOpen(false);
   };
 

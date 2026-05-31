@@ -94,10 +94,14 @@ serve(async (req) => {
     const inserted = await persistDailyBatch(admin, userId, ideas, today);
 
     if (profile) {
-      await admin
+      // Non-fatal: the ideas are already saved and returned below, so a failure
+      // here must not turn a successful generation into a 500. Worst case the
+      // daily cron regenerates once more today.
+      const { error: stampErr } = await admin
         .from("creator_profiles")
         .update({ last_generated_on: today, updated_at: new Date().toISOString() })
         .eq("user_id", userId);
+      if (stampErr) console.warn("[content-ideas] failed to stamp last_generated_on:", stampErr.message);
     }
 
     return json({ ok: true, generated_on: today, count: inserted.length, ideas: inserted });

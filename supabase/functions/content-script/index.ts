@@ -269,12 +269,14 @@ serve(async (req) => {
       saved.push(up);
     }
 
-    // Liking is implied by asking for scripts.
+    // Liking is implied by asking for scripts. Non-fatal: the scripts are
+    // already saved and returned, so a failed status bump must not 500 the call.
     if (idea.status === "new") {
-      await admin
+      const { error: likeErr } = await admin
         .from("content_ideas")
         .update({ status: "liked", updated_at: new Date().toISOString() })
         .eq("id", ideaId);
+      if (likeErr) console.warn("[content-script] failed to mark idea liked:", likeErr.message);
     }
 
     return json({ ok: true, scripts: saved });
