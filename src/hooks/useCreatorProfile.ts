@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
-import { DEFAULT_CREATOR_PROFILE, type CreatorProfile } from '@/lib/content';
+import { DEFAULT_CREATOR_PROFILE, describeContentError, type CreatorProfile } from '@/lib/content';
 
 // `creator_profiles` is a newly added table not yet in the generated Supabase
 // types, so we reach it through an untyped client handle (same approach as
@@ -92,7 +92,7 @@ export function useCreatorProfile() {
       return data as CreatorProfile;
     } catch (err) {
       console.error('Failed to save creator profile:', err);
-      toast.error('Failed to save profile');
+      toast.error(describeContentError(err, 'Failed to save profile'));
       fetchProfile(); // revert to server state
       return null;
     } finally {
