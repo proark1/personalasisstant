@@ -123,11 +123,25 @@ async function callGemini(geminiKey: string, system: string, user: string, schem
     signal: AbortSignal.timeout(60_000),
   });
   if (!resp.ok) {
-    const detail = await resp.text().catch(() => "");
+    // Gemini errors are structured JSON ({ error: { message } }); prefer that
+    // over the raw body for a legible message.
+    let detail = "";
+    try {
+      const errJson = await resp.clone().json();
+      detail = errJson?.error?.message || JSON.stringify(errJson);
+    } catch {
+      detail = await resp.text().catch(() => "");
+    }
     throw new Error(`AI gateway ${resp.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`);
   }
   const data = await resp.json();
-  const text = (data?.candidates?.[0]?.content?.parts ?? [])
+  const candidate = data?.candidates?.[0];
+  // A non-STOP finish (SAFETY, RECITATION, MAX_TOKENS, …) usually means empty or
+  // truncated parts — surface why instead of a generic "Empty AI response".
+  if (candidate?.finishReason && candidate.finishReason !== "STOP") {
+    throw new Error(`AI generation stopped: ${candidate.finishReason}`);
+  }
+  const text = (candidate?.content?.parts ?? [])
     .map((p: any) => (typeof p?.text === "string" ? p.text : ""))
     .join("")
     .trim();

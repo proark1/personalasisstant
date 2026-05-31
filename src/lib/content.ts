@@ -184,7 +184,15 @@ export async function describeFunctionError(err: unknown, fallback: string): Pro
   if (ctx && typeof (ctx as Response).clone === 'function') {
     try {
       const body = await (ctx as Response).clone().json();
-      if (body && typeof body.error === 'string' && body.error) return body.error;
+      if (body) {
+        // Edge functions return { error: "..." }; tolerate nested
+        // { error: { message } } and top-level { message } shapes too.
+        if (typeof body.error === 'string' && body.error) return body.error;
+        if (body.error && typeof body.error === 'object' && typeof body.error.message === 'string' && body.error.message) {
+          return body.error.message;
+        }
+        if (typeof body.message === 'string' && body.message) return body.message;
+      }
     } catch {
       /* response body wasn't JSON — fall through to the message/fallback */
     }
