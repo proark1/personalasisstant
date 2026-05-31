@@ -35,6 +35,7 @@ const REQUEST_TIMEOUT_MS = Number(process.env.CRON_REQUEST_TIMEOUT_MS) || 60_000
 // getUpdates on Telegram's side, so a poll job here would just 409 every tick.
 const JOBS = [
   { name: 'briefing-dispatch-cron',          schedule: '*/15 * * * *' },
+  { name: 'content-ideas-cron',              schedule: '*/15 * * * *' },
   { name: 'telegram-weekly-briefing',        schedule: '0 * * * *' },
   { name: 'telegram-family-morning-digest',  schedule: '0 * * * *' },
   { name: 'workspace-recap-cron',            schedule: '5 * * * *' },

@@ -25,7 +25,7 @@ import { useUnreadEmailCount } from '@/hooks/useUnreadEmailCount';
 import { NAV_AREAS, SETTINGS_ITEM, areaForPanel, type NavItem as NavConfigItem } from '@/config/navigation';
 
 export type SidebarFilter = TaskCategory | 'all' | 'shared';
-export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'cooking' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | 'finances' | 'travel' | 'assets' | 'personal-health' | 'relationships-plus' | 'learning' | 'journal' | 'challenges' | 'location-reminders' | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings' | null;
+export type ActivePanel = 'tasks' | 'social' | 'calendar' | 'assistant' | 'dashboard' | 'projects' | 'contacts' | 'contracts' | 'activity' | 'settings' | 'notes' | 'habits' | 'admin' | 'family' | 'cooking' | 'islam' | 'properties' | 'startups' | 'news' | 'health' | 'email' | 'finances' | 'travel' | 'assets' | 'personal-health' | 'relationships-plus' | 'learning' | 'journal' | 'challenges' | 'location-reminders' | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings' | 'content' | 'content-liked' | 'content-calendar' | 'content-profile' | null;
 
 interface SidebarProps {
   onEditProfile?: () => void;

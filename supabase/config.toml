@@ -24,6 +24,13 @@ verify_jwt = true
 [functions.morning-briefing]
 verify_jwt = true
 
+# Content Studio: user-invoked idea + script generation (end-user JWT).
+[functions.content-ideas]
+verify_jwt = true
+
+[functions.content-script]
+verify_jwt = true
+
 [functions.send-push-notification]
 verify_jwt = true
 
@@ -251,6 +258,12 @@ verify_jwt = false
 # to match the sibling crons (plaid-sync-cron, workspace-recap-cron, ...) and
 # avoid a second 401 layer that depends on the Vault secret being in sync.
 [functions.briefing-dispatch-cron]
+verify_jwt = false
+
+# Content Studio daily dispatcher. Called by the Railway scheduler on a
+# service-role bearer and does its own auth, so the gateway JWT check is
+# disabled to match the sibling crons.
+[functions.content-ideas-cron]
 verify_jwt = false
 
 [functions.workspace-recap-cron]

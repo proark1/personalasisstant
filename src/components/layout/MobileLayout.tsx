@@ -38,6 +38,7 @@ const FamilyCalendarView = lazy(() => import('../family/FamilyCalendarView').the
 const ChildDashboard = lazy(() => import('../family/ChildDashboard').then(m => ({ default: m.ChildDashboard })));
 const CorrelationsDashboard = lazy(() => import('../insights/CorrelationsDashboard').then(m => ({ default: m.CorrelationsDashboard })));
 const MeetingBotsPanel = lazy(() => import('../assistant/MeetingBotsPanel').then(m => ({ default: m.MeetingBotsPanel })));
+const ContentStudioPanel = lazy(() => import('../content/ContentStudioPanel').then(m => ({ default: m.ContentStudioPanel })));
 // Layout chrome + the always-mounted nudge provider stay eager — they're small
 // and needed on first paint.
 import { SmartNudgeProvider } from '../nudges/SmartNudgeProvider';
@@ -92,7 +93,8 @@ type Tab = 'dashboard' | 'calendar' | 'chat' | 'tasks' | 'more'
   | 'journal' | 'finances' | 'travel' | 'assets'
   | 'personal-health' | 'relationships-plus' | 'learning' | 'cooking'
   | 'challenges' | 'location-reminders'
-  | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings';
+  | 'family-members' | 'family-calendar' | 'child-mode' | 'correlations' | 'meetings'
+  | 'content' | 'content-liked' | 'content-calendar' | 'content-profile';
 
 const panelTransition = {
   initial: { opacity: 0, y: 6 },
@@ -248,6 +250,14 @@ export function MobileLayout({
         return <PropertyPanel />;
       case 'startups':
         return <StartupWorkspacePanel />;
+      case 'content':
+        return <ContentStudioPanel initialTab="today" />;
+      case 'content-liked':
+        return <ContentStudioPanel initialTab="liked" />;
+      case 'content-calendar':
+        return <ContentStudioPanel initialTab="calendar" />;
+      case 'content-profile':
+        return <ContentStudioPanel initialTab="profile" />;
       case 'news':
         return <TechNewsPanel />;
       case 'email':

@@ -78,6 +78,7 @@ const FamilyCalendarView = lazy(() => import('../family/FamilyCalendarView').the
 const ChildDashboard = lazy(() => import('../family/ChildDashboard').then(m => ({ default: m.ChildDashboard })));
 const CorrelationsDashboard = lazy(() => import('../insights/CorrelationsDashboard').then(m => ({ default: m.CorrelationsDashboard })));
 const MeetingBotsPanel = lazy(() => import('../assistant/MeetingBotsPanel').then(m => ({ default: m.MeetingBotsPanel })));
+const ContentStudioPanel = lazy(() => import('../content/ContentStudioPanel').then(m => ({ default: m.ContentStudioPanel })));
 
 interface StandardModeProps {
   tasks: Task[];
@@ -270,6 +271,10 @@ export function StandardMode({
       email: t('nav.email') || 'Email',
       properties: t('nav.properties') || 'Properties',
       startups: t('nav.startups') || 'Startups',
+      content: 'Content',
+      'content-liked': 'Content · Liked & Scripts',
+      'content-calendar': 'Content · Calendar',
+      'content-profile': 'Content · Creator Profile',
       news: t('nav.news') || 'Tech News',
       settings: t('nav.settings'),
       admin: t('nav.admin'),
@@ -817,6 +822,20 @@ export function StandardMode({
               {activePanel === 'startups' && user?.id && (
                 <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
                   <StartupWorkspacePanel />
+                </div>
+              )}
+
+              {/* Content Studio Panel — four nav ids deep-link to its tabs */}
+              {(activePanel === 'content' || activePanel === 'content-liked' || activePanel === 'content-calendar' || activePanel === 'content-profile') && user?.id && (
+                <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                  <ContentStudioPanel
+                    initialTab={
+                      activePanel === 'content-liked' ? 'liked'
+                        : activePanel === 'content-calendar' ? 'calendar'
+                        : activePanel === 'content-profile' ? 'profile'
+                        : 'today'
+                    }
+                  />
                 </div>
               )}
 

@@ -42,6 +42,10 @@ import {
   GraduationCap,
   LineChart,
   Settings,
+  Clapperboard,
+  Lightbulb,
+  ThumbsUp,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -96,6 +100,19 @@ export const NAV_AREAS: NavArea[] = [
       { id: 'activity', label: 'Activity', labelKey: 'nav.activity', icon: Activity },
       { id: 'location-reminders', label: 'Location Reminders', icon: MapPin },
       { id: 'meetings', label: 'Meeting Bots', icon: Video },
+    ],
+  },
+  {
+    // Content Studio — the daily content-idea engine for the user's business.
+    // Its own top-level area; each item deep-links to a tab of the same panel.
+    id: 'content',
+    label: 'Content',
+    icon: Clapperboard,
+    items: [
+      { id: 'content', label: "Today's Ideas", icon: Lightbulb },
+      { id: 'content-liked', label: 'Liked & Scripts', icon: ThumbsUp },
+      { id: 'content-calendar', label: 'Content Calendar', icon: CalendarCheck },
+      { id: 'content-profile', label: 'Creator Profile', icon: UserRound },
     ],
   },
   {
