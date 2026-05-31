@@ -45,6 +45,8 @@ interface RawNewsItem {
   headline: string;
   summary: string;
   category: string;
+  // The article URL the model reports using; trusted only after domain validation.
+  sourceUrl?: string;
 }
 
 const GEMINI_MODEL = "gemini-2.5-flash";
@@ -99,30 +101,82 @@ function parseItems(text: string): RawNewsItem[] {
   return [];
 }
 
-// Map each news item to a real source URL from the grounding metadata.
-// Prefer the source whose cited text segment matches the item; otherwise fall
-// back to the chunk at the item's position, then any chunk, then a Google News
-// search for the (now real) headline as a last resort.
+// Build the set of publisher domains Gemini grounded on, taken from the
+// groundingChunk titles (which are typically registrable domains such as
+// "techcrunch.com"). Used to validate the model's self-reported article URLs.
+function buildGroundedDomains(chunks: GroundingChunk[]): Set<string> {
+  const domains = new Set<string>();
+  const domainRe = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
+  for (const c of chunks) {
+    const title = (c?.web?.title || "")
+      .trim()
+      .toLowerCase()
+      .replace(/^www\./, "");
+    if (domainRe.test(title)) domains.add(title);
+  }
+  return domains;
+}
+
+function hostMatchesDomain(host: string, domains: Set<string>): boolean {
+  const h = host.toLowerCase().replace(/^www\./, "");
+  for (const d of domains) {
+    if (h === d || h.endsWith(`.${d}`)) return true;
+  }
+  return false;
+}
+
+// Accept the model's own article URL only when it's a real http(s) link whose
+// domain matches one of the grounded sources. This yields a direct article link
+// while guarding against hallucinated or aggregator/redirect URLs.
+function validArticleUrl(raw: string | undefined, domains: Set<string>): string | undefined {
+  if (!raw || domains.size === 0) return undefined;
+  let u: URL;
+  try {
+    u = new URL(raw.trim());
+  } catch {
+    return undefined;
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return undefined;
+  const host = u.hostname.toLowerCase();
+  if (host.includes("vertexaisearch") || host === "google.com" || host.endsWith(".google.com")) {
+    return undefined;
+  }
+  return hostMatchesDomain(host, domains) ? u.toString() : undefined;
+}
+
+// Resolve each item to its best source link, in priority order:
+//   1. the model's own article URL, validated against the grounded domains;
+//   2. the Gemini grounding citation whose cited text matches the item, then
+//      the citation at the item's position;
+//   3. a Google News search for the (now real) headline as a last resort.
 function resolveUrls(items: RawNewsItem[], grounding?: GroundingMetadata): NewsItem[] {
   const chunks = grounding?.groundingChunks ?? [];
   const supports = grounding?.groundingSupports ?? [];
+  const groundedDomains = buildGroundedDomains(chunks);
   const uriAt = (i?: number): string | undefined =>
     i != null && i >= 0 ? chunks[i]?.web?.uri : undefined;
   const pool = chunks.map((c) => c?.web?.uri).filter((u): u is string => Boolean(u));
 
   return items.map((item, idx) => {
     const headline = (item.headline || "").trim();
-    const hay = `${headline} ${item.summary || ""}`.toLowerCase();
 
-    let url: string | undefined;
-    for (const s of supports) {
-      const seg = (s?.segment?.text || "").toLowerCase().trim();
-      if (seg.length >= 12 && (hay.includes(seg) || seg.includes(headline.toLowerCase()))) {
-        url = uriAt(s.groundingChunkIndices?.[0]);
-        if (url) break;
+    // 1) The model's own article URL, if its domain is among the grounded sources.
+    let url = validArticleUrl(item.sourceUrl, groundedDomains);
+
+    // 2) Otherwise the grounding citation whose cited text matches this item.
+    if (!url) {
+      const hay = `${headline} ${item.summary || ""}`.toLowerCase();
+      for (const s of supports) {
+        const seg = (s?.segment?.text || "").toLowerCase().trim();
+        if (seg.length >= 12 && (hay.includes(seg) || seg.includes(headline.toLowerCase()))) {
+          url = uriAt(s.groundingChunkIndices?.[0]);
+          if (url) break;
+        }
       }
     }
     if (!url) url = pool[idx] ?? pool[0];
+
+    // 3) Last resort: a search for the (now real) headline.
     if (!url) url = `https://news.google.com/search?q=${encodeURIComponent(headline)}&hl=en`;
 
     return {
@@ -173,11 +227,13 @@ REQUIREMENTS:
 1. Each item must be a specific, recent, real event or announcement — include company, product, or person names.
 2. Strongly prefer items from the last 24-48 hours; never include anything older than 7 days.
 3. Return at most ${itemCount} items, most important first.
+4. For each item, include the exact URL of the specific source article from your search results.
 
 Respond with ONLY a JSON array (no markdown fences, no commentary). Each object must have:
 - "headline": specific headline with names (max 110 chars)
 - "summary": 1-2 sentences with concrete details
-- "category": the topic category`;
+- "category": the topic category
+- "sourceUrl": the direct link to the specific source article (the canonical article page — never a homepage, section, search, or AMP URL)`;
 
   const userPrompt = `What are the most important, specific, recent news events and announcements in ${topicsString} from the last 24-48 hours?${locationContext} Today's date is ${today}. Use Google Search to verify each item is current and real, then return the JSON array.`;
 
