@@ -275,7 +275,7 @@ export function Sidebar({
 
         {/* Footer */}
         <div className="p-2 border-t border-sidebar-border space-y-0.5">
-          <NavItem icon={SETTINGS_ITEM.icon} label={resolveNavLabel(SETTINGS_ITEM, t)} panel="settings" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
+          <NavItem icon={SETTINGS_ITEM.icon} label={label(SETTINGS_ITEM)} panel="settings" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
 
           {isAdmin && (
             <NavItem icon={BarChart3} label={t('nav.admin')} panel="admin" activePanel={activePanel} collapsed={collapsed} onClick={handlePanelClick} />
