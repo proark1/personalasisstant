@@ -61,14 +61,14 @@ export async function generateStructured(opts: StructuredOptions): Promise<any> 
   });
 
   if (!resp.ok) {
-    // Gemini errors are structured JSON ({ error: { message } }); prefer that.
-    let detail = "";
+    // Read the body once, then try to pull Gemini's structured
+    // { error: { message } } out of it (any JSON is also valid text).
+    const raw = await resp.text().catch(() => "");
+    let detail = raw;
     try {
-      const errJson = await resp.clone().json();
-      detail = errJson?.error?.message || JSON.stringify(errJson);
-    } catch {
-      detail = await resp.text().catch(() => "");
-    }
+      const errJson = JSON.parse(raw);
+      detail = errJson?.error?.message || raw;
+    } catch { /* not JSON — use the raw text */ }
     throw new Error(`AI gateway ${resp.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`);
   }
 
@@ -88,7 +88,8 @@ export async function generateStructured(opts: StructuredOptions): Promise<any> 
   } catch {
     // Tolerate stray fences/prose around the JSON object.
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const m = cleaned.match(/\{[\s\S]*\}/);
+    const m = cleaned.match(/[{[][\s\S]*[\]}]/); // object or array
+
     if (m) {
       try { return JSON.parse(m[0]); } catch { /* fall through */ }
     }
