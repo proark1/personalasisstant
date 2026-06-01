@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { CalendarEvent, Task, Project } from '@/types/flux';
@@ -23,10 +23,19 @@ const KanbanBoard = lazy(() => import('../tasks/KanbanBoard').then((m) => ({ def
 
 function ViewFallback() {
   return (
-    <div className="h-full flex items-center justify-center">
+    <div className="h-full flex items-center justify-center" role="status" aria-label="Loading">
       <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <span className="sr-only">Loading…</span>
     </div>
   );
+}
+
+// Warm the two main tab chunks during idle time after the panel mounts. First
+// paint stays lean (these aren't modulepreloaded), but by the time the user
+// clicks Tasks/Calendar the chunk is usually already cached — no spinner.
+function prefetchHeavyTabs() {
+  void import('../tasks/TaskList');
+  void import('./MonthCalendarView');
 }
 
 interface CalendarHubPanelProps {
@@ -87,6 +96,21 @@ export function CalendarHubPanel({
     setActiveView(id);
     setMountedViews((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   };
+
+  // Prefetch the heavy tabs once the browser is idle so switching to them
+  // feels instant, without paying for them on first paint.
+  useEffect(() => {
+    const ric = (window as unknown as {
+      requestIdleCallback?: (cb: () => void) => number;
+      cancelIdleCallback?: (id: number) => void;
+    });
+    if (typeof ric.requestIdleCallback === 'function') {
+      const handle = ric.requestIdleCallback(prefetchHeavyTabs);
+      return () => ric.cancelIdleCallback?.(handle);
+    }
+    const t = window.setTimeout(prefetchHeavyTabs, 1500);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const views = [
     { id: 'focus' as HubView, icon: Zap, label: 'Focus' },
