@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { useNextUp } from '@/hooks/useNextUp';
 import { useDoriConversation } from '@/contexts/DoriConversationContext';
@@ -23,7 +23,7 @@ interface DoriBarProps {
  * falls back to full-screen voice when dictation isn't supported. Backed by
  * DoriConversationContext, so it drives the same 71-tool brain Index owns.
  */
-export function DoriBar({ onVoiceMode, hidden }: DoriBarProps) {
+export const DoriBar = memo(function DoriBar({ onVoiceMode, hidden }: DoriBarProps) {
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -209,4 +209,4 @@ export function DoriBar({ onVoiceMode, hidden }: DoriBarProps) {
       </div>
     </div>
   );
-}
+});

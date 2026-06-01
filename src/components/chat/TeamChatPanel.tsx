@@ -391,6 +391,7 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
             size="icon" 
             onClick={handleBack}
             className="text-primary-foreground hover:bg-primary-foreground/10 h-10 w-10"
+            aria-label={language === 'de' ? 'Zurück' : 'Back'}
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -427,6 +428,7 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
                 size="icon" 
                 onClick={() => startVideoCall(partnerId)}
                 className="text-primary-foreground hover:bg-primary-foreground/10 h-10 w-10"
+                aria-label={language === 'de' ? 'Videoanruf starten' : 'Start video call'}
               >
                 <Video className="w-5 h-5" />
               </Button>
@@ -435,16 +437,18 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
                 size="icon" 
                 onClick={() => startAudioCall(partnerId)}
                 className="text-primary-foreground hover:bg-primary-foreground/10 h-10 w-10"
+                aria-label={language === 'de' ? 'Sprachanruf starten' : 'Start voice call'}
               >
                 <Phone className="w-5 h-5" />
               </Button>
             </div>
           )}
           
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             className="text-primary-foreground hover:bg-primary-foreground/10 h-10 w-10"
+            aria-label={language === 'de' ? 'Weitere Optionen' : 'More options'}
           >
             <MoreVertical className="w-5 h-5" />
           </Button>
@@ -557,9 +561,10 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
               type="button" 
               variant="ghost" 
               size="icon" 
-              onClick={() => fileInputRef.current?.click()} 
+              onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              aria-label={language === 'de' ? 'Foto anhängen' : 'Attach photo'}
             >
               <Camera className="w-5 h-5" />
             </Button>
@@ -568,10 +573,11 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
           {/* Send or Voice button */}
           {newMessage.trim() || pendingAttachments.length > 0 ? (
             <Button 
-              onClick={handleSendMessage} 
+              onClick={handleSendMessage}
               disabled={isSending || uploading}
               size="icon"
               className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 flex-shrink-0"
+              aria-label={language === 'de' ? 'Nachricht senden' : 'Send message'}
             >
               <Send className="w-5 h-5" />
             </Button>
@@ -609,10 +615,11 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
           {language === 'de' ? 'Nachrichten' : 'Messages'}
         </h1>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             className="text-primary-foreground hover:bg-primary-foreground/10"
+            aria-label={language === 'de' ? 'Suchen' : 'Search'}
           >
             <Search className="w-5 h-5" />
           </Button>
@@ -621,6 +628,7 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
             size="icon" 
             onClick={() => setShowCreateGroup(true)}
             className="text-primary-foreground hover:bg-primary-foreground/10"
+            aria-label={language === 'de' ? 'Gruppe erstellen' : 'Create group'}
           >
             <Plus className="w-5 h-5" />
           </Button>

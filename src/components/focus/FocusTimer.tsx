@@ -259,6 +259,7 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
               size="icon"
               className="h-12 w-12 rounded-full"
               onClick={resetTimer}
+              aria-label="Reset timer"
             >
               <RotateCcw className="w-5 h-5" />
             </Button>
@@ -273,6 +274,8 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
                     : "bg-accent hover:bg-accent/90"
               )}
               onClick={toggleTimer}
+              aria-label={isRunning ? "Pause timer" : "Start timer"}
+              aria-pressed={isRunning}
             >
               {isRunning ? (
                 <Pause className="w-6 h-6" />
@@ -285,6 +288,7 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
               size="icon"
               className="h-12 w-12 rounded-full"
               onClick={onClose}
+              aria-label="Close focus timer"
             >
               <X className="w-5 h-5" />
             </Button>

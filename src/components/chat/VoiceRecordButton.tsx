@@ -23,7 +23,7 @@ export function VoiceRecordButton({
 }: VoiceRecordButtonProps) {
   if (isProcessing) {
     return (
-      <Button variant="ghost" size="icon" disabled>
+      <Button variant="ghost" size="icon" disabled aria-label="Processing voice recording">
         <Loader2 className="w-4 h-4 animate-spin" />
       </Button>
     );
@@ -53,6 +53,7 @@ export function VoiceRecordButton({
           size="icon"
           onClick={onStop}
           className="rounded-full"
+          aria-label="Stop and send voice recording"
         >
           <Square className="w-3 h-3" />
         </Button>
@@ -70,6 +71,7 @@ export function VoiceRecordButton({
         'transition-colors',
         'hover:bg-primary/10 hover:text-primary'
       )}
+      aria-label="Record voice message"
     >
       <Mic className="w-4 h-4" />
     </Button>

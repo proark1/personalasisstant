@@ -37,6 +37,16 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
   const originalVideoTrack = useRef<MediaStreamTrack | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // Refs mirroring values the incoming-call handler needs, so the channel
+  // effect can depend only on stable identifiers ([userId, enabled]) and not
+  // resubscribe on every callStatus transition (which can miss an INSERT
+  // during teardown). Read these refs inside the async handler instead of
+  // closing over the render-time values.
+  const callStatusRef = useRef<CallStatus>(callStatus);
+  const onIncomingCallRef = useRef<UseWebRTCCallOptions['onIncomingCall']>(onIncomingCall);
+  useEffect(() => { callStatusRef.current = callStatus; }, [callStatus]);
+  useEffect(() => { onIncomingCallRef.current = onIncomingCall; });
+
   // Signaling readiness + early ICE candidate queue (prevents race before channel SUBSCRIBED)
   const isSignalingReadyRef = useRef(false);
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
@@ -610,6 +620,12 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
 
     console.log('[WebRTC] Setting up incoming call subscription for user:', userId);
 
+    // Guards the async incoming handler: it awaits a profile fetch, so the
+    // channel can be torn down (unmount / userId / enabled change) before it
+    // resolves. Without this, the post-await setState/onIncomingCall would
+    // fire after teardown. Mirrors useDirectMessages / useSharedItemsRealtime.
+    let active = true;
+
     const channel = supabase
       .channel(`incoming-calls-${userId}`)
       .on(
@@ -623,8 +639,8 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
         async (payload) => {
           console.log('[WebRTC] Incoming call payload received:', payload);
           const session = payload.new as CallSession;
-          
-          if (session.status === 'ringing' && callStatus === 'idle') {
+
+          if (session.status === 'ringing' && callStatusRef.current === 'idle') {
             console.log('[WebRTC] New incoming call from:', session.caller_id);
             // Fetch caller info
             const { data: profile, error: profileError } = await supabase
@@ -633,16 +649,18 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
               .eq('user_id', session.caller_id)
               .single();
 
+            if (!active) return;
+
             if (profileError) {
               console.error('[WebRTC] Error fetching caller profile:', profileError);
             }
 
             const callerName = profile?.display_name || profile?.email || 'Unknown';
             console.log('[WebRTC] Caller name:', callerName);
-            
+
             setCallStatus('ringing');
             setCurrentSession(session);
-            onIncomingCall?.(session, callerName);
+            onIncomingCallRef.current?.(session, callerName);
           }
         }
       )
@@ -655,10 +673,11 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
 
     return () => {
       console.log('[WebRTC] Cleaning up incoming call subscription');
+      active = false;
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [userId, enabled, callStatus, onIncomingCall]);
+  }, [userId, enabled]);
 
   return {
     callStatus,

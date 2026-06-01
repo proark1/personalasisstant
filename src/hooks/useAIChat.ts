@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Task, CalendarEvent, AssistantPersonality } from '@/types/flux';
 import { UserProfile } from './useSmartContext';
 import { Contact } from './useContacts';
@@ -257,6 +257,18 @@ interface FamilyContextData {
 export function useAIChat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Tracks the in-flight stream so we can abort the previous one when a new
+  // streamChat starts and on unmount. Aborting must never surface as a
+  // user-facing error (see AbortError handling in streamChat's catch).
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, []);
 
   const parseToolCalls = (content: string): { cleanContent: string; toolCalls: ToolCall[] } => {
     const toolCalls: ToolCall[] = [];
@@ -565,6 +577,12 @@ export function useAIChat() {
     setIsStreaming(true);
     setError(null);
 
+    // Abort any previous in-flight stream before starting a new one, then
+    // install this call's controller as the current one.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       // Build request payload
       const payload: Record<string, unknown> = {
@@ -677,6 +695,7 @@ export function useAIChat() {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       if (!resp.ok) {
@@ -717,26 +736,32 @@ export function useAIChat() {
               onDelta(content);
             }
           } catch {
-            // Attempt to repair JSON by adding closing brace
-            try {
-              if (jsonStr.includes('"content":')) {
-                const repaired = jsonStr + (jsonStr.endsWith('"') ? '}' : '"}');
-                const parsed = JSON.parse(repaired);
-                const content = parsed.choices?.[0]?.delta?.content;
-                if (content) {
-                  fullContent += content;
-                  onDelta(content);
-                }
-              } else {
-                // Incomplete JSON, put it back
-                textBuffer = line + '\n' + textBuffer;
-                break;
+            // A `data:` frame that fails to parse is almost always truncated —
+            // the rest of it arrives in the next chunk. We must NOT speculatively
+            // repair-and-emit it: a repaired-but-truncated frame would emit a
+            // partial delta, then the real completed frame would emit the same
+            // delta again (double-emit). Instead, buffer the raw line and retry
+            // once the remainder arrives. We only speculatively repair to *decide*
+            // whether the frame is a content frame worth buffering vs. junk to
+            // skip — never to emit content.
+            let looksRepairable = false;
+            if (jsonStr.includes('"content":')) {
+              try {
+                JSON.parse(jsonStr + (jsonStr.endsWith('"') ? '}' : '"}'));
+                looksRepairable = true;
+              } catch {
+                looksRepairable = false;
               }
-            } catch {
-              // Still failed, put it back
-              textBuffer = line + '\n' + textBuffer;
-              break;
             }
+            if (jsonStr.includes('"content":') && !looksRepairable) {
+              // Genuinely malformed content frame we can't repair — skip it
+              // rather than wedging the buffer forever.
+              continue;
+            }
+            // Incomplete (but plausibly completable) JSON — put it back and wait
+            // for the next chunk to complete the frame, then parse it for real.
+            textBuffer = line + '\n' + textBuffer;
+            break;
           }
         }
       }
@@ -749,12 +774,22 @@ export function useAIChat() {
 
       onDone();
     } catch (e) {
+      // An aborted stream (new streamChat started, or unmount) is not a
+      // user-facing error — swallow it silently.
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        return;
+      }
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       setError(errorMessage);
       console.error('Chat error:', e);
       throw e;
     } finally {
-      setIsStreaming(false);
+      // Only clear/flip state if this call still owns the current controller —
+      // a newer streamChat may have replaced it (and flipped isStreaming on).
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setIsStreaming(false);
+      }
     }
   }, []);
 

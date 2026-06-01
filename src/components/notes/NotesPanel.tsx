@@ -251,7 +251,7 @@ export function NotesPanel({ userId }: NotesPanelProps) {
       }
       actions={
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={refetch}>
+          <Button variant="ghost" size="icon" onClick={refetch} aria-label="Refresh notes">
             <RefreshCw className="w-4 h-4" />
           </Button>
           <Button 
@@ -260,6 +260,8 @@ export function NotesPanel({ userId }: NotesPanelProps) {
             onClick={toggleRecording}
             disabled={isTranscribing}
             title={isRecording ? "Stop recording" : "Create voice note"}
+            aria-label={isRecording ? "Stop recording" : "Create voice note"}
+            aria-pressed={isRecording}
           >
             {isTranscribing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -269,7 +271,7 @@ export function NotesPanel({ userId }: NotesPanelProps) {
               <Mic className="w-4 h-4" />
             )}
           </Button>
-          <Button onClick={handleCreateNote} size="icon" title={t('notes.newNote')}>
+          <Button onClick={handleCreateNote} size="icon" title={t('notes.newNote')} aria-label={t('notes.newNote')}>
             <Plus className="w-4 h-4" />
           </Button>
         </div>

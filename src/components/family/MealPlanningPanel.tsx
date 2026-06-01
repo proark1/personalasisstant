@@ -22,11 +22,12 @@ import {
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   useDroppable,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, useSortable, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 const mealTypeConfig: Record<string, { icon: React.ReactNode; gradient: string; label: string }> = {
@@ -268,6 +269,9 @@ export function MealPlanningPanel() {
       activationConstraint: {
         distance: 8,
       },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 

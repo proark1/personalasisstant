@@ -39,7 +39,21 @@ export function DoriConversationProvider({ children }: { children: ReactNode }) 
   const [isOpen, setIsOpen] = useState(false);
   const sendRef = useRef<((text: string) => void) | null>(null);
 
-  const publish = useCallback((s: DoriSnapshot) => setSnapshot(s), []);
+  // Index re-publishes a fresh snapshot object on every streaming token/commit.
+  // Bail out when nothing the surfaces render actually changed, so the context
+  // value keeps a stable reference and consumers (the Dori bar) don't re-render
+  // on no-op publishes. messages/actionCards are compared by reference because
+  // Index produces new arrays only when their contents change.
+  const publish = useCallback((s: DoriSnapshot) => {
+    setSnapshot(prev =>
+      prev.messages === s.messages &&
+      prev.actionCards === s.actionCards &&
+      prev.isProcessing === s.isProcessing &&
+      prev.thinkingStatus === s.thinkingStatus
+        ? prev
+        : s,
+    );
+  }, []);
   const registerSend = useCallback((fn: (text: string) => void) => { sendRef.current = fn; }, []);
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);

@@ -46,6 +46,7 @@ export function EmojiPicker({ onEmojiSelect, disabled }: EmojiPickerProps) {
           size="icon"
           disabled={disabled}
           className="flex-shrink-0 hover:bg-primary/10 hover:text-primary"
+          aria-label="Add emoji"
         >
           <Smile className="w-4 h-4" />
         </Button>

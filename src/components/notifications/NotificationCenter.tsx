@@ -140,8 +140,16 @@ export function NotificationCenter({
                       ? "bg-transparent hover:bg-muted/50" 
                       : "bg-primary/5 hover:bg-primary/10"
                   )}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     if (!notification.read) onMarkRead(notification.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (!notification.read) onMarkRead(notification.id);
+                    }
                   }}
                 >
                   <div className="shrink-0 mt-0.5">

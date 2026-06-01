@@ -54,7 +54,7 @@ export function DashboardPrayerCard({ onNavigate }: DashboardPrayerCardProps) {
     try {
       const saved = localStorage.getItem(getCompletedPrayersKey());
       return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+    } catch (error) { console.warn('Failed to load completed prayers from localStorage', error); return {}; }
   });
 
   // Notification state
@@ -215,8 +215,9 @@ export function DashboardPrayerCard({ onNavigate }: DashboardPrayerCardProps) {
     <GlassCard className="overflow-hidden">
       <GlassCardContent className="p-0">
         {/* Main prayer info */}
-        <div
-          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+        <button
+          type="button"
+          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors text-left w-full"
           onClick={() => onNavigate?.('islam')}
         >
           {/* Next prayer icon + countdown */}
@@ -249,7 +250,7 @@ export function DashboardPrayerCard({ onNavigate }: DashboardPrayerCardProps) {
             <span className="text-xs font-medium text-primary">{completedCount}/5</span>
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </div>
-        </div>
+        </button>
 
         {/* Prayer completion row */}
         <div className="flex items-center justify-between px-3 pb-3 gap-1">

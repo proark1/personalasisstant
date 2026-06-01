@@ -10,6 +10,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useMealPlanning } from '@/hooks/useMealPlanning';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
+import { toast } from 'sonner';
 import { RecipeDetailDialog } from '@/components/family/RecipeDetailDialog';
 import { AddMealPlanDialog } from '@/components/family/AddMealPlanDialog';
 import { cn } from '@/lib/utils';
@@ -98,6 +100,10 @@ export function TodayMealsView() {
       setAiSuggestions(data.suggestions || []);
     } catch (error) {
       console.error('AI suggest error:', error);
+      toast.error(await describeEdgeError(
+        error,
+        language === 'de' ? 'Vorschläge konnten nicht geladen werden.' : 'Could not load suggestions.'
+      ));
     } finally {
       setIsLoadingAI(false);
     }

@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
+import { toast } from 'sonner';
 import { trackProactiveOutcome } from '@/lib/telemetry';
 import { Task, CalendarEvent } from '@/types/flux';
 import { useDailyCheckins } from '@/hooks/useDailyCheckins';
@@ -109,7 +111,8 @@ export function WhatNowButton({
       });
     } catch (error) {
       console.error('What now error:', error);
-      
+      toast.error(await describeEdgeError(error, t('whatNow.aiError')));
+
       // Fallback to simple logic
       const priorityOrder = { high: 3, medium: 2, low: 1 };
       const sortedTasks = incompleteTasks.sort((a, b) => 
@@ -139,7 +142,7 @@ export function WhatNowButton({
     } finally {
       setIsLoading(false);
     }
-  }, [tasks, events, todayMorning]);
+  }, [tasks, events, todayMorning, t]);
 
   const handleOpen = () => {
     setOpen(true);

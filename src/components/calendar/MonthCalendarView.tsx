@@ -370,7 +370,8 @@ export function MonthCalendarView({
                 <>
                   {/* Holidays */}
                   {dayHolidays.map((holiday) => (
-                    <div
+                    <button
+                      type="button"
                       key={holiday.id}
                       onClick={() => setSelectedHoliday({
                         name: holiday.name,
@@ -379,7 +380,7 @@ export function MonthCalendarView({
                         country_name: holiday.country_name,
                         country_code: holiday.country_code,
                       })}
-                      className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg cursor-pointer hover:bg-emerald-500/20 transition-colors"
+                      className="w-full text-left p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg cursor-pointer hover:bg-emerald-500/20 transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <Flag className="w-4 h-4 text-emerald-600" />
@@ -388,30 +389,32 @@ export function MonthCalendarView({
                       {holiday.local_name && holiday.local_name !== holiday.name && (
                         <p className="text-sm text-emerald-600/80 mt-1">{holiday.local_name}</p>
                       )}
-                    </div>
+                    </button>
                   ))}
 
                   {/* Islamic Holidays */}
                   {dayIslamicHolidays.map((holiday) => (
-                    <div
+                    <button
+                      type="button"
                       key={holiday.id}
                       onClick={() => setSelectedIslamicHoliday(holiday)}
-                      className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg cursor-pointer hover:bg-amber-500/20 transition-colors"
+                      className="w-full text-left p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg cursor-pointer hover:bg-amber-500/20 transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <Moon className="w-4 h-4 text-amber-600" />
                         <span className="font-medium text-amber-700 dark:text-amber-400">{holiday.name}</span>
                       </div>
                       <p className="text-sm text-amber-600/80 mt-1">{holiday.local_name}</p>
-                    </div>
+                    </button>
                   ))}
 
                   {/* Events */}
                   {dayEvents.map((event) => (
-                    <div
+                    <button
+                      type="button"
                       key={event.id}
                       onClick={() => handleItemClick({ id: event.id, type: 'event' })}
-                      className="p-3 bg-primary/10 border border-primary/30 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors"
+                      className="w-full text-left p-3 bg-primary/10 border border-primary/30 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors"
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <CalendarIcon className="w-4 h-4 text-primary" />
@@ -426,7 +429,7 @@ export function MonthCalendarView({
                       {event.description && (
                         <p className="text-sm text-muted-foreground mt-2">{event.description}</p>
                       )}
-                    </div>
+                    </button>
                   ))}
 
                   {/* Tasks */}
@@ -437,14 +440,22 @@ export function MonthCalendarView({
                     return (
                       <div
                         key={`${task.id}-${task.dueDate?.toString()}`}
+                        role="button"
+                        tabIndex={0}
                         className={cn(
                           "p-3 rounded-lg border cursor-pointer transition-colors",
-                          task.completed 
+                          task.completed
                             ? "bg-muted/30 border-muted"
                             : priorityColors[task.priority] || priorityColors.low,
                           isOverdue && "border-destructive"
                         )}
                         onClick={() => handleItemClick({ id: task.id, type: 'task' })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleItemClick({ id: task.id, type: 'task' });
+                          }
+                        }}
                       >
                         <div className="flex items-start gap-3">
                           <button
@@ -505,9 +516,10 @@ export function MonthCalendarView({
               return (
                 <div key={day.toISOString()} className="space-y-2">
                   {/* Day Header */}
-                  <div 
+                  <button
+                    type="button"
                     className={cn(
-                      "flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-muted/50",
+                      "w-full text-left flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-muted/50",
                       isCurrentDay && "bg-primary/10"
                     )}
                     onClick={() => {
@@ -535,14 +547,15 @@ export function MonthCalendarView({
                     {!hasItems && (
                       <span className="ml-auto text-xs text-muted-foreground">No items</span>
                     )}
-                  </div>
+                  </button>
 
                   {/* Day Items */}
                   {hasItems && (
                     <div className="space-y-1.5 pl-14">
                       {/* Holidays */}
                       {dayHolidays.map((holiday) => (
-                        <div
+                        <button
+                          type="button"
                           key={holiday.id}
                           onClick={() => setSelectedHoliday({
                             name: holiday.name,
@@ -551,35 +564,37 @@ export function MonthCalendarView({
                             country_name: holiday.country_name,
                             country_code: holiday.country_code,
                           })}
-                          className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg cursor-pointer hover:bg-emerald-500/20 transition-colors"
+                          className="w-full text-left p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg cursor-pointer hover:bg-emerald-500/20 transition-colors"
                         >
                           <div className="flex items-center gap-2">
                             <Flag className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                             <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{holiday.name}</span>
                           </div>
-                        </div>
+                        </button>
                       ))}
 
                       {/* Islamic Holidays */}
                       {dayIslamicHolidays.map((holiday) => (
-                        <div
+                        <button
+                          type="button"
                           key={holiday.id}
                           onClick={() => setSelectedIslamicHoliday(holiday)}
-                          className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg cursor-pointer hover:bg-amber-500/20 transition-colors"
+                          className="w-full text-left p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg cursor-pointer hover:bg-amber-500/20 transition-colors"
                         >
                           <div className="flex items-center gap-2">
                             <Moon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                             <span className="text-sm font-medium text-amber-700 dark:text-amber-400">{holiday.name}</span>
                           </div>
-                        </div>
+                        </button>
                       ))}
 
                       {/* Events - show ALL with full text */}
                       {dayEvents.map((event) => (
-                        <div
+                        <button
+                          type="button"
                           key={event.id}
                           onClick={() => handleItemClick({ id: event.id, type: 'event' })}
-                          className="p-2 bg-primary/10 border border-primary/30 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors"
+                          className="w-full text-left p-2 bg-primary/10 border border-primary/30 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors"
                         >
                           <div className="flex items-start gap-2">
                             <CalendarIcon className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
@@ -593,25 +608,33 @@ export function MonthCalendarView({
                               )}
                             </div>
                           </div>
-                        </div>
+                        </button>
                       ))}
 
                       {/* Tasks - show ALL with full text */}
                       {dayTasks.map((task) => {
                         const isOverdue = task.dueDate && !task.completed && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate));
                         const baseId = task.id.split('-instance-')[0];
-                        
+
                         return (
                           <div
                             key={`${task.id}-${task.dueDate?.toString()}`}
+                            role="button"
+                            tabIndex={0}
                             className={cn(
                               "p-2 rounded-lg border cursor-pointer transition-colors",
-                              task.completed 
+                              task.completed
                                 ? "bg-muted/30 border-muted"
                                 : priorityColors[task.priority] || priorityColors.low,
                               isOverdue && "border-destructive"
                             )}
                             onClick={() => handleItemClick({ id: task.id, type: 'task' })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleItemClick({ id: task.id, type: 'task' });
+                              }
+                            }}
                           >
                             <div className="flex items-start gap-2">
                               <button
@@ -675,9 +698,19 @@ export function MonthCalendarView({
                 return (
                   <div
                     key={day.toISOString()}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={format(day, 'PPPP', { locale: dateLocale })}
                     onClick={() => {
                       setCurrentDate(day);
                       setViewMode('day');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setCurrentDate(day);
+                        setViewMode('day');
+                      }
                     }}
                     className={cn(
                       "border-r last:border-r-0 border-b border-border p-1 cursor-pointer hover:bg-muted/50 transition-colors min-h-[80px]",
@@ -699,6 +732,8 @@ export function MonthCalendarView({
                       {dayHolidays.slice(0, 1).map((holiday) => (
                         <div
                           key={holiday.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedHoliday({
@@ -708,6 +743,19 @@ export function MonthCalendarView({
                               country_name: holiday.country_name,
                               country_code: holiday.country_code,
                             });
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedHoliday({
+                                name: holiday.name,
+                                local_name: holiday.local_name,
+                                date: holiday.date,
+                                country_name: holiday.country_name,
+                                country_code: holiday.country_code,
+                              });
+                            }
                           }}
                           className="px-1 py-0.5 text-[9px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 rounded truncate flex items-center gap-0.5 cursor-pointer hover:bg-emerald-500/30 transition-colors"
                           title={`${holiday.name} (${holiday.country_name})`}
@@ -721,9 +769,18 @@ export function MonthCalendarView({
                       {dayIslamicHolidays.slice(0, 1).map((holiday) => (
                         <div
                           key={holiday.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedIslamicHoliday(holiday);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedIslamicHoliday(holiday);
+                            }
                           }}
                           className="px-1 py-0.5 text-[9px] bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded truncate flex items-center gap-0.5 cursor-pointer hover:bg-amber-500/30 transition-colors"
                           title={`${holiday.name} - ${holiday.local_name}`}
@@ -737,9 +794,18 @@ export function MonthCalendarView({
                       {dayEvents.slice(0, 2).map((event) => (
                         <div
                           key={event.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleItemClick({ id: event.id, type: 'event' });
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleItemClick({ id: event.id, type: 'event' });
+                            }
                           }}
                           className="px-1 py-0.5 text-[9px] bg-primary/20 text-primary rounded truncate cursor-pointer hover:bg-primary/30 transition-colors"
                         >
@@ -755,9 +821,11 @@ export function MonthCalendarView({
                         return (
                           <div
                             key={`${task.id}-${task.dueDate?.toString()}`}
+                            role="button"
+                            tabIndex={0}
                             className={cn(
                               "px-1 py-0.5 text-[9px] rounded border cursor-pointer transition-colors",
-                              task.completed 
+                              task.completed
                                 ? "bg-muted/50 text-muted-foreground line-through opacity-60"
                                 : priorityColors[task.priority] || priorityColors.low,
                               isOverdue && "border-destructive",
@@ -766,6 +834,13 @@ export function MonthCalendarView({
                             onClick={(e) => {
                               e.stopPropagation();
                               handleItemClick({ id: task.id, type: 'task' });
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleItemClick({ id: task.id, type: 'task' });
+                              }
                             }}
                           >
                             <div className="flex items-center gap-0.5">

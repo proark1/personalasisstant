@@ -21,6 +21,7 @@ async function refreshAccessToken(refreshToken: string): Promise<{ access_token:
       refresh_token: refreshToken,
       grant_type: 'refresh_token',
     }),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {
@@ -62,6 +63,7 @@ async function analyzeWithAI(
         Authorization: `Bearer ${GEMINI_API_KEY}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({
         model: 'gemini-2.5-flash-lite',
         messages: [
@@ -147,6 +149,7 @@ async function getGmailHistoryId(accessToken: string): Promise<string | null> {
   try {
     const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(15_000),
     });
     if (!resp.ok) return null;
     const data = await resp.json();
@@ -162,6 +165,7 @@ async function getNewMessageIds(accessToken: string, startHistoryId: string): Pr
     const url = `https://gmail.googleapis.com/gmail/v1/users/me/history?startHistoryId=${startHistoryId}&historyTypes=messageAdded&labelId=INBOX&maxResults=100`;
     const resp = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (resp.status === 404) {
@@ -201,9 +205,9 @@ async function processEmails(
   userId: string,
   connection: any,
   userName?: string
-): Promise<{ parsedEmails: any[]; highPriorityCount: number }> {
+): Promise<{ parsedEmails: any[]; highPriorityCount: number; hadUpsertFailure: boolean }> {
   if (messageIds.length === 0) {
-    return { parsedEmails: [], highPriorityCount: 0 };
+    return { parsedEmails: [], highPriorityCount: 0, hadUpsertFailure: false };
   }
 
   // Fetch message details in parallel batches
@@ -215,7 +219,7 @@ async function processEmails(
       batch.map(async (msg) => {
         const resp = await fetch(
           `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
+          { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(15_000) }
         );
         if (!resp.ok) return null;
         return resp.json();
@@ -368,12 +372,14 @@ async function processEmails(
   // Upsert emails
   const emailsToUpsert = parsedEmails.map(e => ({ user_id: userId, ...e }));
 
+  let hadUpsertFailure = false;
   const { error: upsertError } = await adminClient
     .from('user_emails')
     .upsert(emailsToUpsert, { onConflict: 'user_id,gmail_message_id', ignoreDuplicates: false });
 
   if (upsertError) {
     console.error('Upsert error:', upsertError);
+    hadUpsertFailure = true;
   }
 
   // Notifications for high-priority new emails
@@ -389,7 +395,7 @@ async function processEmails(
     }).then(() => {}).catch(() => {});
   }
 
-  return { parsedEmails, highPriorityCount: highPriority.length };
+  return { parsedEmails, highPriorityCount: highPriority.length, hadUpsertFailure };
 }
 
 serve(async (req) => {
@@ -479,7 +485,7 @@ serve(async (req) => {
     const { maxResults } = await req.json().catch(() => ({ maxResults: 30 }));
     const storedHistoryId = connection.gmail_history_id;
 
-    let syncResult: { parsedEmails: any[]; highPriorityCount: number };
+    let syncResult: { parsedEmails: any[]; highPriorityCount: number; hadUpsertFailure: boolean };
     let syncType: 'incremental' | 'full';
 
     if (storedHistoryId) {
@@ -493,7 +499,7 @@ serve(async (req) => {
         syncType = 'full';
         const listResponse = await fetch(
           `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults || 30}&labelIds=INBOX`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
+          { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(15_000) }
         );
 
         if (!listResponse.ok) {
@@ -542,7 +548,7 @@ serve(async (req) => {
 
       const listResponse = await fetch(
         `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults || 30}&labelIds=INBOX`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+        { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(15_000) }
       );
 
       if (!listResponse.ok) {
@@ -570,13 +576,20 @@ serve(async (req) => {
       syncResult = await processEmails(messageIds, accessToken, adminClient, userId, connection, userName);
     }
 
-    // Save latest historyId for next incremental sync
-    const latestHistoryId = await getGmailHistoryId(accessToken);
-    if (latestHistoryId) {
-      await adminClient
-        .from('external_calendar_connections')
-        .update({ gmail_history_id: latestHistoryId, last_synced_at: new Date().toISOString() })
-        .eq('id', connection.id);
+    // Save latest historyId for next incremental sync.
+    // If any upsert failed, do NOT advance the historyId — leave it pointing at
+    // the previous window so the next incremental sync retries the same emails
+    // (the upsert is idempotent on user_id,gmail_message_id, so retries are safe).
+    if (syncResult.hadUpsertFailure) {
+      console.error('Skipping gmail_history_id advance: an email upsert failed this run; next sync will retry the same window.');
+    } else {
+      const latestHistoryId = await getGmailHistoryId(accessToken);
+      if (latestHistoryId) {
+        await adminClient
+          .from('external_calendar_connections')
+          .update({ gmail_history_id: latestHistoryId, last_synced_at: new Date().toISOString() })
+          .eq('id', connection.id);
+      }
     }
 
 

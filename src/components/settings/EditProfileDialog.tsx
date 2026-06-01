@@ -122,7 +122,7 @@ export function EditProfileDialog({ isOpen, onClose }: EditProfileDialogProps) {
               {/* Avatar */}
               <div className="flex flex-col items-center gap-4">
                 <Avatar className="w-20 h-20">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarImage src={profile?.avatar_url || undefined} alt={displayName || email || 'Profile avatar'} />
                   <AvatarFallback className="text-2xl bg-primary/20 text-primary">
                     {displayName?.charAt(0)?.toUpperCase() || email?.charAt(0)?.toUpperCase() || 'U'}
                   </AvatarFallback>

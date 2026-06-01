@@ -24,6 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Upload, FileText, X, Loader2, ExternalLink, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { describeEdgeError } from '@/lib/edgeError';
 
 interface AddEditContractDialogProps {
   open: boolean;
@@ -214,19 +215,27 @@ export function AddEditContractDialog({
     try {
       // Only delete from storage if it's a storage path (not external URL)
       if (!urlToRemove.startsWith('http')) {
-        await supabase.storage
+        const { error: removeError } = await supabase.storage
           .from('contract-documents')
           .remove([urlToRemove]);
+        if (removeError) throw removeError;
       }
-      
+
+      // Only update local state once the storage removal has succeeded, so
+      // a failed delete doesn't leave the UI out of sync with the bucket.
       setDocumentUrls(prev => prev.filter((_, i) => i !== index));
       setFileNames(prev => prev.filter((_, i) => i !== index));
-      
+
       toast({
         title: t('contracts.toast.documentRemoved'),
       });
     } catch (error) {
       console.error('Remove error:', error);
+      toast({
+        variant: 'destructive',
+        title: t('contracts.toast.removeFailed'),
+        description: await describeEdgeError(error, t('contracts.toast.removeFailedDesc')),
+      });
     }
   };
 

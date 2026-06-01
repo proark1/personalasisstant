@@ -93,9 +93,24 @@ export function subscribeToTable(
       },
     );
 
+    // Track whether this channel has ever been in an error/closed state so we
+    // can distinguish a reconnect from the first subscribe. On reconnect, row
+    // changes that happened during the offline gap were missed — emit the
+    // table's invalidation event so subscribers refetch and catch up.
+    let hasErrored = false;
     channel.subscribe((status) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        hasErrored = true;
         moduleBus.emit('module:error', { module: 'realtime', table, status }, 'realtime');
+      } else if (status === 'SUBSCRIBED' && hasErrored) {
+        // Reconnected after a gap. Reuse the same invalidation event a real
+        // row change would emit so subscribers refetch the affected table.
+        hasErrored = false;
+        const mapping = TABLE_TO_EVENT[table];
+        const eventName = mapping?.UPDATE ?? mapping?.INSERT ?? mapping?.DELETE;
+        if (eventName) {
+          moduleBus.emit(eventName, null, 'realtime');
+        }
       }
     });
 

@@ -1076,6 +1076,39 @@ const Index = () => {
     await signOut();
   }, [signOut]);
 
+  // Stable handlers passed to the memoized StandardMode — fresh inline closures
+  // would defeat its React.memo on every Index re-render (e.g. AI streaming).
+  const handleVoiceMode = useCallback(() => setMode('ghost'), []);
+  const handleEditProfile = useCallback(() => setShowProfileSettings(true), []);
+  const handleOpenWeeklyReview = useCallback(() => setShowWeeklyReview(true), []);
+  const handleShareTask = useCallback((id: string, title: string) => {
+    setShareDialog({ type: 'task', id, title });
+  }, []);
+  const handleShareEvent = useCallback((id: string, title: string) => {
+    setShareDialog({ type: 'event', id, title });
+  }, []);
+  const handleShareProject = useCallback((projectId: string, projectName: string) => {
+    setShareProjectDialog({ projectId, projectName });
+    getProjectMembers(projectId);
+  }, [getProjectMembers]);
+  const handleShareProjectWithEmail = useCallback(
+    (projectId: string, email: string) => shareProject(projectId, email),
+    [shareProject],
+  );
+
+  // Rebuilt-every-render object literal would also break StandardMode's memo —
+  // recompute only when the underlying data changes.
+  const doriStats = useMemo(() => ({
+    overdueTasks: tasks.filter(t => !t.completed && t.dueDate && new Date(t.dueDate) < new Date()).length,
+    unreadEmails: unreadEmailCount,
+    todayEvents: events.filter(e => {
+      const d = new Date(e.startTime);
+      const now = new Date();
+      return d.toDateString() === now.toDateString();
+    }).length,
+    pendingTasks: tasks.filter(t => !t.completed).length,
+  }), [tasks, events, unreadEmailCount]);
+
   if (dbLoading) {
     return <BrandedLoader message="Loading your day…" />;
   }
@@ -1128,34 +1161,22 @@ const Index = () => {
           onSendMessage={handleSendMessage}
           thinkingStatus={thinkingStatus}
           actionCards={actionCards}
-          doriStats={{
-            overdueTasks: tasks.filter(t => !t.completed && t.dueDate && new Date(t.dueDate) < new Date()).length,
-            unreadEmails: unreadEmailCount,
-            todayEvents: events.filter(e => {
-              const d = new Date(e.startTime);
-              const now = new Date();
-              return d.toDateString() === now.toDateString();
-            }).length,
-            pendingTasks: tasks.filter(t => !t.completed).length,
-          }}
-          onVoiceMode={() => setMode('ghost')}
-          onEditProfile={() => setShowProfileSettings(true)}
+          doriStats={doriStats}
+          onVoiceMode={handleVoiceMode}
+          onEditProfile={handleEditProfile}
           settings={settings}
           onUpdateSettings={updateSettings}
           onUpdateNotifications={updateNotifications}
-          onShareTask={(id, title) => setShareDialog({ type: 'task', id, title })}
-          onShareEvent={(id, title) => setShareDialog({ type: 'event', id, title })}
+          onShareTask={handleShareTask}
+          onShareEvent={handleShareEvent}
           onSignOut={handleSignOut}
-          onOpenWeeklyReview={() => setShowWeeklyReview(true)}
+          onOpenWeeklyReview={handleOpenWeeklyReview}
           onAddProject={addProject}
           onUpdateProject={updateProject}
           onDeleteProject={deleteProject}
           getProjectProgress={getProjectProgress}
-          onShareProject={(projectId, projectName) => {
-            setShareProjectDialog({ projectId, projectName });
-            getProjectMembers(projectId);
-          }}
-          onShareProjectWithEmail={(projectId, email) => shareProject(projectId, email)}
+          onShareProject={handleShareProject}
+          onShareProjectWithEmail={handleShareProjectWithEmail}
         />
       ) : (
         <Suspense fallback={<PageFallback />}>

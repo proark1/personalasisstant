@@ -146,7 +146,15 @@ export function RealtimeNotificationCenter({ userId }: RealtimeNotificationCente
                         ? "bg-background" 
                         : "bg-primary/5 border-primary/20"
                     )}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => !notification.read && markRead(notification.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (!notification.read) markRead(notification.id);
+                      }
+                    }}
                   >
                     <div className="flex gap-3">
                       <div className={cn("mt-0.5", iconColor)}>

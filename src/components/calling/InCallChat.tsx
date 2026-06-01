@@ -62,7 +62,7 @@ export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: In
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <span className="text-sm font-medium">In-Call Chat</span>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onToggle}>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onToggle} aria-label="Close chat">
           <X className="w-4 h-4" />
         </Button>
       </div>
@@ -118,6 +118,7 @@ export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: In
           className="h-8 w-8 shrink-0" 
           onClick={handleSend}
           disabled={!input.trim()}
+          aria-label="Send message"
         >
           <Send className="w-4 h-4" />
         </Button>

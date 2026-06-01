@@ -134,8 +134,9 @@ export function TaskTemplates({ onCreateFromTemplate }: TaskTemplatesProps) {
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
                 >
                   <CardContent className="p-2 flex items-center justify-between gap-2">
-                    <div 
-                      className="flex-1 min-w-0"
+                    <button
+                      type="button"
+                      className="flex-1 min-w-0 text-left"
                       onClick={() => onCreateFromTemplate(template)}
                     >
                       <div className="flex items-center gap-2">
@@ -147,7 +148,7 @@ export function TaskTemplates({ onCreateFromTemplate }: TaskTemplatesProps) {
                         <span className="font-medium text-sm truncate">{template.name}</span>
                       </div>
                       <p className="text-xs text-muted-foreground truncate">{template.title}</p>
-                    </div>
+                    </button>
                     <Button
                       variant="ghost"
                       size="iconSm"

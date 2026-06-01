@@ -155,7 +155,8 @@ body::before {
     --popover: 0 0% 100%;
     --popover-foreground: 250 30% 20%;
 
-    --primary: 330 90% 55%;
+    /* Darkened from 330 90% 55% to pass WCAG AA (>=4.5:1) on white button text. */
+    --primary: 330 85% 42%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 175 75% 85%;
@@ -197,6 +198,11 @@ body::before {
     --sidebar-accent-foreground: 175 80% 25%;
     --sidebar-border: 280 25% 88%;
     --sidebar-ring: 330 90% 55%;
+
+    /* Chat tokens derived from the colorful palette (background/muted/secondary). */
+    --chat-bg: 280 30% 96%;
+    --chat-outgoing: 175 60% 88%;
+    --chat-incoming: 0 0% 100%;
   }
 }
 

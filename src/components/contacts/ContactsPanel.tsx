@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useCallback, useState, type ReactNode } from 'react';
 import { useContacts, Contact, ContactType, ContactInput, PersonalTier, BusinessLevel, FamilyRelationship } from '@/hooks/useContacts';
 import { useContactInteractions } from '@/hooks/useContactInteractions';
 import { useItemSharing } from '@/hooks/useItemSharing';
@@ -113,6 +113,145 @@ const defaultFormData: ContactFormData = {
   birthdayReminder: false,
 };
 
+const getTierBadge = (contact: Contact): ReactNode => {
+  if (contact.contactType === 'personal' && contact.personalTier) {
+    const tier = PERSONAL_TIERS.find(t => t.value === contact.personalTier);
+    return tier ? <Badge className={`${tier.color} text-white text-[10px] px-1.5 py-0`}>{tier.label}</Badge> : null;
+  }
+  if (contact.contactType === 'business' && contact.businessLevel) {
+    const level = BUSINESS_LEVELS.find(l => l.value === contact.businessLevel);
+    return level ? <Badge className={`${level.color} text-white text-[10px] px-1.5 py-0`}>{level.label}</Badge> : null;
+  }
+  return null;
+};
+
+const getInitials = (name: string) => {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+};
+
+const getUpcomingBirthday = (contact: Contact) => {
+  if (!contact.birthDate || !contact.birthdayReminder) return null;
+  const now = new Date();
+  const birthday = new Date(contact.birthDate);
+  birthday.setFullYear(now.getFullYear());
+  if (birthday < now) birthday.setFullYear(now.getFullYear() + 1);
+  const daysUntil = differenceInDays(birthday, now);
+  if (daysUntil >= 0 && daysUntil <= 7) return daysUntil;
+  return null;
+};
+
+interface ContactRowProps {
+  contact: Contact;
+  onSelect: (contact: Contact) => void;
+  onMarkContacted: (contact: Contact) => void;
+  onEdit: (contact: Contact) => void;
+  onEmail: (contact: Contact) => void;
+}
+
+// Memoized so a contact row only re-renders when its own props change,
+// not when a sibling row or unrelated panel state updates.
+const ContactRow = memo(function ContactRow({ contact, onSelect, onMarkContacted, onEdit, onEmail }: ContactRowProps) {
+  const isDue = contact.nextContactDue && isPast(contact.nextContactDue);
+  const birthdayDays = getUpcomingBirthday(contact);
+  const isFamily = contact.personalTier === 'family';
+
+  return (
+    <motion.div variants={staggerItem}>
+      <GlassCard
+        pressable
+        haptic="light"
+        className={`group transition-colors relative ${isDue ? 'border-destructive/50' : ''}`}
+        onClick={() => onSelect(contact)}
+      >
+        {isDue && (
+          <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
+          </span>
+        )}
+        <GlassCardContent className="p-3">
+          <div className="flex items-start gap-2.5">
+            <Avatar className="h-9 w-9 shrink-0">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                {getInitials(contact.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="font-medium text-sm truncate">{contact.name}</p>
+                {getTierBadge(contact)}
+                {isFamily && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-pink-500/50 text-pink-500">
+                    <Heart className="w-2 h-2 mr-0.5" />Family
+                  </Badge>
+                )}
+              </div>
+
+              <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                {contact.company && (
+                  <p className="flex items-center gap-1 truncate">
+                    <Building className="w-3 h-3 shrink-0" />
+                    {contact.company}{contact.role && ` · ${contact.role}`}
+                  </p>
+                )}
+                {contact.lastContactedAt ? (
+                  <p className="flex items-center gap-1">
+                    <Clock className="w-3 h-3 shrink-0" />
+                    {formatDistanceToNow(contact.lastContactedAt, { addSuffix: true })}
+                  </p>
+                ) : (
+                  <p className="flex items-center gap-1 text-muted-foreground/60">
+                    <Clock className="w-3 h-3 shrink-0" />Never contacted
+                  </p>
+                )}
+              </div>
+
+              {birthdayDays !== null && (
+                <div className="flex items-center gap-1 mt-1">
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-pink-500/10 text-pink-600">
+                    <Cake className="w-2.5 h-2.5 mr-0.5" />
+                    {birthdayDays === 0 ? 'Birthday today! 🎂' : `Birthday in ${birthdayDays}d`}
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-0 max-md:opacity-100">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-green-500"
+                onClick={(e) => { e.stopPropagation(); onMarkContacted(contact); }}
+                title="Mark contacted"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => { e.stopPropagation(); onEdit(contact); }}
+                title="Edit"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => { e.stopPropagation(); onEmail(contact); }}
+                title="Email"
+              >
+                <Mail className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        </GlassCardContent>
+      </GlassCard>
+    </motion.div>
+  );
+});
+
 interface ContactsPanelProps {
   userId: string;
 }
@@ -156,7 +295,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     setEditingContact(null);
   };
 
-  const openEditDialog = (contact: Contact) => {
+  const openEditDialog = useCallback((contact: Contact) => {
     setEditingContact(contact);
     setFormData({
       name: contact.name,
@@ -180,7 +319,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
       birthdayReminder: contact.birthdayReminder ?? false,
     });
     setShowAddDialog(true);
-  };
+  }, []);
 
   const handleSubmit = async () => {
     if (saving) return;
@@ -271,12 +410,12 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     setContactToDelete(null);
   };
 
-  const handleMarkContacted = async (contact: Contact) => {
+  const handleMarkContacted = useCallback(async (contact: Contact) => {
     const success = await markContacted(contact.id);
     if (success) {
       toast({ title: t('contacts.toast.markedContacted').replace('{name}', () => contact.name) });
     }
-  };
+  }, [markContacted, toast, t]);
 
   const handleImportContacts = async (contactsToImport: ContactInput[]) => {
     let imported = 0;
@@ -287,10 +426,14 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     toast({ title: t(imported === 1 ? 'contacts.toast.importedContacts.one' : 'contacts.toast.importedContacts.other').replace('{count}', String(imported)) });
   };
 
-  const handleOpenEmailTemplate = (contact: Contact) => {
+  const handleOpenEmailTemplate = useCallback((contact: Contact) => {
     setEmailTemplateContact(contact);
     setShowEmailTemplate(true);
-  };
+  }, []);
+
+  const handleSelectContact = useCallback((contact: Contact) => {
+    setSelectedContact(contact);
+  }, []);
 
   const filterContacts = (contactsList: Contact[]) => {
     if (!searchQuery) return contactsList;
@@ -304,136 +447,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     );
   };
 
-  const getTierBadge = (contact: Contact) => {
-    if (contact.contactType === 'personal' && contact.personalTier) {
-      const tier = PERSONAL_TIERS.find(t => t.value === contact.personalTier);
-      return tier ? <Badge className={`${tier.color} text-white text-[10px] px-1.5 py-0`}>{tier.label}</Badge> : null;
-    }
-    if (contact.contactType === 'business' && contact.businessLevel) {
-      const level = BUSINESS_LEVELS.find(l => l.value === contact.businessLevel);
-      return level ? <Badge className={`${level.color} text-white text-[10px] px-1.5 py-0`}>{level.label}</Badge> : null;
-    }
-    return null;
-  };
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  const getUpcomingBirthday = (contact: Contact) => {
-    if (!contact.birthDate || !contact.birthdayReminder) return null;
-    const now = new Date();
-    const birthday = new Date(contact.birthDate);
-    birthday.setFullYear(now.getFullYear());
-    if (birthday < now) birthday.setFullYear(now.getFullYear() + 1);
-    const daysUntil = differenceInDays(birthday, now);
-    if (daysUntil >= 0 && daysUntil <= 7) return daysUntil;
-    return null;
-  };
-
-  const ContactCard = ({ contact }: { contact: Contact }) => {
-    const isDue = contact.nextContactDue && isPast(contact.nextContactDue);
-    const birthdayDays = getUpcomingBirthday(contact);
-    const isFamily = contact.personalTier === 'family';
-    
-    return (
-      <motion.div variants={staggerItem}>
-        <GlassCard 
-          pressable
-          haptic="light"
-          className={`group transition-colors relative ${isDue ? 'border-destructive/50' : ''}`}
-          onClick={() => setSelectedContact(contact)}
-        >
-          {isDue && (
-            <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
-            </span>
-          )}
-          <GlassCardContent className="p-3">
-            <div className="flex items-start gap-2.5">
-              <Avatar className="h-9 w-9 shrink-0">
-                <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                  {getInitials(contact.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <p className="font-medium text-sm truncate">{contact.name}</p>
-                  {getTierBadge(contact)}
-                  {isFamily && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-pink-500/50 text-pink-500">
-                      <Heart className="w-2 h-2 mr-0.5" />Family
-                    </Badge>
-                  )}
-                </div>
-                
-                <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
-                  {contact.company && (
-                    <p className="flex items-center gap-1 truncate">
-                      <Building className="w-3 h-3 shrink-0" />
-                      {contact.company}{contact.role && ` · ${contact.role}`}
-                    </p>
-                  )}
-                  {contact.lastContactedAt ? (
-                    <p className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 shrink-0" />
-                      {formatDistanceToNow(contact.lastContactedAt, { addSuffix: true })}
-                    </p>
-                  ) : (
-                    <p className="flex items-center gap-1 text-muted-foreground/60">
-                      <Clock className="w-3 h-3 shrink-0" />Never contacted
-                    </p>
-                  )}
-                </div>
-
-                {birthdayDays !== null && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-pink-500/10 text-pink-600">
-                      <Cake className="w-2.5 h-2.5 mr-0.5" />
-                      {birthdayDays === 0 ? 'Birthday today! 🎂' : `Birthday in ${birthdayDays}d`}
-                    </Badge>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-0 max-md:opacity-100">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-green-500"
-                  onClick={(e) => { e.stopPropagation(); handleMarkContacted(contact); }}
-                  title="Mark contacted"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={(e) => { e.stopPropagation(); openEditDialog(contact); }}
-                  title="Edit"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={(e) => { e.stopPropagation(); handleOpenEmailTemplate(contact); }}
-                  title="Email"
-                >
-                  <Mail className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            </div>
-          </GlassCardContent>
-        </GlassCard>
-      </motion.div>
-    );
-  };
-
-  const displayContacts = activeTab === 'personal' 
+  const displayContacts = activeTab === 'personal'
     ? filterContacts(personalContacts)
     : activeTab === 'business'
     ? filterContacts(businessContacts)
@@ -659,7 +673,14 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
               <ScrollArea className="h-full">
                 <div className="space-y-2 pr-2 pb-4">
                   {displayContacts.map(contact => (
-                    <ContactCard key={contact.id} contact={contact} />
+                    <ContactRow
+                      key={contact.id}
+                      contact={contact}
+                      onSelect={handleSelectContact}
+                      onMarkContacted={handleMarkContacted}
+                      onEdit={openEditDialog}
+                      onEmail={handleOpenEmailTemplate}
+                    />
                   ))}
                 </div>
               </ScrollArea>

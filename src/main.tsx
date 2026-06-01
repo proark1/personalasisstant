@@ -110,12 +110,21 @@ function mountFatalOverlay(title: string, detail?: string) {
   rootEl.replaceChildren(wrap);
 }
 
+// Set true once React has mounted. The fatal-overlay listeners below must ONLY
+// fire for failures that happen *before* React renders its ErrorBoundary —
+// once the app is live, replacing the root DOM would nuke the running UI on any
+// stray uncaught error/rejection. After mount, the in-app ErrorBoundary +
+// telemetry own error handling.
+let reactMounted = false;
+
 // Catch failures that happen before React can render the ErrorBoundary.
 window.addEventListener("error", (e) => {
+  if (reactMounted) return;
   const msg = e.error instanceof Error ? `${e.error.name}: ${e.error.message}` : String(e.message);
   mountFatalOverlay("DarAI couldn’t start", msg);
 });
 window.addEventListener("unhandledrejection", (e: PromiseRejectionEvent) => {
+  if (reactMounted) return;
   const reason = e.reason instanceof Error ? `${e.reason.name}: ${e.reason.message}` : String(e.reason);
   mountFatalOverlay("DarAI couldn’t start", reason);
 });
@@ -123,6 +132,7 @@ window.addEventListener("unhandledrejection", (e: PromiseRejectionEvent) => {
 if (!killSwitchReloading) {
   try {
     createRoot(document.getElementById("root")!).render(<App />);
+    reactMounted = true;
   } catch (e) {
     const err = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     mountFatalOverlay("DarAI couldn’t start", err);

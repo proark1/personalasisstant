@@ -8,6 +8,9 @@ import { Loader2, BookOpen, GraduationCap, Calculator, Pencil, FlaskConical, Glo
 import { useFamilyAssistant } from '@/hooks/useFamilyAssistant';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { describeEdgeError } from '@/lib/edgeError';
+import { toast } from 'sonner';
 
 interface HomeworkHelperProps {
   preselectedChild?: string;
@@ -15,12 +18,12 @@ interface HomeworkHelperProps {
 }
 
 const SUBJECTS = [
-  { value: 'math', label: 'Math', icon: Calculator },
-  { value: 'writing', label: 'Writing & English', icon: Pencil },
-  { value: 'science', label: 'Science', icon: FlaskConical },
-  { value: 'history', label: 'History & Social Studies', icon: Globe },
-  { value: 'reading', label: 'Reading & Comprehension', icon: BookOpen },
-  { value: 'other', label: 'Other', icon: GraduationCap },
+  { value: 'math', labelKey: 'family.homework.subjectMath', icon: Calculator },
+  { value: 'writing', labelKey: 'family.homework.subjectWriting', icon: Pencil },
+  { value: 'science', labelKey: 'family.homework.subjectScience', icon: FlaskConical },
+  { value: 'history', labelKey: 'family.homework.subjectHistory', icon: Globe },
+  { value: 'reading', labelKey: 'family.homework.subjectReading', icon: BookOpen },
+  { value: 'other', labelKey: 'family.homework.subjectOther', icon: GraduationCap },
 ];
 
 const PROBLEM_TYPES = {
@@ -35,7 +38,8 @@ const PROBLEM_TYPES = {
 export function HomeworkHelper({ preselectedChild, onClose }: HomeworkHelperProps) {
   const { members } = useFamilyMembers();
   const { getHomeworkHelp, isLoading, streamingResponse } = useFamilyAssistant();
-  
+  const { t } = useLanguage();
+
   const [selectedChild, setSelectedChild] = useState(preselectedChild || '');
   const [subject, setSubject] = useState('');
   const [problemType, setProblemType] = useState('');
@@ -65,6 +69,7 @@ export function HomeworkHelper({ preselectedChild, onClose }: HomeworkHelperProp
       setResponse(result);
     } catch (error) {
       console.error('Error getting homework help:', error);
+      toast.error(await describeEdgeError(error, t('family.homework.error')));
     }
   };
 
@@ -75,17 +80,17 @@ export function HomeworkHelper({ preselectedChild, onClose }: HomeworkHelperProp
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
           <GraduationCap className="w-5 h-5 text-primary" />
-          Homework Helper
+          {t('family.homework.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Child selection */}
         {children.length > 0 && (
           <div className="space-y-2">
-            <Label>Who needs help?</Label>
+            <Label>{t('family.homework.whoNeedsHelp')}</Label>
             <Select value={selectedChild} onValueChange={setSelectedChild}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a child" />
+                <SelectValue placeholder={t('family.homework.selectChild')} />
               </SelectTrigger>
               <SelectContent>
                 {children.map((child) => (
@@ -100,7 +105,7 @@ export function HomeworkHelper({ preselectedChild, onClose }: HomeworkHelperProp
 
         {/* Subject selection */}
         <div className="space-y-2">
-          <Label>Subject</Label>
+          <Label>{t('family.homework.subject')}</Label>
           <div className="grid grid-cols-3 gap-2">
             {SUBJECTS.map((s) => {
               const Icon = s.icon;
@@ -116,7 +121,7 @@ export function HomeworkHelper({ preselectedChild, onClose }: HomeworkHelperProp
                   className="flex flex-col gap-1 h-auto py-2"
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="text-xs">{s.label}</span>
+                  <span className="text-xs">{t(s.labelKey)}</span>
                 </Button>
               );
             })}
@@ -126,10 +131,10 @@ export function HomeworkHelper({ preselectedChild, onClose }: HomeworkHelperProp
         {/* Problem type */}
         {subject && PROBLEM_TYPES[subject as keyof typeof PROBLEM_TYPES] && (
           <div className="space-y-2">
-            <Label>Problem type</Label>
+            <Label>{t('family.homework.problemType')}</Label>
             <Select value={problemType} onValueChange={setProblemType}>
               <SelectTrigger>
-                <SelectValue placeholder="Select type (optional)" />
+                <SelectValue placeholder={t('family.homework.selectType')} />
               </SelectTrigger>
               <SelectContent>
                 {PROBLEM_TYPES[subject as keyof typeof PROBLEM_TYPES].map((type) => (
@@ -144,9 +149,9 @@ export function HomeworkHelper({ preselectedChild, onClose }: HomeworkHelperProp
 
         {/* Question input */}
         <div className="space-y-2">
-          <Label>What do you need help with?</Label>
+          <Label>{t('family.homework.whatHelp')}</Label>
           <Textarea
-            placeholder="Type or paste the homework question here... Be as specific as possible!"
+            placeholder={t('family.homework.questionPlaceholder')}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             className="min-h-[100px]"
@@ -162,12 +167,12 @@ export function HomeworkHelper({ preselectedChild, onClose }: HomeworkHelperProp
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Getting help...
+              {t('family.homework.gettingHelp')}
             </>
           ) : (
             <>
               <SubjectIcon className="w-4 h-4 mr-2" />
-              Get Help
+              {t('family.homework.getHelp')}
             </>
           )}
         </Button>

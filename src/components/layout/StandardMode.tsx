@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense, lazy, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CommandPalette, type CommandPaletteAction } from '../command/CommandPalette';
 import { Sidebar, SidebarFilter, ActivePanel } from './Sidebar';
@@ -138,7 +138,7 @@ interface StandardModeProps {
 
 type FullscreenPanel = 'chat' | 'tasks' | 'calendar' | null;
 
-export function StandardMode({
+export const StandardMode = memo(function StandardMode({
   tasks,
   events,
   sharedTasks = [],
@@ -1021,4 +1021,4 @@ export function StandardMode({
       </Suspense>
     </div>
   );
-}
+});

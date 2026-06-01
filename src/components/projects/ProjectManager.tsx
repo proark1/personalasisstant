@@ -79,11 +79,19 @@ export function ProjectManager({
 
     return (
       <div
+        role="button"
+        tabIndex={0}
         className={cn(
           "group p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-all",
           isSelected && "bg-primary/10 border-primary/30"
         )}
         onClick={() => onSelectProject?.(isSelected ? undefined : project.id)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectProject?.(isSelected ? undefined : project.id);
+          }
+        }}
       >
         <div className="flex items-center gap-2">
           <div

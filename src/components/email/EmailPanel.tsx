@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { memo, useState, useRef, useCallback, useEffect } from 'react';
 import { useEmails, EmailView, Email, EmailThread } from '@/hooks/useEmails';
 import { useGmailConnection } from '@/hooks/useGmailConnection';
 import { EmailCard } from './EmailCard';
@@ -24,6 +24,12 @@ import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { useToast } from '@/hooks/use-toast';
 import { EmailActionPipelineCard } from '@/components/dashboard/EmailActionPipelineCard';
 import { useEmailActionsCount } from '@/hooks/useEmailActionsCount';
+
+// Memoized wrapper around EmailCard (which lives in another file) so a thread
+// row only re-renders when its own props change — not when a sibling row or
+// unrelated panel state updates. The `isSelected` boolean is passed in directly
+// so identity-stable Set lookups don't force every row to re-render.
+const MemoEmailCard = memo(EmailCard);
 
 function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onArchive, onToggleImportant, icon: Icon, selectMode, selectedIds, onToggleSelect }: {
   title: string;
@@ -55,7 +61,7 @@ function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onA
       {open && (
         <div className="w-full min-w-0 max-w-full space-y-1.5 overflow-hidden">
           {threads.map(thread => (
-            <EmailCard
+            <MemoEmailCard
               key={thread.latestEmail.id}
               thread={thread}
               onSelect={onSelect}
@@ -314,7 +320,7 @@ export function EmailPanel() {
     return allThreads.find(t => t.latestEmail.id === email.id || t.allEmails.some(e => e.id === email.id)) || null;
   };
 
-  const handleSelect = (email: Email) => {
+  const handleSelect = useCallback((email: Email) => {
     if (selectMode) {
       toggleSelect(email.id);
       return;
@@ -324,7 +330,9 @@ export function EmailPanel() {
     setSelectedEmail(email);
     setDetailOpen(true);
     if (!email.is_read) markAsRead(email.id);
-  };
+    // findThread reads `grouped` via closure; include the deps that affect behavior.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectMode, toggleSelect, markAsRead, grouped]);
 
   // Connect Gmail screen
   if (!connectionLoading && !isConnected) {
@@ -488,7 +496,7 @@ export function EmailPanel() {
             </>
           ) : emails && emails.length > 0 ? (
             emails.map(thread => (
-              <EmailCard
+              <MemoEmailCard
                 key={thread.latestEmail.id}
                 thread={thread}
                 onSelect={handleSelect}

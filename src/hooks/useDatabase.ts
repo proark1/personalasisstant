@@ -2,6 +2,8 @@ import { useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesUpdate } from '@/integrations/supabase/types';
+import { toast } from 'sonner';
+import { describeEdgeError } from '@/lib/edgeError';
 import { fetchWithRetry } from '@/lib/fetchWithTimeout';
 import { moduleBus } from '@/lib/moduleEventBus';
 import { moduleHealth } from '@/lib/moduleHealth';
@@ -161,10 +163,17 @@ export function useDatabase(userId: string | undefined) {
       // Own events plus shared family-household events. RLS restricts the
       // household_id-not-null rows to households this user belongs to, so a
       // single shared family event surfaces in every member's calendar.
+      //
+      // Bound the fetch to a rolling window so this query stays cheap as the
+      // events table grows — without a lower bound it pulls every event the
+      // user has ever had. 90 days back covers recent/recurring context while
+      // keeping the payload small.
+      const windowStart = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from('events')
         .select('*')
         .or(`user_id.eq.${userId!},household_id.not.is.null`)
+        .gte('start_time', windowStart)
         .order('start_time', { ascending: true });
       if (error) { moduleHealth.reportError('events', error); throw error; }
       moduleHealth.reportSuccess('events');
@@ -453,13 +462,22 @@ export function useDatabase(userId: string | undefined) {
     });
 
     // Update in database — fire the per-row updates in parallel instead of
-    // awaiting them one sequential round-trip at a time.
-    await Promise.all(
+    // awaiting them one sequential round-trip at a time. Capture each result:
+    // if any row failed to persist, the optimistic cache is now out of sync
+    // with the server, so invalidate to restore server truth and surface the
+    // error to the user.
+    const results = await Promise.all(
       taskOrders.map(({ id, sortOrder }) =>
         supabase.from('tasks').update({ sort_order: sortOrder }).eq('id', id),
       ),
     );
-  }, [setTasksCache]);
+
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      queryClient.invalidateQueries({ queryKey: ['tasks', userId] });
+      toast.error(await describeEdgeError(failed.error, 'Failed to reorder tasks'));
+    }
+  }, [setTasksCache, queryClient, userId]);
 
   // Event operations
   const addEvent = useCallback(async (event: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent | null> => {
@@ -684,32 +702,29 @@ export function useDatabase(userId: string | undefined) {
     let sharedTasks: Task[] = [];
     let sharedEvents: CalendarEvent[] = [];
 
-    if (taskIds.length > 0) {
-      const { data: tasksData } = await supabase
-        .from('tasks')
-        .select('*')
-        .in('id', taskIds);
-      
-      if (tasksData) {
-        sharedTasks = tasksData.map(t => ({
-          ...dbTaskToTask(t),
-          sharedBy: ownerMap.get(t.id),
-        }));
-      }
+    // The task and event fetches don't depend on each other — run them in
+    // parallel instead of awaiting one before starting the other.
+    const [tasksResult, eventsResult] = await Promise.all([
+      taskIds.length > 0
+        ? supabase.from('tasks').select('*').in('id', taskIds)
+        : Promise.resolve({ data: null }),
+      eventIds.length > 0
+        ? supabase.from('events').select('*').in('id', eventIds)
+        : Promise.resolve({ data: null }),
+    ]);
+
+    if (tasksResult.data) {
+      sharedTasks = (tasksResult.data as DbTask[]).map(t => ({
+        ...dbTaskToTask(t),
+        sharedBy: ownerMap.get(t.id),
+      }));
     }
 
-    if (eventIds.length > 0) {
-      const { data: eventsData } = await supabase
-        .from('events')
-        .select('*')
-        .in('id', eventIds);
-      
-      if (eventsData) {
-        sharedEvents = eventsData.map(e => ({
-          ...dbEventToEvent(e),
-          sharedBy: ownerMap.get(e.id),
-        }));
-      }
+    if (eventsResult.data) {
+      sharedEvents = (eventsResult.data as DbEvent[]).map(e => ({
+        ...dbEventToEvent(e),
+        sharedBy: ownerMap.get(e.id),
+      }));
     }
 
     return { sharedTasks, sharedEvents };

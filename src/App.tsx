@@ -1,12 +1,11 @@
 import { Suspense } from "react";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
@@ -71,6 +70,8 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
+      // Refresh data when the network returns (pairs with realtime reconnect).
+      refetchOnReconnect: true,
       // Cap retries so a failing module doesn't stall the load tier.
       retry: 1,
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
@@ -150,6 +151,8 @@ function AppContent() {
           transition={{ duration: 0.15, ease: "easeOut" }}
           className="min-h-screen"
           id="main-content"
+          role="main"
+          tabIndex={-1}
         >
       <Suspense fallback={<PageFallback />}>
         <Routes location={location}>
@@ -279,12 +282,13 @@ const App = () => (
             <TooltipProvider>
               <XPBadgeProvider>
                 <DoriConversationProvider>
-                  <Toaster />
                   <Sonner position="top-center" />
                   <ErrorBoundary fallbackTitle="DarAI couldn't load">
-                    <BrowserRouter>
-                      <AppContent />
-                    </BrowserRouter>
+                    <MotionConfig reducedMotion="user">
+                      <BrowserRouter>
+                        <AppContent />
+                      </BrowserRouter>
+                    </MotionConfig>
                   </ErrorBoundary>
                 </DoriConversationProvider>
               </XPBadgeProvider>

@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { strictAppOrigin } from '../_shared/cors.ts';
+import { generateStructured } from '../_shared/geminiStructured.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -75,45 +77,21 @@ serve(async (req) => {
 
     const isPdf = documentType === "application/pdf" || documentPath.endsWith(".pdf");
 
-    let content: any[];
+    if (!isImage && !isPdf) {
+      throw new Error("Unsupported document type");
+    }
 
-    if (isImage) {
-      // For images, use vision
-      content = [
-        {
-          type: "text",
-          text: `Analyze this contract document image and extract the following information in JSON format:
-{
-  "name": "contract name or title",
-  "provider": "company/provider name",
-  "category": "one of: insurance, utilities, subscription, phone, internet, streaming, other",
-  "costAmount": number or null,
-  "costFrequency": "monthly, quarterly, yearly, or one_time",
-  "startDate": "YYYY-MM-DD or null",
-  "endDate": "YYYY-MM-DD or null", 
-  "renewalDate": "YYYY-MM-DD or null",
-  "cancellationNoticeDays": number (default 30),
-  "autoRenews": boolean,
-  "contractNumber": "string or null",
-  "notes": "brief summary of key terms"
-}
+    // The native generateContent endpoint can't fetch the signed URL, so
+    // download the document and send it inline (base64).
+    const docResp = await fetch(signedUrlData.signedUrl, { signal: AbortSignal.timeout(15_000) });
+    if (!docResp.ok) {
+      throw new Error("Failed to download document");
+    }
+    const docMime = docResp.headers.get("content-type")
+      || (isPdf ? "application/pdf" : (documentType?.startsWith("image/") ? documentType : "image/jpeg"));
+    const docB64 = base64Encode(new Uint8Array(await docResp.arrayBuffer()));
 
-Be thorough but only include information you can clearly extract from the document. Return ONLY valid JSON.`
-        },
-        {
-          type: "image_url",
-          image_url: {
-            url: signedUrlData.signedUrl
-          }
-        }
-      ];
-    } else if (isPdf) {
-      // For PDFs, we'll need to download and extract text first
-      // Gemini can handle PDF URLs directly
-      content = [
-        {
-          type: "text",
-          text: `Analyze this contract document and extract the following information in JSON format:
+    const promptText = `Analyze this contract document and extract the following information in JSON format:
 {
   "name": "contract name or title",
   "provider": "company/provider name",
@@ -129,69 +107,56 @@ Be thorough but only include information you can clearly extract from the docume
   "notes": "brief summary of key terms"
 }
 
-Document URL: ${signedUrlData.signedUrl}
+Be thorough but only include information you can clearly extract from the document. Return ONLY valid JSON.`;
 
-Be thorough but only include information you can clearly extract from the document. Return ONLY valid JSON.`
-        }
-      ];
-    } else {
-      throw new Error("Unsupported document type");
-    }
-
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
+    const contractSchema = {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        provider: { type: "string" },
+        category: { type: "string", enum: ["insurance", "utilities", "subscription", "phone", "internet", "streaming", "other"] },
+        costAmount: { type: "number", nullable: true },
+        costFrequency: { type: "string", enum: ["monthly", "quarterly", "yearly", "one_time"] },
+        startDate: { type: "string", nullable: true },
+        endDate: { type: "string", nullable: true },
+        renewalDate: { type: "string", nullable: true },
+        cancellationNoticeDays: { type: "number" },
+        autoRenews: { type: "boolean" },
+        contractNumber: { type: "string", nullable: true },
+        notes: { type: "string" },
       },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: "You are a contract analysis expert. Extract key information from contracts accurately. Always respond with valid JSON only."
-          },
-          {
-            role: "user",
-            content
-          }
-        ],
-        max_tokens: 2000,
-      }),
-    });
+      required: ["name", "provider", "category"],
+    };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
+    let extractedData;
+    try {
+      extractedData = await generateStructured({
+        system: "You are a contract analysis expert. Extract key information from contracts accurately. Always respond with valid JSON only.",
+        parts: [
+          { text: promptText },
+          { inlineData: { mimeType: docMime, data: docB64 } },
+        ],
+        schema: contractSchema,
+        model: "gemini-2.5-flash",
+        maxOutputTokens: 2000,
+        timeoutMs: 30_000,
+      });
+    } catch (aiError) {
+      const message = aiError instanceof Error ? aiError.message : "AI gateway error";
+      console.error("AI gateway error:", message);
+
+      if (message.includes("429")) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (message.includes("402")) {
         return new Response(
           JSON.stringify({ error: "AI credits exhausted. Please add funds." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error("AI gateway error");
-    }
-
-    const aiResponse = await response.json();
-    const content_text = aiResponse.choices?.[0]?.message?.content || "";
-
-    // Parse the JSON from the response
-    let extractedData;
-    try {
-      // Try to find JSON in the response (handle markdown code blocks)
-      const jsonMatch = content_text.match(/```json\s*([\s\S]*?)\s*```/) || 
-                        content_text.match(/```\s*([\s\S]*?)\s*```/) ||
-                        [null, content_text];
-      extractedData = JSON.parse(jsonMatch[1] || content_text);
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", content_text);
       extractedData = { error: "Could not parse contract details" };
     }
 

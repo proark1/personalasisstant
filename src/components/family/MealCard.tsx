@@ -62,6 +62,9 @@ export function MealCard({ meal, onDelete, mealTypeColors, mealTypeIcons }: Meal
           <div
             ref={setNodeRef}
             style={style}
+            role="button"
+            tabIndex={0}
+            aria-label={meal.recipe?.name || meal.custom_meal_name || 'Unnamed'}
             className={`text-xs p-2 rounded-lg border ${mealTypeColors[meal.meal_type]} group relative cursor-pointer hover:shadow-md transition-shadow`}
           >
             <div
