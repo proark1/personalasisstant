@@ -28,6 +28,7 @@ import {
   TrendingUp, Calendar, Heart
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { formatDistanceToNow, isPast, differenceInDays } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 
@@ -118,6 +119,7 @@ interface ContactsPanelProps {
 
 export function ContactsPanel({ userId }: ContactsPanelProps) {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const {
     contacts,
     personalContacts,
@@ -184,7 +186,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     if (saving) return;
 
     if (!formData.name.trim()) {
-      toast({ title: 'Name is required', variant: 'destructive' });
+      toast({ title: t('contacts.toast.nameRequired'), variant: 'destructive' });
       return;
     }
 
@@ -217,11 +219,11 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
         });
 
         if (success) {
-          toast({ title: 'Contact updated' });
+          toast({ title: t('contacts.toast.contactUpdated') });
           setShowAddDialog(false);
           resetForm();
         } else {
-          toast({ title: 'Update failed', description: 'Please try again.', variant: 'destructive' });
+          toast({ title: t('contacts.toast.updateFailed'), description: t('contacts.toast.tryAgain'), variant: 'destructive' });
         }
       } else {
         const result = await addContact({
@@ -248,11 +250,11 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
         });
 
         if (result) {
-          toast({ title: 'Contact added' });
+          toast({ title: t('contacts.toast.contactAdded') });
           setShowAddDialog(false);
           resetForm();
         } else {
-          toast({ title: 'Add failed', description: 'Please try again.', variant: 'destructive' });
+          toast({ title: t('contacts.toast.addFailed'), description: t('contacts.toast.tryAgain'), variant: 'destructive' });
         }
       }
     } finally {
@@ -264,7 +266,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     if (!contactToDelete) return;
     const success = await deleteContact(contactToDelete.id);
     if (success) {
-      toast({ title: 'Contact deleted' });
+      toast({ title: t('contacts.toast.contactDeleted') });
     }
     setContactToDelete(null);
   };
@@ -272,7 +274,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
   const handleMarkContacted = async (contact: Contact) => {
     const success = await markContacted(contact.id);
     if (success) {
-      toast({ title: `Marked ${contact.name} as contacted` });
+      toast({ title: t('contacts.toast.markedContacted').replace('{name}', () => contact.name) });
     }
   };
 
@@ -282,7 +284,7 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
       const result = await addContact(c);
       if (result) imported++;
     }
-    toast({ title: `Imported ${imported} contacts` });
+    toast({ title: t(imported === 1 ? 'contacts.toast.importedContacts.one' : 'contacts.toast.importedContacts.other').replace('{count}', String(imported)) });
   };
 
   const handleOpenEmailTemplate = (contact: Contact) => {

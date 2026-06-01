@@ -1057,6 +1057,32 @@ const de: Record<string, string> = {
   'contracts.toast.copiedDesc': 'Text in die Zwischenablage kopiert',
   'contracts.toast.copyFailed': 'Kopieren fehlgeschlagen',
   'contracts.toast.copyFailedDesc': 'Konnte nicht in die Zwischenablage kopiert werden',
+
+  // Contact toasts
+  'contacts.toast.exported': 'Kontakte exportiert',
+  'contacts.toast.exportedCsvDesc.one': '{count} Kontakt als CSV exportiert',
+  'contacts.toast.exportedCsvDesc.other': '{count} Kontakte als CSV exportiert',
+  'contacts.toast.exportedVcardDesc.one': '{count} Kontakt als vCard exportiert',
+  'contacts.toast.exportedVcardDesc.other': '{count} Kontakte als vCard exportiert',
+  'contacts.toast.noDataImport': 'Keine Daten zum Importieren',
+  'contacts.toast.noValidContacts': 'Keine gültigen Kontakte gefunden',
+  'contacts.toast.importSuccess': 'Import erfolgreich',
+  'contacts.toast.importSuccessDesc.one': '{count} Kontakt importiert',
+  'contacts.toast.importSuccessDesc.other': '{count} Kontakte importiert',
+  'contacts.toast.importFailed': 'Import fehlgeschlagen',
+  'contacts.toast.importFailedDesc': 'Bitte überprüfe das Datenformat',
+  'contacts.toast.copiedClipboard': 'In die Zwischenablage kopiert',
+  'contacts.toast.noEmailAddress': 'Keine E-Mail-Adresse',
+  'contacts.toast.nameRequired': 'Name ist erforderlich',
+  'contacts.toast.contactUpdated': 'Kontakt aktualisiert',
+  'contacts.toast.updateFailed': 'Aktualisierung fehlgeschlagen',
+  'contacts.toast.tryAgain': 'Bitte erneut versuchen.',
+  'contacts.toast.contactAdded': 'Kontakt hinzugefügt',
+  'contacts.toast.addFailed': 'Hinzufügen fehlgeschlagen',
+  'contacts.toast.contactDeleted': 'Kontakt gelöscht',
+  'contacts.toast.markedContacted': '{name} als kontaktiert markiert',
+  'contacts.toast.importedContacts.one': '{count} Kontakt importiert',
+  'contacts.toast.importedContacts.other': '{count} Kontakte importiert',
 };
 
 export default de;

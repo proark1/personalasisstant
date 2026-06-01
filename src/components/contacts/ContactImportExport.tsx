@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Download, Upload, FileText, FileSpreadsheet } from 'lucide-react';
 
 interface ContactImportExportProps {
@@ -18,6 +19,7 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
   const [csvData, setCsvData] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   // Export to CSV
   const exportToCSV = () => {
@@ -58,7 +60,7 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
     link.download = `contacts-export-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
 
-    toast({ title: 'Contacts exported', description: `${contacts.length} contacts exported to CSV` });
+    toast({ title: t('contacts.toast.exported'), description: t(contacts.length === 1 ? 'contacts.toast.exportedCsvDesc.one' : 'contacts.toast.exportedCsvDesc.other').replace('{count}', String(contacts.length)) });
   };
 
   // Export to vCard
@@ -94,7 +96,7 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
     link.download = `contacts-export-${new Date().toISOString().split('T')[0]}.vcf`;
     link.click();
 
-    toast({ title: 'Contacts exported', description: `${contacts.length} contacts exported to vCard` });
+    toast({ title: t('contacts.toast.exported'), description: t(contacts.length === 1 ? 'contacts.toast.exportedVcardDesc.one' : 'contacts.toast.exportedVcardDesc.other').replace('{count}', String(contacts.length)) });
   };
 
   // Parse CSV
@@ -161,7 +163,7 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
   // Import contacts
   const handleImport = async () => {
     if (!csvData.trim()) {
-      toast({ title: 'No data to import', variant: 'destructive' });
+      toast({ title: t('contacts.toast.noDataImport'), variant: 'destructive' });
       return;
     }
 
@@ -169,17 +171,17 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
     try {
       const parsed = parseCSV(csvData);
       if (parsed.length === 0) {
-        toast({ title: 'No valid contacts found', variant: 'destructive' });
+        toast({ title: t('contacts.toast.noValidContacts'), variant: 'destructive' });
         return;
       }
 
       await onImport(parsed);
-      toast({ title: 'Import successful', description: `${parsed.length} contacts imported` });
+      toast({ title: t('contacts.toast.importSuccess'), description: t(parsed.length === 1 ? 'contacts.toast.importSuccessDesc.one' : 'contacts.toast.importSuccessDesc.other').replace('{count}', String(parsed.length)) });
       setCsvData('');
       setOpen(false);
     } catch (error) {
       console.error('Import error:', error);
-      toast({ title: 'Import failed', description: 'Please check your data format', variant: 'destructive' });
+      toast({ title: t('contacts.toast.importFailed'), description: t('contacts.toast.importFailedDesc'), variant: 'destructive' });
     } finally {
       setImporting(false);
     }

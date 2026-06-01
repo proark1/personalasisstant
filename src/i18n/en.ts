@@ -1027,6 +1027,32 @@ const en: Record<string, string> = {
   'contracts.toast.copiedDesc': 'Text copied to clipboard',
   'contracts.toast.copyFailed': 'Copy failed',
   'contracts.toast.copyFailedDesc': 'Could not copy to clipboard',
+
+  // Contact toasts
+  'contacts.toast.exported': 'Contacts exported',
+  'contacts.toast.exportedCsvDesc.one': '{count} contact exported to CSV',
+  'contacts.toast.exportedCsvDesc.other': '{count} contacts exported to CSV',
+  'contacts.toast.exportedVcardDesc.one': '{count} contact exported to vCard',
+  'contacts.toast.exportedVcardDesc.other': '{count} contacts exported to vCard',
+  'contacts.toast.noDataImport': 'No data to import',
+  'contacts.toast.noValidContacts': 'No valid contacts found',
+  'contacts.toast.importSuccess': 'Import successful',
+  'contacts.toast.importSuccessDesc.one': '{count} contact imported',
+  'contacts.toast.importSuccessDesc.other': '{count} contacts imported',
+  'contacts.toast.importFailed': 'Import failed',
+  'contacts.toast.importFailedDesc': 'Please check your data format',
+  'contacts.toast.copiedClipboard': 'Copied to clipboard',
+  'contacts.toast.noEmailAddress': 'No email address',
+  'contacts.toast.nameRequired': 'Name is required',
+  'contacts.toast.contactUpdated': 'Contact updated',
+  'contacts.toast.updateFailed': 'Update failed',
+  'contacts.toast.tryAgain': 'Please try again.',
+  'contacts.toast.contactAdded': 'Contact added',
+  'contacts.toast.addFailed': 'Add failed',
+  'contacts.toast.contactDeleted': 'Contact deleted',
+  'contacts.toast.markedContacted': 'Marked {name} as contacted',
+  'contacts.toast.importedContacts.one': 'Imported {count} contact',
+  'contacts.toast.importedContacts.other': 'Imported {count} contacts',
 };
 
 export default en;

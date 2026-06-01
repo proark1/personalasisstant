@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Copy, Mail, Send } from 'lucide-react';
 
 interface EmailTemplateDialogProps {
@@ -84,6 +85,7 @@ Cheers`,
 
 export function EmailTemplateDialog({ contact, open, onOpenChange }: EmailTemplateDialogProps) {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [activeTemplate, setActiveTemplate] = useState<keyof typeof TEMPLATES>('followup');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -114,12 +116,12 @@ export function EmailTemplateDialog({ contact, open, onOpenChange }: EmailTempla
   const handleCopy = () => {
     const fullEmail = `Subject: ${subject}\n\n${body}`;
     navigator.clipboard.writeText(fullEmail);
-    toast({ title: 'Copied to clipboard' });
+    toast({ title: t('contacts.toast.copiedClipboard') });
   };
 
   const handleSendEmail = () => {
     if (!contact.email) {
-      toast({ title: 'No email address', variant: 'destructive' });
+      toast({ title: t('contacts.toast.noEmailAddress'), variant: 'destructive' });
       return;
     }
 
