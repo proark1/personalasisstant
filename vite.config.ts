@@ -68,10 +68,10 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-toggle-group',
             '@radix-ui/react-tooltip',
           ],
-          // Charts and visualization
-          'vendor-charts': [
-            'recharts',
-          ],
+          // Charts (recharts) is intentionally NOT pinned to a vendor chunk:
+          // it's only used by lazy panels, so leaving it to Rollup lets it split
+          // into an on-demand async chunk instead of being modulepreloaded on
+          // first paint (~400 KB / ~110 KB gz saved on initial load).
           // Animation
           'vendor-animation': [
             'framer-motion',
