@@ -19,6 +19,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { assertWithinQuota } from '../_shared/ai-quota.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';
+import { generateStructured } from '../_shared/geminiStructured.ts';
+import { encode as base64Encode } from 'https://deno.land/std@0.168.0/encoding/base64.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': strictAppOrigin(),
@@ -238,72 +240,31 @@ serve(async (req) => {
       ? `The user expects this to be a ${hintKind}. If you disagree based on what you see, return your best classification anyway.`
       : 'Classify the image and extract structured fields appropriate to that kind. Always return ocr_text.';
 
-    let aiResp: Response;
+    // Native generateContent + responseSchema (the OpenAI-compat endpoint with
+    // forced tool_choice fails in our deployment). The native endpoint can't
+    // fetch the signed URL, so download the image and send it inline (base64).
+    let parsed: any;
     try {
-      aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${geminiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: userText },
-                { type: 'image_url', image_url: { url: signed.signedUrl } },
-              ],
-            },
-          ],
-          tools: [TOOL],
-          tool_choice: { type: 'function', function: { name: 'record_vision_capture' } },
-          temperature: 0,
-        }),
-        signal: AbortSignal.timeout(45_000),
+      const imgResp = await fetch(signed.signedUrl, { signal: AbortSignal.timeout(15_000) });
+      if (!imgResp.ok) throw new Error(`image fetch ${imgResp.status}`);
+      const imgMime = imgResp.headers.get('content-type') || 'image/jpeg';
+      const imgB64 = base64Encode(new Uint8Array(await imgResp.arrayBuffer()));
+      parsed = await generateStructured({
+        system: SYSTEM_PROMPT,
+        parts: [
+          { text: userText },
+          { inlineData: { mimeType: imgMime, data: imgB64 } },
+        ],
+        schema: TOOL.function.parameters,
+        temperature: 0,
+        timeoutMs: 45_000,
       });
     } catch (e) {
       await admin.from('vision_captures').update({
         status: 'error',
         error_message: (e as Error).message,
       }).eq('id', row.id);
-      return json({ error: (e as Error).message }, 502);
-    }
-
-    if (!aiResp.ok) {
-      const errText = await aiResp.text().catch(() => '');
-      await admin.from('vision_captures').update({
-        status: 'error',
-        error_message: `gateway ${aiResp.status}: ${errText.slice(0, 500)}`,
-      }).eq('id', row.id);
-      return json({ error: `AI gateway ${aiResp.status}` }, 502);
-    }
-
-    const data = await aiResp.json();
-    // Even with forced tool_choice the gateway can hand back an empty
-    // tool_calls array (safety filter, content blocked, upstream
-    // hiccup). Treat that as a hard failure rather than silently
-    // committing an empty extraction.
-    const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
-    const args = toolCall?.function?.arguments;
-    if (!args) {
-      await admin.from('vision_captures').update({
-        status: 'error',
-        error_message: 'AI failed to return structured tool arguments',
-      }).eq('id', row.id);
       return json({ error: 'AI extraction failed' }, 502);
-    }
-    let parsed: any = null;
-    try {
-      parsed = typeof args === 'string' ? JSON.parse(args) : args;
-    } catch (e) {
-      await admin.from('vision_captures').update({
-        status: 'error',
-        error_message: 'AI returned invalid structured data',
-      }).eq('id', row.id);
-      return json({ error: 'AI returned invalid structured data' }, 502);
     }
 
     const detectedKind: Kind = ALLOWED_KINDS.includes(parsed?.kind) ? parsed.kind : 'unknown';

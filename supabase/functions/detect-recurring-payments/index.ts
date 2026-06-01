@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from '../_shared/cors.ts';
+import { generateStructured } from '../_shared/geminiStructured.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -116,137 +117,44 @@ serve(async (req) => {
       .map((c: any) => `${c.name} (${c.provider || "no provider"})`)
       .join(", ");
 
-    const aiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GEMINI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gemini-2.5-flash-lite",
-          messages: [
-            {
-              role: "system",
-              content: `You are a financial analyst. Analyze these email summaries to identify recurring payments and subscriptions. Group emails by the same sender/service. Extract structured payment information. Only include services that appear at least 2 times (indicating recurring payment). Exclude one-time purchases.`,
-            },
-            {
-              role: "user",
-              content: `Here are email summaries from the last 6 months:\n\n${JSON.stringify(emailSummaries, null, 1)}\n\nExisting contracts (exclude these): ${existingContractsList || "none"}\n\nIdentify recurring payments/subscriptions. For each, extract the company name, estimated amount (if visible in subject/snippet), payment frequency, and suggested category.`,
-            },
-          ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "report_recurring_payments",
-                description:
-                  "Report detected recurring payments from email analysis",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    payments: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          name: {
-                            type: "string",
-                            description: "Service/company name",
-                          },
-                          provider: {
-                            type: "string",
-                            description: "Provider/company full name",
-                          },
-                          amount: {
-                            type: "number",
-                            description:
-                              "Detected payment amount (0 if unknown)",
-                          },
-                          frequency: {
-                            type: "string",
-                            enum: ["monthly", "quarterly", "yearly"],
-                          },
-                          category: {
-                            type: "string",
-                            enum: [
-                              "insurance",
-                              "utilities",
-                              "subscription",
-                              "phone",
-                              "internet",
-                              "streaming",
-                              "other",
-                            ],
-                          },
-                          emailCount: {
-                            type: "number",
-                            description: "Number of matching emails found",
-                          },
-                          confidence: {
-                            type: "string",
-                            enum: ["high", "medium", "low"],
-                          },
-                        },
-                        required: [
-                          "name",
-                          "provider",
-                          "amount",
-                          "frequency",
-                          "category",
-                          "emailCount",
-                          "confidence",
-                        ],
-                        additionalProperties: false,
-                      },
-                    },
-                  },
-                  required: ["payments"],
-                  additionalProperties: false,
+    // Native generateContent + responseSchema (the OpenAI-compat endpoint with
+    // forced tool_choice fails in our deployment).
+    let parsed: any;
+    try {
+      parsed = await generateStructured({
+        model: "gemini-2.5-flash-lite",
+        system: `You are a financial analyst. Analyze these email summaries to identify recurring payments and subscriptions. Group emails by the same sender/service. Extract structured payment information. Only include services that appear at least 2 times (indicating recurring payment). Exclude one-time purchases.`,
+        user: `Here are email summaries from the last 6 months:\n\n${JSON.stringify(emailSummaries, null, 1)}\n\nExisting contracts (exclude these): ${existingContractsList || "none"}\n\nIdentify recurring payments/subscriptions. For each, extract the company name, estimated amount (if visible in subject/snippet), payment frequency, and suggested category.`,
+        schema: {
+          type: "object",
+          properties: {
+            payments: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string", description: "Service/company name" },
+                  provider: { type: "string", description: "Provider/company full name" },
+                  amount: { type: "number", description: "Detected payment amount (0 if unknown)" },
+                  frequency: { type: "string", enum: ["monthly", "quarterly", "yearly"] },
+                  category: { type: "string", enum: ["insurance", "utilities", "subscription", "phone", "internet", "streaming", "other"] },
+                  emailCount: { type: "number", description: "Number of matching emails found" },
+                  confidence: { type: "string", enum: ["high", "medium", "low"] },
                 },
+                required: ["name", "provider", "amount", "frequency", "category", "emailCount", "confidence"],
               },
             },
-          ],
-          tool_choice: {
-            type: "function",
-            function: { name: "report_recurring_payments" },
           },
-        }),
-      }
-    );
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits depleted. Please add credits." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errText = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errText);
+          required: ["payments"],
+        },
+      });
+    } catch (e) {
+      console.error("AI error:", (e as Error).message);
       return new Response(JSON.stringify({ error: "AI analysis failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const aiResult = await aiResponse.json();
-    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-
-    if (!toolCall?.function?.arguments) {
-      return new Response(JSON.stringify({ payments: [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const parsed = JSON.parse(toolCall.function.arguments);
     
     // Filter out existing contracts
     const newPayments = (parsed.payments || []).filter((p: any) => {
