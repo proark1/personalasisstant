@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Card, CardContent } from '@/components/ui/card';
 import { TaskTemplate, useTaskTemplates } from '@/hooks/useTaskTemplates';
 import { TaskCategory, TaskPriority } from '@/types/flux';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import { 
   LayoutTemplate, 
@@ -60,6 +61,7 @@ const PRESET_TEMPLATES: Omit<TaskTemplate, 'id' | 'createdAt'>[] = [
 ];
 
 export function TaskTemplates({ onCreateFromTemplate }: TaskTemplatesProps) {
+  const { t } = useLanguage();
   const { templates, createTemplate, deleteTemplate, loading } = useTaskTemplates();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newTemplate, setNewTemplate] = useState<Omit<TaskTemplate, 'id' | 'createdAt'>>({
@@ -72,13 +74,13 @@ export function TaskTemplates({ onCreateFromTemplate }: TaskTemplatesProps) {
 
   const handleCreateTemplate = async () => {
     if (!newTemplate.name.trim() || !newTemplate.title.trim()) {
-      toast.error('Name and title are required');
+      toast.error(t('templates.toast.nameTitleRequired'));
       return;
     }
 
     const result = await createTemplate(newTemplate);
     if (result) {
-      toast.success('Template created!');
+      toast.success(t('templates.toast.created'));
       setShowCreateDialog(false);
       setNewTemplate({
         name: '',
@@ -93,16 +95,16 @@ export function TaskTemplates({ onCreateFromTemplate }: TaskTemplatesProps) {
   const handleUsePreset = async (preset: Omit<TaskTemplate, 'id' | 'createdAt'>) => {
     const result = await createTemplate(preset);
     if (result) {
-      toast.success(`"${preset.name}" template added!`);
+      toast.success(t('templates.toast.added').replace('{name}', preset.name));
     }
   };
 
   const handleDeleteTemplate = async (id: string) => {
     const { error } = await deleteTemplate(id);
     if (!error) {
-      toast.success('Template deleted');
+      toast.success(t('templates.toast.deleted'));
     } else {
-      toast.error('Failed to delete template');
+      toast.error(t('templates.toast.deleteFailed'));
     }
   };
 

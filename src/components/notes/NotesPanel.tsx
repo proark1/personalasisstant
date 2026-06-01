@@ -122,12 +122,12 @@ export function NotesPanel({ userId }: NotesPanelProps) {
 
       mediaRecorder.start();
       setIsRecording(true);
-      toast.info('Recording started... Tap again to stop');
+      toast.info(t('notes.toast.recordingStarted'));
     } catch (error) {
       console.error('Error starting recording:', error);
-      toast.error('Could not start recording. Please check microphone permissions.');
+      toast.error(t('notes.toast.recordingFailed'));
     }
-  }, []);
+  }, [t]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -167,10 +167,10 @@ export function NotesPanel({ userId }: NotesPanelProps) {
             content: data.text 
           });
           setSelectedNote({ ...newNote, title: `Voice Note - ${new Date().toLocaleString()}`, content: data.text });
-          toast.success('Voice note created!');
+          toast.success(t('notes.toast.voiceNoteCreated'));
         }
       } else {
-        toast.error('No speech detected');
+        toast.error(t('notes.toast.noSpeech'));
       }
     } catch (error) {
       console.error('Transcription error:', error);

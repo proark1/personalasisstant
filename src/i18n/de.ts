@@ -1008,6 +1008,23 @@ const de: Record<string, string> = {
   'family.toast.memberUpdateFailed': 'Familienmitglied konnte nicht aktualisiert werden',
   'family.toast.memberRemoved': 'Familienmitglied entfernt',
   'family.toast.memberRemoveFailed': 'Familienmitglied konnte nicht entfernt werden',
+
+  // Task template toasts
+  'templates.toast.nameTitleRequired': 'Name und Titel sind erforderlich',
+  'templates.toast.created': 'Vorlage erstellt!',
+  'templates.toast.added': 'Vorlage „{name}“ hinzugefügt!',
+  'templates.toast.deleted': 'Vorlage gelöscht',
+  'templates.toast.deleteFailed': 'Vorlage konnte nicht gelöscht werden',
+
+  // Voice-note toasts
+  'notes.toast.recordingStarted': 'Aufnahme gestartet… Erneut tippen zum Stoppen',
+  'notes.toast.recordingFailed': 'Aufnahme konnte nicht gestartet werden. Bitte Mikrofonberechtigungen prüfen.',
+  'notes.toast.voiceNoteCreated': 'Sprachnotiz erstellt!',
+  'notes.toast.noSpeech': 'Keine Sprache erkannt',
+
+  // Task comment toasts
+  'comments.toast.saveFailed': 'Kommentar konnte nicht gespeichert werden',
+  'comments.toast.deleteFailed': 'Kommentar konnte nicht gelöscht werden',
 };
 
 export default de;

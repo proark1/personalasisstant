@@ -978,6 +978,23 @@ const en: Record<string, string> = {
   'family.toast.memberUpdateFailed': 'Failed to update family member',
   'family.toast.memberRemoved': 'Family member removed',
   'family.toast.memberRemoveFailed': 'Failed to remove family member',
+
+  // Task template toasts
+  'templates.toast.nameTitleRequired': 'Name and title are required',
+  'templates.toast.created': 'Template created!',
+  'templates.toast.added': '"{name}" template added!',
+  'templates.toast.deleted': 'Template deleted',
+  'templates.toast.deleteFailed': 'Failed to delete template',
+
+  // Voice-note toasts
+  'notes.toast.recordingStarted': 'Recording started… Tap again to stop',
+  'notes.toast.recordingFailed': 'Could not start recording. Please check microphone permissions.',
+  'notes.toast.voiceNoteCreated': 'Voice note created!',
+  'notes.toast.noSpeech': 'No speech detected',
+
+  // Task comment toasts
+  'comments.toast.saveFailed': 'Could not save comment',
+  'comments.toast.deleteFailed': 'Could not delete comment',
 };
 
 export default en;

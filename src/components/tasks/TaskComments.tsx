@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useTaskComments } from '@/hooks/useTaskComments';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 
 interface TaskCommentsProps {
@@ -18,6 +19,7 @@ interface TaskCommentsProps {
 // member (so a Telegram /comment lands here too via realtime).
 export function TaskComments({ taskId, className }: TaskCommentsProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { comments, loading, error, post, remove } = useTaskComments(taskId);
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
@@ -31,7 +33,7 @@ export function TaskComments({ taskId, className }: TaskCommentsProps) {
       setDraft('');
     } catch (err) {
       console.error('post comment failed', err);
-      toast.error('Could not save comment');
+      toast.error(t('comments.toast.saveFailed'));
     } finally {
       setPosting(false);
     }
@@ -42,7 +44,7 @@ export function TaskComments({ taskId, className }: TaskCommentsProps) {
       await remove(id);
     } catch (err) {
       console.error('delete comment failed', err);
-      toast.error('Could not delete comment');
+      toast.error(t('comments.toast.deleteFailed'));
     }
   }
 
