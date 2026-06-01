@@ -95,6 +95,70 @@ function calculateAge(birthDate: string | null): number | null {
   return age;
 }
 
+/**
+ * Whole-word / phrase mention check. A bare entity name in the message
+ * ("text Sarah", "cancel Netflix", "what did I note about the lease") is the
+ * strongest relevance signal there is, yet pure keyword routing misses it
+ * entirely when no category word is present. This treats a direct name/provider/
+ * title mention as a first-class trigger.
+ *
+ * Uses Unicode word boundaries (so "Al" doesn't match "always" and multi-word
+ * names/providers still match) and skips terms shorter than 3 chars to avoid
+ * spurious substring hits.
+ */
+export function mentionsTerm(lowerMessage: string, term?: string | null): boolean {
+  if (!term) return false;
+  const t = term.trim().toLowerCase();
+  if (t.length < 3) return false;
+  const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  try {
+    return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}([^\\p{L}\\p{N}]|$)`, 'u').test(lowerMessage);
+  } catch {
+    // Defensive: if the term produces an invalid pattern, fall back to substring.
+    return lowerMessage.includes(t);
+  }
+}
+
+export interface MentionedEntities {
+  contacts: Contact[];
+  contracts: Contract[];
+  notes: Note[];
+  familyMembers: FamilyMember[];
+}
+
+/**
+ * Entity-aware relevance signal: which stored entities are named directly in
+ * the message. Pure and exported for unit testing. Complements the keyword
+ * intent detector — keywords catch "category" intent, this catches "specific
+ * thing" intent, and the payload builder unions both.
+ */
+export function findMentionedEntities({
+  message,
+  contacts = [],
+  contracts = [],
+  notes = [],
+  familyMembers = [],
+}: {
+  message: string;
+  contacts?: Contact[];
+  contracts?: Contract[];
+  notes?: Note[];
+  familyMembers?: FamilyMember[];
+}): MentionedEntities {
+  const lower = message.toLowerCase();
+  return {
+    contacts: contacts.filter((c) => mentionsTerm(lower, c.name) || mentionsTerm(lower, c.company)),
+    contracts: contracts.filter((c) => mentionsTerm(lower, c.name) || mentionsTerm(lower, c.provider)),
+    notes: notes.filter((n) => mentionsTerm(lower, n.title)),
+    familyMembers: familyMembers.filter((m) => mentionsTerm(lower, m.name)),
+  };
+}
+
+/** Stable de-dupe preserving order, used to rank directly-mentioned entities first. */
+function dedupe<T>(items: T[]): T[] {
+  return Array.from(new Set(items));
+}
+
 export function buildSmartPayload({
   message,
   userProfile,
@@ -141,16 +205,21 @@ export function buildSmartPayload({
 
   // TIER 2: Smart-filtered (only when relevant)
 
+  // Entity-aware signal: stored entities named directly in the message. Unioned
+  // with the keyword intents below so "text Sarah" / "cancel Netflix" surface
+  // the right context even with no category keyword present.
+  const mentioned = findMentionedEntities({ message, contacts, contracts, notes, familyMembers });
+
   // Also check for family member names dynamically
   const familyNames = (familyMembers || []).map(m => m.name.toLowerCase());
-  const mentionsFamilyMember = familyNames.some(name => lowerMsg.includes(name));
+  const mentionsFamilyMember = familyNames.some(name => lowerMsg.includes(name)) || mentioned.familyMembers.length > 0;
 
   // Contacts — triggered by location, role keywords, or direct name mention
   const detectedLocations = matchesLocation(lowerMsg);
-  const wantsContacts = matchesCategory(lowerMsg, CONTEXT_TRIGGERS.contacts) || detectedLocations.length > 0;
+  const wantsContacts = matchesCategory(lowerMsg, CONTEXT_TRIGGERS.contacts) || detectedLocations.length > 0 || mentioned.contacts.length > 0;
 
   if (wantsContacts && contacts && contacts.length > 0) {
-    const filtered = contacts.filter(c => {
+    const keywordMatched = contacts.filter(c => {
       // Match by location
       if (detectedLocations.length > 0) {
         const contactLoc = [c.city, c.country].filter(Boolean).join(' ').toLowerCase();
@@ -165,7 +234,9 @@ export function buildSmartPayload({
       const roleKeywords = [...CONTEXT_TRIGGERS.contacts];
       if (roleKeywords.some(kw => contactText.includes(kw))) return true;
       return false;
-    }).slice(0, 10);
+    });
+    // Directly-mentioned contacts are the strongest signal — rank them first.
+    const filtered = dedupe([...mentioned.contacts, ...keywordMatched]).slice(0, 10);
 
     if (filtered.length > 0) {
       payload.relevantContacts = filtered.map(c => ({
@@ -181,8 +252,8 @@ export function buildSmartPayload({
   }
 
   // Contracts
-  if (matchesCategory(lowerMsg, CONTEXT_TRIGGERS.contracts) && contracts && contracts.length > 0) {
-    const filtered = contracts.filter(c => {
+  if ((matchesCategory(lowerMsg, CONTEXT_TRIGGERS.contracts) || mentioned.contracts.length > 0) && contracts && contracts.length > 0) {
+    const keywordMatched = contracts.filter(c => {
       if (!c.isActive) return false;
       // If asking about costs/renewal, include all active
       if (lowerMsg.includes('cost') || lowerMsg.includes('spending') || lowerMsg.includes('how much') || lowerMsg.includes('renewal')) return true;
@@ -190,7 +261,10 @@ export function buildSmartPayload({
       if (c.name && lowerMsg.includes(c.name.toLowerCase())) return true;
       if (c.provider && lowerMsg.includes(c.provider.toLowerCase())) return true;
       return false;
-    }).slice(0, 10);
+    });
+    // A contract named directly is included even if inactive (the user asked
+    // about it by name); mentioned ones rank first.
+    const filtered = dedupe([...mentioned.contracts, ...keywordMatched]).slice(0, 10);
 
     if (filtered.length > 0) {
       payload.relevantContracts = filtered.map(c => ({
@@ -220,9 +294,10 @@ export function buildSmartPayload({
     }
   }
 
-  // Notes
-  if (matchesCategory(lowerMsg, CONTEXT_TRIGGERS.notes) && notes && notes.length > 0) {
-    payload.notesSummary = notes.slice(0, 5).map(n => ({
+  // Notes — keyword intent, or a note whose title is named directly.
+  if ((matchesCategory(lowerMsg, CONTEXT_TRIGGERS.notes) || mentioned.notes.length > 0) && notes && notes.length > 0) {
+    const ordered = dedupe([...mentioned.notes, ...notes]).slice(0, 5);
+    payload.notesSummary = ordered.map(n => ({
       title: n.title,
       snippet: n.content.slice(0, 80),
       tags: n.tags,
