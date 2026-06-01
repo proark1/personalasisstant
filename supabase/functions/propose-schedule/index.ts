@@ -22,6 +22,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { adminClient, resolveUserId } from '../_shared/auth.ts';
 import { assertWithinQuota } from '../_shared/ai-quota.ts';
+import { generateStructured } from '../_shared/geminiStructured.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
@@ -209,43 +210,19 @@ serve(async (req) => {
     ].filter(Boolean).join('\n');
 
     const startMs = Date.now();
-    let aiResp: Response;
+    // Native generateContent + responseSchema (the OpenAI-compat endpoint with
+    // forced tool_choice fails in our deployment).
+    let parsed: any;
     try {
-      aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${geminiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt },
-          ],
-          tools: [TOOL],
-          tool_choice: { type: 'function', function: { name: 'record_schedule' } },
-          temperature: 0.3,
-        }),
-        signal: AbortSignal.timeout(50_000),
+      parsed = await generateStructured({
+        system: SYSTEM_PROMPT,
+        user: userPrompt,
+        schema: TOOL.function.parameters,
+        temperature: 0.3,
+        timeoutMs: 50_000,
       });
     } catch (e) {
       return json({ error: (e as Error).message }, 502);
-    }
-    if (!aiResp.ok) {
-      return json({ error: `AI gateway ${aiResp.status}` }, 502);
-    }
-    const data = await aiResp.json();
-    const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
-    const args = toolCall?.function?.arguments;
-    if (!args) {
-      return json({ error: 'AI returned no schedule (empty tool_calls)' }, 502);
-    }
-    let parsed: any = null;
-    try {
-      parsed = typeof args === 'string' ? JSON.parse(args) : args;
-    } catch {
-      return json({ error: 'AI returned invalid structured data' }, 502);
     }
     const generationMs = Date.now() - startMs;
 

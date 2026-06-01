@@ -2,6 +2,7 @@
 // Triggered: after gmail-sync, or via cron daily, or manually.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from '../_shared/cors.ts';
+import { generateStructured } from '../_shared/geminiStructured.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -103,67 +104,50 @@ Deno.serve(async (req) => {
       `[${i}] from="${e.from_name || e.from_email}" subject="${e.subject || ""}" snippet="${(e.snippet || "").slice(0, 200)}"`
     ).join("\n");
 
-    const aiResp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `Classify these ${todo.length} emails:\n${list}` },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "save_classifications",
-            description: "Save classification for each email by index",
-            parameters: {
-              type: "object",
-              properties: {
-                items: {
-                  type: "array",
-                  items: {
+    // Native generateContent + responseSchema (the OpenAI-compat endpoint with
+    // forced tool_choice fails in our deployment).
+    let parsed: any;
+    try {
+      parsed = await generateStructured({
+        system: SYSTEM_PROMPT,
+        user: `Classify these ${todo.length} emails:\n${list}`,
+        schema: {
+          type: "object",
+          properties: {
+            items: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  index: { type: "number" },
+                  category: { type: "string", enum: ["bill", "meeting_request", "family_logistics", "travel", "shopping", "newsletter", "personal", "work", "note", "other"] },
+                  suggested_action: { type: "string", enum: ["create_contract", "create_event", "create_task", "create_note", "none"] },
+                  confidence: { type: "number" },
+                  reasoning: { type: "string" },
+                  payload: {
                     type: "object",
+                    description: "Extra fields needed to apply the action (title, start_iso, due_iso, vendor, amount, etc.)",
                     properties: {
-                      index: { type: "number" },
-                      category: { type: "string", enum: ["bill", "meeting_request", "family_logistics", "travel", "shopping", "newsletter", "personal", "work", "note", "other"] },
-                      suggested_action: { type: "string", enum: ["create_contract", "create_event", "create_task", "create_note", "none"] },
-                      confidence: { type: "number" },
-                      reasoning: { type: "string" },
-                      payload: {
-                        type: "object",
-                        description: "Extra fields needed to apply the action (title, start_iso, due_iso, vendor, amount, etc.)",
-                        properties: {
-                          title: { type: "string" },
-                          start_iso: { type: "string" },
-                          due_iso: { type: "string" },
-                          vendor: { type: "string" },
-                          amount: { type: "number" },
-                          location: { type: "string" },
-                        },
-                      },
+                      title: { type: "string" },
+                      start_iso: { type: "string" },
+                      due_iso: { type: "string" },
+                      vendor: { type: "string" },
+                      amount: { type: "number" },
+                      location: { type: "string" },
                     },
-                    required: ["index", "category", "suggested_action", "confidence"],
                   },
                 },
+                required: ["index", "category", "suggested_action", "confidence"],
               },
-              required: ["items"],
             },
           },
-        }],
-        tool_choice: { type: "function", function: { name: "save_classifications" } },
-      }),
-    });
-
-    if (!aiResp.ok) {
-      const err = await aiResp.text();
-      console.error("AI gateway error", aiResp.status, err);
-      return new Response(JSON.stringify({ error: "AI failed", status: aiResp.status }), { status: 502, headers: corsHeaders });
+          required: ["items"],
+        },
+      });
+    } catch (e) {
+      console.error("AI gateway error", (e as Error).message);
+      return new Response(JSON.stringify({ error: "AI failed" }), { status: 502, headers: corsHeaders });
     }
-
-    const aiData = await aiResp.json();
-    const args = aiData.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    const parsed = typeof args === "string" ? JSON.parse(args) : args;
     const items = parsed?.items ?? [];
 
     const rows = items.map((it: any) => {

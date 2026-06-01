@@ -2,6 +2,7 @@
 // Cross-references contacts in destination city, suggests packing/travel blocks.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from '../_shared/cors.ts';
+import { generateStructured } from '../_shared/geminiStructured.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -26,48 +27,38 @@ async function aiDetectTrips(events: any[]): Promise<DetectedTrip[]> {
     `[${i}] title="${e.title}" location="${e.location || ''}" start=${e.start_time} end=${e.end_time}`
   ).join("\n");
 
-  const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: "Detect travel/trips from calendar events. A trip = travel to a different city/country, multi-day, OR contains flight/hotel/conference keywords. Group consecutive events at same location into one trip." },
-        { role: "user", content: `Events:\n${list}` },
-      ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "save_trips",
-          parameters: {
-            type: "object",
-            properties: {
-              trips: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    destination: { type: "string", description: "City name" },
-                    destination_country: { type: "string" },
-                    start_date: { type: "string", description: "YYYY-MM-DD" },
-                    end_date: { type: "string", description: "YYYY-MM-DD" },
-                    source_event_indices: { type: "array", items: { type: "number" } },
-                  },
-                  required: ["destination", "start_date", "end_date"],
-                },
+  // Native generateContent + responseSchema (the OpenAI-compat endpoint with
+  // forced tool_choice fails in our deployment).
+  let parsed: any;
+  try {
+    parsed = await generateStructured({
+      system: "Detect travel/trips from calendar events. A trip = travel to a different city/country, multi-day, OR contains flight/hotel/conference keywords. Group consecutive events at same location into one trip.",
+      user: `Events:\n${list}`,
+      schema: {
+        type: "object",
+        properties: {
+          trips: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                destination: { type: "string", description: "City name" },
+                destination_country: { type: "string" },
+                start_date: { type: "string", description: "YYYY-MM-DD" },
+                end_date: { type: "string", description: "YYYY-MM-DD" },
+                source_event_indices: { type: "array", items: { type: "number" } },
               },
+              required: ["destination", "start_date", "end_date"],
             },
-            required: ["trips"],
           },
         },
-      }],
-      tool_choice: { type: "function", function: { name: "save_trips" } },
-    }),
-  });
-  if (!resp.ok) { console.error("AI trip detect fail", await resp.text()); return []; }
-  const data = await resp.json();
-  const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-  const parsed = typeof args === "string" ? JSON.parse(args) : args;
+        required: ["trips"],
+      },
+    });
+  } catch (e) {
+    console.error("AI trip detect fail", (e as Error).message);
+    return [];
+  }
   return (parsed?.trips ?? []).map((t: any) => ({
     destination: t.destination,
     destination_country: t.destination_country,

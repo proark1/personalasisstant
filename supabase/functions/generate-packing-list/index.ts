@@ -13,6 +13,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { adminClient, resolveUserId } from '../_shared/auth.ts';
 import { assertWithinQuota } from '../_shared/ai-quota.ts';
+import { generateStructured } from '../_shared/geminiStructured.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
@@ -140,38 +141,19 @@ serve(async (req) => {
       return json({ error: (e as Error).message, code }, code === 'quota_exceeded' ? 429 : 500);
     }
 
-    const aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${geminiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt },
-        ],
-        tools: [TOOL],
-        tool_choice: { type: 'function', function: { name: 'record_packing_list' } },
-        temperature: 0.4,
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
-    if (!aiResp.ok) {
-      return json({ error: `AI gateway ${aiResp.status}` }, 502);
-    }
-    const data = await aiResp.json();
-    const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    // Forced tool_choice usually returns valid JSON, but the gateway
-    // can occasionally hand back a malformed string (truncated tokens,
-    // upstream timeout). Guard the parse so the function returns a
-    // clean 502 instead of crashing into a 500.
-    let parsed: any = null;
+    // Native generateContent + responseSchema (the OpenAI-compat endpoint with
+    // forced tool_choice fails in our deployment). Same shape as before.
+    let parsed: any;
     try {
-      parsed = typeof args === 'string' ? JSON.parse(args) : args;
+      parsed = await generateStructured({
+        system: SYSTEM_PROMPT,
+        user: userPrompt,
+        schema: TOOL.function.parameters,
+        temperature: 0.4,
+        timeoutMs: 45_000,
+      });
     } catch (e) {
-      console.error('[generate-packing-list] AI returned malformed JSON', (e as Error).message);
+      console.error('[generate-packing-list] AI failed', (e as Error).message);
       return json({ error: 'AI returned invalid structured data' }, 502);
     }
     const items = Array.isArray(parsed?.items) ? parsed.items : [];

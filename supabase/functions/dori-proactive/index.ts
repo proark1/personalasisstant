@@ -6,6 +6,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendDoriReply } from '../_shared/telegram-voice.ts';
 import { isUserQuietNow } from '../_shared/dori-quiet.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';
+import { generateStructured } from '../_shared/geminiStructured.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': strictAppOrigin(),
@@ -346,51 +347,37 @@ async function emailActionItems(supabase: any, ctx: UserCtx) {
     `[${i}] from="${e.from_name || e.from_email}" subject="${e.subject || ''}" snippet="${(e.snippet || '').slice(0, 240)}"`
   ).join('\n');
 
-  const aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: `You scan recent emails for the user and extract ONLY emails that need action: a todo, a direct question to answer, or a payment/invoice due. Skip newsletters, marketing, receipts of completed actions, and FYI threads. Be conservative — only flag clearly actionable items.` },
-        { role: 'user', content: `Here are ${emails.length} recent emails:\n${list}\n\nReturn the action items.` },
-      ],
-      tools: [{
-        type: 'function',
-        function: {
-          name: 'report_actions',
-          parameters: {
-            type: 'object',
-            properties: {
-              items: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    index: { type: 'number' },
-                    action_type: { type: 'string', enum: ['todo', 'question', 'payment'] },
-                    action_summary: { type: 'string', description: 'One short sentence describing what needs to be done.' },
-                    urgency: { type: 'string', enum: ['high', 'normal'] },
-                  },
-                  required: ['index', 'action_type', 'action_summary'],
-                },
+  // Native generateContent + responseSchema (the OpenAI-compat endpoint with
+  // forced tool_choice fails in our deployment).
+  let parsed: any;
+  try {
+    parsed = await generateStructured({
+      system: `You scan recent emails for the user and extract ONLY emails that need action: a todo, a direct question to answer, or a payment/invoice due. Skip newsletters, marketing, receipts of completed actions, and FYI threads. Be conservative — only flag clearly actionable items.`,
+      user: `Here are ${emails.length} recent emails:\n${list}\n\nReturn the action items.`,
+      schema: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                index: { type: 'number' },
+                action_type: { type: 'string', enum: ['todo', 'question', 'payment'] },
+                action_summary: { type: 'string', description: 'One short sentence describing what needs to be done.' },
+                urgency: { type: 'string', enum: ['high', 'normal'] },
               },
+              required: ['index', 'action_type', 'action_summary'],
             },
-            required: ['items'],
           },
         },
-      }],
-      tool_choice: { type: 'function', function: { name: 'report_actions' } },
-    }),
-  });
-
-  if (!aiResp.ok) {
-    console.error('email actions AI failed', aiResp.status);
+        required: ['items'],
+      },
+    });
+  } catch (e) {
+    console.error('email actions AI failed', (e as Error).message);
     return;
   }
-  const aiData = await aiResp.json();
-  const args = aiData.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-  const parsed = typeof args === 'string' ? JSON.parse(args) : args;
   const items = (parsed?.items ?? []).filter((it: any) => emails[it.index]);
   if (items.length === 0) return;
 
