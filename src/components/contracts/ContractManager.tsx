@@ -160,7 +160,7 @@ export function ContractManager({
       const count = await syncAllToCalendar();
       toast({
         title: t('contracts.toast.calendarSynced'),
-        description: t('contracts.toast.calendarSyncedDesc').replace('{count}', String(count))
+        description: t(count === 1 ? 'contracts.toast.calendarSyncedDesc.one' : 'contracts.toast.calendarSyncedDesc.other').replace('{count}', String(count))
       });
     } catch (error) {
       toast({
@@ -229,7 +229,7 @@ export function ContractManager({
     setShowBulkSelect(false);
     toast({
       title: t('contracts.toast.contractsDeleted'),
-      description: t('contracts.toast.contractsDeletedDesc').replace('{count}', String(selectedContracts.size))
+      description: t(selectedContracts.size === 1 ? 'contracts.toast.contractsDeletedDesc.one' : 'contracts.toast.contractsDeletedDesc.other').replace('{count}', String(selectedContracts.size))
     });
   };
 
