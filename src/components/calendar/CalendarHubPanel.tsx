@@ -1,19 +1,42 @@
-import { useState } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { CalendarEvent, Task, Project } from '@/types/flux';
 import { TodayFocusPanel } from '../focus/TodayFocusPanel';
-import { TaskList } from '../tasks/TaskList';
-import { MonthCalendarView } from './MonthCalendarView';
 import { PullToRefresh } from '../shared/PullToRefresh';
 import { SidebarFilter } from '../layout/Sidebar';
-import { Zap, CheckSquare, Calendar } from 'lucide-react';
+import { Zap, CheckSquare, Calendar, Loader2 } from 'lucide-react';
 import { QuickAddButton } from '../tasks/QuickAddButton';
 import { TaskViewSwitcher, TaskView } from '../tasks/TaskViewSwitcher';
-import { PriorityBoardView } from '../tasks/PriorityBoardView';
-import { TimelineView } from '../tasks/TimelineView';
-import { KanbanBoard } from '../tasks/KanbanBoard';
 import { PanelShell } from '@/components/ui/panel-shell';
+
+// The Tasks and Calendar tabs pull in heavy trees (TaskList ~1.1k LOC plus
+// @dnd-kit, MonthCalendarView + EditTaskModal, the alternate task boards).
+// `focus` is the default tab, so defer the rest behind lazy() and only mount
+// a tab once it's first been opened — first paint of this (already lazy)
+// panel no longer drags those chunks in.
+const TaskList = lazy(() => import('../tasks/TaskList').then((m) => ({ default: m.TaskList })));
+const MonthCalendarView = lazy(() => import('./MonthCalendarView').then((m) => ({ default: m.MonthCalendarView })));
+const PriorityBoardView = lazy(() => import('../tasks/PriorityBoardView').then((m) => ({ default: m.PriorityBoardView })));
+const TimelineView = lazy(() => import('../tasks/TimelineView').then((m) => ({ default: m.TimelineView })));
+const KanbanBoard = lazy(() => import('../tasks/KanbanBoard').then((m) => ({ default: m.KanbanBoard })));
+
+function ViewFallback() {
+  return (
+    <div className="h-full flex items-center justify-center" role="status" aria-label="Loading">
+      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <span className="sr-only">Loading…</span>
+    </div>
+  );
+}
+
+// Warm the two main tab chunks during idle time after the panel mounts. First
+// paint stays lean (these aren't modulepreloaded), but by the time the user
+// clicks Tasks/Calendar the chunk is usually already cached — no spinner.
+function prefetchHeavyTabs() {
+  void import('../tasks/TaskList');
+  void import('./MonthCalendarView');
+}
 
 interface CalendarHubPanelProps {
   userId: string;
@@ -64,6 +87,30 @@ export function CalendarHubPanel({
 }: CalendarHubPanelProps) {
   const [activeView, setActiveView] = useState<HubView>('focus');
   const [taskView, setTaskView] = useState<TaskView>('list');
+  // Track which tabs have been opened so we mount a heavy tab's tree only
+  // after its first visit, then keep it mounted (hidden) to preserve scroll
+  // and inline-edit state across tab switches.
+  const [mountedViews, setMountedViews] = useState<Set<HubView>>(() => new Set<HubView>(['focus']));
+
+  const selectView = (id: HubView) => {
+    setActiveView(id);
+    setMountedViews((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  };
+
+  // Prefetch the heavy tabs once the browser is idle so switching to them
+  // feels instant, without paying for them on first paint.
+  useEffect(() => {
+    const ric = (window as unknown as {
+      requestIdleCallback?: (cb: () => void) => number;
+      cancelIdleCallback?: (id: number) => void;
+    });
+    if (typeof ric.requestIdleCallback === 'function') {
+      const handle = ric.requestIdleCallback(prefetchHeavyTabs);
+      return () => ric.cancelIdleCallback?.(handle);
+    }
+    const t = window.setTimeout(prefetchHeavyTabs, 1500);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const views = [
     { id: 'focus' as HubView, icon: Zap, label: 'Focus' },
@@ -138,7 +185,7 @@ export function CalendarHubPanel({
               "flex-1 gap-1.5",
               activeView === view.id && "bg-background shadow-sm"
             )}
-            onClick={() => setActiveView(view.id)}
+            onClick={() => selectView(view.id)}
           >
             <view.icon className="w-4 h-4" />
             <span className="text-xs">{view.label}</span>
@@ -177,18 +224,24 @@ export function CalendarHubPanel({
               onToggleComplete={onToggleTaskComplete}
             />
           </div>
-          <div className={cn("h-full", activeView === 'tasks' ? 'block' : 'hidden')}>
-            {renderTaskView()}
-          </div>
-          <div className={cn("h-full", activeView === 'calendar' ? 'block' : 'hidden')}>
-            <MonthCalendarView
-              events={events}
-              tasks={tasks}
-              onToggleTaskComplete={onToggleTaskComplete}
-              onUpdateTask={onUpdateTask}
-              onAddTask={onAddTask}
-            />
-          </div>
+          {mountedViews.has('tasks') && (
+            <div className={cn("h-full", activeView === 'tasks' ? 'block' : 'hidden')}>
+              <Suspense fallback={<ViewFallback />}>{renderTaskView()}</Suspense>
+            </div>
+          )}
+          {mountedViews.has('calendar') && (
+            <div className={cn("h-full", activeView === 'calendar' ? 'block' : 'hidden')}>
+              <Suspense fallback={<ViewFallback />}>
+                <MonthCalendarView
+                  events={events}
+                  tasks={tasks}
+                  onToggleTaskComplete={onToggleTaskComplete}
+                  onUpdateTask={onUpdateTask}
+                  onAddTask={onAddTask}
+                />
+              </Suspense>
+            </div>
+          )}
         </div>
       </PullToRefresh>
     </PanelShell>
