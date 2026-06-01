@@ -13,6 +13,11 @@ export function useSharedItemsRealtime({ userId, onNewShare }: UseSharedItemsRea
   useEffect(() => {
     if (!userId) return;
 
+    // The INSERT handler awaits two queries before toasting / calling
+    // onNewShare; guard against the channel being torn down (unmount or
+    // userId change) mid-flight so we don't toast or call back afterwards.
+    let active = true;
+
     const channel = supabase
       .channel('shared-items-realtime')
       .on(
@@ -58,6 +63,8 @@ export function useSharedItemsRealtime({ userId, onNewShare }: UseSharedItemsRea
 
           const ownerName = ownerProfile?.display_name || ownerProfile?.email || 'Someone';
 
+          if (!active) return;
+
           toast({
             title: `New ${newShare.item_type} shared with you`,
             description: `${ownerName} shared "${itemTitle}" with ${newShare.permission} access`,
@@ -69,6 +76,7 @@ export function useSharedItemsRealtime({ userId, onNewShare }: UseSharedItemsRea
       .subscribe();
 
     return () => {
+      active = false;
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };

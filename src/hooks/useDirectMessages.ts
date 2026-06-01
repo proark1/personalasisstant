@@ -294,6 +294,12 @@ export function useDirectMessages(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
 
+    // Guards the async incoming handler: decryptMessage() awaits, so the
+    // channel can be torn down (unmount or userId change) before it resolves.
+    // Without this, setMessages would fire after teardown — a React warning
+    // and, on a fast conversation switch, an append to the wrong thread.
+    let active = true;
+
     fetchConversations();
 
     const incomingChannel = supabase
@@ -314,7 +320,8 @@ export function useDirectMessages(userId: string | null) {
           if (newMsg?.sender_id) {
             // Decrypt the new message
             const decrypted = await decryptMessage(newMsg);
-            
+            if (!active) return;
+
             setMessages(prev => {
               const lastPartnerId = prev.length > 0 ? 
                 (prev[0].sender_id === userId ? prev[0].recipient_id : prev[0].sender_id) : null;
@@ -356,6 +363,7 @@ export function useDirectMessages(userId: string | null) {
       .subscribe();
 
     return () => {
+      active = false;
       incomingChannel.unsubscribe();
       supabase.removeChannel(incomingChannel);
       outgoingChannel.unsubscribe();
