@@ -37,12 +37,14 @@ export function ConflictAlertsCard() {
 
   const dismiss = async (id: string) => {
     if (!user?.id) return;
-    await supabase.from('detected_conflicts').update({ status: 'dismissed' }).eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('detected_conflicts').update({ status: 'dismissed' }).eq('id', id).eq('user_id', user.id);
+    if (error) { toast.error('Could not dismiss'); return; }
     setConflicts(prev => prev.filter(c => c.id !== id));
   };
   const ack = async (id: string) => {
     if (!user?.id) return;
-    await supabase.from('detected_conflicts').update({ status: 'acknowledged', resolved_at: new Date().toISOString() }).eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('detected_conflicts').update({ status: 'acknowledged', resolved_at: new Date().toISOString() }).eq('id', id).eq('user_id', user.id);
+    if (error) { toast.error('Could not update'); return; }
     setConflicts(prev => prev.filter(c => c.id !== id));
     toast.success('Marked as handled');
   };

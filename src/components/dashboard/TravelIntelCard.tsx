@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Plane, Users, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 interface Trip {
@@ -37,7 +38,8 @@ export function TravelIntelCard() {
 
   const dismiss = async (id: string) => {
     if (!user?.id) return;
-    await supabase.from('detected_trips').update({ status: 'dismissed' }).eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('detected_trips').update({ status: 'dismissed' }).eq('id', id).eq('user_id', user.id);
+    if (error) { toast.error('Could not dismiss'); return; }
     setTrips(prev => prev.filter(t => t.id !== id));
   };
 

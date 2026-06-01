@@ -104,7 +104,8 @@ export function EmailActionPipelineCard({
 
   const dismiss = async (id: string) => {
     if (!user?.id) return;
-    await supabase.from('email_classifications').update({ status: 'dismissed', dismissed_at: new Date().toISOString() }).eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('email_classifications').update({ status: 'dismissed', dismissed_at: new Date().toISOString() }).eq('id', id).eq('user_id', user.id);
+    if (error) { toast.error('Could not dismiss'); return; }
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
