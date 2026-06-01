@@ -1025,6 +1025,38 @@ const de: Record<string, string> = {
   // Task comment toasts
   'comments.toast.saveFailed': 'Kommentar konnte nicht gespeichert werden',
   'comments.toast.deleteFailed': 'Kommentar konnte nicht gelöscht werden',
+
+  // Contract toasts
+  'contracts.toast.addedCalendar': 'Zum Kalender hinzugefügt',
+  'contracts.toast.addedCalendarDesc': 'Termine für {name} zum Kalender hinzugefügt',
+  'contracts.toast.syncFailed': 'Synchronisierung fehlgeschlagen',
+  'contracts.toast.addEventsFailed': 'Termine konnten nicht zum Kalender hinzugefügt werden',
+  'contracts.toast.calendarSynced': 'Kalender synchronisiert',
+  'contracts.toast.calendarSyncedDesc.one': '{count} Vertragstermin zum Kalender hinzugefügt',
+  'contracts.toast.calendarSyncedDesc.other': '{count} Vertragstermine zum Kalender hinzugefügt',
+  'contracts.toast.syncContractsFailed': 'Verträge konnten nicht mit dem Kalender synchronisiert werden',
+  'contracts.toast.remindersSnoozed': 'Erinnerungen pausiert',
+  'contracts.toast.snoozedDesc.one': 'Du wirst {months} Monat lang nicht an {name} erinnert',
+  'contracts.toast.snoozedDesc.other': 'Du wirst {months} Monate lang nicht an {name} erinnert',
+  'contracts.toast.snoozeFailed': 'Pausieren fehlgeschlagen',
+  'contracts.toast.snoozeFailedDesc': 'Erinnerungen konnten nicht pausiert werden',
+  'contracts.toast.contractsDeleted': 'Verträge gelöscht',
+  'contracts.toast.contractsDeletedDesc.one': '{count} Vertrag gelöscht',
+  'contracts.toast.contractsDeletedDesc.other': '{count} Verträge gelöscht',
+  'contracts.toast.invalidFileType': 'Ungültiger Dateityp',
+  'contracts.toast.invalidFileTypeDesc': '{name}: Bitte PDF- oder Bilddateien (JPG, PNG, WebP) hochladen',
+  'contracts.toast.fileTooLarge': 'Datei zu groß',
+  'contracts.toast.fileTooLargeDesc': '{name}: Maximale Dateigröße ist 10 MB',
+  'contracts.toast.uploadFailed': 'Upload fehlgeschlagen',
+  'contracts.toast.uploadFileFailedDesc': '{name} konnte nicht hochgeladen werden',
+  'contracts.toast.documentsUploaded': 'Dokumente hochgeladen',
+  'contracts.toast.documentsUploadedDesc': '{count} Datei(en) erfolgreich hochgeladen',
+  'contracts.toast.uploadDocsFailedDesc': 'Dokumente konnten nicht hochgeladen werden. Bitte erneut versuchen.',
+  'contracts.toast.documentRemoved': 'Dokument entfernt',
+  'contracts.toast.copied': 'Kopiert',
+  'contracts.toast.copiedDesc': 'Text in die Zwischenablage kopiert',
+  'contracts.toast.copyFailed': 'Kopieren fehlgeschlagen',
+  'contracts.toast.copyFailedDesc': 'Konnte nicht in die Zwischenablage kopiert werden',
 };
 
 export default de;

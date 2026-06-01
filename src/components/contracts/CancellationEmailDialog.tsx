@@ -28,7 +28,7 @@ export function CancellationEmailDialog({
   onOpenChange,
   contract
 }: CancellationEmailDialogProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { toast } = useToast();
   const { generateCancellationEmail, isGeneratingEmail } = useContractAI();
   
@@ -62,14 +62,14 @@ export function CancellationEmailDialog({
     try {
       await navigator.clipboard.writeText(text);
       toast({
-        title: 'Copied',
-        description: 'Text copied to clipboard'
+        title: t('contracts.toast.copied'),
+        description: t('contracts.toast.copiedDesc')
       });
     } catch (err) {
       toast({
         variant: 'destructive',
-        title: 'Copy failed',
-        description: 'Could not copy to clipboard'
+        title: t('contracts.toast.copyFailed'),
+        description: t('contracts.toast.copyFailedDesc')
       });
     }
   };

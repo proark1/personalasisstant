@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Upload, FileText, X, Loader2, ExternalLink, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface AddEditContractDialogProps {
   open: boolean;
@@ -41,6 +42,7 @@ export function AddEditContractDialog({
 }: AddEditContractDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [name, setName] = useState('');
@@ -136,16 +138,16 @@ export function AddEditContractDialog({
       if (!validTypes.includes(file.type)) {
         toast({
           variant: 'destructive',
-          title: 'Invalid file type',
-          description: `${file.name}: Please upload PDF or image files (JPG, PNG, WebP)`,
+          title: t('contracts.toast.invalidFileType'),
+          description: t('contracts.toast.invalidFileTypeDesc').replace('{name}', () => file.name),
         });
         continue;
       }
       if (file.size > 10 * 1024 * 1024) {
         toast({
           variant: 'destructive',
-          title: 'File too large',
-          description: `${file.name}: Maximum file size is 10MB`,
+          title: t('contracts.toast.fileTooLarge'),
+          description: t('contracts.toast.fileTooLargeDesc').replace('{name}', () => file.name),
         });
         continue;
       }
@@ -171,8 +173,8 @@ export function AddEditContractDialog({
           console.error('Upload error for', file.name, uploadError);
           toast({
             variant: 'destructive',
-            title: 'Upload failed',
-            description: `Could not upload ${file.name}`,
+            title: t('contracts.toast.uploadFailed'),
+            description: t('contracts.toast.uploadFileFailedDesc').replace('{name}', () => file.name),
           });
           continue;
         }
@@ -186,16 +188,16 @@ export function AddEditContractDialog({
         setFileNames(prev => [...prev, ...newNames]);
         
         toast({
-          title: 'Documents uploaded',
-          description: `${newUrls.length} file(s) uploaded successfully`,
+          title: t('contracts.toast.documentsUploaded'),
+          description: t('contracts.toast.documentsUploadedDesc').replace('{count}', String(newUrls.length)),
         });
       }
     } catch (error) {
       console.error('Upload error:', error);
       toast({
         variant: 'destructive',
-        title: 'Upload failed',
-        description: 'Could not upload documents. Please try again.',
+        title: t('contracts.toast.uploadFailed'),
+        description: t('contracts.toast.uploadDocsFailedDesc'),
       });
     } finally {
       setUploading(false);
@@ -221,7 +223,7 @@ export function AddEditContractDialog({
       setFileNames(prev => prev.filter((_, i) => i !== index));
       
       toast({
-        title: 'Document removed',
+        title: t('contracts.toast.documentRemoved'),
       });
     } catch (error) {
       console.error('Remove error:', error);

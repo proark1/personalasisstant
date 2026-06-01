@@ -142,14 +142,14 @@ export function ContractManager({
     const success = await syncToCalendar(contract);
     if (success) {
       toast({
-        title: 'Added to calendar',
-        description: `${contract.name} events added to your calendar`
+        title: t('contracts.toast.addedCalendar'),
+        description: t('contracts.toast.addedCalendarDesc').replace('{name}', () => contract.name)
       });
     } else {
       toast({
         variant: 'destructive',
-        title: 'Sync failed',
-        description: 'Could not add events to calendar'
+        title: t('contracts.toast.syncFailed'),
+        description: t('contracts.toast.addEventsFailed')
       });
     }
   };
@@ -159,14 +159,14 @@ export function ContractManager({
     try {
       const count = await syncAllToCalendar();
       toast({
-        title: 'Calendar synced',
-        description: `${count} contract events added to calendar`
+        title: t('contracts.toast.calendarSynced'),
+        description: t(count === 1 ? 'contracts.toast.calendarSyncedDesc.one' : 'contracts.toast.calendarSyncedDesc.other').replace('{count}', String(count))
       });
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Sync failed',
-        description: 'Could not sync contracts to calendar'
+        title: t('contracts.toast.syncFailed'),
+        description: t('contracts.toast.syncContractsFailed')
       });
     } finally {
       setSyncingToCalendar(false);
@@ -204,14 +204,16 @@ export function ContractManager({
     const success = await onSnooze(snoozeContract.id, months);
     if (success) {
       toast({
-        title: 'Reminders snoozed',
-        description: `You won't be reminded about ${snoozeContract.name} for ${months} month${months > 1 ? 's' : ''}`
+        title: t('contracts.toast.remindersSnoozed'),
+        description: t(months === 1 ? 'contracts.toast.snoozedDesc.one' : 'contracts.toast.snoozedDesc.other')
+          .replace('{months}', String(months))
+          .replace('{name}', () => snoozeContract.name)
       });
     } else {
       toast({
         variant: 'destructive',
-        title: 'Snooze failed',
-        description: 'Could not snooze reminders'
+        title: t('contracts.toast.snoozeFailed'),
+        description: t('contracts.toast.snoozeFailedDesc')
       });
     }
     setSnoozeContract(null);
@@ -226,8 +228,8 @@ export function ContractManager({
     setSelectedContracts(new Set());
     setShowBulkSelect(false);
     toast({
-      title: 'Contracts deleted',
-      description: `${selectedContracts.size} contracts deleted`
+      title: t('contracts.toast.contractsDeleted'),
+      description: t(selectedContracts.size === 1 ? 'contracts.toast.contractsDeletedDesc.one' : 'contracts.toast.contractsDeletedDesc.other').replace('{count}', String(selectedContracts.size))
     });
   };
 

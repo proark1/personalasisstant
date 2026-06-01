@@ -995,6 +995,38 @@ const en: Record<string, string> = {
   // Task comment toasts
   'comments.toast.saveFailed': 'Could not save comment',
   'comments.toast.deleteFailed': 'Could not delete comment',
+
+  // Contract toasts
+  'contracts.toast.addedCalendar': 'Added to calendar',
+  'contracts.toast.addedCalendarDesc': '{name} events added to your calendar',
+  'contracts.toast.syncFailed': 'Sync failed',
+  'contracts.toast.addEventsFailed': 'Could not add events to calendar',
+  'contracts.toast.calendarSynced': 'Calendar synced',
+  'contracts.toast.calendarSyncedDesc.one': '{count} contract event added to calendar',
+  'contracts.toast.calendarSyncedDesc.other': '{count} contract events added to calendar',
+  'contracts.toast.syncContractsFailed': 'Could not sync contracts to calendar',
+  'contracts.toast.remindersSnoozed': 'Reminders snoozed',
+  'contracts.toast.snoozedDesc.one': "You won't be reminded about {name} for {months} month",
+  'contracts.toast.snoozedDesc.other': "You won't be reminded about {name} for {months} months",
+  'contracts.toast.snoozeFailed': 'Snooze failed',
+  'contracts.toast.snoozeFailedDesc': 'Could not snooze reminders',
+  'contracts.toast.contractsDeleted': 'Contracts deleted',
+  'contracts.toast.contractsDeletedDesc.one': '{count} contract deleted',
+  'contracts.toast.contractsDeletedDesc.other': '{count} contracts deleted',
+  'contracts.toast.invalidFileType': 'Invalid file type',
+  'contracts.toast.invalidFileTypeDesc': '{name}: Please upload PDF or image files (JPG, PNG, WebP)',
+  'contracts.toast.fileTooLarge': 'File too large',
+  'contracts.toast.fileTooLargeDesc': '{name}: Maximum file size is 10MB',
+  'contracts.toast.uploadFailed': 'Upload failed',
+  'contracts.toast.uploadFileFailedDesc': 'Could not upload {name}',
+  'contracts.toast.documentsUploaded': 'Documents uploaded',
+  'contracts.toast.documentsUploadedDesc': '{count} file(s) uploaded successfully',
+  'contracts.toast.uploadDocsFailedDesc': 'Could not upload documents. Please try again.',
+  'contracts.toast.documentRemoved': 'Document removed',
+  'contracts.toast.copied': 'Copied',
+  'contracts.toast.copiedDesc': 'Text copied to clipboard',
+  'contracts.toast.copyFailed': 'Copy failed',
+  'contracts.toast.copyFailedDesc': 'Could not copy to clipboard',
 };
 
 export default en;
