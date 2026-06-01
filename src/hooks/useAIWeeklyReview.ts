@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Task } from '@/types/flux';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 import { startOfWeek, endOfWeek, format, subWeeks } from 'date-fns';
 
 export interface WeeklyReviewSummary {
@@ -115,7 +116,7 @@ export function useAIWeeklyReview() {
       });
     } catch (err) {
       console.error('Failed to generate weekly review:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate review');
+      setError(await describeEdgeError(err, 'Failed to generate review'));
     } finally {
       setLoading(false);
     }

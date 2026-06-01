@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 import { Contact } from './useContacts';
 
 export interface ConversationStarters {
@@ -31,7 +32,7 @@ export function useContactAI() {
       return data?.result || [];
     } catch (err) {
       console.error('Error getting conversation starters:', err);
-      setError(err instanceof Error ? err.message : 'Failed to get conversation starters');
+      setError(await describeEdgeError(err, 'Failed to get conversation starters'));
       return [];
     } finally {
       setLoading(false);
@@ -51,7 +52,7 @@ export function useContactAI() {
       return data?.result || null;
     } catch (err) {
       console.error('Error getting relationship insights:', err);
-      setError(err instanceof Error ? err.message : 'Failed to get insights');
+      setError(await describeEdgeError(err, 'Failed to get insights'));
       return null;
     } finally {
       setLoading(false);

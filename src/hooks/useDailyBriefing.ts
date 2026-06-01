@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 import { useAuth } from './useAuth';
 
 interface BriefingHighlight {
@@ -53,7 +54,7 @@ export function useDailyBriefing() {
       localStorage.setItem(CACHE_KEY, JSON.stringify(result));
     } catch (e: any) {
       console.error('Daily briefing error:', e);
-      setError(e.message || 'Failed to generate briefing');
+      setError(await describeEdgeError(e, 'Failed to generate briefing'));
     } finally {
       setLoading(false);
     }

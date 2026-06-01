@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 import { useAuth } from './useAuth';
 
 export interface TrendData {
@@ -126,7 +127,7 @@ export function useHealthCoach() {
       return data;
     } catch (err) {
       console.error('Health coach error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to get health coaching');
+      setError(await describeEdgeError(err, 'Failed to get health coaching'));
       return null;
     } finally {
       setLoading(false);
