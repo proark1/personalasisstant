@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -129,7 +130,7 @@ export function useFinanceSummary() {
       await refresh();
       return data;
     } catch (e) {
-      toast.error(`Sync failed: ${(e as Error).message}`);
+      toast.error(await describeEdgeError(e, 'Sync failed'));
       return null;
     } finally {
       setSyncing(false);
@@ -146,7 +147,7 @@ export function useFinanceSummary() {
       await refresh();
       return data;
     } catch (e) {
-      toast.error(`Sync failed: ${(e as Error).message}`);
+      toast.error(await describeEdgeError(e, 'Sync failed'));
       return null;
     } finally {
       setSyncing(false);
@@ -166,7 +167,7 @@ export function useFinanceSummary() {
       toast.info('Connection removed');
       await refresh();
     } catch (e) {
-      toast.error(`Failed: ${(e as Error).message}`);
+      toast.error(await describeEdgeError(e, 'Failed'));
     }
   }, [refresh]);
 

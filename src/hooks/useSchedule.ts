@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 import { useAuth } from './useAuth';
 import { useSharedRealtime } from './useSharedRealtime';
 import { toast } from 'sonner';
@@ -102,7 +103,7 @@ export function useSchedule() {
       await refresh();
       return data;
     } catch (e) {
-      toast.error(`Schedule failed: ${(e as Error).message}`);
+      toast.error(await describeEdgeError(e, 'Schedule failed'));
       return null;
     } finally {
       setBusy(false);
@@ -121,7 +122,7 @@ export function useSchedule() {
       await refresh();
       return data;
     } catch (e) {
-      toast.error(`Apply failed: ${(e as Error).message}`);
+      toast.error(await describeEdgeError(e, 'Apply failed'));
       return null;
     } finally {
       setBusy(false);
@@ -140,7 +141,7 @@ export function useSchedule() {
       await refresh();
       return data;
     } catch (e) {
-      toast.error(`Apply failed: ${(e as Error).message}`);
+      toast.error(await describeEdgeError(e, 'Apply failed'));
       return null;
     } finally {
       setBusy(false);

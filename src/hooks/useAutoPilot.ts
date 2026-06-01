@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -77,7 +78,7 @@ export function useAutoPilot() {
       return data;
     } catch (err) {
       console.error('Error running auto-pilot:', err);
-      toast.error('Failed to run auto-pilot');
+      toast.error(await describeEdgeError(err, 'Failed to run auto-pilot'));
       throw err;
     } finally {
       setRunning(false);
@@ -127,7 +128,7 @@ export function useAutoPilot() {
       setActions(prev => prev.filter(a => a.id !== actionId));
     } catch (err) {
       console.error('Error approving action:', err);
-      toast.error('Failed to approve action');
+      toast.error(await describeEdgeError(err, 'Failed to approve action'));
     }
   }, [user?.id, actions]);
 

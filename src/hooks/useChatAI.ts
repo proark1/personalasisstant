@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 import { toast } from 'sonner';
 
 interface Message {
@@ -38,7 +39,7 @@ export function useChatAI() {
       return data.result;
     } catch (error) {
       console.error('Translation error:', error);
-      toast.error('Failed to translate message');
+      toast.error(await describeEdgeError(error, 'Failed to translate message'));
       return message;
     } finally {
       setLoading(false);
@@ -56,7 +57,7 @@ export function useChatAI() {
       return data.result;
     } catch (error) {
       console.error('Summarize error:', error);
-      toast.error('Failed to summarize conversation');
+      toast.error(await describeEdgeError(error, 'Failed to summarize conversation'));
       return '';
     } finally {
       setLoading(false);
@@ -92,7 +93,7 @@ export function useChatAI() {
       return data.result;
     } catch (error) {
       console.error('Transcription summary error:', error);
-      toast.error('Failed to summarize transcription');
+      toast.error(await describeEdgeError(error, 'Failed to summarize transcription'));
       return '';
     } finally {
       setLoading(false);
