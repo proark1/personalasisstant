@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 
 interface Dua {
   id: string;
@@ -68,8 +69,8 @@ export function IslamDuasTab({ duas }: IslamDuasTabProps) {
       audio.onended = () => setPlayingDua(null);
       await audio.play();
       setPlayingDua(dua.id);
-    } catch {
-      toast.error('Failed to play audio');
+    } catch (e) {
+      toast.error(await describeEdgeError(e, 'Failed to play audio'));
     } finally {
       setDuaLoading(null);
     }

@@ -23,6 +23,7 @@ import { de, enUS } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
+import { describeEdgeError } from '@/lib/edgeError';
 import { toast } from 'sonner';
 
 interface NotesPanelProps {
@@ -173,7 +174,7 @@ export function NotesPanel({ userId }: NotesPanelProps) {
       }
     } catch (error) {
       console.error('Transcription error:', error);
-      toast.error('Failed to transcribe audio');
+      toast.error(await describeEdgeError(error, 'Failed to transcribe audio'));
     } finally {
       setIsTranscribing(false);
     }
