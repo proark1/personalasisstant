@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,13 +127,17 @@ interface SortableTaskItemProps {
   compactMode?: boolean;
 }
 
-function SortableTaskItem({ 
-  task, 
+// Memoized so a task row only re-renders when its own props change — not when a
+// sibling row re-renders or unrelated TaskList state updates. This is the big
+// safe win for the draggable list (which cannot be virtualized because dnd-kit
+// needs every sortable row mounted to act as a drop target).
+const SortableTaskItem = memo(function SortableTaskItem({
+  task,
   subtasks,
-  isSelectMode, 
-  selectedTasks, 
-  toggleSelectTask, 
-  onToggleComplete, 
+  isSelectMode,
+  selectedTasks,
+  toggleSelectTask,
+  onToggleComplete,
   onDeleteTask,
   onShareTask,
   onUpdateTask,
@@ -479,7 +483,7 @@ function SortableTaskItem({
       )}
     </div>
   );
-}
+});
 
 // --- Stats Bar Component ---
 function TaskStatsBar({
@@ -717,7 +721,7 @@ export function TaskList({
     }
   };
 
-  const toggleSelectTask = (id: string) => {
+  const toggleSelectTask = useCallback((id: string) => {
     setSelectedTasks(prev => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -727,7 +731,7 @@ export function TaskList({
       }
       return next;
     });
-  };
+  }, []);
 
   const selectAllVisible = () => {
     const allIds = filteredTasks.map(t => t.id);
@@ -772,10 +776,21 @@ export function TaskList({
     });
   };
 
-  const handleAddSubtask = (parentId: string) => {
+  const handleAddSubtask = useCallback((parentId: string) => {
     setAddingSubtaskFor(parentId);
     setNewTaskTitle('');
-  };
+  }, []);
+
+  // Stable toggle handler so memoized rows don't re-render due to a fresh
+  // closure each render. Celebrates only when a task transitions to completed.
+  const handleToggleCompleteWithFeedback = useCallback((id: string) => {
+    vibrate('success');
+    const t = tasks.find(t => t.id === id);
+    if (t && !t.completed) {
+      celebrate({ type: t.priority === 'high' ? 'highPriorityComplete' : 'taskComplete' });
+    }
+    onToggleComplete(id);
+  }, [vibrate, celebrate, tasks, onToggleComplete]);
 
   const AddTaskForm = ({ parentId }: { parentId?: string }) => (
     <div className={cn(
@@ -1002,14 +1017,7 @@ export function TaskList({
                         isSelectMode={isSelectMode}
                         selectedTasks={selectedTasks}
                         toggleSelectTask={toggleSelectTask}
-                        onToggleComplete={(id) => {
-                          vibrate('success');
-                          const t = tasks.find(t => t.id === id);
-                          if (t && !t.completed) {
-                            celebrate({ type: t.priority === 'high' ? 'highPriorityComplete' : 'taskComplete' });
-                          }
-                          onToggleComplete(id);
-                        }}
+                        onToggleComplete={handleToggleCompleteWithFeedback}
                         onDeleteTask={handleDeleteWithUndo}
                         onShareTask={onShareTask}
                         onUpdateTask={onUpdateTask}

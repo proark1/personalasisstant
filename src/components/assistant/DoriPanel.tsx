@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { memo, useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -106,6 +106,55 @@ function ThinkingIndicator({ status }: { status?: string }) {
     </div>
   );
 }
+
+// Memoized so a chat message only re-renders when its own content (or, for the
+// last assistant message, the trailing action cards) changes — not on every
+// keystroke in the input or unrelated panel state update. Markdown rendering is
+// the expensive part, so this is a meaningful win on long conversations.
+const MessageRow = memo(function MessageRow({ message, isLastAssistant, actionCards }: {
+  message: ChatMessage;
+  isLastAssistant: boolean;
+  actionCards?: ActionCardData[];
+}) {
+  return (
+    <div>
+      <div className={cn("flex gap-3 animate-fade-in", message.role === 'user' ? 'justify-end' : 'justify-start')}>
+        {message.role === 'assistant' && <img src={doriFish} alt="Dori" className="w-8 h-8 object-contain shrink-0" />}
+        <div className={cn("max-w-[80%] rounded-xl px-4 py-3", message.role === 'user' ? "bg-primary text-primary-foreground" : "glass-panel")}>
+          {/* Show attached image if present */}
+          {message.role === 'user' && (message as any).imageUrl && (
+            <img src={(message as any).imageUrl} alt="Attached" className="rounded-lg mb-2 max-h-40 object-contain" />
+          )}
+          {message.role === 'assistant' ? <MarkdownRenderer content={message.content} /> : <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
+          {message.sources && message.sources.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">Sources:</p>
+              <div className="flex flex-wrap gap-1">
+                {message.sources.map((source, i) => (
+                  <a key={i} href={source} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 hover:text-primary/80">[{i + 1}]</a>
+                ))}
+              </div>
+            </div>
+          )}
+          <span className="text-[10px] text-muted-foreground mt-1 block">{format(message.timestamp, 'HH:mm')}</span>
+        </div>
+        {message.role === 'user' && (
+          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+            <User className="w-4 h-4 text-muted-foreground" />
+          </div>
+        )}
+      </div>
+      {/* Render action cards after the last assistant message */}
+      {message.role === 'assistant' && isLastAssistant && actionCards && actionCards.length > 0 && (
+        <div className="ml-11 space-y-1">
+          {actionCards.map((card, i) => (
+            <ActionCard key={i} data={card} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
 
 export function DoriPanel({
   messages, onSendMessage, isProcessing, onVoiceMode, contacts = EMPTY_CONTACTS,
@@ -263,44 +312,17 @@ export function DoriPanel({
             </div>
           </div>
         ) : (
-          messages.map((message, idx) => (
-            <div key={message.id}>
-              <div className={cn("flex gap-3 animate-fade-in", message.role === 'user' ? 'justify-end' : 'justify-start')}>
-                {message.role === 'assistant' && <img src={doriFish} alt="Dori" className="w-8 h-8 object-contain shrink-0" />}
-                <div className={cn("max-w-[80%] rounded-xl px-4 py-3", message.role === 'user' ? "bg-primary text-primary-foreground" : "glass-panel")}>
-                  {/* Show attached image if present */}
-                  {message.role === 'user' && (message as any).imageUrl && (
-                    <img src={(message as any).imageUrl} alt="Attached" className="rounded-lg mb-2 max-h-40 object-contain" />
-                  )}
-                  {message.role === 'assistant' ? <MarkdownRenderer content={message.content} /> : <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
-                  {message.sources && message.sources.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-border/50">
-                      <p className="text-xs text-muted-foreground mb-1">Sources:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {message.sources.map((source, i) => (
-                          <a key={i} href={source} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 hover:text-primary/80">[{i + 1}]</a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <span className="text-[10px] text-muted-foreground mt-1 block">{format(message.timestamp, 'HH:mm')}</span>
-                </div>
-                {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-              {/* Render action cards after the last assistant message */}
-              {message.role === 'assistant' && idx === messages.length - 1 && actionCards && actionCards.length > 0 && (
-                <div className="ml-11 space-y-1">
-                  {actionCards.map((card, i) => (
-                    <ActionCard key={i} data={card} />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))
+          messages.map((message, idx) => {
+            const isLastAssistant = idx === messages.length - 1;
+            return (
+              <MessageRow
+                key={message.id}
+                message={message}
+                isLastAssistant={isLastAssistant}
+                actionCards={isLastAssistant ? actionCards : undefined}
+              />
+            );
+          })
         )}
         {isProcessing && <ThinkingIndicator status={thinkingStatus} />}
         <div ref={messagesEndRef} />
