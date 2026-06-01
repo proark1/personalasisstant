@@ -81,7 +81,11 @@ export function TelegramConnectPanel() {
 
   useEffect(() => {
     if ((!code && !groupCode) || (link?.is_active && group?.is_active)) return;
-    const id = setInterval(fetchLink, 3000);
+    // Poll less aggressively and pause while the tab is hidden.
+    const id = setInterval(() => {
+      if (document.hidden) return;
+      fetchLink();
+    }, 8000);
     return () => clearInterval(id);
   }, [code, groupCode, link?.is_active, group?.is_active]);
 
