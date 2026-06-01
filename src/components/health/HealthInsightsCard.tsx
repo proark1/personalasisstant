@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Sparkles, 
+import { describeEdgeError } from '@/lib/edgeError';
+import { toast } from 'sonner';
+import {
+  Sparkles,
   AlertTriangle, 
   CheckCircle2, 
   Lightbulb, 
@@ -63,6 +65,7 @@ export function HealthInsightsCard({ metrics, goals }: HealthInsightsCardProps) 
       setLastFetched(new Date());
     } catch (error) {
       console.error('Error fetching health insights:', error);
+      toast.error(await describeEdgeError(error, 'Could not load health insights.'));
       setInsights([{
         type: 'info',
         title: 'Track Your Health',

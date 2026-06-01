@@ -7,6 +7,9 @@ import { useFamilyAssistant } from '@/hooks/useFamilyAssistant';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { useWeather } from '@/hooks/useWeather';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { describeEdgeError } from '@/lib/edgeError';
+import { toast } from 'sonner';
 
 interface FamilyActivityFinderProps {
   onClose?: () => void;
@@ -16,6 +19,7 @@ export function FamilyActivityFinder({ onClose }: FamilyActivityFinderProps) {
   const { members } = useFamilyMembers();
   const { weather } = useWeather();
   const { findActivities, isLoading, streamingResponse } = useFamilyAssistant();
+  const { t } = useLanguage();
   const [customQuery, setCustomQuery] = useState('');
   const [response, setResponse] = useState('');
 
@@ -37,15 +41,16 @@ export function FamilyActivityFinder({ onClose }: FamilyActivityFinderProps) {
       setResponse(result);
     } catch (error) {
       console.error('Error finding activities:', error);
+      toast.error(await describeEdgeError(error, t('family.activities.error')));
     }
   };
 
   const quickSuggestions = [
-    { label: 'Rainy day fun', query: 'What indoor activities can we do on a rainy day?' },
-    { label: 'Educational games', query: 'Suggest educational activities that are also fun' },
-    { label: 'Outdoor adventures', query: 'What outdoor activities can we do as a family?' },
-    { label: 'Weekend plans', query: 'Plan a fun family weekend with different activities' },
-    { label: 'Quick activities', query: 'Suggest fun activities we can do in under 30 minutes' },
+    { label: t('family.activities.quickRainy'), query: 'What indoor activities can we do on a rainy day?' },
+    { label: t('family.activities.quickEducational'), query: 'Suggest educational activities that are also fun' },
+    { label: t('family.activities.quickOutdoor'), query: 'What outdoor activities can we do as a family?' },
+    { label: t('family.activities.quickWeekend'), query: 'Plan a fun family weekend with different activities' },
+    { label: t('family.activities.quickQuick'), query: 'Suggest fun activities we can do in under 30 minutes' },
   ];
 
   const children = members.filter(m => m.relationship === 'child');
@@ -55,7 +60,7 @@ export function FamilyActivityFinder({ onClose }: FamilyActivityFinderProps) {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />
-          Family Activity Finder
+          {t('family.activities.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -75,7 +80,7 @@ export function FamilyActivityFinder({ onClose }: FamilyActivityFinderProps) {
           )}
           {children.length > 0 && (
             <div className="bg-muted px-2 py-1 rounded-full">
-              {children.length} {children.length === 1 ? 'child' : 'children'}
+              {children.length} {children.length === 1 ? t('family.activities.child') : t('family.activities.children')}
             </div>
           )}
         </div>
@@ -98,7 +103,7 @@ export function FamilyActivityFinder({ onClose }: FamilyActivityFinderProps) {
         {/* Custom query */}
         <div className="space-y-2">
           <Textarea
-            placeholder="Or describe what kind of activities you're looking for..."
+            placeholder={t('family.activities.queryPlaceholder')}
             value={customQuery}
             onChange={(e) => setCustomQuery(e.target.value)}
             className="min-h-[60px]"
@@ -111,12 +116,12 @@ export function FamilyActivityFinder({ onClose }: FamilyActivityFinderProps) {
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Finding activities...
+                {t('family.activities.findingActivities')}
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Get Suggestions
+                {t('family.activities.getSuggestions')}
               </>
             )}
           </Button>

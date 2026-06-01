@@ -8,32 +8,36 @@ import { useFamilyAssistant } from '@/hooks/useFamilyAssistant';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { describeEdgeError } from '@/lib/edgeError';
+import { toast } from 'sonner';
 
 interface ParentingCoachProps {
   onClose?: () => void;
 }
 
 const TOPICS = [
-  { value: 'behavior', label: 'Behavior & Discipline', icon: Shield, color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
-  { value: 'communication', label: 'Communication', icon: MessageCircle, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
-  { value: 'development', label: 'Development & Milestones', icon: Baby, color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
-  { value: 'siblings', label: 'Sibling Relationships', icon: Users, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
-  { value: 'emotional', label: 'Emotional Support', icon: Heart, color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' },
-  { value: 'learning', label: 'Learning & Education', icon: Brain, color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+  { value: 'behavior', labelKey: 'family.parenting.topicBehavior', icon: Shield, color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  { value: 'communication', labelKey: 'family.parenting.topicCommunication', icon: MessageCircle, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  { value: 'development', labelKey: 'family.parenting.topicDevelopment', icon: Baby, color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  { value: 'siblings', labelKey: 'family.parenting.topicSiblings', icon: Users, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+  { value: 'emotional', labelKey: 'family.parenting.topicEmotional', icon: Heart, color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' },
+  { value: 'learning', labelKey: 'family.parenting.topicLearning', icon: Brain, color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
 ];
 
-const COMMON_QUESTIONS = [
-  "How do I talk to my child about...",
-  "My child is struggling with...",
-  "What's normal for this age?",
-  "How can I help my child with...",
-  "Should I be worried about...",
+const COMMON_QUESTION_KEYS = [
+  'family.parenting.starter1',
+  'family.parenting.starter2',
+  'family.parenting.starter3',
+  'family.parenting.starter4',
+  'family.parenting.starter5',
 ];
 
 export function ParentingCoach({ onClose }: ParentingCoachProps) {
   const { members } = useFamilyMembers();
   const { getParentingAdvice, isLoading, streamingResponse } = useFamilyAssistant();
-  
+  const { t } = useLanguage();
+
   const [topic, setTopic] = useState('');
   const [question, setQuestion] = useState('');
   const [response, setResponse] = useState('');
@@ -61,27 +65,28 @@ export function ParentingCoach({ onClose }: ParentingCoachProps) {
       setResponse(result);
     } catch (error) {
       console.error('Error getting parenting advice:', error);
+      toast.error(await describeEdgeError(error, t('family.parenting.error')));
     }
   };
 
-  const SelectedTopicIcon = TOPICS.find(t => t.value === topic)?.icon || Heart;
+  const SelectedTopicIcon = TOPICS.find(topicItem => topicItem.value === topic)?.icon || Heart;
 
   return (
     <Card className="w-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
           <Heart className="w-5 h-5 text-primary" />
-          Parenting Coach
+          {t('family.parenting.title')}
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Get supportive, age-appropriate parenting guidance
+          {t('family.parenting.subtitle')}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Children context */}
         {children.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            <span className="text-sm text-muted-foreground">Your children:</span>
+            <span className="text-sm text-muted-foreground">{t('family.parenting.yourChildren')}</span>
             {children.map((child) => {
               const age = getChildAge(child.birth_date);
               return (
@@ -95,20 +100,20 @@ export function ParentingCoach({ onClose }: ParentingCoachProps) {
 
         {/* Topic selection */}
         <div className="space-y-2">
-          <Label>What topic do you need help with?</Label>
+          <Label>{t('family.parenting.whatTopic')}</Label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {TOPICS.map((t) => {
-              const Icon = t.icon;
+            {TOPICS.map((topicItem) => {
+              const Icon = topicItem.icon;
               return (
                 <Button
-                  key={t.value}
-                  variant={topic === t.value ? 'default' : 'outline'}
+                  key={topicItem.value}
+                  variant={topic === topicItem.value ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setTopic(t.value)}
+                  onClick={() => setTopic(topicItem.value)}
                   className="flex items-center gap-2 justify-start h-auto py-2"
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-xs text-left">{t.label}</span>
+                  <span className="text-xs text-left">{t(topicItem.labelKey)}</span>
                 </Button>
               );
             })}
@@ -118,28 +123,31 @@ export function ParentingCoach({ onClose }: ParentingCoachProps) {
         {/* Quick starters */}
         {topic && (
           <div className="space-y-2">
-            <Label className="text-muted-foreground">Quick starters:</Label>
+            <Label className="text-muted-foreground">{t('family.parenting.quickStarters')}</Label>
             <div className="flex flex-wrap gap-1">
-              {COMMON_QUESTIONS.map((q) => (
-                <Button
-                  key={q}
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs h-7"
-                  onClick={() => setQuestion(prev => prev ? prev : q)}
-                >
-                  {q}
-                </Button>
-              ))}
+              {COMMON_QUESTION_KEYS.map((key) => {
+                const q = t(key);
+                return (
+                  <Button
+                    key={key}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={() => setQuestion(prev => prev ? prev : q)}
+                  >
+                    {q}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* Question input */}
         <div className="space-y-2">
-          <Label>Your question</Label>
+          <Label>{t('family.parenting.yourQuestion')}</Label>
           <Textarea
-            placeholder="Share what's on your mind... The more context you provide, the better advice I can give."
+            placeholder={t('family.parenting.questionPlaceholder')}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             className="min-h-[100px]"
@@ -155,19 +163,19 @@ export function ParentingCoach({ onClose }: ParentingCoachProps) {
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Getting advice...
+              {t('family.parenting.gettingAdvice')}
             </>
           ) : (
             <>
               <SelectedTopicIcon className="w-4 h-4 mr-2" />
-              Get Advice
+              {t('family.parenting.getAdvice')}
             </>
           )}
         </Button>
 
         {/* Disclaimer */}
         <p className="text-xs text-muted-foreground text-center">
-          This is AI-generated advice for general guidance only. For serious concerns, please consult a pediatrician or child psychologist.
+          {t('family.parenting.disclaimer')}
         </p>
 
         {/* Response */}
