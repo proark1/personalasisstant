@@ -1,6 +1,8 @@
 import React from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ActivityFeed } from './ActivityFeed';
+import { DoriActivityLog } from './DoriActivityLog';
 import { Activity } from 'lucide-react';
 import type { ActivityItem } from '@/hooks/useActivityFeed';
 
@@ -21,9 +23,18 @@ export function ActivityPanel({ open, onOpenChange, activities, loading }: Activ
             Activity Feed
           </SheetTitle>
         </SheetHeader>
-        <div className="mt-6">
-          <ActivityFeed activities={activities} loading={loading} />
-        </div>
+        <Tabs defaultValue="activity" className="mt-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="dori">Dori</TabsTrigger>
+          </TabsList>
+          <TabsContent value="activity" className="mt-4">
+            <ActivityFeed activities={activities} loading={loading} />
+          </TabsContent>
+          <TabsContent value="dori" className="mt-4">
+            <DoriActivityLog />
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );
