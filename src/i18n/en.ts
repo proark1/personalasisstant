@@ -942,6 +942,42 @@ const en: Record<string, string> = {
   'goals.removed': 'Goal Removed',
   'goals.removedDesc': 'The goal has been deleted.',
   'goals.errorDelete': 'Could not delete goal.',
+
+  // Meal planning toasts
+  'meals.toast.recipeAdded': 'Recipe added',
+  'meals.toast.recipeAddFailed': 'Failed to add recipe',
+  'meals.toast.recipeUpdated': 'Recipe updated',
+  'meals.toast.recipeUpdateFailed': 'Failed to update recipe',
+  'meals.toast.recipeDeleted': 'Recipe deleted',
+  'meals.toast.recipeDeleteFailed': 'Failed to delete recipe',
+  'meals.toast.ingredientAddFailed': 'Failed to add ingredient',
+  'meals.toast.mealPlanned': 'Meal planned',
+  'meals.toast.mealPlanFailed': 'Failed to plan meal',
+  'meals.toast.mealRemoved': 'Meal removed',
+  'meals.toast.mealRemoveFailed': 'Failed to remove meal',
+  'meals.toast.mealMoved': 'Meal moved',
+  'meals.toast.mealMoveFailed': 'Failed to move meal',
+
+  // Shopping list toasts
+  'shopping.toast.listCreated': 'Shopping list created',
+  'shopping.toast.listCreateFailed': 'Failed to create shopping list',
+  'shopping.toast.listUpdated': 'Shopping list updated',
+  'shopping.toast.listUpdateFailed': 'Failed to update shopping list',
+  'shopping.toast.listDeleted': 'Shopping list deleted',
+  'shopping.toast.listDeleteFailed': 'Failed to delete shopping list',
+  'shopping.toast.itemAdded': 'Item added',
+  'shopping.toast.itemAddFailed': 'Failed to add item',
+  'shopping.toast.itemUpdateFailed': 'Failed to update item',
+  'shopping.toast.itemRemoved': 'Item removed',
+  'shopping.toast.itemRemoveFailed': 'Failed to remove item',
+
+  // Family member toasts
+  'family.toast.memberAdded': 'Family member added',
+  'family.toast.memberAddFailed': 'Failed to add family member',
+  'family.toast.memberUpdated': 'Family member updated',
+  'family.toast.memberUpdateFailed': 'Failed to update family member',
+  'family.toast.memberRemoved': 'Family member removed',
+  'family.toast.memberRemoveFailed': 'Failed to remove family member',
 };
 
 export default en;

@@ -972,6 +972,42 @@ const de: Record<string, string> = {
   'goals.removed': 'Ziel entfernt',
   'goals.removedDesc': 'Das Ziel wurde gelöscht.',
   'goals.errorDelete': 'Ziel konnte nicht gelöscht werden.',
+
+  // Meal planning toasts
+  'meals.toast.recipeAdded': 'Rezept hinzugefügt',
+  'meals.toast.recipeAddFailed': 'Rezept konnte nicht hinzugefügt werden',
+  'meals.toast.recipeUpdated': 'Rezept aktualisiert',
+  'meals.toast.recipeUpdateFailed': 'Rezept konnte nicht aktualisiert werden',
+  'meals.toast.recipeDeleted': 'Rezept gelöscht',
+  'meals.toast.recipeDeleteFailed': 'Rezept konnte nicht gelöscht werden',
+  'meals.toast.ingredientAddFailed': 'Zutat konnte nicht hinzugefügt werden',
+  'meals.toast.mealPlanned': 'Mahlzeit geplant',
+  'meals.toast.mealPlanFailed': 'Mahlzeit konnte nicht geplant werden',
+  'meals.toast.mealRemoved': 'Mahlzeit entfernt',
+  'meals.toast.mealRemoveFailed': 'Mahlzeit konnte nicht entfernt werden',
+  'meals.toast.mealMoved': 'Mahlzeit verschoben',
+  'meals.toast.mealMoveFailed': 'Mahlzeit konnte nicht verschoben werden',
+
+  // Shopping list toasts
+  'shopping.toast.listCreated': 'Einkaufsliste erstellt',
+  'shopping.toast.listCreateFailed': 'Einkaufsliste konnte nicht erstellt werden',
+  'shopping.toast.listUpdated': 'Einkaufsliste aktualisiert',
+  'shopping.toast.listUpdateFailed': 'Einkaufsliste konnte nicht aktualisiert werden',
+  'shopping.toast.listDeleted': 'Einkaufsliste gelöscht',
+  'shopping.toast.listDeleteFailed': 'Einkaufsliste konnte nicht gelöscht werden',
+  'shopping.toast.itemAdded': 'Artikel hinzugefügt',
+  'shopping.toast.itemAddFailed': 'Artikel konnte nicht hinzugefügt werden',
+  'shopping.toast.itemUpdateFailed': 'Artikel konnte nicht aktualisiert werden',
+  'shopping.toast.itemRemoved': 'Artikel entfernt',
+  'shopping.toast.itemRemoveFailed': 'Artikel konnte nicht entfernt werden',
+
+  // Family member toasts
+  'family.toast.memberAdded': 'Familienmitglied hinzugefügt',
+  'family.toast.memberAddFailed': 'Familienmitglied konnte nicht hinzugefügt werden',
+  'family.toast.memberUpdated': 'Familienmitglied aktualisiert',
+  'family.toast.memberUpdateFailed': 'Familienmitglied konnte nicht aktualisiert werden',
+  'family.toast.memberRemoved': 'Familienmitglied entfernt',
+  'family.toast.memberRemoveFailed': 'Familienmitglied konnte nicht entfernt werden',
 };
 
 export default de;

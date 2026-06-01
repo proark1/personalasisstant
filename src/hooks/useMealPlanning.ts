@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
 
@@ -47,6 +48,7 @@ export interface MealPlan {
 
 export function useMealPlanning() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -143,11 +145,11 @@ export function useMealPlanning() {
 
       if (error) throw error;
       setRecipes(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
-      toast.success('Recipe added');
+      toast.success(t('meals.toast.recipeAdded'));
       return data;
     } catch (error: any) {
       console.error('Error adding recipe:', error);
-      toast.error('Failed to add recipe');
+      toast.error(t('meals.toast.recipeAddFailed'));
       return null;
     }
   };
@@ -165,11 +167,11 @@ export function useMealPlanning() {
 
       if (error) throw error;
       setRecipes(prev => prev.map(r => r.id === id ? data : r));
-      toast.success('Recipe updated');
+      toast.success(t('meals.toast.recipeUpdated'));
       return data;
     } catch (error: any) {
       console.error('Error updating recipe:', error);
-      toast.error('Failed to update recipe');
+      toast.error(t('meals.toast.recipeUpdateFailed'));
       return null;
     }
   };
@@ -183,10 +185,10 @@ export function useMealPlanning() {
 
       if (error) throw error;
       setRecipes(prev => prev.filter(r => r.id !== id));
-      toast.success('Recipe deleted');
+      toast.success(t('meals.toast.recipeDeleted'));
     } catch (error: any) {
       console.error('Error deleting recipe:', error);
-      toast.error('Failed to delete recipe');
+      toast.error(t('meals.toast.recipeDeleteFailed'));
     }
   };
 
@@ -228,7 +230,7 @@ export function useMealPlanning() {
       return data;
     } catch (error: any) {
       console.error('Error adding ingredient:', error);
-      toast.error('Failed to add ingredient');
+      toast.error(t('meals.toast.ingredientAddFailed'));
       return null;
     }
   };
@@ -263,11 +265,11 @@ export function useMealPlanning() {
       // Add recipe info if available
       const recipe = plan.recipe_id ? recipes.find(r => r.id === plan.recipe_id) : undefined;
       setMealPlans(prev => [...prev, { ...data, recipe }]);
-      toast.success('Meal planned');
+      toast.success(t('meals.toast.mealPlanned'));
       return data;
     } catch (error: any) {
       console.error('Error adding meal plan:', error);
-      toast.error('Failed to plan meal');
+      toast.error(t('meals.toast.mealPlanFailed'));
       return null;
     }
   };
@@ -281,10 +283,10 @@ export function useMealPlanning() {
 
       if (error) throw error;
       setMealPlans(prev => prev.filter(m => m.id !== id));
-      toast.success('Meal removed');
+      toast.success(t('meals.toast.mealRemoved'));
     } catch (error: any) {
       console.error('Error deleting meal plan:', error);
-      toast.error('Failed to remove meal');
+      toast.error(t('meals.toast.mealRemoveFailed'));
     }
   };
 
@@ -306,11 +308,11 @@ export function useMealPlanning() {
         }
         return m;
       }));
-      toast.success('Meal moved');
+      toast.success(t('meals.toast.mealMoved'));
       return data;
     } catch (error: any) {
       console.error('Error updating meal plan:', error);
-      toast.error('Failed to move meal');
+      toast.error(t('meals.toast.mealMoveFailed'));
       return null;
     }
   };

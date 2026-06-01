@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
 
@@ -35,6 +36,7 @@ export interface ShoppingList {
 
 export function useShoppingLists() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -112,11 +114,11 @@ export function useShoppingLists() {
 
       if (error) throw error;
       setLists(prev => [data, ...prev]);
-      toast.success('Shopping list created');
+      toast.success(t('shopping.toast.listCreated'));
       return data;
     } catch (error: any) {
       console.error('Error adding shopping list:', error);
-      toast.error('Failed to create shopping list');
+      toast.error(t('shopping.toast.listCreateFailed'));
       return null;
     }
   };
@@ -135,11 +137,11 @@ export function useShoppingLists() {
 
       if (error) throw error;
       setLists(prev => prev.map(l => l.id === id ? data : l));
-      toast.success('Shopping list updated');
+      toast.success(t('shopping.toast.listUpdated'));
       return data;
     } catch (error: any) {
       console.error('Error updating shopping list:', error);
-      toast.error('Failed to update shopping list');
+      toast.error(t('shopping.toast.listUpdateFailed'));
       return null;
     }
   };
@@ -154,10 +156,10 @@ export function useShoppingLists() {
 
       if (error) throw error;
       setLists(prev => prev.filter(l => l.id !== id));
-      toast.success('Shopping list deleted');
+      toast.success(t('shopping.toast.listDeleted'));
     } catch (error: any) {
       console.error('Error deleting shopping list:', error);
-      toast.error('Failed to delete shopping list');
+      toast.error(t('shopping.toast.listDeleteFailed'));
     }
   };
 
@@ -172,11 +174,11 @@ export function useShoppingLists() {
         .single();
 
       if (error) throw error;
-      if (!silent) toast.success('Item added');
+      if (!silent) toast.success(t('shopping.toast.itemAdded'));
       return data;
     } catch (error: any) {
       console.error('Error adding item:', error);
-      if (!silent) toast.error('Failed to add item');
+      if (!silent) toast.error(t('shopping.toast.itemAddFailed'));
       return null;
     }
   };
@@ -194,7 +196,7 @@ export function useShoppingLists() {
       return data;
     } catch (error: any) {
       console.error('Error updating item:', error);
-      toast.error('Failed to update item');
+      toast.error(t('shopping.toast.itemUpdateFailed'));
       return null;
     }
   };
@@ -211,10 +213,10 @@ export function useShoppingLists() {
         .eq('id', itemId);
 
       if (error) throw error;
-      toast.success('Item removed');
+      toast.success(t('shopping.toast.itemRemoved'));
     } catch (error: any) {
       console.error('Error deleting item:', error);
-      toast.error('Failed to remove item');
+      toast.error(t('shopping.toast.itemRemoveFailed'));
     }
   };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import { Json, TablesUpdate } from '@/integrations/supabase/types';
 import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
@@ -52,6 +53,7 @@ export interface Milestone {
 
 export function useFamilyMembers() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -146,11 +148,11 @@ export function useFamilyMembers() {
       };
       
       setMembers(prev => [...prev, newMember]);
-      toast.success('Family member added');
+      toast.success(t('family.toast.memberAdded'));
       return newMember;
     } catch (error) {
       console.error('Error adding family member:', error);
-      toast.error('Failed to add family member');
+      toast.error(t('family.toast.memberAddFailed'));
       return null;
     }
   };
@@ -181,11 +183,11 @@ export function useFamilyMembers() {
       };
       
       setMembers(prev => prev.map(m => m.id === id ? updatedMember : m));
-      toast.success('Family member updated');
+      toast.success(t('family.toast.memberUpdated'));
       return updatedMember;
     } catch (error) {
       console.error('Error updating family member:', error);
-      toast.error('Failed to update family member');
+      toast.error(t('family.toast.memberUpdateFailed'));
       return null;
     }
   };
@@ -200,11 +202,11 @@ export function useFamilyMembers() {
       if (error) throw error;
       
       setMembers(prev => prev.filter(m => m.id !== id));
-      toast.success('Family member removed');
+      toast.success(t('family.toast.memberRemoved'));
       return true;
     } catch (error) {
       console.error('Error deleting family member:', error);
-      toast.error('Failed to remove family member');
+      toast.error(t('family.toast.memberRemoveFailed'));
       return false;
     }
   };
