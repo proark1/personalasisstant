@@ -70,7 +70,9 @@ Set these on the `edge-runtime` service (not the gateway):
 | `GEMINI_API_KEY` | `chat`, `gemini-live`, embeddings, TTS, `morning-briefing` + `briefing-dispatch-cron` (news via Google Search grounding) |
 | `OPENAI_API_KEY` | `openai-realtime-session`, TTS, STT |
 | `TELEGRAM_API_KEY` | `telegram-*` family |
-| `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Calendar/Gmail OAuth |
+| `TELEGRAM_WEBHOOK_SECRET` | Verifies inbound Telegram webhook calls — see [`telegram-poll/WEBHOOK.md`](../supabase/functions/telegram-poll/WEBHOOK.md) |
+| `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google Calendar/Gmail OAuth |
+| `MICROSOFT_CLIENT_ID` + `MICROSOFT_CLIENT_SECRET` | Outlook Calendar OAuth (`outlook-*`) |
 | `PERPLEXITY_API_KEY` | `web-search` |
 | `PLAID_CLIENT_ID` + `PLAID_SECRET` + `PLAID_ENV` | `plaid-*` |
 | `BANK_TOKEN_SECRET` | AES-GCM key for Plaid tokens at rest. `openssl rand -hex 32`. |
@@ -104,7 +106,7 @@ dispatcher resolves names dynamically; no router edits needed.
 
 ## Bumping the runtime image
 
-`FROM supabase/edge-runtime:v1.67.0` in the Dockerfile. Check
+`FROM supabase/edge-runtime:v1.73.5` in the Dockerfile. Check
 [Docker Hub tags](https://hub.docker.com/r/supabase/edge-runtime/tags)
 for newer releases. Read the changelog before bumping — major versions
 may change the `EdgeRuntime.userWorkers` API used in `main/index.ts`.
