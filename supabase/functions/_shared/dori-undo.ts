@@ -39,7 +39,7 @@ export interface UndoEntry {
   entity_id: string | null;
   label: string;
   inverse_tool_xml: string | null;
-  snapshot: any;
+  snapshot: Record<string, unknown>;
   source: string;
   source_ref: string | null;
   expires_at: string;
@@ -47,8 +47,11 @@ export interface UndoEntry {
   consumed_at: string | null;
 }
 
+// Minimal Supabase client surface needed by this module.
+type UndoClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
 export async function recordUndo(
-  supabase: any,
+  supabase: UndoClient,
   row: Omit<UndoEntry, 'id' | 'created_at' | 'consumed_at' | 'expires_at'> & { expiresInSeconds?: number },
 ): Promise<string | null> {
   try {
@@ -73,7 +76,7 @@ export async function recordUndo(
   }
 }
 
-export async function fetchUndoable(supabase: any, undoId: string): Promise<UndoEntry | null> {
+export async function fetchUndoable(supabase: UndoClient, undoId: string): Promise<UndoEntry | null> {
   const { data } = await supabase
     .from('dori_undo_log')
     .select('*')
@@ -85,7 +88,7 @@ export async function fetchUndoable(supabase: any, undoId: string): Promise<Undo
 }
 
 export async function fetchLatestUndoableForUser(
-  supabase: any,
+  supabase: UndoClient,
   userId: string,
 ): Promise<UndoEntry | null> {
   const { data } = await supabase
@@ -104,7 +107,7 @@ export async function fetchLatestUndoableForUser(
 // skipApprovalGate so it runs immediately) OR restore a snapshot row.
 // Marks the row consumed so it can't be used twice.
 export async function runUndo(
-  supabase: any,
+  supabase: UndoClient,
   entry: UndoEntry,
   supabaseUrl: string,
   serviceKey: string,
@@ -159,7 +162,7 @@ export async function runUndo(
     // through an allow-list for defense-in-depth — a misconfigured RLS policy
     // or anyone who finds a way to write into `dori_undo_log` shouldn't be
     // able to pick an arbitrary table to mutate.
-    const snap = entry.snapshot as any;
+    const snap = entry.snapshot;
     if (snap?.table && !ALLOWED_UNDO_TABLES.has(String(snap.table))) {
       console.warn('runUndo: refusing disallowed table', snap.table);
       return { ok: false, message: `⚠️ Undo refused for safety.` };

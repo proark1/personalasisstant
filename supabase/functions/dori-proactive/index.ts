@@ -2,7 +2,7 @@
 // For each user with proactive enabled + Telegram linked, evaluates triggers
 // and sends an unprompted Telegram message. Logs every send to dori_proactive_log
 // to prevent duplicates.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendDoriReply } from '../_shared/telegram-voice.ts';
 import { isUserQuietNow } from '../_shared/dori-quiet.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';
@@ -15,7 +15,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!;
 const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY')!;
 
 interface HouseholdMember {
@@ -26,7 +25,7 @@ interface HouseholdMember {
 interface UserCtx {
   userId: string;
   chatId: number;
-  settings: any;
+  settings: Record<string, unknown>;
   preferVoice: boolean;
   tz: string;
   nowLocal: Date;
@@ -38,7 +37,7 @@ interface UserCtx {
 // Resolve all accepted family-agent members the user shares a group with,
 // including the user themselves. Used to attribute messages by name when
 // 2+ adults are connected (shared household context).
-async function resolveHousehold(supabase: any, userId: string): Promise<HouseholdMember[]> {
+async function resolveHousehold(supabase: SupabaseClient, userId: string): Promise<HouseholdMember[]> {
   // Find groups the user belongs to (accepted)
   const { data: myGroups } = await supabase
     .from('family_agent_members')
@@ -46,7 +45,7 @@ async function resolveHousehold(supabase: any, userId: string): Promise<Househol
     .eq('user_id', userId)
     .eq('status', 'accepted');
 
-  const groupIds = (myGroups || []).map((g: any) => g.group_id);
+  const groupIds = (myGroups || []).map((g: { group_id: string }) => g.group_id);
   if (groupIds.length === 0) {
     // Solo: just self
     const { data: prof } = await supabase.from('profiles').select('display_name').eq('user_id', userId).maybeSingle();
@@ -59,14 +58,14 @@ async function resolveHousehold(supabase: any, userId: string): Promise<Househol
     .in('group_id', groupIds)
     .eq('status', 'accepted');
 
-  const userIds = Array.from(new Set([userId, ...((members || []).map((m: any) => m.user_id))]));
+  const userIds = Array.from(new Set([userId, ...((members || []).map((m: { user_id: string }) => m.user_id))]));
   const { data: profiles } = await supabase
     .from('profiles')
     .select('user_id, display_name')
     .in('user_id', userIds);
 
   const map = new Map<string, string>(
-    (profiles || []).map((p: any) => [p.user_id as string, (p.display_name as string) || 'Member']),
+    (profiles || []).map((p: { user_id: string; display_name?: string }) => [p.user_id, p.display_name || 'Member']),
   );
   return userIds.map((uid) => ({ user_id: uid, display_name: map.get(uid) || 'Member' }));
 }
@@ -90,7 +89,7 @@ function localNow(tz: string): { date: Date; hour: number; minute: number; dayKe
   return { date: new Date(`${dayKey}T${parts.hour}:${parts.minute}:00`), hour, minute, dayKey, dow: dowMap[parts.weekday] ?? 0 };
 }
 
-function inQuietHours(now: { hour: number }, settings: any): boolean {
+function _inQuietHours(now: { hour: number }, settings: Record<string, unknown>): boolean {
   if (!settings.quiet_hours_enabled) return false;
   const start = parseInt((settings.quiet_hours_start || '22:00').split(':')[0]);
   const end = parseInt((settings.quiet_hours_end || '07:00').split(':')[0]);
@@ -99,7 +98,7 @@ function inQuietHours(now: { hour: number }, settings: any): boolean {
   return h >= start || h < end;
 }
 
-async function alreadySent(supabase: any, userId: string, type: string, key: string): Promise<boolean> {
+async function alreadySent(supabase: SupabaseClient, userId: string, type: string, key: string): Promise<boolean> {
   const { data } = await supabase
     .from('dori_proactive_log')
     .select('id')
@@ -108,7 +107,7 @@ async function alreadySent(supabase: any, userId: string, type: string, key: str
   return !!data;
 }
 
-async function logSent(supabase: any, ctx: UserCtx, type: string, key: string, message: string) {
+async function logSent(supabase: SupabaseClient, ctx: UserCtx, type: string, key: string, message: string) {
   await supabase.from('dori_proactive_log').insert({
     user_id: ctx.userId, trigger_type: type, trigger_key: key,
     channel: 'tg_private', channel_ref: String(ctx.chatId), message,
@@ -124,7 +123,7 @@ async function send(ctx: UserCtx, text: string) {
 
 // ---------- TRIGGERS ----------
 
-async function morningBrief(supabase: any, ctx: UserCtx) {
+async function morningBrief(supabase: SupabaseClient, ctx: UserCtx) {
   if (!ctx.settings.daily_review_enabled && !ctx.settings.weekly_planning_enabled) return;
   const target = ctx.settings.morning_briefing_time || '07:30:00';
   const [th, tm] = target.split(':').map((n: string) => parseInt(n));
@@ -158,21 +157,21 @@ async function morningBrief(supabase: any, ctx: UserCtx) {
   const lines: string[] = [`☀️ <b>Good morning!</b>`];
   if (events.length > 0) {
     lines.push(`\n📅 <b>Today (${events.length})</b>`);
-    events.forEach((e: any) => {
+    events.forEach((e: { start_time: string; title: string; location?: string }) => {
       const t = new Date(e.start_time).toLocaleTimeString('en-GB', { timeZone: ctx.tz, hour: '2-digit', minute: '2-digit' });
       lines.push(`• ${t} — ${e.title}${e.location ? ` @ ${e.location}` : ''}`);
     });
   }
   if (tasks.length > 0) {
     lines.push(`\n✅ <b>Top tasks</b>`);
-    tasks.slice(0, 3).forEach((t: any) => lines.push(`• ${t.title}${t.priority === 'high' || t.priority === 'urgent' ? ' 🔥' : ''}`));
+    tasks.slice(0, 3).forEach((t: { title: string; priority: string }) => lines.push(`• ${t.title}${t.priority === 'high' || t.priority === 'urgent' ? ' 🔥' : ''}`));
   }
   const msg = lines.join('\n');
   await send(ctx, msg);
   await logSent(supabase, ctx, 'morning_brief', key, msg);
 }
 
-async function meetingPrep(supabase: any, ctx: UserCtx) {
+async function meetingPrep(supabase: SupabaseClient, ctx: UserCtx) {
   if (!ctx.settings.meeting_briefing_enabled) return;
   const minutesAhead = (ctx.settings.meeting_briefing_minutes || [15])[0] || 15;
   const now = new Date();
@@ -197,7 +196,7 @@ async function meetingPrep(supabase: any, ctx: UserCtx) {
   }
 }
 
-async function contractRenewals(supabase: any, ctx: UserCtx) {
+async function contractRenewals(supabase: SupabaseClient, ctx: UserCtx) {
   if (!ctx.settings.contract_renewals_enabled) return;
   const days = ctx.settings.contract_reminder_days || [30, 14, 7, 3, 1];
   const now = new Date();
@@ -221,7 +220,7 @@ async function contractRenewals(supabase: any, ctx: UserCtx) {
   }
 }
 
-async function birthdayReminders(supabase: any, ctx: UserCtx) {
+async function birthdayReminders(supabase: SupabaseClient, ctx: UserCtx) {
   if (!ctx.settings.birthday_reminders_enabled) return;
   // Fire once per day in late morning window
   if (ctx.nowLocal.getHours() < 9 || ctx.nowLocal.getHours() > 11) return;
@@ -287,7 +286,7 @@ function estimatePrayerTimes(date: Date): Record<string, { h: number; m: number 
   return out;
 }
 
-async function prayerReminders(supabase: any, ctx: UserCtx) {
+async function prayerReminders(supabase: SupabaseClient, ctx: UserCtx) {
   if (!ctx.settings.prayer_reminders_enabled && !ctx.settings.evening_dua_enabled) return;
   const minutesBefore = ctx.settings.prayer_reminder_minutes || 10;
   const times = estimatePrayerTimes(ctx.nowLocal);
@@ -324,7 +323,7 @@ async function prayerReminders(supabase: any, ctx: UserCtx) {
 
 // Scan recent unread emails for action items (todos / questions / payments)
 // and push a Telegram digest. Auto-creates tasks for clear action items.
-async function emailActionItems(supabase: any, ctx: UserCtx) {
+async function emailActionItems(supabase: SupabaseClient, ctx: UserCtx) {
   if (ctx.settings.email_action_alerts_enabled === false) return;
   // Once per day, mid-morning
   if (ctx.nowLocal.getHours() < 9 || ctx.nowLocal.getHours() > 11) return;
@@ -343,13 +342,13 @@ async function emailActionItems(supabase: any, ctx: UserCtx) {
 
   if (!emails || emails.length === 0) return;
 
-  const list = emails.map((e: any, i: number) =>
+  const list = emails.map((e: { from_name?: string; from_email?: string; subject?: string; snippet?: string }, i: number) =>
     `[${i}] from="${e.from_name || e.from_email}" subject="${e.subject || ''}" snippet="${(e.snippet || '').slice(0, 240)}"`
   ).join('\n');
 
   // Native generateContent + responseSchema (the OpenAI-compat endpoint with
   // forced tool_choice fails in our deployment).
-  let parsed: any;
+  let parsed: { items?: Array<{ index: number; action_type: string; action_summary: string; urgency?: string }> };
   try {
     parsed = await generateStructured({
       system: `You scan recent emails for the user and extract ONLY emails that need action: a todo, a direct question to answer, or a payment/invoice due. Skip newsletters, marketing, receipts of completed actions, and FYI threads. Be conservative — only flag clearly actionable items.`,
@@ -378,12 +377,12 @@ async function emailActionItems(supabase: any, ctx: UserCtx) {
     console.error('email actions AI failed', (e as Error).message);
     return;
   }
-  const items = (parsed?.items ?? []).filter((it: any) => emails[it.index]);
+  const items = (parsed?.items ?? []).filter((it) => emails[it.index]);
   if (items.length === 0) return;
 
   // Build digest grouped by type
   const icon: Record<string, string> = { todo: '✅', question: '❓', payment: '💸' };
-  const lines = items.slice(0, 8).map((it: any) => {
+  const lines = items.slice(0, 8).map((it) => {
     const e = emails[it.index];
     const from = e.from_name || e.from_email || 'unknown';
     const urg = it.urgency === 'high' ? ' <b>(urgent)</b>' : '';
@@ -395,9 +394,9 @@ async function emailActionItems(supabase: any, ctx: UserCtx) {
   await logSent(supabase, ctx, 'email_actions', key, msg);
 
   // Auto-create tasks for clear todos & payments (max 5)
-  const taskItems = items.filter((it: any) => it.action_type === 'todo' || it.action_type === 'payment').slice(0, 5);
+  const taskItems = items.filter((it) => it.action_type === 'todo' || it.action_type === 'payment').slice(0, 5);
   if (taskItems.length > 0) {
-    const taskRows = taskItems.map((it: any) => {
+    const taskRows = taskItems.map((it) => {
       const e = emails[it.index];
       return {
         user_id: ctx.userId,
@@ -413,7 +412,7 @@ async function emailActionItems(supabase: any, ctx: UserCtx) {
   }
 }
 
-async function staleContacts(supabase: any, ctx: UserCtx) {
+async function staleContacts(supabase: SupabaseClient, ctx: UserCtx) {
   if (!ctx.settings.contact_checkins_enabled) return;
   // Only nudge once a day, evening-ish
   if (ctx.nowLocal.getHours() < 17 || ctx.nowLocal.getHours() > 20) return;
@@ -431,7 +430,7 @@ async function staleContacts(supabase: any, ctx: UserCtx) {
     .limit(3);
 
   if (!contacts || contacts.length === 0) return;
-  const names = contacts.map((c: any) => c.name).join(', ');
+  const names = contacts.map((c: { name: string }) => c.name).join(', ');
   const subject = ctx.household.length >= 2 ? `<b>${firstName(ctx.displayName)}</b>, you` : 'You';
   const msg = `👋 ${subject} haven't talked to <b>${names}</b> in a while. Want to send a quick voice note or schedule a call?`;
   await send(ctx, msg);

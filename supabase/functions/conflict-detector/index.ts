@@ -13,17 +13,33 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const TIGHT_TRANSITION_MIN = 15; // less than X minutes between non-overlapping events = tight
 
+interface ConflictEntity {
+  type: string;
+  id: string;
+  title: string;
+  start?: string;
+  end?: string;
+}
+
 interface Conflict {
   conflict_type: string;
   severity: string;
   title: string;
   description: string;
-  entities: any[];
+  entities: ConflictEntity[];
   suggested_resolution: string;
   fingerprint: string;
 }
 
-function detectConflicts(events: any[]): Conflict[] {
+interface EventRow {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  category?: string;
+}
+
+function detectConflicts(events: EventRow[]): Conflict[] {
   const conflicts: Conflict[] = [];
   const sorted = [...events].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
@@ -35,7 +51,7 @@ function detectConflicts(events: any[]): Conflict[] {
     for (let j = i + 1; j < sorted.length; j++) {
       const b = sorted[j];
       const bStart = new Date(b.start_time).getTime();
-      const bEnd = new Date(b.end_time).getTime();
+      const _bEnd = new Date(b.end_time).getTime();
 
       // Overlap
       if (bStart < aEnd) {

@@ -832,7 +832,7 @@ serve(async (req) => {
   }
 });
 
-function buildSystemPrompt(userProfile: any, contextData: any): string {
+function buildSystemPrompt(userProfile: Record<string, unknown>, contextData: Record<string, unknown>): string {
   const now = new Date();
   const timeString = now.toLocaleString('en-US', { 
     weekday: 'long', 
@@ -996,9 +996,9 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Weekly health trends
     if (contextData.healthData?.weeklyData?.length > 0) {
       const weekData = contextData.healthData.weeklyData;
-      const totalSteps = weekData.reduce((sum: number, d: any) => sum + (d.steps || 0), 0);
+      const totalSteps = weekData.reduce((sum: number, d: Record<string, unknown>) => sum + ((d.steps as number) || 0), 0);
       const avgSteps = Math.round(totalSteps / weekData.length);
-      const avgSleep = weekData.reduce((sum: number, d: any) => sum + (d.sleepHours || 0), 0) / weekData.length;
+      const avgSleep = weekData.reduce((sum: number, d: Record<string, unknown>) => sum + ((d.sleepHours as number) || 0), 0) / weekData.length;
       prompt += `\n### Week Overview (${weekData.length} days):\n`;
       prompt += `- Average daily steps: ${avgSteps.toLocaleString()}\n`;
       if (avgSleep > 0) prompt += `- Average sleep: ${avgSleep.toFixed(1)} hours\n`;
@@ -1007,15 +1007,16 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Habits summary
     if (contextData.habitData?.habits?.length > 0) {
       prompt += `\n### Active Habits:\n`;
-      contextData.habitData.habits.slice(0, 5).forEach((h: any) => {
-        prompt += `- ${h.icon} ${h.name} (${h.frequency})\n`;
+      (contextData.habitData as Record<string, unknown[]>).habits.slice(0, 5).forEach((h: unknown) => {
+        const habit = h as Record<string, unknown>;
+        prompt += `- ${habit.icon} ${habit.name} (${habit.frequency})\n`;
       });
     }
 
     // Today's tasks
     if (contextData.todayTasks?.length > 0) {
       prompt += `\n### Today's Tasks:\n`;
-      contextData.todayTasks.forEach((t: any) => {
+      contextData.todayTasks.forEach((t: Record<string, unknown>) => {
         prompt += `- "${t.title}" (${t.priority} priority)\n`;
       });
     }
@@ -1023,17 +1024,17 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Overdue tasks
     if (contextData.overdueTasks?.length > 0) {
       prompt += `\n### Overdue Tasks:\n`;
-      contextData.overdueTasks.forEach((t: any) => {
-        prompt += `- "${t.title}" - was due ${t.dueDate?.split('T')[0]}\n`;
+      contextData.overdueTasks.forEach((t: Record<string, unknown>) => {
+        prompt += `- "${t.title}" - was due ${(t.dueDate as string | undefined)?.split('T')[0]}\n`;
       });
     }
 
     // Upcoming events
     if (contextData.upcomingEvents?.length > 0) {
       prompt += `\n### Upcoming Events:\n`;
-      contextData.upcomingEvents.forEach((e: any) => {
-        const date = new Date(e.startTime).toLocaleDateString();
-        const time = new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      contextData.upcomingEvents.forEach((e: Record<string, unknown>) => {
+        const date = new Date(e.startTime as string).toLocaleDateString();
+        const time = new Date(e.startTime as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         prompt += `- "${e.title}" on ${date} at ${time}${e.location ? ` at ${e.location}` : ''}\n`;
       });
     }
@@ -1041,7 +1042,7 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Contacts due for follow-up
     if (contextData.contactsDue?.length > 0) {
       prompt += `\n### Contacts Due for Follow-up:\n`;
-      contextData.contactsDue.forEach((c: any) => {
+      contextData.contactsDue.forEach((c: Record<string, unknown>) => {
         prompt += `- ${c.name}${c.company ? ` at ${c.company}` : ''}\n`;
       });
     }
@@ -1049,15 +1050,15 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Contracts with upcoming renewals
     if (contextData.contractsWithRenewals?.length > 0) {
       prompt += `\n### Contracts Expiring Soon:\n`;
-      contextData.contractsWithRenewals.forEach((c: any) => {
-        prompt += `- ${c.name} - renews ${c.renewalDate?.split('T')[0]}${c.costAmount ? ` ($${c.costAmount}/${c.costFrequency})` : ''}\n`;
+      contextData.contractsWithRenewals.forEach((c: Record<string, unknown>) => {
+        prompt += `- ${c.name} - renews ${(c.renewalDate as string | undefined)?.split('T')[0]}${c.costAmount ? ` ($${c.costAmount}/${c.costFrequency})` : ''}\n`;
       });
     }
 
     // Projects summary (keep short)
     if (contextData.allProjects?.length > 0) {
       prompt += `\n### Projects:\n`;
-      contextData.allProjects.slice(0, 10).forEach((p: any) => {
+      contextData.allProjects.slice(0, 10).forEach((p: Record<string, unknown>) => {
         prompt += `- "${p.name}"${p.description ? `: ${p.description}` : ''}\n`;
       });
     }
@@ -1065,9 +1066,9 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Unread emails
     if (contextData.unreadEmails?.length > 0) {
       prompt += `\n### Unread Emails (${contextData.totalUnreadEmails || contextData.unreadEmails.length} total):\n`;
-      contextData.unreadEmails.forEach((e: any) => {
-        const time = new Date(e.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        prompt += `- From ${e.from}: "${e.subject || '(no subject)'}" (${time})${e.snippet ? ` — ${e.snippet.substring(0, 80)}` : ''}\n`;
+      contextData.unreadEmails.forEach((e: Record<string, unknown>) => {
+        const time = new Date(e.receivedAt as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        prompt += `- From ${e.from}: "${e.subject || '(no subject)'}" (${time})${e.snippet ? ` — ${(e.snippet as string).substring(0, 80)}` : ''}\n`;
       });
     } else if (contextData.totalUnreadEmails === 0) {
       prompt += `\n### Email: Inbox is clear — no unread emails.\n`;
@@ -1076,12 +1077,12 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Family members
     if (contextData.familyMembers?.length > 0) {
       prompt += `\n### Family Members:\n`;
-      contextData.familyMembers.forEach((m: any) => {
+      contextData.familyMembers.forEach((m: Record<string, unknown>) => {
         let info = `- **${m.name}** (${m.relationship}${m.age !== null ? `, ${m.age} years old` : ''})`;
         if (m.school) info += ` — School: ${m.school}${m.grade ? `, Grade: ${m.grade}` : ''}`;
         if (m.kindergarten) info += ` — Kindergarten: ${m.kindergarten}`;
-        if (m.activities?.length > 0) info += ` — Activities: ${m.activities.map((a: any) => `${a.name} (${a.schedule})`).join(', ')}`;
-        if (m.allergies?.length > 0) info += ` — ⚠️ Allergies: ${m.allergies.join(', ')}`;
+        if (Array.isArray(m.activities) && m.activities.length > 0) info += ` — Activities: ${(m.activities as Record<string, unknown>[]).map((a) => `${a.name} (${a.schedule})`).join(', ')}`;
+        if (Array.isArray(m.allergies) && m.allergies.length > 0) info += ` — ⚠️ Allergies: ${(m.allergies as string[]).join(', ')}`;
         prompt += info + '\n';
       });
     }
@@ -1089,22 +1090,22 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Family schedule
     if (contextData.familySchedule?.todayEvents?.length > 0) {
       prompt += `\n### Today's Family Schedule:\n`;
-      contextData.familySchedule.todayEvents.forEach((e: any) => {
-        const time = new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      contextData.familySchedule.todayEvents.forEach((e: Record<string, unknown>) => {
+        const time = new Date(e.startTime as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         prompt += `- ${e.title} at ${time}${e.location ? ` (${e.location})` : ''}\n`;
       });
     }
     if (contextData.familySchedule?.tomorrowEvents?.length > 0) {
       prompt += `\n### Tomorrow's Family Schedule:\n`;
-      contextData.familySchedule.tomorrowEvents.forEach((e: any) => {
-        const time = new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      contextData.familySchedule.tomorrowEvents.forEach((e: Record<string, unknown>) => {
+        const time = new Date(e.startTime as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         prompt += `- ${e.title} at ${time}${e.location ? ` (${e.location})` : ''}\n`;
       });
     }
     if (contextData.familySchedule?.upcomingBirthdays?.length > 0) {
       prompt += `\n### Upcoming Family Birthdays:\n`;
-      contextData.familySchedule.upcomingBirthdays.forEach((b: any) => {
-        const daysUntil = Math.ceil((new Date(b.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      contextData.familySchedule.upcomingBirthdays.forEach((b: Record<string, unknown>) => {
+        const daysUntil = Math.ceil((new Date(b.date as string).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         prompt += `- ${b.member} turns ${b.age} in ${daysUntil} days\n`;
       });
     }
@@ -1112,7 +1113,7 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Shopping lists
     if (contextData.shoppingLists?.length > 0) {
       prompt += `\n### Active Shopping Lists:\n`;
-      contextData.shoppingLists.forEach((l: any) => {
+      contextData.shoppingLists.forEach((l: Record<string, unknown>) => {
         prompt += `- ${l.name}${l.dueDate ? ` (due ${l.dueDate})` : ''}\n`;
       });
     }

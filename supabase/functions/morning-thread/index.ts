@@ -31,7 +31,7 @@ serve(async (req) => {
     let userIds: string[] = body.user_id ? [body.user_id] : [];
     if (userIds.length === 0) {
       const { data: profiles } = await supabase.from("profiles").select("user_id");
-      userIds = (profiles || []).map((p: any) => p.user_id);
+      userIds = (profiles || []).map((p: Record<string, unknown>) => p.user_id as string);
     }
 
     const today = new Date().toISOString().split("T")[0];

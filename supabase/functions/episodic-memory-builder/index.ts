@@ -29,7 +29,7 @@ serve(async (req) => {
     let userIds: string[] = body.user_id ? [body.user_id] : [];
     if (userIds.length === 0) {
       const { data: profiles } = await supabase.from("profiles").select("user_id");
-      userIds = (profiles || []).map((p: any) => p.user_id);
+      userIds = (profiles || []).map((p: { user_id: string }) => p.user_id);
     }
 
     let total = 0;
@@ -53,16 +53,16 @@ serve(async (req) => {
           .maybeSingle();
         if (existing) continue;
 
-        const people = (t.contacts_in_destination as any[]) || [];
+        const people = (t.contacts_in_destination as Array<{ name: string; id: string }>) || [];
         await supabase.from("episodic_memories").insert({
           user_id: userId,
           occurred_on: t.start_date,
           occurred_end: t.end_date,
           title: `Trip to ${t.destination}`,
-          summary: `${dateRange(t.start_date, t.end_date)} in ${t.destination}${people.length ? ` — met ${people.map((p: any) => p.name).slice(0, 3).join(", ")}` : ""}`,
+          summary: `${dateRange(t.start_date, t.end_date)} in ${t.destination}${people.length ? ` — met ${people.map((p) => p.name).slice(0, 3).join(", ")}` : ""}`,
           location: t.destination,
           location_country: t.destination_country,
-          people: people.map((p: any) => ({ name: p.name, contact_id: p.id })),
+          people: people.map((p) => ({ name: p.name, contact_id: p.id })),
           tags: ["travel"],
           source: "trip",
           source_ref: ref,

@@ -24,8 +24,11 @@ export interface ConversationState {
   expires_at: string;
 }
 
+// Minimal Supabase client surface needed by this module.
+type ConvStateClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
 export async function loadConversationState(
-  supabase: any,
+  supabase: ConvStateClient,
   userId: string,
   channel: Channel,
 ): Promise<ConversationState | null> {
@@ -68,10 +71,10 @@ export interface SaveStateArgs {
   ttlMinutes?: number;
 }
 
-export async function saveConversationState(supabase: any, args: SaveStateArgs): Promise<void> {
+export async function saveConversationState(supabase: ConvStateClient, args: SaveStateArgs): Promise<void> {
   try {
     const ttl = args.ttlMinutes ?? 60;
-    const row: any = {
+    const row: Record<string, unknown> = {
       user_id: args.userId,
       channel: args.channel,
       open_intent: args.openIntent ?? null,
@@ -134,7 +137,7 @@ export function formatStateForPrompt(s: ConversationState | null): string {
 }
 
 export async function clearConversationState(
-  supabase: any,
+  supabase: ConvStateClient,
   userId: string,
   channel: Channel,
 ): Promise<void> {

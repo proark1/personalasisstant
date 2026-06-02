@@ -72,7 +72,7 @@ serve(async (req) => {
       .select("name, provider")
       .eq("user_id", userId);
 
-    const existingNames = (contracts || []).map((c: any) =>
+    const existingNames = (contracts || []).map((c: { name?: string; provider?: string }) =>
       `${(c.name || "").toLowerCase()}|${(c.provider || "").toLowerCase()}`
     );
 
@@ -85,7 +85,7 @@ serve(async (req) => {
       "zahlung", "abbuchung", "abonnement", "lastschrift",
     ];
 
-    const relevantEmails = emails.filter((e: any) => {
+    const relevantEmails = emails.filter((e: { subject?: string; snippet?: string }) => {
       const text = `${e.subject || ""} ${e.snippet || ""}`.toLowerCase();
       return paymentKeywords.some((kw) => text.includes(kw));
     });
@@ -97,7 +97,7 @@ serve(async (req) => {
     }
 
     // Prepare email summaries for AI (limit to keep tokens low)
-    const emailSummaries = relevantEmails.slice(0, 100).map((e: any) => ({
+    const emailSummaries = relevantEmails.slice(0, 100).map((e: { from_email?: string; from_name?: string; subject?: string; snippet?: string; received_at?: string }) => ({
       sender: e.from_email || e.from_name || "unknown",
       senderName: e.from_name || "",
       subject: e.subject || "",
@@ -114,12 +114,12 @@ serve(async (req) => {
     }
 
     const existingContractsList = (contracts || [])
-      .map((c: any) => `${c.name} (${c.provider || "no provider"})`)
+      .map((c: { name?: string; provider?: string }) => `${c.name} (${c.provider || "no provider"})`)
       .join(", ");
 
     // Native generateContent + responseSchema (the OpenAI-compat endpoint with
     // forced tool_choice fails in our deployment).
-    let parsed: any;
+    let parsed: { payments?: Array<Record<string, unknown>> };
     try {
       parsed = await generateStructured({
         model: "gemini-2.5-flash-lite",
@@ -157,7 +157,7 @@ serve(async (req) => {
     }
     
     // Filter out existing contracts
-    const newPayments = (parsed.payments || []).filter((p: any) => {
+    const newPayments = (parsed.payments || []).filter((p: Record<string, unknown>) => {
       const key = `${(p.name || "").toLowerCase()}|${(p.provider || "").toLowerCase()}`;
       return !existingNames.some((existing: string) => {
         const [eName, eProvider] = existing.split("|");

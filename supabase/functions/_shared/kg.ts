@@ -190,8 +190,11 @@ export interface LinkExtractionResult {
 // Upserts each extracted entity, then links it to the source row via
 // kg_link_mention. Best-effort: a single failure doesn't abort the
 // batch.
+// Minimal Supabase client surface needed by this module.
+type KgClient = { from(table: string): Record<string, (...args: unknown[]) => unknown>; rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> };
+
 export async function linkExtraction(
-  supabase: any,
+  supabase: KgClient,
   args: LinkExtractionArgs,
 ): Promise<LinkExtractionResult> {
   if (!args.entities?.length) return { linked: 0, entityIds: [] };
@@ -247,7 +250,7 @@ export interface RecordProvenanceArgs {
 }
 
 export async function recordProvenance(
-  supabase: any,
+  supabase: KgClient,
   args: RecordProvenanceArgs,
 ): Promise<boolean> {
   try {
@@ -293,7 +296,7 @@ export interface AutoKgArgs {
 }
 
 export async function autoKgIngest(
-  supabase: any,
+  supabase: KgClient,
   args: AutoKgArgs,
 ): Promise<{ entitiesLinked: number; model: string | null }> {
   try {

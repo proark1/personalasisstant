@@ -18,8 +18,15 @@ export interface WorkspaceRecap {
   perMember: { display_name: string; user_id: string; shipped: number; open: number }[];
 }
 
+// Minimal Supabase client surface needed by this module.
+type RecapClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
+interface RecapMember { user_id: string; display_name: string | null }
+interface RecapTask { title: string; assignee_id?: string | null; user_id: string; due_date?: string | null }
+interface RecapEvent { title: string; start_time: string }
+
 export async function buildWorkspaceWeeklyRecap(
-  supabase: any,
+  supabase: RecapClient,
   workspaceId: string,
   opts?: { days?: number; timezone?: string },
 ): Promise<WorkspaceRecap> {
@@ -49,34 +56,34 @@ export async function buildWorkspaceWeeklyRecap(
 
   const nameFor = (uid: string | null | undefined) => {
     if (!uid) return null;
-    return (members || []).find((m: any) => m.user_id === uid)?.display_name || null;
+    return (members as RecapMember[] || []).find((m) => m.user_id === uid)?.display_name || null;
   };
 
-  const shipped = (shippedRows || []).map((t: any) => ({
+  const shipped = (shippedRows as RecapTask[] || []).map((t) => ({
     title: t.title, assignee: nameFor(t.assignee_id || t.user_id),
   }));
 
-  const inProgress = (openRows || []).slice(0, 15).map((t: any) => ({
+  const inProgress = (openRows as RecapTask[] || []).slice(0, 15).map((t) => ({
     title: t.title, assignee: nameFor(t.assignee_id || t.user_id), due_date: t.due_date,
   }));
 
   // Use calendar-day math in the target timezone so "due late yesterday /
   // now early today" reports 1 day overdue (not 0 via millisecond division).
   const todayYmd = ymdIn(now, tz);
-  const blockers = (openRows || [])
-    .filter((t: any) => t.due_date && new Date(t.due_date) < now)
-    .map((t: any) => ({
+  const blockers = (openRows as RecapTask[] || [])
+    .filter((t) => t.due_date && new Date(t.due_date) < now)
+    .map((t) => ({
       title: t.title,
       assignee: nameFor(t.assignee_id || t.user_id),
-      days_overdue: Math.max(1, daysBetweenYmd(ymdIn(t.due_date, tz), todayYmd)),
+      days_overdue: Math.max(1, daysBetweenYmd(ymdIn(t.due_date!, tz), todayYmd)),
     }))
     .slice(0, 5);
 
-  const upcoming = (upcomingRows || []).map((e: any) => ({ title: e.title, start_time: e.start_time }));
+  const upcoming = (upcomingRows as RecapEvent[] || []).map((e) => ({ title: e.title, start_time: e.start_time }));
 
-  const perMember = (members || []).map((m: any) => {
-    const shippedCount = (shippedRows || []).filter((t: any) => (t.assignee_id || t.user_id) === m.user_id).length;
-    const openCount = (openRows || []).filter((t: any) => (t.assignee_id || t.user_id) === m.user_id).length;
+  const perMember = (members as RecapMember[] || []).map((m) => {
+    const shippedCount = (shippedRows as RecapTask[] || []).filter((t) => (t.assignee_id || t.user_id) === m.user_id).length;
+    const openCount = (openRows as RecapTask[] || []).filter((t) => (t.assignee_id || t.user_id) === m.user_id).length;
     return { display_name: m.display_name || m.user_id.slice(0, 8), user_id: m.user_id, shipped: shippedCount, open: openCount };
   });
 

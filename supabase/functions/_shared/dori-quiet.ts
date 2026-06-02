@@ -68,8 +68,11 @@ function parseHHMM(s?: string | null): number | null {
   return (Number(m[1]) % 24) * 60 + (Number(m[2]) % 60);
 }
 
+// Minimal Supabase client surface needed by this module.
+type QuietClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
 export async function isUserQuietNow(
-  supabase: any,
+  supabase: QuietClient,
   userId: string,
   opts: QuietCheckOpts = {},
 ): Promise<QuietState> {
@@ -83,7 +86,7 @@ export async function isUserQuietNow(
   const needSettings = !settings;
   const needTz = tz === undefined;
   if (needSettings || needTz) {
-    const lookups: Promise<any>[] = [];
+    const lookups: Promise<{ data: Record<string, unknown> | null }>[] = [];
     if (needTz) {
       lookups.push(supabase.from('profiles').select('timezone').eq('user_id', userId).maybeSingle());
     }

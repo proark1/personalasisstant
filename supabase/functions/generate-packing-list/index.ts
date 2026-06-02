@@ -21,7 +21,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MODEL = 'gemini-2.5-flash';
+// MODEL is unused — generateStructured uses its own default
+// const MODEL = 'gemini-2.5-flash';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SYSTEM_PROMPT = [
@@ -100,7 +101,7 @@ serve(async (req) => {
     if (tErr || !trip) return json({ error: 'trip not found' }, 404);
 
     let weatherSummary = trip.weather_summary || '';
-    let weatherDays: any[] = [];
+    let weatherDays: Array<{ date: string; temp_min_c?: number; temp_max_c?: number; precipitation_probability?: number; summary?: string }> = [];
     if (trip.destination_lat != null && trip.destination_lon != null) {
       const latGrid = Math.round(Number(trip.destination_lat) * 10) / 10;
       const lonGrid = Math.round(Number(trip.destination_lon) * 10) / 10;
@@ -137,13 +138,13 @@ serve(async (req) => {
     try {
       await assertWithinQuota(admin, user.id);
     } catch (e) {
-      const code = (e as any)?.code;
+      const code = (e as { code?: string })?.code;
       return json({ error: (e as Error).message, code }, code === 'quota_exceeded' ? 429 : 500);
     }
 
     // Native generateContent + responseSchema (the OpenAI-compat endpoint with
     // forced tool_choice fails in our deployment). Same shape as before.
-    let parsed: any;
+    let parsed: { items?: Array<Record<string, unknown>>; rationale?: string };
     try {
       parsed = await generateStructured({
         system: SYSTEM_PROMPT,
@@ -158,13 +159,13 @@ serve(async (req) => {
     }
     const items = Array.isArray(parsed?.items) ? parsed.items : [];
 
-    const cleanItems = items.slice(0, 25).map((it: any) => ({
+    const cleanItems = items.slice(0, 25).map((it: Record<string, unknown>) => ({
       name: String(it?.name || '').slice(0, 100),
       category: String(it?.category || 'other').slice(0, 30),
-      qty: Number.isInteger(it?.qty) && it.qty > 0 ? it.qty : 1,
+      qty: Number.isInteger(it?.qty) && (it.qty as number) > 0 ? it.qty as number : 1,
       note: typeof it?.note === 'string' ? it.note.slice(0, 200) : null,
       packed: false,
-    })).filter((it: any) => it.name.length > 0);
+    })).filter((it) => it.name.length > 0);
 
     if (cleanItems.length === 0) {
       return json({ error: 'AI returned no usable items' }, 500);
@@ -182,13 +183,11 @@ serve(async (req) => {
     let listId: string;
     if (existing && !replace) {
       // Append items, dedup by name (case-insensitive).
-      const have = new Set(
-        ((existing.items as any[]) ?? []).map((i: any) =>
-          String(i?.name || '').toLowerCase()),
-      );
+      const existingItems = (existing.items as Array<Record<string, unknown>>) ?? [];
+      const have = new Set(existingItems.map((i) => String(i?.name || '').toLowerCase()));
       const merged = [
-        ...((existing.items as any[]) ?? []),
-        ...cleanItems.filter((i: any) => !have.has(i.name.toLowerCase())),
+        ...existingItems,
+        ...cleanItems.filter((i) => !have.has(i.name.toLowerCase())),
       ];
       const { error: upErr } = await admin
         .from('packing_lists')

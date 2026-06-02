@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { recordUndo } from "../_shared/dori-undo.ts";
 import { buildDoriContext, formatContextForAI, fmtNowLocal, tzOffset } from "../_shared/dori-context.ts";
 import { findTimeSlots, rankProposedSlots } from "../_shared/dori-scheduling.ts";
@@ -987,7 +987,7 @@ Before responding, think step by step:
 
 
 async function logAIUsage(
-  supabase: any,
+  supabase: SupabaseClient,
   userId: string,
   functionName: string,
   model: string,
@@ -1073,10 +1073,10 @@ interface MutatingTool {
   // Regex capturing (action?, payload?) for the tool XML block.
   // Groups vary per tool: provide a `parse` to normalize to { action, data, fullMatch }.
   regex: RegExp;
-  parse: (m: RegExpMatchArray) => { action: string; data: any; fullMatch: string } | null;
+  parse: (m: RegExpMatchArray) => { action: string; data: Record<string, unknown>; fullMatch: string } | null;
   // Given action + data return OpKind (or null to skip confirmation for that action).
-  classify: (action: string, data: any) => OpKind | null;
-  summarize: (action: string, data: any) => string;
+  classify: (action: string, data: Record<string, unknown>) => OpKind | null;
+  summarize: (action: string, data: Record<string, unknown>) => string;
   // Optional existence check run *before* a confirmation is queued. Lets a
   // tool that targets an existing record (update/delete by query) resolve the
   // target up front so the user is never asked to confirm an action that will
@@ -1087,8 +1087,8 @@ interface MutatingTool {
   //   null                   → no preflight applicable; queue as usual.
   preflight?: (
     action: string,
-    data: any,
-    ctx: { supabase: any; userId: string; timezone?: string },
+    data: Record<string, unknown>,
+    ctx: { supabase: SupabaseClient; userId: string; timezone?: string },
   ) => Promise<{ ok: false; message: string } | { ok: true; summary?: string } | null>;
 }
 
@@ -1112,7 +1112,7 @@ const fmtEventWhen = (s?: string | null, tz?: string): string | null => {
   }
 };
 
-const safeParseJson = (s: string): any => { try { return JSON.parse(s); } catch { return null; } };
+const safeParseJson = (s: string): Record<string, unknown> | null => { try { return JSON.parse(s); } catch { return null; } };
 
 const MUTATING_TOOLS: MutatingTool[] = [
   {
@@ -1353,7 +1353,7 @@ const MUTATING_TOOLS: MutatingTool[] = [
 // Resolve whether a given op on a given entity requires user confirmation.
 // Precedence: per-entity override > global op flag > master toggle.
 function requiresConfirmation(
-  settings: Record<string, any> | null,
+  settings: Record<string, unknown> | null,
   entity: string,
   op: OpKind,
 ): boolean {
@@ -1368,7 +1368,7 @@ function requiresConfirmation(
   return false;
 }
 
-async function loadConfirmationSettings(supabase: any, userId: string): Promise<Record<string, any> | null> {
+async function loadConfirmationSettings(supabase: SupabaseClient, userId: string): Promise<Record<string, unknown> | null> {
   try {
     const { data } = await supabase
       .from('proactive_settings')
@@ -1385,14 +1385,19 @@ interface ToolExecResult {
   tool: string;
   ok: boolean;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
   queued?: boolean;
   actionId?: string;   // set when the call was queued for approval
   summary?: string;    // human-readable summary shown in confirmation prompts
   undoId?: string;     // set when the executed mutation can be reversed via /undo or an inline button
   entityId?: string;   // id of the row this result refers to (for row-level inline buttons)
+  id?: string;         // alternate id field some tools set
+  entityKind?: string; // kind of entity this result refers to
+  kind?: string;       // alternate kind field some tools set
+  label?: string;      // human-readable label for the entity
+  title?: string;      // alternate label some tools set
   planId?: string;     // set when the tool created a multi-step plan (propose_plan)
-  payload?: any;       // tool-specific structured payload (e.g. propose_plan steps)
+  payload?: Record<string, unknown>;       // tool-specific structured payload (e.g. propose_plan steps)
 }
 
 interface ServerExecOpts {
@@ -1519,7 +1524,7 @@ function resolveAssignee(
 // with a confusing "Could not find the 'X' column of 'Y' in the schema
 // cache" error.
 async function insertWithSchemaCacheFallback(
-  supabase: any,
+  supabase: SupabaseClient,
   table: string,
   row: Record<string, unknown>,
   optionalCols: string[],
@@ -1539,7 +1544,7 @@ async function insertWithSchemaCacheFallback(
 async function executeToolsServerSide(
   text: string,
   userId: string,
-  supabase: any,
+  supabase: SupabaseClient,
   opts?: ServerExecOpts,
 ): Promise<ToolExecResult[]> {
   const out: ToolExecResult[] = [];
@@ -1668,14 +1673,14 @@ async function executeToolsServerSide(
       snapshot: { kind: 'delete_by_id', table, id },
       ...undoMeta,
     });
-  const undoDelete = (table: string, row: any, label: string, entity: string) =>
+  const undoDelete = (table: string, row: Record<string, unknown>, label: string, entity: string) =>
     recordUndo(supabase, {
       user_id: userId, op: 'delete', entity_type: entity, entity_id: row?.id ?? null,
       label, inverse_tool_xml: null,
       snapshot: { kind: 'reinsert', table, row },
       ...undoMeta,
     });
-  const undoPatch = (table: string, id: string, oldPatch: any, label: string, entity: string) =>
+  const undoPatch = (table: string, id: string, oldPatch: Record<string, unknown>, label: string, entity: string) =>
     recordUndo(supabase, {
       user_id: userId, op: 'update', entity_type: entity, entity_id: String(id),
       label, inverse_tool_xml: null,
@@ -1750,14 +1755,14 @@ async function executeToolsServerSide(
             .ilike('title', `%${needle}%`)
             .order('created_at', { ascending: false })
             .limit(5);
-          const candidates = (matches || []).filter((r: any) =>
+          const candidates = (matches || []).filter((r: { completed?: boolean }) =>
             action === 'complete' ? !r.completed : true);
           if (!candidates.length) {
             out.push({ tool: 'manage_task', ok: false, message: `No task matches "${needle}".` });
             continue;
           }
           if (candidates.length > 1) {
-            const list = candidates.map((r: any, i: number) => {
+            const list = candidates.map((r: { completed?: boolean; due_date?: string; title?: string }, i: number) => {
               const status = r.completed ? ' (completed)' : '';
               const due = r.due_date ? ` [due ${new Date(r.due_date).toLocaleDateString()}]` : '';
               return `${i + 1}. ${r.title}${status}${due}`;
@@ -1785,11 +1790,11 @@ async function executeToolsServerSide(
           const undoId = await undoDelete('tasks', before, `deleted task "${before.title}"`, 'task');
           out.push({ tool: 'manage_task', ok: true, message: `🗑️ Deleted task: ${before.title}`, undoId });
         } else {
-          const upd: any = {};
+          const upd: Record<string, unknown> = {};
           if (data.title) upd.title = data.title;
           if (data.category) upd.category = data.category;
           if (data.priority) upd.priority = data.priority;
-          if (data.dueDate) upd.due_date = isoOrNull(data.dueDate);
+          if (data.dueDate) upd.due_date = isoOrNull(data.dueDate as string | undefined);
           if (!Object.keys(upd).length) {
             out.push({ tool: 'manage_task', ok: false, message: `Nothing to update — say what should change.` });
             continue;
@@ -1798,8 +1803,8 @@ async function executeToolsServerSide(
             .select(Object.keys(upd).join(', ') + ', title').eq('id', targetId!).eq('user_id', userId).maybeSingle();
           if (!before) { out.push({ tool: 'manage_task', ok: false, message: `Task not found.` }); continue; }
           await supabase.from('tasks').update(upd).eq('id', targetId!).eq('user_id', userId);
-          const oldPatch: any = {};
-          for (const k of Object.keys(upd)) oldPatch[k] = before?.[k] ?? null;
+          const oldPatch: Record<string, unknown> = {};
+          for (const k of Object.keys(upd)) oldPatch[k] = (before as Record<string, unknown>)?.[k] ?? null;
           const undoId = await undoPatch('tasks', targetId!, oldPatch, `edited task "${before?.title || targetId}"`, 'task');
           out.push({ tool: 'manage_task', ok: true, message: `✏️ Updated task: ${upd.title || before?.title || 'task'}`, undoId, entityId: targetId });
         }
@@ -1891,7 +1896,7 @@ async function executeToolsServerSide(
         if (!rows || rows.length === 0) {
           out.push({ tool: 'manage_event', ok: true, message: '📭 No upcoming events.' });
         } else {
-          const lines = rows.map((e: any) => {
+          const lines = rows.map((e: { start_time: string; title: string; location?: string }) => {
             const when = new Date(e.start_time).toLocaleString('en-GB', {
               weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
               timeZone: opts?.timezone,
@@ -1905,7 +1910,7 @@ async function executeToolsServerSide(
         }
         continue;
       }
-      let target: any = null;
+      let target: Record<string, unknown> | null = null;
       if (data.query) {
         const { data: rows } = await supabase.from('events').select('*')
           .eq('user_id', userId).ilike('title', `%${data.query}%`)
@@ -1919,13 +1924,13 @@ async function executeToolsServerSide(
         const undoId = await undoDelete('events', target, `deleted event "${target.title}"`, 'event');
         out.push({ tool: 'manage_event', ok: true, message: `🗑️ Deleted event: ${target.title}`, undoId });
       } else if (action === 'update') {
-        const upd: any = {};
+        const upd: Record<string, unknown> = {};
         if (data.title) upd.title = data.title;
-        if (data.startTime) upd.start_time = isoOrNull(data.startTime);
-        if (data.endTime) upd.end_time = isoOrNull(data.endTime);
+        if (data.startTime) upd.start_time = isoOrNull(data.startTime as string | undefined);
+        if (data.endTime) upd.end_time = isoOrNull(data.endTime as string | undefined);
         if (data.location !== undefined) upd.location = data.location;
-        const oldPatch: any = {};
-        for (const k of Object.keys(upd)) oldPatch[k] = target[k] ?? null;
+        const oldPatch: Record<string, unknown> = {};
+        for (const k of Object.keys(upd)) oldPatch[k] = (target as Record<string, unknown>)[k] ?? null;
         await supabase.from('events').update(upd).eq('id', target.id).eq('user_id', userId);
         const undoId = await undoPatch('events', target.id, oldPatch, `edited event "${target.title}"`, 'event');
         const updatedTitle = upd.title || target.title;
@@ -1969,10 +1974,10 @@ async function executeToolsServerSide(
           const undoId = await undoDelete('user_contacts', target, `deleted contact ${target.name}`, 'contact');
           out.push({ tool: 'manage_contact', ok: true, message: `🗑️ Deleted contact: ${target.name}`, undoId });
         } else if (action === 'update') {
-          const upd: any = {};
+          const upd: Record<string, unknown> = {};
           ['name','email','phone','company','role','city','country','notes'].forEach(k => { if (data[k] !== undefined) upd[k] = data[k]; });
-          const oldPatch: any = {};
-          for (const k of Object.keys(upd)) oldPatch[k] = target[k] ?? null;
+          const oldPatch: Record<string, unknown> = {};
+          for (const k of Object.keys(upd)) oldPatch[k] = (target as Record<string, unknown>)[k] ?? null;
           await supabase.from('user_contacts').update(upd).eq('id', target.id).eq('user_id', userId);
           const undoId = await undoPatch('user_contacts', target.id, oldPatch, `edited contact ${target.name}`, 'contact');
           out.push({ tool: 'manage_contact', ok: true, message: `✏️ Updated contact: ${target.name}`, undoId, entityId: target.id });
@@ -2002,7 +2007,7 @@ async function executeToolsServerSide(
       } else if (action === 'get_costs') {
         const { data: rows } = await supabase.from('contracts').select('name, cost_amount, cost_frequency').eq('user_id', userId).eq('is_active', true);
         let monthly = 0;
-        rows?.forEach((r: any) => {
+        rows?.forEach((r: { cost_amount?: number; cost_frequency?: string }) => {
           if (!r.cost_amount) return;
           if (r.cost_frequency === 'monthly') monthly += r.cost_amount;
           else if (r.cost_frequency === 'yearly') monthly += r.cost_amount / 12;
@@ -2019,13 +2024,13 @@ async function executeToolsServerSide(
           await supabase.from('contracts').delete().eq('id', target.id).eq('user_id', userId);
           out.push({ tool: 'manage_contract', ok: true, message: `🗑️ Deleted contract: ${target.name}` });
         } else if (action === 'update') {
-          const upd: any = {};
+          const upd: Record<string, unknown> = {};
           if (data.name) upd.name = data.name;
           if (data.provider) upd.provider = data.provider;
           if (data.category) upd.category = data.category;
           if (data.costAmount !== undefined) upd.cost_amount = data.costAmount;
           if (data.costFrequency) upd.cost_frequency = data.costFrequency;
-          if (data.renewalDate) upd.renewal_date = isoOrNull(data.renewalDate);
+          if (data.renewalDate) upd.renewal_date = isoOrNull(data.renewalDate as string | undefined);
           if (data.autoRenews !== undefined) upd.auto_renews = data.autoRenews;
           if (data.notes !== undefined) upd.notes = data.notes;
           await supabase.from('contracts').update(upd).eq('id', target.id).eq('user_id', userId);
@@ -2052,7 +2057,7 @@ async function executeToolsServerSide(
         out.push({ tool: 'manage_property', ok: true, message: `🏠 Added property: ${p.name}`, data: p });
       } else if (action === 'list') {
         const { data: rows } = await supabase.from('properties').select('name, property_type, city').eq('user_id', userId).eq('is_active', true);
-        out.push({ tool: 'manage_property', ok: true, message: `🏠 Properties (${rows?.length || 0}): ${rows?.map((r: any) => `${r.name}${r.city ? ` (${r.city})` : ''}`).join(', ') || 'none'}` });
+        out.push({ tool: 'manage_property', ok: true, message: `🏠 Properties (${rows?.length || 0}): ${rows?.map((r: { name: string; city?: string }) => `${r.name}${r.city ? ` (${r.city})` : ''}`).join(', ') || 'none'}` });
       } else {
         const { data: rows } = await supabase.from('properties').select('id, name')
           .eq('user_id', userId)
@@ -2063,7 +2068,7 @@ async function executeToolsServerSide(
           await supabase.from('properties').delete().eq('id', target.id).eq('user_id', userId);
           out.push({ tool: 'manage_property', ok: true, message: `🗑️ Deleted property: ${target.name}` });
         } else if (action === 'update') {
-          const upd: any = {};
+          const upd: Record<string, unknown> = {};
           if (data.name) upd.name = data.name;
           if (data.propertyType) upd.property_type = data.propertyType;
           ['address','city','country','notes'].forEach(k => { if (data[k] !== undefined) upd[k] = data[k]; });
@@ -2094,7 +2099,7 @@ async function executeToolsServerSide(
         out.push({ tool: 'manage_business', ok: true, message: `🚀 Added business: ${b.name}`, data: b });
       } else if (action === 'list') {
         const { data: rows } = await supabase.from('startup_ideas').select('name, status').eq('user_id', userId);
-        out.push({ tool: 'manage_business', ok: true, message: `🚀 Businesses (${rows?.length || 0}): ${rows?.map((r: any) => `${r.name} [${r.status || 'idea'}]`).join(', ') || 'none'}` });
+        out.push({ tool: 'manage_business', ok: true, message: `🚀 Businesses (${rows?.length || 0}): ${rows?.map((r: { name: string; status?: string }) => `${r.name} [${r.status || 'idea'}]`).join(', ') || 'none'}` });
       } else {
         const { data: rows } = await supabase.from('startup_ideas').select('id, name').eq('user_id', userId).ilike('name', `%${data.query}%`).limit(1);
         const target = rows?.[0];
@@ -2103,7 +2108,7 @@ async function executeToolsServerSide(
           await supabase.from('startup_ideas').delete().eq('id', target.id).eq('user_id', userId);
           out.push({ tool: 'manage_business', ok: true, message: `🗑️ Deleted business: ${target.name}` });
         } else if (action === 'update') {
-          const upd: any = {};
+          const upd: Record<string, unknown> = {};
           ['name','description','status','notes'].forEach(k => { if (data[k] !== undefined) upd[k] = data[k]; });
           if (data.problemStatement !== undefined) upd.problem_statement = data.problemStatement;
           if (data.targetAudience !== undefined) upd.target_audience = data.targetAudience;
@@ -2143,11 +2148,11 @@ async function executeToolsServerSide(
           await supabase.from('family_members').update({ is_active: false }).eq('id', target.id).eq('user_id', userId);
           out.push({ tool: 'manage_family_member', ok: true, message: `🗑️ Removed family member: ${target.name}` });
         } else if (action === 'update') {
-          const upd: any = {};
+          const upd: Record<string, unknown> = {};
           ['name','relationship','email','phone','notes'].forEach(k => { if (data[k] !== undefined) upd[k] = data[k]; });
-          if (data.birthDate) upd.birth_date = isoOrNull(data.birthDate);
+          if (data.birthDate) upd.birth_date = isoOrNull(data.birthDate as string | undefined);
           if (data.anniversaryDate !== undefined) {
-            const iso = data.anniversaryDate ? isoOrNull(data.anniversaryDate) : null;
+            const iso = data.anniversaryDate ? isoOrNull(data.anniversaryDate as string | undefined) : null;
             upd.anniversary_date = iso ? new Date(iso).toISOString().slice(0, 10) : null;
           }
           if (data.schoolName !== undefined) upd.school_name = data.schoolName;
@@ -2218,7 +2223,7 @@ async function executeToolsServerSide(
           .select('id, name').eq('list_id', list.id).eq('is_checked', false)
           .ilike('name', `%${data.name}%`).limit(2);
         if (!matches?.length) { out.push({ tool: 'add_shopping_item', ok: false, message: `🔍 No shopping item matches "${data.name}".` }); continue; }
-        if (matches.length > 1) { out.push({ tool: 'add_shopping_item', ok: false, message: `🤔 Multiple items match "${data.name}": ${matches.map((x: any) => x.name).join(', ')}. Be more specific.` }); continue; }
+        if (matches.length > 1) { out.push({ tool: 'add_shopping_item', ok: false, message: `🤔 Multiple items match "${data.name}": ${matches.map((x: { name: string }) => x.name).join(', ')}. Be more specific.` }); continue; }
         const target = matches[0];
         await supabase.from('shopping_list_items').delete().eq('id', target.id);
         out.push({ tool: 'add_shopping_item', ok: true, message: `🗑️ Removed from shopping: ${target.name}` });
@@ -2400,7 +2405,7 @@ async function executeToolsServerSide(
       if (data.scope === 'from' && data.from) q = q.or(`from_name.ilike.%${data.from}%,from_email.ilike.%${data.from}%`);
       const { data: rows } = await q.order('received_at', { ascending: false }).limit(limit);
       if (!rows?.length) { out.push({ tool: 'fetch_emails', ok: true, message: `📭 No emails found.` }); continue; }
-      const lines = rows.map((e: any, i: number) => `${i + 1}. ${e.is_important ? '⭐ ' : ''}${e.subject || '(no subject)'} — ${e.from_name || e.from_email}\n   ${(e.snippet || '').slice(0, 120)}`);
+      const lines = (rows as Array<{ is_important?: boolean; subject?: string; from_name?: string; from_email?: string; snippet?: string }>).map((e, i) => `${i + 1}. ${e.is_important ? '⭐ ' : ''}${e.subject || '(no subject)'} — ${e.from_name || e.from_email}\n   ${(e.snippet || '').slice(0, 120)}`);
       out.push({ tool: 'fetch_emails', ok: true, message: `📬 Recent emails:\n${lines.join('\n\n')}`, data: rows });
     } catch (e) { out.push({ tool: 'fetch_emails', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
@@ -2672,13 +2677,13 @@ async function executeToolsServerSide(
         const { data: matches } = await supabase.from('habits').select('id, name')
           .eq('user_id', userId).eq('is_active', true).ilike('name', `%${q}%`).limit(2);
         if (!matches?.length) { out.push({ tool: 'manage_habit', ok: false, message: `🔍 No habit matches "${q}".` }); continue; }
-        if (matches.length > 1) { out.push({ tool: 'manage_habit', ok: false, message: `🤔 Multiple habits match: ${matches.map((x:any)=>x.name).join(', ')}` }); continue; }
+        if (matches.length > 1) { out.push({ tool: 'manage_habit', ok: false, message: `🤔 Multiple habits match: ${matches.map((x: { name: string })=>x.name).join(', ')}` }); continue; }
         const target = matches[0];
         const today = new Date().toISOString().slice(0, 10);
         await supabase.from('habit_logs').upsert({
           habit_id: target.id, user_id: userId, log_date: today,
           completed_count: data.count || 1,
-        }, { onConflict: 'habit_id,log_date' } as any);
+        }, { onConflict: 'habit_id,log_date' });
         out.push({ tool: 'manage_habit', ok: true, message: `✅ Logged habit: ${target.name}`, entityId: target.id });
       } else if (action === 'delete') {
         const q = (data.query || data.name || '').trim();
@@ -2699,8 +2704,8 @@ async function executeToolsServerSide(
         const { data: logs } = await supabase.from('habit_logs')
           .select('habit_id, log_date').eq('user_id', userId)
           .gte('log_date', new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10));
-        const lines = hs.map((h: any) => {
-          const myLogs = (logs || []).filter((l: any) => l.habit_id === h.id).map((l:any)=>l.log_date).sort();
+        const lines = hs.map((h: { id: string; name: string }) => {
+          const myLogs = (logs || []).filter((l: { habit_id: string; log_date: string }) => l.habit_id === h.id).map((l: { log_date: string })=>l.log_date).sort();
           const doneToday = myLogs.includes(today);
           // streak = consecutive days ending today (or yesterday if not done today)
           let streak = 0; const cursor = new Date();
@@ -2723,7 +2728,7 @@ async function executeToolsServerSide(
     const data = safeJSON(m[1]) || {};
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const patch: any = { user_id: userId, checkin_date: today, checkin_type: data.checkin_type || 'morning' };
+      const patch: Record<string, unknown> = { user_id: userId, checkin_date: today, checkin_type: data.checkin_type || 'morning' };
       if (data.mood !== undefined) patch.mood = String(data.mood);
       if (data.energy_level !== undefined) patch.energy_level = String(data.energy_level);
       if (data.sleep_hours !== undefined) patch.sleep_hours = Number(data.sleep_hours);
@@ -2779,7 +2784,7 @@ async function executeToolsServerSide(
         if (!rows?.length) { out.push({ tool: 'manage_goal', ok: false, message: `🔍 No goal matches "${q}".` }); continue; }
         if (rows.length > 1) { out.push({ tool: 'manage_goal', ok: false, message: `🤔 Multiple goals match. Be more specific.` }); continue; }
         const target = rows[0];
-        const upd: any = {};
+        const upd: Record<string, unknown> = {};
         if (data.current_value !== undefined) upd.current_value = Number(data.current_value);
         if (data.add !== undefined) upd.current_value = Number(target.current_value || 0) + Number(data.add);
         if (data.target_value !== undefined) upd.target_value = Number(data.target_value);
@@ -2798,8 +2803,8 @@ async function executeToolsServerSide(
         const { data: rows } = await supabase.from('goals').select('name, current_value, target_value, unit, is_completed')
           .eq('user_id', userId).order('created_at', { ascending: false }).limit(10);
         if (!rows?.length) { out.push({ tool: 'manage_goal', ok: true, message: '📭 No goals yet.' }); continue; }
-        const lines = rows.map((r: any) => {
-          const pct = r.target_value ? Math.round((r.current_value / r.target_value) * 100) : 0;
+        const lines = rows.map((r: { name: string; is_completed?: boolean; current_value?: number; target_value?: number; unit?: string }) => {
+          const pct = r.target_value ? Math.round(((r.current_value ?? 0) / r.target_value) * 100) : 0;
           return `• ${r.is_completed ? '✅' : '🎯'} ${r.name} — ${r.current_value}/${r.target_value} ${r.unit || ''} (${pct}%)`;
         });
         out.push({ tool: 'manage_goal', ok: true, message: `<b>🎯 Goals</b>\n${lines.join('\n')}` });
@@ -2827,7 +2832,7 @@ async function executeToolsServerSide(
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
       const dateCol = entity === 'event' ? 'start_time' : 'due_date';
-      const table = entity === 'event' ? 'events' : 'tasks';
+      const _table = entity === 'event' ? 'events' : 'tasks'; // used in logging only
       let q = entity === 'event'
         ? supabase.from('events').select('id, title, start_time, end_time').eq('user_id', userId)
         : supabase.from('tasks').select('id, title, due_date').eq('user_id', userId).eq('completed', false);
@@ -2844,16 +2849,16 @@ async function executeToolsServerSide(
       } else { out.push({ tool: 'bulk_reschedule', ok: false, message: 'filter.when or filter.date required.' }); continue; }
       const { data: rows } = await q;
       if (!rows?.length) { out.push({ tool: 'bulk_reschedule', ok: true, message: `📭 No ${entity}s matched the filter.` }); continue; }
-      const updates = (rows as any[]).map((r: any) => {
+      const updates = (rows as Array<{ id: string; start_time?: string; end_time?: string; due_date?: string }>).map((r) => {
         if (entity === 'event') {
-          const s = new Date(r.start_time); s.setDate(s.getDate() + shift);
+          const s = new Date(r.start_time!); s.setDate(s.getDate() + shift);
           const e = r.end_time ? new Date(r.end_time) : null; if (e) e.setDate(e.getDate() + shift);
           return supabase.from('events').update({
             start_time: s.toISOString(),
             ...(e ? { end_time: e.toISOString() } : {}),
           }).eq('id', r.id).eq('user_id', userId);
         }
-        const cur = new Date(r.due_date);
+        const cur = new Date(r.due_date!);
         cur.setDate(cur.getDate() + shift);
         return supabase.from('tasks').update({ due_date: cur.toISOString() }).eq('id', r.id).eq('user_id', userId);
       });
@@ -2927,7 +2932,7 @@ async function executeToolsServerSide(
         .eq('user_id', userId).gte('expense_date', since.toISOString().slice(0,10));
       if (data.category) q = q.ilike('description', `%${data.category}%`);
       const { data: rows } = await q;
-      const total = (rows || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const total = (rows || []).reduce((s: number, r: { amount?: number }) => s + Number(r.amount || 0), 0);
       const count = rows?.length || 0;
       const cat = data.category ? ` on "${data.category}"` : '';
       out.push({ tool: 'query_expenses', ok: true, message: `💶 You spent <b>€${total.toFixed(2)}</b>${cat} in the past ${period} (${count} item${count === 1 ? '' : 's'}).` });
@@ -2953,7 +2958,7 @@ async function executeToolsServerSide(
         .eq('user_id', userId).gte('checkin_date', sinceDate)
         .order('checkin_date', { ascending: true });
       const moodMap: Record<string, number> = { terrible: 1, bad: 2, low: 2, ok: 3, mid: 3, neutral: 3, okay: 3, good: 4, great: 5, high: 5, amazing: 5 };
-      const vals = (rows || []).map((r: any) => {
+      const vals = (rows || []).map((r: Record<string, unknown>) => {
         const v = r[safeCol];
         if (typeof v === 'number') return v;
         if (typeof v === 'string') {
@@ -2990,7 +2995,7 @@ async function executeToolsServerSide(
           .insert({ user_id: userId, name: 'Shopping list', is_completed: false }).select('id').single();
         listId = newList?.id;
       }
-      const items = (ingredients as any[]).map((ing: any) => ({
+      const items = (ingredients as Array<{ name: string; quantity?: unknown; unit?: string; category?: string }>).map((ing) => ({
         list_id: listId, user_id: userId, name: ing.name,
         quantity: Number.isFinite(Number(ing.quantity)) ? Math.max(1, Math.round(Number(ing.quantity))) : 1,
         unit: ing.unit || null,
@@ -3069,7 +3074,7 @@ async function executeToolsServerSide(
   for (const m of text.matchAll(/<tool>manage_settings<\/tool>\s*<settings>(\{[\s\S]*?\})<\/settings>/g)) {
     const data = safeJSON(m[1]); if (!data || typeof data !== 'object') continue;
     try {
-      const upd: Record<string, any> = {};
+      const upd: Record<string, unknown> = {};
       const isHHMM = (s: unknown): s is string =>
         typeof s === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
       const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
@@ -3093,7 +3098,7 @@ async function executeToolsServerSide(
       const friendlyChanges: string[] = [];
       for (const [inKey, colName, kind] of keyMap) {
         if (!(inKey in data)) continue;
-        const val = (data as any)[inKey];
+        const val = (data as Record<string, unknown>)[inKey];
         if (kind === 'time') {
           if (!isHHMM(val)) continue;
           upd[colName] = `${val}:00`; // postgres TIME wants HH:MM:SS
@@ -3107,8 +3112,8 @@ async function executeToolsServerSide(
       // pauseUntil — natural-language shorthand for proactive_settings.focus_mode_until.
       // Accepts ISO ("2026-05-17T09:00:00Z"), durations ("2 hours", "30 min", "1h"),
       // or named phrases ("tomorrow", "tomorrow 9am", "tonight", "clear"/"off").
-      if ('pauseUntil' in (data as any)) {
-        const raw = (data as any).pauseUntil;
+      if ('pauseUntil' in (data as Record<string, unknown>)) {
+        const raw = (data as Record<string, unknown>).pauseUntil;
         let target: Date | null = null;
         let cleared = false;
         if (raw === null || raw === false || raw === 'clear' || raw === 'off' || raw === '') {
@@ -3157,8 +3162,8 @@ async function executeToolsServerSide(
       }
       // Timezone lives on profiles, not proactive_settings — handle it
       // separately so the rest of the proactive_settings upsert stays clean.
-      if (typeof (data as any).timezone === 'string') {
-        const tz = String((data as any).timezone).trim();
+      if (typeof (data as Record<string, unknown>).timezone === 'string') {
+        const tz = String((data as Record<string, unknown>).timezone).trim();
         // Quick sanity check via Intl — invalid tz strings throw.
         let tzValid = false;
         try { new Intl.DateTimeFormat('en', { timeZone: tz }); tzValid = true; } catch { /* invalid */ }
@@ -3492,16 +3497,16 @@ async function executeToolsServerSide(
           // don't ilike across the joined table easily.
           const { data: t } = await supabase.from('tasks').select('id')
             .eq('user_id', userId).ilike('title', `%${data.taskQuery}%`).limit(20);
-          const ids = (t || []).map((r: any) => r.id);
+          const ids = (t || []).map((r: { id: string }) => r.id);
           if (ids.length === 0) { out.push({ tool: 'manage_focus', ok: true, message: `📊 No focus time logged on "${data.taskQuery}" since ${since.toLocaleDateString()}.` }); continue; }
           q = q.in('task_id', ids);
         }
         const { data: rows } = await q;
         const sessions = rows || [];
-        const totalMin = sessions.reduce((n: number, r: any) => n + (r.duration_minutes || 0), 0);
+        const totalMin = sessions.reduce((n: number, r: { duration_minutes?: number }) => n + (r.duration_minutes || 0), 0);
         // Group by task title (or free-text label).
         const buckets: Record<string, number> = {};
-        for (const r of sessions as any[]) {
+        for (const r of sessions as Array<{ duration_minutes?: number; label?: string; tasks?: { title?: string } }>) {
           const key = r.tasks?.title || r.label || '(unnamed)';
           buckets[key] = (buckets[key] || 0) + (r.duration_minutes || 0);
         }
@@ -3589,8 +3594,8 @@ async function executeToolsServerSide(
           ],
         }),
       });
-      const aiJson: any = await aiResp.json().catch(() => null);
-      const reply = aiJson?.choices?.[0]?.message?.content?.trim() || '(no summary)';
+      const aiJson: Record<string, unknown> | null = await aiResp.json().catch(() => null);
+      const reply = (aiJson?.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content?.trim() || '(no summary)';
       // Optionally persist as a note if the user wanted it saved.
       if (intent === 'save_note') {
         try {
@@ -3650,8 +3655,8 @@ async function executeToolsServerSide(
           ],
         }),
       });
-      const aiJson: any = await aiResp.json().catch(() => null);
-      const reply = aiJson?.choices?.[0]?.message?.content?.trim() || '(no analysis)';
+      const aiJson: Record<string, unknown> | null = await aiResp.json().catch(() => null);
+      const reply = (aiJson?.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content?.trim() || '(no analysis)';
       if (data.saveNote) {
         try {
           await supabase.from('notes').insert({
@@ -3692,8 +3697,8 @@ async function executeToolsServerSide(
           ],
         }),
       });
-      const aiJson: any = await aiResp.json().catch(() => null);
-      const reply = aiJson?.choices?.[0]?.message?.content?.trim() || '';
+      const aiJson: Record<string, unknown> | null = await aiResp.json().catch(() => null);
+      const reply = (aiJson?.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content?.trim() || '';
       if (!reply) { out.push({ tool: 'translate', ok: false, message: 'Translation came back empty.' }); continue; }
       out.push({ tool: 'translate', ok: true, message: `🌐 ${reply}` });
     } catch (e) {
@@ -3724,8 +3729,8 @@ async function executeToolsServerSide(
           ],
         }),
       });
-      const aiJson: any = await aiResp.json().catch(() => null);
-      const reply = aiJson?.choices?.[0]?.message?.content?.trim() || '';
+      const aiJson: Record<string, unknown> | null = await aiResp.json().catch(() => null);
+      const reply = (aiJson?.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content?.trim() || '';
       if (!reply) { out.push({ tool: 'rewrite_text', ok: false, message: 'Rewrite came back empty.' }); continue; }
       out.push({ tool: 'rewrite_text', ok: true, message: `✏️ ${reply}` });
     } catch (e) {
@@ -3833,11 +3838,11 @@ async function executeToolsServerSide(
           .gte('created_at', fromIso).lte('created_at', toIso)
           .order('created_at', { ascending: false }).limit(20),
       ]);
-      const tasks = (tasksRes.data || []) as any[];
-      const events = (eventsRes.data || []) as any[];
-      const habits = (habitsRes.data || []) as any[];
-      const sessions = (focusRes.data || []) as any[];
-      const undos = (undoRes.data || []) as any[];
+      const tasks = (tasksRes.data || []) as Array<{ title: string; priority?: string; completed_at?: string }>;
+      const events = (eventsRes.data || []) as Array<{ title: string; start_time: string; location?: string }>;
+      const habits = (habitsRes.data || []) as Array<{ habits?: { name?: string }; log_date?: string; completed_count?: number }>;
+      const sessions = (focusRes.data || []) as Array<{ duration_minutes?: number; label?: string; tasks?: { title?: string } }>;
+      const undos = (undoRes.data || []) as Array<{ label?: string; op?: string; entity_type?: string; created_at: string }>;
       const tz = opts?.timezone;
       const lines: string[] = [`🗓️ Recap — ${label}`];
       if (tasks.length > 0) {
@@ -3863,11 +3868,11 @@ async function executeToolsServerSide(
         lines.push(`\n🌱 Habits: ${top.join(', ')}`);
       }
       if (sessions.length > 0) {
-        const totalMin = sessions.reduce((n: number, s: any) => n + (s.duration_minutes || 0), 0);
+        const totalMin = sessions.reduce((n: number, s) => n + (s.duration_minutes || 0), 0);
         lines.push(`\n🎯 Focus: ${Math.floor(totalMin / 60)}h ${totalMin % 60}m across ${sessions.length} session${sessions.length === 1 ? '' : 's'}`);
       }
       if (undos.length > 0) {
-        lines.push(`\n🤖 Bot did: ${undos.slice(0, 5).map((u: any) => u.label || `${u.op} ${u.entity_type}`).join('; ')}`);
+        lines.push(`\n🤖 Bot did: ${undos.slice(0, 5).map((u) => u.label || `${u.op} ${u.entity_type}`).join('; ')}`);
       }
       if (lines.length === 1) lines.push('(nothing recorded yet — go make some progress)');
       out.push({ tool: 'daily_recap', ok: true, message: lines.join('\n') });
@@ -3883,7 +3888,7 @@ async function executeToolsServerSide(
       continue;
     }
     try {
-      const tableMap: Record<string, { table: string; select: string; defaults: Record<string, any> }> = {
+      const tableMap: Record<string, { table: string; select: string; defaults: Record<string, unknown> }> = {
         task: { table: 'tasks', select: 'id, title, priority, due_date', defaults: { completed: false, trashed: false } },
         note: { table: 'notes', select: 'id, title, content', defaults: { trashed: false } },
         contact: { table: 'user_contacts', select: 'id, name, email, phone', defaults: {} },
@@ -3900,7 +3905,7 @@ async function executeToolsServerSide(
         for (const [k, v] of Object.entries(data.filters as Record<string, unknown>)) {
           // Defensive: only allow primitives so the AI can't smuggle exotic
           // PostgREST operators in through nested objects.
-          if (['string', 'number', 'boolean'].includes(typeof v)) q = q.eq(k, v as any);
+          if (['string', 'number', 'boolean'].includes(typeof v)) q = q.eq(k, v);
         }
       }
       const { data: rows } = await q.limit(200);
@@ -3909,7 +3914,7 @@ async function executeToolsServerSide(
         out.push({ tool: 'pick_random', ok: true, message: `🤷 Nothing matches — your ${data.kind} list is empty here.` });
         continue;
       }
-      const choice = candidates[Math.floor(Math.random() * candidates.length)] as any;
+      const choice = candidates[Math.floor(Math.random() * candidates.length)] as Record<string, unknown>;
       const labelMap: Record<string, string> = {
         task: choice.title, note: choice.title, contact: choice.name, habit: choice.name,
       };
@@ -3937,7 +3942,7 @@ async function executeToolsServerSide(
           .select('log_date, severity, notes')
           .eq('user_id', userId).eq('symptom', symptom)
           .order('log_date', { ascending: false }).limit(30);
-        const logs = (rows || []) as any[];
+        const logs = (rows || []) as Array<{ log_date: string; severity?: number; notes?: string }>;
         if (logs.length === 0) {
           out.push({ tool: 'log_symptom', ok: true, message: `No "${symptom}" logged yet.` });
           continue;
@@ -3978,7 +3983,7 @@ async function executeToolsServerSide(
         .select('log_date').eq('user_id', userId).eq('symptom', symptom)
         .order('log_date', { ascending: false }).limit(30);
       let streak = 1;
-      const t = (tail || []) as any[];
+      const t = (tail || []) as Array<{ log_date: string }>;
       for (let i = 1; i < t.length; i++) {
         const prev = new Date(t[i - 1].log_date);
         const cur = new Date(t[i].log_date);
@@ -4058,7 +4063,7 @@ async function executeToolsServerSide(
         }
         out.push({
           tool: 'manage_project', ok: true,
-          message: `📁 Projects:\n${rows.map((p: any) => `  • ${p.name}${p.description ? ` — ${p.description.slice(0, 60)}` : ''}`).join('\n')}`,
+          message: `📁 Projects:\n${rows.map((p: { name: string; description?: string }) => `  • ${p.name}${p.description ? ` — ${p.description.slice(0, 60)}` : ''}`).join('\n')}`,
         });
       } else if (action === 'get_status') {
         if (!data.query) { out.push({ tool: 'manage_project', ok: false, message: 'query is required.' }); continue; }
@@ -4085,8 +4090,8 @@ async function executeToolsServerSide(
             .eq('completed', true)
             .order('completed_at', { ascending: false }).limit(5),
         ]);
-        const open = (openRes.data || []) as any[];
-        const done = (doneRes.data || []) as any[];
+        const open = (openRes.data || []) as Array<{ id: string; title: string; priority?: string; due_date?: string }>;
+        const done = (doneRes.data || []) as Array<{ id: string; title: string; completed_at?: string }>;
         const lines: string[] = [`📁 ${project.name}`];
         if (project.description) lines.push(project.description);
         lines.push(`\n${open.length} open / ${done.length} recently done`);
@@ -4116,7 +4121,7 @@ async function executeToolsServerSide(
           await supabase.from('projects').update({ is_archived: true }).eq('id', project.id);
           out.push({ tool: 'manage_project', ok: true, message: `🗄️ Archived project: ${project.name}` });
         } else {
-          const upd: any = {};
+          const upd: Record<string, unknown> = {};
           if (data.name) upd.name = String(data.name).slice(0, 120);
           if (data.description !== undefined) upd.description = data.description;
           if (data.color) upd.color = data.color;
@@ -4137,7 +4142,7 @@ async function executeToolsServerSide(
     try {
       // Prefer the rich `label` column when present (some deployments). Fall
       // back to `action`/`payload.label` when it isn't.
-      let rows: any[] | null = null;
+      let rows: Array<{ label?: string; created_at: string }> | null = null;
       const labelTry = await supabase.from('dori_undo_log')
         .select('label, created_at').eq('user_id', userId)
         .order('created_at', { ascending: false }).limit(5);
@@ -4146,13 +4151,13 @@ async function executeToolsServerSide(
         const { data: alt } = await supabase.from('dori_undo_log')
           .select('action, payload, created_at').eq('user_id', userId)
           .order('created_at', { ascending: false }).limit(5);
-        rows = (alt || []).map((r: any) => ({
+        rows = (alt || []).map((r: { action?: string; payload?: { label?: string }; created_at: string }) => ({
           label: r?.payload?.label || r?.action || 'action',
           created_at: r.created_at,
         }));
       }
       if (!rows?.length) { out.push({ tool: 'recent_actions', ok: true, message: '📭 No recent actions in the undo window.' }); continue; }
-      const lines = (rows as any[]).map((r: any, i: number) => {
+      const lines = rows.map((r, i: number) => {
         const mins = Math.max(1, Math.round((Date.now() - new Date(r.created_at).getTime()) / 60000));
         return `${i + 1}. ${r.label} <i>(${mins}m ago)</i>`;
       });
@@ -4174,7 +4179,7 @@ async function executeToolsServerSide(
       if (data.tag) q = q.contains('tags', [String(data.tag)]);
       const { data: rows } = await q.limit(20);
       if (!rows?.length) { out.push({ tool: 'task_filter', ok: true, message: '📭 No matching tasks.' }); continue; }
-      const lines = rows.map((r: any, i: number) => `${i+1}. ${r.title} <i>(${r.priority}${r.tags?.length?` · #${r.tags.join(' #')}`:''})</i>`);
+      const lines = rows.map((r: { title: string; priority?: string; tags?: string[] }, i: number) => `${i+1}. ${r.title} <i>(${r.priority}${r.tags?.length?` · #${r.tags.join(' #')}`:''})</i>`);
       out.push({ tool: 'task_filter', ok: true, message: `<b>📋 Tasks</b>\n${lines.join('\n')}` });
     } catch (e) { out.push({ tool: 'task_filter', ok: false, message: `Failed: ${(e as Error).message}` }); }
   }
@@ -4227,7 +4232,7 @@ async function executeToolsServerSide(
       const { data: rows } = await supabase.from('tasks').select('*').eq('user_id', userId).ilike('title', `%${data.query}%`).limit(2);
       if (!rows?.length || rows.length > 1) { out.push({ tool: 'task_duplicate', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No task matches.` }); continue; }
       const src = rows[0];
-      const { id, created_at, updated_at, ...copy } = src;
+      const { id: _id, created_at: _created_at, updated_at: _updated_at, ...copy } = src;
       copy.title = `${src.title} (copy)`; copy.completed = false; copy.status = 'backlog'; copy.completion_note = null;
       const { data: ins } = await supabase.from('tasks').insert(copy).select('id').single();
       const undoId = await undoCreate('tasks', ins.id, `duplicated task "${copy.title}"`, 'task');
@@ -4285,7 +4290,7 @@ async function executeToolsServerSide(
       if (!emails?.length) { out.push({ tool: 'summarize_emails', ok: true, message: '📭 No unread emails.' }); continue; }
       const apiKey = Deno.env.get('GEMINI_API_KEY');
       if (!apiKey) { out.push({ tool: 'summarize_emails', ok: false, message: 'AI key missing.' }); continue; }
-      const list = emails.map((e: any, i: number) => `${i+1}. From ${e.from_email} — "${e.subject}": ${(e.snippet || '').slice(0, 200)}`).join('\n');
+      const list = emails.map((e: { from_email?: string; subject?: string; snippet?: string }, i: number) => `${i+1}. From ${e.from_email} — "${e.subject}": ${(e.snippet || '').slice(0, 200)}`).join('\n');
       const prompt = `Summarize these ${emails.length} unread emails into a 3-5 bullet briefing in the user's language. Group by topic. Highlight anything urgent.\n\n${list}`;
       const aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -4338,7 +4343,7 @@ async function executeToolsServerSide(
       } else if (action === 'list') {
         const { data: rows } = await supabase.from('pantry_items').select('item,quantity,unit,expires_on').eq('user_id', userId).order('item').limit(50);
         if (!rows?.length) { out.push({ tool: 'pantry', ok: true, message: '📭 Pantry is empty.' }); continue; }
-        const lines = rows.map((r: any, i: number) => `${i+1}. ${r.item}${r.quantity ? ` (${r.quantity}${r.unit||''})` : ''}${r.expires_on ? ` — exp ${r.expires_on}` : ''}`);
+        const lines = rows.map((r: { item: string; quantity?: unknown; unit?: string; expires_on?: string }, i: number) => `${i+1}. ${r.item}${r.quantity ? ` (${r.quantity}${r.unit||''})` : ''}${r.expires_on ? ` — exp ${r.expires_on}` : ''}`);
         out.push({ tool: 'pantry', ok: true, message: `<b>🥫 Pantry</b>\n${lines.join('\n')}` });
       } else if (action === 'remove') {
         if (!data.query) { out.push({ tool: 'pantry', ok: false, message: 'query required.' }); continue; }
@@ -4374,13 +4379,13 @@ async function executeToolsServerSide(
       if (data.query === 'who') {
         // Look up presence of household (space members owners)
         const { data: members } = await supabase.from('space_members').select('owner_id, profiles!space_members_owner_id_fkey(display_name)').eq('member_id', userId).eq('status', 'accepted');
-        const ids = (members || []).map((r: any) => r.owner_id);
+        const ids = (members as Array<{ owner_id: string; profiles?: { display_name?: string } }> || []).map((r) => r.owner_id);
         ids.push(userId);
         const { data: presences } = await supabase.from('presence_status').select('user_id,status,message,expires_at').in('user_id', ids);
-        const pmap = new Map((presences || []).map((p: any) => [p.user_id, p]));
+        const pmap = new Map((presences as Array<{ user_id: string; status?: string; message?: string }> || []).map((p) => [p.user_id, p]));
         const lines = ids.map((id: string) => {
           const p = pmap.get(id);
-          const name = id === userId ? 'You' : ((members || []).find((m: any) => m.owner_id === id)?.profiles?.display_name || 'Member');
+          const name = id === userId ? 'You' : ((members as Array<{ owner_id: string; profiles?: { display_name?: string } }> || []).find((m) => m.owner_id === id)?.profiles?.display_name || 'Member');
           return `• ${name}: ${p?.status || 'unknown'}${p?.message ? ` — ${p.message}` : ''}`;
         });
         out.push({ tool: 'presence', ok: true, message: `<b>🏠 Household</b>\n${lines.join('\n')}` });
@@ -4410,8 +4415,8 @@ async function executeToolsServerSide(
         const { data: budgets } = await supabase.from('financial_budgets').select('category,monthly_limit,currency').eq('user_id', userId);
         if (!budgets?.length) { out.push({ tool: 'budget', ok: true, message: '📭 No budgets set yet.' }); continue; }
         const { data: exps } = await supabase.from('family_expenses').select('amount,description').eq('user_id', userId).gte('expense_date', monthStart.toISOString().slice(0, 10));
-        const lines = budgets.map((b: any) => {
-          const spent = (exps || []).filter((e: any) => (e.description || '').toLowerCase().includes(b.category)).reduce((s: number, e: any) => s + Number(e.amount), 0);
+        const lines = budgets.map((b: { category: string; monthly_limit: number }) => {
+          const spent = (exps || []).filter((e: { description?: string }) => (e.description || '').toLowerCase().includes(b.category)).reduce((s: number, e: { amount?: number }) => s + Number(e.amount), 0);
           const pct = b.monthly_limit > 0 ? Math.round((spent / b.monthly_limit) * 100) : 0;
           const bar = pct >= 100 ? '🔴' : pct >= 80 ? '🟡' : '🟢';
           return `${bar} ${b.category}: €${spent.toFixed(2)}/${b.monthly_limit} (${pct}%)`;
@@ -4437,7 +4442,7 @@ async function executeToolsServerSide(
       } else if (action === 'list') {
         const { data: rows } = await supabase.from('personal_medications').select('name,dose,frequency,refill_date').eq('user_id', userId).eq('is_active', true);
         if (!rows?.length) { out.push({ tool: 'meds', ok: true, message: '📭 No active medications.' }); continue; }
-        const lines = rows.map((r: any, i: number) => `${i+1}. ${r.name}${r.dose ? ` ${r.dose}` : ''}${r.frequency ? ` · ${r.frequency}` : ''}${r.refill_date ? ` · refill ${r.refill_date}` : ''}`);
+        const lines = rows.map((r: { name: string; dose?: string; frequency?: string; refill_date?: string }, i: number) => `${i+1}. ${r.name}${r.dose ? ` ${r.dose}` : ''}${r.frequency ? ` · ${r.frequency}` : ''}${r.refill_date ? ` · refill ${r.refill_date}` : ''}`);
         out.push({ tool: 'meds', ok: true, message: `<b>💊 Medications</b>\n${lines.join('\n')}` });
       }
     } catch (e) { out.push({ tool: 'meds', ok: false, message: `Failed: ${(e as Error).message}` }); }
@@ -4490,7 +4495,7 @@ async function invokeInternal(
   fn: string,
   userId: string,
   body: Record<string, unknown>,
-): Promise<{ ok: boolean; status: number; body?: any; error?: string }> {
+): Promise<{ ok: boolean; status: number; body?: Record<string, unknown>; error?: string }> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   try {
@@ -4516,7 +4521,7 @@ async function invokeInternal(
 
 // Persist a turn into the unified cross-channel conversation log
 async function logDoriTurn(
-  supabase: any,
+  supabase: SupabaseClient,
   userId: string,
   channel: string,
   role: string,
@@ -4542,7 +4547,7 @@ async function logDoriTurn(
 // workspace (so "my boss is X" doesn't surface on a personal turn and vice
 // versa). Personal scope pulls user-level memories with workspace_id NULL.
 async function loadDoriIntelligence(
-  supabase: any,
+  supabase: SupabaseClient,
   userId: string,
   currentChannel: string,
   workspaceId?: string | null,
@@ -4586,7 +4591,7 @@ async function loadDoriIntelligence(
 
   let memoryBlock = '';
   if (turns && turns.length > 0) {
-    const otherChannelTurns = turns.filter((t: any) => t.channel !== currentChannel).slice(0, 12).reverse();
+    const otherChannelTurns = turns.filter((t: { channel: string }) => t.channel !== currentChannel).slice(0, 12).reverse();
     if (otherChannelTurns.length > 0) {
       memoryBlock += '\n\n## RECENT CROSS-CHANNEL CONVERSATIONS (last 24h, other channels)';
       memoryBlock += '\nUse these to maintain context across web, Telegram private, and Telegram family group:';
@@ -4614,7 +4619,7 @@ async function loadDoriIntelligence(
     memoriesBlock += '\n- Weight earlier (higher-confidence) items above later ones; if two memories conflict, trust the more recent/specific one.';
     memoriesBlock += "\n- Only rely on a memory that actually fits the current request — don't force-fit unrelated facts.";
     memoriesBlock += "\n- If a memory seems stale or contradicts what the user just said, prefer the user's current message and quietly update your understanding.";
-    for (const m of (memories as any[])) {
+    for (const m of (memories as Array<{ memory_type: string; category?: string; key: string; value: string }>)) {
       memoriesBlock += `\n- [${m.memory_type}]${m.category ? ` (${m.category})` : ''} ${m.key}: "${m.value}"`;
     }
   }
@@ -4663,7 +4668,7 @@ serve(async (req) => {
       userId = telegramUserId;
     } else {
       const supabase = createClient(supabaseUrl, supabaseKey);
-      const { data, error } = await (supabase.auth as any).getClaims(token);
+      const { data, error } = await (supabase.auth as { getClaims: (token: string) => Promise<{ data?: { claims?: { sub?: string } }; error?: unknown }> }).getClaims(token);
       if (error || !data?.claims?.sub) throw new Error('No user');
       userId = data.claims.sub;
     }
@@ -4872,9 +4877,9 @@ serve(async (req) => {
       const eventsMissing = !Array.isArray(events);
       if (tasksMissing || eventsMissing) {
         try {
-          const scoped = <T extends { eq: any; is: any }>(q: T): T =>
+          const scoped = <T extends { eq: (col: string, val: unknown) => T; is: (col: string, val: unknown) => T }>(q: T): T =>
             (wsId ? q.eq('workspace_id', wsId) : q.eq('user_id', userId).is('workspace_id', null));
-          const hydrationCalls: Promise<any>[] = [];
+          const hydrationCalls: Promise<{ data: unknown }>[] = [];
           if (tasksMissing) {
             hydrationCalls.push(
               scoped(
@@ -4907,7 +4912,7 @@ serve(async (req) => {
           }
           const [tRes, eRes] = await Promise.all(hydrationCalls);
           if (tasksMissing && tRes?.data) {
-            tasks = (tRes.data as any[]).map((t) => ({
+            tasks = (tRes.data as Array<{ id: string; title: string; completed?: boolean; category?: string; priority?: string; due_date?: string }>).map((t) => ({
               id: t.id,
               title: t.title,
               completed: !!t.completed,
@@ -4917,7 +4922,7 @@ serve(async (req) => {
             }));
           }
           if (eventsMissing && eRes?.data) {
-            events = (eRes.data as any[]).map((e) => ({
+            events = (eRes.data as Array<{ id: string; title: string; start_time: string; end_time: string }>).map((e) => ({
               id: e.id,
               title: e.title,
               startTime: e.start_time,
@@ -4973,7 +4978,7 @@ serve(async (req) => {
           used_specialist: route.effective,
           metadata: { matched: route.matched },
         })
-        .then(({ error }: any) => {
+        .then(({ error }: { error: { message?: string } | null }) => {
           if (error) console.warn('[routing log] failed', error.message);
         });
     }
@@ -5536,8 +5541,9 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // array, which we convert back to legacy XML for execution.
     const useNativeTools = req.headers.get('x-dori-native-tools') === '1';
 
-    async function callAI(msgs: { role: string; content: string | any[] }[], stream: boolean) {
-      const payload: any = { model, messages: msgs, stream };
+    type AiMessageContent = string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+    async function callAI(msgs: { role: string; content: AiMessageContent }[], stream: boolean) {
+      const payload: Record<string, unknown> = { model, messages: msgs, stream };
       if (useNativeTools) {
         payload.tools = NATIVE_TOOLS;
         payload.tool_choice = 'auto';
@@ -5558,7 +5564,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // `content`. With tools enabled, we append the converted XML so
     // any prose the model produced still ships to the user, but the
     // executor sees the XML it expects.
-    function flattenAssistantMessage(msg: any): string {
+    function flattenAssistantMessage(msg: { content?: string; tool_calls?: unknown[] }): string {
       const content: string = msg?.content || '';
       const toolCalls = Array.isArray(msg?.tool_calls) ? msg.tool_calls : [];
       if (toolCalls.length === 0) return content;
@@ -5603,7 +5609,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     }
 
     // Build messages, injecting image into the last user message if present
-    const allMessages: { role: string; content: string | any[] }[] = [
+    const allMessages: { role: string; content: AiMessageContent }[] = [
       { role: 'system', content: fullSystemPrompt },
     ];
     
@@ -5655,7 +5661,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     if (executeServerSide && streamFinalText) {
       const encoder = new TextEncoder();
       const MAX_AGENT_ROUNDS = 4;
-      const conversationMsgs: { role: string; content: string | any[] }[] = [...allMessages];
+      const conversationMsgs: { role: string; content: AiMessageContent }[] = [...allMessages];
       const allExecResults: ToolExecResult[] = [];
 
       const effectiveSource = actionSource || (currentChannel === 'tg_family' ? 'tg_family'
@@ -5810,7 +5816,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // Stops when AI returns no new tool calls, or after MAX_AGENT_ROUNDS.
     if (executeServerSide) {
       const MAX_AGENT_ROUNDS = 4;
-      const conversationMsgs: { role: string; content: string | any[] }[] = [...allMessages];
+      const conversationMsgs: { role: string; content: AiMessageContent }[] = [...allMessages];
       const allExecResults: ToolExecResult[] = [];
       let finalText = '';
       let totalPromptTokens = 0;
@@ -5881,21 +5887,21 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
       try {
         const recentEntities: RecentEntity[] = [];
         for (const r of allExecResults.slice(-8)) {
-          const id = (r as any).id || (r as any).entityId;
+          const id = r.id || r.entityId;
           if (!id) continue;
           recentEntities.push({
-            kind: ((r as any).entityKind || (r as any).kind || 'task') as RecentEntity['kind'],
+            kind: (r.entityKind || r.kind || 'task') as RecentEntity['kind'],
             id,
-            label: (r as any).label || (r as any).title,
+            label: r.label || r.title,
             ref_at: new Date().toISOString(),
           });
         }
-        const proposedPlan = allExecResults.find((r: any) => r.tool === 'propose_plan');
+        const proposedPlan = allExecResults.find((r) => r.tool === 'propose_plan');
         await saveConversationState(supabaseAdmin, {
           userId,
           channel: currentChannel as Channel,
           openIntent: proposedPlan ? 'awaiting_plan_approval' : null,
-          pendingPayload: proposedPlan ? (proposedPlan as any).payload ?? {} : {},
+          pendingPayload: proposedPlan ? proposedPlan.payload ?? {} : {},
           recentEntities,
           activeSpecialist: route.effective,
         });

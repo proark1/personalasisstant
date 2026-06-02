@@ -1,6 +1,19 @@
 // Polls Telegram getUpdates and routes incoming messages.
 // 1:1 chats → Dori chat; group chats linked via /linkfamily → telegram-router.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+type SupabaseClient = ReturnType<typeof createClient>;
+
+// Minimal shape of a Telegram callback_query object
+interface TgCallback {
+  id: string;
+  data?: string;
+  message?: {
+    message_id?: number;
+    chat?: { id?: number; type?: string };
+  };
+  from?: { id?: number };
+}
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { sendDoriReply } from '../_shared/telegram-voice.ts';
 import {
@@ -327,15 +340,15 @@ async function callDori(
 // if the insert failed). The resulting id is stapled onto the edited message
 // as an ↩️ Undo button so the user can reverse the tap within 5 minutes.
 async function recordCallbackUndo(
-  supabase: any,
+  supabase: SupabaseClient,
   args: {
-    cb: any;
+    cb: TgCallback;
     userId: string;
     op: string;
     entity: string;
     entityId: string | null;
     label: string;
-    snapshot: any;
+    snapshot: Record<string, unknown>;
   },
 ): Promise<string | null> {
   try {
@@ -359,8 +372,8 @@ async function recordCallbackUndo(
 }
 
 async function handleTaskCallback(
-  supabase: any,
-  cb: any,
+  supabase: SupabaseClient,
+  cb: TgCallback,
   payload: { op: 'complete' | 'snooze1h' | 'snooze1d' | 'delete'; taskId: string },
   tappingUserId: string | undefined,
   telegramKey: string,
@@ -383,7 +396,7 @@ async function handleTaskCallback(
   const snapshotBefore = { completed: task.completed, completed_at: task.completed_at, due_date: task.due_date };
 
   let outcome = '';
-  let undoSnap: any = null;
+  let undoSnap: Record<string, unknown> | null = null;
   if (payload.op === 'complete') {
     await supabase.from('tasks').update({ completed: true, completed_at: new Date().toISOString() }).eq('id', task.id);
     outcome = `✅ Done — ${task.title}`;
@@ -419,8 +432,8 @@ async function handleTaskCallback(
 }
 
 async function handleShopCallback(
-  supabase: any,
-  cb: any,
+  supabase: SupabaseClient,
+  cb: TgCallback,
   payload: { op: 'check' | 'uncheck' | 'remove'; itemId: string },
   tappingUserId: string | undefined,
   telegramKey: string,
@@ -438,7 +451,7 @@ async function handleShopCallback(
   }
 
   let outcome = '';
-  let undoSnap: any = null;
+  let undoSnap: Record<string, unknown> | null = null;
   if (payload.op === 'check') {
     await supabase.from('shopping_list_items').update({ is_checked: true, checked_at: new Date().toISOString() }).eq('id', item.id);
     outcome = `☑️ Got — ${item.name}`;
@@ -470,8 +483,8 @@ async function handleShopCallback(
 }
 
 async function handleEventCallback(
-  supabase: any,
-  cb: any,
+  supabase: SupabaseClient,
+  cb: TgCallback,
   payload: { op: 'details' | 'cancel'; eventId: string },
   tappingUserId: string | undefined,
   telegramKey: string,
@@ -519,8 +532,8 @@ async function handleEventCallback(
 }
 
 async function handleContractCallback(
-  supabase: any,
-  cb: any,
+  supabase: SupabaseClient,
+  cb: TgCallback,
   payload: { op: 'snooze7' | 'handled' | 'details'; contractId: string },
   tappingUserId: string | undefined,
   telegramKey: string,
@@ -579,8 +592,8 @@ async function handleContractCallback(
 // Delegates to dori-plan-execute for the heavy lifting; we just
 // ack the callback and edit the message to reflect the new state.
 async function handlePlanCallback(
-  supabase: any,
-  cb: any,
+  supabase: SupabaseClient,
+  cb: TgCallback,
   payload: { op: 'run_next' | 'skip' | 'abort'; planId: string },
   tappingUserId: string | undefined,
   telegramKey: string,
@@ -699,7 +712,7 @@ Deno.serve(async (req) => {
   // exact same per-update pipeline below for that one update. When a webhook is
   // registered Telegram disables getUpdates, so the poll path is simply never
   // taken — the two never run at once.
-  let webhookUpdate: any = null;
+  let webhookUpdate: Record<string, unknown> | null = null;
   try {
     const body = await req.json();
     if (body && (body.update_id !== undefined || body.message || body.callback_query)) {
@@ -738,16 +751,16 @@ Deno.serve(async (req) => {
   // and finish the work in the background — see the dispatch logic below.
   const runLoop = async (): Promise<void> => {
   while (isWebhook || Date.now() - startTime < MAX_RUNTIME_MS - MIN_REMAINING_MS) {
-    let updates: any[];
+    let updates: Record<string, unknown>[];
     if (isWebhook) {
       // Single pushed update — process it once, then break out below.
-      updates = [webhookUpdate];
+      updates = [webhookUpdate as Record<string, unknown>];
     } else {
       const remainingMs = MAX_RUNTIME_MS - (Date.now() - startTime);
       const timeout = Math.min(50, Math.floor(remainingMs / 1000) - 5);
       if (timeout < 1) break;
 
-      let data: any;
+      let data: Record<string, unknown>;
       try {
         data = await tg(
           'getUpdates',
@@ -794,7 +807,7 @@ Deno.serve(async (req) => {
               .select('*').eq('id', actionId).maybeSingle();
             if (!action) {
               await tgAnswerCallback(cb.id, 'That action is no longer available.', TELEGRAM_API_KEY);
-            } else if (!isActionableNow(action as any)) {
+            } else if (!isActionableNow(action as Record<string, unknown>)) {
               await tgAnswerCallback(cb.id, `This expired.`, TELEGRAM_API_KEY);
               if (cbMessageId) {
                 await tgEditMessageText(cbChatId, cbMessageId,
@@ -899,7 +912,7 @@ Deno.serve(async (req) => {
         // photo is an array of PhotoSize; pick the highest-resolution option.
         // Sorting by pixel area avoids mixing units if file_size is missing.
         const biggest = [...msg.photo].sort(
-          (a: any, b: any) => ((b.width || 0) * (b.height || 0)) - ((a.width || 0) * (a.height || 0)),
+          (a: { width?: number; height?: number }, b: { width?: number; height?: number }) => ((b.width || 0) * (b.height || 0)) - ((a.width || 0) * (a.height || 0)),
         )[0];
         photoDataUrl = await downloadTelegramFile(biggest.file_id, 'image/jpeg', TELEGRAM_API_KEY);
         photoCaption = msg.caption || null;
@@ -991,33 +1004,40 @@ Deno.serve(async (req) => {
       // / `forward_sender_name` fields. Without this annotation the AI sees a
       // bare quote and can mistake it for the user's own thought, then auto-
       // create tasks/events from someone else's words.
-      const fwdOrigin = (msg as any).forward_origin;
+      const fwdOrigin = (msg as Record<string, unknown>).forward_origin;
       let forwardLabel: string | null = null;
       if (fwdOrigin && typeof fwdOrigin === 'object') {
-        switch (fwdOrigin.type) {
-          case 'user':
-            forwardLabel = fwdOrigin.sender_user?.first_name
-              ? `${fwdOrigin.sender_user.first_name}${fwdOrigin.sender_user.last_name ? ' ' + fwdOrigin.sender_user.last_name : ''}`
-              : fwdOrigin.sender_user?.username
-                ? `@${fwdOrigin.sender_user.username}`
+        const fwd = fwdOrigin as Record<string, unknown>;
+        switch (fwd.type) {
+          case 'user': {
+            const su = fwd.sender_user as Record<string, unknown> | undefined;
+            forwardLabel = su?.first_name
+              ? `${su.first_name}${su.last_name ? ' ' + su.last_name : ''}`
+              : su?.username
+                ? `@${su.username}`
                 : 'a contact';
             break;
+          }
           case 'hidden_user':
-            forwardLabel = fwdOrigin.sender_user_name || 'a hidden user';
+            forwardLabel = (fwd.sender_user_name as string | undefined) || 'a hidden user';
             break;
-          case 'chat':
-            forwardLabel = fwdOrigin.sender_chat?.title || 'a chat';
+          case 'chat': {
+            const sc = fwd.sender_chat as Record<string, unknown> | undefined;
+            forwardLabel = (sc?.title as string | undefined) || 'a chat';
             break;
-          case 'channel':
-            forwardLabel = `the channel "${fwdOrigin.chat?.title || 'unknown'}"`;
+          }
+          case 'channel': {
+            const ch = fwd.chat as Record<string, unknown> | undefined;
+            forwardLabel = `the channel "${(ch?.title as string | undefined) || 'unknown'}"`;
             break;
+          }
         }
-      } else if ((msg as any).forward_from?.first_name) {
-        forwardLabel = (msg as any).forward_from.first_name;
-      } else if ((msg as any).forward_from_chat?.title) {
-        forwardLabel = (msg as any).forward_from_chat.title;
-      } else if ((msg as any).forward_sender_name) {
-        forwardLabel = (msg as any).forward_sender_name;
+      } else if ((msg as Record<string, unknown>).forward_from && typeof (msg as Record<string, unknown>).forward_from === 'object') {
+        forwardLabel = ((msg as Record<string, unknown>).forward_from as Record<string, unknown>)?.first_name as string | null;
+      } else if ((msg as Record<string, unknown>).forward_from_chat && typeof (msg as Record<string, unknown>).forward_from_chat === 'object') {
+        forwardLabel = ((msg as Record<string, unknown>).forward_from_chat as Record<string, unknown>)?.title as string | null;
+      } else if ((msg as Record<string, unknown>).forward_sender_name) {
+        forwardLabel = (msg as Record<string, unknown>).forward_sender_name as string | null;
       }
       if (forwardLabel && msg.text) {
         // Prepend a tagged header so the AI treats the body as third-party.
@@ -1416,16 +1436,17 @@ Deno.serve(async (req) => {
               supabase.from('telegram_links').select('active_workspace_id').eq('user_id', link.user_id).maybeSingle(),
               supabase.from('workspace_members').select('workspace_id').eq('user_id', link.user_id),
             ]);
-            const wsIds = (memberRows || []).map((m: any) => m.workspace_id);
+            const wsIds = (memberRows || []).map((m: { workspace_id: string }) => m.workspace_id);
             const { data: wsList } = wsIds.length
               ? await supabase.from('workspaces').select('id, name, icon').in('id', wsIds).eq('archived', false)
-              : { data: [] } as any;
-            const activeId = (current as any)?.active_workspace_id as string | null;
+              : { data: [] as Record<string, unknown>[] };
+            const activeId = (current as Record<string, unknown> | null)?.active_workspace_id as string | null;
+            const wsListArr = (wsList as Array<{ id: string; name: string; icon?: string }> | null) ?? [];
             const lines = ['<b>🧑‍🤝‍🧑 Workspaces</b>'];
-            lines.push(`Current scope: ${activeId ? `<b>${(wsList as any[])?.find((w) => w.id === activeId)?.name || activeId.slice(0, 8)}</b>` : '<b>Personal</b>'}`);
-            if ((wsList as any[])?.length) {
+            lines.push(`Current scope: ${activeId ? `<b>${wsListArr.find((w) => w.id === activeId)?.name || activeId.slice(0, 8)}</b>` : '<b>Personal</b>'}`);
+            if (wsListArr.length) {
               lines.push('\nSwitch with <code>/workspace &lt;name&gt;</code>:');
-              (wsList as any[]).forEach((w: any) => {
+              wsListArr.forEach((w) => {
                 lines.push(`• ${w.icon || '📁'} ${w.name}`);
               });
             } else {
@@ -1447,14 +1468,15 @@ Deno.serve(async (req) => {
             // Resolve name → id against workspaces the user is actually a member of.
             const { data: memberRows } = await supabase.from('workspace_members')
               .select('workspace_id').eq('user_id', link.user_id);
-            const wsIds = (memberRows || []).map((m: any) => m.workspace_id);
-            let match: any = null;
+            const wsIds = (memberRows || []).map((m: { workspace_id: string }) => m.workspace_id);
+            let match: { id: string; name: string; icon?: string } | undefined = undefined;
             if (wsIds.length) {
               const { data: wsList } = await supabase.from('workspaces')
                 .select('id, name, icon').in('id', wsIds).eq('archived', false);
               const needle = arg.toLowerCase();
-              match = (wsList || []).find((w: any) => (w.name || '').toLowerCase() === needle)
-                || (wsList || []).find((w: any) => (w.name || '').toLowerCase().includes(needle));
+              const ws = wsList as Array<{ id: string; name: string; icon?: string }> | null ?? [];
+              match = ws.find((w) => (w.name || '').toLowerCase() === needle)
+                || ws.find((w) => (w.name || '').toLowerCase().includes(needle));
             }
             if (!match) {
               await sendDoriReply({
@@ -1667,7 +1689,7 @@ Deno.serve(async (req) => {
       // Re-verify membership at read-time so a stale id from a workspace the
       // user left can't leak data — if they're no longer a member, fall back
       // to Personal and silently clear the stored id.
-      let activeWsForChat: string | null = (link as any).active_workspace_id || null;
+      let activeWsForChat: string | null = (link as Record<string, unknown>).active_workspace_id as string | null || null;
       if (activeWsForChat) {
         const { data: mem } = await supabase.from('workspace_members')
           .select('user_id').eq('workspace_id', activeWsForChat).eq('user_id', link.user_id).maybeSingle();
@@ -1692,7 +1714,7 @@ Deno.serve(async (req) => {
         ]);
         if (ps?.prefer_voice_replies) preferVoice = true;
         userLocale = prof?.locale || undefined;
-      } catch (_) { /* ignore */ }
+      } catch { /* ignore */ }
 
       const queued = dori.toolResults.filter((t) => t.queued && t.actionId);
       const executed = dori.toolResults.filter((t) => !t.queued);
@@ -1786,7 +1808,7 @@ Deno.serve(async (req) => {
     // reply. The user still sees the "🤔 Thinking…" placeholder right away and
     // the answer once it's ready.
     const work = runLoop().catch((e) => console.error('[telegram-poll] webhook processing error', e));
-    const er = (globalThis as any).EdgeRuntime;
+    const er = (globalThis as Record<string, unknown>).EdgeRuntime;
     if (er && typeof er.waitUntil === 'function') {
       er.waitUntil(work);
     } else {

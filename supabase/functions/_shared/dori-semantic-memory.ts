@@ -33,12 +33,15 @@ export interface RememberArgs {
   importance?: number;
 }
 
-export async function rememberSemantic(supabase: any, args: RememberArgs): Promise<boolean> {
+// Minimal Supabase client surface needed by this module.
+type SemanticClient = { from(table: string): Record<string, (...args: unknown[]) => unknown>; rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> };
+
+export async function rememberSemantic(supabase: SemanticClient, args: RememberArgs): Promise<boolean> {
   const content = (args.content || '').trim();
   if (!content || content.length < 10) return false; // not worth indexing
   try {
     const { vector } = await embedText(content);
-    const row: any = {
+    const row: Record<string, unknown> = {
       user_id: args.userId,
       workspace_id: args.workspaceId ?? null,
       source: args.source,
@@ -86,7 +89,7 @@ export interface RetrieveArgs {
   minSimilarity?: number;
 }
 
-export async function retrieveRelevantMemories(supabase: any, args: RetrieveArgs): Promise<SemanticHit[]> {
+export async function retrieveRelevantMemories(supabase: SemanticClient, args: RetrieveArgs): Promise<SemanticHit[]> {
   const q = (args.query || '').trim();
   if (q.length < 4) return [];
   try {

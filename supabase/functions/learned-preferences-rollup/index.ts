@@ -19,7 +19,7 @@
 // Service-role auth required.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
@@ -105,7 +105,7 @@ serve(async (req) => {
   );
 });
 
-async function rollupForUser(supabase: any, userId: string): Promise<{ written: number }> {
+async function rollupForUser(supabase: SupabaseClient, userId: string): Promise<{ written: number }> {
   const since = new Date(Date.now() - 180 * 24 * 3600_000).toISOString();
 
   // Pull the user's timezone so "preferred hour" reflects local clock,
@@ -143,7 +143,7 @@ async function rollupForUser(supabase: any, userId: string): Promise<{ written: 
   // transaction-ish — last write wins.
   await supabase.from('dori_task_stats').delete().eq('user_id', userId);
 
-  const statsRows: any[] = [];
+  const statsRows: Array<Record<string, unknown>> = [];
   const narratives: { key: string; value: string; confidence: number }[] = [];
 
   for (const [category, tasks] of Object.entries(byCat)) {

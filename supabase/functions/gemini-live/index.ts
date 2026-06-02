@@ -102,7 +102,7 @@ const personalityPrompts: Record<string, string> = {
 };
 
 // Detect task-related commands in user input
-function detectTaskCommand(input: string, allTasks?: TaskItem[]): { command: string | null; details: any } {
+function detectTaskCommand(input: string, allTasks?: TaskItem[]): { command: string | null; details: Record<string, unknown> } {
   const text = input.toLowerCase().trim();
   
   // Create task patterns

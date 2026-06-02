@@ -68,7 +68,7 @@ Deno.serve(async () => {
     const isTimeToSendForUser = (userTime: string, userTimezone: string): boolean => {
       try {
         // Parse user's preferred time (HH:MM format)
-        const [prefHour, prefMinute] = userTime.split(':').map(Number);
+        const [prefHour] = userTime.split(':').map(Number);
 
         // Get current time in user's timezone
         const formatter = new Intl.DateTimeFormat('en-US', {
@@ -79,8 +79,6 @@ Deno.serve(async () => {
         });
         const timeParts = formatter.formatToParts(now);
         const currentHour = parseInt(timeParts.find(p => p.type === 'hour')?.value || '0', 10);
-        const currentMinute = parseInt(timeParts.find(p => p.type === 'minute')?.value || '0', 10);
-
         // Check if current hour matches preferred hour (within 1-hour window for cron reliability)
         return currentHour === prefHour;
       } catch (e) {

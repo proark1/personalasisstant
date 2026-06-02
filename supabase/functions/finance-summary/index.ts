@@ -70,14 +70,14 @@ serve(async (req) => {
     // Per-currency balance + 30d in/out totals.
     const accounts = accRes.data ?? [];
     const balances: Record<string, number> = {};
-    for (const a of accounts as any[]) {
+    for (const a of accounts as Array<Record<string, unknown>>) {
       const cur = a.currency || 'USD';
       balances[cur] = (balances[cur] || 0) + Number(a.current_balance || 0);
     }
 
     let totalSpend30d = 0;
     let totalIncome30d = 0;
-    for (const t of (txRes.data ?? []) as any[]) {
+    for (const t of (txRes.data ?? []) as Array<Record<string, unknown>>) {
       if (t.direction === 'expense') totalSpend30d += Number(t.amount);
       else if (t.direction === 'income') totalIncome30d += Number(t.amount);
     }

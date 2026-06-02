@@ -28,7 +28,10 @@ export interface FetchOptions {
   excludeOverdue?: boolean; // default true — we want predictive, not "already late"
 }
 
-export async function fetchAtRiskTasks(supabase: any, opts: FetchOptions): Promise<AtRiskTask[]> {
+// Minimal Supabase client surface needed by this module.
+type SlipRiskClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
+export async function fetchAtRiskTasks(supabase: SlipRiskClient, opts: FetchOptions): Promise<AtRiskTask[]> {
   const minRisk = opts.minRisk ?? 0.55;
   const withinHours = opts.withinHours ?? 48;
   const limit = opts.limit ?? 10;

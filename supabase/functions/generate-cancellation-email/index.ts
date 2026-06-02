@@ -143,7 +143,7 @@ Return ONLY valid JSON.`;
                         contentText.match(/```\s*([\s\S]*?)\s*```/) ||
                         [null, contentText];
       templates = JSON.parse(jsonMatch[1] || contentText);
-    } catch (parseError) {
+    } catch {
       console.error("Failed to parse AI response:", contentText);
       templates = { 
         formalLetter: contentText,

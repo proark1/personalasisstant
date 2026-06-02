@@ -40,7 +40,13 @@ function cacheSet(userId: string, value: QuotaCheck) {
   quotaCache.set(userId, { value, expiresAt: Date.now() + QUOTA_CACHE_TTL_MS });
 }
 
-export async function checkQuota(supabase: any, userId: string): Promise<QuotaCheck> {
+// Minimal Supabase client surface these functions use.
+export interface SupabaseQuotaClient {
+  rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>;
+  from(table: string): { insert(row: Record<string, unknown>): Promise<{ error: { message: string } | null }> };
+}
+
+export async function checkQuota(supabase: SupabaseQuotaClient, userId: string): Promise<QuotaCheck> {
   try {
     const { data, error } = await supabase.rpc('check_ai_quota', { p_user_id: userId });
     if (error) throw error;
@@ -81,7 +87,7 @@ export async function checkQuota(supabase: any, userId: string): Promise<QuotaCh
 
 // Convenience: throw if over cap. Edge functions can wrap their AI
 // section in try/catch and surface the message.
-export async function assertWithinQuota(supabase: any, userId: string): Promise<QuotaCheck> {
+export async function assertWithinQuota(supabase: SupabaseQuotaClient, userId: string): Promise<QuotaCheck> {
   const q = await checkQuota(supabase, userId);
   if (!q.allowed) {
     // Best-effort: log the rejection so it shows up in the usage feed.
@@ -109,8 +115,8 @@ export async function assertWithinQuota(supabase: any, userId: string): Promise<
         : `AI monthly cap reached (${(q.used_cents / 100).toFixed(2)} / ${(q.cap_cents / 100).toFixed(2)} USD). ` +
           'Wait until next month or ask the operator to bump your cap.',
     );
-    (err as any).quota = q;
-    (err as any).code = isServiceDown ? 'quota_service_unavailable' : 'quota_exceeded';
+    (err as unknown as Record<string, unknown>).quota = q;
+    (err as unknown as Record<string, unknown>).code = isServiceDown ? 'quota_service_unavailable' : 'quota_exceeded';
     throw err;
   }
   return q;

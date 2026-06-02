@@ -78,9 +78,10 @@ serve(async (req) => {
     }
 
     // accept_blocks / accept_all
-    const blocks = Array.isArray(prop.blocks) ? [...(prop.blocks as any[])] : [];
+    type Block = Record<string, unknown>;
+    const blocks = Array.isArray(prop.blocks) ? [...(prop.blocks as Block[])] : [];
     const targetIds = action === 'accept_all'
-      ? new Set(blocks.map((b: any) => b.id))
+      ? new Set(blocks.map((b: Block) => b.id))
       : blockIds;
 
     let applied = 0;
@@ -89,8 +90,8 @@ serve(async (req) => {
     // Build the candidate list once, then bulk-insert. Single round-trip
     // beats N sequential ones — important when accept_all is fired on
     // a 25-block week.
-    const candidates: Array<{ idx: number; block: any }> = [];
-    const skipped: Array<{ idx: number; block: any; reason: string }> = [];
+    const candidates: Array<{ idx: number; block: Block }> = [];
+    const skipped: Array<{ idx: number; block: Block; reason: string }> = [];
     for (let i = 0; i < blocks.length; i += 1) {
       const b = blocks[i];
       if (!b || !targetIds.has(b.id)) continue;

@@ -89,15 +89,20 @@ serve(async (req) => {
     });
   }
 
+  interface WorkspaceLink {
+    workspace_id: string;
+    chat_id: number | string;
+    workspaces?: { owner_id?: string | null; name?: string | null } | null;
+  }
   // Look up owner timezones in one go.
-  const ownerIds = Array.from(new Set(links.map((l: any) => l.workspaces?.owner_id).filter(Boolean)));
+  const ownerIds = Array.from(new Set((links as WorkspaceLink[]).map((l) => l.workspaces?.owner_id).filter(Boolean))) as string[];
   const tzByOwner = new Map<string, string | null>();
   if (ownerIds.length) {
     const { data: profs } = await admin
       .from('profiles')
       .select('user_id, timezone')
       .in('user_id', ownerIds);
-    for (const p of (profs || []) as any[]) tzByOwner.set(p.user_id, p.timezone || null);
+    for (const p of (profs || []) as Array<{ user_id: string; timezone?: string | null }>) tzByOwner.set(p.user_id, p.timezone || null);
   }
 
   // First pass: filter to only the workspaces whose owner is currently in
@@ -115,7 +120,7 @@ serve(async (req) => {
   const eligible: Eligible[] = [];
   const skipped: { workspace_id: string; reason: string }[] = [];
 
-  for (const link of (links as any[])) {
+  for (const link of (links as WorkspaceLink[])) {
     const ownerId = link.workspaces?.owner_id as string | undefined;
     if (!ownerId) continue;
     const tz = tzByOwner.get(ownerId) || 'UTC';
@@ -150,7 +155,7 @@ serve(async (req) => {
       .eq('trigger_type', TRIGGER_TYPE)
       .in('user_id', ownerIdsEligible)
       .in('trigger_key', triggerKeys);
-    alreadySent = new Set((existing || []).map((r: any) => `${r.user_id}|${r.trigger_key}`));
+    alreadySent = new Set((existing || []).map((r: { user_id: string; trigger_key: string }) => `${r.user_id}|${r.trigger_key}`));
   }
 
   // Parallel dispatch. Sequential POSTs hit the 60s edge function ceiling

@@ -20,18 +20,20 @@ async function refreshAccessToken(refreshToken: string): Promise<{ access_token:
   return response.json();
 }
 
-function decodeBody(payload: any): string {
+interface GmailPart { mimeType?: string; body?: { data?: string }; parts?: GmailPart[] }
+
+function decodeBody(payload: GmailPart): string {
   // Try to get HTML body first, then plain text
   if (payload.body?.data) {
     return atob(payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
   }
   if (payload.parts) {
     // Prefer text/html
-    const htmlPart = payload.parts.find((p: any) => p.mimeType === 'text/html');
+    const htmlPart = payload.parts.find((p) => p.mimeType === 'text/html');
     if (htmlPart?.body?.data) {
       return atob(htmlPart.body.data.replace(/-/g, '+').replace(/_/g, '/'));
     }
-    const textPart = payload.parts.find((p: any) => p.mimeType === 'text/plain');
+    const textPart = payload.parts.find((p) => p.mimeType === 'text/plain');
     if (textPart?.body?.data) {
       const text = atob(textPart.body.data.replace(/-/g, '+').replace(/_/g, '/'));
       return `<pre style="white-space:pre-wrap;font-family:inherit;">${text}</pre>`;

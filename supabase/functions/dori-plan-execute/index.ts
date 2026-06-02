@@ -211,17 +211,17 @@ serve(async (req) => {
       const results = Array.isArray(data?.toolResults) ? data.toolResults : [];
 
       if (resp.ok && results.length > 0) {
-        const allOk = results.every((r: any) => r?.ok !== false);
+        const allOk = results.every((r: Record<string, unknown>) => r?.ok !== false);
         execOk = allOk;
         execSummary = results
-          .map((r: any) => r?.message || r?.summary || '')
+          .map((r: Record<string, unknown>) => (r?.message as string) || (r?.summary as string) || '')
           .filter(Boolean)
           .join(' · ')
           .slice(0, 600);
         if (!allOk) {
           execError = results
-            .filter((r: any) => r?.ok === false)
-            .map((r: any) => r?.message || 'tool failed')
+            .filter((r: Record<string, unknown>) => r?.ok === false)
+            .map((r: Record<string, unknown>) => (r?.message as string) || 'tool failed')
             .join(' · ')
             .slice(0, 600);
         }

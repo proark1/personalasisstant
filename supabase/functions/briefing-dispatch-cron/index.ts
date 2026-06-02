@@ -12,7 +12,7 @@
 //   2. End-user JWT + ?briefing_id=<id>       → "Send now" test for one briefing
 //      the caller owns, bypassing the time/day checks.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { strictAppOrigin } from '../_shared/cors.ts';
 import { generateNews, type NewsItem } from '../_shared/briefingNews.ts';
 
@@ -63,16 +63,18 @@ function localParts(now: Date, tz: string) {
   return { dayIndex: WEEKDAY_INDEX[weekday] ?? 0, hour, minute, date };
 }
 
-async function loadTimezoneMap(supabase: any, userIds: string[]): Promise<Map<string, string>> {
+interface TimezoneRow { user_id: string; timezone?: string | null }
+
+async function loadTimezoneMap(supabase: SupabaseClient, userIds: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   if (userIds.length === 0) return map;
   const [{ data: locs }, { data: profiles }] = await Promise.all([
     supabase.from('user_location_settings').select('user_id, timezone').in('user_id', userIds),
     supabase.from('profiles').select('user_id, timezone').in('user_id', userIds),
   ]);
-  (profiles || []).forEach((p: any) => { if (p.timezone) map.set(p.user_id, p.timezone); });
+  (profiles as TimezoneRow[] || []).forEach((p) => { if (p.timezone) map.set(p.user_id, p.timezone); });
   // Location settings win over profile when both exist.
-  (locs || []).forEach((l: any) => { if (l.timezone) map.set(l.user_id, l.timezone); });
+  (locs as TimezoneRow[] || []).forEach((l) => { if (l.timezone) map.set(l.user_id, l.timezone); });
   return map;
 }
 
@@ -236,17 +238,17 @@ Deno.serve(async (req) => {
       .in('user_id', dueIds)
       .eq('is_active', true)
       .not('chat_id', 'is', null);
-    (links || []).forEach((l: any) => { if (l.chat_id) chatMap.set(l.user_id, Number(l.chat_id)); });
+    (links as Array<{ user_id: string; chat_id?: number | null }> || []).forEach((l) => { if (l.chat_id) chatMap.set(l.user_id, Number(l.chat_id)); });
   }
 
   // Resolve locations for nicer, localised news.
-  const locMap = new Map<string, any>();
+  const locMap = new Map<string, { city: string | null; country: string | null }>();
   if (dueIds.length > 0) {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, location_city, location_country')
       .in('user_id', dueIds);
-    (profiles || []).forEach((p: any) => {
+    (profiles as Array<{ user_id: string; location_city: string | null; location_country: string | null }> || []).forEach((p) => {
       locMap.set(p.user_id, { city: p.location_city, country: p.location_country });
     });
   }
@@ -288,9 +290,9 @@ Deno.serve(async (req) => {
 
       if (channelsSent.length) sent++;
       else { failed++; errors.push(`${b.id}: no channel delivered`); }
-    } catch (e: any) {
+    } catch (e) {
       failed++;
-      errors.push(`${b.id}: ${e?.message || String(e)}`);
+      errors.push(`${b.id}: ${e instanceof Error ? e.message : String(e)}`);
       console.error('briefing dispatch failed for', b.id, e);
     }
   }

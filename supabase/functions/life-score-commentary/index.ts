@@ -28,7 +28,7 @@ serve(async (req) => {
     let userIds: string[] = body.user_id ? [body.user_id] : [];
     if (userIds.length === 0) {
       const { data: profiles } = await supabase.from("profiles").select("user_id");
-      userIds = (profiles || []).map((p: any) => p.user_id);
+      userIds = (profiles || []).map((p: { user_id: string }) => p.user_id);
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -93,7 +93,17 @@ serve(async (req) => {
   }
 });
 
-function computeScore(c: any): number | null {
+interface CheckinRow {
+  checkin_date?: string;
+  day_rating?: number;
+  mood?: string;
+  energy_level?: string;
+  sleep_hours?: number;
+  sleep_quality?: number;
+  stress_level?: number;
+}
+
+function computeScore(c: CheckinRow | null): number | null {
   if (!c) return null;
   const parts: number[] = [];
   if (c.day_rating) parts.push(c.day_rating * 20);
@@ -108,7 +118,7 @@ function computeScore(c: any): number | null {
   return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
 }
 
-function identifyFactors(today: any, prev: any): Array<{ factor: string; change: string }> {
+function identifyFactors(today: CheckinRow, prev: CheckinRow): Array<{ factor: string; change: string }> {
   const factors: Array<{ factor: string; change: string }> = [];
   if (today.sleep_hours && prev.sleep_hours) {
     const diff = today.sleep_hours - prev.sleep_hours;
@@ -125,11 +135,11 @@ function identifyFactors(today: any, prev: any): Array<{ factor: string; change:
 }
 
 async function callGemini(
-  checkins: any[],
+  checkins: CheckinRow[],
   todayScore: number,
   prevScore: number,
-  factors: any[],
-): Promise<{ headline: string; commentary: string; suggestions: any[] }> {
+  factors: Array<{ factor: string; change: string }>,
+): Promise<{ headline: string; commentary: string; suggestions: Array<{ label: string; action: string }> }> {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) {
     return {

@@ -1,6 +1,9 @@
 // Classifies inbound Telegram group messages and writes to the right module.
 // Called by telegram-poll for messages from a linked family group.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+type SupabaseClient = ReturnType<typeof createClient>;
+type HouseholdInfo = { ids: string[]; nameOf: (uid: string) => string; multi: boolean };
 import { sendDoriReply } from '../_shared/telegram-voice.ts';
 import {
   approveAndExecutePending,
@@ -56,7 +59,7 @@ async function tgSend(chatId: number, text: string, replyMarkup?: unknown) {
 // /plans — list active plans for the user with inline keyboard
 // (Run next / Skip / Abort) per plan. The callback handler in
 // telegram-poll dispatches to dori-plan-execute.
-async function handlePlansCommand(supabase: any, chatId: number, userId: string | null) {
+async function handlePlansCommand(supabase: SupabaseClient, chatId: number, userId: string | null) {
   if (!userId) {
     await tgSend(chatId, '📋 Link this chat with /linkme first to see your plans.');
     return;
@@ -78,11 +81,11 @@ async function handlePlansCommand(supabase: any, chatId: number, userId: string 
   }
   // Build the inline keyboard import once.
   const { buildPlanRowKeyboard } = await import('../_shared/telegram-inline.ts');
-  for (const p of plans as Array<any>) {
+  for (const p of plans as Array<{ id: string; title: string; completed_step_count: number; step_count: number; status: string; blocks: Array<{ idx: number; title: string; status: string }> }>) {
     const nextStep = Array.isArray(p.blocks)
       ? p.blocks
-        .filter((s: any) => s.status === 'pending' || s.status === 'awaiting_confirm')
-        .sort((a: any, b: any) => a.idx - b.idx)[0]
+        .filter((s) => s.status === 'pending' || s.status === 'awaiting_confirm')
+        .sort((a, b) => a.idx - b.idx)[0]
       : null;
     const text = [
       `📋 <b>${escapeHtml(p.title)}</b>`,
@@ -194,7 +197,7 @@ function isHelpRequest(lower: string): boolean {
 // an app account (telegram_group_members) so digests/calendars/shopping reads
 // cover the whole family. `groupLinkId` is optional for backwards-compat.
 async function getHouseholdMembers(
-  supabase: any,
+  supabase: SupabaseClient,
   ownerId: string,
   partnerId: string | null,
   groupLinkId?: string | null,
@@ -207,13 +210,13 @@ async function getHouseholdMembers(
       .eq('group_link_id', groupLinkId)
       .eq('status', 'active')
       .not('user_id', 'is', null);
-    (members || []).forEach((m: any) => { if (m.user_id) ids.add(m.user_id); });
+    (members || []).forEach((m: { user_id?: string }) => { if (m.user_id) ids.add(m.user_id); });
   }
   const idList = [...ids];
   const { data: profiles } = await supabase
     .from('profiles').select('user_id, display_name, email').in('user_id', idList);
   const map = new Map<string, string>();
-  (profiles || []).forEach((p: any) => map.set(p.user_id, p.display_name || (p.email?.split('@')[0]) || 'Member'));
+  (profiles || []).forEach((p: { user_id: string; display_name?: string | null; email?: string | null }) => map.set(p.user_id, p.display_name || (p.email?.split('@')[0]) || 'Member'));
   return { ids: idList, nameOf: (uid: string) => map.get(uid) || 'Member', multi: idList.length > 1 };
 }
 
@@ -225,7 +228,7 @@ async function getHouseholdMembers(
 // user id (or the prior value when there's no account to map to).
 // Defensive: any error (e.g. table not migrated yet) leaves behavior unchanged.
 async function acceptRosterMember(
-  supabase: any,
+  supabase: SupabaseClient,
   groupLinkId: string,
   telegramUserId: number | null | undefined,
   username: string | null | undefined,
@@ -235,7 +238,7 @@ async function acceptRosterMember(
   if (!telegramUserId) return alreadyMappedUserId;
   const uname = (username || '').replace(/^@/, '').toLowerCase().trim();
   try {
-    let row: any = null;
+    let row: { id: string; user_id?: string | null } | null = null;
     const { data: byId } = await supabase.from('telegram_group_members')
       .select('id, user_id').eq('group_link_id', groupLinkId)
       .eq('telegram_user_id', telegramUserId).maybeSingle();
@@ -276,7 +279,7 @@ async function acceptRosterMember(
 // Fast personal digest: what's on this user's plate right now.
 // Purely DB-driven (no AI round-trip) so the reply is instant.
 async function handleMeDigest(
-  supabase: any,
+  supabase: SupabaseClient,
   userId: string,
   workspaceId: string | null,
   tz?: string,
@@ -330,7 +333,7 @@ async function handleMeDigest(
 // from completed tasks + events + open tasks. Only meaningful inside a
 // linked workspace — the family-group fallback just points to /today.
 async function handleStandup(
-  supabase: any,
+  supabase: SupabaseClient,
   workspaceId: string,
   tz?: string,
 ): Promise<string> {
@@ -347,7 +350,7 @@ async function handleStandup(
   const endOfTomorrow = new Date(startOfTomorrow); endOfTomorrow.setHours(23, 59, 59, 999);
 
   // Pull the needed data for ALL members in parallel.
-  const memberIds = (members as any[]).map((m: any) => m.user_id);
+  const memberIds = (members as Array<{ user_id: string; display_name?: string | null }>).map((m) => m.user_id);
   const [{ data: yesterdayDone }, { data: todayTasks }, { data: upcomingEvents }] = await Promise.all([
     supabase.from('tasks')
       .select('title, assignee_id, user_id, updated_at')
@@ -391,7 +394,7 @@ async function handleStandup(
 
   const lines: string[] = ['<b>🧑‍🤝‍🧑 Standup</b>'];
   let anyActivity = false;
-  for (const m of members as any[]) {
+  for (const m of members as Array<{ user_id: string; display_name?: string | null }>) {
     const entry = byMember.get(m.user_id);
     if (!entry) continue;
     const block: string[] = [`\n<b>${m.display_name || m.user_id.slice(0, 8)}</b>`];
@@ -409,7 +412,7 @@ async function handleStandup(
   return lines.join('\n');
 }
 
-async function handleAgenda(supabase: any, ids: string[], dayOffset = 0): Promise<string> {
+async function _handleAgenda(supabase: SupabaseClient, ids: string[], dayOffset = 0): Promise<string> {
   const start = new Date(); start.setDate(start.getDate() + dayOffset); start.setHours(0,0,0,0);
   const end = new Date(start); end.setHours(23,59,59,999);
   const label = dayOffset === 0 ? "Today" : dayOffset === 1 ? "Tomorrow" : start.toLocaleDateString('en-GB', { weekday: 'long' });
@@ -427,20 +430,20 @@ async function handleAgenda(supabase: any, ids: string[], dayOffset = 0): Promis
   const lines: string[] = [`<b>📅 ${label}'s agenda</b>`];
   if (events?.length) {
     lines.push('\n<b>Events</b>');
-    events.forEach((e: any) => {
+    events.forEach((e: { title: string; start_time: string; location?: string | null }) => {
       const t = new Date(e.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       lines.push(`• ${t} — ${e.title}${e.location ? ` (${e.location})` : ''}`);
     });
   }
   if (tasks?.length) {
     lines.push('\n<b>Open tasks</b>');
-    tasks.forEach((t: any) => lines.push(`• ${t.title}`));
+    tasks.forEach((t: { title: string }) => lines.push(`• ${t.title}`));
   }
   if (!events?.length && !tasks?.length) lines.push('\nNothing scheduled — enjoy. ☕');
   return lines.join('\n');
 }
 
-async function handleWeek(supabase: any, ids: string[], household: any): Promise<string> {
+async function handleWeek(supabase: SupabaseClient, ids: string[], household: HouseholdInfo): Promise<string> {
   const start = new Date(); start.setHours(0,0,0,0);
   const end = new Date(start); end.setDate(end.getDate() + 7); end.setHours(23,59,59,999);
 
@@ -458,7 +461,7 @@ async function handleWeek(supabase: any, ids: string[], household: any): Promise
   const dayKey = (d: Date) => d.toISOString().slice(0, 10);
   const dayLabel = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
 
-  (events || []).forEach((e: any) => {
+  (events || []).forEach((e: { title: string; start_time: string; user_id: string }) => {
     const d = new Date(e.start_time);
     const k = dayKey(d);
     const t = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -466,7 +469,7 @@ async function handleWeek(supabase: any, ids: string[], household: any): Promise
     if (!byDay.has(k)) byDay.set(k, []);
     byDay.get(k)!.push(`• ${t} ${e.title}${who}`);
   });
-  (tasks || []).forEach((t: any) => {
+  (tasks || []).forEach((t: { title: string; due_date?: string | null; user_id: string }) => {
     if (!t.due_date) return;
     const d = new Date(t.due_date);
     const k = dayKey(d);
@@ -488,7 +491,7 @@ async function handleWeek(supabase: any, ids: string[], household: any): Promise
   return out.join('\n');
 }
 
-async function handleUpcomingMeetings(supabase: any, ids: string[], household: any, tz?: string): Promise<string> {
+async function handleUpcomingMeetings(supabase: SupabaseClient, ids: string[], household: HouseholdInfo, tz?: string): Promise<string> {
   const now = new Date();
   const end = new Date(now);
   end.setDate(end.getDate() + 14);
@@ -501,7 +504,7 @@ async function handleUpcomingMeetings(supabase: any, ids: string[], household: a
     .order('start_time')
     .limit(10);
 
-  const upcoming = (events || []).filter((e: any) => {
+  const upcoming = (events || []).filter((e: { title: string; start_time: string; location?: string | null; user_id: string }) => {
     const title = String(e.title || '').toLowerCase();
     return /\b(meet|meeting|call|sync|standup|review|interview|appointment|demo)\b/.test(title);
   });
@@ -509,7 +512,7 @@ async function handleUpcomingMeetings(supabase: any, ids: string[], household: a
   if (!upcoming.length) return '📅 No upcoming meetings in the next 14 days.';
 
   const lines = ['<b>📅 Upcoming meetings</b>'];
-  upcoming.forEach((e: any) => {
+  upcoming.forEach((e: { title: string; start_time: string; location?: string | null; user_id: string }) => {
     const when = new Date(e.start_time).toLocaleString('en-GB', {
       timeZone: tz,
       weekday: 'short',
@@ -524,7 +527,7 @@ async function handleUpcomingMeetings(supabase: any, ids: string[], household: a
   return lines.join('\n');
 }
 
-async function handleShoppingList(supabase: any, ownerId: string): Promise<string> {
+async function _handleShoppingList(supabase: SupabaseClient, ownerId: string): Promise<string> {
   const { data: lists } = await supabase.from('shopping_lists')
     .select('id, name').eq('user_id', ownerId).eq('is_completed', false)
     .order('created_at', { ascending: true });
@@ -534,7 +537,7 @@ async function handleShoppingList(supabase: any, ownerId: string): Promise<strin
     const { data: items } = await supabase.from('shopping_list_items')
       .select('name, quantity, is_checked').eq('list_id', list.id).eq('is_checked', false);
     out.push(`<b>🛒 ${list.name}</b>`);
-    if (items?.length) items.forEach((i: any) => out.push(`• ${i.quantity > 1 ? `${i.quantity}× ` : ''}${i.name}`));
+    if (items?.length) items.forEach((i: { name: string; quantity: number }) => out.push(`• ${i.quantity > 1 ? `${i.quantity}× ` : ''}${i.name}`));
     else out.push('  (empty)');
   }
   return out.join('\n');
@@ -544,7 +547,7 @@ async function handleShoppingList(supabase: any, ownerId: string): Promise<strin
 // Long lists are capped; the plain-text view above stays available for overview.
 async function sendTappableShoppingList(
   chatId: number,
-  supabase: any,
+  supabase: SupabaseClient,
   ownerId: string,
   telegramKey: string,
 ): Promise<boolean> {
@@ -581,7 +584,7 @@ async function sendTappableShoppingList(
 // Tappable agenda: sends header + one card per task/event with row action buttons.
 async function sendTappableAgenda(
   chatId: number,
-  supabase: any,
+  supabase: SupabaseClient,
   memberIds: string[],
   dayOffset: number,
   telegramKey: string,
@@ -629,14 +632,14 @@ async function sendTappableAgenda(
   return true;
 }
 
-async function handleBirthdays(supabase: any, ids: string[], household: any): Promise<string> {
+async function handleBirthdays(supabase: SupabaseClient, ids: string[], household: HouseholdInfo): Promise<string> {
   const { data } = await supabase.from('contact_special_dates')
     .select('occurs_on, date_type, contact_id, user_id, user_contacts(name)')
     .in('user_id', ids).eq('date_type', 'birthday');
   if (!data?.length) return '🎂 No birthdays on file.';
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const upcoming = (data as any[])
+  const upcoming = (data as Array<{ occurs_on: string; user_id: string; user_contacts?: { name?: string } | null }>)
     .map(d => {
       const orig = new Date(d.occurs_on);
       const next = new Date(today.getFullYear(), orig.getMonth(), orig.getDate());
@@ -658,14 +661,14 @@ async function handleBirthdays(supabase: any, ids: string[], household: any): Pr
   return lines.join('\n');
 }
 
-async function handleContacts(supabase: any, ids: string[], query: string): Promise<string> {
+async function handleContacts(supabase: SupabaseClient, ids: string[], query: string): Promise<string> {
   const q = query.trim();
   if (!q) return 'Usage: <code>/contacts &lt;name&gt;</code>';
   const { data } = await supabase.from('user_contacts')
     .select('name, phone, email, user_id').in('user_id', ids).ilike('name', `%${q}%`).limit(8);
   if (!data?.length) return `🔍 No contacts matching "${q}".`;
   const lines = [`<b>🔍 Contacts matching "${q}"</b>`];
-  (data as any[]).forEach(c => {
+  (data as Array<{ name: string; phone?: string | null; email?: string | null }>).forEach(c => {
     const bits = [c.name];
     if (c.phone) bits.push(c.phone);
     if (c.email) bits.push(c.email);
@@ -674,7 +677,7 @@ async function handleContacts(supabase: any, ids: string[], query: string): Prom
   return lines.join('\n');
 }
 
-async function handleContracts(supabase: any, ids: string[], expiringOnly: boolean): Promise<string> {
+async function _handleContracts(supabase: SupabaseClient, ids: string[], expiringOnly: boolean): Promise<string> {
   let q = supabase.from('contracts').select('name, provider, cost_amount, cost_frequency, renewal_date, end_date, user_id')
     .in('user_id', ids).eq('is_active', true);
   if (expiringOnly) {
@@ -685,7 +688,7 @@ async function handleContracts(supabase: any, ids: string[], expiringOnly: boole
   if (!data?.length) return expiringOnly ? '✅ Nothing expiring in the next 60 days.' : '📄 No active contracts.';
   const title = expiringOnly ? '⏳ Expiring soon (60 days)' : '📄 Active contracts';
   const lines = [`<b>${title}</b>`];
-  (data as any[]).forEach(c => {
+  (data as Array<{ name: string; provider?: string | null; cost_amount?: number | null; cost_frequency?: string | null; renewal_date?: string | null; end_date?: string | null }>).forEach(c => {
     const cost = c.cost_amount ? ` — ${c.cost_amount}€${c.cost_frequency ? '/' + c.cost_frequency : ''}` : '';
     const due = c.renewal_date || c.end_date;
     const when = due ? ` (until ${new Date(due).toLocaleDateString('en-GB')})` : '';
@@ -694,12 +697,12 @@ async function handleContracts(supabase: any, ids: string[], expiringOnly: boole
   return lines.join('\n');
 }
 
-async function handleProperties(supabase: any, ids: string[]): Promise<string> {
+async function handleProperties(supabase: SupabaseClient, ids: string[]): Promise<string> {
   const { data } = await supabase.from('properties')
     .select('name, property_type, city, country, current_value').in('user_id', ids).eq('is_active', true);
   if (!data?.length) return '🏠 No properties on file.';
   const lines = ['<b>🏠 Properties</b>'];
-  (data as any[]).forEach(p => {
+  (data as Array<{ name: string; property_type?: string | null; city?: string | null; country?: string | null; current_value?: number | null }>).forEach(p => {
     const loc = [p.city, p.country].filter(Boolean).join(', ');
     const val = p.current_value ? ` — €${Number(p.current_value).toLocaleString()}` : '';
     lines.push(`• ${p.name} (${p.property_type})${loc ? ` — ${loc}` : ''}${val}`);
@@ -707,12 +710,12 @@ async function handleProperties(supabase: any, ids: string[]): Promise<string> {
   return lines.join('\n');
 }
 
-async function handleVehicles(supabase: any, ids: string[]): Promise<string> {
+async function handleVehicles(supabase: SupabaseClient, ids: string[]): Promise<string> {
   const { data } = await supabase.from('vehicles')
     .select('name, make, model, year, license_plate, next_service_date, insurance_renewal').in('user_id', ids);
   if (!data?.length) return '🚗 No vehicles on file.';
   const lines = ['<b>🚗 Vehicles</b>'];
-  (data as any[]).forEach(v => {
+  (data as Array<{ name: string; make?: string | null; model?: string | null; year?: number | null; license_plate?: string | null; next_service_date?: string | null; insurance_renewal?: string | null }>).forEach(v => {
     const desc = [v.year, v.make, v.model].filter(Boolean).join(' ');
     const plate = v.license_plate ? ` [${v.license_plate}]` : '';
     const upcoming: string[] = [];
@@ -723,7 +726,7 @@ async function handleVehicles(supabase: any, ids: string[]): Promise<string> {
   return lines.join('\n');
 }
 
-async function handleHealth(supabase: any, ids: string[], household: any): Promise<string> {
+async function handleHealth(supabase: SupabaseClient, ids: string[], household: HouseholdInfo): Promise<string> {
   const since = new Date(); since.setHours(0,0,0,0);
   const lines = ['<b>❤️ Today\'s health</b>'];
   let any = false;
@@ -734,8 +737,8 @@ async function handleHealth(supabase: any, ids: string[], household: any): Promi
       .order('recorded_at', { ascending: false }).limit(20);
     if (!data?.length) continue;
     any = true;
-    const latest = new Map<string, any>();
-    (data as any[]).forEach(m => { if (!latest.has(m.metric_type)) latest.set(m.metric_type, m); });
+    const latest = new Map<string, { metric_type: string; value: number | string; unit?: string }>();
+    (data as Array<{ metric_type: string; value: number | string; unit?: string; recorded_at: string }>).forEach(m => { if (!latest.has(m.metric_type)) latest.set(m.metric_type, m); });
     const prefix = household.multi ? `<b>${household.nameOf(uid)}</b> — ` : '';
     const bits = Array.from(latest.values()).map(m => `${m.metric_type}: ${m.value}${m.unit}`).join(', ');
     lines.push(`• ${prefix}${bits}`);
@@ -744,14 +747,14 @@ async function handleHealth(supabase: any, ids: string[], household: any): Promi
   return lines.join('\n');
 }
 
-async function handleCheckin(supabase: any, ids: string[], household: any): Promise<string> {
+async function handleCheckin(supabase: SupabaseClient, ids: string[], household: HouseholdInfo): Promise<string> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabase.from('daily_checkins')
     .select('user_id, mood, energy_level, sleep_hours, day_rating, checkin_type')
     .in('user_id', ids).eq('checkin_date', today);
   if (!data?.length) return '📝 No check-ins logged today yet.';
   const lines = ['<b>📝 Today\'s check-ins</b>'];
-  (data as any[]).forEach(c => {
+  (data as Array<{ user_id: string; mood?: string | null; energy_level?: number | null; sleep_hours?: number | null; day_rating?: number | null; checkin_type: string }>).forEach(c => {
     const prefix = household.multi ? `<b>${household.nameOf(c.user_id)}</b> ` : '';
     const bits: string[] = [];
     if (c.mood) bits.push(`mood ${c.mood}`);
@@ -763,7 +766,7 @@ async function handleCheckin(supabase: any, ids: string[], household: any): Prom
   return lines.join('\n');
 }
 
-async function handleEmailActions(supabase: any, ids: string[], household: any, priorityOnly: boolean): Promise<string> {
+async function handleEmailActions(supabase: SupabaseClient, ids: string[], household: HouseholdInfo, priorityOnly: boolean): Promise<string> {
   let q = supabase.from('email_classifications')
     .select('category, suggested_action, suggested_payload, user_id, created_at')
     .in('user_id', ids).eq('status', 'pending');
@@ -771,9 +774,9 @@ async function handleEmailActions(supabase: any, ids: string[], household: any, 
   const { data } = await q.order('created_at', { ascending: false }).limit(15);
   if (!data?.length) return priorityOnly ? '📭 Inbox clear.' : '✅ No pending email actions.';
   const lines = [`<b>${priorityOnly ? '📥 Priority inbox' : '📧 Email actions'}</b>`];
-  (data as any[]).forEach(e => {
+  (data as Array<{ user_id: string; category: string; suggested_action?: string | null; suggested_payload?: Record<string, unknown> | null }>).forEach(e => {
     const prefix = household.multi ? `<b>${household.nameOf(e.user_id)}</b> — ` : '';
-    const subj = (e.suggested_payload as any)?.subject || (e.suggested_payload as any)?.from || e.suggested_action || e.category;
+    const subj = (e.suggested_payload as Record<string, unknown>)?.subject as string | undefined || (e.suggested_payload as Record<string, unknown>)?.from as string | undefined || e.suggested_action || e.category;
     lines.push(`• ${prefix}[${e.category}] ${subj}`);
   });
   return lines.join('\n');
@@ -781,7 +784,7 @@ async function handleEmailActions(supabase: any, ids: string[], household: any, 
 
 // /overdue — open tasks whose due_date is in the past, across the household.
 // DB-driven, no AI round-trip. Mirrors the /today layout.
-async function handleOverdue(supabase: any, ids: string[], household: any): Promise<string> {
+async function handleOverdue(supabase: SupabaseClient, ids: string[], household: HouseholdInfo): Promise<string> {
   const nowIso = new Date().toISOString();
   const { data } = await supabase.from('tasks')
     .select('title, due_date, priority, user_id')
@@ -789,7 +792,7 @@ async function handleOverdue(supabase: any, ids: string[], household: any): Prom
     .lt('due_date', nowIso).order('due_date').limit(15);
   if (!data?.length) return '✅ Nothing overdue. Nice.';
   const lines = ['<b>⚠️ Overdue tasks</b>'];
-  (data as any[]).forEach((t) => {
+  (data as Array<{ title: string; due_date: string; priority?: string | null; user_id: string }>).forEach((t) => {
     const pr = t.priority === 'high' ? '🔴' : t.priority === 'low' ? '⚪️' : '🟡';
     const days = Math.max(1, Math.round((Date.now() - new Date(t.due_date).getTime()) / 86400000));
     const who = household.multi ? ` <i>(${household.nameOf(t.user_id)})</i>` : '';
@@ -799,7 +802,7 @@ async function handleOverdue(supabase: any, ids: string[], household: any): Prom
 }
 
 // /notes <query> — ILIKE search across the household's notes (title + body).
-async function handleNotesSearch(supabase: any, ids: string[], query: string): Promise<string> {
+async function handleNotesSearch(supabase: SupabaseClient, ids: string[], query: string): Promise<string> {
   const q = query.trim();
   if (!q) return 'Usage: <code>/notes &lt;search&gt;</code>';
   const { data } = await supabase.from('notes')
@@ -809,7 +812,7 @@ async function handleNotesSearch(supabase: any, ids: string[], query: string): P
     .order('updated_at', { ascending: false }).limit(8);
   if (!data?.length) return `🔍 No notes match "${q}".`;
   const lines = [`<b>📝 Notes matching "${q}"</b>`];
-  (data as any[]).forEach((n: any) => {
+  (data as Array<{ title?: string | null; content?: string | null }>).forEach((n) => {
     const snippet = String(n.content || '').replace(/\s+/g, ' ').slice(0, 120);
     lines.push(`• <b>${escapeHtml(n.title || 'Untitled')}</b>${snippet ? ` — ${escapeHtml(snippet)}…` : ''}`);
   });
@@ -817,7 +820,7 @@ async function handleNotesSearch(supabase: any, ids: string[], query: string): P
 }
 
 // /free [day] — find free slots for the *sender* (single user) in working hours.
-async function handleFreeTime(supabase: any, userId: string, dayHint: string, tz?: string): Promise<string> {
+async function handleFreeTime(supabase: SupabaseClient, userId: string, dayHint: string, tz?: string): Promise<string> {
   // Pull a duration token like "2h" / "90m" out of the hint, default 30 min.
   let durationMinutes = 30;
   const durMatch = dayHint.match(/(\d+)\s*(h|hr|hrs|hour|hours|m|min|mins|minutes)/i);
@@ -844,20 +847,20 @@ async function handleFreeTime(supabase: any, userId: string, dayHint: string, tz
   for (const [k, v] of Object.entries(dayMap)) {
     if (hint.includes(k)) {
       const target = v === -1 ? new Date().getDay() : v === -2 ? (new Date().getDay() + 1) % 7 : v;
-      ranked = ranked.filter((s: any) => new Date(s.start).getDay() === target);
+      ranked = ranked.filter((s: { start: string; local: string }) => new Date(s.start).getDay() === target);
       break;
     }
   }
   ranked = ranked.slice(0, 5);
   if (!ranked.length) return `😕 No free ${durationMinutes}-minute slots${dayHint ? ` for "${dayHint}"` : ' in the next 7 days'}.`;
   const lines = [`<b>🗓 Free ${durationMinutes}-min slots</b>${dayHint ? ` (${escapeHtml(dayHint)})` : ''}`];
-  ranked.forEach((s: any, i: number) => lines.push(`${i + 1}. ${s.local}`));
+  ranked.forEach((s: { start: string; local: string }, i: number) => lines.push(`${i + 1}. ${s.local}`));
   return lines.join('\n');
 }
 
 // /draft <subject-fragment> — find the most recent inbound email matching the
 // fragment and ask email-draft-reply to compose a reply.
-async function handleEmailDraft(supabase: any, userId: string, query: string): Promise<string> {
+async function handleEmailDraft(supabase: SupabaseClient, userId: string, query: string): Promise<string> {
   const q = query.trim();
   if (!q) return 'Usage: <code>/draft &lt;subject or sender&gt;</code>';
   const { data: matches } = await supabase.from('emails')
@@ -866,7 +869,7 @@ async function handleEmailDraft(supabase: any, userId: string, query: string): P
     .or(`subject.ilike.%${q}%,from_address.ilike.%${q}%`)
     .order('received_at', { ascending: false }).limit(2);
   if (!matches?.length) return `🔍 No email matches "${q}".`;
-  if (matches.length > 1) return `🤔 Multiple emails match "${q}":\n${matches.map((e: any, i: number) => `${i + 1}. ${e.subject || '(no subject)'} — ${e.from_address}`).join('\n')}\nBe more specific.`;
+  if (matches.length > 1) return `🤔 Multiple emails match "${q}":\n${(matches as Array<{ subject?: string | null; from_address?: string }>).map((e, i) => `${i + 1}. ${e.subject || '(no subject)'} — ${e.from_address}`).join('\n')}\nBe more specific.`;
   const email = matches[0];
   try {
     const r = await fetch(`${SUPABASE_URL}/functions/v1/email-draft-reply`, {
@@ -883,7 +886,7 @@ async function handleEmailDraft(supabase: any, userId: string, query: string): P
   }
 }
 
-async function handlePrayers(supabase: any, userId: string): Promise<string> {
+async function handlePrayers(supabase: SupabaseClient, userId: string): Promise<string> {
   // Try invoking the prayer-times function; fall back gracefully.
   try {
     const r = await fetch(`${SUPABASE_URL}/functions/v1/prayer-times`, {
@@ -908,7 +911,7 @@ async function handlePrayers(supabase: any, userId: string): Promise<string> {
 }
 
 // /dhikr <count> — log dhikr count for today (best-effort, falls back to ack-only).
-async function handleDhikr(supabase: any, userId: string, arg: string): Promise<string> {
+async function handleDhikr(supabase: SupabaseClient, userId: string, arg: string): Promise<string> {
   const n = parseInt(arg.trim(), 10);
   const count = Number.isFinite(n) && n > 0 ? n : 33;
   // Best-effort write: try a generic mood_logs row tagged dhikr (works regardless
@@ -918,12 +921,12 @@ async function handleDhikr(supabase: any, userId: string, arg: string): Promise<
       user_id: userId, mood_score: null, energy_score: null,
       context_tags: ['dhikr'], notes: `${count} dhikr`,
     });
-  } catch (_) { /* table missing or strict — silent ack still fine */ }
+  } catch { /* table missing or strict — silent ack still fine */ }
   return `📿 Logged <b>${count}</b> dhikr. SubhanAllah 🤲`;
 }
 
 // /qibla [city] — return the Qibla bearing from the given city (or profile city).
-async function handleQibla(supabase: any, userId: string, cityArg: string): Promise<string> {
+async function handleQibla(supabase: SupabaseClient, userId: string, cityArg: string): Promise<string> {
   let city = cityArg.trim();
   let country = '';
   if (!city) {
@@ -952,7 +955,7 @@ async function handleQibla(supabase: any, userId: string, cityArg: string): Prom
 }
 
 // /quran <surah> — minimal surah snippet via Aladhan's al-quran companion API.
-async function handleQuran(supabase: any, userId: string, arg: string): Promise<string> {
+async function handleQuran(supabase: SupabaseClient, userId: string, arg: string): Promise<string> {
   const q = arg.trim();
   if (!q) return 'Usage: <code>/quran &lt;surah name or number&gt;</code> (e.g. /quran al-fatiha or /quran 1)';
   void supabase; void userId;
@@ -990,14 +993,14 @@ async function handleQuran(supabase: any, userId: string, arg: string): Promise<
 }
 
 // /chores — recurring tasks tagged 'chore' across the household.
-async function handleChores(supabase: any, ids: string[]): Promise<string> {
+async function handleChores(supabase: SupabaseClient, ids: string[]): Promise<string> {
   const { data } = await supabase.from('tasks')
     .select('title, due_date, user_id, category')
     .in('user_id', ids).eq('completed', false)
     .or('category.eq.chore,category.eq.household,recurrence_rule.not.is.null')
     .order('due_date', { ascending: true, nullsFirst: false }).limit(15);
   if (!data?.length) return '🧹 No active chores. Tip: tag a recurring task with category="chore".';
-  const lines = data.slice(0, 10).map((t: any) => {
+  const lines = (data as Array<{ title: string; due_date?: string | null }>).slice(0, 10).map((t) => {
     const when = t.due_date ? new Date(t.due_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }) : '—';
     return `• ${t.title} <i>(${when})</i>`;
   });
@@ -1005,7 +1008,7 @@ async function handleChores(supabase: any, ids: string[]): Promise<string> {
 }
 
 async function handleToggleSetting(
-  supabase: any, userId: string, column: string, value: boolean, label: string
+  supabase: SupabaseClient, userId: string, column: string, value: boolean, label: string
 ): Promise<string> {
   const { error } = await supabase.from('proactive_settings')
     .upsert({ user_id: userId, [column]: value, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
@@ -1153,7 +1156,7 @@ Deno.serve(async (req) => {
       return new Response('{"ok":true}', { headers: corsHeaders });
     }
     if (matches.length > 1) {
-      const opts = matches.map((m: any, i: number) => `${i + 1}. ${m.title}`).join('\n');
+      const opts = (matches as Array<{ id: string; title: string }>).map((m, i) => `${i + 1}. ${m.title}`).join('\n');
       await tgSend(chat_id, `🤔 Multiple tasks match "${query}":\n${opts}\n\nBe more specific.`);
       return new Response('{"ok":true}', { headers: corsHeaders });
     }
@@ -1214,7 +1217,7 @@ Deno.serve(async (req) => {
     const participantIds: string[] = [];
     const missing: string[] = [];
     for (const m of mentions) {
-      const match = (wsMembers || []).find((x: any) => (x.display_name || '').toLowerCase() === m.toLowerCase());
+      const match = (wsMembers || []).find((x: { user_id: string; display_name?: string | null }) => (x.display_name || '').toLowerCase() === m.toLowerCase());
       if (match) participantIds.push(match.user_id);
       else missing.push(m);
     }
@@ -1224,7 +1227,7 @@ Deno.serve(async (req) => {
     }
     // Include the sender themselves if they're a workspace member.
     if (senderUserId && !participantIds.includes(senderUserId)) {
-      const selfIsMember = (wsMembers || []).some((x: any) => x.user_id === senderUserId);
+      const selfIsMember = (wsMembers || []).some((x: { user_id: string }) => x.user_id === senderUserId);
       if (selfIsMember) participantIds.push(senderUserId);
     }
 
@@ -1391,7 +1394,7 @@ Deno.serve(async (req) => {
       await tgSend(chat_id, '📭 Nothing completed yet this week.');
     } else {
       const lines = ['<b>✅ Completed this week</b>'];
-      (data as any[]).forEach((t: any) => {
+      (data as Array<{ title: string; user_id: string }>).forEach((t) => {
         const who = household.multi ? ` <i>(${household.nameOf(t.user_id)})</i>` : '';
         lines.push(`• ${escapeHtml(t.title)}${who}`);
       });
@@ -1409,7 +1412,7 @@ Deno.serve(async (req) => {
     if (!rows?.length) {
       await tgSend(chat_id, '📭 No open tasks today.');
     } else {
-      await Promise.all((rows as any[]).map((r: any) => {
+      await Promise.all((rows as Array<{ id: string; due_date: string }>).map((r) => {
         const d = new Date(r.due_date); d.setDate(d.getDate()+1);
         return supabase.from('tasks').update({ due_date: d.toISOString() }).eq('id', r.id).eq('user_id', userForChat);
       }));
@@ -1429,7 +1432,7 @@ Deno.serve(async (req) => {
       .gte('start_time', monday.toISOString()).lt('start_time', sunday.toISOString());
     if (!data?.length) { await tgSend(chat_id, '📭 No meetings this week.'); return new Response('{"ok":true}', { headers: corsHeaders }); }
     const totals: Record<string, number> = {};
-    (data as any[]).forEach((e: any) => {
+    (data as Array<{ start_time: string; end_time: string; user_id: string }>).forEach((e) => {
       const ms = new Date(e.end_time).getTime() - new Date(e.start_time).getTime();
       const hrs = Math.max(0, ms / 3600000);
       totals[e.user_id] = (totals[e.user_id] || 0) + hrs;
@@ -1460,14 +1463,14 @@ Deno.serve(async (req) => {
       const lines = [`<b>📅 ${arg}</b>`];
       if (events?.length) {
         lines.push('\n<b>Events</b>');
-        (events as any[]).forEach((e: any) => {
+        (events as Array<{ title: string; start_time: string; location?: string | null }>).forEach((e) => {
           const t = new Date(e.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
           lines.push(`• ${t} — ${escapeHtml(e.title)}${e.location ? ` @ ${escapeHtml(e.location)}` : ''}`);
         });
       }
       if (tasks?.length) {
         lines.push('\n<b>Tasks</b>');
-        (tasks as any[]).forEach((t: any) => lines.push(`${t.completed ? '✅' : '⬜'} ${escapeHtml(t.title)}`));
+        (tasks as Array<{ title: string; completed: boolean }>).forEach((t) => lines.push(`${t.completed ? '✅' : '⬜'} ${escapeHtml(t.title)}`));
       }
       if (!events?.length && !tasks?.length) lines.push('\n📭 Nothing scheduled.');
       await tgSend(chat_id, lines.join('\n'));
@@ -1485,7 +1488,7 @@ Deno.serve(async (req) => {
       await tgSend(chat_id, '🍽 No meals planned for today. Plan one in the Cooking hub.');
     } else {
       const lines = ['<b>🍽 Today\'s menu</b>'];
-      (data as any[]).forEach((m: any) => {
+      (data as Array<{ meal_type: string; custom_meal_name?: string | null; recipes?: { name?: string | null } | null }>).forEach((m) => {
         const name = m.custom_meal_name || m.recipes?.name || '(untitled)';
         lines.push(`• ${m.meal_type}: ${escapeHtml(name)}`);
       });
@@ -1504,7 +1507,7 @@ Deno.serve(async (req) => {
     } else {
       const category = tokens[1] || 'misc';
       const note = tokens.slice(2).join(' ') || category;
-      const { data: row, error } = await supabase.from('family_expenses').insert({
+      const { error } = await supabase.from('family_expenses').insert({
         user_id: userForChat, amount, description: `${category} · ${note}`,
         expense_date: new Date().toISOString().slice(0,10),
       }).select('id').single();
@@ -1529,7 +1532,7 @@ Deno.serve(async (req) => {
       .in('user_id', memberIds).gte('expense_date', since.toISOString().slice(0,10));
     if (category) q = q.ilike('description', `%${category}%`);
     const { data } = await q;
-    const total = (data || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+    const total = (data || []).reduce((s: number, r: { amount?: number | null }) => s + Number(r.amount || 0), 0);
     await tgSend(chat_id, `💶 Spent <b>€${total.toFixed(2)}</b>${category ? ` on "${escapeHtml(category)}"` : ''} in past ${period} (${data?.length || 0} items).`);
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
@@ -1567,22 +1570,23 @@ Deno.serve(async (req) => {
 
   // /recent — last 5 mutations
   if (lower === '/recent') {
-    let rows: any[] = [];
+    type RecentRow = { label: string; created_at: string };
+    let rows: RecentRow[] = [];
     const labelTry = await supabase.from('dori_undo_log')
       .select('label, created_at').eq('user_id', userForChat)
       .order('created_at', { ascending: false }).limit(5);
-    if (!labelTry.error && labelTry.data) rows = labelTry.data as any[];
+    if (!labelTry.error && labelTry.data) rows = labelTry.data as RecentRow[];
     else {
       const { data: alt } = await supabase.from('dori_undo_log')
         .select('action, payload, created_at').eq('user_id', userForChat)
         .order('created_at', { ascending: false }).limit(5);
-      rows = (alt || []).map((r: any) => ({ label: r?.payload?.label || r?.action || 'action', created_at: r.created_at }));
+      rows = (alt || []).map((r: { action?: string; payload?: { label?: string }; created_at: string }) => ({ label: r?.payload?.label || r?.action || 'action', created_at: r.created_at }));
     }
     if (!rows.length) {
       await tgSend(chat_id, '📭 No recent actions.');
     } else {
       const lines = ['<b>🕓 Recent actions</b>'];
-      rows.forEach((r: any, i: number) => {
+      rows.forEach((r, i) => {
         const mins = Math.max(1, Math.round((Date.now() - new Date(r.created_at).getTime()) / 60000));
         lines.push(`${i + 1}. ${escapeHtml(r.label)} <i>(${mins}m ago)</i>`);
       });
@@ -1706,12 +1710,12 @@ Deno.serve(async (req) => {
 
   type Turn = { role: 'user' | 'assistant'; content: string; ts: number };
   const turns: Turn[] = [];
-  (priorUserMsgs || []).forEach((m: any) => {
+  (priorUserMsgs || []).forEach((m: { text?: string | null; created_at: string }) => {
     if (m.text && m.text.trim() && m.text.trim() !== trimmed) {
       turns.push({ role: 'user', content: m.text, ts: new Date(m.created_at).getTime() });
     }
   });
-  (priorReplies || []).forEach((r: any) => {
+  (priorReplies || []).forEach((r: { reply?: string | null; created_at: string }) => {
     if (r.reply) turns.push({ role: 'assistant', content: r.reply, ts: new Date(r.created_at).getTime() });
   });
   turns.sort((a, b) => a.ts - b.ts);
@@ -1788,7 +1792,7 @@ Deno.serve(async (req) => {
         ]);
         preferVoice = !!ps?.prefer_voice_replies;
         voiceLocale = prof?.locale || undefined;
-      } catch (_) { /* ignore */ }
+      } catch { /* ignore */ }
 
       if (latestUndoId && !preferVoice) {
         await tgSendWithKeyboard(

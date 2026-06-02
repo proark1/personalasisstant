@@ -12,7 +12,7 @@ export interface PendingAction {
   action_type: string;
   entity_type: string | null;
   reason: string;
-  action_data: any;
+  action_data: Record<string, unknown>;
   status: string;
   source: string;
   source_ref: string | null;
@@ -23,7 +23,7 @@ export interface PendingAction {
 export async function tgSendWithKeyboard(
   chatId: number,
   text: string,
-  keyboard: any,
+  keyboard: Record<string, unknown>,
   telegramKey: string,
 ): Promise<void> {
   try {
@@ -122,11 +122,14 @@ export function classifyConfirmationText(text: string): 'yes' | 'no' | null {
   return null;
 }
 
+// Minimal Supabase client surface needed by this module.
+type TgConfirmClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
 // Fetch the most recent *still-actionable* pending action queued from this
 // Telegram surface. Actions whose expires_at has passed are filtered out so
 // stale prompts never quietly execute.
 export async function fetchLatestPendingForChat(
-  supabase: any,
+  supabase: TgConfirmClient,
   userId: string,
   source: string,
   sourceRef: string,
@@ -146,17 +149,17 @@ export async function fetchLatestPendingForChat(
   return (data as PendingAction | null) || null;
 }
 
-export function isActionableNow(action: PendingAction | null | undefined): boolean {
+export function isActionableNow(action: (PendingAction & { expires_at?: string | null }) | null | undefined): boolean {
   if (!action) return false;
   if (action.status !== 'pending') return false;
-  const exp = (action as any).expires_at as string | null | undefined;
+  const exp = action.expires_at;
   if (!exp) return true;
   return new Date(exp).getTime() > Date.now();
 }
 
 // Best-effort sweep: mark anything whose expires_at has passed as 'expired'.
 // Called from the Telegram poll loop on each tick; cheap and idempotent.
-export async function sweepExpiredPending(supabase: any): Promise<void> {
+export async function sweepExpiredPending(supabase: TgConfirmClient): Promise<void> {
   try {
     await supabase
       .from('auto_actions_log')
@@ -171,12 +174,12 @@ export async function sweepExpiredPending(supabase: any): Promise<void> {
 // Approve a pending action by re-running the captured tool XML through the
 // chat function with the approval gate disabled. Returns a human-readable result.
 export async function approveAndExecutePending(
-  supabase: any,
+  supabase: TgConfirmClient,
   action: PendingAction,
   supabaseUrl: string,
   serviceKey: string,
 ): Promise<string> {
-  const toolXml = (action.action_data as any)?.tool_xml as string | undefined;
+  const toolXml = action.action_data?.tool_xml as string | undefined;
   if (!toolXml) {
     await supabase.from('auto_actions_log')
       .update({ status: 'approved', approved_at: new Date().toISOString() })
@@ -217,7 +220,7 @@ export async function approveAndExecutePending(
 }
 
 export async function rejectPending(
-  supabase: any,
+  supabase: TgConfirmClient,
   actionId: string,
   reason: string,
 ): Promise<string> {

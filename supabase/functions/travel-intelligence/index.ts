@@ -11,7 +11,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+// GEMINI_API_KEY is read by generateStructured internally from env
 
 interface DetectedTrip {
   destination: string;
@@ -21,7 +21,7 @@ interface DetectedTrip {
   source_ref: string;
 }
 
-async function aiDetectTrips(events: any[]): Promise<DetectedTrip[]> {
+async function aiDetectTrips(events: Record<string, unknown>[]): Promise<DetectedTrip[]> {
   if (!events.length) return [];
   const list = events.map((e, i) =>
     `[${i}] title="${e.title}" location="${e.location || ''}" start=${e.start_time} end=${e.end_time}`
@@ -29,7 +29,7 @@ async function aiDetectTrips(events: any[]): Promise<DetectedTrip[]> {
 
   // Native generateContent + responseSchema (the OpenAI-compat endpoint with
   // forced tool_choice fails in our deployment).
-  let parsed: any;
+  let parsed: Record<string, unknown>;
   try {
     parsed = await generateStructured({
       system: "Detect travel/trips from calendar events. A trip = travel to a different city/country, multi-day, OR contains flight/hotel/conference keywords. Group consecutive events at same location into one trip.",
@@ -59,12 +59,12 @@ async function aiDetectTrips(events: any[]): Promise<DetectedTrip[]> {
     console.error("AI trip detect fail", (e as Error).message);
     return [];
   }
-  return (parsed?.trips ?? []).map((t: any) => ({
-    destination: t.destination,
-    destination_country: t.destination_country,
-    start_date: t.start_date,
-    end_date: t.end_date,
-    source_ref: (t.source_event_indices ?? []).map((i: number) => events[i]?.id).filter(Boolean).join(','),
+  return ((parsed?.trips ?? []) as Record<string, unknown>[]).map((t) => ({
+    destination: t.destination as string,
+    destination_country: t.destination_country as string | undefined,
+    start_date: t.start_date as string,
+    end_date: t.end_date as string,
+    source_ref: ((t.source_event_indices ?? []) as number[]).map((i) => (events[i] as Record<string, unknown>)?.id).filter(Boolean).join(','),
   }));
 }
 

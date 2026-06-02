@@ -37,7 +37,7 @@ export interface StructuredOptions {
  * Error on gateway failure, a non-STOP finish (SAFETY/MAX_TOKENS/…), or
  * unparseable output.
  */
-export async function generateStructured(opts: StructuredOptions): Promise<any> {
+export async function generateStructured(opts: StructuredOptions): Promise<unknown> {
   const apiKey = opts.apiKey ?? Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
@@ -78,7 +78,7 @@ export async function generateStructured(opts: StructuredOptions): Promise<any> 
     throw new Error(`AI generation stopped: ${candidate.finishReason}`);
   }
   const text = (candidate?.content?.parts ?? [])
-    .map((p: any) => (typeof p?.text === "string" ? p.text : ""))
+    .map((p: { text?: unknown }) => (typeof p?.text === "string" ? p.text : ""))
     .join("")
     .trim();
   if (!text) throw new Error("Empty AI response");

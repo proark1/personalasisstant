@@ -40,7 +40,7 @@ serve(async (req) => {
   const telegramKey = Deno.env.get('TELEGRAM_API_KEY') || '';
 
   const sinceIso = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  const summary: any[] = [];
+  const summary: Array<Record<string, unknown>> = [];
 
   try {
     // Find users with autopilot on (default off — opt-in).
@@ -52,14 +52,14 @@ serve(async (req) => {
     if (uErr) throw uErr;
 
     // Resolve telegram chat_id from telegram_links
-    const userIds = (rawUsers || []).map((u: any) => u.user_id);
+    const userIds = (rawUsers || []).map((u: { user_id: string }) => u.user_id);
     const { data: links } = userIds.length
       ? await sb.from('telegram_links').select('user_id, chat_id').in('user_id', userIds).eq('is_active', true)
-      : { data: [] as any[] };
+      : { data: [] as Array<{ user_id: string; chat_id?: number | null }> };
     const chatIdByUser = new Map<string, number>();
-    (links || []).forEach((l: any) => { if (l.chat_id) chatIdByUser.set(l.user_id, Number(l.chat_id)); });
+    (links || []).forEach((l: { user_id: string; chat_id?: number | null }) => { if (l.chat_id) chatIdByUser.set(l.user_id, Number(l.chat_id)); });
 
-    const users = (rawUsers || []).map((u: any) => ({ ...u, telegram_chat_id: chatIdByUser.get(u.user_id) ?? null }));
+    const users = (rawUsers || []).map((u: { user_id: string; [k: string]: unknown }) => ({ ...u, telegram_chat_id: chatIdByUser.get(u.user_id) ?? null }));
 
     for (const u of (users as ProactiveSettings[]) || []) {
       const archiveCats = u.email_autoarchive_categories?.length

@@ -40,7 +40,7 @@ serve(async (req) => {
 
     if (userIds.length === 0) {
       const { data: profiles } = await supabase.from("profiles").select("user_id");
-      userIds = (profiles || []).map((p: any) => p.user_id);
+      userIds = (profiles || []).map((p: { user_id: string }) => p.user_id);
     }
 
     let totalRoutines = 0;
@@ -162,8 +162,8 @@ function weekdayName(d: number): string {
 }
 
 function computeNext(b: PatternBucket): string | null {
-  const wd = (b.pattern as any).weekday;
-  const hour = (b.pattern as any).hour ?? 9;
+  const wd = (b.pattern as Record<string, unknown>).weekday;
+  const hour = (b.pattern as Record<string, unknown>).hour ?? 9;
   if (typeof wd !== "number") return null;
   const now = new Date();
   const next = new Date(now);

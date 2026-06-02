@@ -51,7 +51,6 @@ serve(async (req) => {
         .eq('is_active', true)
         .maybeSingle();
       if (link?.chat_id) {
-        const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!;
         const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY')!;
         try {
           await fetch(`https://api.telegram.org/bot${TELEGRAM_API_KEY}/sendMessage`, {

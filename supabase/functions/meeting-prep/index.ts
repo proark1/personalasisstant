@@ -95,7 +95,7 @@ serve(async (req) => {
   }
 
   let processed = 0;
-  const results: any[] = [];
+  const results: Record<string, unknown>[] = [];
 
   for (const ev of (events || []) as EventRow[]) {
     const minutesUntil = Math.round((new Date(ev.start_time).getTime() - now.getTime()) / 60000);

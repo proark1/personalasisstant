@@ -11,7 +11,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!;
 const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -27,13 +26,15 @@ async function tgSend(chatId: number, text: string) {
   if (!res.ok) console.error('tgSend failed', res.status, await res.text());
 }
 
-async function getHousehold(supabase: any, ownerId: string, partnerId: string | null) {
+type SupabaseClient = ReturnType<typeof createClient>;
+
+async function getHousehold(supabase: SupabaseClient, ownerId: string, partnerId: string | null) {
   const ids = [ownerId, partnerId].filter(Boolean) as string[];
   const { data: profiles } = await supabase
     .from('profiles').select('user_id, display_name, email, timezone').in('user_id', ids);
   const nameMap = new Map<string, string>();
   let ownerTz: string | undefined;
-  (profiles || []).forEach((p: any) => {
+  (profiles || []).forEach((p: { user_id: string; display_name?: string | null; email?: string | null; timezone?: string | null }) => {
     nameMap.set(p.user_id, p.display_name || (p.email?.split('@')[0]) || 'Member');
     if (p.user_id === ownerId) ownerTz = p.timezone || undefined;
   });
@@ -98,9 +99,9 @@ Deno.serve(async (req) => {
         .update({ morning_digest_last_sent_on: localDate })
         .eq('id', g.id);
       sent++;
-    } catch (e: any) {
+    } catch (e) {
       console.error('digest failed for group', g.id, e);
-      errors.push(`${g.id}: ${e?.message || String(e)}`);
+      errors.push(`${g.id}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 

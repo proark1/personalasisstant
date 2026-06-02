@@ -9,7 +9,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -106,7 +105,7 @@ Deno.serve(async (req) => {
 
     // Native generateContent + responseSchema (the OpenAI-compat endpoint with
     // forced tool_choice fails in our deployment).
-    let parsed: any;
+    let parsed: { items?: Array<Record<string, unknown>> };
     try {
       parsed = await generateStructured({
         system: SYSTEM_PROMPT,
@@ -150,7 +149,7 @@ Deno.serve(async (req) => {
     }
     const items = parsed?.items ?? [];
 
-    const rows = items.map((it: any) => {
+    const rows = items.map((it: Record<string, unknown>) => {
       const email = todo[it.index];
       if (!email) return null;
       return {

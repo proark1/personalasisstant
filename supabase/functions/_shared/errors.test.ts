@@ -40,8 +40,7 @@ Deno.test('respondError does not leak file paths', async () => {
 Deno.test('respondError passes through a short code-tagged message', async () => {
   setup();
   const e = new Error('AI monthly cap reached');
-  // deno-lint-ignore no-explicit-any
-  (e as any).code = 'quota_exceeded';
+  (e as Error & { code: string }).code = 'quota_exceeded';
   const res = respondError(req(), e, { status: 429 });
   assertEquals(res.status, 429);
   const body = await res.json();
@@ -52,8 +51,7 @@ Deno.test('respondError passes through a short code-tagged message', async () =>
 Deno.test('respondError still redacts a long code-tagged message', async () => {
   setup();
   const e = new Error('x'.repeat(250)); // too long → not "safe"
-  // deno-lint-ignore no-explicit-any
-  (e as any).code = 'weird';
+  (e as Error & { code: string }).code = 'weird';
   const body = await respondError(req(), e).json();
   assertEquals(body.error, 'Internal error.');
   assertEquals(body.code, 'weird'); // code still surfaced

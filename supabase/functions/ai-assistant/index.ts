@@ -44,7 +44,7 @@ interface AIRequest {
 }
 
 async function logAIUsage(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   userId: string,
   functionName: string,
   model: string,
@@ -98,8 +98,8 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } }
     });
     const token = authHeader.replace(/^Bearer\s+/i, '');
-    // getClaims exists at runtime on supabase-js v2 in Deno; cast to any to bypass stale lib types.
-    const { data, error } = await (supabase.auth as any).getClaims(token);
+    // getClaims exists at runtime on supabase-js v2 in Deno; cast to bypass stale lib types.
+    const { data, error } = await (supabase.auth as { getClaims: (token: string) => Promise<{ data: { claims: { sub: string } } | null; error: unknown }> }).getClaims(token);
     if (error || !data?.claims?.sub) throw new Error('No user');
     userId = data.claims.sub;
   } catch (e) {

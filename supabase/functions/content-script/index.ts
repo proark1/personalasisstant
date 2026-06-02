@@ -95,7 +95,10 @@ const LONG_SCHEMA = {
   required: ["title_options", "thumbnail_concept", "hook", "script", "description"],
 };
 
-function voiceBlock(idea: any, profile: any, langName: string): string {
+interface IdeaRow { headline?: string; hook?: string; summary?: string; source_url?: string }
+interface ProfileRow { persona?: string; tone?: string[]; audience?: string; business_context?: string; default_cta?: string }
+
+function voiceBlock(idea: IdeaRow, profile: ProfileRow | null, langName: string): string {
   const tone = Array.isArray(profile?.tone) ? profile.tone.filter(Boolean).join(", ") : "";
   return [
     profile?.persona ? `Creator: ${profile.persona}` : "",
@@ -112,7 +115,7 @@ function voiceBlock(idea: any, profile: any, langName: string): string {
   ].filter(Boolean).join("\n");
 }
 
-async function callGemini(geminiKey: string, system: string, user: string, schema: unknown): Promise<any> {
+async function callGemini(geminiKey: string, system: string, user: string, schema: unknown): Promise<Record<string, unknown>> {
   const resp = await fetch(GEMINI_URL, {
     method: "POST",
     headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
@@ -150,7 +153,7 @@ async function callGemini(geminiKey: string, system: string, user: string, schem
     throw new Error(`AI generation stopped: ${candidate.finishReason}`);
   }
   const text = (candidate?.content?.parts ?? [])
-    .map((p: any) => (typeof p?.text === "string" ? p.text : ""))
+    .map((p: { text?: string }) => (typeof p?.text === "string" ? p.text : ""))
     .join("")
     .trim();
   if (!text) throw new Error("Empty AI response");
@@ -219,7 +222,7 @@ serve(async (req) => {
     try {
       await assertWithinQuota(admin, userId);
     } catch (e) {
-      const code = (e as any)?.code;
+      const code = (e as { code?: string })?.code;
       return json({ error: (e as Error).message, code }, code === "quota_exceeded" ? 429 : 503);
     }
 
@@ -235,7 +238,7 @@ serve(async (req) => {
     const variationHint = VARIATIONS[String(body?.variation || "")] || "";
 
     const vBlock = voiceBlock(idea, profile, langName);
-    const saved: any[] = [];
+    const saved: Record<string, unknown>[] = [];
 
     for (const format of formats) {
       let row: Record<string, unknown>;
@@ -246,7 +249,7 @@ serve(async (req) => {
         const out = await callGemini(geminiKey, system, user, SHORT_SCHEMA);
 
         const variants = Array.isArray(out?.platform_variants)
-          ? out.platform_variants.map((v: any) => ({
+          ? (out.platform_variants as Array<Record<string, unknown>>).map((v) => ({
               platform: String(v?.platform || "generic"),
               hook: String(v?.hook || "").slice(0, 280),
               caption: String(v?.caption || "").slice(0, 600),
