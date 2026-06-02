@@ -80,7 +80,8 @@ export function useFamilyDailyLife() {
     if (!user) return null;
     const { data: row, error } = await supabase
       .from('family_chores')
-      .insert({ ...data, user_id: user.id, title: data.title!, frequency: data.frequency || 'weekly' } as Record<string, unknown>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert({ ...data, user_id: user.id, title: data.title!, frequency: data.frequency || 'weekly' } as any)
       .select()
       .single();
     if (error) { toast.error(error.message); return null; }
@@ -91,27 +92,21 @@ export function useFamilyDailyLife() {
 
   const completeChore = async (chore: FamilyChore) => {
     if (!user) return;
-    const { error } = await supabase.from('family_chore_completions').insert({
-      user_id: user.id,
-      chore_id: chore.id,
-      family_member_id: chore.family_member_id,
-      points_awarded: chore.points,
-    } as Record<string, unknown>);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const completionPayload = { user_id: user.id, chore_id: chore.id, family_member_id: chore.family_member_id, points_awarded: chore.points } as any;
+    const { error } = await supabase.from('family_chore_completions').insert(completionPayload);
     if (error) { toast.error(error.message); return; }
-    await supabase.from('family_chores').update({ last_completed_at: new Date().toISOString() } as Record<string, unknown>).eq('id', chore.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await supabase.from('family_chores').update({ last_completed_at: new Date().toISOString() } as any).eq('id', chore.id);
     toast.success(`+${chore.points} points`);
     fetchAll();
   };
 
   const addAllowance = async (data: Partial<FamilyAllowance>): Promise<null | void> => {
     if (!user) return null;
-    const { error } = await supabase.from('family_allowance').insert({
-      ...data,
-      user_id: user.id,
-      family_member_id: data.family_member_id!,
-      amount: data.amount!,
-      entry_type: data.entry_type || 'allowance',
-    } as Record<string, unknown>);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allowancePayload = { ...data, user_id: user.id, family_member_id: data.family_member_id!, amount: data.amount!, entry_type: data.entry_type || 'allowance' } as any;
+    const { error } = await supabase.from('family_allowance').insert(allowancePayload);
     if (error) { toast.error(error.message); return null; }
     toast.success('Logged');
     fetchAll();
@@ -121,10 +116,12 @@ export function useFamilyDailyLife() {
     if (!user || !data.family_member_id) return;
     const existing = mealPrefs.find(m => m.family_member_id === data.family_member_id);
     if (existing) {
-      const { error } = await supabase.from('family_meal_preferences').update(data as Record<string, unknown>).eq('id', existing.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('family_meal_preferences').update(data as any).eq('id', existing.id);
       if (error) { toast.error(error.message); return; }
     } else {
-      const { error } = await supabase.from('family_meal_preferences').insert({ ...data, user_id: user.id } as Record<string, unknown>);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('family_meal_preferences').insert({ ...data, user_id: user.id } as any);
       if (error) { toast.error(error.message); return; }
     }
     toast.success('Saved');
@@ -135,10 +132,12 @@ export function useFamilyDailyLife() {
     if (!user || !data.family_member_id) return;
     const existing = sleepSchedules.find(s => s.family_member_id === data.family_member_id);
     if (existing) {
-      const { error } = await supabase.from('family_sleep_schedule').update(data as Record<string, unknown>).eq('id', existing.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('family_sleep_schedule').update(data as any).eq('id', existing.id);
       if (error) { toast.error(error.message); return; }
     } else {
-      const { error } = await supabase.from('family_sleep_schedule').insert({ ...data, user_id: user.id } as Record<string, unknown>);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('family_sleep_schedule').insert({ ...data, user_id: user.id } as any);
       if (error) { toast.error(error.message); return; }
     }
     toast.success('Saved');

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface ActivityItem {
   id: string;
@@ -23,7 +24,7 @@ interface DbActivityItem {
   item_type: string;
   item_id: string;
   item_title: string | null;
-  details: Record<string, unknown> | null;
+  details: Json | null;
   created_at: string;
 }
 
@@ -78,7 +79,7 @@ export function useActivityFeed(userId: string | undefined) {
           itemType: item.item_type as 'task' | 'event',
           itemId: item.item_id,
           itemTitle: item.item_title || undefined,
-          details: item.details || undefined,
+          details: (item.details as Record<string, unknown> | null) || undefined,
           createdAt: new Date(item.created_at),
           actorName: profile?.name || 'Unknown',
           actorAvatar: profile?.avatar || undefined,
@@ -114,7 +115,7 @@ export function useActivityFeed(userId: string | undefined) {
         item_type: itemType,
         item_id: itemId,
         item_title: itemTitle,
-        details: details || {},
+        details: (details || {}) as Json,
       });
 
     if (error) {

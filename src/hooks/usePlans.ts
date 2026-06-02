@@ -6,14 +6,54 @@ import { useSharedRealtime } from './useSharedRealtime';
 import { toast } from 'sonner';
 
 // Custom tables not yet in the generated Supabase types
-type DbRow = Record<string, unknown>;
-type QueryChain = Promise<{ data: DbRow[] | null; error: unknown }> & {
-  eq(col: string, val: unknown): QueryChain;
-  order(col: string, opts?: Record<string, boolean>): QueryChain;
-  limit(n: number): QueryChain;
+interface DbRow {
+  id: string;
+  [key: string]: unknown;
+}
+interface PlanDbRow extends DbRow {
+  title: string;
+  description: string | null;
+  status: PlanStatus;
+  source: string;
+  channel: string;
+  step_count: number | null;
+  completed_step_count: number | null;
+  current_step_idx: number | null;
+  current_step: {
+    id: string;
+    idx: number | null;
+    title: string;
+    description: string | null;
+    status: PlanStepStatus;
+    requires_confirmation: boolean | null;
+    result_summary: string | null;
+    error_message: string | null;
+  } | null;
+  expires_at: string;
+  completed_at: string | null;
+  aborted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+interface StepDbRow extends DbRow {
+  idx: number | null;
+  title: string;
+  description: string | null;
+  status: PlanStepStatus;
+  requires_confirmation: boolean | null;
+  result_summary: string | null;
+  error_message: string | null;
+  tool_hint: string | null;
+  executed_at: string | null;
+  undo_log_id: string | null;
+}
+type QueryChain<T extends DbRow = DbRow> = Promise<{ data: T[] | null; error: unknown }> & {
+  eq(col: string, val: unknown): QueryChain<T>;
+  order(col: string, opts?: Record<string, boolean>): QueryChain<T>;
+  limit(n: number): QueryChain<T>;
 };
-function fromUntyped(table: string): { select(cols: string): QueryChain } {
-  return (supabase as unknown as { from: (t: string) => { select: (c: string) => QueryChain } }).from(table);
+function fromUntyped<T extends DbRow = DbRow>(table: string): { select(cols: string): QueryChain<T> } {
+  return (supabase as unknown as { from: (t: string) => { select: (c: string) => QueryChain<T> } }).from(table);
 }
 
 export type PlanStatus =
@@ -85,7 +125,7 @@ export function usePlans() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const { data, error } = await fromUntyped('dori_active_plans')
+      const { data, error } = await fromUntyped<PlanDbRow>('dori_active_plans')
         .select('*')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false })
@@ -95,7 +135,7 @@ export function usePlans() {
         id: r.id,
         title: r.title,
         description: r.description,
-        status: r.status as PlanStatus,
+        status: r.status,
         source: r.source,
         channel: r.channel,
         stepCount: Number(r.step_count ?? 0),
@@ -106,7 +146,7 @@ export function usePlans() {
           idx: Number(r.current_step.idx ?? 0),
           title: r.current_step.title,
           description: r.current_step.description ?? null,
-          status: r.current_step.status as PlanStepStatus,
+          status: r.current_step.status,
           requires_confirmation: !!r.current_step.requires_confirmation,
           result_summary: r.current_step.result_summary ?? null,
           error_message: r.current_step.error_message ?? null,
@@ -201,7 +241,7 @@ export function usePlans() {
 
   const fetchSteps = useCallback(async (planId: string): Promise<PlanStep[]> => {
     if (!user?.id) return [];
-    const { data, error } = await fromUntyped('dori_plan_steps')
+    const { data, error } = await fromUntyped<StepDbRow>('dori_plan_steps')
       .select('*')
       .eq('user_id', user.id)
       .eq('plan_id', planId)
@@ -215,7 +255,7 @@ export function usePlans() {
       idx: Number(r.idx ?? 0),
       title: r.title,
       description: r.description ?? null,
-      status: r.status as PlanStepStatus,
+      status: r.status,
       requires_confirmation: !!r.requires_confirmation,
       result_summary: r.result_summary ?? null,
       error_message: r.error_message ?? null,

@@ -112,9 +112,9 @@ export function ActivityFeed({ activities, loading }: ActivityFeedProps) {
                   </p>
                 )}
 
-                {activity.details?.assignee && (
+                {activity.details?.assignee != null && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Assigned to: {activity.details.assignee}
+                    Assigned to: {String(activity.details.assignee)}
                   </p>
                 )}
 

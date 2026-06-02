@@ -11,7 +11,7 @@ interface Memory {
   summary: string | null;
   occurred_on: string;
   location: string | null;
-  people: string[] | null;
+  people: Array<{ name: string; contact_id: string }> | null;
   tags: string[];
 }
 
@@ -44,7 +44,9 @@ export function EpisodicMemoriesCard() {
       </div>
       <div className="space-y-2">
         {memories.map((m) => {
-          const peopleCount = Array.isArray(m.people) ? m.people.length : 0;
+          const people = Array.isArray(m.people) ? m.people : [];
+          const peopleCount = people.length;
+          const peopleNames = people.map((p) => p.name).filter(Boolean).join(", ");
           return (
             <div key={m.id} className="p-2 rounded-md bg-muted/40 space-y-1">
               <div className="flex items-center justify-between gap-2">
@@ -64,7 +66,7 @@ export function EpisodicMemoriesCard() {
                 {peopleCount > 0 && (
                   <span className="flex items-center gap-1">
                     <Users className="w-3 h-3" />
-                    {peopleCount}
+                    {peopleNames || peopleCount}
                   </span>
                 )}
               </div>

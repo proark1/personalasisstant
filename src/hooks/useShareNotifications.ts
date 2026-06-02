@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface Notification {
   id: string;
@@ -12,21 +13,34 @@ export interface Notification {
   createdAt: Date;
 }
 
-export function useShareNotifications(userId: string | undefined) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+interface NotificationRow {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string | null;
+  data: Json | null;
+  is_read: boolean | null;
+  created_at: string;
+}
 
-  const mapDbToNotification = (row: Record<string, unknown>): Notification => ({
+function mapDbToNotification(row: NotificationRow): Notification {
+  return {
     id: row.id,
     userId: row.user_id,
     type: row.type,
     title: row.title,
     message: row.message,
-    data: row.data || {},
-    isRead: row.is_read,
+    data: (row.data as Record<string, unknown> | null) || {},
+    isRead: row.is_read ?? false,
     createdAt: new Date(row.created_at),
-  });
+  };
+}
+
+export function useShareNotifications(userId: string | undefined) {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
@@ -70,7 +84,7 @@ export function useShareNotifications(userId: string | undefined) {
         },
         (payload) => {
           console.log('[Notifications] New notification received:', payload.new);
-          const newNotification = mapDbToNotification(payload.new);
+          const newNotification = mapDbToNotification(payload.new as NotificationRow);
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
         }

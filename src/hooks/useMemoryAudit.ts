@@ -74,16 +74,16 @@ export function useMemoryAudit(opts: UseMemoryAuditOptions = {}) {
       const { data, error: dbErr } = await q;
       if (dbErr) throw dbErr;
       const rows: MemoryAuditItem[] = (data ?? []).map((r) => ({
-        sourceKind: r.source_kind,
-        sourceId: r.source_id,
-        subKind: r.sub_kind ?? null,
-        title: r.title ?? null,
-        content: r.content ?? null,
-        metadata: r.metadata ?? {},
+        sourceKind: r.source_kind as MemorySourceKind,
+        sourceId: r.source_id as string,
+        subKind: (r.sub_kind ?? null) as string | null,
+        title: (r.title ?? null) as string | null,
+        content: (r.content ?? null) as string | null,
+        metadata: (r.metadata ?? {}) as Record<string, unknown>,
         importance: r.importance != null ? Number(r.importance) : null,
         confidence: r.confidence != null ? Number(r.confidence) : null,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
+        createdAt: r.created_at as string,
+        updatedAt: r.updated_at as string,
       }));
       setItems(rows);
     } catch (e) {
@@ -104,13 +104,13 @@ export function useMemoryAudit(opts: UseMemoryAuditOptions = {}) {
         .limit(40);
       if (dbErr) throw dbErr;
       setRedactions((data ?? []).map((r) => ({
-        id: r.id,
-        targetKind: r.target_kind,
-        targetId: r.target_id ?? null,
-        reason: r.reason ?? null,
+        id: r.id as string,
+        targetKind: r.target_kind as string,
+        targetId: (r.target_id ?? null) as string | null,
+        reason: (r.reason ?? null) as string | null,
         cascadedCount: Number(r.cascaded_count ?? 0),
-        appliedBy: r.applied_by,
-        createdAt: r.created_at,
+        appliedBy: r.applied_by as 'user' | 'system',
+        createdAt: r.created_at as string,
       })));
     } catch (e) {
       console.warn('[useMemoryAudit] redactions failed', (e as Error).message);

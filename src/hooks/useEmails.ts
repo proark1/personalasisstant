@@ -142,7 +142,8 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
   const updateEmail = useCallback(async (emailId: string, updates: Partial<Email>) => {
     if (!user) return;
     try {
-      const { error } = await supabase.from('user_emails').update(updates as Partial<Record<string, unknown>>).eq('id', emailId).eq('user_id', user.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('user_emails').update(updates as any).eq('id', emailId).eq('user_id', user.id);
       if (error) throw error;
       setEmails(prev => prev.map(e => e.id === emailId ? { ...e, ...updates } : e));
     } catch (e) {
@@ -154,7 +155,8 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
   const batchUpdateEmails = useCallback(async (ids: string[], updates: Partial<Email>) => {
     if (!user || ids.length === 0) return;
     try {
-      const { error } = await supabase.from('user_emails').update(updates as Partial<Record<string, unknown>>).in('id', ids).eq('user_id', user.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('user_emails').update(updates as any).in('id', ids).eq('user_id', user.id);
       if (error) throw error;
       const idSet = new Set(ids);
       setEmails(prev => prev.map(e => idSet.has(e.id) ? { ...e, ...updates } : e));
@@ -236,10 +238,9 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
     const domain = email.from_email.split('@')[1];
     if (domain) {
       try {
-        await supabase.from('email_sender_rules').upsert(
-          { user_id: user.id, sender_pattern: `*@${domain}`, default_category: updates.category, default_priority: updates.priority_score } as Record<string, unknown>,
-          { onConflict: 'user_id,sender_pattern' }
-        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rulePayload = { user_id: user.id, sender_pattern: `*@${domain}`, default_category: updates.category, default_priority: updates.priority_score } as any;
+        await supabase.from('email_sender_rules').upsert(rulePayload, { onConflict: 'user_id,sender_pattern' });
       } catch (e) {
         console.error('Sender rule error:', e);
       }
@@ -250,7 +251,8 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
   const createSenderRule = useCallback(async (senderPattern: string, rule: { default_category?: string; default_priority?: number; auto_archive?: boolean }) => {
     if (!user) return;
     try {
-      const { error } = await supabase.from('email_sender_rules').upsert({ user_id: user.id, sender_pattern: senderPattern, ...rule } as Record<string, unknown>, { onConflict: 'user_id,sender_pattern' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('email_sender_rules').upsert({ user_id: user.id, sender_pattern: senderPattern, ...rule } as any, { onConflict: 'user_id,sender_pattern' });
       if (error) throw error;
       toast.success(`Rule created for ${senderPattern}`);
     } catch (e) {

@@ -86,32 +86,34 @@ export function useFamilyMemoryHome() {
 
   const addTradition = async (data: Partial<FamilyTradition>) => {
     if (!user) return;
-    const { error } = await supabase.from('family_traditions').insert({
-      ...data, user_id: user.id, title: data.title!, cadence: data.cadence || 'annual', is_active: true,
-    } as Record<string, unknown>);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const traditionPayload = { ...data, user_id: user.id, title: data.title!, cadence: data.cadence || 'annual', is_active: true } as any;
+    const { error } = await supabase.from('family_traditions').insert(traditionPayload);
     if (error) { toast.error(error.message); return; }
     toast.success('Tradition saved'); fetchAll();
   };
 
   const addPet = async (data: Partial<Pet>) => {
     if (!user) return;
-    const { error } = await supabase.from('pets').insert({ ...data, user_id: user.id, name: data.name! } as Record<string, unknown>);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await supabase.from('pets').insert({ ...data, user_id: user.id, name: data.name! } as any);
     if (error) { toast.error(error.message); return; }
     toast.success('Pet added'); fetchAll();
   };
 
   const addMaintenance = async (data: Partial<HouseholdMaintenanceItem>) => {
     if (!user) return;
-    const { error } = await supabase.from('household_maintenance').insert({
-      ...data, user_id: user.id, task_name: data.task_name!, is_active: true,
-    } as Record<string, unknown>);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const maintenancePayload = { ...data, user_id: user.id, task_name: data.task_name!, is_active: true } as any;
+    const { error } = await supabase.from('household_maintenance').insert(maintenancePayload);
     if (error) { toast.error(error.message); return; }
     toast.success('Maintenance task added'); fetchAll();
   };
 
   const addVehicle = async (data: Partial<VehicleRecord>) => {
     if (!user) return;
-    const { error } = await supabase.from('vehicle_records').insert({ ...data, user_id: user.id, nickname: data.nickname! } as Record<string, unknown>);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await supabase.from('vehicle_records').insert({ ...data, user_id: user.id, nickname: data.nickname! } as any);
     if (error) { toast.error(error.message); return; }
     toast.success('Vehicle added'); fetchAll();
   };

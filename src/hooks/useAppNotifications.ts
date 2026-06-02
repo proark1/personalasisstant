@@ -38,7 +38,8 @@ export function useAppNotifications() {
           type: options.type,
           title: options.title,
           message: options.message,
-          data: options.data || {},
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: (options.data || {}) as any,
           action_url: options.actionUrl,
           read: false,
         })

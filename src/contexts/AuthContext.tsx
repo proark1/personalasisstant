@@ -21,7 +21,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName?: string) => Promise<{ data: unknown; error: unknown }>;
   signIn: (email: string, password: string) => Promise<{ data: unknown; error: unknown }>;
   signOut: () => Promise<{ error: unknown }>;
-  updateProfile: (updates: Partial<Profile>) => Promise<{ data: unknown; error: unknown }>;
+  updateProfile: (updates: Partial<Profile>) => Promise<{ data?: unknown; error: unknown }>;
   /** Re-fetch the profile row (e.g. after onboarding completes). */
   refreshProfile: () => Promise<void>;
 }

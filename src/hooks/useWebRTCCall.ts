@@ -262,7 +262,7 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
         .on('broadcast', { event: 'answer' }, async ({ payload }) => {
           if (payload.from !== userId && payload.sdp) {
             console.log('Received answer');
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit));
           }
         })
         .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
@@ -359,7 +359,7 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
 
         try {
           console.log('[webrtc] received offer', { revision, iceRestart: !!payload.iceRestart });
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit));
 
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);

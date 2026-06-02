@@ -41,18 +41,20 @@ export default function ActivityPage() {
       // leave the page stuck on the skeleton forever — we either render
       // the rows we got or an explicit error state.
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const db = supabase as any;
         const [autoRes, undoRes, proactiveRes] = await Promise.all([
-          supabase.from('auto_actions_log')
+          db.from('auto_actions_log')
             .select('id, action_type, entity_type, reason, status, source, source_ref, created_at, approved_at, rejected_at, action_data')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(80),
-          supabase.from('dori_undo_log')
+          db.from('dori_undo_log')
             .select('id, op, entity_type, entity_id, label, consumed_at, created_at, source, source_ref')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(80),
-          supabase.from('dori_proactive_log')
+          db.from('dori_proactive_log')
             .select('id, trigger_type, trigger_key, channel, channel_ref, message, sent_at')
             .eq('user_id', user.id)
             .order('sent_at', { ascending: false })

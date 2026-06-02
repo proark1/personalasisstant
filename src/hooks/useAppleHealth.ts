@@ -74,17 +74,48 @@ const logHealthDebug = (label: string, extra?: Record<string, unknown>) => {
   }
 };
 
-// Dynamic import for HealthKit plugin (only on iOS)
-// The plugin shape is not fully typed in @flomentumsolutions/capacitor-health-extended
+// Dynamic import for HealthKit plugin (only on iOS).
+// The plugin shape is not fully typed in @flomentumsolutions/capacitor-health-extended,
+// so we describe only the result shapes actually consumed here so property access stays
+// type-checked. A single point-in-time reading (latest sample / single-value query).
+interface HealthSample {
+  value?: number;
+  timestamp?: string;
+  unit?: string;
+}
+
+// One day/bucket of an aggregated query result.
+interface HealthAggregatedBucket {
+  value?: number;
+  startDate: string;
+  endDate?: string;
+}
+
+interface HealthAggregatedResult {
+  aggregatedData?: HealthAggregatedBucket[];
+}
+
+// Aggregated query options passed to the native plugin.
+interface HealthAggregatedOptions {
+  dataType: string;
+  startDate: string;
+  endDate: string;
+  bucket: string;
+}
+
+// Accurate, narrow view of the native plugin methods we call. The dynamically
+// imported plugin object is cast to this so call sites are type-checked even
+// though the published package types don't match this usage exactly.
 interface HealthKitPlugin {
-  isHealthAvailable(): Promise<{ available: boolean }>;
+  isHealthAvailable(): Promise<{ available?: boolean }>;
   requestHealthPermissions(opts: { permissions: string[] }): Promise<unknown>;
-  querySteps(opts?: Record<string, unknown>): Promise<{ value?: number }>;
-  queryStepsRange(opts?: Record<string, unknown>): Promise<{ steps?: number[] }>;
-  queryLatestSample(opts: { dataType: string }): Promise<{ value?: number }>;
-  querySamples(opts?: Record<string, unknown>): Promise<{ samples?: unknown[] }>;
-  openHealthSettings?(): Promise<void>;
-  [key: string]: ((...args: unknown[]) => Promise<unknown>) | undefined;
+  querySteps(opts?: Record<string, unknown>): Promise<HealthSample>;
+  queryHeartRate(opts?: Record<string, unknown>): Promise<HealthSample>;
+  queryWeight(opts?: Record<string, unknown>): Promise<HealthSample>;
+  queryHeight(opts?: Record<string, unknown>): Promise<HealthSample>;
+  queryLatestSample(opts: { dataType: string }): Promise<HealthSample>;
+  queryAggregated(opts: HealthAggregatedOptions): Promise<HealthAggregatedResult>;
+  openAppleHealthSettings(): Promise<void>;
 }
 let Health: HealthKitPlugin | null = null;
 
@@ -93,7 +124,10 @@ const loadHealthKitPlugin = async () => {
     try {
       logHealthDebug('load_start');
       const module = await import('@flomentumsolutions/capacitor-health-extended');
-      Health = module.Health;
+      // The published HealthPlugin type doesn't match the native methods we call
+      // (queryAggregated, queryLatestSample, etc.), so cast through unknown to our
+      // accurate, narrow HealthKitPlugin view.
+      Health = module.Health as unknown as HealthKitPlugin;
       logHealthDebug('load_ok', { moduleKeys: Object.keys(module as Record<string, unknown>), pluginName: 'HealthPlugin' });
       return true;
     } catch (err) {

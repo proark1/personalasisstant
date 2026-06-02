@@ -72,14 +72,14 @@ export function useKnowledgeGraph(opts: UseKnowledgeGraphOptions = {}) {
       });
       if (rpcErr) throw rpcErr;
       const rows: KgEntity[] = ((data as Record<string, unknown>[]) ?? []).map((r) => ({
-        id: r.id,
-        kind: r.kind,
-        name: r.name,
-        description: r.description ?? null,
+        id: r.id as string,
+        kind: r.kind as KgEntityKind,
+        name: r.name as string,
+        description: (r.description ?? null) as string | null,
         importance: Number(r.importance ?? 0.5),
         mentionCount: Number(r.mention_count ?? 0),
-        lastMentionedAt: r.last_mentioned_at ?? null,
-        externalRefs: r.external_refs ?? {},
+        lastMentionedAt: (r.last_mentioned_at ?? null) as string | null,
+        externalRefs: (r.external_refs ?? {}) as Record<string, unknown>,
       }));
       setEntities(rows);
     } catch (e) {
@@ -100,11 +100,11 @@ export function useKnowledgeGraph(opts: UseKnowledgeGraphOptions = {}) {
       });
       if (rpcErr) throw rpcErr;
       return ((data as Record<string, unknown>[]) ?? []).map((r) => ({
-        entityId: r.entity_id,
-        name: r.name,
-        kind: r.kind,
+        entityId: r.entity_id as string,
+        name: r.name as string,
+        kind: r.kind as KgEntityKind,
         sharedMentions: Number(r.shared_mentions ?? 0),
-        lastCoMention: r.last_co_mention ?? null,
+        lastCoMention: (r.last_co_mention ?? null) as string | null,
       }));
     } catch (e) {
       console.warn('[useKnowledgeGraph] neighbors failed', (e as Error).message);

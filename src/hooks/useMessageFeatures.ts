@@ -213,7 +213,8 @@ export function useMessageFeatures() {
         recipient_id: recipientId,
         group_id: groupId,
         content,
-        attachments,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        attachments: attachments as any,
         scheduled_for: scheduledFor.toISOString(),
       });
 

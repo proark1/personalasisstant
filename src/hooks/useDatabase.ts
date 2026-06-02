@@ -236,13 +236,15 @@ export function useDatabase(userId: string | undefined) {
   const flushRunner = useCallback(async (entry: offlineQueue.OfflineQueueEntry) => {
     const table = entry.table as 'tasks' | 'events';
     if (entry.op === 'insert') {
-      // payload shape is validated before enqueueing; cast through unknown to satisfy strict TS
-      const { error } = (await supabase.from(table).insert([entry.payload as Record<string, unknown>])) as { error: Error | null };
+      // payload shape is validated before enqueueing; cast through any to satisfy strict TS
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = (await supabase.from(table).insert([entry.payload as any])) as { error: Error | null };
       if (error) throw error;
       return;
     }
     if (entry.op === 'update') {
-      let q = supabase.from(table).update(entry.payload as Record<string, unknown>);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let q = supabase.from(table).update(entry.payload as any);
       const id = entry.match?.id;
       if (Array.isArray(id)) {
         q = q.in('id', id as string[]);
@@ -364,7 +366,8 @@ export function useDatabase(userId: string | undefined) {
 
     const { data, error } = await supabase
       .from('tasks')
-      .insert([insertData as Record<string, unknown>])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert([insertData as any])
       .select()
       .maybeSingle();
 
@@ -838,13 +841,13 @@ export function useDatabase(userId: string | undefined) {
     }));
   }, []);
 
-  const removeShare = useCallback(async (shareId: string) => {
+  const removeShare = useCallback(async (shareId: string): Promise<{ error: string | null }> => {
     const { error } = await supabase
       .from('shared_items')
       .delete()
       .eq('id', shareId);
 
-    return { error };
+    return { error: error ? error.message : null };
   }, []);
 
   // Get unique contacts the user has shared items with before

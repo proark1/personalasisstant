@@ -34,7 +34,7 @@ import { CustomizableCard } from './CustomizableCard';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
 import { Sliders, Check } from 'lucide-react';
 import { useSmartTaskSuggestions } from '@/hooks/useSmartTaskSuggestions';
-import { Task, TaskCategory, CalendarEvent } from '@/types/flux';
+import { Task, TaskCategory, CalendarEvent, EventCategory } from '@/types/flux';
 import { Badge } from '@/components/ui/badge';
 import { isSameDay, subDays, startOfDay, endOfDay, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -71,7 +71,7 @@ interface DbTask {
 interface ContractAlert {
   id: string;
   name: string;
-  renewal_date: Date | null;
+  renewalDate: Date | null;
   cancellationNoticeDays: number;
   autoRenews: boolean;
 }
@@ -172,7 +172,7 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
         startTime: new Date(e.start_time),
         endTime: new Date(e.end_time),
         description: e.description || undefined,
-        category: e.category || undefined,
+        category: (e.category as EventCategory) || undefined,
       })));
     }
 

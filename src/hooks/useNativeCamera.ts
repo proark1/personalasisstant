@@ -56,7 +56,8 @@ export function useNativeCamera(): NativeCameraApi {
     try {
       const camera = await importOptional('@capacitor/camera');
       if (!camera) return null;
-      const { Camera, CameraResultType, CameraSource } = camera;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { Camera, CameraResultType, CameraSource } = camera as any;
       const photo = await Camera.getPhoto({
         quality: 80,
         allowEditing: false,

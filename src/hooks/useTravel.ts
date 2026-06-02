@@ -51,7 +51,8 @@ export function useTravel() {
   // tokens reissue `user` periodically without the id changing.
   useEffect(() => { if (userId) refresh(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const addTrip = async (p: Partial<Trip>) => { if (!user) return; const { error } = await supabase.from('trips').insert({ ...p, user_id: user.id, title: p.title!, destination: p.destination!, start_date: p.start_date!, end_date: p.end_date! }); if (error) return toast.error(error.message); toast.success('Trip added'); refresh(); };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const addTrip = async (p: Partial<Trip>) => { if (!user) return; const { error } = await supabase.from('trips').insert({ ...p as any, user_id: user.id, title: p.title!, destination: p.destination!, start_date: p.start_date!, end_date: p.end_date! }); if (error) return toast.error(error.message); toast.success('Trip added'); refresh(); };
   const addBooking = async (p: Partial<TripBooking>) => { if (!user) return; const { error } = await supabase.from('trip_bookings').insert({ ...p, user_id: user.id, booking_type: p.booking_type! }); if (error) return toast.error(error.message); toast.success('Booking added'); refresh(); };
   const addLoyalty = async (p: Partial<LoyaltyProgram>) => { if (!user) return; const { error } = await supabase.from('loyalty_programs').insert({ ...p, user_id: user.id, program_name: p.program_name! }); if (error) return toast.error(error.message); toast.success('Program added'); refresh(); };
   const addEssential = async (p: Partial<CountryEssential>) => { if (!user) return; const { error } = await supabase.from('country_essentials').upsert({ ...p, user_id: user.id, country: p.country! }, { onConflict: 'user_id,country' }); if (error) return toast.error(error.message); toast.success('Saved'); refresh(); };

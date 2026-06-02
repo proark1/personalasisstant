@@ -41,7 +41,8 @@ export function useSmartContactReminders({
 
     const existingContactIds = new Set(
       (existingNotifications || [])
-        .map((n: { data?: { contact_id?: string } }) => n.data?.contact_id)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((n: any) => (n.data as { contact_id?: string } | null)?.contact_id)
         .filter(Boolean)
     );
 
@@ -114,7 +115,8 @@ export function useSmartContactReminders({
     if (notifications.length > 0) {
       const { error } = await supabase
         .from('user_notifications')
-        .insert(notifications);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert(notifications as any);
 
       if (error) {
         console.error('Error creating contact reminders:', error);

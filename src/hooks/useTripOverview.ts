@@ -152,7 +152,8 @@ export function useTripOverview() {
       if (error) throw error;
       const summary = (w as Record<string, unknown>)?.summary as string | undefined;
       if (summary) {
-        await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
           .from('trips')
           .update({
             weather_summary: summary,
@@ -231,9 +232,11 @@ export function useTripOverview() {
     const items = [...(list.items ?? [])];
     if (!items[itemIndex]) return;
     items[itemIndex] = { ...items[itemIndex], packed: !items[itemIndex].packed };
-    const { error } = await supabase
+    // packing_lists is not in the generated Supabase types; use any to bypass type constraint
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
       .from('packing_lists')
-      .update({ items } as Parameters<typeof supabase.from<'packing_lists'>>[0] extends never ? never : Record<string, unknown>)
+      .update({ items })
       .eq('id', list.id);
     if (error) {
       toast.error(`Failed: ${error.message}`);

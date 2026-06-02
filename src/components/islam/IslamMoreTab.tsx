@@ -145,9 +145,18 @@ export function IslamMoreTab({ hijriToday, islamicEvents }: IslamMoreTabProps) {
     window.addEventListener('deviceorientation', handler, true);
   }, [stopCompassListener]);
 
+  // Fetch location once when entering the qibla view.
   useEffect(() => {
     if (subView === 'qibla' && !qiblaData) {
       getLocation();
+    }
+  }, [subView, qiblaData, getLocation]);
+
+  // Manage the compass listener for the lifetime of the qibla view — kept
+  // separate from the location fetch so loading qiblaData doesn't tear the
+  // listener down (and leave it stopped because !qiblaData is then false).
+  useEffect(() => {
+    if (subView === 'qibla') {
       if (isIOS() && typeof (DeviceOrientationEvent as unknown as { requestPermission?: unknown }).requestPermission === 'function') {
         // wait for manual trigger
       } else {
@@ -155,9 +164,8 @@ export function IslamMoreTab({ hijriToday, islamicEvents }: IslamMoreTabProps) {
         setCompassPermission('granted');
       }
     }
-    // Always tear the listener down when the qibla view closes or unmounts.
     return () => stopCompassListener();
-  }, [subView, qiblaData, getLocation, startCompassListener, stopCompassListener]);
+  }, [subView, startCompassListener, stopCompassListener]);
 
   const getQiblaRotation = (): number => {
     if (!qiblaData) return 0;

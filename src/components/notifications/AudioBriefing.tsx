@@ -20,7 +20,8 @@ interface AudioBriefingProps {
 
 export function AudioBriefing({ briefing, onClose: _onClose }: AudioBriefingProps) {
   const [playing, setPlaying] = useState(false);
-
+  // Reserved for async TTS generation; playback is currently synchronous so this stays false.
+  const [loading] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
 
   const generateBriefingScript = () => {

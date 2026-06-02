@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 // Dynamic imports for Capacitor plugins
 interface PushNotificationsPlugin {
   register(): Promise<void>;
+  requestPermissions(): Promise<{ receive: string }>;
   addListener(event: string, callback: (data: unknown) => void): void;
   removeAllListeners(): Promise<void>;
 }

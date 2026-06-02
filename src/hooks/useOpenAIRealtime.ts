@@ -222,7 +222,11 @@ export function useOpenAIRealtime({
   };
 
   // Handle function calls from OpenAI
-  const handleFunctionCall = useCallback(async (name: string, args: Record<string, unknown>, callId: string) => {
+  // `args` is the LLM tool-call argument bag: genuinely dynamic JSON whose
+  // shape varies per tool. Typing it precisely would mean a union of ~40 tool
+  // schemas; `any` is the correct, behavior-preserving choice here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleFunctionCall = useCallback(async (name: string, args: any, callId: string) => {
     // Read the latest operations + context from the ref so this callback
     // stays referentially stable (empty dep array below).
     const {
@@ -237,7 +241,11 @@ export function useOpenAIRealtime({
       sendDirectMessage, createStartupIdea, refetchStartupIdeas,
     } = opsRef.current;
     console.log('Function call:', name, args);
-    let result: Record<string, unknown> = { success: false, message: 'Unknown function' };
+    // `result` is a dynamic accumulator: each tool branch assigns a different
+    // shape (success/message plus tool-specific payloads). Keeping it `any`
+    // preserves the original behavior without inventing a union type.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let result: any = { success: false, message: 'Unknown function' };
     
     const tasks = contextData?.allTasks || [];
     const contacts = contextData?.allContacts || [];
@@ -352,18 +360,30 @@ export function useOpenAIRealtime({
           let relevantTasks: RealtimeTaskItem[] = [];
           let summary = '';
 
+          // `t.dueDate` is a `Date`, not a string. Normalize both sides to
+          // `YYYY-MM-DD` strings before comparing so date-only equality and
+          // ordering work correctly (the previous string casts crashed /
+          // compared wrong).
+          const dueDateStr = (t: RealtimeTaskItem) =>
+            t.dueDate ? new Date(t.dueDate as string | Date).toISOString().split('T')[0] : undefined;
           switch (args.type) {
             case 'today':
-              relevantTasks = tasks.filter(t => !t.completed && (t.dueDate as string | undefined)?.startsWith(todayStr));
+              relevantTasks = tasks.filter(t => !t.completed && dueDateStr(t) === todayStr);
               summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} task(s) due today` : 'No tasks due today';
               break;
             case 'overdue':
-              relevantTasks = tasks.filter(t => !t.completed && t.dueDate && (t.dueDate as string) < todayStr);
+              relevantTasks = tasks.filter(t => {
+                const d = dueDateStr(t);
+                return !t.completed && d !== undefined && d < todayStr;
+              });
               summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} overdue task(s)` : 'No overdue tasks';
               break;
             case 'upcoming': {
               const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-              relevantTasks = tasks.filter(t => !t.completed && t.dueDate && (t.dueDate as string) >= todayStr && (t.dueDate as string) <= nextWeek);
+              relevantTasks = tasks.filter(t => {
+                const d = dueDateStr(t);
+                return !t.completed && d !== undefined && d >= todayStr && d <= nextWeek;
+              });
               summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} task(s) coming up` : 'No upcoming tasks';
               break;
             }
@@ -564,11 +584,11 @@ export function useOpenAIRealtime({
               break;
           }
           
-          const query = (args.query || '').toLowerCase();
+          const query = String(args.query || '').toLowerCase();
           const matches = events.filter(e => {
             const eventStart = new Date(e.startTime as string);
             const inRange = eventStart >= startRange && eventStart <= endRange;
-            const matchesQuery = !query || e.title.toLowerCase().includes(String(query));
+            const matchesQuery = !query || (e.title || '').toLowerCase().includes(query);
             return inRange && matchesQuery;
           });
 
@@ -586,8 +606,8 @@ export function useOpenAIRealtime({
         }
         
         case 'update_event': {
-          const query = (String(args.event_query || '')).toLowerCase();
-          const matches = events.filter(e => e.title.toLowerCase().includes(query));
+          const query = String(args.event_query || '').toLowerCase();
+          const matches = events.filter(e => (e.title || '').toLowerCase().includes(query));
           
           if (matches.length === 0) {
             result = { success: false, message: `Could not find event matching "${args.event_query}"` };
@@ -613,8 +633,8 @@ export function useOpenAIRealtime({
         }
         
         case 'delete_event': {
-          const query = (String(args.event_query || '')).toLowerCase();
-          const matches = events.filter(e => e.title.toLowerCase().includes(query));
+          const query = String(args.event_query || '').toLowerCase();
+          const matches = events.filter(e => (e.title || '').toLowerCase().includes(query));
           
           if (matches.length === 0) {
             result = { success: false, message: `Could not find event matching "${args.event_query}"` };
@@ -715,12 +735,13 @@ export function useOpenAIRealtime({
           let yearlyTotal = 0;
 
           active.forEach(c => {
-            if (!c.costAmount) return;
+            const cost = Number(c.costAmount);
+            if (!cost) return;
             switch (c.costFrequency) {
-              case 'monthly': monthlyTotal += c.costAmount; yearlyTotal += c.costAmount * 12; break;
-              case 'quarterly': monthlyTotal += c.costAmount / 3; yearlyTotal += c.costAmount * 4; break;
-              case 'yearly': monthlyTotal += c.costAmount / 12; yearlyTotal += c.costAmount; break;
-              case 'one-time': yearlyTotal += c.costAmount; break;
+              case 'monthly': monthlyTotal += cost; yearlyTotal += cost * 12; break;
+              case 'quarterly': monthlyTotal += cost / 3; yearlyTotal += cost * 4; break;
+              case 'yearly': monthlyTotal += cost / 12; yearlyTotal += cost; break;
+              case 'one-time': yearlyTotal += cost; break;
             }
           });
           
@@ -1543,7 +1564,11 @@ export function useOpenAIRealtime({
         setTimeout(() => reject(new Error('Connection timeout - please check your internet connection and try again')), 30000);
       });
 
-      const { data, error } = await Promise.race([edgeFunctionPromise, timeoutPromise]) as { data: Record<string, unknown>; error: { message?: string } | null };
+      // The edge function response is a dynamic Supabase payload whose shape
+      // (client_secret.value, etc.) isn't typed upstream; `any` is the
+      // correct, behavior-preserving choice for reading nested fields off it.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await Promise.race([edgeFunctionPromise, timeoutPromise]) as { data: any; error: { message?: string } | null };
 
       assertStillActive('after token fetch');
       const tokenFetchEnd = performance.now();

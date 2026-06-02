@@ -174,6 +174,9 @@ serve(async (req) => {
           rank: i.rank,
           title: i.title,
           body: i.body || null,
+          // Carry the prior push state across the rebuild so a later run today
+          // still sees "already pushed" and doesn't re-send the Telegram message.
+          pushed_to_telegram: alreadyPushed,
         })),
       );
 

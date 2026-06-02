@@ -31,8 +31,8 @@ export function useTypingIndicator({ chatId, userId, userName }: UseTypingIndica
         const state = channel.presenceState();
         const users: TypingUser[] = [];
         
-        Object.values(state).forEach((presences: { user_id: string; user_name: string; typing: boolean }[]) => {
-          presences.forEach((presence) => {
+        Object.values(state).forEach((presences) => {
+          (presences as { user_id: string; user_name: string; typing: boolean; presence_ref: string }[]).forEach((presence) => {
             if (presence.user_id !== userId && presence.typing) {
               users.push({
                 id: presence.user_id,

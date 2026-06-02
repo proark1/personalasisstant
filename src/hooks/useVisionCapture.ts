@@ -170,9 +170,11 @@ export function useVisionCapture() {
   const discard = useCallback(async () => {
     if (!result) { reset(); return; }
     try {
-      await supabase
+      // vision_captures is not in the generated Supabase types; use any to bypass type constraint
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
         .from('vision_captures')
-        .update({ status: 'discarded' } as Parameters<ReturnType<typeof supabase.from<'vision_captures'>>['update']>[0])
+        .update({ status: 'discarded' })
         .eq('id', result.capture_id);
     } catch (e) {
       console.warn('[useVisionCapture] discard failed', (e as Error).message);

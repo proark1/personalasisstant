@@ -152,7 +152,8 @@ export function useFollowUpQueue() {
           follow_up_type: followUpType,
           check_at: checkAt.toISOString(),
           message_template: messageTemplate,
-          context: context || {},
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          context: (context || {}) as any,
         });
 
       if (error) throw error;

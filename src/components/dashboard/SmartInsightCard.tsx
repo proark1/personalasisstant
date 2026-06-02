@@ -17,7 +17,7 @@ interface Insight {
 
 interface TaskItem { completed?: boolean; trashed?: boolean; priority?: string; title?: string; }
 interface EmailItem { is_read?: boolean; user_archived?: boolean; priority_score?: number; from_name?: string; from_email?: string; subject?: string; }
-interface ContractItem { renewal_date?: string; name?: string; cost_amount?: number | string; }
+interface ContractItem { renewalDate?: Date | null; name?: string; cost_amount?: number | string; }
 interface ContactItem { id?: string; name?: string; last_contacted_at?: string | null; }
 interface EventItem { title?: string; }
 
@@ -96,13 +96,13 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
 
     // Contract insights
     const urgentContracts = contracts.filter((c) => {
-      if (!c.renewal_date) return false;
-      const days = differenceInDays(new Date(c.renewal_date), now);
+      if (!c.renewalDate) return false;
+      const days = differenceInDays(new Date(c.renewalDate), now);
       return days >= 0 && days <= 7;
     });
     if (urgentContracts.length > 0) {
       const c = urgentContracts[0];
-      const days = differenceInDays(new Date(c.renewal_date), now);
+      const days = differenceInDays(new Date(c.renewalDate!), now);
       result.push({
         id: 'contract-alert',
         icon: <FileText className="w-5 h-5" />,

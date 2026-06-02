@@ -737,7 +737,10 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
           itemTitle={shareDialog.name}
           onShare={(email, permission) => shareItem('contact', shareDialog.id, email, permission)}
           onGetSharedWith={() => getSharedWith('contact', shareDialog.id)}
-          onRemoveShare={removeShare}
+          onRemoveShare={async (shareId) => {
+            const { error } = await removeShare(shareId);
+            return { error: error ? error.message : null };
+          }}
           onGetRecentContacts={getRecentContacts}
           onClose={() => setShareDialog(null)}
         />

@@ -44,10 +44,11 @@ export default function Auth() {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
+          const msg = error instanceof Error ? error.message : String(error);
           toast({
             variant: 'destructive',
             title: t('auth.loginFailed'),
-            description: error.message,
+            description: msg,
           });
         } else {
           toast({
@@ -59,7 +60,8 @@ export default function Auth() {
       } else {
         const { error } = await signUp(email, password, displayName);
         if (error) {
-          if (error.message.includes('already registered')) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes('already registered')) {
             toast({
               variant: 'destructive',
               title: t('auth.accountExists'),
@@ -69,7 +71,7 @@ export default function Auth() {
             toast({
               variant: 'destructive',
               title: t('auth.signUpFailed'),
-              description: error.message,
+              description: msg,
             });
           }
         } else {

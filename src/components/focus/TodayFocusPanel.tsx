@@ -28,8 +28,9 @@ export function TodayFocusPanel({
   onToggleComplete,
 }: TodayFocusPanelProps) {
   const { todayMorning } = useDailyCheckins();
-  const now = useMemo(() => new Date(), []);
-  const todayEnd = useMemo(() => endOfDay(now), [now]);
+  // Compute "now" fresh on every render so "today"/"overdue" stay correct across midnight.
+  const now = new Date();
+  const todayEnd = endOfDay(now);
   const isWeekendDay = isWeekend(now);
 
   // Get overdue tasks (max 3 to reduce overwhelm)
@@ -51,12 +52,10 @@ export function TodayFocusPanel({
       });
   }, [tasks]);
 
-  // Get next upcoming event
-  const nextEvent = useMemo(() => {
-    return events
-      .filter(e => new Date(e.startTime) >= now && new Date(e.startTime) <= todayEnd)
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
-  }, [events, now, todayEnd]);
+  // Get next upcoming event — computed each render so it tracks the live `now`.
+  const nextEvent = events
+    .filter(e => new Date(e.startTime) >= now && new Date(e.startTime) <= todayEnd)
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
 
   // Get high priority incomplete tasks (if no due dates set)
   const highPriorityTasks = useMemo(() => {
@@ -66,8 +65,8 @@ export function TodayFocusPanel({
       .slice(0, 3);
   }, [tasks, todayTasks, overdueTasks]);
 
-  // AI suggestion for what to do first
-  const suggestion = useMemo(() => {
+  // AI suggestion for what to do first — computed each render so it tracks the live `now`.
+  const computeSuggestion = () => {
     if (overdueTasks.length > 0) {
       return `Start with "${overdueTasks[0].title}" - it's overdue and needs your attention`;
     }
@@ -85,7 +84,8 @@ export function TodayFocusPanel({
       return `Consider working on "${highPriorityTasks[0].title}" - it's high priority`;
     }
     return "You're all caught up! Great job!";
-  }, [overdueTasks, todayTasks, nextEvent, highPriorityTasks, now]);
+  };
+  const suggestion = computeSuggestion();
 
   const totalTasks = overdueTasks.length + todayTasks.length + highPriorityTasks.length;
   const hasNoTasks = totalTasks === 0;

@@ -24,7 +24,9 @@ interface Suggestion {
   category: string;
   suggested_action: string;
   reasoning: string | null;
-  suggested_payload: Record<string, unknown> | null;
+  // Dynamic JSON blob produced by the email classifier; fields are not statically known.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  suggested_payload: Record<string, any> | null;
 }
 
 const ACTION_LABEL: Record<string, string> = {
@@ -114,7 +116,9 @@ export function EmailActionPipelineCard({
     if (!user?.id) return;
     setApplyingId(item.id);
     try {
-      const p = item.suggested_payload || {};
+      // Suggested payload is a dynamic JSON blob from the email classifier (untyped fields).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p = (item.suggested_payload || {}) as Record<string, any>;
       const titleFromEmail = p.subject || p.title || 'From email';
       let createdLabel = 'Applied';
       const action = overrideAction || item.suggested_action;
