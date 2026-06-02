@@ -21,6 +21,7 @@ migration, evaluated in **UTC**:
 | Function | Schedule | Purpose |
 |---|---|---|
 | `briefing-dispatch-cron` | `*/15 * * * *` | Custom daily briefings (timezone-aware) |
+| `content-ideas-cron` | `*/15 * * * *` | Content Studio daily idea dispatcher (timezone-aware) |
 | `telegram-weekly-briefing` | `0 * * * *` | Weekly calendar briefing (Mon 08:00 local) |
 | `telegram-family-morning-digest` | `0 * * * *` | Family group morning digest |
 | `workspace-recap-cron` | `5 * * * *` | Friday team recap |
@@ -98,7 +99,7 @@ Tail the service logs — every fired job logs a line:
 
 ```
 [cron] health server on :8080
-[cron] scheduler started — 8 jobs, base=http://edge-runtime.railway.internal:9000
+[cron] scheduler started — 10 jobs, base=http://edge-runtime.railway.internal:9000
 [cron] briefing-dispatch-cron -> 200 (143ms)
 ```
 

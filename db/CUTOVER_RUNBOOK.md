@@ -8,6 +8,16 @@ functions to Node**.
 This avoids hand-rewriting ~850 client call sites. The frontend changes by a
 single env repoint; the work is infrastructure + RLS + the edge-function port.
 
+> **What actually shipped.** The Postgres/PostgREST/GoTrue/Realtime/Caddy-gateway
+> shape below is exactly what runs in production today. The one change from this
+> plan: the edge functions were **not** converted to Node. They run **unchanged as
+> Deno** on Supabase's open-source `edge-runtime` image, dispatched by
+> `supabase/functions/main/index.ts` — see [`../edge-runtime/README.md`](../edge-runtime/README.md).
+> Recurring jobs run on a custom scheduler ([`../cron/README.md`](../cron/README.md)),
+> and schema changes apply via a migrate-on-deploy service ([`MIGRATIONS.md`](./MIGRATIONS.md)).
+> Counts below were measured at cutover time (e.g. "103 edge functions"); the repo
+> now has 108. The runbook is otherwise current.
+
 ## Why this shape
 
 `supabase-js` is just a client for three OSS servers. Self-host them on Railway,

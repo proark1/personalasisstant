@@ -4,6 +4,16 @@ This is the working plan + runbook for moving the data layer (and eventually
 everything else) from Supabase to Railway Postgres + Auth.js + Node services.
 The migration is staged so the app keeps running between PRs.
 
+> **Status — superseded.** The phase plan below (Auth.js, converting Deno edge
+> functions to Node, replacing `supabase-js`) reflects the *original* direction.
+> The project ultimately chose a different shape: **self-host the open-source,
+> Supabase-compatible services on Railway** so `@supabase/supabase-js` and the
+> Deno edge functions keep working unchanged. See
+> [`CUTOVER_RUNBOOK.md`](./CUTOVER_RUNBOOK.md) for the approach that was actually
+> built, and [`../edge-runtime/README.md`](../edge-runtime/README.md) /
+> [`MIGRATIONS.md`](./MIGRATIONS.md) for how the live system runs today. This
+> file is kept for historical context (phases 1a–1c are still accurate).
+
 ## Phase plan
 
 | Phase | Scope | Status |
