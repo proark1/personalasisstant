@@ -16,7 +16,7 @@ interface BrainDumpFABProps {
   collapsed?: boolean;
 }
 
-export function BrainDumpFAB({ className, collapsed = false }: BrainDumpFABProps) {
+export function BrainDumpFAB({ className, collapsed: _collapsed = false }: BrainDumpFABProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [text, setText] = useState('');

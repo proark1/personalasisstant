@@ -28,7 +28,7 @@ const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
         if (haptic) {
           vibrate(haptic);
         }
-        onClick?.(e as any);
+        onClick?.(e as React.MouseEvent<HTMLDivElement>);
       },
       [haptic, vibrate, onClick]
     );

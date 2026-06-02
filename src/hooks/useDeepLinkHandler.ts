@@ -71,5 +71,6 @@ export function useDeepLinkHandler(opts: DeepLinkOptions = {}) {
     };
     window.addEventListener('dori:open-entity', handler as EventListener);
     return () => window.removeEventListener('dori:open-entity', handler as EventListener);
-  }, [navigate, opts.setActivePanel, opts.setSelectedProjectId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate, opts.setActivePanel, opts.setSelectedProjectId]); // opts object itself excluded — only the stable function refs matter
 }

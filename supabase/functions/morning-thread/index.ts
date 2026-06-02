@@ -31,7 +31,7 @@ serve(async (req) => {
     let userIds: string[] = body.user_id ? [body.user_id] : [];
     if (userIds.length === 0) {
       const { data: profiles } = await supabase.from("profiles").select("user_id");
-      userIds = (profiles || []).map((p: any) => p.user_id);
+      userIds = (profiles || []).map((p: Record<string, unknown>) => p.user_id as string);
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -146,6 +146,19 @@ serve(async (req) => {
       // Sort and persist
       items.sort((a, b) => a.rank - b.rank);
 
+      // Was today's thread already pushed to Telegram? The rebuild below clears
+      // the rows (resetting pushed_to_telegram), so capture this first — it keeps
+      // the push idempotent if the cron ever fires more than once in a day.
+      const { data: priorPush } = await supabase
+        .from("morning_thread_items")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("thread_date", today)
+        .eq("pushed_to_telegram", true)
+        .limit(1)
+        .maybeSingle();
+      const alreadyPushed = !!priorPush;
+
       // Clear today's items for clean rebuild
       await supabase
         .from("morning_thread_items")
@@ -161,11 +174,14 @@ serve(async (req) => {
           rank: i.rank,
           title: i.title,
           body: i.body || null,
+          // Carry the prior push state across the rebuild so a later run today
+          // still sees "already pushed" and doesn't re-send the Telegram message.
+          pushed_to_telegram: alreadyPushed,
         })),
       );
 
-      // Push ONE consolidated Telegram message
-      if (link?.chat_id) {
+      // Push ONE consolidated Telegram message (only once per day).
+      if (link?.chat_id && !alreadyPushed) {
         const message = [
           "🌅 *Morning thread*",
           "",

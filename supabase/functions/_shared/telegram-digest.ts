@@ -19,8 +19,11 @@ export interface DigestOpts {
   greeting?: boolean;
 }
 
+// Minimal Supabase client surface needed by this module.
+type DigestClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
 export async function buildSharedFamilyDigest(
-  supabase: any,
+  supabase: DigestClient,
   ids: string[],
   household: DigestHousehold,
   opts: DigestOpts = {},
@@ -52,9 +55,11 @@ export async function buildSharedFamilyDigest(
   ]);
 
   type Item = { when: Date; kind: 'event' | 'task'; title: string; location?: string | null; user_id: string; priority?: string | null };
+  interface DigestEvent { start_time: string; title: string; location?: string | null; user_id: string }
+  interface DigestTask { due_date: string; title: string; user_id: string; priority?: string | null }
   const items: Item[] = [];
-  (events || []).forEach((e: any) => items.push({ when: new Date(e.start_time), kind: 'event', title: e.title, location: e.location, user_id: e.user_id }));
-  (tasks || []).forEach((t: any) => items.push({ when: new Date(t.due_date), kind: 'task', title: t.title, user_id: t.user_id, priority: t.priority }));
+  (events as DigestEvent[] || []).forEach((e) => items.push({ when: new Date(e.start_time), kind: 'event', title: e.title, location: e.location, user_id: e.user_id }));
+  (tasks as DigestTask[] || []).forEach((t) => items.push({ when: new Date(t.due_date), kind: 'task', title: t.title, user_id: t.user_id, priority: t.priority }));
 
   items.sort((a, b) => {
     const at = a.when.getTime();

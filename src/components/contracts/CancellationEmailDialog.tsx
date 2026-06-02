@@ -65,7 +65,7 @@ export function CancellationEmailDialog({
         title: t('contracts.toast.copied'),
         description: t('contracts.toast.copiedDesc')
       });
-    } catch (err) {
+    } catch {
       toast({
         variant: 'destructive',
         title: t('contracts.toast.copyFailed'),

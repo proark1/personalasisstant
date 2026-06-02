@@ -107,7 +107,9 @@ export function useFinanceSummary() {
   useEffect(() => {
     if (!user?.id) return;
     const tables = ['financial_transactions', 'financial_accounts', 'bank_connections'];
-    const channels = tables.map((table) => (supabase as any)
+    type SupabaseUntyped = typeof supabase & { channel: (name: string) => { on: (...args: unknown[]) => { subscribe: () => unknown } }; removeChannel: (c: unknown) => void };
+    const db = supabase as unknown as SupabaseUntyped;
+    const channels = tables.map((table) => db
       .channel(`fin-${table}-${user.id}`)
       .on('postgres_changes', {
         event: '*',
@@ -117,7 +119,7 @@ export function useFinanceSummary() {
       }, () => { refresh(); })
       .subscribe(),
     );
-    return () => { channels.forEach((c) => (supabase as any).removeChannel(c)); };
+    return () => { channels.forEach((c) => db.removeChannel(c)); };
   }, [user?.id, refresh]);
 
   const syncAll = useCallback(async () => {
@@ -159,7 +161,7 @@ export function useFinanceSummary() {
       // Soft-delete is fine — RLS ensures only the owner can do it.
       // Plaid /item/remove can be wired in a follow-up; the upstream
       // token simply stops being usable when deleted here.
-      const { error } = await (supabase as any)
+      const { error } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
         .from('bank_connections')
         .delete()
         .eq('id', connectionId);
@@ -190,7 +192,8 @@ export function usePlaidLink() {
         body: { country_codes: countryCodes, language },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const dataObj = data as Record<string, unknown> | null;
+      if (dataObj?.error) throw new Error(String(dataObj.error));
       return data as { link_token: string; expiration: string; env: string };
     } catch (e) {
       toast.error(`Plaid link failed: ${(e as Error).message}`);

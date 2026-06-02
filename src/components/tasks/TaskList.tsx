@@ -538,8 +538,8 @@ export function TaskList({
   onShareTask,
   projects = [],
   contacts = [],
-  tags = [],
-  getTaskTags,
+  tags: _tags = [],
+  getTaskTags: _getTaskTags,
   compactMode = false,
 }: TaskListProps) {
   const { t, language } = useLanguage();

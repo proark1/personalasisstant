@@ -33,7 +33,7 @@ class ProgressiveLoader {
       return Promise.resolve();
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       const wrapped: LoadFn = async () => {
         try {
           await fn();

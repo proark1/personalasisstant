@@ -25,7 +25,7 @@ const priorityColors: Record<string, string> = {
 };
 
 export function HouseholdTasksList() {
-  const { tasks, isLoading, toggleComplete, deleteTask } = useHouseholdTasks();
+  const { tasks, isLoading, toggleComplete } = useHouseholdTasks();
   const { members } = useFamilyMembers();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('pending');

@@ -40,7 +40,7 @@ export function SavedMessagesDialog({
           <DialogTitle>Saved Messages</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'starred' | 'scheduled')}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="starred" className="gap-2">
               <Star className="w-4 h-4" />

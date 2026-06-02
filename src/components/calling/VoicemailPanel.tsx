@@ -19,7 +19,7 @@ interface VoicemailPanelProps {
   userId: string;
 }
 
-export function VoicemailPanel({ userId }: VoicemailPanelProps) {
+export function VoicemailPanel({ userId: _userId }: VoicemailPanelProps) {
   const { voicemails, markVoicemailRead, deleteVoicemail } = useCallFeatures();
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioRef, setAudioRef] = useState<HTMLAudioElement | null>(null);

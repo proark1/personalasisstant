@@ -97,22 +97,19 @@ export function HealthHubPanel() {
   // Re-fetch metrics when selected date changes (60-day window around it)
   useEffect(() => {
     if (!initialDateSet) return;
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
     const startDate = format(subDays(selectedDate, 30), 'yyyy-MM-dd');
     const endDate = format(addDays(selectedDate, 7), 'yyyy-MM-dd');
     refetch(startDate, endDate);
   }, [selectedDate, initialDateSet, refetch]);
   
   const {
-    medications,
-    appointments,
     isLoading: trackingLoading,
     getActiveMedications,
     getUpcomingAppointments,
     getMedicationsNeedingRefill,
   } = useHealthTracking();
 
-  const activeMedications = getActiveMedications();
+  const _activeMedications = getActiveMedications();
   const upcomingAppointments = getUpcomingAppointments();
   const refillNeeded = getMedicationsNeedingRefill();
 
@@ -1209,7 +1206,7 @@ export function HealthHubPanel() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-end gap-2 h-32">
-                    {weeklyData.map((day, i) => {
+                    {weeklyData.map((day) => {
                       const height = (day.steps / healthGoals.steps) * 100;
                       return (
                         <div key={day.date} className="flex-1 flex flex-col items-center gap-1">

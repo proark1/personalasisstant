@@ -100,7 +100,6 @@ export function useLifeScore() {
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       const startOfDay = `${today}T00:00:00`;
-      const endOfDay = `${today}T23:59:59`;
 
       // Fetch today's data from various sources
       const tasksResult = await supabase.from('tasks').select('id').eq('user_id', user.id).eq('completed', true);

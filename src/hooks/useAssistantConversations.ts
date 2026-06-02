@@ -223,7 +223,7 @@ export function useAssistantConversations() {
     } catch (error) {
       console.error('Error deleting conversation:', error);
     }
-  }, []);
+  }, [user?.id]);
 
   return {
     conversations,

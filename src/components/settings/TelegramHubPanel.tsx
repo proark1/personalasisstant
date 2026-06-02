@@ -97,6 +97,7 @@ export function TelegramHubPanel() {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchLink(); }, [user]);
 
   useEffect(() => {
@@ -107,6 +108,7 @@ export function TelegramHubPanel() {
       fetchLink();
     }, 8000);
     return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, groupCode, link?.is_active, group?.is_active]);
 
   const handleGenerate = async () => {

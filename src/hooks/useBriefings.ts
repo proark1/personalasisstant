@@ -39,7 +39,7 @@ export const DEFAULT_NEW_BRIEFING: NewBriefing = {
 // `briefings` is a newly added table not yet in the generated Supabase types,
 // so we access it through an untyped client handle.
 const db = supabase as unknown as {
-  from: (table: string) => any;
+  from: (table: string) => ReturnType<typeof supabase.from>;
   functions: typeof supabase.functions;
 };
 

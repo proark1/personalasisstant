@@ -62,7 +62,7 @@ const PRESET_TEMPLATES: Omit<TaskTemplate, 'id' | 'createdAt'>[] = [
 
 export function TaskTemplates({ onCreateFromTemplate }: TaskTemplatesProps) {
   const { t } = useLanguage();
-  const { templates, createTemplate, deleteTemplate, loading } = useTaskTemplates();
+  const { templates, createTemplate, deleteTemplate } = useTaskTemplates();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newTemplate, setNewTemplate] = useState<Omit<TaskTemplate, 'id' | 'createdAt'>>({
     name: '',

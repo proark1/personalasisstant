@@ -45,7 +45,7 @@ export function respondError(
   // Decide what to tell the client. Code-tagged errors (`(err as any).code`)
   // are intentional surfaces — pass their message through. Everything
   // else gets a generic.
-  const errCode = (err as any).code || opts.code;
+  const errCode = (err as Error & { code?: string }).code || opts.code;
   const clientMessage = opts.publicMessage
     || (errCode && isSafeMessage(err.message) ? err.message : 'Internal error.');
 

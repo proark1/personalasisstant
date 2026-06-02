@@ -17,28 +17,31 @@ export interface CreatorProfileRow extends CreatorProfileLike {
   last_generated_on: string | null;
 }
 
+// Minimal Supabase admin client surface needed by this module.
+type ContentAdminClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
 // Headlines from the last `days` days, lowercased, so the generator can avoid
 // repeating itself across daily batches.
-export async function recentHeadlines(admin: any, userId: string, days = 7): Promise<string[]> {
+export async function recentHeadlines(admin: ContentAdminClient, userId: string, days = 7): Promise<string[]> {
   const since = new Date(Date.now() - days * 86_400_000).toISOString().split("T")[0];
-  const { data } = await admin
+  const { data } = await (admin
     .from("content_ideas")
     .select("headline")
     .eq("user_id", userId)
     .gte("generated_on", since)
-    .limit(120);
-  return (data || []).map((r: any) => String(r.headline || "")).filter(Boolean);
+    .limit(120) as Promise<{ data: { headline?: unknown }[] | null }>);
+  return (data || []).map((r) => String(r.headline || "")).filter(Boolean);
 }
 
 // Replace the day's not-yet-actioned ideas with a fresh batch. Ideas the user
 // already liked / dismissed / scheduled today are preserved — only 'new' ones
 // for `generatedOn` are cleared before inserting.
 export async function persistDailyBatch(
-  admin: any,
+  admin: ContentAdminClient,
   userId: string,
   ideas: ContentIdea[],
   generatedOn: string,
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   const { error: deleteError } = await admin
     .from("content_ideas")
     .delete()

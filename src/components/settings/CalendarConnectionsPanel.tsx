@@ -249,7 +249,7 @@ export function CalendarConnectionsPanel() {
       setCalendarName('');
       if (fileInputRef.current) fileInputRef.current.value = '';
       refetch();
-    } catch (error: any) {
+    } catch (error) {
       console.error('ICS import error:', error);
       toast({ title: 'Import failed', description: await describeEdgeError(error, 'Failed to import.'), variant: 'destructive' });
     } finally {

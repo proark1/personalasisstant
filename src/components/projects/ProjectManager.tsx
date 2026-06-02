@@ -52,7 +52,7 @@ export function ProjectManager({
   onAddTask,
 }: ProjectManagerProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [_editingId, setEditingId] = useState<string | null>(null);
   const [newProject, setNewProject] = useState({ name: '', description: '', color: '#3b82f6' });
 
   const activeProjects = projects.filter(p => !p.isArchived);

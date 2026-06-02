@@ -646,9 +646,9 @@ export function toolCallsToLegacyXml(toolCalls: Array<{ id?: string; function: {
   const parts: string[] = [];
   for (const tc of toolCalls) {
     const name = tc.function?.name;
-    let args: any;
+    let args: Record<string, unknown>;
     try {
-      args = JSON.parse(tc.function?.arguments || '{}');
+      args = JSON.parse(tc.function?.arguments || '{}') as Record<string, unknown>;
     } catch {
       // No naive single-quote-to-double-quote repair: it corrupts any
       // string value that legitimately contains an apostrophe (e.g.
@@ -663,7 +663,7 @@ export function toolCallsToLegacyXml(toolCalls: Array<{ id?: string; function: {
   return parts.filter(Boolean).join('\n');
 }
 
-function renderLegacy(name: string, args: any): string {
+function renderLegacy(name: string, args: Record<string, unknown>): string {
   // Map back to the XML shape the existing parser expects. Each tool has
   // its own outer/inner tag pair — see the table inside chat/index.ts.
   switch (name) {

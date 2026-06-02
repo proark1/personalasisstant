@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface ActivityItem {
   id: string;
@@ -9,7 +10,7 @@ export interface ActivityItem {
   itemType: 'task' | 'event';
   itemId: string;
   itemTitle?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   createdAt: Date;
   actorName?: string;
   actorAvatar?: string;
@@ -23,7 +24,7 @@ interface DbActivityItem {
   item_type: string;
   item_id: string;
   item_title: string | null;
-  details: Record<string, any> | null;
+  details: Json | null;
   created_at: string;
 }
 
@@ -78,7 +79,7 @@ export function useActivityFeed(userId: string | undefined) {
           itemType: item.item_type as 'task' | 'event',
           itemId: item.item_id,
           itemTitle: item.item_title || undefined,
-          details: item.details || undefined,
+          details: (item.details as Record<string, unknown> | null) || undefined,
           createdAt: new Date(item.created_at),
           actorName: profile?.name || 'Unknown',
           actorAvatar: profile?.avatar || undefined,
@@ -99,7 +100,7 @@ export function useActivityFeed(userId: string | undefined) {
     itemId: string,
     itemTitle?: string,
     targetUserId?: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) => {
     if (!userId) return;
 
@@ -114,7 +115,7 @@ export function useActivityFeed(userId: string | undefined) {
         item_type: itemType,
         item_id: itemId,
         item_title: itemTitle,
-        details: details || {},
+        details: (details || {}) as Json,
       });
 
     if (error) {
@@ -137,7 +138,7 @@ export function useActivityFeed(userId: string | undefined) {
           schema: 'public',
           table: 'activity_feed',
         },
-        (payload) => {
+        (_payload) => {
           // Refresh activities when new one is added
           fetchActivities();
         }

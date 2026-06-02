@@ -23,7 +23,7 @@ const appointmentTypeColors: Record<string, string> = {
 
 export function HealthTrackingPanel() {
   const { 
-    medications, appointments, vaccinations, isLoading,
+    appointments, vaccinations, isLoading,
     deleteMedication, deleteAppointment, deleteVaccination,
     updateAppointment, getActiveMedications, getMedicationsNeedingRefill
   } = useHealthTracking();

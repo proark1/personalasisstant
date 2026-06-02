@@ -205,7 +205,7 @@ export function ScheduleCallDialog({
 
             <div className="space-y-2">
               <Label>Call Type</Label>
-              <Select value={callType} onValueChange={(v) => setCallType(v as any)}>
+              <Select value={callType} onValueChange={(v) => setCallType(v as 'video' | 'audio')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

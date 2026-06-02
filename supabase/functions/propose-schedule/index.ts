@@ -163,13 +163,13 @@ serve(async (req) => {
         .limit(20),
     ]);
 
-    const tasks = (tasksRes.data ?? []) as any[];
-    const events = (eventsRes.data ?? []) as any[];
-    const checkins = (checkinsRes.data ?? []) as any[];
-    const energyProfile = (energyRes.data ?? null) as any;
+    const tasks = (tasksRes.data ?? []) as Record<string, unknown>[];
+    const events = (eventsRes.data ?? []) as Record<string, unknown>[];
+    const checkins = (checkinsRes.data ?? []) as Record<string, unknown>[];
+    const energyProfile = (energyRes.data ?? null) as Record<string, unknown> | null;
     const slipMap = new Map<string, number>();
-    for (const r of (slipRes.data ?? []) as any[]) slipMap.set(r.task_id, Number(r.slip_risk));
-    const stats = (statsRes.data ?? []) as any[];
+    for (const r of (slipRes.data ?? []) as Array<{ task_id: string; slip_risk: number }>) slipMap.set(r.task_id, Number(r.slip_risk));
+    const stats = (statsRes.data ?? []) as Record<string, unknown>[];
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiKey) return json({ error: 'AI not configured' }, 503);
@@ -177,8 +177,9 @@ serve(async (req) => {
     try {
       await assertWithinQuota(admin, user.id);
     } catch (e) {
-      const code = (e as any)?.code;
-      return json({ error: (e as Error).message, code }, code === 'quota_exceeded' ? 429 : 500);
+      const code = (e instanceof Object && 'code' in e) ? (e as { code?: string }).code : undefined;
+      const errMsg = e instanceof Error ? e.message : String(e);
+      return json({ error: errMsg, code }, code === 'quota_exceeded' ? 429 : 500);
     }
 
     // ---- 2. Render the prompt. Keep it tight; the model doesn't
@@ -212,7 +213,7 @@ serve(async (req) => {
     const startMs = Date.now();
     // Native generateContent + responseSchema (the OpenAI-compat endpoint with
     // forced tool_choice fails in our deployment).
-    let parsed: any;
+    let parsed: Record<string, unknown>;
     try {
       parsed = await generateStructured({
         system: SYSTEM_PROMPT,
@@ -222,7 +223,7 @@ serve(async (req) => {
         timeoutMs: 50_000,
       });
     } catch (e) {
-      return json({ error: (e as Error).message }, 502);
+      return json({ error: e instanceof Error ? e.message : String(e) }, 502);
     }
     const generationMs = Date.now() - startMs;
 

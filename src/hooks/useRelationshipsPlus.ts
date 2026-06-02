@@ -25,10 +25,10 @@ export function useRelationshipsPlus() {
         supabase.from('friend_circles').select('*').eq('user_id', user.id).order('name'),
         supabase.from('friend_circle_members').select('*').eq('user_id', user.id),
       ]);
-      setSpecialDates((s.data as any) || []); setGifts((g.data as any) || []); setCircles((c.data as any) || []); setCircleMembers((m.data as any) || []);
+      setSpecialDates((s.data as SpecialDate[]) || []); setGifts((g.data as Gift[]) || []); setCircles((c.data as FriendCircle[]) || []); setCircleMembers((m.data as FriendCircleMember[]) || []);
     } finally { setIsLoading(false); }
   };
-  useEffect(() => { if (user) refresh(); }, [user]);
+  useEffect(() => { if (user) refresh(); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addSpecialDate = async (p: Partial<SpecialDate>) => { if (!user) return; const { error } = await supabase.from('contact_special_dates').insert({ ...p, user_id: user.id, date_type: p.date_type || 'birthday', occurs_on: p.occurs_on! }); if (error) return toast.error(error.message); toast.success('Added'); refresh(); };
   const addGift = async (p: Partial<Gift>) => { if (!user) return; const { error } = await supabase.from('gift_log').insert({ ...p, user_id: user.id, gift_description: p.gift_description!, given_on: p.given_on || new Date().toISOString().slice(0,10) }); if (error) return toast.error(error.message); toast.success('Added'); refresh(); };

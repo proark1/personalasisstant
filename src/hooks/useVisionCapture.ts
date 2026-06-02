@@ -126,7 +126,7 @@ export function useVisionCapture() {
         },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      if ((data as Record<string, unknown>)?.error) throw new Error((data as Record<string, unknown>).error as string);
       const r = data as VisionExtractResult;
       setResult(r);
       return r;
@@ -153,11 +153,12 @@ export function useVisionCapture() {
         },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const created = (data as any)?.created_entity_kind;
-      toast.success(created ? `Saved as ${humanLabel(created)}` : ((data as any).warning ?? 'Saved'));
+      const dataRecord = data as Record<string, unknown>;
+      if (dataRecord?.error) throw new Error(dataRecord.error as string);
+      const created = dataRecord?.created_entity_kind as string | null;
+      toast.success(created ? `Saved as ${humanLabel(created)}` : ((dataRecord?.warning as string | undefined) ?? 'Saved'));
       reset();
-      return data as any;
+      return data as { created_entity_kind: string | null; created_entity_id: string | null };
     } catch (e) {
       toast.error(await describeEdgeError(e, 'Commit failed'));
       return null;
@@ -169,6 +170,8 @@ export function useVisionCapture() {
   const discard = useCallback(async () => {
     if (!result) { reset(); return; }
     try {
+      // vision_captures is not in the generated Supabase types; use any to bypass type constraint
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any)
         .from('vision_captures')
         .update({ status: 'discarded' })

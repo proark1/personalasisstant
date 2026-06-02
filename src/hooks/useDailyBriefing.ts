@@ -52,7 +52,7 @@ export function useDailyBriefing() {
       };
       setBriefing(result);
       localStorage.setItem(CACHE_KEY, JSON.stringify(result));
-    } catch (e: any) {
+    } catch (e) {
       console.error('Daily briefing error:', e);
       setError(await describeEdgeError(e, 'Failed to generate briefing'));
     } finally {
@@ -64,7 +64,8 @@ export function useDailyBriefing() {
     if (user && !briefing) {
       fetchBriefing();
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // intentionally omits briefing/fetchBriefing — runs once when user becomes available
 
   return { briefing, loading, error, refresh: () => fetchBriefing(true) };
 }

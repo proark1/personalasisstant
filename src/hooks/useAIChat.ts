@@ -159,7 +159,7 @@ interface ToolCall {
   draftEmailReply?: DraftEmailReplyData;
 }
 
-interface RelevantContact {
+interface _RelevantContact {
   name: string;
   role?: string;
   company?: string;

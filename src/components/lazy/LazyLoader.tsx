@@ -10,6 +10,7 @@ interface LazyLoaderProps {
  * Retry wrapper for dynamic imports that may fail due to network issues
  * Retries up to 3 times with exponential backoff
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function retryImport<T>(
   importFn: () => Promise<T>,
   retries = 3,
@@ -30,7 +31,8 @@ export function retryImport<T>(
 /**
  * Create a lazy component with retry logic for failed imports
  */
-export function lazyWithRetry<T extends ComponentType<any>>(
+// eslint-disable-next-line react-refresh/only-export-components
+export function lazyWithRetry<T extends ComponentType<unknown>>(
   importFn: () => Promise<{ default: T }>
 ) {
   return lazy(() => retryImport(importFn));
@@ -103,6 +105,7 @@ export function LazyLoader({ children, fallback }: LazyLoaderProps) {
 /**
  * Higher-order component to wrap a lazy component with Suspense
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function withLazyLoading<P extends object>(
   LazyComponent: ComponentType<P>,
   FallbackComponent: ComponentType = DefaultFallback

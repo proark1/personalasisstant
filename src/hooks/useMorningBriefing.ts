@@ -71,6 +71,8 @@ export function useMorningBriefing() {
       setShouldAutoPlay(false);
       setHasPlayedToday(true);
     }
+  // fetchAndPlayBriefing intentionally excluded to avoid triggering re-subscriptions
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldAutoPlay, hasPlayedToday]);
 
   const fetchBriefing = useCallback(async () => {

@@ -73,7 +73,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, decision: 'rejected' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const toolXml = (action.action_data as any)?.tool_xml as string | undefined;
+    const toolXml = (action.action_data as Record<string, unknown>)?.tool_xml as string | undefined;
     if (!toolXml) {
       await admin.from('auto_actions_log').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', actionId);
       return new Response(JSON.stringify({ ok: true, decision: 'approved', message: 'Marked approved (no tool to execute)' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -102,7 +102,7 @@ serve(async (req) => {
     await admin.from('auto_actions_log').update({
       status: 'approved',
       approved_at: new Date().toISOString(),
-      action_data: { ...(action.action_data as any), execution_result: data?.toolResults || data },
+      action_data: { ...(action.action_data as Record<string, unknown>), execution_result: data?.toolResults || data },
     }).eq('id', actionId);
 
     return new Response(JSON.stringify({ ok: true, decision: 'approved', result: data?.toolResults || data }), {

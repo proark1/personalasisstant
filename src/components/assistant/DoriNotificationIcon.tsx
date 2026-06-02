@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 // Map entity types to routes
 const getEntityRoute = (reminder: ProactiveReminder): string | null => {
   const entityType = reminder.trigger_entity_type;
-  const entityId = reminder.trigger_entity_id;
+  const _entityId = reminder.trigger_entity_id;
   
   if (!entityType) return null;
   

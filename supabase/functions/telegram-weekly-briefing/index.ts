@@ -14,7 +14,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!;
 const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -64,20 +63,39 @@ function localParts(now: Date, tz: string) {
   return { weekday, hour, date };
 }
 
-async function loadTimezoneMap(supabase: any, userIds: string[]): Promise<Map<string, string>> {
+type SupabaseClient = ReturnType<typeof createClient>;
+
+interface TelegramLink {
+  user_id: string;
+  chat_id: number | string;
+  telegram_first_name?: string | null;
+  weekly_briefing_enabled?: boolean | null;
+  weekly_briefing_last_sent_on?: string | null;
+}
+
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  location?: string | null;
+  user_id: string;
+}
+
+async function loadTimezoneMap(supabase: SupabaseClient, userIds: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   if (userIds.length === 0) return map;
   const [{ data: locs }, { data: profiles }] = await Promise.all([
     supabase.from('user_location_settings').select('user_id, timezone').in('user_id', userIds),
     supabase.from('profiles').select('user_id, timezone').in('user_id', userIds),
   ]);
-  (profiles || []).forEach((p: any) => { if (p.timezone) map.set(p.user_id, p.timezone); });
+  (profiles || []).forEach((p: { user_id: string; timezone?: string | null }) => { if (p.timezone) map.set(p.user_id, p.timezone); });
   // Location settings win over profile when both exist.
-  (locs || []).forEach((l: any) => { if (l.timezone) map.set(l.user_id, l.timezone); });
+  (locs || []).forEach((l: { user_id: string; timezone?: string | null }) => { if (l.timezone) map.set(l.user_id, l.timezone); });
   return map;
 }
 
-function buildBriefing(events: any[], tz: string, firstName: string | null): string {
+function buildBriefing(events: CalendarEvent[], tz: string, firstName: string | null): string {
   const now = new Date();
   const dayKey = (d: Date) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
@@ -149,15 +167,15 @@ Deno.serve(async (req) => {
     });
   }
 
-  const candidates = (links || []).filter((l: any) => force || l.weekly_briefing_enabled !== false);
+  const candidates = (links as TelegramLink[] || []).filter((l) => force || l.weekly_briefing_enabled !== false);
   const now = new Date();
 
   // Batch-fetch timezones once, then resolve per-user locally.
-  const tzMap = await loadTimezoneMap(supabase, candidates.map((l: any) => l.user_id));
+  const tzMap = await loadTimezoneMap(supabase, candidates.map((l) => l.user_id));
   const tzOf = (uid: string) => tzMap.get(uid) || 'UTC';
 
   // Decide who to send to before doing any work.
-  const targets = candidates.filter((link: any) => {
+  const targets = candidates.filter((link) => {
     if (force) return true;
     const { weekday, hour, date } = localParts(now, tzOf(link.user_id));
     if (weekday !== TARGET_WEEKDAY) return false;
@@ -173,8 +191,8 @@ Deno.serve(async (req) => {
 
   // Pre-fetch all upcoming events in a single query, then group per user.
   const horizonEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const targetIds = targets.map((t: any) => t.user_id);
-  const eventsByUser = new Map<string, any[]>();
+  const targetIds = targets.map((t) => t.user_id);
+  const eventsByUser = new Map<string, CalendarEvent[]>();
   if (targetIds.length > 0) {
     const { data: events } = await supabase
       .from('events')
@@ -184,7 +202,7 @@ Deno.serve(async (req) => {
       .lte('start_time', horizonEnd)
       .order('start_time')
       .limit(targetIds.length * 50);
-    (events || []).forEach((e: any) => {
+    (events as CalendarEvent[] || []).forEach((e) => {
       const list = eventsByUser.get(e.user_id) || [];
       list.push(e);
       eventsByUser.set(e.user_id, list);
@@ -192,12 +210,12 @@ Deno.serve(async (req) => {
   }
 
   // Send in parallel batches.
-  async function dispatchOne(link: any) {
+  async function dispatchOne(link: TelegramLink) {
     try {
       const tz = tzOf(link.user_id);
       const { date } = localParts(now, tz);
       const userEvents = eventsByUser.get(link.user_id) || [];
-      const text = buildBriefing(userEvents, tz, link.telegram_first_name);
+      const text = buildBriefing(userEvents, tz, link.telegram_first_name ?? null);
       const ok = await tgSend(Number(link.chat_id), text);
       if (!ok) { failed++; errors.push(`${link.user_id}: send failed`); return; }
       await supabase
@@ -205,9 +223,9 @@ Deno.serve(async (req) => {
         .update({ weekly_briefing_last_sent_on: date })
         .eq('user_id', link.user_id);
       sent++;
-    } catch (e: any) {
+    } catch (e) {
       failed++;
-      errors.push(`${link.user_id}: ${e?.message || String(e)}`);
+      errors.push(`${link.user_id}: ${e instanceof Error ? e.message : String(e)}`);
       console.error('weekly briefing failed for', link.user_id, e);
     }
   }

@@ -64,13 +64,13 @@ async function call<T>(
     signal: AbortSignal.timeout(KEEPALIVE_MS),
   });
   const text = await res.text();
-  let parsed: any = null;
-  try { parsed = JSON.parse(text); } catch { /* keep as text */ }
+  let parsed: Record<string, unknown> | null = null;
+  try { parsed = JSON.parse(text) as Record<string, unknown>; } catch { /* keep as text */ }
   if (!res.ok) {
     const err = parsed?.error_code || parsed?.error_message || text || `HTTP ${res.status}`;
     const e = new Error(`Plaid ${path} failed: ${err}`);
-    (e as any).plaidError = parsed;
-    (e as any).status = res.status;
+    (e as Error & { plaidError: unknown; status: number }).plaidError = parsed;
+    (e as Error & { plaidError: unknown; status: number }).status = res.status;
     throw e;
   }
   return parsed as T;

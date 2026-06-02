@@ -64,8 +64,8 @@ serve(async (req) => {
       totals.pushed += r.pushed;
       totals.errors += r.errors.length;
       totals.connections++;
-    } catch (e: any) {
-      console.error(`calendar-sync-all: connection ${conn.id} failed:`, e?.message || e);
+    } catch (e) {
+      console.error(`calendar-sync-all: connection ${conn.id} failed:`, e instanceof Error ? e.message : e);
       totals.errors++;
     }
   }

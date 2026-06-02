@@ -21,7 +21,7 @@ export interface BriefingDelivery {
 
 // `briefing_deliveries` is a newly added table not yet in the generated
 // Supabase types, so we access it through an untyped client handle.
-const db = supabase as unknown as { from: (table: string) => any };
+const db = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
 
 export function useBriefingDeliveries(limit = 10) {
   const { user } = useAuth();
@@ -40,8 +40,17 @@ export function useBriefingDeliveries(limit = 10) {
       if (error) {
         console.error('Error fetching briefing deliveries:', error);
       } else {
+        interface DeliveryRow {
+          id: string;
+          briefing_id: string | null;
+          generated_at: string;
+          content: BriefingNewsItem[] | null;
+          channels_sent: string[] | null;
+          status: string;
+          briefings?: { name: string } | null;
+        }
         setDeliveries(
-          (data || []).map((row: any) => ({
+          (data || []).map((row: DeliveryRow) => ({
             id: row.id,
             briefing_id: row.briefing_id,
             briefing_name: row.briefings?.name ?? null,

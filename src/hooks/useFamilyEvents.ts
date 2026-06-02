@@ -57,7 +57,8 @@ export function useFamilyEvents() {
 
   useEffect(() => {
     fetchEvents();
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // intentionally excludes fetchEvents — plain function recreated each render
 
   const addEvent = async (event: Omit<FamilyEventInsert, 'user_id'>) => {
     if (!user) return null;
@@ -83,7 +84,7 @@ export function useFamilyEvents() {
       notifyEventCreated(data.title, data.id);
       
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding family event:', error);
       toast.error('Failed to add event');
       return null;
@@ -104,7 +105,7 @@ export function useFamilyEvents() {
       setEvents(prev => prev.map(e => e.id === id ? data : e));
       toast.success('Event updated');
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating family event:', error);
       toast.error('Failed to update event');
       return null;
@@ -123,7 +124,7 @@ export function useFamilyEvents() {
       setEvents(prev => prev.filter(e => e.id !== id));
       toast.success('Event deleted');
       return true;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting family event:', error);
       toast.error('Failed to delete event');
       return false;

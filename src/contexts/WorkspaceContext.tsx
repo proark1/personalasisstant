@@ -227,6 +227,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWorkspace() {
   const ctx = useContext(WorkspaceContext);
   if (!ctx) throw new Error('useWorkspace must be used within WorkspaceProvider');
@@ -234,6 +235,7 @@ export function useWorkspace() {
 }
 
 // Convenience: the id the hooks should pass to queries. Null means Personal.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useActiveWorkspaceId(): string | null {
   return useWorkspace().activeWorkspaceId;
 }

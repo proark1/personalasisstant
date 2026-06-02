@@ -38,9 +38,10 @@ export function useFamilyDocuments() {
 
       if (error) throw error;
       setDocuments(data || []);
-    } catch (error: any) {
+    } catch (error) {
       // Silent retry for transient network errors
-      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const isNetworkError = errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError');
       if (isNetworkError && retryCount < 2) {
         await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
         return fetchDocuments(retryCount + 1);
@@ -114,7 +115,7 @@ export function useFamilyDocuments() {
       setDocuments(prev => [data, ...prev]);
       toast.success('Document uploaded');
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error uploading document:', error);
       toast.error('Failed to upload document');
       return null;
@@ -181,7 +182,8 @@ export function useFamilyDocuments() {
 
   useEffect(() => {
     fetchDocuments();
-  }, [user?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // intentionally excludes fetchDocuments — plain function recreated each render
 
   const getDocumentsByCategory = (category: string) => 
     documents.filter(d => d.category === category);

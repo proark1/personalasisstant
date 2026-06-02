@@ -31,6 +31,7 @@ interface CallContextType {
 
 const CallContext = createContext<CallContextType | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCall() {
   const context = useContext(CallContext);
   if (!context) {
@@ -51,7 +52,7 @@ export function CallProvider({ userId, userName, children }: CallProviderProps) 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [incomingCallerName, setIncomingCallerName] = useState('');
   const [pendingSession, setPendingSession] = useState<CallSession | null>(null);
-  const isNativePlatform = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+  const isNativePlatform = typeof window !== 'undefined' && !!(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
   const enableBackgroundCallFeatures = !isMobile || isNativePlatform;
 
   const handleIncomingCall = useCallback((session: CallSession, callerName: string) => {

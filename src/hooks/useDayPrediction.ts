@@ -181,7 +181,7 @@ function generateInsight(
   label: DayPrediction['label'],
   factors: DayPrediction['factors'],
   eventCount: number,
-  highPriorityCount: number
+  _highPriorityCount: number
 ): string {
   if (label === 'excellent') {
     return 'Today looks great! You\'re well-rested with a manageable schedule - perfect for making real progress.';

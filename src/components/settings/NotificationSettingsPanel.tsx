@@ -65,6 +65,7 @@ export function NotificationSettingsPanel() {
     if (user) {
       loadPreferences();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadPreferences = async () => {
@@ -135,7 +136,7 @@ export function NotificationSettingsPanel() {
 
   const playTestSound = () => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
@@ -154,7 +155,7 @@ export function NotificationSettingsPanel() {
       oscillator.stop(audioContext.currentTime + 0.2);
       
       toast.success('Test sound played');
-    } catch (e) {
+    } catch {
       toast.error('Could not play test sound');
     }
   };

@@ -51,7 +51,8 @@ export function useFamilyBudget() {
     if (user) {
       loadData();
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // intentionally excludes loadData — plain async function, listing it would loop
 
   const loadData = async (retryCount = 0) => {
     if (!user) return;
@@ -98,9 +99,10 @@ export function useFamilyBudget() {
       }));
 
       setExpenses(expensesWithCats);
-    } catch (error: any) {
+    } catch (error) {
       // Silent retry for transient network errors
-      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const isNetworkError = errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError');
       if (isNetworkError && retryCount < 2) {
         await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
         return loadData(retryCount + 1);

@@ -53,7 +53,7 @@ export function SwipeableTaskItem({
     hasTriggeredHapticRef.current = false;
   };
 
-  const handleDrag = (_: any, info: PanInfo) => {
+  const handleDrag = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     // Trigger haptic when crossing threshold
     if (!hasTriggeredHapticRef.current && (Math.abs(info.offset.x) > SWIPE_THRESHOLD)) {
       vibrate('light');
@@ -61,7 +61,7 @@ export function SwipeableTaskItem({
     }
   };
 
-  const handleDragEnd = (_: any, info: PanInfo) => {
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setIsDragging(false);
     hasTriggeredHapticRef.current = false;
     

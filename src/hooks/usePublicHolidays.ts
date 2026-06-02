@@ -15,6 +15,9 @@ export function usePublicHolidays(countryCodes?: string[]) {
   const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Stable key for the dep array — avoids a complex expression inside the array
+  const countryCodesKey = countryCodes?.join(',') ?? '';
+
   useEffect(() => {
     const fetchHolidays = async () => {
       setLoading(true);
@@ -23,13 +26,13 @@ export function usePublicHolidays(countryCodes?: string[]) {
           .from('public_holidays')
           .select('*')
           .order('date', { ascending: true });
-        
+
         if (countryCodes && countryCodes.length > 0) {
           query = query.in('country_code', countryCodes);
         }
 
         const { data, error } = await query;
-        
+
         if (error) throw error;
         setHolidays(data || []);
       } catch (error) {
@@ -41,7 +44,8 @@ export function usePublicHolidays(countryCodes?: string[]) {
     };
 
     fetchHolidays();
-  }, [countryCodes?.join(',')]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countryCodesKey]); // countryCodes array ref changes each render; countryCodesKey captures the actual content
 
   return { holidays, loading };
 }

@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchAtRiskTasks, nudgeMessage } from "../_shared/dori-slip-risk.ts";
 import { strictAppOrigin } from '../_shared/cors.ts';
 
+type SupabaseClient = ReturnType<typeof createClient>;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': strictAppOrigin(),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -86,7 +88,7 @@ serve(async (req) => {
 
     console.log(`Processing ${usersToProcess.length} users for proactive reminders`);
 
-    const remindersCreated: any[] = [];
+    const remindersCreated: Record<string, unknown>[] = [];
     const now = new Date();
 
     for (const userId of usersToProcess) {
@@ -257,7 +259,7 @@ serve(async (req) => {
 });
 
 // Check for forgotten tasks (no updates in X days)
-async function checkForgottenTasks(supabase: any, userId: string, thresholdDays: number) {
+async function checkForgottenTasks(supabase: SupabaseClient, userId: string, thresholdDays: number) {
   const thresholdDate = new Date();
   thresholdDate.setDate(thresholdDate.getDate() - thresholdDays);
   
@@ -270,7 +272,7 @@ async function checkForgottenTasks(supabase: any, userId: string, thresholdDays:
     .lt('updated_at', thresholdDate.toISOString())
     .or(`last_reminded_at.is.null,last_reminded_at.lt.${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}`);
 
-  const reminders: any[] = [];
+  const reminders: Record<string, unknown>[] = [];
 
   for (const task of tasks || []) {
     const daysSinceUpdate = Math.floor((Date.now() - new Date(task.updated_at).getTime()) / (1000 * 60 * 60 * 24));
@@ -287,7 +289,7 @@ async function checkForgottenTasks(supabase: any, userId: string, thresholdDays:
       metadata: { task_title: task.title, days_since_update: daysSinceUpdate }
     };
 
-    const { data: created, error } = await supabase
+    const { data: created } = await supabase
       .from('proactive_reminders')
       .insert(reminder)
       .select()
@@ -295,7 +297,7 @@ async function checkForgottenTasks(supabase: any, userId: string, thresholdDays:
 
     if (created) {
       reminders.push(created);
-      
+
       // Update last_reminded_at on the task
       await supabase
         .from('tasks')
@@ -308,8 +310,8 @@ async function checkForgottenTasks(supabase: any, userId: string, thresholdDays:
 }
 
 // Check for contract renewals coming up
-async function checkContractRenewals(supabase: any, userId: string, reminderDays: number[]) {
-  const reminders: any[] = [];
+async function checkContractRenewals(supabase: SupabaseClient, userId: string, reminderDays: number[]) {
+  const reminders: Record<string, unknown>[] = [];
   
   for (const days of reminderDays) {
     const targetDate = new Date();
@@ -367,7 +369,7 @@ async function checkContractRenewals(supabase: any, userId: string, reminderDays
 }
 
 // Check for contacts that haven't been reached out to
-async function checkContactCheckins(supabase: any, userId: string, thresholdDays: number) {
+async function checkContactCheckins(supabase: SupabaseClient, userId: string, thresholdDays: number) {
   const thresholdDate = new Date();
   thresholdDate.setDate(thresholdDate.getDate() - thresholdDays);
   
@@ -378,7 +380,7 @@ async function checkContactCheckins(supabase: any, userId: string, thresholdDays
     .or(`last_contacted_at.is.null,last_contacted_at.lt.${thresholdDate.toISOString()}`)
     .or(`last_reminded_at.is.null,last_reminded_at.lt.${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()}`);
 
-  const reminders: any[] = [];
+  const reminders: Record<string, unknown>[] = [];
 
   for (const contact of contacts || []) {
     const daysSinceContact = contact.last_contacted_at 
@@ -418,7 +420,7 @@ async function checkContactCheckins(supabase: any, userId: string, thresholdDays
 }
 
 // Check for upcoming events that need preparation
-async function checkUpcomingEvents(supabase: any, userId: string) {
+async function checkUpcomingEvents(supabase: SupabaseClient, userId: string) {
   const now = new Date();
   const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
   const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
@@ -431,7 +433,7 @@ async function checkUpcomingEvents(supabase: any, userId: string) {
     .lte('start_time', twoHoursFromNow.toISOString())
     .or(`last_reminded_at.is.null,last_reminded_at.lt.${new Date(Date.now() - 60 * 60 * 1000).toISOString()}`);
 
-  const reminders: any[] = [];
+  const reminders: Record<string, unknown>[] = [];
 
   for (const event of events || []) {
     const minutesUntil = Math.round((new Date(event.start_time).getTime() - Date.now()) / (1000 * 60));
@@ -467,7 +469,7 @@ async function checkUpcomingEvents(supabase: any, userId: string) {
 }
 
 // Check for habit streaks at risk
-async function checkHabitStreaks(supabase: any, userId: string, warningHours: number) {
+async function checkHabitStreaks(supabase: SupabaseClient, userId: string, warningHours: number) {
   const today = new Date().toISOString().split('T')[0];
   
   const { data: habits } = await supabase
@@ -476,7 +478,7 @@ async function checkHabitStreaks(supabase: any, userId: string, warningHours: nu
     .eq('user_id', userId)
     .eq('is_active', true);
 
-  const reminders: any[] = [];
+  const reminders: Record<string, unknown>[] = [];
 
   for (const habit of habits || []) {
     // Check if habit was logged today
@@ -542,7 +544,7 @@ async function checkHabitStreaks(supabase: any, userId: string, warningHours: nu
 }
 
 // Check for calendar overload (too many meetings in a day)
-async function checkCalendarOverload(supabase: any, userId: string, threshold: number) {
+async function checkCalendarOverload(supabase: SupabaseClient, userId: string, threshold: number) {
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -632,7 +634,7 @@ async function checkCalendarOverload(supabase: any, userId: string, threshold: n
 }
 
 // Check if user needs a daily review prompt
-async function checkDailyReview(supabase: any, userId: string) {
+async function checkDailyReview(supabase: SupabaseClient, userId: string) {
   const today = new Date().toISOString().split('T')[0];
   const currentHour = new Date().getHours();
   
@@ -682,8 +684,8 @@ async function checkDailyReview(supabase: any, userId: string) {
 }
 
 // Generate smart follow-ups for stalled tasks, post-events, goals
-async function generateSmartFollowUps(supabase: any, userId: string) {
-  const reminders: any[] = [];
+async function generateSmartFollowUps(supabase: SupabaseClient, userId: string) {
+  const reminders: Record<string, unknown>[] = [];
   const now = new Date();
   
   // 1. Stalled tasks (in progress for 2+ days without updates)
@@ -798,7 +800,7 @@ async function generateSmartFollowUps(supabase: any, userId: string) {
 }
 
 // Check if it's time for weekly planning prompt (Sunday evening by default)
-async function checkWeeklyPlanning(supabase: any, userId: string, planningDay: number = 0) {
+async function checkWeeklyPlanning(supabase: SupabaseClient, userId: string, planningDay: number = 0) {
   const now = new Date();
   const currentDay = now.getDay(); // 0 = Sunday
   const currentHour = now.getHours();
@@ -851,7 +853,7 @@ async function checkWeeklyPlanning(supabase: any, userId: string, planningDay: n
   const upcomingTaskCount = upcomingTasks?.length || 0;
   const eventCount = upcomingEvents?.length || 0;
 
-  const topPriorities = upcomingTasks?.slice(0, 3).map((t: any) => t.title).join(', ') || 'none yet';
+  const topPriorities = upcomingTasks?.slice(0, 3).map((t: { title: string }) => t.title).join(', ') || 'none yet';
 
   const reminder = {
     user_id: userId,
@@ -883,8 +885,8 @@ async function checkWeeklyPlanning(supabase: any, userId: string, planningDay: n
 // Reads dori_slip_risk (a view that joins open tasks against the
 // rolled-up dori_task_stats). Suppresses repeat nudges within 24h on
 // the same task so the user doesn't get pinged every cron tick.
-async function checkPredictiveSlip(supabase: any, userId: string) {
-  const reminders: any[] = [];
+async function checkPredictiveSlip(supabase: SupabaseClient, userId: string) {
+  const reminders: Record<string, unknown>[] = [];
 
   let atRisk;
   try {
@@ -911,7 +913,7 @@ async function checkPredictiveSlip(supabase: any, userId: string) {
     .eq('user_id', userId)
     .eq('reminder_type', 'predictive_slip')
     .gte('created_at', sinceIso);
-  const recentIds = new Set((recent ?? []).map((r: any) => r.trigger_entity_id));
+  const recentIds = new Set((recent ?? []).map((r: { trigger_entity_id: string }) => r.trigger_entity_id));
 
   for (const t of atRisk) {
     if (recentIds.has(t.task_id)) continue;

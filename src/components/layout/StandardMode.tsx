@@ -32,7 +32,7 @@ const ChatPanel = lazy(() => import('../chat/ChatPanel').then(m => ({ default: m
 // assistant surface — the same component mobile uses — instead of the leaner
 // ChatPanel, which silently dropped Dori's action results.
 const DoriPanel = lazy(() => import('../assistant/DoriPanel').then(m => ({ default: m.DoriPanel })));
-const TeamChatPanel = lazy(() => import('../chat/TeamChatPanel').then(m => ({ default: m.TeamChatPanel })));
+const _TeamChatPanel = lazy(() => import('../chat/TeamChatPanel').then(m => ({ default: m.TeamChatPanel })));
 const TaskList = lazy(() => import('../tasks/TaskList').then(m => ({ default: m.TaskList })));
 const KanbanBoard = lazy(() => import('../tasks/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
 const PriorityBoardView = lazy(() => import('../tasks/PriorityBoardView').then(m => ({ default: m.PriorityBoardView })));
@@ -44,20 +44,20 @@ const TodayFocusView = lazy(() => import('../focus/TodayFocusView').then(m => ({
 const ProjectManager = lazy(() => import('../projects/ProjectManager').then(m => ({ default: m.ProjectManager })));
 const ActivityFeed = lazy(() => import('../activity/ActivityFeed').then(m => ({ default: m.ActivityFeed })));
 const GlobalSearch = lazy(() => import('../search/GlobalSearch').then(m => ({ default: m.GlobalSearch })));
-const QuickAddFAB = lazy(() => import('../tasks/QuickAddFAB').then(m => ({ default: m.QuickAddFAB })));
+const _QuickAddFAB = lazy(() => import('../tasks/QuickAddFAB').then(m => ({ default: m.QuickAddFAB })));
 const AICommandPanel = lazy(() => import('../ai/AICommandPanel').then(m => ({ default: m.AICommandPanel })));
 const NotesPanel = lazy(() => import('../notes/NotesPanel').then(m => ({ default: m.NotesPanel })));
 const HabitsPanel = lazy(() => import('../habits/HabitsPanel').then(m => ({ default: m.HabitsPanel })));
 const AdminAnalyticsPanel = lazy(() => import('../admin/AdminAnalyticsPanel').then(m => ({ default: m.AdminAnalyticsPanel })));
 const FamilyPanel = lazy(() => import('../family/FamilyPanel').then(m => ({ default: m.FamilyPanel })));
 const CookingPanel = lazy(() => import('../cooking/CookingPanel').then(m => ({ default: m.CookingPanel })));
-const IslamPanel = lazy(() => import('../islam/IslamPanel').then(m => ({ default: m.IslamPanel })));
+const _IslamPanel = lazy(() => import('../islam/IslamPanel').then(m => ({ default: m.IslamPanel })));
 const IslamEnhancedPanel = lazy(() => import('../islam/IslamEnhancedPanel').then(m => ({ default: m.IslamEnhancedPanel })));
 const PropertyPanel = lazy(() => import('../property/PropertyPanel').then(m => ({ default: m.PropertyPanel })));
 const StartupWorkspacePanel = lazy(() => import('../startup/StartupWorkspacePanel').then(m => ({ default: m.StartupWorkspacePanel })));
 const TechNewsPanel = lazy(() => import('../news/TechNewsPanel').then(m => ({ default: m.TechNewsPanel })));
 const HealthHubPanel = lazy(() => import('../health/HealthHubPanel').then(m => ({ default: m.HealthHubPanel })));
-const CallHistory = lazy(() => import('../calling/CallHistory').then(m => ({ default: m.CallHistory })));
+const _CallHistory = lazy(() => import('../calling/CallHistory').then(m => ({ default: m.CallHistory })));
 const SocialPanel = lazy(() => import('../social/SocialPanel').then(m => ({ default: m.SocialPanel })));
 const DashboardPanel = lazy(() => import('../dashboard/DashboardPanel').then(m => ({ default: m.DashboardPanel })));
 const ContactsPanel = lazy(() => import('../contacts/ContactsPanel').then(m => ({ default: m.ContactsPanel })));
@@ -103,7 +103,7 @@ interface StandardModeProps {
     itemId: string,
     itemTitle?: string,
     targetUserId?: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) => void;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onToggleTaskComplete: (id: string) => void;
@@ -155,7 +155,7 @@ export const StandardMode = memo(function StandardMode({
   onSearch,
   onClearSearchResults,
   onClearRecentSearches,
-  onLogActivity,
+  onLogActivity: _onLogActivity,
   onAddTask,
   onToggleTaskComplete,
   onDeleteTask,
@@ -247,6 +247,7 @@ export const StandardMode = memo(function StandardMode({
   const deepLinkOptions = useMemo(() => ({
     setActivePanel: (p: string) => setActivePanel(p as ActivePanel),
     setSelectedProjectId,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [setSelectedProjectId]);
   useDeepLinkHandler(deepLinkOptions);
   const { celebrate } = useCelebration();

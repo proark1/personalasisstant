@@ -10,7 +10,7 @@ interface CreateNotificationOptions {
   type: NotificationType;
   title: string;
   message: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   actionUrl?: string;
 }
 
@@ -38,7 +38,8 @@ export function useAppNotifications() {
           type: options.type,
           title: options.title,
           message: options.message,
-          data: options.data || {},
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: (options.data || {}) as any,
           action_url: options.actionUrl,
           read: false,
         })
@@ -61,9 +62,10 @@ export function useAppNotifications() {
       const delay = options.scheduledAt.getTime() - Date.now();
       if (delay > 0 && delay < 7 * 24 * 60 * 60 * 1000) { // Max 7 days
         setTimeout(() => {
+          type NotificationConstructor = typeof Notification;
           const BrowserNotification = (typeof window !== 'undefined'
-            ? (window as any).Notification
-            : undefined) as any;
+            ? (window as unknown as { Notification?: NotificationConstructor }).Notification
+            : undefined);
 
           if (BrowserNotification?.permission === 'granted') {
             new BrowserNotification(options.title, {

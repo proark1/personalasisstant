@@ -14,7 +14,7 @@ interface Trip {
   destination_country: string | null;
   start_date: string;
   end_date: string;
-  contacts_in_destination: any[];
+  contacts_in_destination: { id: string; name: string }[];
 }
 
 export function TravelIntelCard() {

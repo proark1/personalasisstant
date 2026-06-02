@@ -73,7 +73,6 @@ export function BodyDoublingSession({
   const [confirmEndOpen, setConfirmEndOpen] = useState(false);
 
   const sessionStartRef = useRef<Date | null>(null);
-  const nextCheckinRef = useRef<number>(0);
 
   const totalTime = duration * 60;
   const progress = ((totalTime - timeLeft) / totalTime) * 100;
@@ -103,6 +102,7 @@ export function BodyDoublingSession({
     }
 
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, timeLeft, phase, totalTime]);
 
   const triggerCheckin = useCallback(() => {

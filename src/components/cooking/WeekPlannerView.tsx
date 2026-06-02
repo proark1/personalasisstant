@@ -30,8 +30,8 @@ const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
 export function WeekPlannerView() {
   const { user } = useAuth();
-  const { t, language } = useLanguage();
-  const { mealPlans, recipes, addMealPlan, deleteMealPlan, fetchMealPlans, generateShoppingList, isLoading, refetchRecipes } = useMealPlanning();
+  const { language } = useLanguage();
+  const { mealPlans, recipes, addMealPlan, deleteMealPlan, fetchMealPlans, generateShoppingList, refetchRecipes } = useMealPlanning();
   const { addList, addItem } = useShoppingLists();
   const locale = language === 'de' ? de : enUS;
 
@@ -48,11 +48,13 @@ export function WeekPlannerView() {
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  const weekStartTime = weekStart.getTime();
+  const weekEndTime = weekEnd.getTime();
 
   const loadMeals = useCallback(() => {
     if (!user?.id) return;
-    fetchMealPlans(format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'));
-  }, [user?.id, fetchMealPlans, weekStart.getTime(), weekEnd.getTime()]);
+    fetchMealPlans(format(new Date(weekStartTime), 'yyyy-MM-dd'), format(new Date(weekEndTime), 'yyyy-MM-dd'));
+  }, [user?.id, fetchMealPlans, weekStartTime, weekEndTime]);
 
   useEffect(() => { loadMeals(); }, [loadMeals]);
 

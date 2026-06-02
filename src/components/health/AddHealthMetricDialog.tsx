@@ -18,7 +18,7 @@ import {
 interface AddHealthMetricDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (metricType: string, value: number, unit: string, recordedAt?: Date) => Promise<any>;
+  onAdd: (metricType: string, value: number, unit: string, recordedAt?: Date) => Promise<unknown>;
 }
 
 const metricTypes = [

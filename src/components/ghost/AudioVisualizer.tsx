@@ -91,7 +91,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
 
     // Initialize circuit nodes
     const nodeCount = 25;
-    circuitNodesRef.current = Array.from({ length: nodeCount }, (_, i) => ({
+    circuitNodesRef.current = Array.from({ length: nodeCount }, (_) => ({
       x: Math.random(),
       y: Math.random(),
       connections: [] as number[],
@@ -228,7 +228,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
       }
     };
 
-    const animateAurora = (width: number, height: number, centerX: number, centerY: number) => {
+    const animateAurora = (width: number, height: number, _centerX: number, _centerY: number) => {
       const baseHue = isSpeaking ? 280 : isListening ? 120 : 180;
       const intensity = isActive ? 1 : 0.6;
 
@@ -330,12 +330,12 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
       ctx.fill();
     };
 
-    const animateCircuit = (width: number, height: number, centerX: number, centerY: number) => {
+    const animateCircuit = (width: number, height: number, _centerX: number, _centerY: number) => {
       const baseHue = isSpeaking ? 180 : isListening ? 140 : 200;
       const intensity = isActive ? 1 : 0.5;
 
       // Update node activity
-      circuitNodesRef.current.forEach((node, i) => {
+      circuitNodesRef.current.forEach((node) => {
         node.pulse += 0.05;
         if (Math.random() < 0.01) node.active = !node.active;
       });
@@ -380,7 +380,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
       });
 
       // Draw nodes
-      circuitNodesRef.current.forEach((node, i) => {
+      circuitNodesRef.current.forEach((node) => {
         const x = node.x * width;
         const y = node.y * height;
         const size = node.active ? 8 : 5;

@@ -86,7 +86,7 @@ export function OnboardingChecklist() {
         },
       });
       if (error) throw error;
-      toast.success(`Added ${(data as any)?.created_tasks ?? cleaned.length} starter tasks`);
+      toast.success(`Added ${(data as { created_tasks?: number } | null)?.created_tasks ?? cleaned.length} starter tasks`);
       setTopOfMind(['', '', '']);
     } catch (e) {
       console.error('seedTasks failed', e);

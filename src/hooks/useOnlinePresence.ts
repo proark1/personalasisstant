@@ -8,9 +8,8 @@ interface PresenceState {
   }[];
 }
 
-export function useOnlinePresence(userId: string | null, spaceMemberIds: string[] = [], enabled = true) {
+export function useOnlinePresence(userId: string | null, _spaceMemberIds: string[] = [], enabled = true) {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const [channelRef, setChannelRef] = useState<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
     if (!userId || !enabled) return;
@@ -60,8 +59,6 @@ export function useOnlinePresence(userId: string | null, spaceMemberIds: string[
           });
         }
       });
-
-    setChannelRef(channel);
 
     return () => {
       channel.unsubscribe();

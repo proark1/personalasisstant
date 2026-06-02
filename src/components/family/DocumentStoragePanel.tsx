@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useFamilyDocuments, FamilyDocument } from '@/hooks/useFamilyDocuments';
 import { useFamilyMembers } from '@/hooks/useFamilyMembers';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import {
 import { format, isPast, isFuture } from 'date-fns';
 import { AddDocumentDialog } from './AddDocumentDialog';
 
-const categoryIcons: Record<string, any> = {
+const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   id: CreditCard,
   insurance: Shield,
   medical: FileCheck,

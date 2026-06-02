@@ -66,9 +66,14 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!isNative) {
       // Fall back to web notifications for non-native platforms
+      interface BrowserNotificationAPI {
+        requestPermission(): Promise<NotificationPermission>;
+        permission: NotificationPermission;
+        new(title: string, opts?: NotificationOptions): Notification;
+      }
       const BrowserNotification = (typeof window !== 'undefined'
-        ? (window as any).Notification
-        : undefined) as any;
+        ? (window as unknown as { Notification?: BrowserNotificationAPI }).Notification
+        : undefined);
 
       if (typeof BrowserNotification?.requestPermission === 'function') {
         const permission = await BrowserNotification.requestPermission();
@@ -153,9 +158,13 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
       const delay = scheduledAt.getTime() - Date.now();
       if (delay > 0 && delay < 24 * 60 * 60 * 1000) { // Max 24 hours
         setTimeout(() => {
+          interface BrowserNotifAPI {
+            permission: NotificationPermission;
+            new(title: string, opts?: NotificationOptions): Notification;
+          }
           const BrowserNotification = (typeof window !== 'undefined'
-            ? (window as any).Notification
-            : undefined) as any;
+            ? (window as unknown as { Notification?: BrowserNotifAPI }).Notification
+            : undefined);
 
           if (BrowserNotification?.permission === 'granted') {
             new BrowserNotification(title, { body, icon: '/favicon.ico' });

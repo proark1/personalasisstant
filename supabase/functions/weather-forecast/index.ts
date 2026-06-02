@@ -88,9 +88,9 @@ serve(async (req) => {
       .eq('lon_grid', lonGrid)
       .in('date', allDates);
 
-    const cacheMap = new Map<string, any>();
+    const cacheMap = new Map<string, Record<string, unknown>>();
     const now = Date.now();
-    for (const r of (cached ?? []) as Array<any>) {
+    for (const r of (cached ?? []) as Array<Record<string, unknown>>) {
       const fetchedAt = r.fetched_at ? new Date(r.fetched_at).getTime() : 0;
       if (now - fetchedAt < CACHE_TTL_MS) {
         cacheMap.set(r.date, r);
@@ -127,7 +127,7 @@ serve(async (req) => {
             const data = await res.json();
             const daily = data?.daily;
             if (daily && Array.isArray(daily.time)) {
-              const rows: any[] = [];
+              const rows: Record<string, unknown>[] = [];
               for (let i = 0; i < daily.time.length; i++) {
                 const date = daily.time[i];
                 const code = daily.weather_code?.[i] ?? null;

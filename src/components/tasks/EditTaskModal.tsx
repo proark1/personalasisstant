@@ -53,7 +53,7 @@ const WEEKDAYS = [
   { value: 0, label: 'Sun' },
 ];
 
-export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, projects = [], contacts = [] }: EditTaskModalProps) {
+export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, projects = [], contacts: _contacts = [] }: EditTaskModalProps) {
   const { toast } = useToast();
   const { online } = useNetworkStatus();
   const { user, profile } = useAuth();
@@ -142,15 +142,16 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
       );
       toast({ title: 'Saved' });
       onClose();
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to save task:', e);
-      const isNetworkError = 
+      const isNetworkError =
         e instanceof TypeError && String(e.message).toLowerCase().includes('failed to fetch');
+      const errMsg = e instanceof Error ? e.message : undefined;
       toast({
         title: isNetworkError ? 'Network Error' : 'Save failed',
-        description: isNetworkError 
-          ? 'Please check your connection and try again' 
-          : (e?.message ? String(e.message) : 'Please try again'),
+        description: isNetworkError
+          ? 'Please check your connection and try again'
+          : (errMsg ? String(errMsg) : 'Please try again'),
         variant: 'destructive',
       });
     } finally {

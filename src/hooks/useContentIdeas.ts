@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import { describeFunctionError, type ContentIdea, type IdeaStatus } from '@/lib/content';
 
-const db = supabase as unknown as { from: (table: string) => any };
+const db = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
 
 const WINDOW_DAYS = 30;
 
@@ -61,9 +61,10 @@ export function useContentIdeas() {
         body: { language, ...(overrides ?? {}) },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const dataObj = data as Record<string, unknown> | null;
+      if (dataObj?.error) throw new Error(String(dataObj.error));
       await fetchIdeas();
-      const count = (data as any)?.count ?? 0;
+      const count = (dataObj?.count as number) ?? 0;
       toast.success(`${count} ${count === 1 ? t('content.toast.generatedSuffix.one') : t('content.toast.generatedSuffix.other')}`);
       return true;
     } catch (err) {

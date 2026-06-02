@@ -116,7 +116,7 @@ export function PriorityBoardView({
   tasks,
   onToggleComplete,
   onDeleteTask,
-  onUpdateTask,
+  onUpdateTask: _onUpdateTask,
 }: PriorityBoardViewProps) {
   const incompleteTasks = useMemo(() => tasks.filter(t => !t.completed && !t.trashed), [tasks]);
 
@@ -151,7 +151,7 @@ export function PriorityBoardView({
     <div className="flex flex-col gap-3 p-4 overflow-y-auto h-full">
       {prioritySections.map((section) => {
         const sectionTasks = tasksByPriority[section.priority];
-        const Icon = section.icon;
+        const _Icon = section.icon;
 
         return (
           <PrioritySection

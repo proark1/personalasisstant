@@ -33,9 +33,10 @@ export function useEventNotifications({
       }
     }
 
+    type NotificationConstructor = typeof Notification;
     const BrowserNotification = (typeof window !== 'undefined'
-      ? (window as any).Notification
-      : undefined) as any;
+      ? (window as unknown as { Notification?: NotificationConstructor }).Notification
+      : undefined);
 
     if (!BrowserNotification) {
       return false;
@@ -57,7 +58,10 @@ export function useEventNotifications({
 
   const playNotificationSound = useCallback(() => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      type WebkitWindow = typeof window & { webkitAudioContext?: typeof AudioContext };
+      const AudioContextClass = window.AudioContext || (window as WebkitWindow).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const audioContext = new AudioContextClass();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
@@ -70,7 +74,7 @@ export function useEventNotifications({
       
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.2);
-    } catch (e) {
+    } catch {
       // Audio not supported
     }
   }, []);
@@ -151,9 +155,10 @@ export function useEventNotifications({
       });
     } else {
       // Use web notification
+      type NotificationCtor = typeof Notification;
       const BrowserNotification = (typeof window !== 'undefined'
-        ? (window as any).Notification
-        : undefined) as any;
+        ? (window as unknown as { Notification?: NotificationCtor }).Notification
+        : undefined);
 
       if (BrowserNotification?.permission === 'granted') {
         const notification = new BrowserNotification(title, {
@@ -236,7 +241,7 @@ export function useEventNotifications({
         for (const id of existingIds) {
           try {
             await LocalNotifications.cancel({ notifications: [{ id }] });
-          } catch (e) {
+          } catch {
             // Ignore cancel errors
           }
         }

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
@@ -198,21 +198,24 @@ async function getNewMessageIds(accessToken: string, startHistoryId: string): Pr
   }
 }
 
+interface GmailConnection { id: string; access_token: string; token_expires_at?: string; refresh_token?: string; gmail_history_id?: string }
+interface ParsedEmail { [k: string]: unknown }
+
 async function processEmails(
   messageIds: { id: string }[],
   accessToken: string,
-  adminClient: any,
+  adminClient: SupabaseClient,
   userId: string,
-  connection: any,
+  _connection: GmailConnection,
   userName?: string
-): Promise<{ parsedEmails: any[]; highPriorityCount: number; hadUpsertFailure: boolean }> {
+): Promise<{ parsedEmails: ParsedEmail[]; highPriorityCount: number; hadUpsertFailure: boolean }> {
   if (messageIds.length === 0) {
     return { parsedEmails: [], highPriorityCount: 0, hadUpsertFailure: false };
   }
 
   // Fetch message details in parallel batches
   const batchSize = 10;
-  const allMessages: any[] = [];
+  const allMessages: Record<string, unknown>[] = [];
   for (let i = 0; i < messageIds.length; i += batchSize) {
     const batch = messageIds.slice(i, i + batchSize);
     const batchResults = await Promise.all(
@@ -275,10 +278,10 @@ async function processEmails(
   }
 
   // Parse messages
-  const parsedEmails: any[] = [];
+  const parsedEmails: ParsedEmail[] = [];
   for (const msg of allMessages) {
     const headers = msg.payload?.headers || [];
-    const getHeader = (name: string) => headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+    const getHeader = (name: string) => headers.find((h: { name: string; value: string }) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
 
     const fromRaw = getHeader('From');
     let fromName = '';
@@ -485,7 +488,7 @@ serve(async (req) => {
     const { maxResults } = await req.json().catch(() => ({ maxResults: 30 }));
     const storedHistoryId = connection.gmail_history_id;
 
-    let syncResult: { parsedEmails: any[]; highPriorityCount: number; hadUpsertFailure: boolean };
+    let syncResult: { parsedEmails: ParsedEmail[]; highPriorityCount: number; hadUpsertFailure: boolean };
     let syncType: 'incremental' | 'full';
 
     if (storedHistoryId) {
@@ -516,7 +519,7 @@ serve(async (req) => {
         }
 
         const listData = await listResponse.json();
-        const messageIds = (listData.messages || []).map((m: any) => ({ id: m.id }));
+        const messageIds = (listData.messages || []).map((m: { id: string }) => ({ id: m.id }));
         syncResult = await processEmails(messageIds, accessToken, adminClient, userId, connection, userName);
       } else if (newIds.length === 0) {
         // No new emails — fast return
@@ -565,7 +568,7 @@ serve(async (req) => {
       }
 
       const listData = await listResponse.json();
-      const messageIds = (listData.messages || []).map((m: any) => ({ id: m.id }));
+      const messageIds = (listData.messages || []).map((m: { id: string }) => ({ id: m.id }));
 
       if (messageIds.length === 0) {
         return new Response(JSON.stringify({ synced: 0, emails: [] }), {

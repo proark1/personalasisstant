@@ -42,7 +42,7 @@ serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) throw new Error('No user');
     userId = user.id;
-  } catch (e) {
+  } catch {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -145,9 +145,9 @@ serve(async (req) => {
                 ? JSON.parse(meal.recipes.ingredients) 
                 : meal.recipes.ingredients;
               if (Array.isArray(ingredients)) {
-                allIngredients.push(...ingredients.map((i: any) => typeof i === 'string' ? i : i.name));
+                allIngredients.push(...ingredients.map((i: unknown) => typeof i === 'string' ? i : (i as { name?: string }).name ?? ''));
               }
-            } catch (e) {
+            } catch {
               // Skip invalid ingredients
             }
           }
@@ -159,11 +159,11 @@ serve(async (req) => {
           try {
             const items = typeof list.items === 'string' ? JSON.parse(list.items) : list.items;
             if (Array.isArray(items)) {
-              items.forEach((item: any) => {
-                existingItems.add(typeof item === 'string' ? item.toLowerCase() : item.name?.toLowerCase());
+              items.forEach((item: unknown) => {
+                existingItems.add(typeof item === 'string' ? item.toLowerCase() : (item as { name?: string }).name?.toLowerCase() ?? '');
               });
             }
-          } catch (e) { /* ignore */ }
+          } catch { /* ignore */ }
         });
 
         const newIngredients = [...new Set(allIngredients)].filter(

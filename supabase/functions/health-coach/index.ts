@@ -433,7 +433,7 @@ function findCorrelations(metrics: HealthMetric[], checkins: DailyCheckin[]) {
 
   for (let i = 0; i < dates.length - 1; i++) {
     const today = metricsByDate[dates[i]];
-    const tomorrow = metricsByDate[dates[i + 1]];
+    const _tomorrow = metricsByDate[dates[i + 1]];
     const checkin = checkins.find(c => c.checkin_date === dates[i + 1]);
     const energyMap: Record<string, number> = { low: 1, medium: 2, high: 3 };
     const energy = checkin?.energy_level ? energyMap[checkin.energy_level] : null;

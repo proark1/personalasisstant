@@ -56,7 +56,7 @@ serve(async (req) => {
       });
     }
 
-    const tripIds = trips.map((t: any) => t.trip_id);
+    const tripIds = (trips as Array<{ trip_id: string }>).map((t) => t.trip_id);
 
     // 2. Parallel: segments + bookings + packing + essentials.
     const [segRes, bookRes, packRes, essRes] = await Promise.all([
@@ -79,13 +79,13 @@ serve(async (req) => {
         .from('country_essentials')
         .select('*')
         .eq('user_id', user.id)
-        .in('country', uniq(trips.map((t: any) => t.destination_country).filter(Boolean))),
+        .in('country', uniq((trips as Array<{ destination_country?: string | null }>).map((t) => t.destination_country).filter(Boolean) as string[])),
     ]);
 
     // Group children by trip_id for the UI.
-    const segments = groupBy((segRes.data ?? []) as any[], 'trip_id');
-    const bookings = groupBy((bookRes.data ?? []) as any[], 'trip_id');
-    const packing = groupBy((packRes.data ?? []) as any[], 'trip_id');
+    const segments = groupBy((segRes.data ?? []) as Record<string, unknown>[], 'trip_id');
+    const bookings = groupBy((bookRes.data ?? []) as Record<string, unknown>[], 'trip_id');
+    const packing = groupBy((packRes.data ?? []) as Record<string, unknown>[], 'trip_id');
 
     return json({
       trips,
@@ -101,7 +101,7 @@ serve(async (req) => {
   }
 });
 
-function groupBy<T extends Record<string, any>>(rows: T[], key: string): Record<string, T[]> {
+function groupBy<T extends Record<string, unknown>>(rows: T[], key: string): Record<string, T[]> {
   const out: Record<string, T[]> = {};
   for (const r of rows) {
     const k = String(r[key] ?? '');

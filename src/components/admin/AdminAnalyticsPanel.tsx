@@ -29,7 +29,7 @@ interface AdminAnalyticsPanelProps {
   userId: string;
 }
 
-export function AdminAnalyticsPanel({ userId }: AdminAnalyticsPanelProps) {
+export function AdminAnalyticsPanel({ userId: _userId }: AdminAnalyticsPanelProps) {
   const {
     isAdmin,
     loading,

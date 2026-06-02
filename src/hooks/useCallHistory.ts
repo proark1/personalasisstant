@@ -55,7 +55,6 @@ export function useCallHistory(userId: string | undefined) {
 
       const historyItems: CallHistoryItem[] = (sessions || []).map(s => {
         const isOutgoing = s.caller_id === userId;
-        const otherUserId = isOutgoing ? s.callee_id : s.caller_id;
         
         let status: CallHistoryItem['status'] = 'ended';
         if (s.status === 'declined') {

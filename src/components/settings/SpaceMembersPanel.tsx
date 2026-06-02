@@ -42,7 +42,6 @@ export function SpaceMembersPanel({ userId }: SpaceMembersPanelProps) {
     members,
     invitations,
     shareSettings,
-    loading,
     inviteMember,
     acceptInvitation,
     declineInvitation,
@@ -54,7 +53,7 @@ export function SpaceMembersPanel({ userId }: SpaceMembersPanelProps) {
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<SpaceMember | null>(null);
+  const [_selectedMember] = useState<SpaceMember | null>(null);
   const [expandedMember, setExpandedMember] = useState<string | null>(null);
 
   const handleInvite = async () => {
@@ -85,7 +84,7 @@ export function SpaceMembersPanel({ userId }: SpaceMembersPanelProps) {
     }
   };
 
-  const settings = selectedMember ? shareSettings[selectedMember.id] : null;
+  const _settings = _selectedMember ? shareSettings[_selectedMember.id] : null;
 
   const ShareSettingRow = ({ 
     label, 

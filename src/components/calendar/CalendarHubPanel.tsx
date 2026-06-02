@@ -64,7 +64,7 @@ interface CalendarHubPanelProps {
 type HubView = 'focus' | 'tasks' | 'calendar';
 
 export function CalendarHubPanel({
-  userId,
+  userId: _userId,
   tasks,
   sharedTasks = [],
   events,
@@ -77,12 +77,12 @@ export function CalendarHubPanel({
   onDeleteTasks,
   onUpdateTask,
   onReorderTasks,
-  onAddEvent,
-  onUpdateEvent,
-  onDeleteEvent,
-  onImportEvents,
+  onAddEvent: _onAddEvent,
+  onUpdateEvent: _onUpdateEvent,
+  onDeleteEvent: _onDeleteEvent,
+  onImportEvents: _onImportEvents,
   onShareTask,
-  onShareEvent,
+  onShareEvent: _onShareEvent,
   onRefresh,
 }: CalendarHubPanelProps) {
   const [activeView, setActiveView] = useState<HubView>('focus');

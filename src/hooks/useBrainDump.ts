@@ -74,7 +74,8 @@ export function useBrainDump() {
       toast.error(await describeEdgeError(error, 'Failed to capture'));
       return null;
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // intentionally excludes processWithAI to avoid circular dep (processWithAI also depends on user)
 
   const processWithAI = useCallback(async (dumpId: string, content: string) => {
     if (!user) return;
@@ -211,7 +212,7 @@ export function useBrainDump() {
       console.error('Failed to delete dump:', error);
       toast.error('Failed to delete');
     }
-  }, []);
+  }, [user?.id]);
 
   return {
     dumps,

@@ -104,7 +104,7 @@ export function ContractManager({
     contracts,
     userId: user?.id
   });
-  const { scanDocument, isScanning } = useContractAI();
+  const { scanDocument } = useContractAI();
 
   const expiringContracts = getExpiringContracts(30);
   const cancellationDeadlines = getCancellationDeadlines(14);
@@ -162,7 +162,7 @@ export function ContractManager({
         title: t('contracts.toast.calendarSynced'),
         description: t(count === 1 ? 'contracts.toast.calendarSyncedDesc.one' : 'contracts.toast.calendarSyncedDesc.other').replace('{count}', String(count))
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: t('contracts.toast.syncFailed'),
@@ -536,7 +536,7 @@ export function ContractManager({
 
       {/* Category Tabs */}
       {viewMode !== 'timeline' && (
-        <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as any)}>
+        <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as typeof activeCategory)}>
           <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
             <TabsList className="inline-flex min-w-max h-auto gap-1">
               <TabsTrigger value="all" className="whitespace-nowrap">

@@ -25,7 +25,7 @@ export interface ScheduledMessage {
   recipientId?: string;
   groupId?: string;
   content: string;
-  attachments: any[];
+  attachments: unknown[];
   scheduledFor: Date;
   status: 'pending' | 'sent' | 'cancelled';
   createdAt: Date;
@@ -36,7 +36,7 @@ export function useMessageFeatures() {
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [starredMessages, setStarredMessages] = useState<StarredMessage[]>([]);
   const [scheduledMessages, setScheduledMessages] = useState<ScheduledMessage[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   // Fetch pinned messages for a chat
   const fetchPinnedMessages = useCallback(async (chatId: string) => {
@@ -202,7 +202,7 @@ export function useMessageFeatures() {
     scheduledFor: Date,
     recipientId?: string,
     groupId?: string,
-    attachments: any[] = []
+    attachments: unknown[] = []
   ) => {
     if (!user) return;
 
@@ -213,7 +213,8 @@ export function useMessageFeatures() {
         recipient_id: recipientId,
         group_id: groupId,
         content,
-        attachments,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        attachments: attachments as any,
         scheduled_for: scheduledFor.toISOString(),
       });
 
@@ -283,7 +284,7 @@ export function useMessageFeatures() {
   }, []);
 
   // Search messages
-  const searchMessages = useCallback(async (query: string, chatPartnerId?: string) => {
+  const searchMessages = useCallback(async (query: string, _chatPartnerId?: string) => {
     if (!user || !query.trim()) return [];
 
     const { data, error } = await supabase

@@ -103,7 +103,7 @@ export function useFamilyMembers() {
         milestones: parseJsonArray<Milestone>(m.milestones, []),
         preferences: parseJsonObject(m.preferences, {}),
       })));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching family members:', error);
       if (error instanceof TimeoutError) {
         setFetchError('Loading took too long. Tap to retry.');
@@ -117,7 +117,8 @@ export function useFamilyMembers() {
 
   useEffect(() => {
     fetchMembers();
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // intentionally excludes fetchMembers — plain function recreated each render
 
   const addMember = async (member: Omit<FamilyMember, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
     if (!user) return null;

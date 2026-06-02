@@ -378,7 +378,7 @@ function HabitSuggestions({ userId, existingHabitNames, onHabitAdded }: HabitSug
       });
       toast.success(`Added "${suggestion.name}" to your habits!`);
       onHabitAdded();
-    } catch (error) {
+    } catch {
       toast.error('Failed to add habit');
     } finally {
       setAdding(null);

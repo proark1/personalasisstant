@@ -33,7 +33,7 @@ export function LocationRemindersPanel() {
     }
   };
 
-  const getTriggerTypeLabel = (type: string) => {
+  const _getTriggerTypeLabel = (type: string) => {
     switch (type) {
       case 'enter': return 'On Arrival';
       case 'exit': return 'On Departure';

@@ -182,7 +182,7 @@ export function useVoiceRecognition({
     if (recognitionRef.current && isListening) {
       try {
         recognitionRef.current.stop();
-      } catch (e) {
+      } catch {
         // Ignore
       }
     }

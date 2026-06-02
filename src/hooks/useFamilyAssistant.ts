@@ -20,7 +20,7 @@ interface FamilyContext {
   userLocation?: string;
 }
 
-interface ActivitySuggestion {
+interface _ActivitySuggestion {
   name: string;
   description: string;
   duration: string;

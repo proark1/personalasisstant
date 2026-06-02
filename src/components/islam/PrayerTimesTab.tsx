@@ -82,7 +82,7 @@ const checkNotificationSupport = (): { supported: boolean; reason?: string } => 
     if (window.self !== window.top) {
       return { supported: false, reason: 'Notifications require opening the app in a new tab. The preview window has limited permissions.' };
     }
-  } catch (e) {
+  } catch {
     return { supported: false, reason: 'Notifications require opening the app in a new tab.' };
   }
   
@@ -475,6 +475,7 @@ export function PrayerTimesTab({ onPrayerUpdate }: PrayerTimesTabProps = {}) {
     } else {
       getLocation();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calculationMethod]);
 
   const handleMethodChange = (value: string) => {

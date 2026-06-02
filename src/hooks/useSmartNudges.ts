@@ -167,8 +167,7 @@ export function useSmartNudges(
     
     const now = new Date();
     const hour = now.getHours();
-    const dayOfWeek = now.getDay();
-    
+
     // Only show pattern nudges once every 2 hours max
     const timeSinceLastPatternNudge = (now.getTime() - lastPatternNudgeRef.current.getTime()) / 60000;
     if (timeSinceLastPatternNudge < 120) return null;

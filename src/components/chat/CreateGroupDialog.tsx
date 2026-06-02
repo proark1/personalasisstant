@@ -14,7 +14,7 @@ interface CreateGroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
   members: SpaceMember[];
-  onCreateGroup: (name: string, memberIds: string[], description?: string) => Promise<any>;
+  onCreateGroup: (name: string, memberIds: string[], description?: string) => Promise<unknown>;
 }
 
 export function CreateGroupDialog({ isOpen, onClose, members, onCreateGroup }: CreateGroupDialogProps) {

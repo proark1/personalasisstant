@@ -16,8 +16,10 @@ const AUTH_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 function isNativePlatform(): boolean {
   try {
     // Check for Capacitor
-    return typeof (window as any)?.Capacitor?.isNativePlatform === 'function' 
-      && (window as any).Capacitor.isNativePlatform();
+    type CapacitorWindow = { Capacitor?: { isNativePlatform: () => boolean } };
+    const win = window as unknown as CapacitorWindow;
+    return typeof win?.Capacitor?.isNativePlatform === 'function'
+      && win.Capacitor.isNativePlatform();
   } catch {
     return false;
   }

@@ -69,7 +69,8 @@ export function useAmbientSounds() {
         audioRef.current = null;
       }
     };
-  }, [settings.activeSound, isPlaying]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.activeSound, isPlaying]); // intentionally excludes settings.volume — volume changes are handled by the effect below without restarting audio
 
   // Update volume on existing audio
   useEffect(() => {

@@ -71,7 +71,7 @@ interface UseOpenAIRealtimeOptions {
   // Task operations
   addTask?: (task: Omit<Task, 'id' | 'createdAt'>) => Promise<Task | null>;
   updateTask?: (id: string, updates: Partial<Task>) => Promise<void>;
-  trashTask?: (id: string) => Promise<{ error: any }>;
+  trashTask?: (id: string) => Promise<{ error: unknown }>;
   toggleTaskComplete?: (id: string) => Promise<void>;
   // Contact operations
   addContact?: (input: ContactInput) => Promise<Contact | null>;
@@ -96,21 +96,21 @@ interface UseOpenAIRealtimeOptions {
   refetchContracts?: () => void;
   refetchProjects?: () => void;
   // Note operations
-  createNote?: (title?: string, content?: string, tags?: string[]) => Promise<any>;
-  updateNote?: (noteId: string, updates: any) => Promise<void>;
+  createNote?: (title?: string, content?: string, tags?: string[]) => Promise<unknown>;
+  updateNote?: (noteId: string, updates: Record<string, unknown>) => Promise<void>;
   deleteNote?: (noteId: string, permanent?: boolean) => Promise<void>;
   refetchNotes?: () => void;
   // Habit operations  
-  createHabit?: (habit: any) => Promise<any>;
+  createHabit?: (habit: Record<string, unknown>) => Promise<unknown>;
   logHabit?: (habitId: string, date?: Date, count?: number) => Promise<void>;
   deleteHabit?: (habitId: string) => Promise<void>;
   refetchHabits?: () => void;
   // Message operations
-  sendDirectMessage?: (recipientId: string, content: string, attachments?: any[]) => Promise<any>;
+  sendDirectMessage?: (recipientId: string, content: string, attachments?: unknown[]) => Promise<unknown>;
   refetchMessages?: () => void;
   // Startup idea operations
-  createStartupIdea?: (input: any) => Promise<any>;
-  updateStartupIdea?: (id: string, updates: any) => Promise<boolean>;
+  createStartupIdea?: (input: Record<string, unknown>) => Promise<unknown>;
+  updateStartupIdea?: (id: string, updates: Record<string, unknown>) => Promise<boolean>;
   refetchStartupIdeas?: () => void;
 }
 
@@ -144,7 +144,7 @@ export function useOpenAIRealtime({
   refetchContracts,
   refetchProjects,
   createNote,
-  updateNote,
+  updateNote: _updateNote,
   deleteNote,
   refetchNotes,
   createHabit,
@@ -152,7 +152,7 @@ export function useOpenAIRealtime({
   deleteHabit,
   refetchHabits,
   sendDirectMessage,
-  refetchMessages,
+  refetchMessages: _refetchMessages,
   createStartupIdea,
   updateStartupIdea,
   refetchStartupIdeas,
@@ -222,6 +222,10 @@ export function useOpenAIRealtime({
   };
 
   // Handle function calls from OpenAI
+  // `args` is the LLM tool-call argument bag: genuinely dynamic JSON whose
+  // shape varies per tool. Typing it precisely would mean a union of ~40 tool
+  // schemas; `any` is the correct, behavior-preserving choice here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleFunctionCall = useCallback(async (name: string, args: any, callId: string) => {
     // Read the latest operations + context from the ref so this callback
     // stays referentially stable (empty dep array below).
@@ -234,9 +238,13 @@ export function useOpenAIRealtime({
       refetch, refetchContacts, refetchContracts, refetchProjects,
       createNote, deleteNote, refetchNotes,
       createHabit, logHabit, deleteHabit, refetchHabits,
-      sendDirectMessage, createStartupIdea, updateStartupIdea, refetchStartupIdeas,
+      sendDirectMessage, createStartupIdea, refetchStartupIdeas,
     } = opsRef.current;
     console.log('Function call:', name, args);
+    // `result` is a dynamic accumulator: each tool branch assigns a different
+    // shape (success/message plus tool-specific payloads). Keeping it `any`
+    // preserves the original behavior without inventing a union type.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let result: any = { success: false, message: 'Unknown function' };
     
     const tasks = contextData?.allTasks || [];
@@ -349,26 +357,38 @@ export function useOpenAIRealtime({
         case 'get_task_summary': {
           const now = new Date();
           const todayStr = now.toISOString().split('T')[0];
-          let relevantTasks: any[] = [];
+          let relevantTasks: RealtimeTaskItem[] = [];
           let summary = '';
-          
+
+          // `t.dueDate` is a `Date`, not a string. Normalize both sides to
+          // `YYYY-MM-DD` strings before comparing so date-only equality and
+          // ordering work correctly (the previous string casts crashed /
+          // compared wrong).
+          const dueDateStr = (t: RealtimeTaskItem) =>
+            t.dueDate ? new Date(t.dueDate as string | Date).toISOString().split('T')[0] : undefined;
           switch (args.type) {
             case 'today':
-              relevantTasks = tasks.filter((t: any) => !t.completed && t.dueDate?.startsWith(todayStr));
+              relevantTasks = tasks.filter(t => !t.completed && dueDateStr(t) === todayStr);
               summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} task(s) due today` : 'No tasks due today';
               break;
             case 'overdue':
-              relevantTasks = tasks.filter((t: any) => !t.completed && t.dueDate && t.dueDate < todayStr);
+              relevantTasks = tasks.filter(t => {
+                const d = dueDateStr(t);
+                return !t.completed && d !== undefined && d < todayStr;
+              });
               summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} overdue task(s)` : 'No overdue tasks';
               break;
             case 'upcoming': {
               const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-              relevantTasks = tasks.filter((t: any) => !t.completed && t.dueDate && t.dueDate >= todayStr && t.dueDate <= nextWeek);
+              relevantTasks = tasks.filter(t => {
+                const d = dueDateStr(t);
+                return !t.completed && d !== undefined && d >= todayStr && d <= nextWeek;
+              });
               summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} task(s) coming up` : 'No upcoming tasks';
               break;
             }
             default:
-              relevantTasks = tasks.filter((t: any) => !t.completed);
+              relevantTasks = tasks.filter(t => !t.completed);
               summary = `You have ${relevantTasks.length} pending task(s)`;
           }
           result = { success: true, message: summary, tasks: relevantTasks.slice(0, 5) };
@@ -381,20 +401,20 @@ export function useOpenAIRealtime({
           const location = (args.location || '').toLowerCase();
           const typeFilter = args.type || 'all';
           
-          const matches = contacts.filter((c: any) => {
-            const searchFields = [c.name, c.company, c.role, c.city, c.country, c.notes, ...(c.tags || [])].filter(Boolean).join(' ').toLowerCase();
-            const matchesQuery = !query || searchFields.includes(query);
-            const matchesLocation = !location || (c.city?.toLowerCase().includes(location)) || (c.country?.toLowerCase().includes(location));
+          const matches = contacts.filter(c => {
+            const searchFields = [c.name, (c.company as string|undefined), (c.role as string|undefined), (c.city as string|undefined), (c.country as string|undefined), (c.notes as string|undefined), ...((c.tags as string[]|undefined) || [])].filter(Boolean).join(' ').toLowerCase();
+            const matchesQuery = !query || searchFields.includes(String(query));
+            const matchesLocation = !location || (c.city as string|undefined)?.toLowerCase().includes(String(location)) || (c.country as string|undefined)?.toLowerCase().includes(String(location));
             const matchesType = typeFilter === 'all' || c.contactType === typeFilter;
             return matchesQuery && matchesLocation && matchesType;
           });
-          
+
           result = {
             success: true,
             message: matches.length > 0 ? `Found ${matches.length} contact(s)` : `No contacts found`,
-            contacts: matches.slice(0, 10).map((c: any) => ({
+            contacts: matches.slice(0, 10).map(c => ({
               name: c.name, company: c.company, role: c.role,
-              location: [c.city, c.country].filter(Boolean).join(', '),
+              location: [(c.city as string|undefined), (c.country as string|undefined)].filter(Boolean).join(', '),
               phone: c.phone, email: c.email
             }))
           };
@@ -441,11 +461,11 @@ export function useOpenAIRealtime({
             result = { success: true, message: `Updated contact "${matches[0].name}"` };
             refetchContacts?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple contacts: ${matches.slice(0, 3).map((c: any) => c.name).join(', ')}` };
+            result = { success: false, multiple_matches: true, message: `Found multiple contacts: ${matches.slice(0, 3).map(c => c.name).join(', ')}` };
           }
           break;
         }
-        
+
         case 'mark_contact_contacted': {
           const matches = fuzzyMatchContact(args.contact_query, contacts);
           if (matches.length === 0) {
@@ -476,11 +496,11 @@ export function useOpenAIRealtime({
         
         case 'get_contacts_due': {
           const now = new Date();
-          const due = contacts.filter((c: any) => c.nextContactDue && new Date(c.nextContactDue) <= now);
+          const due = contacts.filter(c => c.nextContactDue && new Date(c.nextContactDue as string) <= now);
           result = {
             success: true,
             message: due.length > 0 ? `You have ${due.length} contact(s) due for follow-up` : 'No contacts due for follow-up',
-            contacts: due.slice(0, 10).map((c: any) => ({ name: c.name, company: c.company, lastContacted: c.lastContactedAt }))
+            contacts: due.slice(0, 10).map(c => ({ name: c.name, company: c.company, lastContacted: c.lastContactedAt }))
           };
           break;
         }
@@ -564,21 +584,21 @@ export function useOpenAIRealtime({
               break;
           }
           
-          const query = (args.query || '').toLowerCase();
-          const matches = events.filter((e: any) => {
-            const eventStart = new Date(e.startTime);
+          const query = String(args.query || '').toLowerCase();
+          const matches = events.filter(e => {
+            const eventStart = new Date(e.startTime as string);
             const inRange = eventStart >= startRange && eventStart <= endRange;
-            const matchesQuery = !query || e.title.toLowerCase().includes(query);
+            const matchesQuery = !query || (e.title || '').toLowerCase().includes(query);
             return inRange && matchesQuery;
           });
-          
+
           result = {
             success: true,
             message: matches.length > 0 ? `Found ${matches.length} event(s)` : 'No events found',
-            events: matches.slice(0, 10).map((e: any) => ({
+            events: matches.slice(0, 10).map(e => ({
               title: e.title,
-              date: new Date(e.startTime).toLocaleDateString(),
-              time: new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              date: new Date(e.startTime as string).toLocaleDateString(),
+              time: new Date(e.startTime as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               location: e.location
             }))
           };
@@ -586,8 +606,8 @@ export function useOpenAIRealtime({
         }
         
         case 'update_event': {
-          const query = (args.event_query || '').toLowerCase();
-          const matches = events.filter((e: any) => e.title.toLowerCase().includes(query));
+          const query = String(args.event_query || '').toLowerCase();
+          const matches = events.filter(e => (e.title || '').toLowerCase().includes(query));
           
           if (matches.length === 0) {
             result = { success: false, message: `Could not find event matching "${args.event_query}"` };
@@ -613,8 +633,8 @@ export function useOpenAIRealtime({
         }
         
         case 'delete_event': {
-          const query = (args.event_query || '').toLowerCase();
-          const matches = events.filter((e: any) => e.title.toLowerCase().includes(query));
+          const query = String(args.event_query || '').toLowerCase();
+          const matches = events.filter(e => (e.title || '').toLowerCase().includes(query));
           
           if (matches.length === 0) {
             result = { success: false, message: `Could not find event matching "${args.event_query}"` };
@@ -656,17 +676,17 @@ export function useOpenAIRealtime({
           const query = (args.query || '').toLowerCase();
           const category = (args.category || '').toLowerCase();
           
-          const matches = contracts.filter((c: any) => {
-            const searchable = [c.name, c.provider, c.category, c.notes].filter(Boolean).join(' ').toLowerCase();
-            const matchesQuery = !query || searchable.includes(query);
-            const matchesCategory = !category || c.category?.toLowerCase() === category;
+          const matches = contracts.filter(c => {
+            const searchable = [c.name, (c.provider as string|undefined), (c.category as string|undefined), (c.notes as string|undefined)].filter(Boolean).join(' ').toLowerCase();
+            const matchesQuery = !query || searchable.includes(String(query));
+            const matchesCategory = !category || (c.category as string|undefined)?.toLowerCase() === category;
             return matchesQuery && matchesCategory;
           });
-          
+
           result = {
             success: true,
             message: matches.length > 0 ? `Found ${matches.length} contract(s)` : 'No contracts found',
-            contracts: matches.slice(0, 10).map((c: any) => ({
+            contracts: matches.slice(0, 10).map(c => ({
               name: c.name, provider: c.provider, category: c.category,
               cost: c.costAmount ? `$${c.costAmount}/${c.costFrequency}` : null,
               renewalDate: c.renewalDate
@@ -710,17 +730,18 @@ export function useOpenAIRealtime({
         }
         
         case 'get_contract_costs': {
-          const active = contracts.filter((c: any) => c.isActive);
+          const active = contracts.filter(c => c.isActive);
           let monthlyTotal = 0;
           let yearlyTotal = 0;
-          
-          active.forEach((c: any) => {
-            if (!c.costAmount) return;
+
+          active.forEach(c => {
+            const cost = Number(c.costAmount);
+            if (!cost) return;
             switch (c.costFrequency) {
-              case 'monthly': monthlyTotal += c.costAmount; yearlyTotal += c.costAmount * 12; break;
-              case 'quarterly': monthlyTotal += c.costAmount / 3; yearlyTotal += c.costAmount * 4; break;
-              case 'yearly': monthlyTotal += c.costAmount / 12; yearlyTotal += c.costAmount; break;
-              case 'one-time': yearlyTotal += c.costAmount; break;
+              case 'monthly': monthlyTotal += cost; yearlyTotal += cost * 12; break;
+              case 'quarterly': monthlyTotal += cost / 3; yearlyTotal += cost * 4; break;
+              case 'yearly': monthlyTotal += cost / 12; yearlyTotal += cost; break;
+              case 'one-time': yearlyTotal += cost; break;
             }
           });
           
@@ -739,16 +760,16 @@ export function useOpenAIRealtime({
           const now = new Date();
           const futureDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
           
-          const expiring = contracts.filter((c: any) => {
+          const expiring = contracts.filter(c => {
             if (!c.isActive || !c.renewalDate) return false;
-            const renewal = new Date(c.renewalDate);
+            const renewal = new Date(c.renewalDate as string);
             return renewal >= now && renewal <= futureDate;
           });
-          
+
           result = {
             success: true,
             message: expiring.length > 0 ? `You have ${expiring.length} contract(s) expiring in the next ${days} days` : `No contracts expiring in the next ${days} days`,
-            contracts: expiring.map((c: any) => ({ name: c.name, renewalDate: c.renewalDate, autoRenews: c.autoRenews }))
+            contracts: expiring.map(c => ({ name: c.name, renewalDate: c.renewalDate, autoRenews: c.autoRenews }))
           };
           break;
         }
@@ -782,9 +803,9 @@ export function useOpenAIRealtime({
           if (projects.length === 0) {
             result = { success: true, message: 'You have no projects yet', projects: [] };
           } else {
-            const projectStats = projects.map((p: any) => {
-              const projectTasks = tasks.filter((t: any) => t.projectId === p.id);
-              const completed = projectTasks.filter((t: any) => t.completed).length;
+            const projectStats = projects.map(p => {
+              const projectTasks = tasks.filter(t => t.projectId === p.id);
+              const completed = projectTasks.filter(t => t.completed).length;
               const total = projectTasks.length;
               return {
                 name: p.name,
@@ -805,16 +826,16 @@ export function useOpenAIRealtime({
             result = { success: false, message: `Could not find project matching "${args.project_query}"` };
           } else {
             const project = matches[0];
-            const projectTasks = tasks.filter((t: any) => t.projectId === project.id);
-            const completed = projectTasks.filter((t: any) => t.completed).length;
-            const pending = projectTasks.filter((t: any) => !t.completed);
+            const projectTasks = tasks.filter(t => t.projectId === project.id);
+            const completed = projectTasks.filter(t => t.completed).length;
+            const pending = projectTasks.filter(t => !t.completed);
             const progress = projectTasks.length > 0 ? Math.round((completed / projectTasks.length) * 100) : 0;
             
             result = {
               success: true,
               message: `Project "${project.name}" is ${progress}% complete (${completed}/${projectTasks.length} tasks done)`,
               project: { name: project.name, progress, totalTasks: projectTasks.length, completedTasks: completed },
-              pendingTasks: pending.slice(0, 5).map((t: any) => ({ title: t.title, priority: t.priority }))
+              pendingTasks: pending.slice(0, 5).map(t => ({ title: t.title, priority: t.priority }))
             };
           }
           break;
@@ -894,9 +915,9 @@ export function useOpenAIRealtime({
               if (h.activeMinutes > 0) summary += `, ${h.activeMinutes} active minutes`;
             } else if (period === 'week' && healthData.weeklyData?.length > 0) {
               const week = healthData.weeklyData;
-              const totalSteps = week.reduce((s: number, d: any) => s + (d.steps || 0), 0);
+              const totalSteps = week.reduce((s: number, d) => s + ((d.steps as number) || 0), 0);
               const avgSteps = Math.round(totalSteps / week.length);
-              const avgSleep = week.reduce((s: number, d: any) => s + (d.sleepHours || 0), 0) / week.length;
+              const avgSleep = week.reduce((s: number, d) => s + ((d.sleepHours as number) || 0), 0) / week.length;
               summary = `This week (${week.length} days): average ${avgSteps.toLocaleString()} steps/day`;
               if (avgSleep > 0) summary += `, average ${avgSleep.toFixed(1)} hours sleep`;
             } else {
@@ -923,14 +944,14 @@ export function useOpenAIRealtime({
               result = { success: true, message: `You've taken ${steps.toLocaleString()} steps today.`, steps };
             } else if (period === 'week' && healthData.weeklyData?.length > 0) {
               const week = healthData.weeklyData;
-              const totalSteps = week.reduce((s: number, d: any) => s + (d.steps || 0), 0);
+              const totalSteps = week.reduce((s: number, d) => s + ((d.steps as number) || 0), 0);
               const avgSteps = Math.round(totalSteps / week.length);
-              result = { 
-                success: true, 
+              result = {
+                success: true,
                 message: `This week you've averaged ${avgSteps.toLocaleString()} steps per day, with a total of ${totalSteps.toLocaleString()} steps.`,
                 avgSteps,
                 totalSteps,
-                dailyData: week.map((d: any) => ({ date: d.date, steps: d.steps }))
+                dailyData: week.map(d => ({ date: d.date, steps: d.steps }))
               };
             } else {
               result = { success: true, message: 'No step data available for this period.', steps: 0 };
@@ -953,14 +974,14 @@ export function useOpenAIRealtime({
                 result = { success: true, message: 'No sleep data recorded for last night.', sleepHours: 0 };
               }
             } else if (period === 'week' && healthData.weeklyData?.length > 0) {
-              const week = healthData.weeklyData.filter((d: any) => d.sleepHours > 0);
+              const week = healthData.weeklyData.filter(d => (d.sleepHours as number) > 0);
               if (week.length > 0) {
-                const avgSleep = week.reduce((s: number, d: any) => s + d.sleepHours, 0) / week.length;
-                result = { 
-                  success: true, 
+                const avgSleep = week.reduce((s: number, d) => s + (d.sleepHours as number), 0) / week.length;
+                result = {
+                  success: true,
                   message: `This week you've averaged ${avgSleep.toFixed(1)} hours of sleep per night.`,
                   avgSleepHours: avgSleep,
-                  dailyData: week.map((d: any) => ({ date: d.date, sleepHours: d.sleepHours }))
+                  dailyData: week.map(d => ({ date: d.date, sleepHours: d.sleepHours }))
                 };
               } else {
                 result = { success: true, message: 'No sleep data available for this week.', avgSleepHours: 0 };
@@ -983,7 +1004,7 @@ export function useOpenAIRealtime({
               result = { success: true, message: `You've burned ${calories.toLocaleString()} calories today.`, calories };
             } else if (period === 'week' && healthData.weeklyData?.length > 0) {
               const week = healthData.weeklyData;
-              const totalCals = week.reduce((s: number, d: any) => s + (d.calories || 0), 0);
+              const totalCals = week.reduce((s: number, d) => s + ((d.calories as number) || 0), 0);
               const avgCals = Math.round(totalCals / week.length);
               result = { 
                 success: true, 
@@ -1025,13 +1046,13 @@ export function useOpenAIRealtime({
             let habits = habitData.habits;
             
             if (query) {
-              habits = habits.filter((h: any) => h.name.toLowerCase().includes(query));
+              habits = habits.filter(h => h.name.toLowerCase().includes(String(query)));
             }
-            
+
             if (habits.length === 0) {
               result = { success: false, message: `No habits found matching "${args.habit_query}".` };
             } else {
-              const habitList = habits.slice(0, 5).map((h: any) => `${h.icon} ${h.name}`).join(', ');
+              const habitList = habits.slice(0, 5).map(h => `${h.icon as string} ${h.name}`).join(', ');
               result = { 
                 success: true, 
                 message: `You have ${habitData.habits.length} active habits: ${habitList}`,
@@ -1064,10 +1085,10 @@ export function useOpenAIRealtime({
         case 'search_notes': {
           const notesData = contextData?.notesData || [];
           const query = (args.query || '').toLowerCase();
-          const matches = notesData.filter((n: any) => 
-            n.title.toLowerCase().includes(query) || 
-            n.contentPreview.toLowerCase().includes(query) ||
-            n.tags?.some((t: string) => t.toLowerCase().includes(query))
+          const matches = notesData.filter(n =>
+            n.title.toLowerCase().includes(String(query)) ||
+            (n.contentPreview as string | undefined)?.toLowerCase().includes(String(query)) ||
+            (n.tags as string[] | undefined)?.some(t => t.toLowerCase().includes(String(query)))
           );
           result = {
             success: true,
@@ -1080,7 +1101,7 @@ export function useOpenAIRealtime({
         case 'delete_note': {
           const notesData = contextData?.notesData || [];
           const query = (args.note_query || '').toLowerCase();
-          const matches = notesData.filter((n: any) => n.title.toLowerCase().includes(query));
+          const matches = notesData.filter(n => n.title.toLowerCase().includes(String(query)));
           
           if (matches.length === 0) {
             result = { success: false, message: `Could not find note matching "${args.note_query}"` };
@@ -1128,8 +1149,8 @@ export function useOpenAIRealtime({
           }
           
           const query = (args.habit_query || '').toLowerCase();
-          const matches = habitData.habits.filter((h: any) => h.name.toLowerCase().includes(query));
-          
+          const matches = habitData.habits.filter(h => h.name.toLowerCase().includes(String(query)));
+
           if (matches.length === 0) {
             result = { success: false, message: `Could not find habit matching "${args.habit_query}"` };
           } else if (matches.length === 1 && logHabit) {
@@ -1137,7 +1158,7 @@ export function useOpenAIRealtime({
             result = { success: true, message: `Logged "${matches[0].name}" as done!` };
             refetchHabits?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple habits: ${matches.slice(0, 3).map((h: any) => h.name).join(', ')}` };
+            result = { success: false, multiple_matches: true, message: `Found multiple habits: ${matches.slice(0, 3).map(h => h.name).join(', ')}` };
           }
           break;
         }
@@ -1150,8 +1171,8 @@ export function useOpenAIRealtime({
           }
           
           const query = (args.habit_query || '').toLowerCase();
-          const matches = habitData.habits.filter((h: any) => h.name.toLowerCase().includes(query));
-          
+          const matches = habitData.habits.filter(h => h.name.toLowerCase().includes(String(query)));
+
           if (matches.length === 0) {
             result = { success: false, message: `Could not find habit matching "${args.habit_query}"` };
           } else if (matches.length === 1 && deleteHabit) {
@@ -1198,7 +1219,7 @@ export function useOpenAIRealtime({
             result = { 
               success: false, 
               multiple_matches: true, 
-              message: `Found multiple contacts: ${matches.slice(0, 3).map((c: any) => c.name).join(', ')}. Please be more specific.` 
+              message: `Found multiple contacts: ${matches.slice(0, 3).map(c => c.name).join(', ')}. Please be more specific.`
             };
           }
           break;
@@ -1232,7 +1253,7 @@ export function useOpenAIRealtime({
             result = { 
               success: false, 
               multiple_matches: true, 
-              message: `Found multiple contacts: ${matches.slice(0, 3).map((c: any) => c.name).join(', ')}. Please be more specific.` 
+              message: `Found multiple contacts: ${matches.slice(0, 3).map(c => c.name).join(', ')}. Please be more specific.`
             };
           }
           break;
@@ -1292,23 +1313,23 @@ export function useOpenAIRealtime({
           
           let filtered = startupIdeas;
           if (statusFilter !== 'all') {
-            filtered = startupIdeas.filter((idea: any) => idea.status === statusFilter);
+            filtered = startupIdeas.filter(idea => idea.status === statusFilter);
           }
-          
+
           if (filtered.length === 0) {
-            result = { 
-              success: true, 
-              message: statusFilter === 'all' 
+            result = {
+              success: true,
+              message: statusFilter === 'all'
                 ? 'You have no saved startup ideas yet. Would you like to brainstorm a new one?'
                 : `No startup ideas with status "${statusFilter}".`,
               ideas: []
             };
           } else {
-            const ideaList = filtered.slice(0, 5).map((i: any) => i.name).join(', ');
-            result = { 
-              success: true, 
+            const ideaList = filtered.slice(0, 5).map(i => i.name).join(', ');
+            result = {
+              success: true,
               message: `You have ${filtered.length} startup idea(s): ${ideaList}`,
-              ideas: filtered.slice(0, 10).map((i: any) => ({
+              ideas: filtered.slice(0, 10).map(i => ({
                 name: i.name,
                 description: i.description,
                 status: i.status,
@@ -1326,7 +1347,7 @@ export function useOpenAIRealtime({
           if (total === 0) {
             result = { success: true, message: 'Your inbox is clear — no unread emails!' };
           } else {
-            const topEmails = unread.slice(0, 5).map((e: any) => 
+            const topEmails = unread.slice(0, 5).map(e =>
               `• From ${e.from}: "${e.subject || '(no subject)'}"`
             ).join('\n');
             result = { 
@@ -1342,15 +1363,15 @@ export function useOpenAIRealtime({
         case 'search_emails': {
           const query = (args.query || '').toLowerCase();
           const allUnread = contextData?.unreadEmails || [];
-          const matches = allUnread.filter((e: any) => 
-            (e.subject?.toLowerCase().includes(query)) ||
-            (e.from?.toLowerCase().includes(query)) ||
-            (e.snippet?.toLowerCase().includes(query))
+          const matches = allUnread.filter(e =>
+            (e.subject?.toLowerCase().includes(String(query))) ||
+            (e.from?.toLowerCase().includes(String(query))) ||
+            ((e.snippet as string | undefined)?.toLowerCase().includes(String(query)))
           );
           if (matches.length === 0) {
             result = { success: true, message: `No emails found matching "${args.query}".` };
           } else {
-            const emailList = matches.slice(0, 5).map((e: any) =>
+            const emailList = matches.slice(0, 5).map(e =>
               `• From ${e.from}: "${e.subject || '(no subject)'}"`
             ).join('\n');
             result = { 
@@ -1367,11 +1388,11 @@ export function useOpenAIRealtime({
           const replyBody = args.reply_body || '';
           const allUnread = contextData?.unreadEmails || [];
           
-          const matched = allUnread.find((e: any) =>
+          const matched = allUnread.find(e =>
             (e.from?.toLowerCase().includes(emailQuery)) ||
             (e.subject?.toLowerCase().includes(emailQuery)) ||
             (e.from_email?.toLowerCase().includes(emailQuery)) ||
-            (e.snippet?.toLowerCase().includes(emailQuery))
+            ((e.snippet as string | undefined)?.toLowerCase().includes(emailQuery))
           );
           
           if (!matched) {
@@ -1543,7 +1564,11 @@ export function useOpenAIRealtime({
         setTimeout(() => reject(new Error('Connection timeout - please check your internet connection and try again')), 30000);
       });
 
-      const { data, error } = await Promise.race([edgeFunctionPromise, timeoutPromise]) as { data: any; error: any };
+      // The edge function response is a dynamic Supabase payload whose shape
+      // (client_secret.value, etc.) isn't typed upstream; `any` is the
+      // correct, behavior-preserving choice for reading nested fields off it.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await Promise.race([edgeFunctionPromise, timeoutPromise]) as { data: any; error: { message?: string } | null };
 
       assertStillActive('after token fetch');
       const tokenFetchEnd = performance.now();
@@ -1603,14 +1628,15 @@ export function useOpenAIRealtime({
       let ms: MediaStream;
       try {
         ms = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (mediaError: any) {
+      } catch (mediaError) {
         console.error('getUserMedia error:', mediaError);
-        if (mediaError.name === 'NotAllowedError' || mediaError.name === 'PermissionDeniedError') {
+        const me = mediaError as { name?: string; message?: string };
+        if (me.name === 'NotAllowedError' || me.name === 'PermissionDeniedError') {
           throw new Error('Microphone permission denied. Please allow microphone access in your device settings.');
-        } else if (mediaError.name === 'NotFoundError') {
+        } else if (me.name === 'NotFoundError') {
           throw new Error('No microphone found. Please connect a microphone and try again.');
         } else {
-          throw new Error(`Microphone error: ${mediaError.message || 'Unable to access microphone'}`);
+          throw new Error(`Microphone error: ${me.message || 'Unable to access microphone'}`);
         }
       }
       localStreamRef.current = ms;
@@ -1768,12 +1794,13 @@ export function useOpenAIRealtime({
           },
           signal: controller.signal,
         });
-      } catch (fetchErr: any) {
+      } catch (fetchErr) {
         clearTimeout(sdpTimeout);
-        if (fetchErr.name === 'AbortError') {
+        const fe = fetchErr as { name?: string; message?: string };
+        if (fe.name === 'AbortError') {
           throw new Error('OpenAI connection timeout - please try again');
         }
-        throw new Error(`Network error connecting to OpenAI: ${fetchErr.message}`);
+        throw new Error(`Network error connecting to OpenAI: ${fe.message || String(fetchErr)}`);
       }
       clearTimeout(sdpTimeout);
 

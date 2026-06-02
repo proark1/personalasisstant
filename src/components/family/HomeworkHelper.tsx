@@ -35,7 +35,7 @@ const PROBLEM_TYPES = {
   other: ['General help', 'Study tips', 'Test preparation'],
 };
 
-export function HomeworkHelper({ preselectedChild, onClose }: HomeworkHelperProps) {
+export function HomeworkHelper({ preselectedChild, onClose: _onClose }: HomeworkHelperProps) {
   const { members } = useFamilyMembers();
   const { getHomeworkHelp, isLoading, streamingResponse } = useFamilyAssistant();
   const { t } = useLanguage();

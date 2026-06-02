@@ -141,14 +141,14 @@ const HADITH_COLLECTION: Hadith[] = [
 ];
 
 const COLLECTIONS = ['All', 'Bukhari', 'Muslim', 'Tirmidhi', 'Abu Dawud', 'Nawawi 40'];
-const CHAPTERS = ['All', 'Faith', 'Prayer', 'Character', 'Charity', 'Kindness', 'Family', 'Knowledge', 'Fundamentals', 'Piety', 'Worship', 'Mercy', 'Parents', 'Patience', 'Brotherhood', 'Supplication', 'Fasting'];
+const _CHAPTERS = ['All', 'Faith', 'Prayer', 'Character', 'Charity', 'Kindness', 'Family', 'Knowledge', 'Fundamentals', 'Piety', 'Worship', 'Mercy', 'Parents', 'Patience', 'Brotherhood', 'Supplication', 'Fasting'];
 
 export function HadithTab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('All');
-  const [selectedChapter, setSelectedChapter] = useState('All');
+  const [_selectedChapter] = useState('All');
   const [expandedHadith, setExpandedHadith] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [loadingAudioId, setLoadingAudioId] = useState<number | null>(null);
@@ -225,10 +225,10 @@ export function HadithTab() {
         hadith.arabic.includes(searchQuery) ||
         hadith.narrator.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCollection = selectedCollection === 'All' || hadith.collection === selectedCollection;
-      const matchesChapter = selectedChapter === 'All' || hadith.chapter === selectedChapter;
+      const matchesChapter = _selectedChapter === 'All' || hadith.chapter === _selectedChapter;
       return matchesSearch && matchesCollection && matchesChapter;
     });
-  }, [searchQuery, selectedCollection, selectedChapter]);
+  }, [searchQuery, selectedCollection, _selectedChapter]);
 
   const toggleFavorite = (hadith: Hadith) => {
     if (favorites.includes(hadith.id)) {

@@ -32,13 +32,14 @@ export function useAIUsage() {
     if (!user?.id) return;
     setLoading(true);
     try {
+      const db = supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> };
       const [sRes, mRes] = await Promise.all([
-        (supabase as any)
+        db
           .from('ai_usage_summary')
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle(),
-        (supabase as any)
+        db
           .from('ai_usage_monthly')
           .select('*')
           .eq('user_id', user.id)
@@ -62,7 +63,7 @@ export function useAIUsage() {
           used_pct: 0, over_cap: false, calls: 0, tokens: 0,
         });
       }
-      setMonthly((mRes.data ?? []).map((r: any) => ({
+      setMonthly((mRes.data ?? []).map((r: Record<string, unknown>) => ({
         month: r.month,
         calls: Number(r.calls ?? 0),
         total_tokens: Number(r.total_tokens ?? 0),

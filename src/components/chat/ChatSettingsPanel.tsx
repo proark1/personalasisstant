@@ -18,7 +18,7 @@ interface ChatSettingsPanelProps {
   userId: string;
 }
 
-export function ChatSettingsPanel({ userId }: ChatSettingsPanelProps) {
+export function ChatSettingsPanel({ userId: _userId }: ChatSettingsPanelProps) {
   const { 
     settings, 
     blockedUsers, 

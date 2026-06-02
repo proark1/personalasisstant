@@ -8,10 +8,6 @@ const corsHeaders = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-interface AnalysisRequest {
-  forceRefresh?: boolean;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -38,14 +34,14 @@ serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) throw new Error('No user');
     userId = user.id;
-  } catch (e) {
+  } catch {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
   try {
-    const body: AnalysisRequest = await req.json().catch(() => ({}));
+    await req.json().catch(() => ({}));
 
     console.log(`Analyzing patterns for user: ${userId}`);
 
@@ -91,7 +87,7 @@ serve(async (req) => {
     if (habitsError) throw habitsError;
 
     // Analyze patterns
-    const patterns: any[] = [];
+    const patterns: Record<string, unknown>[] = [];
     const now = new Date();
 
     // 1. Sleep-Productivity Correlation
@@ -101,7 +97,6 @@ serve(async (req) => {
         .map(c => ({ sleep: c.sleep_hours, rating: c.day_rating }));
 
       if (sleepProductivityData.length >= 5) {
-        const avgSleep = sleepProductivityData.reduce((acc, d) => acc + d.sleep, 0) / sleepProductivityData.length;
         const goodSleepDays = sleepProductivityData.filter(d => d.sleep >= 7);
         const badSleepDays = sleepProductivityData.filter(d => d.sleep < 6);
 

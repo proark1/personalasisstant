@@ -15,7 +15,7 @@ export function useWorkspaceRealtime() {
   useEffect(() => {
     if (!workspaceId || !user?.id) return;
 
-    const notify = (kind: string, event: 'INSERT' | 'UPDATE' | 'DELETE', newRow: any, oldRow: any) => {
+    const notify = (kind: string, event: 'INSERT' | 'UPDATE' | 'DELETE', newRow: Record<string, unknown>, oldRow: Record<string, unknown>) => {
       // Only surface events another user caused. Our own create/update/delete
       // already produced its own UI feedback. The migration sets
       // REPLICA IDENTITY FULL on these tables so `oldRow` carries user_id /
@@ -44,19 +44,19 @@ export function useWorkspaceRealtime() {
       .channel(`ws-rt-${workspaceId}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'tasks', filter: `workspace_id=eq.${workspaceId}` },
-        (payload) => notify('task', payload.eventType as any, payload.new, payload.old))
+        (payload) => notify('task', payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE', payload.new as Record<string, unknown>, payload.old as Record<string, unknown>))
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'events', filter: `workspace_id=eq.${workspaceId}` },
-        (payload) => notify('event', payload.eventType as any, payload.new, payload.old))
+        (payload) => notify('event', payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE', payload.new as Record<string, unknown>, payload.old as Record<string, unknown>))
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'notes', filter: `workspace_id=eq.${workspaceId}` },
-        (payload) => notify('note', payload.eventType as any, payload.new, payload.old))
+        (payload) => notify('note', payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE', payload.new as Record<string, unknown>, payload.old as Record<string, unknown>))
       .on('postgres_changes',
         // task_comments.workspace_id is denormalized via trigger so we can
         // subscribe with a server-side filter instead of receiving every
         // workspace's comments and filtering client-side.
         { event: 'INSERT', schema: 'public', table: 'task_comments', filter: `workspace_id=eq.${workspaceId}` },
-        (payload) => notify('comment', 'INSERT', payload.new, payload.old))
+        (payload) => notify('comment', 'INSERT', payload.new as Record<string, unknown>, payload.old as Record<string, unknown>))
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

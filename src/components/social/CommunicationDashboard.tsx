@@ -23,7 +23,7 @@ interface CommunicationDashboardProps {
   userId: string;
 }
 
-export function CommunicationDashboard({ userId }: CommunicationDashboardProps) {
+export function CommunicationDashboard({ userId: _userId }: CommunicationDashboardProps) {
   const { dashboard, loading } = useCommunicationStats();
 
   if (loading || !dashboard) {
@@ -146,7 +146,7 @@ export function CommunicationDashboard({ userId }: CommunicationDashboardProps) 
               <p className="text-muted-foreground text-center py-4">No data yet</p>
             ) : (
               <div className="space-y-4">
-                {dashboard.mostActiveContacts.map((contact, index) => {
+                {dashboard.mostActiveContacts.map((contact) => {
                   const total = contact.totalMessagesSent + contact.totalMessagesReceived + contact.totalCalls;
                   const maxTotal = dashboard.mostActiveContacts[0] 
                     ? dashboard.mostActiveContacts[0].totalMessagesSent + 

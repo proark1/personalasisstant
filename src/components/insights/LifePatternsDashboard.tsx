@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
-const CATEGORY_ICONS: Record<string, any> = {
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   sleep: Moon,
   productivity: Target,
   mood: Heart,
@@ -101,7 +101,7 @@ function PatternCard({ pattern, onDismiss }: { pattern: UserPattern; onDismiss: 
   );
 }
 
-function WeeklyTrendChart({ data }: { data: any[] }) {
+function WeeklyTrendChart({ data }: { data: Record<string, unknown>[] }) {
   if (!data || data.length === 0) {
     return (
       <div className="h-48 flex items-center justify-center text-muted-foreground">
@@ -179,7 +179,7 @@ export function LifePatternsDashboard() {
   const recentMoods = getRecentMoods();
   const avgStats = getAverageStats(7);
   const highConfidencePatterns = getHighConfidencePatterns(0.6);
-  const latestSummary = weeklySummaries[0];
+  const _latestSummary = weeklySummaries[0];
 
   // Transform mood data for chart
   const moodChartData = recentMoods.map(item => ({

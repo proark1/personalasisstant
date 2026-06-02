@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Contact } from '@/hooks/useContacts';
 import { ContactInteraction } from '@/hooks/useContactInteractions';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
@@ -27,7 +27,7 @@ interface ContactTimelineProps {
   showUpcoming?: boolean;
 }
 
-const EVENT_ICONS: Record<string, any> = {
+const EVENT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   call: Phone,
   email: Mail,
   meeting: Video,

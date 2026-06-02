@@ -176,7 +176,7 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
         setCookTime(String(recipe.cookTime || suggestion.cookTime || ''));
         setInstructions(recipe.instructions || '');
         setIngredients(
-          (recipe.ingredients || []).map((ing: any) => ({
+          (recipe.ingredients || []).map((ing: { name: string; quantity?: number | string; unit?: string; category?: string }) => ({
             name: ing.name,
             quantity: String(ing.quantity || ''),
             unit: ing.unit || '',
@@ -224,7 +224,7 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
         setCookTime(String(recipe.cookTime || ''));
         setInstructions(recipe.instructions || '');
         setIngredients(
-          (recipe.ingredients || []).map((ing: any) => ({
+          (recipe.ingredients || []).map((ing: { name: string; quantity?: number | string; unit?: string; category?: string }) => ({
             name: ing.name,
             quantity: String(ing.quantity || ''),
             unit: ing.unit || '',

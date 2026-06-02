@@ -4,16 +4,6 @@ import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-// Type declarations for Web Speech API
-interface SpeechRecognitionEvent extends Event {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-}
-
 interface VoiceQuickAddProps {
   onVoiceCommand: (text: string) => void;
   className?: string;
@@ -22,7 +12,7 @@ interface VoiceQuickAddProps {
 export function VoiceQuickAdd({ onVoiceCommand, className }: VoiceQuickAddProps) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<{ start(): void; stop(): void; abort(): void } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {

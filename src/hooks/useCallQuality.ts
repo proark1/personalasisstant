@@ -99,7 +99,10 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
         };
 
         // We’ll resolve candidate IDs after we find the selected pair.
-        let selectedPair: any | null = null;
+        // RTCStats candidate-pair fields are not fully typed in lib.dom.d.ts
+        interface CandidatePairStat { selected?: boolean; nominated?: boolean; localCandidateId?: string; remoteCandidateId?: string; currentRoundTripTime?: number; }
+        interface CandidateStat { candidateType?: string; protocol?: string; ip?: string; address?: string; }
+        let selectedPair: (RTCStats & CandidatePairStat) | null = null;
         let localCandidateId: string | undefined;
         let remoteCandidateId: string | undefined;
 
@@ -150,16 +153,17 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
           }
 
           // Find the *selected* candidate pair (best for "why doesn't this connect")
-          if (stat.type === 'candidate-pair' && stat.state === 'succeeded') {
+          if (stat.type === 'candidate-pair' && (stat as RTCStats & { state?: string }).state === 'succeeded') {
             // Modern browsers set either `selected` or `nominated` (or both).
-            const isSelected = (stat as any).selected === true || (stat as any).nominated === true;
+            const pair = stat as RTCStats & CandidatePairStat;
+            const isSelected = pair.selected === true || pair.nominated === true;
             if (isSelected && !selectedPair) {
-              selectedPair = stat;
-              localCandidateId = (stat as any).localCandidateId;
-              remoteCandidateId = (stat as any).remoteCandidateId;
+              selectedPair = pair;
+              localCandidateId = pair.localCandidateId;
+              remoteCandidateId = pair.remoteCandidateId;
 
-              if ((stat as any).currentRoundTripTime !== undefined) {
-                newStats.latency = Math.round(((stat as any).currentRoundTripTime as number) * 1000);
+              if (pair.currentRoundTripTime !== undefined) {
+                newStats.latency = Math.round(pair.currentRoundTripTime * 1000);
               }
             }
           }
@@ -167,8 +171,8 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
 
         // Resolve candidate details for the selected pair
         if (selectedPair && localCandidateId && remoteCandidateId) {
-          const local = report.get(localCandidateId) as any;
-          const remote = report.get(remoteCandidateId) as any;
+          const local = report.get(localCandidateId) as (RTCStats & CandidateStat) | undefined;
+          const remote = report.get(remoteCandidateId) as (RTCStats & CandidateStat) | undefined;
 
           newStats.selectedCandidatePair = {
             localType: local?.candidateType,

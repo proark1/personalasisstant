@@ -25,10 +25,10 @@ export function useUserProperties() {
         supabase.from('maintenance_log').select('*').eq('user_id', user.id).order('performed_on', { ascending: false }),
         supabase.from('inventory_items').select('*').eq('user_id', user.id).order('name'),
       ]);
-      setProperties((p.data as any) || []); setVehicles((v.data as any) || []); setMaintenance((m.data as any) || []); setInventory((i.data as any) || []);
+      setProperties((p.data as UserProperty[]) || []); setVehicles((v.data as Vehicle[]) || []); setMaintenance((m.data as MaintenanceEntry[]) || []); setInventory((i.data as InventoryItem[]) || []);
     } finally { setIsLoading(false); }
   };
-  useEffect(() => { if (user) refresh(); }, [user]);
+  useEffect(() => { if (user) refresh(); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addProperty = async (p: Partial<UserProperty>) => { if (!user) return; const { error } = await supabase.from('user_properties').insert({ ...p, user_id: user.id, name: p.name! }); if (error) return toast.error(error.message); toast.success('Added'); refresh(); };
   const addVehicle = async (p: Partial<Vehicle>) => { if (!user) return; const { error } = await supabase.from('vehicles').insert({ ...p, user_id: user.id, name: p.name! }); if (error) return toast.error(error.message); toast.success('Added'); refresh(); };

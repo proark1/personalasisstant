@@ -73,7 +73,7 @@ export function useContextualActions(onNavigate?: (panel: string) => void) {
         const contactsForMatch = await supabase.from('user_contacts').select('name').eq('user_id', user.id).limit(50);
         if (contactsForMatch.data) {
           for (const event of eventsResult.data) {
-            const match = contactsForMatch.data.find((c: any) => event.title?.toLowerCase().includes(c.name?.toLowerCase()));
+            const match = contactsForMatch.data.find((c: { name?: string }) => event.title?.toLowerCase().includes(c.name?.toLowerCase()));
             if (match) { meetingContactName = match.name; break; }
           }
         }

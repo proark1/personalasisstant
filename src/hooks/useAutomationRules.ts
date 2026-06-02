@@ -246,7 +246,7 @@ export function useAutomationRules() {
     }
   }, [user]);
 
-  const checkTrigger = useCallback((triggerType: TriggerType, context?: Record<string, unknown>) => {
+  const checkTrigger = useCallback((triggerType: TriggerType, _context?: Record<string, unknown>) => {
     const matchingRules = rules.filter(rule => 
       rule.isActive && rule.triggerType === triggerType
     );

@@ -18,10 +18,10 @@ interface AuthContextType {
   loading: boolean;
   /** True until the profile row has been fetched at least once for the signed-in user. */
   profileLoading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<any>;
-  signIn: (email: string, password: string) => Promise<any>;
-  signOut: () => Promise<any>;
-  updateProfile: (updates: Partial<Profile>) => Promise<any>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<{ data: unknown; error: unknown }>;
+  signIn: (email: string, password: string) => Promise<{ data: unknown; error: unknown }>;
+  signOut: () => Promise<{ error: unknown }>;
+  updateProfile: (updates: Partial<Profile>) => Promise<{ data?: unknown; error: unknown }>;
   /** Re-fetch the profile row (e.g. after onboarding completes). */
   refreshProfile: () => Promise<void>;
 }
@@ -136,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuthContext() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuthContext must be used within AuthProvider');

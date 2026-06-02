@@ -147,7 +147,7 @@ export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
           { icon: Briefcase, color: 'text-blue-500', label: 'Business', value: metrics.businessCount },
           { icon: CheckCircle, color: 'text-green-500', label: 'Healthy', value: metrics.healthyCount },
           { icon: AlertCircle, color: 'text-orange-500', label: 'Overdue', value: metrics.overdueCount },
-        ].map((stat, i) => (
+        ].map((stat) => (
           <motion.div key={stat.label} variants={fadeIn}>
             <GlassCard className="p-4">
               <div className="flex items-center gap-2">

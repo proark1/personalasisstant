@@ -2,6 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Wrapper for custom RPC calls not present in the generated Supabase types
+async function customRpc(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }> {
+  return (supabase as unknown as { rpc: (fn: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> }).rpc(fn, args);
+}
+
 export type KgEntityKind =
   | 'person'
   | 'project'
@@ -60,21 +65,21 @@ export function useKnowledgeGraph(opts: UseKnowledgeGraphOptions = {}) {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: rpcErr } = await (supabase as any).rpc('kg_top_entities', {
+      const { data, error: rpcErr } = await customRpc('kg_top_entities', {
         p_user_id: user.id,
         p_limit: opts.limit ?? 50,
         p_kinds: opts.kinds && opts.kinds.length ? opts.kinds : null,
       });
       if (rpcErr) throw rpcErr;
-      const rows: KgEntity[] = (data ?? []).map((r: any) => ({
-        id: r.id,
-        kind: r.kind,
-        name: r.name,
-        description: r.description ?? null,
+      const rows: KgEntity[] = ((data as Record<string, unknown>[]) ?? []).map((r) => ({
+        id: r.id as string,
+        kind: r.kind as KgEntityKind,
+        name: r.name as string,
+        description: (r.description ?? null) as string | null,
         importance: Number(r.importance ?? 0.5),
         mentionCount: Number(r.mention_count ?? 0),
-        lastMentionedAt: r.last_mentioned_at ?? null,
-        externalRefs: r.external_refs ?? {},
+        lastMentionedAt: (r.last_mentioned_at ?? null) as string | null,
+        externalRefs: (r.external_refs ?? {}) as Record<string, unknown>,
       }));
       setEntities(rows);
     } catch (e) {
@@ -88,18 +93,18 @@ export function useKnowledgeGraph(opts: UseKnowledgeGraphOptions = {}) {
   const fetchNeighbors = useCallback(async (entityId: string, limit = 12): Promise<KgNeighbor[]> => {
     if (!user?.id) return [];
     try {
-      const { data, error: rpcErr } = await (supabase as any).rpc('kg_neighborhood', {
+      const { data, error: rpcErr } = await customRpc('kg_neighborhood', {
         p_user_id: user.id,
         p_entity_id: entityId,
         p_limit: limit,
       });
       if (rpcErr) throw rpcErr;
-      return (data ?? []).map((r: any) => ({
-        entityId: r.entity_id,
-        name: r.name,
-        kind: r.kind,
+      return ((data as Record<string, unknown>[]) ?? []).map((r) => ({
+        entityId: r.entity_id as string,
+        name: r.name as string,
+        kind: r.kind as KgEntityKind,
         sharedMentions: Number(r.shared_mentions ?? 0),
-        lastCoMention: r.last_co_mention ?? null,
+        lastCoMention: (r.last_co_mention ?? null) as string | null,
       }));
     } catch (e) {
       console.warn('[useKnowledgeGraph] neighbors failed', (e as Error).message);
@@ -110,15 +115,15 @@ export function useKnowledgeGraph(opts: UseKnowledgeGraphOptions = {}) {
   const fetchMentions = useCallback(async (entityId: string, limit = 30): Promise<KgMention[]> => {
     if (!user?.id) return [];
     try {
-      const { data, error: dbErr } = await (supabase as any)
-        .from('kg_mentions')
+      type KgMentionRow = { id: string; entity_id: string; source_kind: string; source_id: string; salience: number; excerpt: string | null; created_at: string };
+      const { data, error: dbErr } = await (supabase as unknown as { from: (t: string) => { select: (c: string) => { eq: (a: string, b: string) => { eq: (a: string, b: string) => { order: (c: string, o: Record<string, unknown>) => { limit: (n: number) => Promise<{ data: KgMentionRow[] | null; error: unknown }> } } } } } }).from('kg_mentions')
         .select('id, entity_id, source_kind, source_id, salience, excerpt, created_at')
         .eq('user_id', user.id)
         .eq('entity_id', entityId)
         .order('created_at', { ascending: false })
         .limit(limit);
       if (dbErr) throw dbErr;
-      return (data ?? []).map((r: any) => ({
+      return (data ?? []).map((r) => ({
         id: r.id,
         entityId: r.entity_id,
         sourceKind: r.source_kind,

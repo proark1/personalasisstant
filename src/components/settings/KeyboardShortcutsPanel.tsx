@@ -98,6 +98,7 @@ export function KeyboardShortcutsPanel({ open, onOpenChange }: KeyboardShortcuts
 }
 
 // Hook to integrate keyboard shortcuts panel with ? key
+// eslint-disable-next-line react-refresh/only-export-components
 export function useKeyboardShortcutsPanel() {
   const [open, setOpen] = useState(false);
   

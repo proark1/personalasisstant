@@ -83,8 +83,8 @@ export function useMeetingBots() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const { data, error } = await (supabase as any)
-        .from('meeting_bots')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any).from('meeting_bots')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -177,6 +177,7 @@ export function useMeetingBots() {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowFromDb(r: any): MeetingBotRow {
   return {
     id: r.id,

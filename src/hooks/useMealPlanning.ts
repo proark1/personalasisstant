@@ -69,7 +69,7 @@ export function useMealPlanning() {
 
       if (error) throw error;
       setRecipes(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching recipes:', error);
     }
   }, [user?.id]);
@@ -119,7 +119,7 @@ export function useMealPlanning() {
       }));
 
       setMealPlans(plansWithRecipes);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching meal plans:', error);
       if (error instanceof TimeoutError) {
         setFetchError('Loading took too long. Tap to retry.');
@@ -147,7 +147,7 @@ export function useMealPlanning() {
       setRecipes(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       toast.success(t('meals.toast.recipeAdded'));
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding recipe:', error);
       toast.error(t('meals.toast.recipeAddFailed'));
       return null;
@@ -169,7 +169,7 @@ export function useMealPlanning() {
       setRecipes(prev => prev.map(r => r.id === id ? data : r));
       toast.success(t('meals.toast.recipeUpdated'));
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating recipe:', error);
       toast.error(t('meals.toast.recipeUpdateFailed'));
       return null;
@@ -186,7 +186,7 @@ export function useMealPlanning() {
       if (error) throw error;
       setRecipes(prev => prev.filter(r => r.id !== id));
       toast.success(t('meals.toast.recipeDeleted'));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting recipe:', error);
       toast.error(t('meals.toast.recipeDeleteFailed'));
     }
@@ -228,7 +228,7 @@ export function useMealPlanning() {
 
       if (error) throw error;
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding ingredient:', error);
       toast.error(t('meals.toast.ingredientAddFailed'));
       return null;
@@ -243,7 +243,7 @@ export function useMealPlanning() {
         .eq('id', ingredientId);
 
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting ingredient:', error);
     }
   };
@@ -267,7 +267,7 @@ export function useMealPlanning() {
       setMealPlans(prev => [...prev, { ...data, recipe }]);
       toast.success(t('meals.toast.mealPlanned'));
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding meal plan:', error);
       toast.error(t('meals.toast.mealPlanFailed'));
       return null;
@@ -284,7 +284,7 @@ export function useMealPlanning() {
       if (error) throw error;
       setMealPlans(prev => prev.filter(m => m.id !== id));
       toast.success(t('meals.toast.mealRemoved'));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting meal plan:', error);
       toast.error(t('meals.toast.mealRemoveFailed'));
     }
@@ -310,7 +310,7 @@ export function useMealPlanning() {
       }));
       toast.success(t('meals.toast.mealMoved'));
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating meal plan:', error);
       toast.error(t('meals.toast.mealMoveFailed'));
       return null;

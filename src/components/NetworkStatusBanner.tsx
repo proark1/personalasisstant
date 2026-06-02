@@ -100,7 +100,7 @@ export function NetworkStatusBanner() {
                   description: "Reloading the app now…",
                 });
                 window.location.reload();
-              } catch (e) {
+              } catch {
                 toast({
                   title: "Reset failed",
                   description: "Couldn’t reset cache/service worker. Please hard refresh.",

@@ -32,7 +32,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, messages, message, targetLanguage, context } = await req.json();
+    const { action, messages, message, targetLanguage } = await req.json();
 
     const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) {
@@ -47,7 +47,7 @@ serve(async (req) => {
         systemPrompt = `You are a helpful assistant that generates smart reply suggestions for chat messages. 
         Generate 3 short, contextually appropriate reply suggestions based on the conversation history.
         Return only a JSON array of strings, no explanation.`;
-        userPrompt = `Based on this conversation, suggest 3 brief replies:\n${messages.map((m: any) => `${m.role}: ${m.content}`).join('\n')}\n\nLast message to reply to: "${message}"`;
+        userPrompt = `Based on this conversation, suggest 3 brief replies:\n${messages.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join('\n')}\n\nLast message to reply to: "${message}"`;
         break;
 
       case 'translate':
@@ -59,7 +59,7 @@ serve(async (req) => {
         systemPrompt = `You are a helpful assistant that summarizes conversations. 
         Create a concise summary of the key points discussed.
         Keep it brief but informative.`;
-        userPrompt = `Summarize this conversation:\n${messages.map((m: any) => `${m.role}: ${m.content}`).join('\n')}`;
+        userPrompt = `Summarize this conversation:\n${messages.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join('\n')}`;
         break;
 
       case 'sentiment':

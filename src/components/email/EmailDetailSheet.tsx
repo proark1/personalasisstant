@@ -140,6 +140,7 @@ export function EmailDetailSheet({ thread, email, open, onOpenChange, onArchive,
         });
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, email?.id]);
 
   if (!email) return null;

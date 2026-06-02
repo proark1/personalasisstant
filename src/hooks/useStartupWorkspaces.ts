@@ -64,6 +64,8 @@ export function useStartupWorkspaces() {
     } catch (error) {
       console.error('Error fetching workspaces:', error);
     }
+  // createDefaultWorkspaces is defined below; adding it would create circular deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, activeWorkspace]);
 
   // Create default workspaces

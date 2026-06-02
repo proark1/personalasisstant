@@ -289,7 +289,7 @@ export function useProperties() {
     try {
       const updateData = { ...updates };
       if (updates.items) {
-        (updateData as any).items = JSON.stringify(updates.items);
+        (updateData as Record<string, unknown>).items = JSON.stringify(updates.items);
       }
       
       const { error } = await supabase

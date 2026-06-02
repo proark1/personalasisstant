@@ -116,6 +116,7 @@ export function AgeBasedCheckupsPanel() {
     if (profile?.birthDate && !birthDate) {
       setBirthDate(profile.birthDate);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.birthDate]);
 
   // Save birth date to profile when changed

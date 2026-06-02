@@ -91,7 +91,7 @@ serve(async (req) => {
     try {
       await assertWithinQuota(admin, userId);
     } catch (e) {
-      const code = (e as any)?.code;
+      const code = (e as { code?: string })?.code;
       return json({ error: (e as Error).message, code }, code === "quota_exceeded" ? 429 : 503);
     }
 

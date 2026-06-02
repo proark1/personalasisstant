@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Contact, ContactInput } from '@/hooks/useContacts';
+import { Contact, ContactInput, ContactType, PersonalTier, BusinessLevel } from '@/hooks/useContacts';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -131,9 +131,9 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
         role: getVal(['role', 'title', 'job title', 'position']),
         country: getVal(['country']),
         city: getVal(['city']),
-        contactType: (getVal(['contact type', 'type']) as any) || 'personal',
-        personalTier: getVal(['personal tier', 'tier']) as any,
-        businessLevel: getVal(['business level', 'level']) as any,
+        contactType: (getVal(['contact type', 'type']) as ContactType) || 'personal',
+        personalTier: getVal(['personal tier', 'tier']) as PersonalTier | undefined,
+        businessLevel: getVal(['business level', 'level']) as BusinessLevel | undefined,
         contactFrequencyDays: parseInt(getVal(['contact frequency', 'frequency']) || '30') || 30,
         notes: getVal(['notes', 'note', 'comments']),
         tags: getVal(['tags'])?.split(/[;,]/).map(t => t.trim()).filter(Boolean),

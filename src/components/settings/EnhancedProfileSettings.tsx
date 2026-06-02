@@ -99,7 +99,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
       } else {
         throw new Error(result.error);
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to save profile. Please try again.',

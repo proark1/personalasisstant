@@ -128,7 +128,7 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
             startTip: data.recommendation.startTip || 'Just start with 2 minutes!',
             energy: data.recommendation.energy || 'medium',
           },
-          alternatives: (data.alternatives || []).map((alt: any) => ({
+          alternatives: (data.alternatives || []).map((alt: Record<string, unknown>) => ({
             taskId: alt.taskId,
             title: alt.title,
             reason: alt.reason,
@@ -147,12 +147,14 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
     }
   }, [user, tasks, events, loading, lastFetched, suggestion]);
 
-  // Auto-fetch on mount and when tasks change significantly
+  // Auto-fetch on mount and when tasks count changes; other deps intentionally
+  // excluded to avoid infinite fetch loops (fetchSuggestion itself reads tasks/loading/suggestion).
   useEffect(() => {
     const incompleteTasks = tasks.filter(t => !t.completed);
     if (incompleteTasks.length > 0 && !suggestion && !loading) {
       fetchSuggestion();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks.length]);
 
   const refresh = useCallback(() => {

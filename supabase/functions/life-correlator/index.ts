@@ -45,7 +45,7 @@ serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) throw new Error('No user');
     userId = user.id;
-  } catch (e) {
+  } catch {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -89,7 +89,7 @@ serve(async (req) => {
     const now = new Date();
 
     // Helper: Group data by date
-    const groupByDate = <T extends { [key: string]: any }>(items: T[], dateField: string): Map<string, T[]> => {
+    const groupByDate = <T extends Record<string, unknown>>(items: T[], dateField: string): Map<string, T[]> => {
       const map = new Map<string, T[]>();
       items.forEach(item => {
         const date = item[dateField]?.split('T')[0];

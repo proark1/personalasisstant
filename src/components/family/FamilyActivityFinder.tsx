@@ -15,7 +15,7 @@ interface FamilyActivityFinderProps {
   onClose?: () => void;
 }
 
-export function FamilyActivityFinder({ onClose }: FamilyActivityFinderProps) {
+export function FamilyActivityFinder({ onClose: _onClose }: FamilyActivityFinderProps) {
   const { members } = useFamilyMembers();
   const { weather } = useWeather();
   const { findActivities, isLoading, streamingResponse } = useFamilyAssistant();

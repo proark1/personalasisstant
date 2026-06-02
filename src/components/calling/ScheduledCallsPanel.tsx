@@ -20,7 +20,7 @@ interface ScheduledCallsPanelProps {
   userId: string;
 }
 
-export function ScheduledCallsPanel({ userId }: ScheduledCallsPanelProps) {
+export function ScheduledCallsPanel({ userId: _userId }: ScheduledCallsPanelProps) {
   const { scheduledCalls, cancelScheduledCall } = useCallFeatures();
   const { startVideoCall, startAudioCall } = useCall();
 

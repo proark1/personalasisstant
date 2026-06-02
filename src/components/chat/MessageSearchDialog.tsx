@@ -21,7 +21,7 @@ export function MessageSearchDialog({
   onMessageSelect 
 }: MessageSearchDialogProps) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<{ id: string; content: string; created_at: string }[]>([]);
   const [searching, setSearching] = useState(false);
   const { searchMessages } = useMessageFeatures();
 

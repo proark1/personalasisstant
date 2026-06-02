@@ -89,7 +89,7 @@ export function useCalendarConnections() {
       } else {
         throw new Error('No OAuth URL returned');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error starting OAuth:', error);
       toast({
         title: 'Connection failed',
@@ -117,7 +117,7 @@ export function useCalendarConnections() {
       }
       if (data?.url) window.location.href = data.url;
       else throw new Error('No OAuth URL returned');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Outlook connect error:', error);
       toast({
         title: 'Connection failed',
@@ -140,7 +140,7 @@ export function useCalendarConnections() {
       toast({ title: 'iCloud connected', description: 'Your Apple Calendar is now linked.' });
       await fetchConnections();
       return { success: true, data };
-    } catch (error: any) {
+    } catch (error) {
       console.error('Apple CalDAV connect error:', error);
       toast({
         title: 'Apple connection failed',
@@ -176,7 +176,7 @@ export function useCalendarConnections() {
       });
 
       await fetchConnections();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error syncing calendar:', error);
       toast({
         title: 'Sync failed',
@@ -225,11 +225,11 @@ export function useCalendarConnections() {
       });
 
       setConnections(prev => prev.filter(c => c.id !== connectionId));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error disconnecting calendar:', error);
       toast({
         title: 'Disconnect failed',
-        description: error.message || 'Failed to disconnect calendar.',
+        description: (error instanceof Error ? error.message : null) || 'Failed to disconnect calendar.',
         variant: 'destructive',
       });
     }
@@ -253,11 +253,11 @@ export function useCalendarConnections() {
         title: enabled ? 'Sync enabled' : 'Sync disabled',
         description: `Calendar sync has been ${enabled ? 'enabled' : 'disabled'}.`,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error toggling sync:', error);
       toast({
         title: 'Update failed',
-        description: error.message || 'Failed to update sync setting.',
+        description: (error instanceof Error ? error.message : null) || 'Failed to update sync setting.',
         variant: 'destructive',
       });
     }

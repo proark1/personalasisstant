@@ -12,20 +12,27 @@ interface Contact {
   displayName?: string;
 }
 
+interface SharedWithEntry {
+  id: string;
+  shared_with_id?: string;
+  permission?: string;
+  shared_with?: { display_name?: string | null; email?: string | null } | null;
+}
+
 interface ShareDialogProps {
   itemType: 'task' | 'event' | 'contract' | 'contact';
   itemId: string;
   itemTitle: string;
   onShare: (email: string, permission: 'view' | 'edit') => Promise<{ error: string | null }>;
-  onGetSharedWith: () => Promise<any[]>;
-  onRemoveShare: (shareId: string) => Promise<{ error: any }>;
+  onGetSharedWith: () => Promise<Record<string, unknown>[]>;
+  onRemoveShare: (shareId: string) => Promise<{ error: string | null }>;
   onGetRecentContacts?: () => Promise<Contact[]>;
   onClose: () => void;
 }
 
 export function ShareDialog({
   itemType,
-  itemId,
+  itemId: _itemId,
   itemTitle,
   onShare,
   onGetSharedWith,
@@ -36,7 +43,7 @@ export function ShareDialog({
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [permission, setPermission] = useState<'view' | 'edit'>('view');
-  const [sharedWith, setSharedWith] = useState<any[]>([]);
+  const [sharedWith, setSharedWith] = useState<SharedWithEntry[]>([]);
   const [recentContacts, setRecentContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -45,12 +52,13 @@ export function ShareDialog({
   useEffect(() => {
     loadSharedWith();
     loadRecentContacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadSharedWith = async () => {
     setLoading(true);
     const data = await onGetSharedWith();
-    setSharedWith(data);
+    setSharedWith(data as unknown as SharedWithEntry[]);
     setLoading(false);
   };
 
@@ -236,7 +244,7 @@ export function ShareDialog({
                     <Button
                       variant="ghost"
                       size="iconSm"
-                      onClick={() => handleRemove(share.id, share.shared_with?.email)}
+                      onClick={() => handleRemove(share.id, share.shared_with?.email ?? '')}
                     >
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>

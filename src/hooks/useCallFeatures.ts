@@ -41,7 +41,7 @@ export function useCallFeatures() {
   const [voicemails, setVoicemails] = useState<Voicemail[]>([]);
   const [scheduledCalls, setScheduledCalls] = useState<ScheduledCall[]>([]);
   const [callNotes, setCallNotes] = useState<CallNote[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   // Fetch voicemails
   const fetchVoicemails = useCallback(async () => {

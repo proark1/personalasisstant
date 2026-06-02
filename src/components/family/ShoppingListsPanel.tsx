@@ -19,7 +19,7 @@ const categoryColors: Record<string, string> = {
 };
 
 export function ShoppingListsPanel() {
-  const { lists, isLoading, deleteList, createFromTemplate, getActiveLists, getTemplates, getCompletedLists } = useShoppingLists();
+  const { isLoading, deleteList, createFromTemplate, getActiveLists, getTemplates, getCompletedLists } = useShoppingLists();
   const { members } = useFamilyMembers();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedList, setSelectedList] = useState<ShoppingList | null>(null);

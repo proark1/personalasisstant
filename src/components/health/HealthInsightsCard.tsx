@@ -81,6 +81,7 @@ export function HealthInsightsCard({ metrics, goals }: HealthInsightsCardProps) 
     if (metrics.length > 0 && !lastFetched) {
       fetchInsights();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metrics.length]);
 
   const getInsightIcon = (type: HealthInsight['type']) => {

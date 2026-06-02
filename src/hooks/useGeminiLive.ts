@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { AssistantPersonality, VoiceTaskAction } from '@/types/flux';
 
@@ -63,8 +63,6 @@ export function useGeminiLive({
 }: UseGeminiLiveOptions = {}) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastResponse, setLastResponse] = useState('');
-  const audioContextRef = useRef<AudioContext | null>(null);
-
   const sendText = useCallback(async (text: string) => {
     if (!text.trim()) return;
 

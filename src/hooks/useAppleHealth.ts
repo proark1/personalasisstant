@@ -62,7 +62,7 @@ const logHealthDebug = (label: string, extra?: Record<string, unknown>) => {
       isNative,
       href,
       isRemoteWebview,
-      plugins: Object.keys((Capacitor as any).Plugins ?? {}),
+      plugins: Object.keys((Capacitor as unknown as { Plugins?: Record<string, unknown> }).Plugins ?? {}),
       ...extra,
     });
 
@@ -74,19 +74,64 @@ const logHealthDebug = (label: string, extra?: Record<string, unknown>) => {
   }
 };
 
-// Dynamic import for HealthKit plugin (only on iOS)
-let Health: any = null;
+// Dynamic import for HealthKit plugin (only on iOS).
+// The plugin shape is not fully typed in @flomentumsolutions/capacitor-health-extended,
+// so we describe only the result shapes actually consumed here so property access stays
+// type-checked. A single point-in-time reading (latest sample / single-value query).
+interface HealthSample {
+  value?: number;
+  timestamp?: string;
+  unit?: string;
+}
+
+// One day/bucket of an aggregated query result.
+interface HealthAggregatedBucket {
+  value?: number;
+  startDate: string;
+  endDate?: string;
+}
+
+interface HealthAggregatedResult {
+  aggregatedData?: HealthAggregatedBucket[];
+}
+
+// Aggregated query options passed to the native plugin.
+interface HealthAggregatedOptions {
+  dataType: string;
+  startDate: string;
+  endDate: string;
+  bucket: string;
+}
+
+// Accurate, narrow view of the native plugin methods we call. The dynamically
+// imported plugin object is cast to this so call sites are type-checked even
+// though the published package types don't match this usage exactly.
+interface HealthKitPlugin {
+  isHealthAvailable(): Promise<{ available?: boolean }>;
+  requestHealthPermissions(opts: { permissions: string[] }): Promise<unknown>;
+  querySteps(opts?: Record<string, unknown>): Promise<HealthSample>;
+  queryHeartRate(opts?: Record<string, unknown>): Promise<HealthSample>;
+  queryWeight(opts?: Record<string, unknown>): Promise<HealthSample>;
+  queryHeight(opts?: Record<string, unknown>): Promise<HealthSample>;
+  queryLatestSample(opts: { dataType: string }): Promise<HealthSample>;
+  queryAggregated(opts: HealthAggregatedOptions): Promise<HealthAggregatedResult>;
+  openAppleHealthSettings(): Promise<void>;
+}
+let Health: HealthKitPlugin | null = null;
 
 const loadHealthKitPlugin = async () => {
   if (isIOS && !Health) {
     try {
       logHealthDebug('load_start');
       const module = await import('@flomentumsolutions/capacitor-health-extended');
-      Health = module.Health;
-      logHealthDebug('load_ok', { moduleKeys: Object.keys(module as any), pluginName: 'HealthPlugin' });
+      // The published HealthPlugin type doesn't match the native methods we call
+      // (queryAggregated, queryLatestSample, etc.), so cast through unknown to our
+      // accurate, narrow HealthKitPlugin view.
+      Health = module.Health as unknown as HealthKitPlugin;
+      logHealthDebug('load_ok', { moduleKeys: Object.keys(module as Record<string, unknown>), pluginName: 'HealthPlugin' });
       return true;
     } catch (err) {
-      logHealthDebug('load_fail', { err: (err as any)?.message ?? String(err) });
+      logHealthDebug('load_fail', { err: err instanceof Error ? err.message : String(err) });
       console.warn('HealthKit plugin not available:', err);
       return false;
     }
@@ -333,8 +378,8 @@ export function useAppleHealth() {
       
       setDebugInfo(prev => ({ ...prev, isHealthAvailable: true }));
       return { available: true };
-    } catch (error: any) {
-      const errorMsg = error?.message || String(error);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
       logHealthDebug('isHealthAvailable_error', { error: errorMsg });
       
       // Detect specific error patterns that indicate missing native config
@@ -389,8 +434,8 @@ export function useAppleHealth() {
         setDebugInfo(newDebugInfo);
         return newDebugInfo;
       }
-    } catch (e: any) {
-      const errMsg = e?.message || String(e);
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
       logHealthDebug('diagnostics_isHealthAvailable_error', { error: errMsg });
       newDebugInfo.isHealthAvailable = false;
       newDebugInfo.lastError = `isHealthAvailable threw: ${errMsg}`;
@@ -428,8 +473,8 @@ export function useAppleHealth() {
       });
       logHealthDebug('diagnostics_requestPermissions_result', { permResult });
       newDebugInfo.permissionResult = JSON.stringify(permResult);
-    } catch (e: any) {
-      const errMsg = e?.message || String(e);
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
       logHealthDebug('diagnostics_requestPermissions_error', { error: errMsg });
       newDebugInfo.permissionResult = `Error: ${errMsg}`;
     }
@@ -447,8 +492,8 @@ export function useAppleHealth() {
         newDebugInfo.lastSyncResult = 'no_data';
         newDebugInfo.lastError = 'Query returned no data. Check Health app → Sharing → Apps → DarAI has categories enabled.';
       }
-    } catch (e: any) {
-      const errMsg = e?.message || String(e);
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
       logHealthDebug('diagnostics_querySteps_error', { error: errMsg });
       newDebugInfo.sampleQueryResult = `Error: ${errMsg}`;
       newDebugInfo.lastSyncResult = 'error';
@@ -540,8 +585,8 @@ export function useAppleHealth() {
       await syncAppleHealthInternal();
       
       return true;
-    } catch (error: any) {
-      const errorMsg = error?.message || String(error);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
       console.error('Error connecting to Apple Health:', error);
       logHealthDebug('requestPermission_error', { error: errorMsg });
       
@@ -563,7 +608,8 @@ export function useAppleHealth() {
     } finally {
       setIsLoading(false);
     }
-  }, [isAvailable, checkHealthKitSetup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAvailable, checkHealthKitSetup]); // intentionally excludes syncAppleHealthInternal — plain function, listing it would loop
 
   const syncAppleHealthInternal = async (daysBack: number = 365) => {
     if (!Health || !user?.id) return;
@@ -606,7 +652,7 @@ export function useAppleHealth() {
         });
       }
     } catch (e) {
-      logHealthDebug('latest_steps_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('latest_steps_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Get latest heart rate
@@ -627,7 +673,7 @@ export function useAppleHealth() {
         });
       }
     } catch (e) {
-      logHealthDebug('latest_hr_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('latest_hr_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Get latest weight
@@ -648,7 +694,7 @@ export function useAppleHealth() {
         });
       }
     } catch (e) {
-      logHealthDebug('latest_weight_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('latest_weight_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Get latest height
@@ -669,7 +715,7 @@ export function useAppleHealth() {
         });
       }
     } catch (e) {
-      logHealthDebug('latest_height_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('latest_height_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Get latest samples for other data types
@@ -689,7 +735,7 @@ export function useAppleHealth() {
 
     for (const { type, metricType, unit } of latestSampleTypes) {
       try {
-        const sample = await Health.queryLatestSample({ dataType: type as any });
+        const sample = await Health.queryLatestSample({ dataType: type });
         logHealthDebug(`latest_${type}`, { raw: sample });
         if (sample?.value && sample.value > 0) {
           let value = sample.value;
@@ -712,7 +758,7 @@ export function useAppleHealth() {
           });
         }
       } catch (e) {
-        logHealthDebug(`latest_${type}_error`, { error: (e as any)?.message || String(e) });
+        logHealthDebug(`latest_${type}_error`, { error: e instanceof Error ? e.message : String(e) });
       }
     }
 
@@ -744,7 +790,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('steps_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('steps_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch heart rate (aggregated by day for average)
@@ -774,7 +820,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('heart_rate_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('heart_rate_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch active minutes (exercise time aggregated by day)
@@ -805,7 +851,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('active_minutes_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('active_minutes_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch active energy burned (calories) - aggregated by day
@@ -835,7 +881,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('calories_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('calories_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch sleep analysis (aggregated by day)
@@ -898,7 +944,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('sleep_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('sleep_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch sleep stages: REM, Deep, Core (iOS 16+)
@@ -931,7 +977,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('sleep_rem_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('sleep_rem_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Deep Sleep
@@ -962,7 +1008,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('sleep_deep_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('sleep_deep_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Core Sleep (Light Sleep)
@@ -993,7 +1039,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('sleep_core_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('sleep_core_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Awake time during sleep
@@ -1024,7 +1070,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('sleep_awake_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('sleep_awake_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Time in bed
@@ -1055,7 +1101,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('sleep_in_bed_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('sleep_in_bed_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch weight (latest sample)
@@ -1106,7 +1152,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('resting_hr_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('resting_hr_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch HRV (Heart Rate Variability)
@@ -1134,7 +1180,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('hrv_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('hrv_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch Blood Oxygen (SpO2)
@@ -1164,7 +1210,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('blood_oxygen_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('blood_oxygen_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch Respiratory Rate
@@ -1192,7 +1238,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('respiratory_rate_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('respiratory_rate_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch Distance (walking/running)
@@ -1222,7 +1268,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('distance_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('distance_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch Flights Climbed (floors/stairs)
@@ -1250,7 +1296,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('flights_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('flights_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch Body Fat Percentage
@@ -1280,7 +1326,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('body_fat_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('body_fat_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch Height
@@ -1328,7 +1374,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('mindfulness_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('mindfulness_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     // Fetch Blood Pressure (if available)
@@ -1356,7 +1402,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('bp_systolic_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('bp_systolic_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     try {
@@ -1383,7 +1429,7 @@ export function useAppleHealth() {
         }
       }
     } catch (e) {
-      logHealthDebug('bp_diastolic_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('bp_diastolic_error', { error: e instanceof Error ? e.message : String(e) });
     }
 
     logHealthDebug('metrics_to_insert', { 
@@ -1457,13 +1503,14 @@ export function useAppleHealth() {
     setIsLoading(true);
     try {
       await syncAppleHealthInternal();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error syncing Apple Health:', error);
-      toast.error(error.message || 'Failed to sync health data');
+      toast.error((error instanceof Error ? error.message : null) || 'Failed to sync health data');
     } finally {
       setIsLoading(false);
     }
-  }, [isAvailable, user?.id, fetchHealthMetrics]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAvailable, user?.id, fetchHealthMetrics]); // intentionally excludes syncAppleHealthInternal — plain function, listing it would loop
 
   const addManualMetric = useCallback(async (
     metricType: string,
@@ -1528,7 +1575,7 @@ export function useAppleHealth() {
     try {
       await Health.openAppleHealthSettings();
     } catch (e) {
-      logHealthDebug('open_settings_error', { error: (e as any)?.message || String(e) });
+      logHealthDebug('open_settings_error', { error: e instanceof Error ? e.message : String(e) });
       toast.error('Could not open settings. Go to Settings → Apps → Health → Access and Devices → DarAI manually.');
     }
   }, []);

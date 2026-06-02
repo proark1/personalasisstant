@@ -31,7 +31,7 @@ async function refreshOutlookToken(refreshToken: string) {
   return resp.json();
 }
 
-function toGraphEvent(localEvent: any) {
+function toGraphEvent(localEvent: Record<string, unknown>) {
   return {
     subject: localEvent.title || 'Untitled',
     body: { contentType: 'Text', content: localEvent.description || '' },
@@ -149,7 +149,7 @@ serve(async (req) => {
           external_etag: ev.changeKey || null,
           connection_id: connectionId,
           sync_status: 'synced',
-          attendees: ev.attendees?.map((a: any) => a.emailAddress?.address).filter(Boolean) || null,
+          attendees: ev.attendees?.map((a: { emailAddress?: { address?: string } }) => a.emailAddress?.address).filter(Boolean) || null,
         };
 
         const { data: existing } = await admin.from('events').select('id, external_etag')
@@ -164,8 +164,8 @@ serve(async (req) => {
           await admin.from('events').insert(eventData);
           imported++;
         }
-      } catch (e: any) {
-        errors.push(`pull: ${e?.message || 'unknown'}`);
+      } catch (e) {
+        errors.push(`pull: ${e instanceof Error ? e.message : 'unknown'}`);
       }
     }
 
@@ -220,8 +220,8 @@ serve(async (req) => {
               errors.push(`push create: ${resp.status}`);
             }
           }
-        } catch (e: any) {
-          errors.push(`push: ${e?.message || 'unknown'}`);
+        } catch (e) {
+          errors.push(`push: ${e instanceof Error ? e.message : 'unknown'}`);
         }
       }
     }

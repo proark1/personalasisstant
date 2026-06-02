@@ -62,7 +62,10 @@ export function ContractsPanel({ userId }: ContractsPanelProps) {
           itemTitle={shareDialog.name}
           onShare={(email, permission) => shareItem('contract', shareDialog.id, email, permission)}
           onGetSharedWith={() => getSharedWith('contract', shareDialog.id)}
-          onRemoveShare={removeShare}
+          onRemoveShare={async (shareId) => {
+            const { error } = await removeShare(shareId);
+            return { error: error ? error.message : null };
+          }}
           onGetRecentContacts={getRecentContacts}
           onClose={() => setShareDialog(null)}
         />

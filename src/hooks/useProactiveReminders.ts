@@ -18,7 +18,7 @@ export interface ProactiveReminder {
   action_type?: string;
   snooze_until?: string;
   is_active: boolean;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 

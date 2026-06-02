@@ -66,7 +66,7 @@ function decodeHtmlEntities(text: string | null): string {
   return doc.body.textContent || '';
 }
 
-export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSnooze, selectMode, isSelected, onToggleSelect }: EmailCardProps) {
+export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSnooze: _onSnooze, selectMode, isSelected, onToggleSelect: _onToggleSelect }: EmailCardProps) {
   const email = thread.latestEmail;
   const sender = reconstructSender(email.from_name, email.from_email);
   const isPriority = email.priority_score <= 2 || email.is_important;
@@ -84,7 +84,7 @@ export function EmailCard({ thread, onSelect, onArchive, onToggleImportant, onSn
   const priorityBadge = getPriorityBadge(email.priority_score);
   const categoryLabel = categoryLabels[email.category];
 
-  const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+  const handleDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (selectMode) return;
     if (info.offset.x > SWIPE_THRESHOLD && onArchive) {
       swiping.current = true;

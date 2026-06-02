@@ -64,7 +64,7 @@ serve(async (req) => {
     const now = new Date();
     const deadline = dayBefore > now ? dayBefore : new Date(now.getTime() + 86_400_000);
 
-    const { data: task, error: taskErr } = await admin
+    const { data: task, error: _taskErr } = await admin
       .from('tasks')
       .insert({
         user_id: userId,

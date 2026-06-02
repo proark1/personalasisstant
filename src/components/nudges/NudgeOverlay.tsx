@@ -72,6 +72,7 @@ export function NudgeOverlay({ nudge, onDismiss, onMute, onFeedback }: NudgeOver
       }, 10000);
       return () => clearTimeout(timer);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nudge]);
 
   // Animate out, then clear the active nudge.

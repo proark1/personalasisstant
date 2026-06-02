@@ -91,6 +91,7 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
     }
 
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, timeLeft]);
 
   const handleTimerComplete = useCallback(async () => {
@@ -100,7 +101,7 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
     try {
       audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleR8cXP///+WWQB8Yn/');
       audioRef.current.play().catch(() => {});
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
 
     if (mode === 'focus') {
       const focusDuration = TIMER_PRESETS.focus / 60;

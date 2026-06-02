@@ -44,9 +44,13 @@ export function useTaskNotifications({
       return permissionGranted.current;
     }
 
+    interface BrowserNotifPermissionAPI {
+      permission: NotificationPermission;
+      requestPermission(): Promise<NotificationPermission>;
+    }
     const BrowserNotification = (typeof window !== 'undefined'
-      ? (window as any).Notification
-      : undefined) as any;
+      ? (window as unknown as { Notification?: BrowserNotifPermissionAPI }).Notification
+      : undefined);
 
     if (!BrowserNotification) {
       console.log('Browser does not support notifications');
@@ -115,7 +119,8 @@ export function useTaskNotifications({
 
   const playNotificationSound = useCallback(() => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const audioContext = new AudioCtx();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
@@ -128,7 +133,7 @@ export function useTaskNotifications({
       
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.15);
-    } catch (e) {
+    } catch {
       // Audio not supported
     }
   }, []);
@@ -187,9 +192,13 @@ export function useTaskNotifications({
       scheduleLocalNotification(title, body, new Date(), { taskId: task.id });
     } else {
       // Use web notification on desktop
+      interface BrowserNotifAPI {
+        permission: NotificationPermission;
+        new(title: string, opts?: NotificationOptions): Notification;
+      }
       const BrowserNotification = (typeof window !== 'undefined'
-        ? (window as any).Notification
-        : undefined) as any;
+        ? (window as unknown as { Notification?: BrowserNotifAPI }).Notification
+        : undefined);
 
       if (!BrowserNotification) return;
 

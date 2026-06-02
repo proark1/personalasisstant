@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -41,14 +41,14 @@ export function useShoppingLists() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const fetchLists = async () => {
+  const fetchLists = useCallback(async () => {
     if (!user?.id) {
       setIsLoading(false);
       return;
     }
-    
+
     setFetchError(null);
-    
+
     try {
       const { data, error } = await fetchWithRetry(
         async () => supabase
@@ -61,7 +61,7 @@ export function useShoppingLists() {
 
       if (error) throw error;
       setLists(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching shopping lists:', error);
       if (error instanceof TimeoutError) {
         setFetchError('Loading took too long. Tap to retry.');
@@ -71,7 +71,7 @@ export function useShoppingLists() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
 
   const fetchListWithItems = async (listId: string): Promise<ShoppingList | null> => {
     if (!user?.id) return null;
@@ -94,7 +94,7 @@ export function useShoppingLists() {
       if (itemsError) throw itemsError;
 
       return { ...listData, items: itemsData || [] };
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching list with items:', error);
       return null;
     }
@@ -116,7 +116,7 @@ export function useShoppingLists() {
       setLists(prev => [data, ...prev]);
       toast.success(t('shopping.toast.listCreated'));
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding shopping list:', error);
       toast.error(t('shopping.toast.listCreateFailed'));
       return null;
@@ -139,7 +139,7 @@ export function useShoppingLists() {
       setLists(prev => prev.map(l => l.id === id ? data : l));
       toast.success(t('shopping.toast.listUpdated'));
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating shopping list:', error);
       toast.error(t('shopping.toast.listUpdateFailed'));
       return null;
@@ -157,7 +157,7 @@ export function useShoppingLists() {
       if (error) throw error;
       setLists(prev => prev.filter(l => l.id !== id));
       toast.success(t('shopping.toast.listDeleted'));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting shopping list:', error);
       toast.error(t('shopping.toast.listDeleteFailed'));
     }
@@ -176,7 +176,7 @@ export function useShoppingLists() {
       if (error) throw error;
       if (!silent) toast.success(t('shopping.toast.itemAdded'));
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding item:', error);
       if (!silent) toast.error(t('shopping.toast.itemAddFailed'));
       return null;
@@ -194,7 +194,7 @@ export function useShoppingLists() {
 
       if (error) throw error;
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating item:', error);
       toast.error(t('shopping.toast.itemUpdateFailed'));
       return null;
@@ -214,7 +214,7 @@ export function useShoppingLists() {
 
       if (error) throw error;
       toast.success(t('shopping.toast.itemRemoved'));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting item:', error);
       toast.error(t('shopping.toast.itemRemoveFailed'));
     }
@@ -251,9 +251,7 @@ export function useShoppingLists() {
     return newList;
   };
 
-  useEffect(() => {
-    fetchLists();
-  }, [user?.id]);
+  useEffect(() => { fetchLists(); }, [fetchLists]);
 
   const getActiveLists = () => lists.filter(l => !l.is_template && !l.is_completed);
   const getTemplates = () => lists.filter(l => l.is_template);

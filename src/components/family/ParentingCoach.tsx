@@ -33,7 +33,7 @@ const COMMON_QUESTION_KEYS = [
   'family.parenting.starter5',
 ];
 
-export function ParentingCoach({ onClose }: ParentingCoachProps) {
+export function ParentingCoach({ onClose: _onClose }: ParentingCoachProps) {
   const { members } = useFamilyMembers();
   const { getParentingAdvice, isLoading, streamingResponse } = useFamilyAssistant();
   const { t } = useLanguage();

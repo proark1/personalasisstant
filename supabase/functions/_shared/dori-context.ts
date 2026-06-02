@@ -106,8 +106,11 @@ export function daysBetweenYmd(earlier: string, later: string): number {
   return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
 }
 
+// Minimal Supabase client surface used by this module.
+type DoriContextClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
 export async function buildDoriContext(
-  supabase: any,
+  supabase: DoriContextClient,
   userId: string,
   workspaceId: string | null,
   opts?: { timezone?: string },
@@ -130,7 +133,8 @@ export async function buildDoriContext(
   // Build the scoped query base. Workspace mode pulls across all members;
   // personal pulls only the caller's own un-workspaced rows.
   const scope: 'personal' | 'workspace' = workspaceId ? 'workspace' : 'personal';
-  const applyScope = <T extends { eq: any; is: any }>(q: T): T =>
+  type ScopedQuery = { eq(col: string, val: unknown): ScopedQuery; is(col: string, val: unknown): ScopedQuery };
+  const applyScope = <T extends ScopedQuery>(q: T): ScopedQuery =>
     (workspaceId
       ? q.eq('workspace_id', workspaceId)
       : q.eq('user_id', userId).is('workspace_id', null));

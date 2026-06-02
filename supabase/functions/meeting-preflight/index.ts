@@ -15,7 +15,7 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
 
 
-async function generateBrief(event: any, ctx: any): Promise<string> {
+async function generateBrief(event: Record<string, unknown>, ctx: Record<string, unknown>): Promise<string> {
   const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
       });
       if (error) { console.error("brief insert err", error); continue; }
 
-      const chatId = (profileRes.data as any)?.telegram_chat_id;
+      const chatId = (profileRes.data as Record<string, unknown>)?.telegram_chat_id;
       if (chatId) await sendTelegramBrief(chatId, ev.title, brief);
       generated++;
     }

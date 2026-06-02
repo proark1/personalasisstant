@@ -50,6 +50,7 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
 
   useEffect(() => {
     loadList();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId, user?.id]);
 
   const handleAddItem = async () => {

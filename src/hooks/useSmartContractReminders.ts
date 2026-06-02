@@ -28,7 +28,7 @@ interface UseSmartContractRemindersProps {
 export function useSmartContractReminders({
   contracts,
   userId,
-  onCreateCalendarEvent
+  onCreateCalendarEvent: _onCreateCalendarEvent
 }: UseSmartContractRemindersProps) {
   const processedRef = useRef<Set<string>>(new Set());
 

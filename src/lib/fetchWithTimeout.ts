@@ -50,21 +50,21 @@ export async function fetchWithRetry<T>(
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     try {
       return await withTimeout(fn(), timeoutMs);
-    } catch (error: any) {
-      lastError = error;
-      
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
       // Only retry on network/timeout errors, not on business logic errors
-      const isRetryable = 
+      const isRetryable =
         error instanceof TimeoutError ||
         (error instanceof TypeError && error.message.toLowerCase().includes('failed to fetch')) ||
-        error.message?.includes('NetworkError') ||
-        error.message?.includes('network');
+        (error instanceof Error && error.message?.includes('NetworkError')) ||
+        (error instanceof Error && error.message?.includes('network'));
       
       if (!isRetryable || attempt > maxRetries) {
         throw error;
       }
       
-      onRetry?.(attempt, error);
+      onRetry?.(attempt, lastError);
       
       // Exponential backoff: 300ms, 600ms, 1200ms...
       await new Promise(r => setTimeout(r, 300 * Math.pow(2, attempt - 1)));

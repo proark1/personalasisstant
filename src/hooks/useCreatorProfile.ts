@@ -8,7 +8,7 @@ import { DEFAULT_CREATOR_PROFILE, describeContentError, type CreatorProfile } fr
 // `creator_profiles` is a newly added table not yet in the generated Supabase
 // types, so we reach it through an untyped client handle (same approach as
 // useBriefings).
-const db = supabase as unknown as { from: (table: string) => any };
+const db = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
 
 export type CreatorProfileDraft = Omit<
   CreatorProfile,

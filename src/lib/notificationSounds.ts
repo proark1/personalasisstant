@@ -15,8 +15,9 @@ let audioContext: AudioContext | null = null;
 function getAudioContext(): AudioContext | null {
   if (!audioContext) {
     try {
-      audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    } catch (e) {
+      const AudioCtx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      audioContext = new AudioCtx!();
+    } catch {
       console.warn('Audio context not supported');
       return null;
     }
@@ -143,9 +144,13 @@ export function setupServiceWorkerListener(
 export async function requestNotificationPermission(): Promise<boolean> {
   if (Capacitor.isNativePlatform()) return false;
 
+  type BrowserNotificationConstructor = typeof Notification & {
+    permission: NotificationPermission;
+    requestPermission?: () => Promise<NotificationPermission>;
+  };
   const BrowserNotification = (typeof window !== 'undefined'
-    ? (window as any).Notification
-    : undefined) as any;
+    ? (window as Window & { Notification?: BrowserNotificationConstructor }).Notification
+    : undefined);
 
   if (!BrowserNotification) {
     return false;
@@ -172,9 +177,12 @@ export function showDesktopNotification(
   title: string,
   options?: NotificationOptions
 ): Notification | null {
+  type BrowserNotificationConstructor = typeof Notification & {
+    permission: NotificationPermission;
+  };
   const BrowserNotification = (typeof window !== 'undefined'
-    ? (window as any).Notification
-    : undefined) as any;
+    ? (window as Window & { Notification?: BrowserNotificationConstructor }).Notification
+    : undefined);
 
   if (!BrowserNotification || BrowserNotification.permission !== 'granted') {
     return null;

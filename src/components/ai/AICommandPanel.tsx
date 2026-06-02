@@ -27,7 +27,7 @@ interface AICommandPanelProps {
 export function AICommandPanel({ 
   tasks, 
   events,
-  onAddSubtasks,
+  onAddSubtasks: _onAddSubtasks,
   onRescheduleTask,
 }: AICommandPanelProps) {
   const [showDayPlan, setShowDayPlan] = useState(false);

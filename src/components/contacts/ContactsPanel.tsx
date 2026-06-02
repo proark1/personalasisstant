@@ -269,11 +269,10 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
     deleteContact,
     markContacted,
     getContactsDue,
-    refetch,
   } = useContacts(userId);
 
   const { shareItem, getSharedWith, removeShare, getRecentContacts } = useItemSharing(userId);
-  const { getInteractions } = useContactInteractions(userId);
+  useContactInteractions(userId);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -738,7 +737,10 @@ export function ContactsPanel({ userId }: ContactsPanelProps) {
           itemTitle={shareDialog.name}
           onShare={(email, permission) => shareItem('contact', shareDialog.id, email, permission)}
           onGetSharedWith={() => getSharedWith('contact', shareDialog.id)}
-          onRemoveShare={removeShare}
+          onRemoveShare={async (shareId) => {
+            const { error } = await removeShare(shareId);
+            return { error: error ? error.message : null };
+          }}
           onGetRecentContacts={getRecentContacts}
           onClose={() => setShareDialog(null)}
         />

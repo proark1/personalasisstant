@@ -161,18 +161,20 @@ serve(async (req) => {
 });
 
 // Simple ICS parser
-function parseICS(content: string): Array<{
+interface ICSEvent {
   title: string;
   description?: string;
   startTime: string;
-  endTime: string;
+  endTime?: string;
   location?: string;
   rrule?: string;
-}> {
-  const events: any[] = [];
+}
+
+function parseICS(content: string): ICSEvent[] {
+  const events: ICSEvent[] = [];
   const lines = content.split(/\r?\n/);
-  
-  let currentEvent: any = null;
+
+  let currentEvent: Partial<ICSEvent> | null = null;
   let currentField = '';
   let currentValue = '';
 
@@ -222,7 +224,7 @@ function parseICS(content: string): Array<{
   return events;
 }
 
-function processField(event: any, field: string, value: string) {
+function processField(event: Partial<ICSEvent>, field: string, value: string) {
   switch (field) {
     case 'SUMMARY':
       event.title = unescapeICS(value);

@@ -26,14 +26,14 @@ export function useFinances() {
         supabase.from('financial_budgets').select('*').eq('user_id', user.id).order('category'),
         supabase.from('financial_goals').select('*').eq('user_id', user.id).order('target_date', { nullsFirst: false }),
       ]);
-      setAccounts((a.data as any) || []);
-      setTransactions((t.data as any) || []);
-      setBudgets((b.data as any) || []);
-      setGoals((g.data as any) || []);
+      setAccounts((a.data as unknown as FinAccount[]) || []);
+      setTransactions((t.data as unknown as FinTransaction[]) || []);
+      setBudgets((b.data as unknown as FinBudget[]) || []);
+      setGoals((g.data as unknown as FinGoal[]) || []);
     } finally { setIsLoading(false); }
   };
 
-  useEffect(() => { if (user) refresh(); }, [user]);
+  useEffect(() => { if (user) refresh(); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addAccount = async (p: Partial<FinAccount>) => { if (!user) return; const { error } = await supabase.from('financial_accounts').insert({ ...p, user_id: user.id, name: p.name!, account_type: p.account_type || 'checking' }); if (error) return toast.error(error.message); toast.success('Account added'); refresh(); };
   const addTransaction = async (p: Partial<FinTransaction>) => { if (!user) return; const { error } = await supabase.from('financial_transactions').insert({ ...p, user_id: user.id, amount: Number(p.amount), occurred_on: p.occurred_on || new Date().toISOString().slice(0,10) }); if (error) return toast.error(error.message); toast.success('Transaction added'); refresh(); };

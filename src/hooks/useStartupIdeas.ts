@@ -18,7 +18,7 @@ export interface StartupIdea {
   status: 'brainstorming' | 'researching' | 'validating' | 'building' | 'launched' | 'archived';
   notes?: string;
   tags: string[];
-  ai_insights: Record<string, any>;
+  ai_insights: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -71,7 +71,8 @@ export function useStartupIdeas() {
           status: input.status || 'brainstorming',
           notes: input.notes,
           tags: input.tags || [],
-          ai_insights: input.ai_insights || {},
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ai_insights: (input.ai_insights || {}) as any,
           workspace_id: input.workspace_id,
         })
         .select()
@@ -95,7 +96,8 @@ export function useStartupIdeas() {
     try {
       const { error } = await supabase
         .from('startup_ideas')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update({ ...(updates as any), updated_at: new Date().toISOString() })
         .eq('id', id);
 
       if (error) throw error;
@@ -132,7 +134,7 @@ export function useStartupIdeas() {
   }, []);
 
   // Add AI insights to an idea
-  const addAIInsights = useCallback(async (id: string, insights: Record<string, any>): Promise<boolean> => {
+  const addAIInsights = useCallback(async (id: string, insights: Record<string, unknown>): Promise<boolean> => {
     const idea = ideas.find(i => i.id === id);
     if (!idea) return false;
 

@@ -28,7 +28,7 @@ export function useChatSettings() {
     priorityContacts: [],
   });
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   // Fetch chat settings
   const fetchSettings = useCallback(async () => {

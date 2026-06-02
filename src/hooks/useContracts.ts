@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { TablesUpdate } from '@/integrations/supabase/types';
+import type { Tables, TablesUpdate } from '@/integrations/supabase/types';
 import { moduleBus } from '@/lib/moduleEventBus';
 import { moduleHealth } from '@/lib/moduleHealth';
 import { useAppNotifications } from './useAppNotifications';
@@ -65,14 +65,14 @@ export function useContracts(userId: string | undefined) {
   const queryClient = useQueryClient();
   const { notifyContractCreated } = useAppNotifications();
 
-  const mapDbToContract = (row: any): Contract => ({
+  const mapDbToContract = (row: Tables<'contracts'>): Contract => ({
     id: row.id,
     userId: row.user_id,
     contactId: row.contact_id || undefined,
     name: row.name,
     category: row.category as ContractCategory,
     provider: row.provider || undefined,
-    costAmount: row.cost_amount ? parseFloat(row.cost_amount) : undefined,
+    costAmount: row.cost_amount ? row.cost_amount : undefined,
     costFrequency: (row.cost_frequency || 'monthly') as CostFrequency,
     startDate: row.start_date ? new Date(row.start_date) : undefined,
     endDate: row.end_date ? new Date(row.end_date) : undefined,
@@ -84,8 +84,8 @@ export function useContracts(userId: string | undefined) {
     documentUrl: row.document_url || undefined,
     isActive: row.is_active ?? true,
     reminderSnoozedUntil: row.reminder_snoozed_until ? new Date(row.reminder_snoozed_until) : undefined,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
+    createdAt: new Date(row.created_at ?? ''),
+    updatedAt: new Date(row.updated_at ?? ''),
   });
 
   // Shared query so every useContracts consumer reads one cached
@@ -159,7 +159,7 @@ export function useContracts(userId: string | undefined) {
     id: string,
     updates: Partial<ContractInput>
   ): Promise<boolean> => {
-    const dbUpdates: Record<string, any> = {};
+    const dbUpdates: TablesUpdate<'contracts'> = {};
 
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.category !== undefined) dbUpdates.category = updates.category;
@@ -179,7 +179,7 @@ export function useContracts(userId: string | undefined) {
 
     const { error } = await supabase
       .from('contracts')
-      .update(dbUpdates as TablesUpdate<'contracts'>)
+      .update(dbUpdates)
       .eq('id', id);
 
     if (!error) {

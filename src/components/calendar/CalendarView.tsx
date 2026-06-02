@@ -80,7 +80,7 @@ export function CalendarView({
   events, 
   tasks, 
   onItemClick, 
-  onToggleTaskComplete,
+  onToggleTaskComplete: _onToggleTaskComplete,
   onUpdateTask,
   onDeleteTask,
   onAddTask,

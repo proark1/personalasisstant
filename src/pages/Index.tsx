@@ -18,7 +18,7 @@ import { useContacts } from '@/hooks/useContacts';
 import { useContactReminders } from '@/hooks/useContactReminders';
 import { useActivityFeed } from '@/hooks/useActivityFeed';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
-import { useContracts } from '@/hooks/useContracts';
+import { useContracts, type ContractCategory, type CostFrequency } from '@/hooks/useContracts';
 import { useContractReminders } from '@/hooks/useContractReminders';
 import { useHealthTracking } from '@/hooks/useHealthTracking';
 import { useAppleHealth } from '@/hooks/useAppleHealth';
@@ -65,8 +65,8 @@ const Index = () => {
   const activeWorkspaceId = useActiveWorkspaceId();
   const { settings, updateSettings, updateNotifications } = useSettings();
   const { streamChat, isStreaming } = useAIChat();
-  const { memories, getMemoriesForContext } = useAIMemory();
-  const { fetchMessages: fetchConversationMessages, fetchConversations, conversations, startConversation, addMessage: saveMessageToDB, currentConversation } = useAssistantConversations();
+  const { memories: _memories, getMemoriesForContext } = useAIMemory();
+  const { fetchMessages: fetchConversationMessages, fetchConversations, conversations, startConversation, addMessage: saveMessageToDB, currentConversation: _currentConversation } = useAssistantConversations();
   const previousContextLoadedRef = useRef(false);
   const [previousConversationMessages, setPreviousConversationMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const activeConversationIdRef = useRef<string | null>(null);
@@ -172,7 +172,7 @@ const Index = () => {
   });
 
   // Tags system
-  const tagsHook = useTags(user?.id);
+  const _tagsHook = useTags(user?.id);
 
   // Projects system
   const {
@@ -185,7 +185,7 @@ const Index = () => {
 
   // Shared projects
   const {
-    sharedProjects,
+    sharedProjects: _sharedProjects,
     projectMembers,
     shareProject,
     getProjectMembers,
@@ -206,11 +206,11 @@ const Index = () => {
   const { contracts, addContract, updateContract, deleteContract } = useContracts(user?.id);
 
   // Health tracking for AI assistant
-  const { 
-    medications, 
-    appointments, 
+  const {
+    medications: _medications,
+    appointments: _appointments,
     vaccinations,
-    healthMetrics,
+    healthMetrics: _healthMetrics,
     getActiveMedications,
     getUpcomingAppointments,
     getRecentMetrics,
@@ -224,7 +224,7 @@ const Index = () => {
   } = useAppleHealth();
 
   // Family events for AI assistant
-  const { events: familyEvents, getUpcomingEvents: getUpcomingFamilyEvents } = useFamilyEvents();
+  const { events: _familyEvents, getUpcomingEvents: getUpcomingFamilyEvents } = useFamilyEvents();
 
   // Notes for voice assistant
   const { createNote, deleteNote, searchNotes, notes } = useNotes(user?.id);
@@ -310,7 +310,7 @@ const Index = () => {
   // prompt firing automatically on page load (which crashes mobile Safari).
   // The user can opt-in via voice mode itself; we no longer auto-listen
   // for the wake word on the dashboard.
-  const { isListening: isWakeWordListening } = useWakeWordDetection({
+  const { isListening: _isWakeWordListening } = useWakeWordDetection({
     enabled: false,
     onWakeWordDetected: useCallback(() => {
       console.log('[WakeWord] "Hey Dori" detected, opening voice mode');
@@ -595,10 +595,10 @@ const Index = () => {
           members: familyMembers.map(m => {
             const birthDate = m.birth_date ? new Date(m.birth_date) : null;
             const age = birthDate ? Math.floor((Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
-            const activities = Array.isArray(m.activities) ? (m.activities as any[]).map((a: any) => ({
-              name: typeof a === 'string' ? a : a.name || '',
-              schedule: typeof a === 'object' ? a.schedule || '' : '',
-              location: typeof a === 'object' ? a.location || '' : '',
+            const activities = Array.isArray(m.activities) ? (m.activities as unknown[]).map((a: unknown) => ({
+              name: typeof a === 'string' ? a : (a && typeof a === 'object' && 'name' in a ? String((a as Record<string, unknown>).name) : ''),
+              schedule: (a && typeof a === 'object' && 'schedule' in a) ? String((a as Record<string, unknown>).schedule) : '',
+              location: (a && typeof a === 'object' && 'location' in a) ? String((a as Record<string, unknown>).location) : '',
             })) : [];
             return {
               id: m.id,
@@ -835,9 +835,9 @@ const Index = () => {
               const result = await addContract({
                 name: contract.name,
                 provider: contract.provider || '',
-                category: (contract.category || 'other') as any,
+                category: (contract.category || 'other') as ContractCategory,
                 costAmount: contract.costAmount || null,
-                costFrequency: (contract.costFrequency || 'monthly') as any,
+                costFrequency: (contract.costFrequency || 'monthly') as CostFrequency,
                 renewalDate: contract.renewalDate ? new Date(contract.renewalDate) : null,
                 autoRenews: contract.autoRenews ?? false,
                 notes: contract.notes || '',
@@ -1000,6 +1000,7 @@ const Index = () => {
     } finally {
       sendLockRef.current = false;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- large AI handler; health/apple/memory deps are stable getters, adding them would cause excessive re-renders without behavior change
   }, [addMessage, addTask, addEvent, deleteTask, toggleTaskComplete, updateTask, events, messages, settings, streamChat, tasks, toast, contacts, contracts, allEmails, notes, todayHabits, familyMembers, shoppingLists, userProfile, unreadEmailCount, createNote, deleteNote, searchNotes, addContact, updateContact, deleteContact, markContacted, addContract, updateContract, deleteContract, addProject, updateProject, deleteProject, projects, createHabit, logHabit, deleteHabit, previousConversationMessages, user?.id, startConversation]);
 
   // Publish live conversation state to the Dori bridge so the persistent Dori
@@ -1031,8 +1032,7 @@ const Index = () => {
   }, [addEvent]);
 
   const handleAddTask = useCallback(async (task: Parameters<typeof addTask>[0]) => {
-    const result = await addTask(task);
-    return result as any;
+    return addTask(task);
   }, [addTask]);
 
   const handleAddEvent = useCallback(async (event: Parameters<typeof addEvent>[0]) => {
@@ -1052,7 +1052,7 @@ const Index = () => {
       });
     }
     
-    return result as any;
+    return result;
   }, [addEvent, addTask, settings.defaultTaskCategory]);
 
   const handleDeleteTasks = useCallback(async (ids: string[]) => {

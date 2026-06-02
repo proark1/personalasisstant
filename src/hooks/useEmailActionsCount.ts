@@ -25,7 +25,8 @@ export function useEmailActionsCount() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'email_classifications', filter: `user_id=eq.${user.id}` }, refresh)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // intentionally excludes refresh — it's a plain function redefined each render; listing it would loop
 
   return count;
 }

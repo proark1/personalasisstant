@@ -127,13 +127,16 @@ serve(async (req) => {
 
     // ---- Bulk: array of targets ----
     if (Array.isArray(body.bulk)) {
-      const targets: ForgetTarget[] = body.bulk
-        .filter((t: any) =>
-          t
-          && ALLOWED_KINDS.includes(t.target_kind)
-          && typeof t.target_id === 'string'
-          && isUuid(t.target_id),
-        )
+      const targets: ForgetTarget[] = (body.bulk as unknown[])
+        .filter((t: unknown): t is ForgetTarget => {
+          const target = t as Record<string, unknown>;
+          return (
+            target != null
+            && ALLOWED_KINDS.includes(target.target_kind as ForgetTargetKind)
+            && typeof target.target_id === 'string'
+            && isUuid(target.target_id as string)
+          );
+        })
         .slice(0, 200);
       let total = 0;
       for (const t of targets) {

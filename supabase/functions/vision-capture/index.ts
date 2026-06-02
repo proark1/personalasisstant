@@ -27,7 +27,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MODEL = 'gemini-2.5-flash';
+const _MODEL = 'gemini-2.5-flash'; // referenced via _shared/geminiStructured.ts default
 
 const ALLOWED_KINDS = [
   'receipt', 'business_card', 'medication', 'whiteboard',
@@ -227,12 +227,13 @@ serve(async (req) => {
     try {
       await assertWithinQuota(admin, user.id);
     } catch (e) {
-      const code = (e as any)?.code;
+      const code = (e instanceof Object && 'code' in e) ? (e as { code?: string }).code : undefined;
+      const errMsg = e instanceof Error ? e.message : String(e);
       await admin.from('vision_captures').update({
         status: 'error',
-        error_message: (e as Error).message,
+        error_message: errMsg,
       }).eq('id', row.id);
-      return json({ error: (e as Error).message, code }, code === 'quota_exceeded' ? 429 : 500);
+      return json({ error: errMsg, code }, code === 'quota_exceeded' ? 429 : 500);
     }
 
     // 3. Gemini Vision via gateway, forced tool-call.
@@ -243,7 +244,7 @@ serve(async (req) => {
     // Native generateContent + responseSchema (the OpenAI-compat endpoint with
     // forced tool_choice fails in our deployment). The native endpoint can't
     // fetch the signed URL, so download the image and send it inline (base64).
-    let parsed: any;
+    let parsed: Record<string, unknown>;
     try {
       const imgResp = await fetch(signed.signedUrl, { signal: AbortSignal.timeout(15_000) });
       if (!imgResp.ok) throw new Error(`image fetch ${imgResp.status}`);
@@ -313,10 +314,10 @@ function sanitiseExtracted(kind: Kind, raw: Record<string, unknown>): Record<str
         currency: s(raw.currency, 8),
         date: s(raw.date, 10),
         category: s(raw.category, 80),
-        line_items: arr(raw.line_items, 50).map((it: any) => ({
-          name: s(it?.name, 200),
-          amount: num(it?.amount),
-        })),
+        line_items: arr(raw.line_items, 50).map((it: unknown) => {
+          const item = it as Record<string, unknown>;
+          return { name: s(item?.name, 200), amount: num(item?.amount) };
+        }),
         tax: num(raw.tax),
       };
     case 'business_card':
@@ -337,13 +338,13 @@ function sanitiseExtracted(kind: Kind, raw: Record<string, unknown>): Record<str
         schedule: s(raw.schedule, 200),
         prescriber: s(raw.prescriber, 200),
         refill_date: s(raw.refill_date, 10),
-        warnings: arr(raw.warnings, 6).map((w: any) => s(w, 300)).filter(Boolean),
+        warnings: arr(raw.warnings, 6).map((w: unknown) => s(w, 300)).filter(Boolean),
       };
     case 'whiteboard':
       return {
         title: s(raw.title, 200),
         summary: s(raw.summary, 1000),
-        bullets: arr(raw.bullets, 30).map((b: any) => s(b, 400)).filter(Boolean),
+        bullets: arr(raw.bullets, 30).map((b: unknown) => s(b, 400)).filter(Boolean),
       };
     case 'label':
       return {

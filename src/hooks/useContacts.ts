@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { TablesUpdate } from '@/integrations/supabase/types';
+import type { Tables, TablesUpdate } from '@/integrations/supabase/types';
 import { moduleBus } from '@/lib/moduleEventBus';
 import { moduleHealth } from '@/lib/moduleHealth';
 
@@ -81,7 +81,7 @@ const EMPTY_CONTACTS: Contact[] = [];
 export function useContacts(userId: string | undefined) {
   const queryClient = useQueryClient();
 
-  const mapDbToContact = (row: any): Contact => {
+  const mapDbToContact = (row: Tables<'user_contacts'>): Contact => {
     const familyRelationshipRaw =
       typeof row.family_relationship === 'string' ? row.family_relationship.toLowerCase() : undefined;
 
@@ -200,7 +200,7 @@ export function useContacts(userId: string | undefined) {
     updates: Partial<ContactInput>
   ): Promise<boolean> => {
     try {
-      const dbUpdates: Record<string, any> = {};
+      const dbUpdates: TablesUpdate<'user_contacts'> = {};
 
       if (updates.name !== undefined) dbUpdates.name = updates.name;
       if (updates.email !== undefined) dbUpdates.email = updates.email || null;
@@ -226,7 +226,7 @@ export function useContacts(userId: string | undefined) {
 
       const { error } = await supabase
         .from('user_contacts')
-        .update(dbUpdates as TablesUpdate<'user_contacts'>)
+        .update(dbUpdates)
         .eq('id', id);
 
       if (error) {

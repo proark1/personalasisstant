@@ -127,7 +127,7 @@ serve(async (req) => {
           if (!resp.has_more) break;
         } catch (e) {
           lastErr = (e as Error).message;
-          const code = (e as any)?.plaidError?.error_code;
+          const code = (e instanceof Object && 'plaidError' in e) ? (e as { plaidError?: { error_code?: string } }).plaidError?.error_code : undefined;
           if (code && PLAID_REAUTH_CODES.has(code)) reauth = true;
           break;
         }
@@ -165,7 +165,7 @@ serve(async (req) => {
       if (upserts.length) {
         // Resolve plaid_account_id → financial_accounts.id in a single batch
         // pre-lookup; saves a round-trip per row.
-        const plaidAccountIds = Array.from(new Set(upserts.map((u) => (u.metadata as any).plaid_account_id)));
+        const plaidAccountIds = Array.from(new Set(upserts.map((u) => (u.metadata as { plaid_account_id: string }).plaid_account_id)));
         const { data: accRows } = await admin
           .from('financial_accounts')
           .select('id, external_id')
@@ -178,7 +178,7 @@ serve(async (req) => {
         }
         const enriched = upserts.map((u) => ({
           ...u,
-          account_id: accMap.get((u.metadata as any).plaid_account_id) ?? null,
+          account_id: accMap.get((u.metadata as { plaid_account_id: string }).plaid_account_id) ?? null,
         }));
         const { error: txErr } = await admin
           .from('financial_transactions')

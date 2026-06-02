@@ -93,7 +93,7 @@ serve(async (req) => {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(limit);
-        rows = (data ?? []).map((r: any) => ({ id: r.id, text: r.content }));
+        rows = (data ?? []).map((r: { id: string; content: string }) => ({ id: r.id, text: r.content }));
       } else if (sourceKind === 'episodic') {
         const { data } = await admin
           .from('episodic_memories')
@@ -101,7 +101,7 @@ serve(async (req) => {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(limit);
-        rows = (data ?? []).map((r: any) => ({
+        rows = (data ?? []).map((r: { id: string; title: string; summary: string }) => ({
           id: r.id,
           text: [r.title, r.summary].filter(Boolean).join(' — '),
         }));
@@ -113,7 +113,7 @@ serve(async (req) => {
           .eq('is_active', true)
           .order('updated_at', { ascending: false })
           .limit(limit);
-        rows = (data ?? []).map((r: any) => ({
+        rows = (data ?? []).map((r: { id: string; key: string; value: string; context: string }) => ({
           id: r.id,
           text: [r.key, r.value, r.context].filter(Boolean).join(' — '),
         }));

@@ -81,7 +81,7 @@ interface SurahDetail {
   ayahs: Ayah[];
 }
 
-const isIOS = (): boolean => {
+const _isIOS = (): boolean => {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
@@ -192,11 +192,10 @@ export function IslamEnhancedPanel() {
     dhikrTypes,
     incrementDhikr,
     resetDhikr,
-    loading: islamicLoading,
   } = useIslamicFeatures();
   
-  const { bookmarks, isBookmarked, addBookmark, removeBookmarkByAyah, updateBookmarkNote, getBookmark } = useQuranBookmarks();
-  const { markAyahAsRead, isAyahRead, getSurahProgress, todayAyahsRead, goal, todayGoalProgress } = useQuranReadingProgress();
+  const { bookmarks, isBookmarked, addBookmark, removeBookmarkByAyah, updateBookmarkNote } = useQuranBookmarks();
+  const { markAyahAsRead, isAyahRead, getSurahProgress, todayAyahsRead, goal } = useQuranReadingProgress();
 
   const [activeTab, setActiveTab] = useState('home');
   const [showProgressPanel, setShowProgressPanel] = useState(false);
@@ -210,7 +209,7 @@ export function IslamEnhancedPanel() {
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [selectedSurah, setSelectedSurah] = useState<SurahDetail | null>(null);
   const [currentAyahIndex, setCurrentAyahIndex] = useState(0);
-  const [quranLoading, setQuranLoading] = useState(false);
+  const [_quranLoading, setQuranLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSurahList, setShowSurahList] = useState(true);
   const [showBookmarks, setShowBookmarks] = useState(false);
@@ -226,7 +225,7 @@ export function IslamEnhancedPanel() {
   const [selectedFont, setSelectedFont] = useState<string>(() => {
     return localStorage.getItem('quran-font') || 'amiri';
   });
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [_isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentPlayingAyah, setCurrentPlayingAyah] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -289,7 +288,7 @@ export function IslamEnhancedPanel() {
       const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/en.sahih`);
       const data = await res.json();
       if (data.code === 200) {
-        setTranslationAyahs(data.data.ayahs.map((a: any) => ({ numberInSurah: a.numberInSurah, text: a.text })));
+        setTranslationAyahs(data.data.ayahs.map((a: { numberInSurah: number; text: string }) => ({ numberInSurah: a.numberInSurah, text: a.text })));
       }
     } catch { /* silent */ }
   };
@@ -583,7 +582,7 @@ export function IslamEnhancedPanel() {
                     const lastRead = localStorage.getItem('quran-last-read');
                     if (!lastRead) return null;
                     try {
-                      const { surahNumber, surahName, englishName, ayah } = JSON.parse(lastRead);
+                      const { surahNumber, surahName: _surahName, englishName, ayah } = JSON.parse(lastRead);
                       return (
                         <Card
                           pressable

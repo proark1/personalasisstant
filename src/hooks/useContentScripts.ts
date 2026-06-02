@@ -4,7 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import { describeFunctionError, type ContentScript, type ScriptFormat, type ScriptVariation } from '@/lib/content';
 
-const db = supabase as unknown as { from: (table: string) => any };
+const db = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
 
 export function useContentScripts(ideaId: string | null) {
   const { language, t } = useLanguage();
@@ -43,8 +43,9 @@ export function useContentScripts(ideaId: string | null) {
         body: { idea_id: ideaId, formats, language, variation },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const next = ((data as any)?.scripts || []) as ContentScript[];
+      const dataObj = data as Record<string, unknown> | null;
+      if (dataObj?.error) throw new Error(String(dataObj.error));
+      const next = ((dataObj?.scripts || []) as ContentScript[]);
       if (next.length) setScripts(next);
       else await fetchScripts();
       toast.success(t('content.toast.scriptsReady'));

@@ -104,8 +104,8 @@ export function FollowUpCard() {
 
             {expandedId === followUp.id && (
               <div className="mt-3 pt-3 border-t space-y-3">
-                {followUp.context?.title && (
-                  <p className="text-sm font-medium">{followUp.context.title}</p>
+                {followUp.context?.title != null && (
+                  <p className="text-sm font-medium">{String(followUp.context.title)}</p>
                 )}
                 {followUp.message_template && (
                   <p className="text-sm text-muted-foreground">{followUp.message_template}</p>

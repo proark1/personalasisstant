@@ -85,14 +85,14 @@ function DebugTimingRow({
   );
 }
 
-export function GhostMode({ onClose, onCommand, personality = 'balanced' }: GhostModeProps) {
+export function GhostMode({ onClose, onCommand, personality: _personality = 'balanced' }: GhostModeProps) {
   const { toast } = useToast();
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [displayTranscript, setDisplayTranscript] = useState('');
   const [aiResponse, setAiResponse] = useState('');
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [showDebugPanel] = useState(false);
   const [buttonCooldown, setButtonCooldown] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
   const [textMode, setTextMode] = useState(false);
@@ -116,7 +116,7 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   const { contacts, addContact, updateContact, deleteContact, markContacted, refetch: refetchContacts } = useContacts(userId);
   const { contracts, addContract, updateContract, deleteContract, refetch: refetchContracts } = useContracts(userId);
   const { projects, addProject, updateProject, deleteProject, refetch: refetchProjects } = useProjects(userId);
-  const { healthMetrics, todaySummary, weeklyData, isConnected: healthConnected, refetch: refetchHealth } = useAppleHealth();
+  const { healthMetrics, todaySummary, weeklyData, isConnected: healthConnected } = useAppleHealth();
   const { habits, logs: habitLogs, createHabit, logHabit, deleteHabit, refetch: refetchHabits } = useHabits(userId);
   const { notes, createNote, updateNote, deleteNote, refetch: refetchNotes } = useNotes(userId);
   const { sendMessage: sendDirectMessage, conversations, refetch: refetchMessages } = useDirectMessages(userId || null);
@@ -463,10 +463,10 @@ export function GhostMode({ onClose, onCommand, personality = 'balanced' }: Ghos
   };
 
   const currentStatus = statusConfig[connectionStatus];
-  const StatusIcon = currentStatus.icon;
+  const _StatusIcon = currentStatus.icon;
 
   // Determine mic button state
-  const isMicActive = isListening && !isSpeaking && !micMuted;
+  const _isMicActive = isListening && !isSpeaking && !micMuted;
   const isSessionActive = isConnected || connectionStatus === 'connecting';
 
   useEffect(() => {

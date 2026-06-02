@@ -102,7 +102,7 @@ serve(async (req) => {
     }
 
     const calendarList = await calendarListResponse.json();
-    const primaryCalendar = calendarList.items?.find((cal: any) => cal.primary) || calendarList.items?.[0];
+    const primaryCalendar = calendarList.items?.find((cal: { primary?: boolean }) => cal.primary) || calendarList.items?.[0];
 
     if (!primaryCalendar) {
       return Response.redirect(`${appUrl}/auth/calendar-callback?error=no_calendars_found`);

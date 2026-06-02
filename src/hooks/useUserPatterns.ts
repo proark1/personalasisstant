@@ -14,7 +14,7 @@ export interface UserPattern {
   confidence_score: number;
   correlation_strength?: number;
   variables: string[];
-  data_points: any[];
+  data_points: unknown[];
   times_detected: number;
   first_detected_at: string;
   last_detected_at: string;
@@ -40,7 +40,7 @@ export interface WeeklySummary {
   avg_stress_level?: number;
   avg_focus_quality?: number;
   exercise_minutes: number;
-  patterns_detected: any[];
+  patterns_detected: unknown[];
   ai_summary?: string;
   created_at: string;
   updated_at: string;

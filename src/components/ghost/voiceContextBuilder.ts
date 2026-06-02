@@ -199,14 +199,14 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
       heartRateAvg: d.heartRateAvg,
       // Include sleep details in weekly data too. These fields aren't on
       // DailyHealthSummary's static type — they're attached by upstream
-      // aggregation. Read through `any` to preserve the prior behavior.
-      sleepRemMinutes: (d as any).sleepRemMinutes,
-      sleepDeepMinutes: (d as any).sleepDeepMinutes,
-      sleepCoreMinutes: (d as any).sleepCoreMinutes,
-      sleepAwakeMinutes: (d as any).sleepAwakeMinutes,
-      sleepEfficiency: (d as any).sleepEfficiency,
-      hrv: (d as any).hrv,
-      restingHeartRate: (d as any).restingHeartRate,
+      // aggregation. Cast through the extended type to preserve runtime behavior.
+      sleepRemMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepRemMinutes as number | undefined,
+      sleepDeepMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepDeepMinutes as number | undefined,
+      sleepCoreMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepCoreMinutes as number | undefined,
+      sleepAwakeMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepAwakeMinutes as number | undefined,
+      sleepEfficiency: (d as DailyHealthSummary & Record<string, unknown>).sleepEfficiency as number | undefined,
+      hrv: (d as DailyHealthSummary & Record<string, unknown>).hrv as number | undefined,
+      restingHeartRate: (d as DailyHealthSummary & Record<string, unknown>).restingHeartRate as number | undefined,
     })),
     recentMetrics: healthMetrics.slice(0, 100).map(m => ({
       type: m.metric_type,

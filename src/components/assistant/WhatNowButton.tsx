@@ -96,10 +96,10 @@ export function WhatNowButton({
         ? incompleteTasks.find(t => t.id === data.taskId) 
         : null;
 
-      const matchedAlternatives = (data.alternatives || []).map((alt: any) => ({
+      const matchedAlternatives = (data.alternatives || []).map((alt: { taskId: string; reason: string }) => ({
         task: incompleteTasks.find(t => t.id === alt.taskId)!,
         reason: alt.reason
-      })).filter((alt: any) => alt.task);
+      })).filter((alt: { task: Task; reason: string }) => alt.task);
 
       setSuggestion({
         task: matchedTask,

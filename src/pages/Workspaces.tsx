@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 export default function WorkspacesPage() {
   const { user } = useAuth();
-  const { workspaces, activeWorkspace, activeWorkspaceId, setActiveWorkspaceId, createWorkspace, joinByCode, refresh, members, refreshMembers } = useWorkspace();
+  const { workspaces, activeWorkspace, activeWorkspaceId, setActiveWorkspaceId, createWorkspace, joinByCode, refresh: _refresh, members, refreshMembers } = useWorkspace();
 
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -248,7 +248,7 @@ export default function WorkspacesPage() {
                 <div className="flex items-center gap-2">
                   <select
                     value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as any)}
+                    onChange={(e) => setInviteRole(e.target.value as 'admin' | 'member' | 'viewer')}
                     className="text-sm border rounded-md px-2 h-9 bg-background"
                   >
                     <option value="admin">Admin</option>

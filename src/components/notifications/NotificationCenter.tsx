@@ -30,7 +30,7 @@ export interface AppNotification {
   timestamp: Date;
   read: boolean;
   actionUrl?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 interface NotificationCenterProps {

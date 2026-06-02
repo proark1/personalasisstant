@@ -14,7 +14,7 @@ const LOW_PRIORITY_WORDS = ['low priority', 'when possible', 'someday', 'eventua
 
 // Category keywords
 const BUSINESS_WORDS = ['work', 'meeting', 'client', 'project', 'deadline', 'review', 'pr', 'call', 'email', 'report', 'presentation'];
-const PERSONAL_WORDS = ['home', 'family', 'personal', 'health', 'gym', 'groceries', 'doctor', 'dentist'];
+const _PERSONAL_WORDS = ['home', 'family', 'personal', 'health', 'gym', 'groceries', 'doctor', 'dentist'];
 
 // Time patterns
 const TIME_PATTERNS = [

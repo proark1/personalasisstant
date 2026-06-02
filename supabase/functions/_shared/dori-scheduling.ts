@@ -39,12 +39,15 @@ function hourIn(ms: number, tz?: string): number {
   return h ? (Number(h) % 24) : 0;
 }
 
+// Minimal Supabase client surface needed by this module.
+type SchedulingClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
+
 export async function findTimeSlots(
-  supabase: any,
+  supabase: SchedulingClient,
   input: FindTimeInput,
 ): Promise<ProposedSlot[]> {
   const {
-    workspaceId,
+    workspaceId: _workspaceId,
     participants,
     durationMinutes,
     withinDays = 7,

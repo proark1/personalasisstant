@@ -137,7 +137,8 @@ export function useCallRecording(
         variant: 'destructive',
       });
     }
-  }, [sessionId, userId, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, userId, toast]); // intentionally excludes uploadRecording — defined after this callback to avoid circular deps
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -154,7 +155,7 @@ export function useCallRecording(
       // Store in user's folder for RLS policy: auth.uid()::text = (storage.foldername(name))[1]
       const fileName = `${userId}/${sessionId}_${Date.now()}.webm`;
       
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('call-recordings')
         .upload(fileName, blob, {
           contentType: 'audio/webm',

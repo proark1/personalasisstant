@@ -1,6 +1,18 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AppNotification } from '@/components/notifications/NotificationCenter';
 
+// Browser Notification API may not be typed on all environments (e.g. iOS)
+interface BrowserNotificationConstructor {
+  new (title: string, opts?: NotificationOptions): Notification;
+  permission: NotificationPermission;
+  requestPermission(): Promise<NotificationPermission>;
+}
+
+function getBrowserNotification(): BrowserNotificationConstructor | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return (window as unknown as { Notification?: BrowserNotificationConstructor }).Notification;
+}
+
 export function useNotifications() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
@@ -9,13 +21,13 @@ export function useNotifications() {
     const stored = localStorage.getItem('darai_notifications');
     if (stored) {
       try {
-        const parsed = JSON.parse(stored);
-        setNotifications(parsed.map((n: any) => ({
+        const parsed = JSON.parse(stored) as Array<AppNotification & { timestamp: string }>;
+        setNotifications(parsed.map((n) => ({
           ...n,
           timestamp: new Date(n.timestamp),
         })));
-      } catch (e) {
-        console.error('Failed to parse notifications:', e);
+      } catch {
+        // ignore malformed stored data
       }
     }
   }, []);
@@ -42,9 +54,7 @@ export function useNotifications() {
     }
 
     // Show browser notification if permitted (check if Notification API exists first for iOS compatibility)
-    const BrowserNotification = (typeof window !== 'undefined'
-      ? (window as any).Notification
-      : undefined) as any;
+    const BrowserNotification = getBrowserNotification();
 
     if (BrowserNotification?.permission === 'granted') {
       new BrowserNotification(notification.title, {
@@ -74,9 +84,7 @@ export function useNotifications() {
 
   // Request notification permission
   const requestPermission = useCallback(async () => {
-    const BrowserNotification = (typeof window !== 'undefined'
-      ? (window as any).Notification
-      : undefined) as any;
+    const BrowserNotification = getBrowserNotification();
 
     if (BrowserNotification?.permission === 'default' && typeof BrowserNotification.requestPermission === 'function') {
       await BrowserNotification.requestPermission();
@@ -98,7 +106,8 @@ export function useNotifications() {
 // Simple notification sound
 function playNotificationSound() {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const audioContext = new AudioContextClass();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -113,7 +122,7 @@ function playNotificationSound() {
 
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.3);
-  } catch (e) {
+  } catch {
     // Audio not supported or blocked
   }
 }

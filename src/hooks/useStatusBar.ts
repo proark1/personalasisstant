@@ -2,8 +2,9 @@ import { useEffect, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 
 // Dynamic import to avoid issues when not on native
-let StatusBar: any = null;
-let Style: any = null;
+interface StatusBarPlugin { setStyle(opts: { style: unknown }): Promise<void>; setBackgroundColor(opts: { color: string }): Promise<void>; hide(): Promise<void>; show(): Promise<void>; }
+let StatusBar: StatusBarPlugin | null = null;
+let Style: Record<string, string> | null = null;
 
 const loadStatusBar = async () => {
   if (Capacitor.isNativePlatform()) {

@@ -50,7 +50,7 @@ export function useTaskComments(taskId: string | null) {
           .from('profiles')
           .select('user_id, display_name')
           .in('user_id', ids);
-        nameById = new Map((profs || []).map((p: any) => [p.user_id, p.display_name]));
+        nameById = new Map((profs || []).map((p: { user_id: string; display_name: string | null }) => [p.user_id, p.display_name]));
       }
       setComments(rows.map((r) => ({ ...r, authorName: r.author_id ? nameById.get(r.author_id) ?? null : null })));
     } catch (e) {

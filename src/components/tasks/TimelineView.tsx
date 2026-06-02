@@ -96,7 +96,7 @@ export function TimelineView({
   tasks,
   onToggleComplete,
   onDeleteTask,
-  onUpdateTask,
+  onUpdateTask: _onUpdateTask,
 }: TimelineViewProps) {
   const incompleteTasks = useMemo(() => tasks.filter(t => !t.completed && !t.trashed), [tasks]);
 

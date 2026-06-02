@@ -10,7 +10,7 @@ import { EnhancedRecipesList } from './EnhancedRecipesList';
 import { AddRecipeDialog } from '@/components/family/AddRecipeDialog';
 
 export function CookingPanel() {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'today' | 'week' | 'recipes'>('today');
   const [showAddRecipe, setShowAddRecipe] = useState(false);
 
@@ -20,7 +20,7 @@ export function CookingPanel() {
       title={language === 'de' ? 'Kochen' : 'Cooking'}
       subtitle={language === 'de' ? 'Mahlzeiten planen & Rezepte' : 'Plan meals & discover recipes'}
     >
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'today' | 'week' | 'recipes')}>
         <div className="flex items-center justify-between gap-2 mb-3">
           <TabsList className="bg-muted/50 flex-1">
             <TabsTrigger value="today" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">

@@ -4,7 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 // Dynamic imports for Capacitor plugins
-let PushNotifications: any = null;
+interface PushNotificationsPlugin {
+  register(): Promise<void>;
+  requestPermissions(): Promise<{ receive: string }>;
+  addListener(event: string, callback: (data: unknown) => void): void;
+  removeAllListeners(): Promise<void>;
+}
+let PushNotifications: PushNotificationsPlugin | null = null;
 
 const loadPushNotifications = async () => {
   if (Capacitor.isNativePlatform()) {
@@ -96,27 +102,27 @@ export function useCallPushNotifications({ userId, onIncomingCall, enabled = tru
       });
 
       // Listen for registration errors
-      PushNotifications.addListener('registrationError', (error: any) => {
+      PushNotifications.addListener('registrationError', (error: unknown) => {
         console.error('[CallPush] Registration error:', error);
       });
 
       // Listen for push notifications received
-      PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
+      PushNotifications.addListener('pushNotificationReceived', (notification: unknown) => {
         console.log('[CallPush] Push notification received:', notification);
 
-        const { data } = notification;
-        if (data?.type === 'incoming_call' && onIncomingCall) {
-          onIncomingCall(data.caller_id, data.caller_name, data.session_id);
+        const n = notification as { data?: { type?: string; caller_id: string; caller_name: string; session_id: string } };
+        if (n?.data?.type === 'incoming_call' && onIncomingCall) {
+          onIncomingCall(n.data.caller_id, n.data.caller_name, n.data.session_id);
         }
       });
 
       // Listen for push notification action performed
-      PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
+      PushNotifications.addListener('pushNotificationActionPerformed', (action: unknown) => {
         console.log('[CallPush] Push notification action:', action);
 
-        const { data } = action.notification;
-        if (data?.type === 'incoming_call' && onIncomingCall) {
-          onIncomingCall(data.caller_id, data.caller_name, data.session_id);
+        const a = action as { notification?: { data?: { type?: string; caller_id: string; caller_name: string; session_id: string } } };
+        if (a?.notification?.data?.type === 'incoming_call' && onIncomingCall) {
+          onIncomingCall(a.notification.data.caller_id, a.notification.data.caller_name, a.notification.data.session_id);
         }
       });
 

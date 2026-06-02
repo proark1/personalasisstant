@@ -19,7 +19,7 @@ export function useAdhanPlayer() {
   const isNative = Capacitor.isNativePlatform();
 
   // Play Adhan audio
-  const playAdhan = useCallback((settings: AdhanSettings, prayerName?: string) => {
+  const playAdhan = useCallback((settings: AdhanSettings, _prayerName?: string) => {
     if (!settings.enabled) return;
 
     // Stop any existing audio

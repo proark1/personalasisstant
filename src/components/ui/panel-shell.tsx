@@ -109,5 +109,6 @@ export function PanelShell({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { staggerItem, staggerContainer };
 export type { PanelShellProps };

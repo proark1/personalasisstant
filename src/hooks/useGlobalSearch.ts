@@ -395,6 +395,7 @@ export function useGlobalSearch(userId: string | undefined) {
       await supabase.from('search_history').insert({
         user_id: userId,
         query: trimmedQuery,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         filters: filters as any,
       });
 

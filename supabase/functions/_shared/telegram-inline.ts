@@ -59,19 +59,19 @@ export function decodeCallback(raw: string): CallbackData {
     case 'dori_undo':     return { kind: 'undo', undoId: rest.join(':') };
     case 'dori_task': {
       const [op, ...id] = rest;
-      return { kind: 'task', op: op as any, taskId: id.join(':') };
+      return { kind: 'task', op: op as 'complete' | 'snooze1h' | 'snooze1d' | 'delete', taskId: id.join(':') };
     }
     case 'dori_event': {
       const [op, ...id] = rest;
-      return { kind: 'event', op: op as any, eventId: id.join(':') };
+      return { kind: 'event', op: op as 'details' | 'cancel', eventId: id.join(':') };
     }
     case 'dori_shop': {
       const [op, ...id] = rest;
-      return { kind: 'shop', op: op as any, itemId: id.join(':') };
+      return { kind: 'shop', op: op as 'check' | 'uncheck' | 'remove', itemId: id.join(':') };
     }
     case 'dori_contract': {
       const [op, ...id] = rest;
-      return { kind: 'contract', op: op as any, contractId: id.join(':') };
+      return { kind: 'contract', op: op as 'snooze7' | 'handled' | 'details', contractId: id.join(':') };
     }
     case 'dori_page': {
       const [ns, ...cur] = rest;
@@ -79,7 +79,7 @@ export function decodeCallback(raw: string): CallbackData {
     }
     case 'dori_plan': {
       const [op, ...id] = rest;
-      return { kind: 'plan', op: op as any, planId: id.join(':') };
+      return { kind: 'plan', op: op as 'run_next' | 'skip' | 'abort', planId: id.join(':') };
     }
     case 'dori_dismiss':  return { kind: 'dismiss' };
     default:              return { kind: 'unknown', raw };

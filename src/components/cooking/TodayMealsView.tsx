@@ -43,14 +43,14 @@ interface AISuggestion {
 
 export function TodayMealsView() {
   const { user } = useAuth();
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const { mealPlans, recipes, addMealPlan, fetchMealPlans, refetchRecipes } = useMealPlanning();
   const locale = language === 'de' ? de : enUS;
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd');
 
   const [showAddMealDialog, setShowAddMealDialog] = useState(false);
-  const [selectedMealType, setSelectedMealType] = useState('dinner');
+  const [_selectedMealType, setSelectedMealType] = useState('dinner');
   const [recipeDetailId, setRecipeDetailId] = useState<string | null>(null);
   const [showRecipeDetail, setShowRecipeDetail] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);

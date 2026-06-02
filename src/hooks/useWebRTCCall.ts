@@ -159,6 +159,9 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
 
     peerConnection.current = pc;
     return pc;
+  // iceServers is a stable constant; endCall depends on callStatus which changes —
+  // adding either would cause the peer connection to be torn down on transitions
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // Start a call
@@ -206,7 +209,7 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
 
 
       // Store offer for resending
-      let currentOffer: RTCSessionDescriptionInit | null = null;
+      let _currentOffer: RTCSessionDescriptionInit | null = null;
 
       const sendOffer = async (opts?: { iceRestart?: boolean }) => {
         if (!channelRef.current) return;
@@ -221,7 +224,7 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
 
           const offer = await pc.createOffer(opts?.iceRestart ? { iceRestart: true } : undefined);
           await pc.setLocalDescription(offer);
-          currentOffer = offer;
+          _currentOffer = offer;
 
           offerRevisionRef.current += 1;
           const revision = offerRevisionRef.current;
@@ -259,7 +262,7 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
         .on('broadcast', { event: 'answer' }, async ({ payload }) => {
           if (payload.from !== userId && payload.sdp) {
             console.log('Received answer');
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit));
           }
         })
         .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
@@ -314,6 +317,9 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
       setCallStatus('idle');
       throw error;
     }
+  // callStatus and endCall intentionally omitted: endCall depends on callStatus
+  // which would trigger the whole setup to re-run on each state change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, initializeMedia, createPeerConnection, toast]);
 
   // Answer a call
@@ -344,7 +350,7 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
 
 
       // Track latest offer revision so we can accept retries
-      const handleOffer = async (payload: any) => {
+      const handleOffer = async (payload: Record<string, unknown>) => {
         if (payload.from === userId || !payload.sdp) return;
 
         const revision = typeof payload.revision === 'number' ? payload.revision : 0;
@@ -353,7 +359,7 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
 
         try {
           console.log('[webrtc] received offer', { revision, iceRestart: !!payload.iceRestart });
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit));
 
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
@@ -438,6 +444,9 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
       console.error('Error answering call:', error);
       throw error;
     }
+  // callStatus and endCall intentionally excluded: callStatus changes trigger unwanted re-subscriptions;
+  // endCall is only called on disconnect events inside the callback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, initializeMedia, createPeerConnection]);
 
   // Decline a call
@@ -529,8 +538,9 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
   // Check if screen sharing is supported (not available on iOS native apps)
   const isScreenShareSupported = useCallback(() => {
     // Check if running in Capacitor/native iOS
-    const isIOSNative = !!(window as any).Capacitor?.isNativePlatform?.() && 
-                        (window as any).Capacitor?.getPlatform?.() === 'ios';
+    interface CapacitorGlobal { isNativePlatform?: () => boolean; getPlatform?: () => string }
+    const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
+    const isIOSNative = !!cap?.isNativePlatform?.() && cap?.getPlatform?.() === 'ios';
     
     // getDisplayMedia is not available on iOS native apps
     if (isIOSNative) {

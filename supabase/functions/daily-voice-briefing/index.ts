@@ -2,6 +2,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from '../_shared/cors.ts';
 
+interface GroupRow { group_id: string }
+interface MemberRow { user_id: string }
+interface TaskRow { id: string; title: string; priority: string; completed: boolean; due_date?: string; user_id: string }
+interface EventRow { id: string; title: string; start_time: string; end_time: string; location?: string; user_id: string }
+interface EmailRow { id: string; from_name?: string; subject?: string; priority_score?: number; is_read?: boolean; category?: string; user_id: string }
+interface ContractRow { id: string; name: string; renewal_date?: string; cost_amount?: number; cost_frequency?: string; user_id: string }
+interface ContactRow { id: string; name: string; last_contacted_at?: string; user_id: string }
+interface CheckinRow { mood?: string; energy_level?: string; sleep_hours?: number; user_id: string }
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -48,7 +57,7 @@ serve(async (req) => {
       .select("group_id")
       .eq("user_id", userId)
       .eq("status", "accepted");
-    const groupIds = (myGroups || []).map((g: any) => g.group_id);
+    const groupIds = (myGroups || []).map((g: GroupRow) => g.group_id);
     let household: { user_id: string; display_name: string }[] = [];
     if (groupIds.length > 0) {
       const { data: members } = await db
@@ -56,9 +65,9 @@ serve(async (req) => {
         .select("user_id")
         .in("group_id", groupIds)
         .eq("status", "accepted");
-      const ids = Array.from(new Set([userId, ...((members || []).map((m: any) => m.user_id))]));
+      const ids = Array.from(new Set([userId, ...((members || []).map((m: MemberRow) => m.user_id))]));
       const { data: profs } = await db.from("profiles").select("user_id, display_name").in("user_id", ids);
-      const map = new Map((profs || []).map((p: any) => [p.user_id, p.display_name || "Member"]));
+      const map = new Map((profs || []).map((p: { user_id: string; display_name?: string }) => [p.user_id, p.display_name || "Member"]));
       household = ids.map(id => ({ user_id: id, display_name: map.get(id) || "Member" }));
     }
     const isShared = household.length >= 2;
@@ -83,20 +92,20 @@ serve(async (req) => {
     const unreadEmails = emailsRes.data || [];
     const contracts = contractsRes.data || [];
     const overdueContacts = contactsRes.data || [];
-    const yesterdayCheckin = checkinsRes.data?.find((c: any) => c.user_id === userId) || null;
+    const yesterdayCheckin = (checkinsRes.data as CheckinRow[] | null)?.find((c) => c.user_id === userId) || null;
     const totalHabits = habitsRes.count || 0;
     const habitsLogged = habitLogsRes.count || 0;
     const userName = profileRes.data?.display_name || "there";
 
-    const highPriorityTasks = tasks.filter((t: any) => t.priority === "high");
-    const priorityEmails = unreadEmails.filter((e: any) => e.priority_score <= 2);
+    const highPriorityTasks = (tasks as TaskRow[]).filter((t) => t.priority === "high");
+    const priorityEmails = (unreadEmails as EmailRow[]).filter((e) => (e.priority_score ?? 999) <= 2);
 
     // Helper: prefix with owner name when household is shared
     const owner = (uid: string) => isShared ? `${ownerNameById.get(uid) || "Member"}'s ` : "";
     const ownerSuffix = (uid: string) => isShared ? ` (${ownerNameById.get(uid) || "Member"})` : "";
 
     // Build highlights
-    const highlights: any[] = [];
+    const highlights: Array<{ type: string; label: string }> = [];
     if (tasks.length > 0) highlights.push({ type: "task", label: `${tasks.length} pending task${tasks.length > 1 ? "s" : ""}${highPriorityTasks.length > 0 ? `, ${highPriorityTasks.length} high priority` : ""}` });
     if (events.length > 0) highlights.push({ type: "calendar", label: `${events.length} event${events.length > 1 ? "s" : ""} today` });
     if (unreadEmails.length > 0) highlights.push({ type: "email", label: `${unreadEmails.length} unread email${unreadEmails.length > 1 ? "s" : ""}${priorityEmails.length > 0 ? `, ${priorityEmails.length} priority` : ""}` });
@@ -114,29 +123,29 @@ serve(async (req) => {
     contextParts.push(`Day: ${now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}`);
 
     if (tasks.length > 0) {
-      const topTasks = tasks.slice(0, 5).map((t: any) => `${owner(t.user_id)}"${t.title}" (${t.priority} priority${t.due_date ? `, due ${t.due_date}` : ""})`).join(", ");
+      const topTasks = (tasks as TaskRow[]).slice(0, 5).map((t) => `${owner(t.user_id)}"${t.title}" (${t.priority} priority${t.due_date ? `, due ${t.due_date}` : ""})`).join(", ");
       contextParts.push(`Pending tasks (${tasks.length} total): ${topTasks}`);
     }
     if (events.length > 0) {
-      const eventList = events.map((e: any) => `${owner(e.user_id)}"${e.title}" at ${new Date(e.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}${e.location ? ` (${e.location})` : ""}`).join(", ");
+      const eventList = (events as EventRow[]).map((e) => `${owner(e.user_id)}"${e.title}" at ${new Date(e.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}${e.location ? ` (${e.location})` : ""}`).join(", ");
       contextParts.push(`Today's events: ${eventList}`);
     }
     if (unreadEmails.length > 0) {
-      const emailList = priorityEmails.slice(0, 4).map((e: any) => `${owner(e.user_id)}"${e.subject}" from ${e.from_name || "unknown"}`).join(", ");
+      const emailList = priorityEmails.slice(0, 4).map((e) => `${owner(e.user_id)}"${e.subject}" from ${e.from_name || "unknown"}`).join(", ");
       contextParts.push(`Unread emails: ${unreadEmails.length} total. Priority: ${emailList || "none"}`);
     }
     if (contracts.length > 0) {
-      const contractList = contracts.map((c: any) => `${owner(c.user_id)}"${c.name}" renews ${c.renewal_date}${c.cost_amount ? ` (${c.cost_amount}€/${c.cost_frequency})` : ""}`).join(", ");
+      const contractList = (contracts as ContractRow[]).map((c) => `${owner(c.user_id)}"${c.name}" renews ${c.renewal_date}${c.cost_amount ? ` (${c.cost_amount}€/${c.cost_frequency})` : ""}`).join(", ");
       contextParts.push(`Contract alerts: ${contractList}`);
     }
     if (overdueContacts.length > 0) {
-      const contactList = overdueContacts.map((c: any) => `${c.name}${ownerSuffix(c.user_id)}`).join(", ");
+      const contactList = (overdueContacts as ContactRow[]).map((c) => `${c.name}${ownerSuffix(c.user_id)}`).join(", ");
       contextParts.push(`Contacts to follow up: ${contactList}`);
     }
     if (isShared) {
-      const checkinByUser = new Map((checkinsRes.data || []).map((c: any) => [c.user_id, c]));
+      const checkinByUser = new Map((checkinsRes.data as CheckinRow[] || []).map((c) => [c.user_id, c]));
       const lines = household.map(h => {
-        const c: any = checkinByUser.get(h.user_id);
+        const c = checkinByUser.get(h.user_id) as CheckinRow | undefined;
         if (!c) return null;
         return `${h.display_name}: mood=${c.mood || "unknown"}, energy=${c.energy_level || "unknown"}, sleep=${c.sleep_hours ? c.sleep_hours + "h" : "unknown"}`;
       }).filter(Boolean);

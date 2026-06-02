@@ -24,7 +24,9 @@ interface Suggestion {
   category: string;
   suggested_action: string;
   reasoning: string | null;
-  suggested_payload: any;
+  // Dynamic JSON blob produced by the email classifier; fields are not statically known.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  suggested_payload: Record<string, any> | null;
 }
 
 const ACTION_LABEL: Record<string, string> = {
@@ -79,6 +81,7 @@ export function EmailActionPipelineCard({
     setItems((data ?? []) as Suggestion[]);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [user?.id]);
 
   const runClassifier = async (limit = 25, force = false) => {
@@ -90,7 +93,7 @@ export function EmailActionPipelineCard({
         body: { user_id: user.id, limit, force },
       });
       if (error) throw error;
-      const n = (data as any)?.classified ?? 0;
+      const n = (data as { classified?: number } | null)?.classified ?? 0;
       toast.success(n > 0 ? `Found ${n} new suggestion${n === 1 ? '' : 's'}` : 'No new actions found');
       await load();
     } catch (e) {
@@ -113,7 +116,9 @@ export function EmailActionPipelineCard({
     if (!user?.id) return;
     setApplyingId(item.id);
     try {
-      const p = item.suggested_payload || {};
+      // Suggested payload is a dynamic JSON blob from the email classifier (untyped fields).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p = (item.suggested_payload || {}) as Record<string, any>;
       const titleFromEmail = p.subject || p.title || 'From email';
       let createdLabel = 'Applied';
       const action = overrideAction || item.suggested_action;

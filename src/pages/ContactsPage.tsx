@@ -881,7 +881,7 @@ export default function Contacts() {
           </GlassCardContent>
         </GlassCard>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'personal' | 'business' | 'due' | 'insights' | 'timeline')}>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <TabsList className="grid grid-cols-5">
               <TabsTrigger value="personal" className="gap-1 text-xs sm:text-sm">

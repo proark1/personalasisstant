@@ -160,9 +160,10 @@ export function useDirectMessages(userId: string | null) {
       setConversations(convList.sort((a, b) => 
         new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
       ));
-    } catch (error: any) {
+    } catch (error) {
       // Silent retry for transient network errors
-      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const isNetworkError = errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError');
       if (isNetworkError && retryCount < 2) {
         await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
         return fetchConversations(retryCount + 1);

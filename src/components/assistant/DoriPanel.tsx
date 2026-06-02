@@ -122,8 +122,8 @@ const MessageRow = memo(function MessageRow({ message, isLastAssistant, actionCa
         {message.role === 'assistant' && <img src={doriFish} alt="Dori" className="w-8 h-8 object-contain shrink-0" />}
         <div className={cn("max-w-[80%] rounded-xl px-4 py-3", message.role === 'user' ? "bg-primary text-primary-foreground" : "glass-panel")}>
           {/* Show attached image if present */}
-          {message.role === 'user' && (message as any).imageUrl && (
-            <img src={(message as any).imageUrl} alt="Attached" className="rounded-lg mb-2 max-h-40 object-contain" />
+          {message.role === 'user' && (message as ChatMessage & { imageUrl?: string }).imageUrl && (
+            <img src={(message as ChatMessage & { imageUrl?: string }).imageUrl} alt="Attached" className="rounded-lg mb-2 max-h-40 object-contain" />
           )}
           {message.role === 'assistant' ? <MarkdownRenderer content={message.content} /> : <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
           {message.sources && message.sources.length > 0 && (

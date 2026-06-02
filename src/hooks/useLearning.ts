@@ -22,10 +22,10 @@ export function useLearning() {
         supabase.from('courses').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }),
         supabase.from('skills').select('*').eq('user_id', user.id).order('name'),
       ]);
-      setBooks((b.data as any) || []); setCourses((c.data as any) || []); setSkills((s.data as any) || []);
+      setBooks((b.data as Book[]) || []); setCourses((c.data as Course[]) || []); setSkills((s.data as Skill[]) || []);
     } finally { setIsLoading(false); }
   };
-  useEffect(() => { if (user) refresh(); }, [user]);
+  useEffect(() => { if (user) refresh(); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addBook = async (p: Partial<Book>) => { if (!user) return; const { error } = await supabase.from('books').insert({ ...p, user_id: user.id, title: p.title! }); if (error) return toast.error(error.message); toast.success('Added'); refresh(); };
   const updateBook = async (id: string, p: Partial<Book>) => { const { error } = await supabase.from('books').update(p).eq('id', id); if (error) return toast.error(error.message); refresh(); };

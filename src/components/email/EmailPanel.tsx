@@ -9,7 +9,7 @@ import { reconstructSender } from '@/lib/emailSender';
 import { AddEditContractDialog } from '@/components/contracts/AddEditContractDialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { useContracts, ContractInput } from '@/hooks/useContracts';
+import { useContracts, ContractInput, ContractCategory } from '@/hooks/useContracts';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -141,7 +141,7 @@ export function EmailPanel() {
 
   // Keep email-filter view in sync with tab when not on actions
   const handleTabChange = (v: string) => {
-    setActiveTab(v as any);
+    setActiveTab(v as EmailView | 'actions');
     if (v !== 'actions') setView(v as EmailView);
   };
   const [selectedThread, setSelectedThread] = useState<EmailThread | null>(null);
@@ -262,7 +262,7 @@ export function EmailPanel() {
       provider: senderName,
       costAmount: amount,
       costFrequency: 'monthly',
-      category: category as any,
+      category: category as ContractCategory,
       autoRenews: true,
       startDate: emailDate ? new Date(emailDate) : undefined,
       renewalDate: emailDate ? new Date(emailDate) : undefined,

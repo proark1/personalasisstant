@@ -39,16 +39,16 @@ export function useSmartScheduling() {
         .eq('completed', true)
         .gte('updated_at', thirtyDaysAgo.toISOString());
 
-      // Fetch focus sessions
-      const { data: focusSessions } = await supabase
+      // Fetch focus sessions (for future pattern analysis)
+      await supabase
         .from('focus_sessions')
         .select('started_at, duration_minutes, is_completed')
         .eq('user_id', user.id)
         .eq('is_completed', true)
         .gte('started_at', thirtyDaysAgo.toISOString());
 
-      // Fetch check-ins for energy data
-      const { data: checkins } = await supabase
+      // Fetch check-ins for energy data (for future pattern analysis)
+      await supabase
         .from('daily_checkins')
         .select('checkin_date, energy_level, focus_quality')
         .eq('user_id', user.id)
@@ -110,7 +110,7 @@ export function useSmartScheduling() {
 
   const getSuggestionsForTask = useCallback((
     taskPriority: string,
-    estimatedDuration?: number
+    _estimatedDuration?: number
   ): SchedulingSuggestion[] => {
     if (!patterns) return [];
 

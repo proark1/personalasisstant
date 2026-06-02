@@ -49,7 +49,7 @@ serve(async (req) => {
       return json({ error: 'unauthorized' }, 401);
     }
 
-    let payload: any;
+    let payload: Record<string, unknown>;
     try { payload = JSON.parse(rawBody); }
     catch { return json({ error: 'invalid json' }, 400); }
 
@@ -69,7 +69,7 @@ serve(async (req) => {
     // Find the local row. external_bot_id is the primary key into our
     // mapping; localId is a fallback for the very first delivery if
     // external_bot_id wasn't yet stored when the webhook fires.
-    let row: any = null;
+    let row: Record<string, unknown> | null = null;
     if (externalBotId) {
       const { data: byExt } = await admin
         .from('meeting_bots')
@@ -120,7 +120,7 @@ serve(async (req) => {
 
     // Append the raw payload to metadata.events for an audit trail
     // without overwriting prior events. Cap the array at 20 entries.
-    const events = Array.isArray((row.metadata as any)?.events) ? (row.metadata as any).events : [];
+    const events = Array.isArray((row.metadata as Record<string, unknown>)?.events) ? (row.metadata as Record<string, unknown>).events as Record<string, unknown>[] : [];
     events.push({ event, at: new Date().toISOString() });
     patch.metadata = {
       ...((row.metadata as Record<string, unknown>) ?? {}),
@@ -191,14 +191,17 @@ function mapEventToStatus(event: string): string | null {
 }
 
 function sanitiseTranscript(arr: unknown[]): TranscriptEntry[] {
-  return arr.slice(0, 5000).map((e: any) => ({
-    speaker: typeof e?.speaker === 'string' ? e.speaker.slice(0, 120) : 'Unknown',
-    text: typeof e?.text === 'string' ? e.text.slice(0, 4000) : '',
-    timestamp: typeof e?.timestamp === 'number' ? e.timestamp : 0,
-    source: e?.source === 'chat' ? 'chat' : 'voice',
-    message_id: typeof e?.message_id === 'string' ? e.message_id : undefined,
-    bot_generated: !!e?.bot_generated,
-  }));
+  return arr.slice(0, 5000).map((e) => {
+    const entry = e as Record<string, unknown>;
+    return {
+      speaker: typeof entry?.speaker === 'string' ? (entry.speaker as string).slice(0, 120) : 'Unknown',
+      text: typeof entry?.text === 'string' ? (entry.text as string).slice(0, 4000) : '',
+      timestamp: typeof entry?.timestamp === 'number' ? entry.timestamp as number : 0,
+      source: entry?.source === 'chat' ? 'chat' : 'voice',
+      message_id: typeof entry?.message_id === 'string' ? entry.message_id as string : undefined,
+      bot_generated: !!entry?.bot_generated,
+    };
+  });
 }
 
 function json(body: unknown, status = 200): Response {

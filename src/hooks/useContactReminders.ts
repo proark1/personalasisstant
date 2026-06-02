@@ -19,8 +19,7 @@ const getContactReminderTitle = (contact: Contact): string => {
 
 // Check if a reminder task already exists for this contact
 const hasExistingReminder = (contact: Contact, tasks: Task[]): boolean => {
-  const expectedTitle = getContactReminderTitle(contact);
-  return tasks.some(task => 
+  return tasks.some(task =>
     !task.completed && 
     task.title.includes(contact.name) &&
     (task.title.includes('Reach out') || task.title.includes('Follow up'))

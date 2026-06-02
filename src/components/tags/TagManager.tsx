@@ -30,7 +30,7 @@ export function TagManager({
   tags,
   selectedTags,
   onCreateTag,
-  onDeleteTag,
+  onDeleteTag: _onDeleteTag,
   onAddTag,
   onRemoveTag,
 }: TagManagerProps) {

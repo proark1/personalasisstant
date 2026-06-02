@@ -88,7 +88,7 @@ serve(async (req) => {
       // Normalise both shapes.
       const raw = data?.data ?? data ?? {};
       if (Array.isArray(raw?.templates)) {
-        drafts = raw.templates.map((t: any) => ({ tone: t?.tone ?? 'formal', subject: t?.subject, body: t?.body }));
+        drafts = raw.templates.map((t: { tone?: string; subject?: string; body?: string }) => ({ tone: t?.tone ?? 'formal', subject: t?.subject, body: t?.body }));
       } else {
         for (const k of ['formal', 'email', 'brief']) {
           if (raw?.[k]) drafts.push({ tone: k, subject: raw[k]?.subject, body: typeof raw[k] === 'string' ? raw[k] : raw[k]?.body });

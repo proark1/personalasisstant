@@ -124,7 +124,7 @@ serve(async (req) => {
               merchant,
               occurred_on: date,
               source: 'vision_capture',
-              metadata: { capture_id: cap.id, line_items: (merged as any).line_items ?? [] },
+              metadata: { capture_id: cap.id, line_items: (merged as Record<string, unknown>).line_items ?? [] },
             })
             .select('id')
             .single();
@@ -188,8 +188,8 @@ serve(async (req) => {
         case 'document':
         case 'unknown': {
           const title = strOrNull(merged.title) || (kind === 'whiteboard' ? 'Whiteboard scan' : 'Scanned text');
-          const bulletsBlock = Array.isArray((merged as any).bullets)
-            ? '\n\n' + ((merged as any).bullets as string[]).map((b) => `- ${b}`).join('\n')
+          const bulletsBlock = Array.isArray((merged as Record<string, unknown>).bullets)
+            ? '\n\n' + ((merged as Record<string, unknown>).bullets as string[]).map((b) => `- ${b}`).join('\n')
             : '';
           const summary = strOrNull(merged.summary) || '';
           const content = [summary, bulletsBlock, ocrText ? `\n\n---\nVerbatim:\n${ocrText}` : ''].join('').trim();

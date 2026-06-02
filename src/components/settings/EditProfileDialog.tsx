@@ -32,6 +32,7 @@ export function EditProfileDialog({ isOpen, onClose }: EditProfileDialogProps) {
     if (isOpen) {
       loadProfile();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const loadProfile = async () => {

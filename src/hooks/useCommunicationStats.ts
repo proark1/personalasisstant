@@ -109,7 +109,8 @@ export function useCommunicationStats() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // intentionally excludes calculateDashboard — defined after this callback to avoid circular deps
 
   // Calculate dashboard metrics
   const calculateDashboard = useCallback((statsData: CommunicationStat[], recentActivity: RecentActivity[]) => {

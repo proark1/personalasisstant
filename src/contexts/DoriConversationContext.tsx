@@ -73,6 +73,7 @@ export function DoriConversationProvider({ children }: { children: ReactNode }) 
   return <DoriConversationContext.Provider value={value}>{children}</DoriConversationContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useDoriConversation(): DoriConversationValue {
   const ctx = useContext(DoriConversationContext);
   if (!ctx) throw new Error('useDoriConversation must be used within DoriConversationProvider');

@@ -27,7 +27,7 @@ type OptionalNativeModule = (typeof OPTIONAL_NATIVE_MODULES)[number];
 // Hide the specifier from Rollup/Vite static analysis. The @vite-ignore
 // pragma + variable input combo means the bundler emits a runtime import()
 // without trying to resolve the module at build time.
-const importOptional = (m: OptionalNativeModule): Promise<any> => {
+const importOptional = (m: OptionalNativeModule): Promise<Record<string, unknown> | null> => {
   if (!OPTIONAL_NATIVE_MODULES.includes(m)) {
     return Promise.reject(new Error(`Module not allowlisted: ${m}`));
   }
@@ -56,7 +56,8 @@ export function useNativeCamera(): NativeCameraApi {
     try {
       const camera = await importOptional('@capacitor/camera');
       if (!camera) return null;
-      const { Camera, CameraResultType, CameraSource } = camera;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { Camera, CameraResultType, CameraSource } = camera as any;
       const photo = await Camera.getPhoto({
         quality: 80,
         allowEditing: false,
@@ -64,11 +65,12 @@ export function useNativeCamera(): NativeCameraApi {
         source: CameraSource.Camera,
         webUseInput: true,
       });
-      const path = (photo as any)?.webPath || (photo as any)?.path;
+      const photoRecord = photo as Record<string, unknown>;
+      const path = photoRecord?.webPath || photoRecord?.path;
       if (!path) return null;
-      const res = await fetch(path);
+      const res = await fetch(path as string);
       const blob = await res.blob();
-      const ext = (photo as any)?.format || 'jpeg';
+      const ext = photoRecord?.format || 'jpeg';
       const file = new File([blob], `camera-${Date.now()}.${ext}`, { type: blob.type || `image/${ext}` });
       return { file, source: 'native_camera' };
     } catch (err) {

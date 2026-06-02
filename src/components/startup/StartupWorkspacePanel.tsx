@@ -26,7 +26,7 @@ import {
   Plus, MoreVertical, Pencil, Archive, Lightbulb, Trash2, Tag, ChevronRight,
   ArrowLeft,
 } from 'lucide-react';
-import { useStartupWorkspaces, StartupWorkspace } from '@/hooks/useStartupWorkspaces';
+import { useStartupWorkspaces, StartupWorkspace, StartupMetric } from '@/hooks/useStartupWorkspaces';
 import { useStartupIdeas, StartupIdea, StartupIdeaInput } from '@/hooks/useStartupIdeas';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -384,14 +384,14 @@ function IdeaDetailView({
 // ─── Main Panel ─────────────────────────────────────────────────────
 
 export function StartupWorkspacePanel() {
-  const isMobile = useIsMobile();
+  const _isMobile = useIsMobile();
   const {
     workspaces, activeWorkspace, setActiveWorkspace, loading,
     addWorkspace, updateWorkspace, deleteWorkspace,
     addMetric, getWorkspaceMetrics, getLatestMetric, metrics,
   } = useStartupWorkspaces();
   const {
-    ideas, createIdea, updateIdea, deleteIdea, getIdeasForWorkspace,
+    createIdea, updateIdea, deleteIdea, getIdeasForWorkspace,
   } = useStartupIdeas();
 
   const [wsDialogOpen, setWsDialogOpen] = useState(false);
@@ -424,11 +424,11 @@ export function StartupWorkspacePanel() {
 
   // ─── Handlers ───────────────────────────────────────────────────
 
-  const handleAddWorkspace = async (data: any) => {
+  const handleAddWorkspace = async (data: Omit<StartupWorkspace, 'id' | 'created_at' | 'is_active'>) => {
     await addWorkspace(data);
   };
 
-  const handleEditWorkspace = async (data: any) => {
+  const handleEditWorkspace = async (data: Omit<StartupWorkspace, 'id' | 'created_at' | 'is_active'>) => {
     if (!editingWs) return;
     await updateWorkspace(editingWs.id, data);
     setEditingWs(null);
@@ -440,7 +440,7 @@ export function StartupWorkspacePanel() {
     setArchiveWs(null);
   };
 
-  const handleAddMetric = async (data: any) => {
+  const handleAddMetric = async (data: Omit<StartupMetric, 'id' | 'created_at'>) => {
     await addMetric(data);
   };
 

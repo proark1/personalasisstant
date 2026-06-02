@@ -83,9 +83,10 @@ export function useExpoPushNotifications() {
   const requestPermission = async (): Promise<boolean> => {
     if (!isNative) {
       // For web, use browser notifications
+      type NotificationCtor = typeof Notification;
       const BrowserNotification = (typeof window !== 'undefined'
-        ? (window as any).Notification
-        : undefined) as any;
+        ? (window as unknown as { Notification?: NotificationCtor }).Notification
+        : undefined);
 
       if (typeof BrowserNotification?.requestPermission === 'function') {
         const permission = await BrowserNotification.requestPermission();
@@ -128,7 +129,8 @@ export function useExpoPushNotifications() {
     } catch (err) {
       console.error('Failed to register for push notifications:', err);
     }
-  }, [isNative]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNative]); // intentionally excludes requestPermission — it's a plain function, not a useCallback
 
   useEffect(() => {
     if (!isNative) return;
@@ -217,7 +219,8 @@ export function useExpoPushNotifications() {
       receivedListener.then(l => l.remove());
       actionListener.then(l => l.remove());
     };
-  }, [isNative, user?.id, register]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNative, user?.id, register]); // intentionally excludes saveTokenToDatabase — plain function recreated each render
 
   // Clean up token on logout
   useEffect(() => {
@@ -232,7 +235,8 @@ export function useExpoPushNotifications() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]); // intentionally excludes removeTokenFromDatabase — plain function recreated each render
 
   return {
     token,

@@ -17,7 +17,7 @@
 // Service-role auth required.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { rememberSemantic } from '../_shared/dori-semantic-memory.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';
 
@@ -107,7 +107,7 @@ serve(async (req) => {
 });
 
 async function processUser(
-  supabase: any,
+  supabase: SupabaseClient,
   userId: string,
   sources: string[],
   maxPerUser: number,
@@ -127,7 +127,7 @@ async function processUser(
   return { indexed, perSource };
 }
 
-async function indexSource(supabase: any, userId: string, source: string, maxPerUser: number): Promise<number> {
+async function indexSource(supabase: SupabaseClient, userId: string, source: string, maxPerUser: number): Promise<number> {
   // Fetch the candidate rows for this source. We pull existing source_refs
   // for this user+source first, then skip any candidate whose ref is
   // already present. Cheaper than left-joining at scale.
@@ -136,7 +136,7 @@ async function indexSource(supabase: any, userId: string, source: string, maxPer
     .select('source_ref')
     .eq('user_id', userId)
     .eq('source', source);
-  const seen = new Set((existing ?? []).map((r: any) => r.source_ref).filter(Boolean));
+  const seen = new Set((existing ?? []).map((r: { source_ref?: string }) => r.source_ref).filter(Boolean));
 
   const candidates = await fetchCandidates(supabase, userId, source, maxPerUser);
   if (!candidates.length) return 0;
@@ -147,7 +147,7 @@ async function indexSource(supabase: any, userId: string, source: string, maxPer
     const ok = await rememberSemantic(supabase, {
       userId,
       workspaceId: c.workspaceId ?? null,
-      source: source as any,
+      source: source as 'note' | 'episodic' | 'task_completed' | 'event_past' | 'chat_turn' | 'memory' | 'contact' | 'manual',
       sourceRef: c.sourceRef,
       content: c.content,
       metadata: c.metadata ?? {},
@@ -166,7 +166,7 @@ interface Candidate {
   importance?: number;
 }
 
-async function fetchCandidates(supabase: any, userId: string, source: string, limit: number): Promise<Candidate[]> {
+async function fetchCandidates(supabase: SupabaseClient, userId: string, source: string, limit: number): Promise<Candidate[]> {
   switch (source) {
     case 'note': {
       const { data } = await supabase
@@ -175,7 +175,7 @@ async function fetchCandidates(supabase: any, userId: string, source: string, li
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(limit);
-      return (data ?? []).map((n: any) => ({
+      return (data ?? []).map((n: { id: string; title?: string; content?: string; tags?: string[]; workspace_id?: string }) => ({
         sourceRef: `note:${n.id}`,
         content: [n.title, n.content].filter(Boolean).join('\n\n').slice(0, 4000),
         workspaceId: n.workspace_id ?? null,
@@ -190,7 +190,7 @@ async function fetchCandidates(supabase: any, userId: string, source: string, li
         .eq('user_id', userId)
         .order('occurred_on', { ascending: false })
         .limit(limit);
-      return (data ?? []).map((e: any) => ({
+      return (data ?? []).map((e: { id: string; title?: string; summary?: string; location?: string; occurred_on?: string; tags?: string[]; source_ref?: string; importance?: number }) => ({
         sourceRef: `episodic:${e.id}`,
         content: [e.title, e.summary, e.location ? `at ${e.location}` : ''].filter(Boolean).join(' — ').slice(0, 4000),
         metadata: { occurred_on: e.occurred_on, tags: e.tags ?? [], origin_ref: e.source_ref },
@@ -206,8 +206,8 @@ async function fetchCandidates(supabase: any, userId: string, source: string, li
         .order('completed_at', { ascending: false, nullsFirst: false })
         .limit(limit);
       return (data ?? [])
-        .filter((t: any) => t.title && t.title.length > 4)
-        .map((t: any) => ({
+        .filter((t: { id: string; title?: string; category?: string; priority?: string; completed_at?: string; workspace_id?: string }) => t.title && t.title.length > 4)
+        .map((t: { id: string; title?: string; category?: string; priority?: string; completed_at?: string; workspace_id?: string }) => ({
           sourceRef: `task:${t.id}`,
           content: `Completed task: "${t.title}" (${t.category ?? 'uncategorised'}, ${t.priority ?? 'normal'} priority)`,
           workspaceId: t.workspace_id ?? null,
@@ -227,10 +227,10 @@ async function fetchCandidates(supabase: any, userId: string, source: string, li
         .order('start_time', { ascending: false })
         .limit(limit);
       return (data ?? [])
-        .filter((e: any) => e.title)
-        .map((e: any) => ({
+        .filter((e: { id: string; title?: string; start_time?: string; location?: string; attendees?: string[]; workspace_id?: string }) => e.title)
+        .map((e: { id: string; title?: string; start_time?: string; location?: string; attendees?: string[]; workspace_id?: string }) => ({
           sourceRef: `event:${e.id}`,
-          content: `Past event: "${e.title}"${e.location ? ` at ${e.location}` : ''}${e.attendees?.length ? ` with ${(e.attendees as any[]).slice(0, 4).join(', ')}` : ''}`,
+          content: `Past event: "${e.title}"${e.location ? ` at ${e.location}` : ''}${e.attendees?.length ? ` with ${e.attendees.slice(0, 4).join(', ')}` : ''}`,
           workspaceId: e.workspace_id ?? null,
           metadata: { start_time: e.start_time },
           importance: 0.4,
@@ -244,7 +244,7 @@ async function fetchCandidates(supabase: any, userId: string, source: string, li
         .eq('is_active', true)
         .order('updated_at', { ascending: false })
         .limit(limit);
-      return (data ?? []).map((m: any) => ({
+      return (data ?? []).map((m: { id: string; key: string; value: string; memory_type?: string; category?: string; workspace_id?: string }) => ({
         sourceRef: `memory:${m.id}`,
         content: `[${m.memory_type}${m.category ? ` · ${m.category}` : ''}] ${m.key}: ${m.value}`,
         workspaceId: m.workspace_id ?? null,

@@ -48,8 +48,8 @@ export function useHouseholdTasks() {
 
       if (error) throw error;
       setTasks(data || []);
-    } catch (error: any) {
-      console.error('Error fetching household tasks:', error);
+    } catch (error) {
+      console.error('Error fetching household tasks:', error instanceof Error ? error.message : String(error));
       if (error instanceof TimeoutError) {
         setFetchError('Loading took too long. Tap to retry.');
       } else {
@@ -62,6 +62,8 @@ export function useHouseholdTasks() {
 
   useEffect(() => {
     fetchTasks();
+  // fetchTasks is defined locally; user is the intended trigger
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const addTask = async (task: Omit<HouseholdTaskInsert, 'user_id'>) => {
@@ -82,8 +84,8 @@ export function useHouseholdTasks() {
       setTasks(prev => [...prev, data]);
       toast.success('Household task added');
       return data;
-    } catch (error: any) {
-      console.error('Error adding household task:', error);
+    } catch (error) {
+      console.error('Error adding household task:', error instanceof Error ? error.message : String(error));
       toast.error('Failed to add household task');
       return null;
     }
@@ -103,8 +105,8 @@ export function useHouseholdTasks() {
       setTasks(prev => prev.map(t => t.id === id ? data : t));
       toast.success('Task updated');
       return data;
-    } catch (error: any) {
-      console.error('Error updating household task:', error);
+    } catch (error) {
+      console.error('Error updating household task:', error instanceof Error ? error.message : String(error));
       toast.error('Failed to update task');
       return null;
     }
@@ -132,8 +134,8 @@ export function useHouseholdTasks() {
       setTasks(prev => prev.filter(t => t.id !== id));
       toast.success('Task deleted');
       return true;
-    } catch (error: any) {
-      console.error('Error deleting household task:', error);
+    } catch (error) {
+      console.error('Error deleting household task:', error instanceof Error ? error.message : String(error));
       toast.error('Failed to delete task');
       return false;
     }

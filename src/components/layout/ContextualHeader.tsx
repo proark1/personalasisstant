@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Search, Menu } from 'lucide-react';
-import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { NotificationCenter, type AppNotification } from '@/components/notifications/NotificationCenter';
 import { DoriNotificationIcon } from '@/components/assistant/DoriNotificationIcon';
 import { AssistantHubSheet } from '@/components/hub/AssistantHubSheet';
 import { VisionCaptureButton } from '@/components/capture/VisionCaptureButton';
@@ -13,7 +13,7 @@ interface ContextualHeaderProps {
   title: string;
   onOpenMenu?: () => void;
   onOpenSearch?: () => void;
-  notifications: any[];
+  notifications: AppNotification[];
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
   onDeleteNotification: (id: string) => void;

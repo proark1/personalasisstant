@@ -262,6 +262,8 @@ export function MealPlanningPanel() {
   const locale = language === 'de' ? de : enUS;
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
+  const weekStartTime = weekStart.getTime();
+  const weekEndTime = weekEnd.getTime();
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const sensors = useSensors(
@@ -277,8 +279,8 @@ export function MealPlanningPanel() {
 
   const loadMeals = useCallback(() => {
     if (!user?.id) return;
-    fetchMealPlans(format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'));
-  }, [user?.id, fetchMealPlans, weekStart.getTime(), weekEnd.getTime()]);
+    fetchMealPlans(format(new Date(weekStartTime), 'yyyy-MM-dd'), format(new Date(weekEndTime), 'yyyy-MM-dd'));
+  }, [user?.id, fetchMealPlans, weekStartTime, weekEndTime]);
 
   useEffect(() => {
     loadMeals();
@@ -383,7 +385,7 @@ export function MealPlanningPanel() {
 
   return (
     <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'planner' | 'recipes')}>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <TabsList className="bg-muted/50">
             <TabsTrigger value="planner" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">

@@ -10,7 +10,7 @@
 //
 // Service-role only: manual "generate now" from the app uses `content-ideas`.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from "../_shared/cors.ts";
 import { generateContentIdeas, type ContentIdea, type CreatorProfileLike, type IdeaSource } from "../_shared/contentIdeas.ts";
 import { recentHeadlines, persistDailyBatch } from "../_shared/contentPersist.ts";
@@ -74,15 +74,17 @@ function localParts(now: Date, tz: string) {
   }
 }
 
-async function loadTimezoneMap(supabase: any, userIds: string[]): Promise<Map<string, string>> {
+interface TzRow { user_id: string; timezone?: string | null }
+
+async function loadTimezoneMap(supabase: SupabaseClient, userIds: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   if (userIds.length === 0) return map;
   const [{ data: locs }, { data: profiles }] = await Promise.all([
     supabase.from("user_location_settings").select("user_id, timezone").in("user_id", userIds),
     supabase.from("profiles").select("user_id, timezone").in("user_id", userIds),
   ]);
-  (profiles || []).forEach((p: any) => { if (p.timezone) map.set(p.user_id, p.timezone); });
-  (locs || []).forEach((l: any) => { if (l.timezone) map.set(l.user_id, l.timezone); });
+  (profiles as TzRow[] || []).forEach((p) => { if (p.timezone) map.set(p.user_id, p.timezone); });
+  (locs as TzRow[] || []).forEach((l) => { if (l.timezone) map.set(l.user_id, l.timezone); });
   return map;
 }
 
@@ -173,15 +175,15 @@ Deno.serve(async (req) => {
 
   const dueIds = due.map((p) => p.user_id);
   const chatMap = new Map<string, number>();
-  const locMap = new Map<string, any>();
+  const locMap = new Map<string, { city: string | null; country: string | null }>();
   if (dueIds.length > 0) {
     const [{ data: links }, { data: locProfiles }] = await Promise.all([
       supabase.from("telegram_links").select("user_id, chat_id, is_active")
         .in("user_id", dueIds).eq("is_active", true).not("chat_id", "is", null),
       supabase.from("profiles").select("user_id, location_city, location_country").in("user_id", dueIds),
     ]);
-    (links || []).forEach((l: any) => { if (l.chat_id) chatMap.set(l.user_id, Number(l.chat_id)); });
-    (locProfiles || []).forEach((p: any) => {
+    (links as Array<{ user_id: string; chat_id?: number | null }> || []).forEach((l) => { if (l.chat_id) chatMap.set(l.user_id, Number(l.chat_id)); });
+    (locProfiles as Array<{ user_id: string; location_city: string | null; location_country: string | null }> || []).forEach((p) => {
       locMap.set(p.user_id, { city: p.location_city, country: p.location_country });
     });
   }
@@ -228,9 +230,9 @@ Deno.serve(async (req) => {
         await sendPush(p.user_id, "💡 Today's content ideas", buildPushBody(ideas));
       }
       sent++;
-    } catch (e: any) {
+    } catch (e) {
       failed++;
-      errors.push(`${p.user_id}: ${e?.message || String(e)}`);
+      errors.push(`${p.user_id}: ${e instanceof Error ? e.message : String(e)}`);
       console.error("content-ideas dispatch failed for", p.user_id, e);
     }
   }

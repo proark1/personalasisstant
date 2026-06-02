@@ -9,7 +9,7 @@ export interface UserNotification {
   title: string;
   message: string;
   read: boolean;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   action_url?: string;
   created_at: string;
 }
@@ -115,7 +115,8 @@ export function useRealtimeNotifications(userId: string | undefined) {
   // Play notification sound
   const playNotificationSound = useCallback(() => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const audioContext = new AudioContextClass();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
@@ -130,16 +131,20 @@ export function useRealtimeNotifications(userId: string | undefined) {
 
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.3);
-    } catch (e) {
+    } catch {
       // Audio not supported or blocked
     }
   }, []);
 
   // Show browser notification
   const showBrowserNotification = useCallback((notification: UserNotification) => {
+    interface BrowserNotifAPI {
+      permission: NotificationPermission;
+      new(title: string, opts?: NotificationOptions): Notification;
+    }
     const BrowserNotification = (typeof window !== 'undefined'
-      ? (window as any).Notification
-      : undefined) as any;
+      ? (window as unknown as { Notification?: BrowserNotifAPI }).Notification
+      : undefined);
 
     if (BrowserNotification?.permission === 'granted') {
       new BrowserNotification(notification.title, {

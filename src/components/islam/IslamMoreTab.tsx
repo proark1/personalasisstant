@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+// iOS exposes a non-standard, already-corrected compass heading on the event.
+type CompassEvent = DeviceOrientationEvent & { webkitCompassHeading?: number };
 import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
@@ -97,9 +100,13 @@ export function IslamMoreTab({ hijriToday, islamicEvents }: IslamMoreTabProps) {
   }, [reverseGeocode]);
 
   const requestCompassPermission = async () => {
-    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+    // iOS 13+ gates the compass behind an explicit, non-standard permission prompt.
+    const orientationApi = DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    };
+    if (typeof orientationApi.requestPermission === 'function') {
       try {
-        const permission = await (DeviceOrientationEvent as any).requestPermission();
+        const permission = await orientationApi.requestPermission();
         if (permission === 'granted') {
           setCompassPermission('granted');
           startCompassListener();
@@ -115,28 +122,50 @@ export function IslamMoreTab({ hijriToday, islamicEvents }: IslamMoreTabProps) {
     }
   };
 
-  const startCompassListener = () => {
+  const compassHandlerRef = useRef<((event: DeviceOrientationEvent) => void) | null>(null);
+
+  const stopCompassListener = useCallback(() => {
+    if (compassHandlerRef.current) {
+      window.removeEventListener('deviceorientation', compassHandlerRef.current, true);
+      compassHandlerRef.current = null;
+    }
+  }, []);
+
+  const startCompassListener = useCallback(() => {
+    stopCompassListener(); // never stack listeners
     const handler = (event: DeviceOrientationEvent) => {
-      if (isIOS() && (event as any).webkitCompassHeading !== undefined) {
-        setDeviceHeading((event as any).webkitCompassHeading);
+      const heading = (event as CompassEvent).webkitCompassHeading;
+      if (isIOS() && heading !== undefined) {
+        setDeviceHeading(heading);
       } else if (event.alpha !== null) {
         setDeviceHeading(360 - event.alpha);
       }
     };
+    compassHandlerRef.current = handler;
     window.addEventListener('deviceorientation', handler, true);
-  };
+  }, [stopCompassListener]);
 
+  // Fetch location once when entering the qibla view.
   useEffect(() => {
     if (subView === 'qibla' && !qiblaData) {
       getLocation();
-      if (isIOS() && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+    }
+  }, [subView, qiblaData, getLocation]);
+
+  // Manage the compass listener for the lifetime of the qibla view — kept
+  // separate from the location fetch so loading qiblaData doesn't tear the
+  // listener down (and leave it stopped because !qiblaData is then false).
+  useEffect(() => {
+    if (subView === 'qibla') {
+      if (isIOS() && typeof (DeviceOrientationEvent as unknown as { requestPermission?: unknown }).requestPermission === 'function') {
         // wait for manual trigger
       } else {
         startCompassListener();
         setCompassPermission('granted');
       }
     }
-  }, [subView, qiblaData, getLocation]);
+    return () => stopCompassListener();
+  }, [subView, startCompassListener, stopCompassListener]);
 
   const getQiblaRotation = (): number => {
     if (!qiblaData) return 0;

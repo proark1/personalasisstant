@@ -11,6 +11,7 @@
 
 import { assert, assertEquals, assertRejects } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import { assertWithinQuota, checkQuota } from './ai-quota.ts';
+import type { SupabaseQuotaClient } from './ai-quota.ts';
 
 // Minimal fake of the supabase client surface these functions touch.
 function fakeSupabase(opts: {
@@ -29,7 +30,7 @@ const OVER = { allowed: false, used_cents: 510, cap_cents: 500, headroom_cents: 
 
 Deno.test('checkQuota returns and normalises a healthy RPC result', async () => {
   const sb = fakeSupabase({ rpc: () => ({ data: [ALLOWED], error: null }) });
-  const q = await checkQuota(sb as any, 'user-healthy');
+  const q = await checkQuota(sb as SupabaseQuotaClient, 'user-healthy');
   assertEquals(q.allowed, true);
   assertEquals(q.used_cents, 100);
   assertEquals(q.cap_cents, 500);
@@ -39,17 +40,17 @@ Deno.test('checkQuota serves the cached value when the RPC fails (fail-soft)', a
   const userId = 'user-failsoft';
   // 1) Prime the cache with a healthy result.
   const healthy = fakeSupabase({ rpc: () => ({ data: [ALLOWED], error: null }) });
-  await checkQuota(healthy as any, userId);
+  await checkQuota(healthy as SupabaseQuotaClient, userId);
   // 2) Now the RPC errors — we should still get the cached ALLOWED.
   const broken = fakeSupabase({ rpc: () => ({ data: null, error: { message: 'db down' } }) });
-  const q = await checkQuota(broken as any, userId);
+  const q = await checkQuota(broken as SupabaseQuotaClient, userId);
   assertEquals(q.allowed, true);
   assertEquals(q.cap_cents, 500); // came from cache, not the 0 sentinel
 });
 
 Deno.test('checkQuota DENIES when the RPC fails with no cache (not fail-open)', async () => {
   const broken = fakeSupabase({ rpc: () => ({ data: null, error: { message: 'db down' } }) });
-  const q = await checkQuota(broken as any, 'user-nocache-unique');
+  const q = await checkQuota(broken as SupabaseQuotaClient, 'user-nocache-unique');
   assertEquals(q.allowed, false);
   assertEquals(q.cap_cents, 0); // sentinel for "service down"
   assert(q.over_cap);
@@ -57,28 +58,26 @@ Deno.test('checkQuota DENIES when the RPC fails with no cache (not fail-open)', 
 
 Deno.test('assertWithinQuota returns silently when allowed', async () => {
   const sb = fakeSupabase({ rpc: () => ({ data: [ALLOWED], error: null }) });
-  const q = await assertWithinQuota(sb as any, 'user-ok');
+  const q = await assertWithinQuota(sb as SupabaseQuotaClient, 'user-ok');
   assertEquals(q.allowed, true);
 });
 
 Deno.test('assertWithinQuota throws quota_exceeded when over cap', async () => {
   const sb = fakeSupabase({ rpc: () => ({ data: [OVER], error: null }) });
   const err = await assertRejects(
-    () => assertWithinQuota(sb as any, 'user-over'),
+    () => assertWithinQuota(sb as SupabaseQuotaClient, 'user-over'),
     Error,
     'AI monthly cap reached',
   );
-  // deno-lint-ignore no-explicit-any
-  assertEquals((err as any).code, 'quota_exceeded');
+  assertEquals((err as Error & { code: string }).code, 'quota_exceeded');
 });
 
 Deno.test('assertWithinQuota throws quota_service_unavailable when service is down', async () => {
   const broken = fakeSupabase({ rpc: () => ({ data: null, error: { message: 'db down' } }) });
   const err = await assertRejects(
-    () => assertWithinQuota(broken as any, 'user-down-unique'),
+    () => assertWithinQuota(broken as SupabaseQuotaClient, 'user-down-unique'),
     Error,
     'AI quota service unavailable',
   );
-  // deno-lint-ignore no-explicit-any
-  assertEquals((err as any).code, 'quota_service_unavailable');
+  assertEquals((err as Error & { code: string }).code, 'quota_service_unavailable');
 });

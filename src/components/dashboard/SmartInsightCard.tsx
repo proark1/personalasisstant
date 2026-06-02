@@ -15,12 +15,18 @@ interface Insight {
   color: string;
 }
 
+interface TaskItem { completed?: boolean; trashed?: boolean; priority?: string; title?: string; }
+interface EmailItem { is_read?: boolean; user_archived?: boolean; priority_score?: number; from_name?: string; from_email?: string; subject?: string; }
+interface ContractItem { renewalDate?: Date | null; name?: string; cost_amount?: number | string; }
+interface ContactItem { id?: string; name?: string; last_contacted_at?: string | null; }
+interface EventItem { title?: string; }
+
 interface SmartInsightCardProps {
-  tasks?: any[];
-  emails?: any[];
-  contracts?: any[];
-  contacts?: any[];
-  events?: any[];
+  tasks?: TaskItem[];
+  emails?: EmailItem[];
+  contracts?: ContractItem[];
+  contacts?: ContactItem[];
+  events?: EventItem[];
 }
 
 export function SmartInsightCard({ tasks = [], emails = [], contracts = [], contacts = [], events = [] }: SmartInsightCardProps) {
@@ -51,8 +57,8 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
 
   const baseInsights = useMemo<Insight[]>(() => {
     const result: Insight[] = [];
-    const incompleteTasks = tasks.filter((t: any) => !t.completed && !t.trashed);
-    const highPriority = incompleteTasks.filter((t: any) => t.priority === 'high');
+    const incompleteTasks = tasks.filter((t) => !t.completed && !t.trashed);
+    const highPriority = incompleteTasks.filter((t) => t.priority === 'high');
     const now = new Date();
 
     // Task insights
@@ -67,8 +73,8 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     }
 
     // Email insights
-    const unreadEmails = emails.filter((e: any) => !e.is_read && !e.user_archived);
-    const priorityEmails = unreadEmails.filter((e: any) => e.priority_score <= 2);
+    const unreadEmails = emails.filter((e) => !e.is_read && !e.user_archived);
+    const priorityEmails = unreadEmails.filter((e) => (e.priority_score ?? 99) <= 2);
     if (priorityEmails.length > 0) {
       const sender = priorityEmails[0].from_name || priorityEmails[0].from_email;
       result.push({
@@ -89,14 +95,14 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     }
 
     // Contract insights
-    const urgentContracts = contracts.filter((c: any) => {
-      if (!c.renewal_date) return false;
-      const days = differenceInDays(new Date(c.renewal_date), now);
+    const urgentContracts = contracts.filter((c) => {
+      if (!c.renewalDate) return false;
+      const days = differenceInDays(new Date(c.renewalDate), now);
       return days >= 0 && days <= 7;
     });
     if (urgentContracts.length > 0) {
       const c = urgentContracts[0];
-      const days = differenceInDays(new Date(c.renewal_date), now);
+      const days = differenceInDays(new Date(c.renewalDate!), now);
       result.push({
         id: 'contract-alert',
         icon: <FileText className="w-5 h-5" />,
@@ -107,7 +113,7 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     }
 
     // Contact insights
-    const overdueContacts = contacts.filter((c: any) => {
+    const overdueContacts = contacts.filter((c) => {
       if (!c.last_contacted_at) return true;
       return differenceInDays(now, new Date(c.last_contacted_at)) > 30;
     });
@@ -128,7 +134,7 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     // Calendar-contact correlation
     if (events.length > 0 && contacts.length > 0) {
       for (const event of events) {
-        const matchedContact = contacts.find((c: any) =>
+        const matchedContact = contacts.find((c) =>
           event.title?.toLowerCase().includes(c.name?.toLowerCase())
         );
         if (matchedContact) {

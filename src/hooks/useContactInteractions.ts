@@ -54,7 +54,7 @@ export function useContactInteractions(userId: string | undefined) {
         .from('user_contacts')
         .update({ interaction_count: ((contact?.interaction_count as number) || 0) + 1 })
         .eq('id', contactId);
-    } catch (e) {
+    } catch {
       console.log('Could not update interaction count');
     }
 

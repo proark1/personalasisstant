@@ -13,14 +13,6 @@ interface SharedProjectMember {
   userDisplayName?: string;
 }
 
-interface DbSharedProjectMember {
-  id: string;
-  project_id: string;
-  user_id: string;
-  owner_id: string;
-  role: string;
-  created_at: string;
-}
 
 export function useSharedProjects(userId: string | undefined) {
   const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
@@ -127,16 +119,19 @@ export function useSharedProjects(userId: string | undefined) {
       .eq('project_id', projectId);
 
     if (data) {
-      const members: SharedProjectMember[] = data.map(d => ({
-        id: d.id,
-        projectId: d.project_id,
-        userId: d.user_id,
-        ownerId: d.owner_id,
-        role: d.role as 'member' | 'admin',
-        createdAt: new Date(d.created_at),
-        userEmail: (d as any).profile?.email,
-        userDisplayName: (d as any).profile?.display_name,
-      }));
+      const members: SharedProjectMember[] = data.map(d => {
+        const row = d as typeof d & { profile?: { email?: string; display_name?: string } };
+        return {
+          id: d.id,
+          projectId: d.project_id,
+          userId: d.user_id,
+          ownerId: d.owner_id,
+          role: d.role as 'member' | 'admin',
+          createdAt: new Date(d.created_at),
+          userEmail: row.profile?.email,
+          userDisplayName: row.profile?.display_name,
+        };
+      });
 
       setProjectMembers(prev => ({ ...prev, [projectId]: members }));
       return members;

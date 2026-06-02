@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
 import { useLifeScore } from '@/hooks/useLifeScore';
@@ -35,10 +34,27 @@ import { CustomizableCard } from './CustomizableCard';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
 import { Sliders, Check } from 'lucide-react';
 import { useSmartTaskSuggestions } from '@/hooks/useSmartTaskSuggestions';
-import { Task, TaskCategory, CalendarEvent } from '@/types/flux';
+import { Task, TaskCategory, CalendarEvent, EventCategory } from '@/types/flux';
 import { Badge } from '@/components/ui/badge';
 import { isSameDay, subDays, startOfDay, endOfDay, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
+
+interface DbEvent {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  description: string | null;
+  category: string | null;
+}
+
+interface DbContract {
+  id: string;
+  name: string;
+  renewal_date: string | null;
+  cancellation_notice_days: number | null;
+  auto_renews: boolean | null;
+}
 
 interface DbTask {
   id: string;
@@ -52,6 +68,31 @@ interface DbTask {
   user_id: string;
 }
 
+interface ContractAlert {
+  id: string;
+  name: string;
+  renewalDate: Date | null;
+  cancellationNoticeDays: number;
+  autoRenews: boolean;
+}
+
+interface OverdueContact {
+  id: string;
+  name: string;
+  last_contacted_at: string | null;
+}
+
+interface EmailItem {
+  id: string;
+  from_name: string | null;
+  from_email: string | null;
+  subject: string | null;
+  priority_score: number | null;
+  category: string | null;
+  is_read?: boolean;
+  user_archived?: boolean;
+}
+
 interface DashboardPanelProps {
   userId: string;
   onNavigate?: (panel: string) => void;
@@ -60,19 +101,18 @@ interface DashboardPanelProps {
 export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [contractAlerts, setContractAlerts] = useState<any[]>([]);
-  const [overdueContacts, setOverdueContacts] = useState<any[]>([]);
-  const [emails, setEmails] = useState<any[]>([]);
+  const [contractAlerts, setContractAlerts] = useState<ContractAlert[]>([]);
+  const [overdueContacts, setOverdueContacts] = useState<OverdueContact[]>([]);
+  const [emails, setEmails] = useState<EmailItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'today' | 'insights'>('today');
-  const { t } = useLanguage();
   const { profile } = useAuth();
   const { todayScore } = useLifeScore();
   const { suggestion, loading: sugLoading, refresh: refreshSuggestion } = useSmartTaskSuggestions(tasks, events);
   const { celebrate, checkStreak } = useCelebration();
   const { isHidden, toggleCard, customizing, setCustomizing, hiddenCount, resetCards } = useDashboardLayout();
 
-  const handleStartTask = (taskId: string | null, _title: string) => {
+  const handleStartTask = (_taskId: string | null, _title: string) => {
     onNavigate?.('tasks');
   };
 
@@ -126,18 +166,18 @@ export function DashboardPanel({ userId, onNavigate }: DashboardPanelProps) {
     }
 
     if (eventsRes.data) {
-      setEvents(eventsRes.data.map((e: any) => ({
+      setEvents(eventsRes.data.map((e: DbEvent) => ({
         id: e.id,
         title: e.title,
         startTime: new Date(e.start_time),
         endTime: new Date(e.end_time),
         description: e.description || undefined,
-        category: e.category || undefined,
+        category: (e.category as EventCategory) || undefined,
       })));
     }
 
     if (contractsRes.data) {
-      setContractAlerts(contractsRes.data.map((c: any) => ({
+      setContractAlerts(contractsRes.data.map((c: DbContract) => ({
         id: c.id,
         name: c.name,
         renewalDate: c.renewal_date ? new Date(c.renewal_date) : null,

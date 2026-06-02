@@ -94,8 +94,9 @@ function AuditRow({ row }: { row: SubscriptionAuditRow }) {
         body: { contract_id: row.contract_id, tone: 'formal', language: 'en' },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const n = (data as any)?.drafts_count ?? 0;
+      const d = data as { error?: string; drafts_count?: number } | null;
+      if (d?.error) throw new Error(d.error);
+      const n = d?.drafts_count ?? 0;
       toast.success(`Drafted ${n} version${n === 1 ? '' : 's'} · follow-up task added`);
     } catch (e) {
       toast.error(await describeEdgeError(e, 'Failed'));

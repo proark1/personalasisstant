@@ -294,6 +294,8 @@ export function useHealthTracking() {
 
   useEffect(() => {
     fetchAll();
+  // fetchAll is defined locally; user?.id is the intended trigger
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const getUpcomingAppointments = () => appointments.filter(a => 

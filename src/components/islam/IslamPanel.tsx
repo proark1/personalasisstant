@@ -205,9 +205,10 @@ export function IslamPanel() {
 
   // Request device orientation permission (required for iOS 13+)
   const requestCompassPermission = async () => {
-    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+    type DeviceOrientationEventStatic = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+    if (typeof (DeviceOrientationEvent as DeviceOrientationEventStatic).requestPermission === 'function') {
       try {
-        const permission = await (DeviceOrientationEvent as any).requestPermission();
+        const permission = await (DeviceOrientationEvent as DeviceOrientationEventStatic).requestPermission!();
         if (permission === 'granted') {
           setCompassPermission('granted');
           startCompassListener();
@@ -230,8 +231,9 @@ export function IslamPanel() {
   const startCompassListener = () => {
     const handleOrientation = (event: DeviceOrientationEvent) => {
       // iOS uses webkitCompassHeading, Android uses alpha
-      if (isIOS() && (event as any).webkitCompassHeading !== undefined) {
-        setDeviceHeading((event as any).webkitCompassHeading);
+      type IOSDeviceOrientationEvent = DeviceOrientationEvent & { webkitCompassHeading?: number };
+      if (isIOS() && (event as IOSDeviceOrientationEvent).webkitCompassHeading !== undefined) {
+        setDeviceHeading((event as IOSDeviceOrientationEvent).webkitCompassHeading!);
       } else if (event.alpha !== null) {
         // For Android, alpha is relative to the device's initial heading
         // We need to invert it for proper compass behavior
@@ -300,12 +302,13 @@ export function IslamPanel() {
       setLocationError('Geolocation not supported by your browser');
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Initialize compass on tab change
   useEffect(() => {
     if (activeTab === 'qibla') {
-      if (isIOS() && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      if (isIOS() && typeof (DeviceOrientationEvent as { requestPermission?: () => Promise<string> }).requestPermission === 'function') {
         // iOS 13+ - need to request permission on user interaction
         setCompassPermission('pending');
       } else {

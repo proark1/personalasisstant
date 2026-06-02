@@ -360,6 +360,7 @@ export function DashboardPrayerCard({ onNavigate }: DashboardPrayerCardProps) {
 }
 
 // Export prayer times fetcher for TodayTimeline integration
+// eslint-disable-next-line react-refresh/only-export-components
 export async function fetchPrayerTimesForTimeline(): Promise<{ name: string; time: string }[]> {
   return new Promise((resolve) => {
     const method = localStorage.getItem('prayer-calculation-method') || '2';

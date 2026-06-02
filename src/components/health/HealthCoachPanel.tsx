@@ -150,6 +150,7 @@ export function HealthCoachPanel() {
 
   useEffect(() => {
     getCoaching();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAskQuestion = async () => {

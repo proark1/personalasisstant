@@ -167,9 +167,9 @@ export function useGroupChat(userId: string | null) {
       );
 
       setGroups(enrichedGroups);
-    } catch (error: any) {
+    } catch (error) {
       // Silent retry for transient network errors
-      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      const isNetworkError = error instanceof Error && (error.message.includes('Failed to fetch') || error.message.includes('NetworkError'));
       if (isNetworkError && retryCount < 2) {
         await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
         return fetchGroups(retryCount + 1);

@@ -36,6 +36,7 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
       setCurrentStep(0);
       setCheckedIngredients(new Set());
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, recipeId]);
 
   const groupedIngredients = recipe?.ingredients?.reduce((acc, ing) => {

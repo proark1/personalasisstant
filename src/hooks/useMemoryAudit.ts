@@ -2,6 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Helper for custom tables/views not yet in the generated Supabase types.
+type DbRow = Record<string, unknown>;
+type QueryBuilder = Promise<{ data: DbRow[] | null; error: unknown }> & {
+  eq(col: string, val: string): QueryBuilder;
+  order(col: string, opts?: Record<string, boolean>): QueryBuilder;
+  limit(n: number): QueryBuilder;
+  in(col: string, vals: string[]): QueryBuilder;
+};
+function fromUntyped(table: string): { select(cols: string): QueryBuilder } {
+  return (supabase as unknown as { from: (t: string) => { select: (c: string) => QueryBuilder } }).from(table);
+}
+
 export type MemorySourceKind = 'semantic' | 'episodic' | 'ai_memory';
 
 export interface MemoryAuditItem {
@@ -51,8 +63,7 @@ export function useMemoryAudit(opts: UseMemoryAuditOptions = {}) {
     setLoading(true);
     setError(null);
     try {
-      let q = (supabase as any)
-        .from('memory_audit_feed')
+      let q = fromUntyped('memory_audit_feed')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -62,17 +73,17 @@ export function useMemoryAudit(opts: UseMemoryAuditOptions = {}) {
       }
       const { data, error: dbErr } = await q;
       if (dbErr) throw dbErr;
-      const rows: MemoryAuditItem[] = (data ?? []).map((r: any) => ({
-        sourceKind: r.source_kind,
-        sourceId: r.source_id,
-        subKind: r.sub_kind ?? null,
-        title: r.title ?? null,
-        content: r.content ?? null,
-        metadata: r.metadata ?? {},
+      const rows: MemoryAuditItem[] = (data ?? []).map((r) => ({
+        sourceKind: r.source_kind as MemorySourceKind,
+        sourceId: r.source_id as string,
+        subKind: (r.sub_kind ?? null) as string | null,
+        title: (r.title ?? null) as string | null,
+        content: (r.content ?? null) as string | null,
+        metadata: (r.metadata ?? {}) as Record<string, unknown>,
         importance: r.importance != null ? Number(r.importance) : null,
         confidence: r.confidence != null ? Number(r.confidence) : null,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
+        createdAt: r.created_at as string,
+        updatedAt: r.updated_at as string,
       }));
       setItems(rows);
     } catch (e) {
@@ -86,21 +97,20 @@ export function useMemoryAudit(opts: UseMemoryAuditOptions = {}) {
   const fetchRedactions = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const { data, error: dbErr } = await (supabase as any)
-        .from('memory_redactions')
+      const { data, error: dbErr } = await fromUntyped('memory_redactions')
         .select('id, target_kind, target_id, reason, cascaded_count, applied_by, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(40);
       if (dbErr) throw dbErr;
-      setRedactions((data ?? []).map((r: any) => ({
-        id: r.id,
-        targetKind: r.target_kind,
-        targetId: r.target_id ?? null,
-        reason: r.reason ?? null,
+      setRedactions((data ?? []).map((r) => ({
+        id: r.id as string,
+        targetKind: r.target_kind as string,
+        targetId: (r.target_id ?? null) as string | null,
+        reason: (r.reason ?? null) as string | null,
         cascadedCount: Number(r.cascaded_count ?? 0),
-        appliedBy: r.applied_by,
-        createdAt: r.created_at,
+        appliedBy: r.applied_by as 'user' | 'system',
+        createdAt: r.created_at as string,
       })));
     } catch (e) {
       console.warn('[useMemoryAudit] redactions failed', (e as Error).message);

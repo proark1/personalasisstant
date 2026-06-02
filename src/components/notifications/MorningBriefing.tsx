@@ -91,7 +91,7 @@ export function MorningBriefing({
   };
 
   // Calculate data
-  const todayTasks = tasks.filter(t => !t.completed && t.dueDate && isToday(t.dueDate));
+  const _todayTasks = tasks.filter(t => !t.completed && t.dueDate && isToday(t.dueDate));
   const overdueTasks = tasks.filter(t => !t.completed && t.dueDate && isPast(t.dueDate) && !isToday(t.dueDate));
   const todayEvents = events.filter(e => isToday(e.startTime)).sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
   

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Contact } from '@/hooks/useContacts';
 import { useContactInteractions, ContactInteraction, InteractionType } from '@/hooks/useContactInteractions';
 import { useContactAI, RelationshipInsights } from '@/hooks/useContactAI';
@@ -25,7 +25,7 @@ interface ContactProfileCardProps {
   userId?: string;
 }
 
-const INTERACTION_ICONS: Record<InteractionType, any> = {
+const INTERACTION_ICONS: Record<InteractionType, React.ComponentType<{ className?: string }>> = {
   call: Phone,
   email: Mail,
   meeting: Video,

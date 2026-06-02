@@ -37,7 +37,7 @@ interface ExpoPushMessage {
   to: string;
   title: string;
   body: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   sound?: 'default' | null;
   badge?: number;
   priority?: 'default' | 'normal' | 'high';
@@ -73,7 +73,7 @@ serve(async (req) => {
     const { reminder_id, user_ids, title, body, data, priority = 'high' } = await req.json();
 
     let targetUserIds: string[] = [];
-    let reminderData: any = null;
+    let reminderData: Record<string, unknown> | null = null;
 
     // If reminder_id provided, fetch the reminder details
     if (reminder_id) {
@@ -104,7 +104,7 @@ serve(async (req) => {
 
     console.log(`Sending push notifications to ${targetUserIds.length} users`);
 
-    const results: any[] = [];
+    const results: Record<string, unknown>[] = [];
     const errors: string[] = [];
 
     for (const userId of targetUserIds) {
@@ -252,9 +252,9 @@ serve(async (req) => {
             } else {
               errors.push(`Push failed for ${userId}: ${ticket?.message || 'Unknown error'}`);
             }
-          } catch (pushError: any) {
+          } catch (pushError) {
             console.error('Expo push error:', pushError);
-            errors.push(`Push error for ${userId}: ${pushError.message}`);
+            errors.push(`Push error for ${userId}: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
             
             await supabase
               .from('reminder_delivery_log')
@@ -263,7 +263,7 @@ serve(async (req) => {
                 reminder_id: reminder_id || null,
                 delivery_channel: 'push',
                 delivery_status: 'failed',
-                error_message: pushError.message,
+                error_message: pushError instanceof Error ? pushError.message : String(pushError),
                 sent_at: new Date().toISOString(),
               });
           }
