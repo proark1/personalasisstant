@@ -35,21 +35,6 @@ serve(async (req) => {
       });
     }
 
-    // Authorize: the caller must be an accepted member of the target group, so
-    // a valid login can't route tasks inside an arbitrary group_id (IDOR).
-    const { data: membership } = await supabase
-      .from("family_agent_members")
-      .select("user_id")
-      .eq("group_id", group_id)
-      .eq("user_id", auth.userId)
-      .eq("status", "accepted")
-      .maybeSingle();
-    if (!membership) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const { data: task } = await supabase
       .from("tasks")
       .select("id, title, category, user_id, due_date")
@@ -68,6 +53,18 @@ serve(async (req) => {
 
     if (!members || members.length === 0) {
       return new Response(JSON.stringify({ error: "no members" }), { status: 404, headers: corsHeaders });
+    }
+
+    // Authorize: both the caller AND the task's current owner must be accepted
+    // members of the target group. Checking only the caller would still let a
+    // valid login route an arbitrary task from another group into their own
+    // (IDOR). Reuses the members list above — no extra query.
+    const isCallerMember = members.some((m) => m.user_id === auth.userId);
+    const isTaskOwnerMember = members.some((m) => m.user_id === task.user_id);
+    if (!isCallerMember || !isTaskOwnerMember) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const now = new Date();
