@@ -1,4 +1,4 @@
-project_id = "femilfmcmqmdbncmgcxh"
+project_id = "darai"
 
 [functions.contact-insights]
 verify_jwt = true

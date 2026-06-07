@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encryptTokenIfConfigured } from "../_shared/encryption.ts";
 
 serve(async (req) => {
   try {
@@ -85,6 +86,10 @@ serve(async (req) => {
     const tokens = await tokenResponse.json();
     const { access_token, refresh_token, expires_in } = tokens;
 
+    // Encrypt OAuth tokens at rest (no-op until BANK_TOKEN_SECRET is set).
+    const accessTokenEnc = await encryptTokenIfConfigured(access_token);
+    const refreshTokenEnc = await encryptTokenIfConfigured(refresh_token);
+
     // Calculate token expiry
     const tokenExpiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
 
@@ -125,8 +130,8 @@ serve(async (req) => {
       const { error: updateError } = await supabase
         .from('external_calendar_connections')
         .update({
-          access_token,
-          refresh_token,
+          access_token: accessTokenEnc,
+          refresh_token: refreshTokenEnc,
           token_expires_at: tokenExpiresAt,
           name: primaryCalendar.summary || 'Google Calendar',
           color: primaryCalendar.backgroundColor || '#4285F4',
@@ -150,8 +155,8 @@ serve(async (req) => {
           color: primaryCalendar.backgroundColor || '#4285F4',
           calendar_id: primaryCalendar.id,
           external_calendar_id: primaryCalendar.id,
-          access_token,
-          refresh_token,
+          access_token: accessTokenEnc,
+          refresh_token: refreshTokenEnc,
           token_expires_at: tokenExpiresAt,
           sync_enabled: true,
         });

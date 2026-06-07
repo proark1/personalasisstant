@@ -48,6 +48,7 @@ const JOBS = [
   { name: 'dori-proactive',                  schedule: '*/30 * * * *' },
   { name: 'meeting-preflight',               schedule: '*/10 * * * *' },
   { name: 'morning-thread',                  schedule: '0 6 * * *' },
+  { name: 'islamic-event-reminders',         schedule: '0 8 * * *' },
   // Sync & detection.
   { name: 'gmail-sync-cron',                 schedule: '0 5 * * *' },
   { name: 'conflict-detector',               schedule: '*/30 * * * *' },
@@ -55,6 +56,7 @@ const JOBS = [
   // Daily AI batch (learning / memory).
   { name: 'routine-learner',                 schedule: '0 3 * * *' },
   { name: 'episodic-memory-builder',         schedule: '0 4 * * *' },
+  { name: 'learned-preferences-rollup',      schedule: '0 2 * * *' },
   { name: 'life-score-commentary',           schedule: '0 22 * * *' },
 ];
 

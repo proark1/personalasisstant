@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encryptTokenIfConfigured } from "../_shared/encryption.ts";
 
 serve(async (req) => {
   const appUrl = Deno.env.get('APP_URL') || '';
@@ -72,6 +73,10 @@ serve(async (req) => {
     const { access_token, refresh_token, expires_in } = tokens;
     const tokenExpiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
 
+    // Encrypt OAuth tokens at rest (no-op until BANK_TOKEN_SECRET is set).
+    const accessTokenEnc = await encryptTokenIfConfigured(access_token);
+    const refreshTokenEnc = await encryptTokenIfConfigured(refresh_token);
+
     // Fetch user info to get email/name
     const userInfoResp = await fetch('https://graph.microsoft.com/v1.0/me', {
       headers: { Authorization: `Bearer ${access_token}` },
@@ -104,8 +109,8 @@ serve(async (req) => {
       color: '#0078D4',
       external_calendar_id: externalCalendarId,
       calendar_id: externalCalendarId,
-      access_token,
-      refresh_token,
+      access_token: accessTokenEnc,
+      refresh_token: refreshTokenEnc,
       token_expires_at: tokenExpiresAt,
       sync_enabled: true,
       sync_direction: 'two_way',

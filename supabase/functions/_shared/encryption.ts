@@ -69,3 +69,36 @@ export async function decryptToken(b64: string): Promise<string> {
   );
   return new TextDecoder().decode(pt);
 }
+
+// Is a valid encryption key configured? Used by the opportunistic helpers below
+// so callers don't have to crash when BANK_TOKEN_SECRET is unset.
+export function tokenEncryptionAvailable(): boolean {
+  return /^[0-9a-fA-F]{64}$/.test(Deno.env.get(SECRET_NAME) || '');
+}
+
+// Encrypt at-rest if a key is configured; otherwise return the value unchanged.
+// This lets us roll encryption out without breaking deploys that haven't set
+// BANK_TOKEN_SECRET yet (the value is simply stored as-is, exactly as before).
+export async function encryptTokenIfConfigured(
+  plaintext: string | null | undefined,
+): Promise<string | null | undefined> {
+  if (!plaintext) return plaintext;
+  if (!tokenEncryptionAvailable()) return plaintext;
+  return await encryptToken(plaintext);
+}
+
+// Decrypt a value that may be either ciphertext (written by
+// encryptTokenIfConfigured) or legacy plaintext (rows written before encryption
+// shipped, or while no key was set). On any decrypt failure we assume the value
+// is plaintext and return it unchanged, so reads never break.
+export async function decryptTokenIfNeeded(
+  value: string | null | undefined,
+): Promise<string | null | undefined> {
+  if (!value) return value;
+  if (!tokenEncryptionAvailable()) return value;
+  try {
+    return await decryptToken(value);
+  } catch {
+    return value; // legacy plaintext
+  }
+}

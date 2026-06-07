@@ -13,6 +13,8 @@
 //           connected calendar. Provider-origin events are NOT re-pushed to
 //           other providers (avoids cross-provider duplication loops).
 
+import { decryptTokenIfNeeded, encryptTokenIfConfigured } from './encryption.ts';
+
 export interface CalendarConnection {
   id: string;
   user_id: string;
@@ -109,7 +111,7 @@ async function getValidGoogleToken(admin: CalendarAdminClient, conn: CalendarCon
   const tokens = await resp.json();
   accessToken = tokens.access_token;
   await admin.from('external_calendar_connections').update({
-    access_token: accessToken,
+    access_token: await encryptTokenIfConfigured(accessToken),
     token_expires_at: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString(),
   }).eq('id', conn.id);
   return accessToken;
@@ -533,6 +535,11 @@ async function loadPendingLinks(admin: CalendarAdminClient, conn: CalendarConnec
 
 // Dispatch a single connection to the right provider sync.
 export async function syncConnection(admin: CalendarAdminClient, conn: CalendarConnection): Promise<SyncResult> {
+  // Tokens are encrypted at rest (when BANK_TOKEN_SECRET is set). Decrypt once
+  // here so all downstream provider logic sees plaintext; legacy plaintext rows
+  // pass through unchanged.
+  conn.access_token = (await decryptTokenIfNeeded(conn.access_token)) ?? null;
+  conn.refresh_token = (await decryptTokenIfNeeded(conn.refresh_token)) ?? null;
   if (conn.provider === 'google') return syncGoogleConnection(admin, conn);
   if (conn.provider === 'apple') return syncAppleConnection(admin, conn);
   return { imported: 0, updated: 0, pushed: 0, errors: [`unsupported provider: ${conn.provider}`] };

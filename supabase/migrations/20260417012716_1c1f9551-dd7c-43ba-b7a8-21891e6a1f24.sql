@@ -1,10 +1,14 @@
+-- DEFUNCT legacy reference. This Supabase Cloud pg_cron job is superseded by the
+-- self-hosted scheduler (cron/scheduler.mjs). On Railway it is baseline-skipped
+-- (never executed — see db/migrate.sh) and stripped from db/bootstrap (no
+-- pg_cron/pg_net). The old project URL and committed anon key have been removed.
 SELECT cron.schedule(
   'poll-telegram-updates',
   '* * * * *',
   $$
   SELECT net.http_post(
-    url:='https://femilfmcmqmdbncmgcxh.supabase.co/functions/v1/telegram-poll',
-    headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlbWlsZm1jbXFtZGJuY21nY3hoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3Njk3MDAsImV4cCI6MjA4MTM0NTcwMH0.VEWyXknkEr7lcZzkVDNkjJhvM2Q3b-1PQPgdYFTjyUA"}'::jsonb,
+    url:='https://legacy.invalid/functions/v1/telegram-poll',
+    headers:='{"Content-Type": "application/json", "Authorization": "Bearer REMOVED_LEGACY_ANON_KEY"}'::jsonb,
     body:='{}'::jsonb
   );
   $$

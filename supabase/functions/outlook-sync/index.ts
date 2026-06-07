@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from '../_shared/cors.ts';
+import { decryptTokenIfNeeded, encryptTokenIfConfigured } from '../_shared/encryption.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': strictAppOrigin(),
@@ -82,6 +83,10 @@ serve(async (req) => {
       });
     }
 
+    // Tokens are encrypted at rest (when BANK_TOKEN_SECRET is set); decrypt for
+    // use. Legacy plaintext rows pass through unchanged.
+    connection.access_token = (await decryptTokenIfNeeded(connection.access_token)) ?? connection.access_token;
+    connection.refresh_token = (await decryptTokenIfNeeded(connection.refresh_token)) ?? connection.refresh_token;
     let accessToken = connection.access_token;
     if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date(Date.now() + 60_000)) {
       const newTokens = await refreshOutlookToken(connection.refresh_token);
@@ -93,8 +98,8 @@ serve(async (req) => {
       }
       accessToken = newTokens.access_token;
       await admin.from('external_calendar_connections').update({
-        access_token: accessToken,
-        refresh_token: newTokens.refresh_token || connection.refresh_token,
+        access_token: await encryptTokenIfConfigured(accessToken),
+        refresh_token: await encryptTokenIfConfigured(newTokens.refresh_token || connection.refresh_token),
         token_expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
       }).eq('id', connectionId);
     }

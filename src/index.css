@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Amiri:wght@400;700&display=swap');
+/* Fonts are self-hosted (no Google CDN / GDPR) and loaded via the
+   <link rel="stylesheet" href="/fonts/fonts.css"> tag in index.html. */
 
 @tailwind base;
 @tailwind components;

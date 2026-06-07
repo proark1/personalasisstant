@@ -29,9 +29,12 @@ async function sendTelegram(chatId: number, text: string) {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  // Service-role only. The anon key is public (bundled in the client), so it
+  // must NOT be accepted as a gate — otherwise anyone could drive this
+  // AI-backed endpoint and burn credits. Internal/cron callers use the
+  // service-role key, like the rest of the stack.
   const auth = req.headers.get('Authorization') || '';
-  const anon = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '';
-  const okAuth = auth === `Bearer ${SERVICE_KEY}` || (anon && auth === `Bearer ${anon}`);
+  const okAuth = auth === `Bearer ${SERVICE_KEY}`;
   if (!okAuth) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

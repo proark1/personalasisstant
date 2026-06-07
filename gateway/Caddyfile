@@ -9,7 +9,10 @@
 #   GOTRUE_URL       e.g. http://gotrue.railway.internal:9999
 #   REALTIME_URL     e.g. http://realtime.railway.internal:4000   (optional until Realtime is deployed)
 #   EDGE_FUNCTIONS_URL  e.g. http://edge-runtime.railway.internal:9000
-#   APP_ORIGIN       your app's origin for CORS, or * (default)
+#   APP_ORIGIN       your app's origin for CORS, e.g. https://app.example.com.
+#                    REQUIRED in production — do NOT use "*". If unset, the
+#                    Allow-Origin header is empty, which fails closed (browsers
+#                    block cross-origin) rather than allowing any site.
 
 {
 	admin off
@@ -17,15 +20,24 @@
 }
 
 :{$PORT:8080} {
-	# CORS — the SPA talks to this gateway cross-origin. supabase-js uses the
-	# Authorization header (no cookies), so a wildcard origin is fine.
+	# CORS — the SPA talks to this gateway cross-origin. Scope to the app origin
+	# via APP_ORIGIN (set on the Railway gateway service). No wildcard default:
+	# if APP_ORIGIN is unset the header is empty and cross-origin calls fail
+	# closed, instead of silently allowing every site to drive the API.
 	header {
-		Access-Control-Allow-Origin "{$APP_ORIGIN:*}"
+		Access-Control-Allow-Origin "{$APP_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD"
 		Access-Control-Allow-Headers "*"
 		Access-Control-Expose-Headers "Content-Range, Content-Profile, Content-Location"
 		Access-Control-Max-Age "86400"
 		Vary "Origin"
+		# Security headers applied to every response (REST/auth/realtime/functions).
+		# TLS is terminated at Railway's edge; HSTS still governs the HTTPS the
+		# browser sees. No CSP here — it needs per-app tuning (see go-live notes).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
 	}
 	@preflight method OPTIONS

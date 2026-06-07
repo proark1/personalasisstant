@@ -74,11 +74,20 @@ async function sendTelegramMessage(chatId: number, text: string, telegramKey: st
   }
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const telegramKey = Deno.env.get('TELEGRAM_API_KEY')!;
+
+    // Service-role only. This is a scheduled (cron) endpoint with no user input;
+    // the gateway/dispatcher do not verify JWTs, so it must gate in-code or it
+    // would be an open endpoint that anyone could trigger (Telegram spam + load).
+    if ((req.headers.get('Authorization') || '') !== `Bearer ${serviceKey}`) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     const admin = createClient(supabaseUrl, serviceKey);
 
