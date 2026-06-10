@@ -184,13 +184,15 @@ ${personaBlock}
 
 ${kindInstruction}
 
-Write EVERYTHING — headline, hook, summary, topic — in ${langName}. For EVERY idea, the "hook" must be a punchy on-camera opener the creator could literally say in the first 2 seconds. The "headline" is the idea's title/angle (max 110 chars). The "summary" is a 4-5 sentence spoken mini-script the creator can read out loud on camera right after the hook — for a quick TikTok-style update. Write it in the creator's voice, in flowing conversational sentences (no bullet points, no meta-instructions like "explain that..." or "mention the..."): say the actual thing, including the key facts, numbers, or steps, and end with a takeaway or question for the audience.
+Write EVERYTHING — headline, hook, summary, topic — in ${langName}. For EVERY idea, the "hook" must be a punchy on-camera opener the creator could literally say in the first 2 seconds. The "headline" is the idea's title/angle (max 110 chars). The "summary" is a 4-5 sentence spoken mini-script the creator reads out loud on camera right after the hook — a quick TikTok-style update.
+
+The summary MUST sound like casual everyday speech — like excitedly telling a friend what you just heard — NOT like a news anchor, press release, or essay. Short punchy sentences. Simple everyday words. Talk TO the viewer directly (in German always use informal "du"/"ihr", never "Sie"). It's fine to start sentences with "Und", "Also", "Aber". Strictly avoid stiff written-language constructions — things like "Allerdings...", "Dies zeigt, dass...", "Es bleibt spannend, wie...", "Darüber hinaus...", "furthermore", "it remains to be seen". Read it back to yourself: if it wouldn't sound natural said out loud to a friend, rewrite it. Still pack in the actual facts, numbers, or steps (no bullet points, no meta-instructions like "explain that..."), and end with a casual takeaway or a direct question to the viewers.
 
 Respond with ONLY a JSON array (no markdown fences, no commentary). Each object must have:
 - "topic": which of the creator's topics it maps to
 - "headline": the idea title/angle
 - "hook": the spoken first-line hook
-- "summary": the 4-5 sentence spoken script (what the creator literally says after the hook)${avoidBlock}`;
+- "summary": the 4-5 sentence casual spoken script (what the creator literally says after the hook)${avoidBlock}`;
 
   const userPrompt = grounded
     ? `Today is ${today}. Use Google Search to find the most important, specific, recent developments in ${topicsString}, then return ${n} content ideas as the JSON array — all written in ${langName}.`
