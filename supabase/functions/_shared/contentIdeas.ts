@@ -184,13 +184,13 @@ ${personaBlock}
 
 ${kindInstruction}
 
-Write EVERYTHING — headline, hook, summary, topic — in ${langName}. For EVERY idea, the "hook" must be a punchy on-camera opener the creator could literally say in the first 2 seconds. The "headline" is the idea's title/angle (max 110 chars). The "summary" is 1-2 sentences on what to actually cover.
+Write EVERYTHING — headline, hook, summary, topic — in ${langName}. For EVERY idea, the "hook" must be a punchy on-camera opener the creator could literally say in the first 2 seconds. The "headline" is the idea's title/angle (max 110 chars). The "summary" is a 4-5 sentence spoken mini-script the creator can read out loud on camera right after the hook — for a quick TikTok-style update. Write it in the creator's voice, in flowing conversational sentences (no bullet points, no meta-instructions like "explain that..." or "mention the..."): say the actual thing, including the key facts, numbers, or steps, and end with a takeaway or question for the audience.
 
 Respond with ONLY a JSON array (no markdown fences, no commentary). Each object must have:
 - "topic": which of the creator's topics it maps to
 - "headline": the idea title/angle
 - "hook": the spoken first-line hook
-- "summary": 1-2 sentences on what to cover${avoidBlock}`;
+- "summary": the 4-5 sentence spoken script (what the creator literally says after the hook)${avoidBlock}`;
 
   const userPrompt = grounded
     ? `Today is ${today}. Use Google Search to find the most important, specific, recent developments in ${topicsString}, then return ${n} content ideas as the JSON array — all written in ${langName}.`
@@ -201,7 +201,7 @@ Respond with ONLY a JSON array (no markdown fences, no commentary). Each object 
     systemInstruction: { parts: [{ text: systemInstruction }] },
     generationConfig: {
       temperature: 0.85, // a little creative spark for ideation
-      maxOutputTokens: 4096,
+      maxOutputTokens: 8192, // up to 20 ideas, each with a 4-5 sentence spoken script
       thinkingConfig: { thinkingBudget: 0 },
     },
   };
@@ -231,7 +231,7 @@ Respond with ONLY a JSON array (no markdown fences, no commentary). Each object 
       topic: (item.topic || "").trim().slice(0, 80),
       headline: (item.headline || "").trim().slice(0, 200),
       hook: (item.hook || "").trim().slice(0, 400),
-      summary: (item.summary || "").trim().slice(0, 600),
+      summary: (item.summary || "").trim().slice(0, 1200),
       source_url: sources[i]?.url ?? null,
       source_title: sources[i]?.title ?? null,
       rank: 0,

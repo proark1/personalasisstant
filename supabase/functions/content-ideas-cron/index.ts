@@ -49,6 +49,12 @@ function escapeHtml(s: string): string {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// For HTML attribute values (e.g. href): also escape double quotes, which would
+// otherwise terminate the attribute and make Telegram reject the message.
+function escapeAttr(s: string): string {
+  return escapeHtml(s).replace(/"/g, "&quot;");
+}
+
 function partsIn(now: Date, tz: string) {
   const hour = parseInt(
     new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", hour12: false }).format(now), 10,
@@ -119,19 +125,40 @@ async function sendPush(userId: string, title: string, body: string): Promise<bo
   }
 }
 
-function buildTelegramMessage(ideas: ContentIdea[]): string {
-  const lines: string[] = ["<b>💡 Your content ideas for today</b>"];
-  if (!ideas.length) { lines.push("\nNo ideas generated — check your creator profile."); return lines.join("\n"); }
-  for (const i of ideas) {
+// Telegram caps messages at 4096 chars; stay under it with headroom so the
+// short footer always fits on the last message.
+const TG_MESSAGE_LIMIT = 3900;
+
+function buildTelegramMessages(ideas: ContentIdea[]): string[] {
+  const header = "<b>💡 Your content ideas for today</b>";
+  if (!ideas.length) return [`${header}\n\nNo ideas generated — check your creator profile.`];
+
+  const blocks = ideas.map((i) => {
     const tag = i.kind === "current" ? "🔥" : "♻️";
     const title = i.source_url
-      ? `<a href="${i.source_url}">${escapeHtml(i.headline)}</a>`
+      ? `<a href="${escapeAttr(i.source_url)}">${escapeHtml(i.headline)}</a>`
       : escapeHtml(i.headline);
-    lines.push(`\n${tag} <b>${title}</b>`);
-    if (i.hook) lines.push(`  <i>${escapeHtml(i.hook)}</i>`);
+    const lines = [`${tag} <b>${title}</b>`];
+    if (i.hook) lines.push(`<i>${escapeHtml(i.hook)}</i>`);
+    if (i.summary) lines.push(escapeHtml(i.summary));
+    return lines.join("\n");
+  });
+
+  // Pack idea blocks into as few messages as fit under the length cap. With the
+  // longer spoken summaries a full batch no longer fits in one message.
+  const messages: string[] = [];
+  let current = header;
+  for (const block of blocks) {
+    const next = `${current}\n\n${block}`;
+    if (next.length > TG_MESSAGE_LIMIT && current !== header) {
+      messages.push(current);
+      current = block;
+    } else {
+      current = next;
+    }
   }
-  lines.push("\nOpen the app to like, script, and schedule them.");
-  return lines.join("\n");
+  messages.push(`${current}\n\nOpen the app to like, script, and schedule them.`);
+  return messages;
 }
 
 function buildPushBody(ideas: ContentIdea[]): string {
@@ -224,7 +251,12 @@ Deno.serve(async (req) => {
       const channels = p.channels || [];
       if (channels.includes("telegram")) {
         const chatId = chatMap.get(p.user_id);
-        if (chatId) await tgSend(chatId, buildTelegramMessage(ideas));
+        if (chatId) {
+          // Sequential on purpose: keeps the ideas in order in the chat.
+          for (const msg of buildTelegramMessages(ideas)) {
+            await tgSend(chatId, msg);
+          }
+        }
       }
       if (channels.includes("push")) {
         await sendPush(p.user_id, "💡 Today's content ideas", buildPushBody(ideas));
