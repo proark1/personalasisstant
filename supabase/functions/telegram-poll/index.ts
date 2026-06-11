@@ -34,7 +34,15 @@ import {
   tgEditReplyMarkup,
 } from '../_shared/telegram-inline.ts';
 import { buildDoriContext } from '../_shared/dori-context.ts';
-import { isTelegramQuickCommand } from '../_shared/telegram-commands.ts';
+import {
+  buildAssistantCockpitKeyboard,
+  buildAssistantCockpitMessage,
+  buildSteeringCommandMessage,
+  buildSteeringPrompt,
+  dispatchTelegramControlCommand,
+  type TelegramControlCommand,
+  type TelegramSteeringCommand,
+} from '../_shared/telegram-control.ts';
 import {
   buildBestNextActionMessage,
   buildMemorySnapshotMessage,
@@ -269,11 +277,89 @@ async function sendMemorySnapshot(
   await sendDoriReply({ chatId, text, preferVoice, telegramKey: tgKey });
 }
 
+
+async function sendAssistantCockpit(chatId: number, tgKey: string): Promise<void> {
+  await tgSendWithKeyboard(chatId, buildAssistantCockpitMessage(), buildAssistantCockpitKeyboard(), tgKey);
+}
+
+async function sendSteeringCommand(
+  chatId: number,
+  tgKey: string,
+  command: TelegramSteeringCommand,
+): Promise<void> {
+  await tgSendWithKeyboard(chatId, buildSteeringCommandMessage(command), buildAssistantCockpitKeyboard(), tgKey);
+}
+
+async function runSteeringCommand(
+  chatId: number,
+  userId: string,
+  tgKey: string,
+  command: TelegramSteeringCommand,
+  args: string,
+  preferVoice: boolean,
+  workspaceId: string | null,
+  supabaseUrl: string,
+  serviceKey: string,
+): Promise<void> {
+  if (!args.trim()) {
+    await sendSteeringCommand(chatId, tgKey, command);
+    return;
+  }
+
+  await tg('sendChatAction', { chat_id: chatId, action: 'typing' }, tgKey).catch(() => {});
+  const dori = await callDori(userId, buildSteeringPrompt(command, args), chatId, supabaseUrl, serviceKey, null, undefined, workspaceId);
+  const queued = dori.toolResults.filter((t) => t.queued && t.actionId);
+  const executed = dori.toolResults.filter((t) => !t.queued);
+  const bodyParts: string[] = [];
+  if (dori.reply) bodyParts.push(dori.reply);
+  if (executed.length > 0) bodyParts.push(executed.map((t) => t.message).join('\n'));
+  const replyText = bodyParts.join('\n\n').trim() || `I prepared the /${command} request.`;
+
+  await sendDoriReply({ chatId, text: replyText, preferVoice, telegramKey: tgKey });
+
+  for (const action of queued) {
+    await tgSendWithKeyboard(
+      chatId,
+      `🤔 <b>Approve Dori action?</b>
+${escapeTelegramHtml(action.summary || action.message || 'Queued action')}`,
+      buildConfirmKeyboard(action.actionId as string),
+      tgKey,
+    );
+  }
+}
+
+async function recordTelegramControlMetric(
+  supabase: SupabaseClient,
+  userId: string,
+  chatId: number,
+  command: TelegramControlCommand,
+  source: 'slash' | 'callback',
+  workspaceId?: string | null,
+): Promise<void> {
+  try {
+    await supabase.from('analytics_events').insert({
+      user_id: userId,
+      event_category: 'telegram',
+      event_type: 'telegram_control_command',
+      page_path: 'telegram',
+      event_data: {
+        command,
+        source,
+        chat_id: chatId,
+        workspace_id: workspaceId ?? null,
+      },
+    });
+  } catch (e) {
+    console.warn('telegram control metric failed', e);
+  }
+}
+
 const PRIVATE_HELP_TEXT = `<b>🤖 Dori in Telegram</b>
 
 Talk naturally, send voice notes, forward messages, or upload photos/screenshots.
 
 <b>Core commands</b>
+/cockpit — open the button-based command center
 /me — today at a glance
 /now — best next move (<code>/next</code>, <code>/whatnow</code>)
 /approvals — approve or cancel pending actions (<code>/pending</code>)
@@ -281,6 +367,13 @@ Talk naturally, send voice notes, forward messages, or upload photos/screenshots
 /workspace list — switch personal/work context
 /focus on 2h — pause proactive nudges
 /undo — reverse the last undoable action
+
+<b>Steering modes</b>
+/brief — command-center briefing prompt
+/plan — plan a day, project, or outcome
+/delegate — hand Dori a job with approval rules
+/review — review pending decisions and recent work
+/settings — steer preferences, workspace, focus, voice, and memory
 
 Try: <code>plan my day</code>, <code>summarize unread emails</code>, <code>move dentist to Friday</code>, <code>remember I prefer meetings after 10</code>.`;
 
@@ -1015,6 +1108,61 @@ Deno.serve(async (req) => {
         try {
           if (!cbChatId) {
             await tgAnswerCallback(cb.id, '', TELEGRAM_API_KEY);
+          } else if (payload.kind === 'quick_command') {
+            await tgAnswerCallback(cb.id, `/${payload.command}`, TELEGRAM_API_KEY);
+            let commandUserId = tappingUserId;
+            if (!commandUserId) {
+              const { data: linked } = await supabase.from('telegram_links')
+                .select('user_id, active_workspace_id')
+                .eq('chat_id', cbChatId)
+                .eq('is_active', true)
+                .maybeSingle();
+              commandUserId = linked?.user_id as string | undefined;
+            }
+            if (!commandUserId) {
+              await sendMessage(cbChatId, '🔒 Link this chat to Dori first, then reopen the cockpit.', TELEGRAM_API_KEY);
+            } else {
+              const { data: linked } = await supabase.from('telegram_links')
+                .select('active_workspace_id')
+                .eq('chat_id', cbChatId)
+                .eq('is_active', true)
+                .maybeSingle();
+              const activeWs = await resolveActiveWorkspaceForChat(
+                supabase,
+                commandUserId,
+                (linked as Record<string, unknown> | null)?.active_workspace_id as string | null,
+              );
+              await dispatchTelegramControlCommand({
+                text: `/${payload.command}`,
+                chatId: cbChatId,
+                userId: commandUserId,
+                workspaceId: activeWs,
+                source: 'callback',
+                handlers: {
+                  sendHelp: () => tgSendWithKeyboard(cbChatId, PRIVATE_HELP_TEXT, buildAssistantCockpitKeyboard(), TELEGRAM_API_KEY),
+                  sendCockpit: () => sendAssistantCockpit(cbChatId, TELEGRAM_API_KEY),
+                  sendApprovals: () => sendApprovalInbox(supabase, cbChatId, commandUserId, TELEGRAM_API_KEY, false),
+                  sendNow: async () => {
+                    try {
+                      await sendBestNextAction(supabase, cbChatId, commandUserId, TELEGRAM_API_KEY, false, activeWs);
+                    } catch (e) {
+                      console.error('cockpit /now failed', e);
+                      await sendMessage(cbChatId, '⚠️ Could not pick a next action. Try /me or ask “plan my day”.', TELEGRAM_API_KEY);
+                    }
+                  },
+                  sendMemory: async () => {
+                    try {
+                      await sendMemorySnapshot(supabase, cbChatId, commandUserId, TELEGRAM_API_KEY, false, activeWs);
+                    } catch (e) {
+                      console.error('cockpit /memory failed', e);
+                      await sendMessage(cbChatId, '⚠️ Could not load memory right now. Try again shortly.', TELEGRAM_API_KEY);
+                    }
+                  },
+                  sendSteering: (command, args) => runSteeringCommand(cbChatId, commandUserId, TELEGRAM_API_KEY, command, args, false, activeWs, supabaseUrl, serviceKey),
+                  recordMetric: (command) => recordTelegramControlMetric(supabase, commandUserId, cbChatId, command, 'callback', activeWs),
+                },
+              });
+            }
           } else if (payload.kind === 'confirm' || payload.kind === 'reject') {
             const actionId = payload.kind === 'confirm' ? payload.actionId : payload.actionId;
             const { data: action } = await supabase.from('auto_actions_log')
@@ -1764,45 +1912,40 @@ Deno.serve(async (req) => {
 
       // Compact Telegram control surface: keep common steering actions fast
       // and deterministic instead of spending an AI round on command parsing.
-      if (isTelegramQuickCommand(text, 'help')) {
-        await sendDoriReply({
-          chatId,
-          text: PRIVATE_HELP_TEXT,
-          preferVoice: wasVoiceMessage,
-          telegramKey: TELEGRAM_API_KEY,
-        });
-        await markTelegramProcessed(supabase, u.update_id, chatId, text, u);
-        processed++;
-        continue;
-      }
-
-      if (isTelegramQuickCommand(text, 'approvals')) {
-        await sendApprovalInbox(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage);
-        await markTelegramProcessed(supabase, u.update_id, chatId, text, u);
-        processed++;
-        continue;
-      }
-
-      if (isTelegramQuickCommand(text, 'now')) {
-        try {
-          await sendBestNextAction(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage, activeWsForChat);
-        } catch (e) {
-          console.error('/now failed', e);
-          await sendMessage(chatId, '⚠️ Could not pick a next action. Try /me or ask “plan my day”.', TELEGRAM_API_KEY);
-        }
-        await markTelegramProcessed(supabase, u.update_id, chatId, text, u);
-        processed++;
-        continue;
-      }
-
-      if (isTelegramQuickCommand(text, 'memory')) {
-        try {
-          await sendMemorySnapshot(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage, activeWsForChat);
-        } catch (e) {
-          console.error('/memory failed', e);
-          await sendMessage(chatId, '⚠️ Could not load memory right now. Try again shortly.', TELEGRAM_API_KEY);
-        }
-        await markTelegramProcessed(supabase, u.update_id, chatId, text, u);
+      const handledControlCommand = await dispatchTelegramControlCommand({
+        text,
+        updateId: u.update_id,
+        chatId,
+        userId: link.user_id,
+        rawUpdate: u,
+        workspaceId: activeWsForChat,
+        source: 'slash',
+        handlers: {
+          sendHelp: () => tgSendWithKeyboard(chatId, PRIVATE_HELP_TEXT, buildAssistantCockpitKeyboard(), TELEGRAM_API_KEY),
+          sendCockpit: () => sendAssistantCockpit(chatId, TELEGRAM_API_KEY),
+          sendApprovals: () => sendApprovalInbox(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage),
+          sendNow: async () => {
+            try {
+              await sendBestNextAction(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage, activeWsForChat);
+            } catch (e) {
+              console.error('/now failed', e);
+              await sendMessage(chatId, '⚠️ Could not pick a next action. Try /me or ask “plan my day”.', TELEGRAM_API_KEY);
+            }
+          },
+          sendMemory: async () => {
+            try {
+              await sendMemorySnapshot(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage, activeWsForChat);
+            } catch (e) {
+              console.error('/memory failed', e);
+              await sendMessage(chatId, '⚠️ Could not load memory right now. Try again shortly.', TELEGRAM_API_KEY);
+            }
+          },
+          sendSteering: (command, args) => runSteeringCommand(chatId, link.user_id, TELEGRAM_API_KEY, command, args, wasVoiceMessage, activeWsForChat, supabaseUrl, serviceKey),
+          recordMetric: (command) => recordTelegramControlMetric(supabase, link.user_id, chatId, command, 'slash', activeWsForChat),
+          markProcessed: () => markTelegramProcessed(supabase, u.update_id, chatId, text, u),
+        },
+      });
+      if (handledControlCommand) {
         processed++;
         continue;
       }

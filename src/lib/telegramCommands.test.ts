@@ -12,7 +12,7 @@ describe('Telegram command registration', () => {
     expect(TELEGRAM_COMMANDS.length).toBeLessThanOrEqual(TELEGRAM_COMMAND_LIMIT);
     expect(validateTelegramCommands(TELEGRAM_COMMANDS)).toEqual([]);
     expect(TELEGRAM_COMMANDS.map((c) => c.command)).toEqual(
-      expect.arrayContaining(['now', 'next', 'whatnow', 'approvals', 'pending', 'memory', 'memories', 'help', 'commands']),
+      expect.arrayContaining(['cockpit', 'brief', 'plan', 'delegate', 'review', 'settings', 'now', 'next', 'whatnow', 'approvals', 'pending', 'memory', 'memories', 'help', 'commands']),
     );
   });
 
@@ -47,5 +47,7 @@ describe('Telegram quick command aliases', () => {
     expect(isTelegramQuickCommand('/whatnow', 'now')).toBe(true);
     expect(isTelegramQuickCommand('/memories', 'memory')).toBe(true);
     expect(isTelegramQuickCommand('/memory', 'now')).toBe(false);
+    expect(isTelegramQuickCommand('/briefing', 'brief')).toBe(true);
+    expect(isTelegramQuickCommand('/preferences', 'settings')).toBe(true);
   });
 });

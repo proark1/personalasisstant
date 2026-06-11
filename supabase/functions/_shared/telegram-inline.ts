@@ -16,6 +16,7 @@
 //   dori_shop:<op>:<itemId>                    op ∈ check|uncheck|remove
 //   dori_contract:<op>:<contractId>            op ∈ snooze7|handled|details
 //   dori_page:<ns>:<cursor>:<chat>:<owner>     paginate a list reply
+//   dori_cmd:<command>                         run a cockpit quick command
 //   dori_dismiss                               no-op, just clear the keyboard
 //
 // `cursor` is a namespaced encoder specific to each list so we never embed
@@ -31,6 +32,7 @@ export type CallbackData =
   | { kind: 'contract'; op: 'snooze7' | 'handled' | 'details'; contractId: string }
   | { kind: 'page'; ns: string; cursor: string }
   | { kind: 'plan'; op: 'run_next' | 'skip' | 'abort'; planId: string }
+  | { kind: 'quick_command'; command: string }
   | { kind: 'dismiss' }
   | { kind: 'unknown'; raw: string };
 
@@ -45,6 +47,7 @@ export function encodeCallback(data: CallbackData): string {
     case 'contract': return `dori_contract:${data.op}:${data.contractId}`;
     case 'page':     return `dori_page:${data.ns}:${data.cursor}`;
     case 'plan':     return `dori_plan:${data.op}:${data.planId}`;
+    case 'quick_command': return `dori_cmd:${data.command}`;
     case 'dismiss':  return 'dori_dismiss';
     default:         return 'dori_dismiss';
   }
@@ -81,6 +84,7 @@ export function decodeCallback(raw: string): CallbackData {
       const [op, ...id] = rest;
       return { kind: 'plan', op: op as 'run_next' | 'skip' | 'abort', planId: id.join(':') };
     }
+    case 'dori_cmd': return { kind: 'quick_command', command: rest.join(':') };
     case 'dori_dismiss':  return { kind: 'dismiss' };
     default:              return { kind: 'unknown', raw };
   }

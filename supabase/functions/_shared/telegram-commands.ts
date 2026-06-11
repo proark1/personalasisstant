@@ -7,6 +7,12 @@ export const TELEGRAM_COMMAND_LIMIT = 100;
 
 export const TELEGRAM_QUICK_COMMAND_ALIASES = {
   help: ['help', 'commands'],
+  cockpit: ['cockpit', 'control', 'controls'],
+  brief: ['brief', 'briefing'],
+  plan: ['plan'],
+  delegate: ['delegate'],
+  review: ['review'],
+  settings: ['settings', 'prefs', 'preferences'],
   approvals: ['approvals', 'pending'],
   now: ['now', 'next', 'whatnow'],
   memory: ['memory', 'memories'],
@@ -26,6 +32,12 @@ export function isTelegramQuickCommand(text: string, command: TelegramQuickComma
 
 export const TELEGRAM_COMMANDS = [
   { command: 'me',         description: '🌤 Your day — digest with overdue, today, tomorrow' },
+  { command: 'cockpit',    description: '🕹 Open the Dori assistant cockpit' },
+  { command: 'brief',      description: '🗞 Command-center briefing prompt' },
+  { command: 'plan',       description: '🧭 Plan a goal, day, or project with Dori' },
+  { command: 'delegate',   description: '🪄 Delegate a job to Dori with approval rules' },
+  { command: 'review',     description: '✅ Review pending decisions and recent work' },
+  { command: 'settings',   description: '⚙️ Steer Dori preferences and scope' },
   { command: 'now',        description: '🎯 Best next move from Dori' },
   { command: 'next',       description: '🎯 Alias for /now' },
   { command: 'whatnow',    description: '🎯 Alias for /now' },
