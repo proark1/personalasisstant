@@ -364,6 +364,9 @@ Talk naturally, send voice notes, forward messages, or upload photos/screenshots
 /now — best next move (<code>/next</code>, <code>/whatnow</code>)
 /approvals — approve or cancel pending actions (<code>/pending</code>)
 /memory — what I remember + how to forget (<code>/memories</code>)
+/workspace list — switch personal/work context
+/focus on 2h — pause proactive nudges
+/undo — reverse the last undoable action
 
 <b>Steering modes</b>
 /brief — command-center briefing prompt
