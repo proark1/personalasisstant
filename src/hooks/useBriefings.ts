@@ -4,7 +4,7 @@ import { describeEdgeError } from '@/lib/edgeError';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
-export type BriefingChannel = 'telegram' | 'push';
+export type BriefingChannel = 'telegram' | 'telegram_voice' | 'push';
 
 export interface Briefing {
   id: string;

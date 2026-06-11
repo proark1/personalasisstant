@@ -2,7 +2,8 @@
 // Falls back to text if voice generation fails or message is too long.
 import { encode as base64Encode } from 'https://deno.land/std@0.168.0/encoding/base64.ts';
 
-const MAX_VOICE_CHARS = 600; // ~30s at normal speed
+const DEFAULT_REPLY_VOICE_CHARS = 600; // ~30s at normal speed
+const DEFAULT_BRIEFING_VOICE_CHARS = 3000; // ~2 minutes at normal speed
 
 export interface SendOpts {
   chatId: number;
@@ -13,6 +14,27 @@ export interface SendOpts {
   // to pick a Gemini TTS voice that suits the language. Null/undefined
   // falls back to the default voice.
   locale?: string | null;
+}
+
+export interface SendVoiceMessageOpts {
+  chatId: number;
+  script: string;
+  fallbackText: string;
+  telegramKey: string;
+  locale?: string | null;
+  caption?: string;
+  maxChars?: number;
+  /**
+   * When true, send fallbackText if voice cannot be delivered. Keep this false
+   * when the caller will send the text companion itself to avoid duplicates.
+   */
+  sendFallbackText?: boolean;
+}
+
+export interface SendVoiceMessageResult {
+  ok: boolean;
+  sent: 'voice' | 'text' | 'skipped';
+  reason?: string;
 }
 
 // Best-effort locale → Gemini TTS voice mapping. Gemini's prebuilt voices
@@ -154,21 +176,63 @@ async function sendVoiceNote(
   }
 }
 
+export function defaultBriefingVoiceLimit(): number {
+  return DEFAULT_BRIEFING_VOICE_CHARS;
+}
+
+/**
+ * Send a Telegram voice note for any chat (private or group). Callers can opt
+ * out of fallback text when they always send a separate text companion.
+ */
+export async function sendVoiceMessage(opts: SendVoiceMessageOpts): Promise<SendVoiceMessageResult> {
+  const {
+    chatId,
+    fallbackText,
+    telegramKey,
+    locale,
+    caption = '',
+    maxChars = DEFAULT_REPLY_VOICE_CHARS,
+    sendFallbackText = true,
+  } = opts;
+  const cleanForVoice = stripHtml(opts.script);
+
+  async function fallback(reason: string): Promise<SendVoiceMessageResult> {
+    if (sendFallbackText) {
+      await sendText(chatId, fallbackText, telegramKey);
+      return { ok: true, sent: 'text', reason };
+    }
+    return { ok: false, sent: 'skipped', reason };
+  }
+
+  if (!cleanForVoice) return fallback('empty_script');
+  if (cleanForVoice.length > maxChars) return fallback('script_too_long');
+
+  const audio = await generateVoiceWav(cleanForVoice, pickVoiceForLocale(locale));
+  if (audio && audio.length > 0) {
+    const ok = await sendVoiceNote(chatId, audio, caption || fallbackText, telegramKey);
+    if (ok) return { ok: true, sent: 'voice' };
+  }
+  return fallback('voice_generation_or_send_failed');
+}
+
 /**
  * Send a Telegram message. If preferVoice is true and the text is short enough,
  * send as a voice note (with original text as caption). Otherwise send as text.
  */
 export async function sendDoriReply(opts: SendOpts): Promise<void> {
   const { chatId, text, preferVoice, telegramKey, locale } = opts;
-  const cleanForVoice = stripHtml(text);
 
-  if (preferVoice && cleanForVoice.length > 0 && cleanForVoice.length <= MAX_VOICE_CHARS) {
-    const audio = await generateVoiceWav(cleanForVoice, pickVoiceForLocale(locale));
-    if (audio && audio.length > 0) {
-      const ok = await sendVoiceNote(chatId, audio, text, telegramKey);
-      if (ok) return;
-    }
-    // fall through to text on any failure
+  if (preferVoice) {
+    const res = await sendVoiceMessage({
+      chatId,
+      script: text,
+      fallbackText: text,
+      telegramKey,
+      locale,
+      maxChars: DEFAULT_REPLY_VOICE_CHARS,
+      sendFallbackText: true,
+    });
+    if (res.ok) return;
   }
   await sendText(chatId, text, telegramKey);
 }

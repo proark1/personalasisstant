@@ -15,7 +15,8 @@ interface TgCallback {
   from?: { id?: number };
 }
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
-import { sendDoriReply } from '../_shared/telegram-voice.ts';
+import { defaultBriefingVoiceLimit, sendDoriReply, sendVoiceMessage } from '../_shared/telegram-voice.ts';
+import { generateNews, type NewsItem } from '../_shared/briefingNews.ts';
 import {
   approveAndExecutePending,
   buildConfirmKeyboard,
@@ -994,6 +995,38 @@ function escape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function wantsNewsVoice(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  return lower === '/news voice'
+    || /\b(news|headlines)\b.*\b(voice|audio|speak|spoken)\b/i.test(text)
+    || /\b(voice|audio|speak|spoken)\b.*\b(news|headlines)\b/i.test(text);
+}
+
+function buildNewsTelegramMessage(name: string, items: NewsItem[]): string {
+  const lines: string[] = [`<b>🗞 ${escape(name)}</b>`];
+  if (!items.length) {
+    lines.push('\nNo notable updates on your topics right now.');
+    return lines.join('\n');
+  }
+  for (const item of items) {
+    lines.push(`\n• <b><a href="${item.url}">${escape(item.headline)}</a></b>`);
+    if (item.summary) lines.push(`  ${escape(item.summary)}`);
+  }
+  return lines.join('\n');
+}
+
+function buildNewsVoiceScript(name: string, items: NewsItem[]): string {
+  if (!items.length) return `${name}. No notable updates on your topics right now.`;
+  const top = items.slice(0, 5);
+  const lines = [`${name}. Here are your top ${top.length} news update${top.length === 1 ? '' : 's'} today.`];
+  top.forEach((item, idx) => {
+    const summary = (item.summary || '').replace(/\s+/g, ' ').trim();
+    lines.push(`Story ${idx + 1}: ${item.headline}. ${summary}`.trim());
+  });
+  lines.push('I am sending the links in text as well.');
+  return lines.join(' ');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -1904,11 +1937,56 @@ Deno.serve(async (req) => {
         }
       }
 
+      const privateVoiceMatch = text.toLowerCase().match(/^\/voice\s+(on|off)$/);
+      if (privateVoiceMatch) {
+        const enabled = privateVoiceMatch[1] === 'on';
+        const { error } = await supabase.from('proactive_settings')
+          .upsert({ user_id: link.user_id, prefer_voice_replies: enabled, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+        await sendMessage(chatId, error
+          ? `⚠️ Could not update voice replies: ${escape(error.message)}`
+          : `✅ Voice replies ${enabled ? 'enabled' : 'disabled'}.`, TELEGRAM_API_KEY);
+        await supabase.from('telegram_messages').upsert({
+          update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,
+        }, { onConflict: 'update_id' });
+        processed++;
+        continue;
+      }
+
       const activeWsForChat = await resolveActiveWorkspaceForChat(
         supabase,
         link.user_id,
         (link as Record<string, unknown>).active_workspace_id as string | null,
       );
+
+      if (wantsNewsVoice(text)) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('location_city, location_country, locale')
+          .eq('user_id', link.user_id)
+          .maybeSingle();
+        const title = "Today's news summary";
+        const items = await generateNews([], {
+          city: prof?.location_city ?? null,
+          country: prof?.location_country ?? null,
+        }, 5);
+        const textMessage = buildNewsTelegramMessage(title, items);
+        await sendVoiceMessage({
+          chatId,
+          script: buildNewsVoiceScript(title, items),
+          fallbackText: textMessage,
+          caption: "🗞 Today's news voice summary",
+          locale: prof?.locale,
+          telegramKey: TELEGRAM_API_KEY,
+          maxChars: defaultBriefingVoiceLimit(),
+          sendFallbackText: false,
+        });
+        await sendMessage(chatId, textMessage, TELEGRAM_API_KEY);
+        await supabase.from('telegram_messages').upsert({
+          update_id: u.update_id, chat_id: chatId, text, raw_update: u, processed: true,
+        }, { onConflict: 'update_id' });
+        processed++;
+        continue;
+      }
 
       // Compact Telegram control surface: keep common steering actions fast
       // and deterministic instead of spending an AI round on command parsing.

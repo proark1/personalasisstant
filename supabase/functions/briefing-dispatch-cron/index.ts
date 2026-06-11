@@ -15,6 +15,7 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { strictAppOrigin } from '../_shared/cors.ts';
 import { generateNews, type NewsItem } from '../_shared/briefingNews.ts';
+import { defaultBriefingVoiceLimit, sendVoiceMessage } from '../_shared/telegram-voice.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': strictAppOrigin(),
@@ -43,6 +44,12 @@ interface BriefingRow {
   channels: string[];
   max_items: number;
   last_sent_on: string | null;
+}
+
+interface ProfileContext {
+  city: string | null;
+  country: string | null;
+  locale?: string | null;
 }
 
 function escapeHtml(s: string): string {
@@ -155,6 +162,21 @@ function buildPushBody(items: NewsItem[]): string {
   return items.map((i) => `• ${i.headline}`).join('\n').slice(0, 500);
 }
 
+function buildNewsVoiceScript(name: string, items: NewsItem[]): string {
+  if (!items.length) {
+    return `${name}. No notable updates on your topics right now. I am sending the text version too, so you can check it later.`;
+  }
+
+  const top = items.slice(0, 5);
+  const lines = [`${name}. Here are your top ${top.length} news update${top.length === 1 ? '' : 's'} today.`];
+  top.forEach((item, idx) => {
+    const summary = (item.summary || '').replace(/\s+/g, ' ').trim();
+    lines.push(`Story ${idx + 1}: ${item.headline}. ${summary}`.trim());
+  });
+  lines.push('I am sending the links in text as well.');
+  return lines.join(' ');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -242,14 +264,14 @@ Deno.serve(async (req) => {
   }
 
   // Resolve locations for nicer, localised news.
-  const locMap = new Map<string, { city: string | null; country: string | null }>();
+  const locMap = new Map<string, ProfileContext>();
   if (dueIds.length > 0) {
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('user_id, location_city, location_country')
+      .select('user_id, location_city, location_country, locale')
       .in('user_id', dueIds);
-    (profiles as Array<{ user_id: string; location_city: string | null; location_country: string | null }> || []).forEach((p) => {
-      locMap.set(p.user_id, { city: p.location_city, country: p.location_country });
+    (profiles as Array<{ user_id: string; location_city: string | null; location_country: string | null; locale?: string | null }> || []).forEach((p) => {
+      locMap.set(p.user_id, { city: p.location_city, country: p.location_country, locale: p.locale });
     });
   }
 
@@ -263,10 +285,27 @@ Deno.serve(async (req) => {
       const channels = b.channels || [];
       const channelsSent: string[] = [];
 
-      if (channels.includes('telegram')) {
-        const chatId = chatMap.get(b.user_id);
+      const chatId = chatMap.get(b.user_id);
+      const telegramText = buildTelegramMessage(b.name, items);
+      const wantsTelegramText = channels.includes('telegram') || channels.includes('telegram_voice');
+
+      if (channels.includes('telegram_voice') && chatId && TELEGRAM_API_KEY) {
+        const voice = await sendVoiceMessage({
+          chatId,
+          script: buildNewsVoiceScript(b.name, items),
+          fallbackText: telegramText,
+          caption: `🗞 ${b.name} — voice summary`,
+          locale: locMap.get(b.user_id)?.locale,
+          telegramKey: TELEGRAM_API_KEY,
+          maxChars: defaultBriefingVoiceLimit(),
+          sendFallbackText: false,
+        });
+        if (voice.sent === 'voice') channelsSent.push('telegram_voice');
+      }
+
+      if (wantsTelegramText) {
         if (chatId) {
-          const ok = await tgSend(chatId, buildTelegramMessage(b.name, items));
+          const ok = await tgSend(chatId, telegramText);
           if (ok) channelsSent.push('telegram');
         }
       }

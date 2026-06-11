@@ -3,7 +3,8 @@
 // hour matches the group's configured `morning_digest_hour` and we haven't
 // already sent for that local date.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildSharedFamilyDigest } from '../_shared/telegram-digest.ts';
+import { buildSharedFamilyDigest, buildSharedFamilyDigestVoiceScript } from '../_shared/telegram-digest.ts';
+import { defaultBriefingVoiceLimit, sendVoiceMessage } from '../_shared/telegram-voice.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
 
   const { data: groups, error } = await supabase
     .from('telegram_group_links')
-    .select('id, chat_id, owner_user_id, partner_user_id, morning_digest_enabled, morning_digest_hour, morning_digest_last_sent_on, title')
+    .select('id, chat_id, owner_user_id, partner_user_id, morning_digest_enabled, morning_digest_hour, morning_digest_last_sent_on, voice_digest_enabled, title')
     .eq('is_active', true);
 
   if (error) {
@@ -93,6 +94,17 @@ Deno.serve(async (req) => {
         horizonDays: 14,
         greeting: true,
       });
+      if (g.voice_digest_enabled) {
+        await sendVoiceMessage({
+          chatId: Number(g.chat_id),
+          script: buildSharedFamilyDigestVoiceScript(text),
+          fallbackText: text,
+          caption: `☀️ ${g.title || 'Family'} morning voice digest`,
+          telegramKey: TELEGRAM_API_KEY,
+          maxChars: defaultBriefingVoiceLimit(),
+          sendFallbackText: false,
+        });
+      }
       await tgSend(Number(g.chat_id), text);
       await supabase
         .from('telegram_group_links')

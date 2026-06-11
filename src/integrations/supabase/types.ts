@@ -4428,6 +4428,8 @@ export type Database = {
           prompt: string | null
           tags: string[] | null
           title: string | null
+          voice_digest_enabled: boolean
+          voice_replies_enabled: boolean
           updated_at: string
           user_id: string
         }
@@ -4441,6 +4443,8 @@ export type Database = {
           prompt?: string | null
           tags?: string[] | null
           title?: string | null
+          voice_digest_enabled?: boolean
+          voice_replies_enabled?: boolean
           updated_at?: string
           user_id: string
         }
@@ -4454,6 +4458,8 @@ export type Database = {
           prompt?: string | null
           tags?: string[] | null
           title?: string | null
+          voice_digest_enabled?: boolean
+          voice_replies_enabled?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -7778,6 +7784,8 @@ export type Database = {
           partner_user_id: string | null
           space_member_id: string | null
           title: string | null
+          voice_digest_enabled: boolean
+          voice_replies_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -7795,6 +7803,8 @@ export type Database = {
           partner_user_id?: string | null
           space_member_id?: string | null
           title?: string | null
+          voice_digest_enabled?: boolean
+          voice_replies_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -7812,6 +7822,8 @@ export type Database = {
           partner_user_id?: string | null
           space_member_id?: string | null
           title?: string | null
+          voice_digest_enabled?: boolean
+          voice_replies_enabled?: boolean
           updated_at?: string
         }
         Relationships: []

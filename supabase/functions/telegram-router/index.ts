@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 type SupabaseClient = ReturnType<typeof createClient>;
 type HouseholdInfo = { ids: string[]; nameOf: (uid: string) => string; multi: boolean };
-import { sendDoriReply } from '../_shared/telegram-voice.ts';
+import { defaultBriefingVoiceLimit, sendDoriReply, sendVoiceMessage } from '../_shared/telegram-voice.ts';
 import {
   approveAndExecutePending,
   buildConfirmKeyboard,
@@ -24,7 +24,8 @@ import { fetchLatestUndoableForUser, runUndo } from '../_shared/dori-undo.ts';
 import { buildDoriContext } from '../_shared/dori-context.ts';
 import { findTimeSlots, rankProposedSlots } from '../_shared/dori-scheduling.ts';
 import { buildWorkspaceWeeklyRecap, formatRecapForTelegram } from '../_shared/dori-recap.ts';
-import { buildSharedFamilyDigest } from '../_shared/telegram-digest.ts';
+import { buildSharedFamilyDigest, buildSharedFamilyDigestVoiceScript } from '../_shared/telegram-digest.ts';
+import { generateNews, type NewsItem } from '../_shared/briefingNews.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';
 
 const corsHeaders = {
@@ -98,6 +99,32 @@ async function handlePlansCommand(supabase: SupabaseClient, chatId: number, user
 
 function escapeHtml(s: string): string {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+
+function buildNewsTelegramMessage(name: string, items: NewsItem[]): string {
+  const lines: string[] = [`<b>🗞 ${escapeHtml(name)}</b>`];
+  if (!items.length) {
+    lines.push('\nNo notable updates on your topics right now.');
+    return lines.join('\n');
+  }
+  for (const item of items) {
+    lines.push(`\n• <b><a href="${item.url}">${escapeHtml(item.headline)}</a></b>`);
+    if (item.summary) lines.push(`  ${escapeHtml(item.summary)}`);
+  }
+  return lines.join('\n');
+}
+
+function buildNewsVoiceScript(name: string, items: NewsItem[]): string {
+  if (!items.length) return `${name}. No notable updates on your topics right now.`;
+  const top = items.slice(0, 5);
+  const lines = [`${name}. Here are your top ${top.length} news update${top.length === 1 ? '' : 's'} today.`];
+  top.forEach((item, idx) => {
+    const summary = (item.summary || '').replace(/\s+/g, ' ').trim();
+    lines.push(`Story ${idx + 1}: ${item.headline}. ${summary}`.trim());
+  });
+  lines.push('I am sending the links in text as well.');
+  return lines.join(' ');
 }
 
 // ─── Help / discoverability ──────────────────────────────────────────────
@@ -1016,6 +1043,16 @@ async function handleToggleSetting(
   return `✅ ${label} ${value ? 'enabled' : 'disabled'}.`;
 }
 
+async function handleToggleGroupSetting(
+  supabase: SupabaseClient, groupId: string, column: string, value: boolean, label: string,
+): Promise<string> {
+  const { error } = await supabase.from('telegram_group_links')
+    .update({ [column]: value, updated_at: new Date().toISOString() })
+    .eq('id', groupId);
+  if (error) return `⚠️ Could not update ${label}: ${error.message}`;
+  return `✅ ${label} ${value ? 'enabled' : 'disabled'} for this family group.`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -1030,7 +1067,7 @@ Deno.serve(async (req) => {
   // Resolve group → owner + partner
   const { data: group } = await supabase
     .from('telegram_group_links')
-    .select('id, owner_user_id, partner_user_id')
+    .select('id, owner_user_id, partner_user_id, voice_replies_enabled, voice_digest_enabled')
     .eq('chat_id', chat_id).eq('is_active', true).maybeSingle();
 
   if (!group) {
@@ -1272,10 +1309,68 @@ Deno.serve(async (req) => {
     await tgSend(chat_id, await handleWeek(supabase, memberIds, household));
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
-  if (lower === '/digest' || lower === '/morning' || lower === '/family' || lower === '/next7') {
-    await tgSend(chat_id, await buildSharedFamilyDigest(supabase, memberIds, household, { limit: 7, tz: userTimezone, greeting: lower === '/morning', horizonDays: 14 }));
+  if (lower === '/digest voice' || lower === '/morning voice' || lower === '/family voice' || lower === '/next7 voice') {
+    const digest = await buildSharedFamilyDigest(supabase, memberIds, household, { limit: 7, tz: userTimezone, greeting: lower.startsWith('/morning'), horizonDays: 14 });
+    await sendVoiceMessage({
+      chatId: chat_id,
+      script: buildSharedFamilyDigestVoiceScript(digest),
+      fallbackText: digest,
+      caption: '📅 Family voice digest',
+      telegramKey: TELEGRAM_API_KEY,
+      maxChars: defaultBriefingVoiceLimit(),
+      sendFallbackText: false,
+    });
+    await tgSend(chat_id, digest);
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
+  const digestVoiceMatch = lower.match(/^\/digest\s+voice\s+(on|off)$/);
+  if (digestVoiceMatch) {
+    await tgSend(chat_id, await handleToggleGroupSetting(
+      supabase, group.id, 'voice_digest_enabled', digestVoiceMatch[1] === 'on', 'Voice morning digest'));
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+  if (lower === '/digest' || lower === '/morning' || lower === '/family' || lower === '/next7') {
+    const digest = await buildSharedFamilyDigest(supabase, memberIds, household, { limit: 7, tz: userTimezone, greeting: lower === '/morning', horizonDays: 14 });
+    if (group.voice_digest_enabled && lower === '/morning') {
+      await sendVoiceMessage({
+        chatId: chat_id,
+        script: buildSharedFamilyDigestVoiceScript(digest),
+        fallbackText: digest,
+        caption: '📅 Family voice digest',
+        telegramKey: TELEGRAM_API_KEY,
+        maxChars: defaultBriefingVoiceLimit(),
+        sendFallbackText: false,
+      });
+    }
+    await tgSend(chat_id, digest);
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+  if (lower === '/news voice' || /\b(news|headlines)\b.*\b(voice|audio|speak|spoken)\b/i.test(trimmed) || /\b(voice|audio|speak|spoken)\b.*\b(news|headlines)\b/i.test(trimmed)) {
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('location_city, location_country, locale')
+      .eq('user_id', userForChat)
+      .maybeSingle();
+    const items = await generateNews([], {
+      city: prof?.location_city ?? null,
+      country: prof?.location_country ?? null,
+    }, 5);
+    const title = "Today's news summary";
+    const textMessage = buildNewsTelegramMessage(title, items);
+    await sendVoiceMessage({
+      chatId: chat_id,
+      script: buildNewsVoiceScript(title, items),
+      fallbackText: textMessage,
+      caption: "🗞 Today's news voice summary",
+      locale: prof?.locale,
+      telegramKey: TELEGRAM_API_KEY,
+      maxChars: defaultBriefingVoiceLimit(),
+      sendFallbackText: false,
+    });
+    await tgSend(chat_id, textMessage);
+    return new Response('{"ok":true}', { headers: corsHeaders });
+  }
+
   if (/^(show me the calendar|show calendar|what'?s on (my|our) calendar|what do (i|we) have (today|tomorrow|this week)|what are (my|our) next meetings|next meetings|upcoming meetings)[?!.]*$/i.test(trimmed)) {
     if (/meeting/i.test(trimmed)) {
       await tgSend(chat_id, await handleUpcomingMeetings(supabase, memberIds, household, userTimezone));
@@ -1667,8 +1762,8 @@ Deno.serve(async (req) => {
   }
   const voiceMatch = lower.match(/^\/voice\s+(on|off)$/);
   if (voiceMatch) {
-    await tgSend(chat_id, await handleToggleSetting(
-      supabase, userForChat, 'prefer_voice_replies', voiceMatch[1] === 'on', 'Voice replies'));
+    await tgSend(chat_id, await handleToggleGroupSetting(
+      supabase, group.id, 'voice_replies_enabled', voiceMatch[1] === 'on', 'Voice replies'));
     return new Response('{"ok":true}', { headers: corsHeaders });
   }
 
@@ -1786,11 +1881,10 @@ Deno.serve(async (req) => {
       let voiceLocale: string | undefined;
       try {
         const prefUser = senderUserId || group.owner_user_id;
-        const [{ data: ps }, { data: prof }] = await Promise.all([
-          supabase.from('proactive_settings').select('prefer_voice_replies').eq('user_id', prefUser).maybeSingle(),
-          supabase.from('profiles').select('locale').eq('user_id', prefUser).maybeSingle(),
-        ]);
-        preferVoice = !!ps?.prefer_voice_replies;
+        const { data: prof } = await supabase.from('profiles').select('locale').eq('user_id', prefUser).maybeSingle();
+        // Group chats are intentionally controlled by the group-level toggle only.
+        // A member's private voice preference should not make family groups noisy.
+        preferVoice = !!group.voice_replies_enabled;
         voiceLocale = prof?.locale || undefined;
       } catch { /* ignore */ }
 

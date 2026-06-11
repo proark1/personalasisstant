@@ -120,3 +120,31 @@ export async function buildSharedFamilyDigest(
   lines.push(`\n<i>Add fast:</i> <code>/event Title @ Fri 18:00</code> · <code>/add Buy gift tomorrow</code> · <code>/week</code> for full view`);
   return lines.join('\n');
 }
+
+
+function stripDigestForVoice(text: string): string {
+  return text
+    .replace(/<code>.*?<\/code>/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/🗓|🔴|🟡|⚪️|✨|📅|☀️|👋|🌙|•/g, ' ')
+    .replace(/\bAdd fast:.*$/is, ' ')
+    .replace(/\bAdd something with.*$/is, ' ')
+    .replace(/\s+@\s+/g, ' at ')
+    .replace(/\s+—\s+/g, ': ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Converts the existing family digest text into a short spoken script for
+ * Telegram voice notes. The text companion keeps links/commands; the voice note
+ * focuses on a natural summary and avoids reading HTML, emoji, and commands.
+ */
+export function buildSharedFamilyDigestVoiceScript(text: string): string {
+  const clean = stripDigestForVoice(text);
+  if (!clean) {
+    return 'Good morning, family. There is nothing scheduled right now. Enjoy the open calendar.';
+  }
+  return `${clean}. I am sending the text digest as well so everyone can tap the details.`;
+}

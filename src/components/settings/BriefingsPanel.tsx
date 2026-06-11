@@ -17,7 +17,8 @@ import { BriefingFeedCard } from '@/components/notifications/BriefingFeedCard';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CHANNELS: { key: BriefingChannel; label: string }[] = [
-  { key: 'telegram', label: 'Telegram' },
+  { key: 'telegram', label: 'Telegram text' },
+  { key: 'telegram_voice', label: 'Telegram voice' },
   { key: 'push', label: 'Push' },
 ];
 
@@ -277,9 +278,9 @@ function BriefingCard({
               </button>
             ))}
           </div>
-          {channels.includes('telegram') && (
+          {(channels.includes('telegram') || channels.includes('telegram_voice')) && (
             <p className="text-xs text-muted-foreground">
-              Telegram delivery requires your account to be linked in the Telegram tab.
+              Telegram delivery requires your account to be linked in the Telegram tab. Voice briefings always send the text version too, so links and fallback are preserved.
             </p>
           )}
         </div>
