@@ -34,6 +34,14 @@ import {
   tgEditReplyMarkup,
 } from '../_shared/telegram-inline.ts';
 import { buildDoriContext } from '../_shared/dori-context.ts';
+import { isTelegramQuickCommand } from '../_shared/telegram-commands.ts';
+import {
+  buildBestNextActionMessage,
+  buildMemorySnapshotMessage,
+  escapeTelegramHtml,
+  formatTelegramDate,
+  userDayYmd,
+} from '../_shared/telegram-quick.ts';
 import { strictAppOrigin } from '../_shared/cors.ts';
 import {
   fetchLatestUndoableForUser,
@@ -69,6 +77,212 @@ async function sendMessage(chatId: number, text: string, tgKey: string) {
     console.error('sendMessage failed:', e);
   }
 }
+
+async function markTelegramProcessed(
+  supabase: SupabaseClient,
+  updateId: number,
+  chatId: number,
+  text: string,
+  rawUpdate: unknown,
+): Promise<void> {
+  await supabase.from('telegram_messages').upsert({
+    update_id: updateId,
+    chat_id: chatId,
+    text,
+    raw_update: rawUpdate,
+    processed: true,
+  }, { onConflict: 'update_id' });
+}
+
+async function loadUserTimezone(supabase: SupabaseClient, userId: string): Promise<string | undefined> {
+  const { data } = await supabase.from('profiles').select('timezone').eq('user_id', userId).maybeSingle();
+  return data?.timezone || undefined;
+}
+
+async function resolveActiveWorkspaceForChat(
+  supabase: SupabaseClient,
+  userId: string,
+  activeWorkspaceId?: string | null,
+): Promise<string | null> {
+  if (!activeWorkspaceId) return null;
+  const { data: membership } = await supabase.from('workspace_members')
+    .select('user_id')
+    .eq('workspace_id', activeWorkspaceId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (membership) return activeWorkspaceId;
+
+  // Clear stale workspace scope so command shortcuts and the main AI path
+  // can't leak or act inside a workspace the user has left.
+  await supabase.from('telegram_links').update({ active_workspace_id: null }).eq('user_id', userId);
+  return null;
+}
+
+async function sendApprovalInbox(
+  supabase: SupabaseClient,
+  chatId: number,
+  userId: string,
+  tgKey: string,
+  preferVoice: boolean,
+): Promise<void> {
+  const tz = await loadUserTimezone(supabase, userId);
+  const nowIso = new Date().toISOString();
+  const { data: pending, error } = await supabase
+    .from('auto_actions_log')
+    .select('id, action_type, entity_type, reason, source, created_at, expires_at')
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error('/approvals failed', error);
+    await sendMessage(chatId, '⚠️ Could not load your approval inbox. Try again shortly.', tgKey);
+    return;
+  }
+
+  const rows = (pending ?? []) as Array<{
+    id: string;
+    action_type?: string | null;
+    reason?: string | null;
+    source?: string | null;
+    expires_at?: string | null;
+  }>;
+
+  if (rows.length === 0) {
+    await sendDoriReply({
+      chatId,
+      text: '✅ <b>Approval inbox is clear.</b>\nNo pending actions need your OK right now.',
+      preferVoice,
+      telegramKey: tgKey,
+    });
+    return;
+  }
+
+  await sendDoriReply({
+    chatId,
+    text: `📥 <b>Approval inbox</b>\n${rows.length} pending action${rows.length === 1 ? '' : 's'} need your OK. Tap a button on each card:`,
+    preferVoice,
+    telegramKey: tgKey,
+  });
+
+  for (const row of rows) {
+    const title = row.reason || row.action_type || 'Pending action';
+    const expires = row.expires_at ? `\n⏳ Expires ${escapeTelegramHtml(formatTelegramDate(row.expires_at, tz))}` : '';
+    const source = row.source ? `\nSource: <code>${escapeTelegramHtml(row.source)}</code>` : '';
+    await tgSendWithKeyboard(
+      chatId,
+      `🤔 <b>${escapeTelegramHtml(title)}</b>${source}${expires}`,
+      buildConfirmKeyboard(row.id),
+      tgKey,
+    );
+  }
+}
+
+async function sendBestNextAction(
+  supabase: SupabaseClient,
+  chatId: number,
+  userId: string,
+  tgKey: string,
+  preferVoice: boolean,
+  workspaceId: string | null,
+): Promise<void> {
+  const tz = await loadUserTimezone(supabase, userId);
+  const nowIso = new Date().toISOString();
+  const { count: pendingCount } = await supabase
+    .from('auto_actions_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .or(`expires_at.is.null,expires_at.gt.${nowIso}`);
+
+  const ctx = await buildDoriContext(supabase, userId, workspaceId, { timezone: tz });
+  const now = new Date();
+  const nextEvent = ctx.todayEvents
+    .filter((e) => new Date(e.start_time).getTime() >= now.getTime())
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
+  const todayYmd = userDayYmd(now, tz);
+  const overdue = ctx.openTasks
+    .filter((t) => t.due_date && userDayYmd(new Date(t.due_date), tz) < todayYmd)
+    .sort((a, b) => {
+      const priorityScore = (p: string) => p === 'high' ? 0 : p === 'medium' ? 1 : 2;
+      return priorityScore(a.priority) - priorityScore(b.priority);
+    })[0];
+  const dueToday = ctx.openTasks.find((t) => t.due_date && userDayYmd(new Date(t.due_date), tz) === todayYmd);
+
+  const text = buildBestNextActionMessage({
+    pendingCount: pendingCount ?? 0,
+    workspaceId,
+    nextEvent,
+    overdue,
+    dueToday,
+    now,
+    timezone: tz,
+  });
+
+  await sendDoriReply({ chatId, text, preferVoice, telegramKey: tgKey });
+}
+
+async function sendMemorySnapshot(
+  supabase: SupabaseClient,
+  chatId: number,
+  userId: string,
+  tgKey: string,
+  preferVoice: boolean,
+  workspaceId: string | null,
+): Promise<void> {
+  let memoryQuery = supabase
+    .from('ai_memory')
+    .select('memory_type, category, key, value, confidence, source, updated_at')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .order('updated_at', { ascending: false });
+  memoryQuery = workspaceId
+    ? memoryQuery.eq('workspace_id', workspaceId)
+    : memoryQuery.is('workspace_id', null);
+
+  const [{ data: memories }, { data: prefs }] = await Promise.all([
+    memoryQuery.limit(8),
+    supabase
+      .from('dori_learned_preferences')
+      .select('key, value, confidence, times_seen, last_seen_at')
+      .eq('user_id', userId)
+      .order('confidence', { ascending: false })
+      .limit(8),
+  ]);
+
+  const memoryRows = (memories ?? []) as Array<{
+    memory_type?: string | null;
+    category?: string | null;
+    key?: string | null;
+    value?: string | null;
+  }>;
+  const prefRows = (prefs ?? []) as Array<{
+    key?: string | null;
+    value?: string | null;
+    confidence?: number | null;
+    times_seen?: number | null;
+  }>;
+
+  const text = buildMemorySnapshotMessage({ workspaceId, memoryRows, prefRows });
+  await sendDoriReply({ chatId, text, preferVoice, telegramKey: tgKey });
+}
+
+const PRIVATE_HELP_TEXT = `<b>🤖 Dori in Telegram</b>
+
+Talk naturally, send voice notes, forward messages, or upload photos/screenshots.
+
+<b>Core commands</b>
+/me — today at a glance
+/now — best next move (<code>/next</code>, <code>/whatnow</code>)
+/approvals — approve or cancel pending actions (<code>/pending</code>)
+/memory — what I remember + how to forget (<code>/memories</code>)
+/workspace list — switch personal/work context
+/focus on 2h — pause proactive nudges
+/undo — reverse the last undoable action
+
+Try: <code>plan my day</code>, <code>summarize unread emails</code>, <code>move dentist to Friday</code>, <code>remember I prefer meetings after 10</code>.`;
 
 // Download a Telegram file by id and return the raw bytes. Used by the
 // document-intake path which extracts text rather than passing the file
@@ -1084,7 +1298,7 @@ Deno.serve(async (req) => {
                 telegram_first_name: fromFirstName,
               }, { onConflict: 'telegram_user_id' });
             }
-            await sendMessage(chatId, `✅ <b>Linked successfully!</b>\n\nHi ${fromFirstName ?? 'there'}, I'm Dori — your personal assistant.`, TELEGRAM_API_KEY);
+            await sendMessage(chatId, `✅ <b>Linked successfully!</b>\n\nHi ${fromFirstName ?? 'there'}, I'm Dori — your personal assistant. Send /help for the Telegram command center.`, TELEGRAM_API_KEY);
           } else {
             await sendMessage(chatId, '❌ This link code is invalid or expired.', TELEGRAM_API_KEY);
           }
@@ -1542,6 +1756,57 @@ Deno.serve(async (req) => {
         }
       }
 
+      const activeWsForChat = await resolveActiveWorkspaceForChat(
+        supabase,
+        link.user_id,
+        (link as Record<string, unknown>).active_workspace_id as string | null,
+      );
+
+      // Compact Telegram control surface: keep common steering actions fast
+      // and deterministic instead of spending an AI round on command parsing.
+      if (isTelegramQuickCommand(text, 'help')) {
+        await sendDoriReply({
+          chatId,
+          text: PRIVATE_HELP_TEXT,
+          preferVoice: wasVoiceMessage,
+          telegramKey: TELEGRAM_API_KEY,
+        });
+        await markTelegramProcessed(supabase, u.update_id, chatId, text, u);
+        processed++;
+        continue;
+      }
+
+      if (isTelegramQuickCommand(text, 'approvals')) {
+        await sendApprovalInbox(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage);
+        await markTelegramProcessed(supabase, u.update_id, chatId, text, u);
+        processed++;
+        continue;
+      }
+
+      if (isTelegramQuickCommand(text, 'now')) {
+        try {
+          await sendBestNextAction(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage, activeWsForChat);
+        } catch (e) {
+          console.error('/now failed', e);
+          await sendMessage(chatId, '⚠️ Could not pick a next action. Try /me or ask “plan my day”.', TELEGRAM_API_KEY);
+        }
+        await markTelegramProcessed(supabase, u.update_id, chatId, text, u);
+        processed++;
+        continue;
+      }
+
+      if (isTelegramQuickCommand(text, 'memory')) {
+        try {
+          await sendMemorySnapshot(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage, activeWsForChat);
+        } catch (e) {
+          console.error('/memory failed', e);
+          await sendMessage(chatId, '⚠️ Could not load memory right now. Try again shortly.', TELEGRAM_API_KEY);
+        }
+        await markTelegramProcessed(supabase, u.update_id, chatId, text, u);
+        processed++;
+        continue;
+      }
+
       // /me — instant personal digest, no AI round-trip.
       if (text.trim().toLowerCase() === '/me') {
         try {
@@ -1684,20 +1949,6 @@ Deno.serve(async (req) => {
             },
           }
         : undefined;
-
-      // Respect the user's /workspace selection for this chat (default: Personal).
-      // Re-verify membership at read-time so a stale id from a workspace the
-      // user left can't leak data — if they're no longer a member, fall back
-      // to Personal and silently clear the stored id.
-      let activeWsForChat: string | null = (link as Record<string, unknown>).active_workspace_id as string | null || null;
-      if (activeWsForChat) {
-        const { data: mem } = await supabase.from('workspace_members')
-          .select('user_id').eq('workspace_id', activeWsForChat).eq('user_id', link.user_id).maybeSingle();
-        if (!mem) {
-          await supabase.from('telegram_links').update({ active_workspace_id: null }).eq('user_id', link.user_id);
-          activeWsForChat = null;
-        }
-      }
 
       const dori = await callDori(link.user_id, text, chatId, supabaseUrl, serviceKey, photoDataUrl, streamCbs, activeWsForChat);
       if (pendingEdit) { clearTimeout(pendingEdit); pendingEdit = null; }
