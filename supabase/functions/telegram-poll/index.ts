@@ -1503,7 +1503,16 @@ Deno.serve(async (req) => {
           await sendMessage(chatId, '❌ Invalid or expired family link code.', TELEGRAM_API_KEY);
           continue;
         }
-        await supabase.from('telegram_group_links').update({
+        // Release any stale link that already holds this chat_id. chat_id is
+        // UNIQUE, so a leftover row from a prior or cross-owner attempt would
+        // make the update below fail silently — leaving the group unlinked even
+        // though we'd post "Family group linked!" and every later message would
+        // route to telegram-router and come back "not linked".
+        await supabase.from('telegram_group_links')
+          .update({ chat_id: null, is_active: false })
+          .eq('chat_id', chatId)
+          .neq('id', glink.id);
+        const { error: linkErr } = await supabase.from('telegram_group_links').update({
           chat_id: chatId,
           title: msg.chat.title ?? 'Family Group',
           is_active: true,
@@ -1511,6 +1520,11 @@ Deno.serve(async (req) => {
           link_code: null,
           link_code_expires_at: null,
         }).eq('id', glink.id);
+        if (linkErr) {
+          console.error('[telegram-poll] /linkfamily bind failed', linkErr);
+          await sendMessage(chatId, '⚠️ Could not link this group. Regenerate a code in Settings → Telegram → Family Group and try /linkfamily again.', TELEGRAM_API_KEY);
+          continue;
+        }
         // Map the user who ran /linkfamily as the owner-side telegram identity
         if (fromId) {
           await supabase.from('telegram_user_map').upsert({
