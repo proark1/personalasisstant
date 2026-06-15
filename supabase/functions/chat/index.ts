@@ -1076,7 +1076,7 @@ interface MutatingTool {
   parse: (m: RegExpMatchArray) => { action: string; data: Record<string, unknown>; fullMatch: string } | null;
   // Given action + data return OpKind (or null to skip confirmation for that action).
   classify: (action: string, data: Record<string, unknown>) => OpKind | null;
-  summarize: (action: string, data: Record<string, unknown>) => string;
+  summarize: (action: string, data: Record<string, unknown>, tz?: string) => string;
   // Optional existence check run *before* a confirmation is queued. Lets a
   // tool that targets an existing record (update/delete by query) resolve the
   // target up front so the user is never asked to confirm an action that will
@@ -1142,7 +1142,10 @@ const MUTATING_TOOLS: MutatingTool[] = [
       return { action: 'create', data, fullMatch: m[0] };
     },
     classify: () => 'create',
-    summarize: (_a, d) => `Schedule event: ${d.title || '(untitled)'}${d.startTime ? ` at ${new Date(d.startTime).toLocaleString()}` : ''}${d.location ? ` (${d.location})` : ''}`,
+    summarize: (_a, d, tz) => {
+      const when = fmtEventWhen(d.startTime as string | null | undefined, tz);
+      return `Schedule event: ${d.title || '(untitled)'}${when ? ` at ${when}` : ''}${d.location ? ` (${d.location})` : ''}`;
+    },
   },
   {
     tool: 'manage_event', entity: 'event',
@@ -1152,7 +1155,7 @@ const MUTATING_TOOLS: MutatingTool[] = [
       return { action: m[1], data, fullMatch: m[0] };
     },
     classify: (action) => action === 'update' ? 'update' : action === 'delete' ? 'delete' : null,
-    summarize: (action, d) => {
+    summarize: (action, d, tz) => {
       const who = d.query || d.title || 'event';
       if (action === 'update') {
         // Spell out the actual change so the confirmation isn't just the name.
@@ -1160,7 +1163,7 @@ const MUTATING_TOOLS: MutatingTool[] = [
         // old→new summary; this is the fallback when we only have the request.)
         const bits: string[] = [];
         if (d.title) bits.push(`rename to "${d.title}"`);
-        const when = fmtEventWhen(d.startTime);
+        const when = fmtEventWhen(d.startTime as string | null | undefined, tz);
         if (when) bits.push(`move to ${when}`);
         if (d.location) bits.push(`location "${d.location}"`);
         return `Update event: ${who}${bits.length ? ` — ${bits.join(', ')}` : ''}`;
@@ -1566,7 +1569,7 @@ async function executeToolsServerSide(
         if (!op) continue;
         if (!requiresConfirmation(settings, spec.entity, op)) continue;
 
-        let summary = spec.summarize(parsed.action, parsed.data);
+        let summary = spec.summarize(parsed.action, parsed.data, opts?.timezone);
         // Resolve the target up front (if the tool supports it). If it can't be
         // found, tell the user now instead of queueing a confirmation that would
         // only fail with "could not find" *after* they tap Yes.
@@ -1580,6 +1583,42 @@ async function executeToolsServerSide(
           if (pf && pf.ok && pf.summary) summary = pf.summary;
         }
         const actionType = `${op}_${spec.entity}`;
+
+        // Idempotency guard. Re-processing the same request — e.g. a Telegram
+        // group replaying recent history into the agent on every new message —
+        // would otherwise queue the SAME confirmation again and again. Skip if
+        // an identical action is already awaiting the user's OK, or (for a new
+        // event) if it's already on their calendar.
+        const dedupeNowIso = new Date().toISOString();
+        const { data: dupePending } = await supabase.from('auto_actions_log')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('action_type', actionType)
+          .eq('reason', summary)
+          .eq('status', 'pending')
+          .or(`expires_at.is.null,expires_at.gt.${dedupeNowIso}`)
+          .limit(1);
+        if (dupePending && dupePending.length > 0) {
+          strippedText = strippedText.replace(parsed.fullMatch, '');
+          continue;
+        }
+        if (spec.tool === 'schedule_event' && parsed.data.title && parsed.data.startTime) {
+          const startD = new Date(parsed.data.startTime as string);
+          if (!isNaN(startD.getTime())) {
+            const { data: alreadyOnCal } = await supabase.from('events')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('start_time', startD.toISOString())
+              .ilike('title', String(parsed.data.title))
+              .limit(1);
+            if (alreadyOnCal && alreadyOnCal.length > 0) {
+              out.push({ tool: spec.tool, ok: false, message: `📅 Already on your calendar — skipped "${parsed.data.title}".` });
+              strippedText = strippedText.replace(parsed.fullMatch, '');
+              continue;
+            }
+          }
+        }
+
         try {
           const { data: inserted, error } = await supabase.from('auto_actions_log').insert({
             user_id: userId,
@@ -5505,6 +5544,14 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // narrows the model's mindset for this turn; stateBlock right
     // after so any "yes/do it" is resolved against the pending plan
     // before the model wades through context.
+    // When messages carry replayed history (Telegram surfaces prepend recent
+    // turns so "yes" / "what was it?" have context), older user turns can read
+    // like fresh instructions and make the model re-emit tools it already ran —
+    // producing duplicate confirmations for appointments the user already saw.
+    // Scope tool emission to the latest turn on those channels.
+    const replayGuardBlock = currentChannel !== 'web'
+      ? `\n\n## ACT ON THE LATEST MESSAGE ONLY\nEverything above the final user turn is conversation history, provided only for context. Emit tools ONLY in response to the user's most recent message. Do NOT re-create, re-schedule, or re-add reminders for anything that was requested in an earlier turn — it was already handled or is already awaiting the user's confirmation. If the latest message is small talk (e.g. "how are you", "thanks"), just reply conversationally and call no tools.`
+      : '';
     const dynamicTail =
       specialistBlock +
       stateBlock +
@@ -5512,7 +5559,8 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
       intelligenceBlock +
       contextMessage +
       liveContextBlock +
-      workspaceBlock;
+      workspaceBlock +
+      replayGuardBlock;
     const fullSystemPrompt = stablePrefix + dynamicTail;
 
     console.log("Chat request with enhanced context:", {
