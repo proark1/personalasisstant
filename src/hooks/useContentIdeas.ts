@@ -9,6 +9,14 @@ const db = supabase as unknown as { from: (table: string) => ReturnType<typeof s
 
 const WINDOW_DAYS = 30;
 
+function localDateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
 export function useContentIdeas() {
   const { user } = useAuth();
   const { language, t } = useLanguage();
@@ -18,7 +26,7 @@ export function useContentIdeas() {
 
   const fetchIdeas = useCallback(async () => {
     if (!user?.id) return;
-    const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString().split('T')[0];
+    const since = localDateKey(new Date(Date.now() - WINDOW_DAYS * 86_400_000));
     try {
       const { data, error } = await db
         .from('content_ideas')

@@ -1,19 +1,19 @@
 // content-ideas-cron — the daily Content Studio dispatcher.
 //
 // Pinged every 15 minutes by the Railway scheduler (cron/scheduler.mjs). For
-// each enabled creator profile we resolve the owner's local time and, when
-// their `deliver_at` falls in the current 15-minute window and we haven't
-// already generated today (last_generated_on), we generate the day's batch of
-// ideas, store them, and notify the chosen channels (push + Telegram) so the
-// creator wakes up to a fresh set of ideas. Mirrors the timezone-aware pattern
-// of briefing-dispatch-cron.
+// each enabled creator profile we resolve the owner's local time and, once
+// their `deliver_at` has passed and we haven't already generated today
+// (last_generated_on), we generate the day's batch of ideas, store them, and
+// notify the chosen channels (push + Telegram) so the creator wakes up to a
+// fresh set of ideas. The "after deliver_at" check lets the job recover if the
+// scheduler/runtime misses the exact 15-minute delivery window.
 //
 // Service-role only: manual "generate now" from the app uses `content-ideas`.
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from "../_shared/cors.ts";
 import { generateContentIdeas, type ContentIdea, type CreatorProfileLike, type IdeaSource } from "../_shared/contentIdeas.ts";
-import { recentHeadlines, persistDailyBatch } from "../_shared/contentPersist.ts";
+import { dateKeyInTimezone, recentHeadlines, persistDailyBatch, type ContentAdminClient } from "../_shared/contentPersist.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -62,9 +62,7 @@ function partsIn(now: Date, tz: string) {
   const minute = parseInt(
     new Intl.DateTimeFormat("en-GB", { timeZone: tz, minute: "2-digit" }).format(now), 10,
   );
-  const date = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(now);
+  const date = dateKeyInTimezone(now, tz);
   return { hour, minute, date };
 }
 
@@ -94,6 +92,20 @@ async function loadTimezoneMap(supabase: SupabaseClient, userIds: string[]): Pro
   return map;
 }
 
+function deliveryMinuteOfDay(deliverAt: string | null | undefined): number {
+  const [rawHour, rawMinute] = (deliverAt || "08:00").split(":");
+  const hour = parseInt(rawHour, 10);
+  const minute = parseInt(rawMinute, 10);
+  if (!Number.isFinite(hour) || hour < 0 || hour > 23) return 8 * 60;
+  if (!Number.isFinite(minute) || minute < 0 || minute > 59) return hour * 60;
+  return hour * 60 + minute;
+}
+
+function shouldGenerateToday(p: ProfileRow, parts: { hour: number; minute: number; date: string }): boolean {
+  if (p.last_generated_on === parts.date) return false;
+  return parts.hour * 60 + parts.minute >= deliveryMinuteOfDay(p.deliver_at);
+}
+
 async function tgSend(chatId: number, text: string): Promise<boolean> {
   if (!TELEGRAM_API_KEY) return false;
   try {
@@ -118,6 +130,11 @@ async function sendPush(userId: string, title: string, body: string): Promise<bo
       body: JSON.stringify({ user_ids: [userId], title, body, data: { type: "content_ideas" } }),
     });
     if (!res.ok) { console.error("sendPush failed", res.status, await res.text()); return false; }
+    const payload = await res.json().catch(() => ({}));
+    if (payload?.success === false || Number(payload?.sent ?? 0) < 1) {
+      console.error("sendPush reported no delivery", payload);
+      return false;
+    }
     return true;
   } catch (e) {
     console.error("sendPush threw", e);
@@ -177,6 +194,7 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const contentAdmin = supabase as unknown as ContentAdminClient;
 
   const { data, error } = await supabase.from("creator_profiles").select("*").eq("enabled", true);
   if (error) {
@@ -192,12 +210,7 @@ Deno.serve(async (req) => {
 
   // Decide who is due before doing any expensive LLM work.
   const due = profiles.filter((p) => {
-    const { hour, minute, date } = localParts(now, tzOf(p.user_id));
-    const [bh, bm] = (p.deliver_at || "08:00").split(":").map((n) => parseInt(n, 10));
-    if (bh !== hour) return false;
-    if (Math.floor(bm / 15) !== Math.floor(minute / 15)) return false;
-    if (p.last_generated_on === date) return false;
-    return true;
+    return shouldGenerateToday(p, localParts(now, tzOf(p.user_id)));
   });
 
   const dueIds = due.map((p) => p.user_id);
@@ -222,6 +235,18 @@ Deno.serve(async (req) => {
   async function dispatchOne(p: ProfileRow) {
     try {
       const { date } = localParts(now, tzOf(p.user_id));
+      const channels = Array.isArray(p.channels) ? p.channels : [];
+      const wantsTelegram = channels.includes("telegram");
+      const wantsPush = channels.includes("push");
+      const selectedDeliveryChannels = [wantsTelegram ? "telegram" : null, wantsPush ? "push" : null].filter(Boolean);
+      const chatId = chatMap.get(p.user_id);
+
+      if (selectedDeliveryChannels.length > 0 && !wantsPush && wantsTelegram && (!TELEGRAM_API_KEY || !chatId)) {
+        throw new Error(!TELEGRAM_API_KEY
+          ? "telegram channel selected but TELEGRAM_API_KEY is not configured"
+          : "telegram channel selected but no active Telegram chat link was found");
+      }
+
       const profileLike: CreatorProfileLike = {
         persona: p.persona,
         tone: p.tone,
@@ -231,7 +256,7 @@ Deno.serve(async (req) => {
         platforms: p.platforms,
         primary_language: p.primary_language,
       };
-      const avoid = await recentHeadlines(supabase, p.user_id, 7);
+      const avoid = await recentHeadlines(contentAdmin, p.user_id, 7);
       const ideas = await generateContentIdeas(profileLike, locMap.get(p.user_id), {
         count: p.ideas_per_day || 10,
         trendingRatio: p.trending_ratio ?? 0.5,
@@ -239,29 +264,55 @@ Deno.serve(async (req) => {
         language: p.primary_language,
         avoidHeadlines: avoid,
       });
-      await persistDailyBatch(supabase, p.user_id, ideas, date);
-      // Throw on failure: if we can't stamp last_generated_on, this user stays
-      // "due" and would be regenerated every tick (wasted quota + notify spam).
-      // dispatchOne runs inside a per-user catch, so this won't affect others.
+      await persistDailyBatch(contentAdmin, p.user_id, ideas, date);
+
+      const deliveredChannels: string[] = [];
+      const deliveryErrors: string[] = [];
+      if (wantsTelegram) {
+        if (!TELEGRAM_API_KEY) {
+          deliveryErrors.push("telegram: TELEGRAM_API_KEY is not configured");
+        } else if (!chatId) {
+          deliveryErrors.push("telegram: no active Telegram chat link was found");
+        } else {
+          const messages = buildTelegramMessages(ideas);
+          // Sequential on purpose: keeps the ideas in order in the chat.
+          let telegramOk = true;
+          for (let i = 0; i < messages.length; i++) {
+            const ok = await tgSend(chatId, messages[i]);
+            if (!ok) {
+              telegramOk = false;
+              deliveryErrors.push(`telegram: failed at message ${i + 1}/${messages.length}`);
+              break;
+            }
+          }
+          if (telegramOk) deliveredChannels.push("telegram");
+        }
+      }
+      if (wantsPush) {
+        const ok = await sendPush(p.user_id, "💡 Today's content ideas", buildPushBody(ideas));
+        if (ok) deliveredChannels.push("push");
+        else deliveryErrors.push("push: in-app notification delivery failed");
+      }
+      if (selectedDeliveryChannels.length > 0 && deliveredChannels.length === 0) {
+        throw new Error(`no selected delivery channel succeeded (${deliveryErrors.join("; ")})`);
+      }
+
+      // Stamp after at least one selected notification channel succeeds. If no
+      // selected channel delivers, the user remains eligible for a later retry
+      // instead of silently losing the day's suggestions.
       const { error: stampErr } = await supabase.from("creator_profiles")
         .update({ last_generated_on: date, updated_at: new Date().toISOString() })
         .eq("user_id", p.user_id);
       if (stampErr) throw new Error(stampErr.message);
 
-      const channels = p.channels || [];
-      if (channels.includes("telegram")) {
-        const chatId = chatMap.get(p.user_id);
-        if (chatId) {
-          // Sequential on purpose: keeps the ideas in order in the chat.
-          for (const msg of buildTelegramMessages(ideas)) {
-            await tgSend(chatId, msg);
-          }
-        }
-      }
-      if (channels.includes("push")) {
-        await sendPush(p.user_id, "💡 Today's content ideas", buildPushBody(ideas));
-      }
       sent++;
+      console.log("content-ideas dispatched", {
+        user_id: p.user_id,
+        generated_on: date,
+        channels: deliveredChannels,
+        warnings: deliveryErrors,
+        ideas: ideas.length,
+      });
     } catch (e) {
       failed++;
       errors.push(`${p.user_id}: ${e instanceof Error ? e.message : String(e)}`);

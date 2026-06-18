@@ -10,10 +10,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { resolveUserId, adminClient } from "../_shared/auth.ts";
-import { assertWithinQuota } from "../_shared/ai-quota.ts";
+import { assertWithinQuota, type SupabaseQuotaClient } from "../_shared/ai-quota.ts";
 import { strictAppOrigin } from "../_shared/cors.ts";
 import { generateContentIdeas, type CreatorProfileLike } from "../_shared/contentIdeas.ts";
-import { recentHeadlines, persistDailyBatch } from "../_shared/contentPersist.ts";
+import { dateKeyInTimezone, recentHeadlines, persistDailyBatch, type ContentAdminClient } from "../_shared/contentPersist.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -36,6 +36,7 @@ serve(async (req) => {
     if (!auth) return json({ error: "Unauthorized" }, 401);
     const userId = auth.userId;
     const admin = adminClient();
+    const contentAdmin = admin as unknown as ContentAdminClient;
 
     if (!Deno.env.get("GEMINI_API_KEY")) return json({ error: "GEMINI_API_KEY not configured" }, 503);
 
@@ -49,11 +50,18 @@ serve(async (req) => {
       .eq("user_id", userId)
       .maybeSingle();
 
-    const { data: baseProfile } = await admin
-      .from("profiles")
-      .select("bio, interests, businesses, location_city, location_country")
-      .eq("user_id", userId)
-      .maybeSingle();
+    const [{ data: baseProfile }, { data: locationSettings }] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("bio, interests, businesses, location_city, location_country, timezone")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      admin
+        .from("user_location_settings")
+        .select("timezone")
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
 
     const profileLike: CreatorProfileLike = profile
       ? {
@@ -89,13 +97,13 @@ serve(async (req) => {
     };
 
     try {
-      await assertWithinQuota(admin, userId);
+      await assertWithinQuota(admin as unknown as SupabaseQuotaClient, userId);
     } catch (e) {
       const code = (e as { code?: string })?.code;
       return json({ error: (e as Error).message, code }, code === "quota_exceeded" ? 429 : 503);
     }
 
-    const avoid = await recentHeadlines(admin, userId, 7);
+    const avoid = await recentHeadlines(contentAdmin, userId, 7);
     const ideas = await generateContentIdeas(profileLike, location, {
       count,
       trendingRatio: ratio,
@@ -104,8 +112,9 @@ serve(async (req) => {
       avoidHeadlines: avoid,
     });
 
-    const today = new Date().toISOString().split("T")[0];
-    const inserted = await persistDailyBatch(admin, userId, ideas, today);
+    const timezone = locationSettings?.timezone || baseProfile?.timezone || "UTC";
+    const today = dateKeyInTimezone(new Date(), timezone);
+    const inserted = await persistDailyBatch(contentAdmin, userId, ideas, today);
 
     if (profile) {
       // Non-fatal: the ideas are already saved and returned below, so a failure

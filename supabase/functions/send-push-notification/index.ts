@@ -66,28 +66,19 @@ serve(async (req) => {
 
     if (tokensError) {
       console.error('Error fetching push tokens:', tokensError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch push tokens' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
-    if (!tokens || tokens.length === 0) {
-      console.log('No push tokens found for users');
-      return new Response(
-        JSON.stringify({ message: 'No push tokens registered for specified users', sent: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Found ${tokens.length} push tokens`);
+    const pushTokens = tokens || [];
+    console.log(`Found ${pushTokens.length} push tokens`);
 
     // Group tokens by platform
-    const iosTokens = tokens.filter(t => t.platform === 'ios').map(t => t.token);
-    const androidTokens = tokens.filter(t => t.platform === 'android').map(t => t.token);
+    const iosTokens = pushTokens.filter(t => t.platform === 'ios').map(t => t.token);
+    const androidTokens = pushTokens.filter(t => t.platform === 'android').map(t => t.token);
 
     let sentCount = 0;
     const errors: string[] = [];
+    const warnings: string[] = [];
+    if (tokensError) warnings.push('Failed to fetch native push tokens');
 
     // For iOS - Use APNs (would need APNs certificate configured)
     // For Android - Use FCM
@@ -131,9 +122,10 @@ serve(async (req) => {
         native_push_sent: 0,
         in_app_created: sentCount,
         sent: sentCount,
-        tokens_found: tokens.length,
+        tokens_found: pushTokens.length,
         ios_tokens: iosTokens.length,
         android_tokens: androidTokens.length,
+        warnings: warnings.length > 0 ? warnings : undefined,
         errors: errors.length > 0 ? errors : undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
