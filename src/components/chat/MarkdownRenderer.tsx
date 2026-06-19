@@ -1,5 +1,5 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { cn } from "@/lib/utils";
 
 interface MarkdownRendererProps {
   content: string;
@@ -11,23 +11,26 @@ interface MarkdownRendererProps {
  * Supports: **bold**, *italic*, `code`, [links](url), bullet/numbered lists, and citation links.
  */
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   const elements: React.ReactNode[] = [];
-  let listBuffer: { type: 'ul' | 'ol'; items: React.ReactNode[] } | null = null;
+  let listBuffer: { type: "ul" | "ol"; items: React.ReactNode[] } | null = null;
   let keyIdx = 0;
 
   const flushList = () => {
     if (!listBuffer) return;
-    const Tag = listBuffer.type === 'ul' ? 'ul' : 'ol';
-    const listClass = listBuffer.type === 'ul'
-      ? 'list-disc list-inside space-y-0.5 my-1'
-      : 'list-decimal list-inside space-y-0.5 my-1';
+    const Tag = listBuffer.type === "ul" ? "ul" : "ol";
+    const listClass =
+      listBuffer.type === "ul"
+        ? "list-disc list-inside space-y-0.5 my-1"
+        : "list-decimal list-inside space-y-0.5 my-1";
     elements.push(
       <Tag key={`list-${keyIdx++}`} className={listClass}>
         {listBuffer.items.map((item, i) => (
-          <li key={i} className="text-sm leading-relaxed">{item}</li>
+          <li key={i} className="text-sm leading-relaxed">
+            {item}
+          </li>
         ))}
-      </Tag>
+      </Tag>,
     );
     listBuffer = null;
   };
@@ -38,9 +41,9 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     // Bullet list: - or • or *
     const bulletMatch = line.match(/^[\s]*[-•*]\s+(.*)/);
     if (bulletMatch) {
-      if (!listBuffer || listBuffer.type !== 'ul') {
+      if (!listBuffer || listBuffer.type !== "ul") {
         flushList();
-        listBuffer = { type: 'ul', items: [] };
+        listBuffer = { type: "ul", items: [] };
       }
       listBuffer.items.push(renderInline(bulletMatch[1]));
       continue;
@@ -49,9 +52,9 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     // Numbered list: 1. or 1)
     const numMatch = line.match(/^[\s]*(\d+)[.)]\s+(.*)/);
     if (numMatch) {
-      if (!listBuffer || listBuffer.type !== 'ol') {
+      if (!listBuffer || listBuffer.type !== "ol") {
         flushList();
-        listBuffer = { type: 'ol', items: [] };
+        listBuffer = { type: "ol", items: [] };
       }
       listBuffer.items.push(renderInline(numMatch[2]));
       continue;
@@ -65,18 +68,23 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     if (headingMatch) {
       const level = headingMatch[1].length;
       const text = headingMatch[2];
-      const Tag = level === 1 ? 'h3' : level === 2 ? 'h4' : 'h5';
-      const sizeClass = level === 1 ? 'text-base font-bold' : level === 2 ? 'text-sm font-semibold' : 'text-sm font-medium';
+      const Tag = level === 1 ? "h3" : level === 2 ? "h4" : "h5";
+      const sizeClass =
+        level === 1
+          ? "text-base font-bold"
+          : level === 2
+            ? "text-sm font-semibold"
+            : "text-sm font-medium";
       elements.push(
-        <Tag key={`h-${keyIdx++}`} className={cn(sizeClass, 'mt-2 mb-1')}>
+        <Tag key={`h-${keyIdx++}`} className={cn(sizeClass, "mt-2 mb-1")}>
           {renderInline(text)}
-        </Tag>
+        </Tag>,
       );
       continue;
     }
 
     // Empty line
-    if (line.trim() === '') {
+    if (line.trim() === "") {
       elements.push(<div key={`br-${keyIdx++}`} className="h-1" />);
       continue;
     }
@@ -85,13 +93,13 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     elements.push(
       <p key={`p-${keyIdx++}`} className="text-sm leading-relaxed">
         {renderInline(line)}
-      </p>
+      </p>,
     );
   }
 
   flushList();
 
-  return <div className={cn('space-y-0.5', className)}>{elements}</div>;
+  return <div className={cn("space-y-0.5", className)}>{elements}</div>;
 }
 
 /** Render inline formatting: **bold**, *italic*, `code`, [link](url), citation [1] */
@@ -112,7 +120,11 @@ function renderInline(text: string): React.ReactNode {
 
     if (match[1]) {
       // **bold**
-      parts.push(<strong key={`b-${partKey++}`} className="font-semibold">{match[2]}</strong>);
+      parts.push(
+        <strong key={`b-${partKey++}`} className="font-semibold">
+          {match[2]}
+        </strong>,
+      );
     } else if (match[3]) {
       // *italic*
       parts.push(<em key={`i-${partKey++}`}>{match[4]}</em>);
@@ -121,7 +133,7 @@ function renderInline(text: string): React.ReactNode {
       parts.push(
         <code key={`c-${partKey++}`} className="px-1 py-0.5 rounded bg-muted text-xs font-mono">
           {match[6]}
-        </code>
+        </code>,
       );
     } else if (match[7]) {
       // [text](url)
@@ -134,7 +146,7 @@ function renderInline(text: string): React.ReactNode {
           className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
         >
           {match[8]}
-        </a>
+        </a>,
       );
     }
 

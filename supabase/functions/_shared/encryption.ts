@@ -10,42 +10,35 @@
 //   - The format is intentionally simple so re-implementing the
 //     decrypt path in another language stays straightforward.
 
-const SECRET_NAME = 'BANK_TOKEN_SECRET';
+const SECRET_NAME = "BANK_TOKEN_SECRET";
 
 let _keyPromise: Promise<CryptoKey> | null = null;
 
 function getKey(): Promise<CryptoKey> {
   if (_keyPromise) return _keyPromise;
   _keyPromise = (async () => {
-    const hex = Deno.env.get(SECRET_NAME) || '';
+    const hex = Deno.env.get(SECRET_NAME) || "";
     if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
       throw new Error(
         `${SECRET_NAME} must be a 64-character hex string (32 bytes). ` +
-        `Generate one with: openssl rand -hex 32`,
+          `Generate one with: openssl rand -hex 32`,
       );
     }
     const raw = new Uint8Array(hex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
-    return await crypto.subtle.importKey(
-      'raw',
-      raw,
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt', 'decrypt'],
-    );
+    return await crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, [
+      "encrypt",
+      "decrypt",
+    ]);
   })();
   return _keyPromise;
 }
 
 export async function encryptToken(plaintext: string): Promise<string> {
-  if (!plaintext) throw new Error('encryptToken: empty input');
+  if (!plaintext) throw new Error("encryptToken: empty input");
   const key = await getKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const enc = new TextEncoder().encode(plaintext);
-  const ct = new Uint8Array(await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    enc,
-  ));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc));
   // Concat iv || ct(+tag) and base64-encode.
   const out = new Uint8Array(iv.length + ct.length);
   out.set(iv, 0);
@@ -54,26 +47,22 @@ export async function encryptToken(plaintext: string): Promise<string> {
 }
 
 export async function decryptToken(b64: string): Promise<string> {
-  if (!b64) throw new Error('decryptToken: empty input');
+  if (!b64) throw new Error("decryptToken: empty input");
   const key = await getKey();
   const buf = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   if (buf.length < 28) {
-    throw new Error('decryptToken: ciphertext too short');
+    throw new Error("decryptToken: ciphertext too short");
   }
   const iv = buf.slice(0, 12);
   const ct = buf.slice(12);
-  const pt = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    ct,
-  );
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
   return new TextDecoder().decode(pt);
 }
 
 // Is a valid encryption key configured? Used by the opportunistic helpers below
 // so callers don't have to crash when BANK_TOKEN_SECRET is unset.
 export function tokenEncryptionAvailable(): boolean {
-  return /^[0-9a-fA-F]{64}$/.test(Deno.env.get(SECRET_NAME) || '');
+  return /^[0-9a-fA-F]{64}$/.test(Deno.env.get(SECRET_NAME) || "");
 }
 
 // Encrypt at-rest if a key is configured; otherwise return the value unchanged.

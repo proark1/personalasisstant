@@ -1,23 +1,32 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useFamilyBudget } from '@/hooks/useFamilyBudget';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
-import { AddExpenseDialog } from './AddExpenseDialog';
-import { Plus, Trash2, TrendingUp, TrendingDown, DollarSign, PieChart } from 'lucide-react';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useFamilyBudget } from "@/hooks/useFamilyBudget";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
+import { AddExpenseDialog } from "./AddExpenseDialog";
+import { Plus, Trash2, TrendingUp, TrendingDown, DollarSign, PieChart } from "lucide-react";
+import { format } from "date-fns";
 
 export function BudgetTrackingPanel() {
-  const { categories, expenses, isLoading, deleteExpense, updateCategoryLimit, getMonthlySpending, getSpendingByCategory, getTotalBudget } = useFamilyBudget();
+  const {
+    categories,
+    expenses,
+    isLoading,
+    deleteExpense,
+    updateCategoryLimit,
+    getMonthlySpending,
+    getSpendingByCategory,
+    getTotalBudget,
+  } = useFamilyBudget();
   const { members: familyMembers } = useFamilyMembers();
-  
+
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [editingLimit, setEditingLimit] = useState<string | null>(null);
-  const [limitValue, setLimitValue] = useState('');
+  const [limitValue, setLimitValue] = useState("");
 
   const monthlySpending = getMonthlySpending();
   const totalBudget = getTotalBudget();
@@ -30,7 +39,7 @@ export function BudgetTrackingPanel() {
       await updateCategoryLimit(categoryId, limit);
     }
     setEditingLimit(null);
-    setLimitValue('');
+    setLimitValue("");
   };
 
   if (isLoading) {
@@ -76,7 +85,9 @@ export function BudgetTrackingPanel() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-full ${budgetProgress > 100 ? 'bg-destructive/10' : 'bg-green-500/10'}`}>
+              <div
+                className={`p-3 rounded-full ${budgetProgress > 100 ? "bg-destructive/10" : "bg-green-500/10"}`}
+              >
                 {budgetProgress > 100 ? (
                   <TrendingUp className="h-6 w-6 text-destructive" />
                 ) : (
@@ -85,7 +96,9 @@ export function BudgetTrackingPanel() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Remaining</p>
-                <p className={`text-2xl font-bold ${totalBudget - monthlySpending < 0 ? 'text-destructive' : ''}`}>
+                <p
+                  className={`text-2xl font-bold ${totalBudget - monthlySpending < 0 ? "text-destructive" : ""}`}
+                >
                   ${(totalBudget - monthlySpending).toFixed(2)}
                 </p>
               </div>
@@ -106,13 +119,17 @@ export function BudgetTrackingPanel() {
                 <span className="text-muted-foreground">
                   ${monthlySpending.toFixed(2)} of ${totalBudget.toFixed(2)}
                 </span>
-                <span className={budgetProgress > 100 ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                <span
+                  className={
+                    budgetProgress > 100 ? "text-destructive font-medium" : "text-muted-foreground"
+                  }
+                >
                   {budgetProgress.toFixed(0)}%
                 </span>
               </div>
-              <Progress 
-                value={Math.min(budgetProgress, 100)} 
-                className={`h-3 ${budgetProgress > 100 ? '[&>div]:bg-destructive' : ''}`}
+              <Progress
+                value={Math.min(budgetProgress, 100)}
+                className={`h-3 ${budgetProgress > 100 ? "[&>div]:bg-destructive" : ""}`}
               />
             </div>
           </CardContent>
@@ -126,7 +143,7 @@ export function BudgetTrackingPanel() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {categories.map(category => {
+            {categories.map((category) => {
               const spent = spendingByCategory[category.id] || 0;
               const limit = Number(category.monthly_limit);
               const progress = limit > 0 ? (spent / limit) * 100 : 0;
@@ -139,9 +156,7 @@ export function BudgetTrackingPanel() {
                       <span className="font-medium">{category.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        ${spent.toFixed(2)}
-                      </span>
+                      <span className="text-sm text-muted-foreground">${spent.toFixed(2)}</span>
                       {editingLimit === category.id ? (
                         <div className="flex items-center gap-1">
                           <Input
@@ -151,9 +166,14 @@ export function BudgetTrackingPanel() {
                             className="w-20 h-7 text-sm"
                             placeholder="0"
                             autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && handleSaveLimit(category.id)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSaveLimit(category.id)}
                           />
-                          <Button size="sm" variant="ghost" className="h-7" onClick={() => handleSaveLimit(category.id)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7"
+                            onClick={() => handleSaveLimit(category.id)}
+                          >
                             Save
                           </Button>
                         </div>
@@ -173,10 +193,10 @@ export function BudgetTrackingPanel() {
                     </div>
                   </div>
                   {limit > 0 && (
-                    <Progress 
-                      value={Math.min(progress, 100)} 
-                      className={`h-2 ${progress > 100 ? '[&>div]:bg-destructive' : ''}`}
-                      style={{ '--progress-color': category.color } as React.CSSProperties}
+                    <Progress
+                      value={Math.min(progress, 100)}
+                      className={`h-2 ${progress > 100 ? "[&>div]:bg-destructive" : ""}`}
+                      style={{ "--progress-color": category.color } as React.CSSProperties}
                     />
                   )}
                 </div>
@@ -203,19 +223,21 @@ export function BudgetTrackingPanel() {
           ) : (
             <ScrollArea className="h-[300px]">
               <div className="space-y-3">
-                {expenses.map(expense => {
-                  const member = familyMembers.find(m => m.id === expense.family_member_id);
+                {expenses.map((expense) => {
+                  const member = familyMembers.find((m) => m.id === expense.family_member_id);
                   return (
                     <div
                       key={expense.id}
                       className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xl">{expense.category?.icon || '📦'}</span>
+                        <span className="text-xl">{expense.category?.icon || "📦"}</span>
                         <div>
-                          <p className="font-medium">{expense.description || expense.category?.name || 'Expense'}</p>
+                          <p className="font-medium">
+                            {expense.description || expense.category?.name || "Expense"}
+                          </p>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{format(new Date(expense.expense_date), 'MMM d')}</span>
+                            <span>{format(new Date(expense.expense_date), "MMM d")}</span>
                             {member && (
                               <>
                                 <span>•</span>
@@ -226,7 +248,13 @@ export function BudgetTrackingPanel() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" style={{ backgroundColor: expense.category?.color + '20', color: expense.category?.color }}>
+                        <Badge
+                          variant="secondary"
+                          style={{
+                            backgroundColor: expense.category?.color + "20",
+                            color: expense.category?.color,
+                          }}
+                        >
                           ${Number(expense.amount).toFixed(2)}
                         </Badge>
                         <Button

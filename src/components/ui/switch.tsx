@@ -9,15 +9,15 @@ const Switch = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
 >(({ className, onCheckedChange, ...props }, ref) => {
   const { vibrate } = useHaptics();
-  
+
   const handleCheckedChange = React.useCallback(
     (checked: boolean) => {
       vibrate("medium");
       onCheckedChange?.(checked);
     },
-    [vibrate, onCheckedChange]
+    [vibrate, onCheckedChange],
   );
-  
+
   return (
     <SwitchPrimitives.Root
       className={cn(

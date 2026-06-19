@@ -1,15 +1,28 @@
-import { useState, useRef, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { ChatMessage } from '@/types/flux';
-import { Contact } from '@/hooks/useContacts';
-import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
-import { findRelevantContacts, ContactSuggestion } from '@/lib/contactSuggestions';
-import { Send, Sparkles, User, Bot, Search, Mic, MicOff, Maximize2, Minimize2, Users, X, AudioLines } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { format } from 'date-fns';
+import { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { ChatMessage } from "@/types/flux";
+import { Contact } from "@/hooks/useContacts";
+import { useVoiceRecognition } from "@/hooks/useVoiceRecognition";
+import { findRelevantContacts, ContactSuggestion } from "@/lib/contactSuggestions";
+import {
+  Send,
+  Sparkles,
+  User,
+  Bot,
+  Search,
+  Mic,
+  MicOff,
+  Maximize2,
+  Minimize2,
+  Users,
+  X,
+  AudioLines,
+} from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { format } from "date-fns";
 
 const EMPTY_CONTACTS: Contact[] = [];
 
@@ -39,12 +52,12 @@ interface ChatPanelProps {
  */
 function buildOpenerSuggestions(stats?: ProactiveStats): string[] {
   const out: string[] = [];
-  if (stats?.overdueTasks && stats.overdueTasks > 0) out.push('Reschedule my overdue tasks');
+  if (stats?.overdueTasks && stats.overdueTasks > 0) out.push("Reschedule my overdue tasks");
   if (stats?.todayEvents && stats.todayEvents > 0) out.push("Prep me for today's meetings");
-  if (stats?.unreadEmails && stats.unreadEmails > 0) out.push('Summarize my unread emails');
-  if (stats?.pendingTasks && stats.pendingTasks > 0) out.push('What should I focus on next?');
+  if (stats?.unreadEmails && stats.unreadEmails > 0) out.push("Summarize my unread emails");
+  if (stats?.pendingTasks && stats.pendingTasks > 0) out.push("What should I focus on next?");
   // Always offer a couple of evergreen actions to round things out.
-  for (const s of ['Plan my day', 'Add a task']) {
+  for (const s of ["Plan my day", "Add a task"]) {
     if (out.length >= 4) break;
     if (!out.includes(s)) out.push(s);
   }
@@ -61,22 +74,17 @@ export function ChatPanel({
   contacts = EMPTY_CONTACTS,
   proactiveStats,
 }: ChatPanelProps) {
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [contactSuggestions, setContactSuggestions] = useState<ContactSuggestion[]>([]);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const lastFinalTranscriptRef = useRef<string>('');
+  const lastFinalTranscriptRef = useRef<string>("");
 
   // Voice recognition for text input
-  const {
-    isListening,
-    isSupported,
-    transcript,
-    startListening,
-    stopListening,
-  } = useVoiceRecognition({
-    continuous: false,
-  });
+  const { isListening, isSupported, transcript, startListening, stopListening } =
+    useVoiceRecognition({
+      continuous: false,
+    });
 
   // Handle final transcripts from voice recognition (avoid loops on iOS)
   useEffect(() => {
@@ -86,18 +94,18 @@ export function ChatPanel({
     if (lastFinalTranscriptRef.current === transcript) return;
     lastFinalTranscriptRef.current = transcript;
 
-    setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+    setInput((prev) => prev + (prev ? " " : "") + transcript);
   }, [transcript, isListening]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isProcessing) {
       onSendMessage(input.trim());
-      setInput('');
+      setInput("");
       setContactSuggestions([]);
       setDismissedSuggestions(false);
     }
@@ -117,7 +125,7 @@ export function ChatPanel({
     if (isListening) {
       stopListening();
     } else {
-      lastFinalTranscriptRef.current = '';
+      lastFinalTranscriptRef.current = "";
       startListening();
     }
   };
@@ -141,11 +149,7 @@ export function ChatPanel({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="voice_mode"
-                    size="iconSm"
-                    onClick={onVoiceMode}
-                  >
+                  <Button variant="voice_mode" size="iconSm" onClick={onVoiceMode}>
                     <AudioLines className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
@@ -154,12 +158,7 @@ export function ChatPanel({
             </TooltipProvider>
           )}
           {onToggleFullscreen && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onToggleFullscreen}
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleFullscreen}>
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </Button>
           )}
@@ -203,10 +202,10 @@ export function ChatPanel({
               key={message.id}
               className={cn(
                 "flex gap-3 animate-fade-in",
-                message.role === 'user' ? 'justify-end' : 'justify-start'
+                message.role === "user" ? "justify-end" : "justify-start",
               )}
             >
-              {message.role === 'assistant' && (
+              {message.role === "assistant" && (
                 <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
                   <Bot className="w-4 h-4 text-primary" />
                 </div>
@@ -214,9 +213,7 @@ export function ChatPanel({
               <div
                 className={cn(
                   "max-w-[80%] rounded-xl px-4 py-3",
-                  message.role === 'user' 
-                    ? "bg-primary text-primary-foreground" 
-                    : "glass-panel"
+                  message.role === "user" ? "bg-primary text-primary-foreground" : "glass-panel",
                 )}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -233,10 +230,10 @@ export function ChatPanel({
                   </div>
                 )}
                 <span className="text-[10px] text-muted-foreground mt-1 block">
-                  {format(message.timestamp, 'HH:mm')}
+                  {format(message.timestamp, "HH:mm")}
                 </span>
               </div>
-              {message.role === 'user' && (
+              {message.role === "user" && (
                 <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                   <User className="w-4 h-4 text-muted-foreground" />
                 </div>
@@ -251,9 +248,18 @@ export function ChatPanel({
             </div>
             <div className="glass-panel rounded-xl px-4 py-3">
               <div className="flex gap-1" aria-hidden="true">
-                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span
+                  className="w-2 h-2 rounded-full bg-primary animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                />
+                <span
+                  className="w-2 h-2 rounded-full bg-primary animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                />
+                <span
+                  className="w-2 h-2 rounded-full bg-primary animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                />
               </div>
             </div>
           </div>
@@ -269,9 +275,9 @@ export function ChatPanel({
               <Users className="w-3 h-3" />
               <span>Relevant contacts</span>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="h-5 w-5"
               onClick={() => {
                 setContactSuggestions([]);
@@ -283,7 +289,7 @@ export function ChatPanel({
           </div>
           <div className="flex flex-wrap gap-2">
             {contactSuggestions.map((suggestion) => (
-              <div 
+              <div
                 key={suggestion.contact.id}
                 className="flex items-center gap-2 px-2 py-1 rounded-md bg-background border text-xs"
               >
@@ -318,8 +324,8 @@ export function ChatPanel({
             disabled={isProcessing || isListening}
           />
           {isSupported && (
-            <Button 
-              type="button" 
+            <Button
+              type="button"
               variant={isListening ? "default" : "outline"}
               size="icon"
               className={cn("shrink-0", isListening && "animate-pulse bg-primary")}
@@ -328,7 +334,12 @@ export function ChatPanel({
               {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </Button>
           )}
-          <Button type="submit" size="icon" className="shrink-0" disabled={!input.trim() || isProcessing}>
+          <Button
+            type="submit"
+            size="icon"
+            className="shrink-0"
+            disabled={!input.trim() || isProcessing}
+          >
             <Send className="w-4 h-4" />
           </Button>
         </div>

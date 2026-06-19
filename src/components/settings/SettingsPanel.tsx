@@ -1,57 +1,54 @@
-import { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { UserSettings, ColorScheme, TaskCategory, TaskPriority } from '@/types/flux';
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
-  Settings,
-  X,
-  Palette,
-  Bell,
-  ListTodo,
-  Sun,
-  Moon,
-  Check,
-  Users,
-  Brain,
-} from 'lucide-react';
-import { SpaceMembersPanel } from './SpaceMembersPanel';
-import { MemoryDashboard } from '@/components/memory/MemoryDashboard';
-import { useAuth } from '@/hooks/useAuth';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { UserSettings, ColorScheme, TaskCategory, TaskPriority } from "@/types/flux";
+import { Settings, X, Palette, Bell, ListTodo, Sun, Moon, Check, Users, Brain } from "lucide-react";
+import { SpaceMembersPanel } from "./SpaceMembersPanel";
+import { MemoryDashboard } from "@/components/memory/MemoryDashboard";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SettingsPanelProps {
   settings: UserSettings;
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
-  onUpdateNotifications: (updates: Partial<UserSettings['notifications']>) => void;
+  onUpdateNotifications: (updates: Partial<UserSettings["notifications"]>) => void;
   onClose: () => void;
 }
 
 const colorSchemes: { value: ColorScheme; label: string; color: string }[] = [
-  { value: 'emerald', label: 'Emerald', color: 'bg-emerald-500' },
-  { value: 'cyan', label: 'Electric Cyan', color: 'bg-cyan-500' },
-  { value: 'purple', label: 'Violet', color: 'bg-purple-500' },
-  { value: 'green', label: 'Green', color: 'bg-green-500' },
-  { value: 'orange', label: 'Sunset', color: 'bg-orange-500' },
-  { value: 'pink', label: 'Rose', color: 'bg-pink-500' },
+  { value: "emerald", label: "Emerald", color: "bg-emerald-500" },
+  { value: "cyan", label: "Electric Cyan", color: "bg-cyan-500" },
+  { value: "purple", label: "Violet", color: "bg-purple-500" },
+  { value: "green", label: "Green", color: "bg-green-500" },
+  { value: "orange", label: "Sunset", color: "bg-orange-500" },
+  { value: "pink", label: "Rose", color: "bg-pink-500" },
 ];
 
-export function SettingsPanel({ 
-  settings, 
-  onUpdateSettings, 
-  onUpdateNotifications, 
-  onClose 
+export function SettingsPanel({
+  settings,
+  onUpdateSettings,
+  onUpdateNotifications,
+  onClose,
 }: SettingsPanelProps) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'appearance' | 'notifications' | 'defaults' | 'team' | 'memory'>('appearance');
+  const [activeTab, setActiveTab] = useState<
+    "appearance" | "notifications" | "defaults" | "team" | "memory"
+  >("appearance");
 
   const tabs = [
-    { id: 'appearance' as const, label: 'Appearance', icon: Palette },
-    { id: 'notifications' as const, label: 'Notifications', icon: Bell },
-    { id: 'defaults' as const, label: 'Defaults', icon: ListTodo },
-    { id: 'team' as const, label: 'Team', icon: Users },
-    { id: 'memory' as const, label: 'Memory', icon: Brain },
+    { id: "appearance" as const, label: "Appearance", icon: Palette },
+    { id: "notifications" as const, label: "Notifications", icon: Bell },
+    { id: "defaults" as const, label: "Defaults", icon: ListTodo },
+    { id: "team" as const, label: "Team", icon: Users },
+    { id: "memory" as const, label: "Memory", icon: Brain },
   ];
 
   return (
@@ -76,9 +73,9 @@ export function SettingsPanel({
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 py-3 text-sm transition-colors",
-                activeTab === tab.id 
-                  ? "text-primary border-b-2 border-primary -mb-px" 
-                  : "text-muted-foreground hover:text-foreground"
+                activeTab === tab.id
+                  ? "text-primary border-b-2 border-primary -mb-px"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <tab.icon className="w-4 h-4" />
@@ -89,24 +86,24 @@ export function SettingsPanel({
 
         {/* Content */}
         <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
-          {activeTab === 'appearance' && (
+          {activeTab === "appearance" && (
             <>
               {/* Theme Toggle */}
               <div className="space-y-3">
                 <label className="text-sm font-medium">Theme</label>
                 <div className="flex gap-3">
                   <Button
-                    variant={settings.theme === 'dark' ? 'secondary' : 'outline'}
+                    variant={settings.theme === "dark" ? "secondary" : "outline"}
                     className="flex-1 gap-2"
-                    onClick={() => onUpdateSettings({ theme: 'dark' })}
+                    onClick={() => onUpdateSettings({ theme: "dark" })}
                   >
                     <Moon className="w-4 h-4" />
                     Dark
                   </Button>
                   <Button
-                    variant={settings.theme === 'light' ? 'secondary' : 'outline'}
+                    variant={settings.theme === "light" ? "secondary" : "outline"}
                     className="flex-1 gap-2"
-                    onClick={() => onUpdateSettings({ theme: 'light' })}
+                    onClick={() => onUpdateSettings({ theme: "light" })}
                   >
                     <Sun className="w-4 h-4" />
                     Light
@@ -125,7 +122,8 @@ export function SettingsPanel({
                       className={cn(
                         "aspect-square rounded-lg flex items-center justify-center transition-transform hover:scale-110",
                         scheme.color,
-                        settings.colorScheme === scheme.value && "ring-2 ring-offset-2 ring-offset-background ring-foreground"
+                        settings.colorScheme === scheme.value &&
+                          "ring-2 ring-offset-2 ring-offset-background ring-foreground",
                       )}
                       title={scheme.label}
                     >
@@ -139,13 +137,15 @@ export function SettingsPanel({
             </>
           )}
 
-          {activeTab === 'notifications' && (
+          {activeTab === "notifications" && (
             <>
               {/* Task Reminders */}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">Task Reminders</p>
-                  <p className="text-xs text-muted-foreground">Get notified before task deadlines</p>
+                  <p className="text-xs text-muted-foreground">
+                    Get notified before task deadlines
+                  </p>
                 </div>
                 <Switch
                   checked={settings.notifications.taskReminders}
@@ -175,7 +175,9 @@ export function SettingsPanel({
                 </div>
                 <Slider
                   value={[settings.notifications.reminderMinutesBefore]}
-                  onValueChange={([value]) => onUpdateNotifications({ reminderMinutesBefore: value })}
+                  onValueChange={([value]) =>
+                    onUpdateNotifications({ reminderMinutesBefore: value })
+                  }
                   min={5}
                   max={60}
                   step={5}
@@ -185,14 +187,16 @@ export function SettingsPanel({
             </>
           )}
 
-          {activeTab === 'defaults' && (
+          {activeTab === "defaults" && (
             <>
               {/* Default Task Category */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Default Task Category</label>
                 <Select
                   value={settings.defaultTaskCategory}
-                  onValueChange={(value: TaskCategory) => onUpdateSettings({ defaultTaskCategory: value })}
+                  onValueChange={(value: TaskCategory) =>
+                    onUpdateSettings({ defaultTaskCategory: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -209,7 +213,9 @@ export function SettingsPanel({
                 <label className="text-sm font-medium">Default Task Priority</label>
                 <Select
                   value={settings.defaultTaskPriority}
-                  onValueChange={(value: TaskPriority) => onUpdateSettings({ defaultTaskPriority: value })}
+                  onValueChange={(value: TaskPriority) =>
+                    onUpdateSettings({ defaultTaskPriority: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -218,19 +224,15 @@ export function SettingsPanel({
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="high">High</SelectItem>
-              </SelectContent>
+                  </SelectContent>
                 </Select>
               </div>
             </>
           )}
 
-          {activeTab === 'team' && user && (
-            <SpaceMembersPanel userId={user.id} />
-          )}
+          {activeTab === "team" && user && <SpaceMembersPanel userId={user.id} />}
 
-          {activeTab === 'memory' && user && (
-            <MemoryDashboard />
-          )}
+          {activeTab === "memory" && user && <MemoryDashboard />}
         </div>
       </div>
     </div>

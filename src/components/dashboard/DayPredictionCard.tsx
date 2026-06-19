@@ -1,43 +1,35 @@
-import { GlassCard, GlassCardContent, GlassCardHeader } from '@/components/ui/glass-card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { useDayPrediction } from '@/hooks/useDayPrediction';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { 
-  Sun, 
-  Cloud, 
-  CloudRain, 
-  Sparkles,
-  TrendingUp,
-  TrendingDown,
-  Lightbulb
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { GlassCard, GlassCardContent, GlassCardHeader } from "@/components/ui/glass-card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { useDayPrediction } from "@/hooks/useDayPrediction";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Sun, Cloud, CloudRain, Sparkles, TrendingUp, TrendingDown, Lightbulb } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const getPredictionConfig = (t: (key: string) => string) => ({
   excellent: {
     icon: Sparkles,
-    color: 'text-success',
-    bgColor: 'bg-success/10',
-    label: t('dayPrediction.excellent'),
+    color: "text-success",
+    bgColor: "bg-success/10",
+    label: t("dayPrediction.excellent"),
   },
   good: {
     icon: Sun,
-    color: 'text-primary',
-    bgColor: 'bg-primary/10',
-    label: t('dayPrediction.good'),
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    label: t("dayPrediction.good"),
   },
   moderate: {
     icon: Cloud,
-    color: 'text-warning',
-    bgColor: 'bg-warning/10',
-    label: t('dayPrediction.moderate'),
+    color: "text-warning",
+    bgColor: "bg-warning/10",
+    label: t("dayPrediction.moderate"),
   },
   challenging: {
     icon: CloudRain,
-    color: 'text-destructive',
-    bgColor: 'bg-destructive/10',
-    label: t('dayPrediction.challenging'),
+    color: "text-destructive",
+    bgColor: "bg-destructive/10",
+    label: t("dayPrediction.challenging"),
   },
 });
 
@@ -82,7 +74,7 @@ export function DayPredictionCard() {
       <GlassCardContent className="space-y-3">
         {/* Score progress */}
         <Progress value={prediction.score * 10} className="h-2" />
-        
+
         {/* Insight */}
         <p className="text-sm text-muted-foreground">{prediction.insight}</p>
 
@@ -107,9 +99,7 @@ export function DayPredictionCard() {
           <div className="pt-2 border-t">
             <div className="flex items-start gap-2">
               <Lightbulb className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">
-                {prediction.suggestions[0]}
-              </p>
+              <p className="text-xs text-muted-foreground">{prediction.suggestions[0]}</p>
             </div>
           </div>
         )}

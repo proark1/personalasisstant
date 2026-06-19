@@ -1,8 +1,8 @@
 // Classifies recently-synced emails using Gemini Flash.
 // Triggered: after gmail-sync, or via cron daily, or manually.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { strictAppOrigin } from '../_shared/cors.ts';
-import { generateStructured } from '../_shared/geminiStructured.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
+import { generateStructured } from "../_shared/geminiStructured.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
 
     // Authenticate: accept either a logged-in user JWT (classify own emails)
     // or the service role key (cron/internal calls with explicit user_id).
-    const authHeader = req.headers.get('Authorization') ?? '';
+    const authHeader = req.headers.get("Authorization") ?? "";
     const isServiceRole = authHeader === `Bearer ${SERVICE_KEY}`;
 
     const body = await req.json().catch(() => ({}));
@@ -60,18 +60,28 @@ Deno.serve(async (req) => {
 
     if (!isServiceRole) {
       // Validate JWT and force user_id to the caller.
-      const token = authHeader.replace(/^Bearer\s+/i, '');
+      const token = authHeader.replace(/^Bearer\s+/i, "");
       if (!token) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: corsHeaders,
+        });
       }
       const { data, error } = await supabase.auth.getUser(token);
       if (error || !data?.user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: corsHeaders,
+        });
       }
       user_id = data.user.id;
     }
 
-    if (!user_id) return new Response(JSON.stringify({ error: "user_id required" }), { status: 400, headers: corsHeaders });
+    if (!user_id)
+      return new Response(JSON.stringify({ error: "user_id required" }), {
+        status: 400,
+        headers: corsHeaders,
+      });
 
     // Fetch unclassified recent emails
     const { data: emails } = await supabase
@@ -82,7 +92,9 @@ Deno.serve(async (req) => {
       .limit(limit);
 
     if (!emails?.length) {
-      return new Response(JSON.stringify({ classified: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ classified: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     let todo = emails;
@@ -90,18 +102,26 @@ Deno.serve(async (req) => {
       const { data: existing } = await supabase
         .from("email_classifications")
         .select("email_id")
-        .in("email_id", emails.map(e => e.id));
-      const existingIds = new Set((existing ?? []).map(e => e.email_id));
-      todo = emails.filter(e => !existingIds.has(e.id));
+        .in(
+          "email_id",
+          emails.map((e) => e.id),
+        );
+      const existingIds = new Set((existing ?? []).map((e) => e.email_id));
+      todo = emails.filter((e) => !existingIds.has(e.id));
     }
     if (!todo.length) {
-      return new Response(JSON.stringify({ classified: 0, skipped: emails.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ classified: 0, skipped: emails.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Build batch prompt
-    const list = todo.map((e, i) =>
-      `[${i}] from="${e.from_name || e.from_email}" subject="${e.subject || ""}" snippet="${(e.snippet || "").slice(0, 200)}"`
-    ).join("\n");
+    const list = todo
+      .map(
+        (e, i) =>
+          `[${i}] from="${e.from_name || e.from_email}" subject="${e.subject || ""}" snippet="${(e.snippet || "").slice(0, 200)}"`,
+      )
+      .join("\n");
 
     // Native generateContent + responseSchema (the OpenAI-compat endpoint with
     // forced tool_choice fails in our deployment).
@@ -119,13 +139,31 @@ Deno.serve(async (req) => {
                 type: "object",
                 properties: {
                   index: { type: "number" },
-                  category: { type: "string", enum: ["bill", "meeting_request", "family_logistics", "travel", "shopping", "newsletter", "personal", "work", "note", "other"] },
-                  suggested_action: { type: "string", enum: ["create_contract", "create_event", "create_task", "create_note", "none"] },
+                  category: {
+                    type: "string",
+                    enum: [
+                      "bill",
+                      "meeting_request",
+                      "family_logistics",
+                      "travel",
+                      "shopping",
+                      "newsletter",
+                      "personal",
+                      "work",
+                      "note",
+                      "other",
+                    ],
+                  },
+                  suggested_action: {
+                    type: "string",
+                    enum: ["create_contract", "create_event", "create_task", "create_note", "none"],
+                  },
                   confidence: { type: "number" },
                   reasoning: { type: "string" },
                   payload: {
                     type: "object",
-                    description: "Extra fields needed to apply the action (title, start_iso, due_iso, vendor, amount, etc.)",
+                    description:
+                      "Extra fields needed to apply the action (title, start_iso, due_iso, vendor, amount, etc.)",
                     properties: {
                       title: { type: "string" },
                       start_iso: { type: "string" },
@@ -145,39 +183,51 @@ Deno.serve(async (req) => {
       });
     } catch (e) {
       console.error("AI gateway error", (e as Error).message);
-      return new Response(JSON.stringify({ error: "AI failed" }), { status: 502, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "AI failed" }), {
+        status: 502,
+        headers: corsHeaders,
+      });
     }
     const items = parsed?.items ?? [];
 
-    const rows = items.map((it: Record<string, unknown>) => {
-      const email = todo[it.index];
-      if (!email) return null;
-      return {
-        user_id,
-        email_id: email.id,
-        category: it.category,
-        suggested_action: it.suggested_action,
-        confidence: it.confidence,
-        reasoning: it.reasoning ?? null,
-        suggested_payload: {
-          subject: email.subject,
-          from: email.from_email,
-          from_name: email.from_name,
-          received_at: email.received_at,
-          ...(it.payload || {}),
-        },
-        status: 'pending',
-      };
-    }).filter(Boolean);
+    const rows = items
+      .map((it: Record<string, unknown>) => {
+        const email = todo[it.index];
+        if (!email) return null;
+        return {
+          user_id,
+          email_id: email.id,
+          category: it.category,
+          suggested_action: it.suggested_action,
+          confidence: it.confidence,
+          reasoning: it.reasoning ?? null,
+          suggested_payload: {
+            subject: email.subject,
+            from: email.from_email,
+            from_name: email.from_name,
+            received_at: email.received_at,
+            ...(it.payload || {}),
+          },
+          status: "pending",
+        };
+      })
+      .filter(Boolean);
 
     if (rows.length) {
-      const { error } = await supabase.from("email_classifications").upsert(rows, { onConflict: "email_id" });
+      const { error } = await supabase
+        .from("email_classifications")
+        .upsert(rows, { onConflict: "email_id" });
       if (error) console.error("Insert error", error);
     }
 
-    return new Response(JSON.stringify({ classified: rows.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ classified: rows.length }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("classifier error", e);
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
 });

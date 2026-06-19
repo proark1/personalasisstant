@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
-import { useAppNotifications } from './useAppNotifications';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
+import { useAppNotifications } from "./useAppNotifications";
 
 export interface Medication {
   id: string;
@@ -76,7 +76,12 @@ export function useHealthTracking() {
   const fetchAll = async () => {
     if (!user?.id) return;
     setIsLoading(true);
-    await Promise.all([fetchMedications(), fetchAppointments(), fetchVaccinations(), fetchHealthMetrics()]);
+    await Promise.all([
+      fetchMedications(),
+      fetchAppointments(),
+      fetchVaccinations(),
+      fetchHealthMetrics(),
+    ]);
     setIsLoading(false);
   };
 
@@ -84,14 +89,14 @@ export function useHealthTracking() {
     if (!user?.id) return;
     try {
       const { data, error } = await supabase
-        .from('family_medications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name');
+        .from("family_medications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("name");
       if (error) throw error;
       setMedications(data || []);
     } catch (error) {
-      console.error('Error fetching medications:', error);
+      console.error("Error fetching medications:", error);
     }
   };
 
@@ -99,14 +104,14 @@ export function useHealthTracking() {
     if (!user?.id) return;
     try {
       const { data, error } = await supabase
-        .from('family_appointments')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('appointment_date');
+        .from("family_appointments")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("appointment_date");
       if (error) throw error;
       setAppointments(data || []);
     } catch (error) {
-      console.error('Error fetching appointments:', error);
+      console.error("Error fetching appointments:", error);
     }
   };
 
@@ -114,14 +119,14 @@ export function useHealthTracking() {
     if (!user?.id) return;
     try {
       const { data, error } = await supabase
-        .from('family_vaccinations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('date_administered', { ascending: false });
+        .from("family_vaccinations")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date_administered", { ascending: false });
       if (error) throw error;
       setVaccinations(data || []);
     } catch (error) {
-      console.error('Error fetching vaccinations:', error);
+      console.error("Error fetching vaccinations:", error);
     }
   };
 
@@ -129,34 +134,36 @@ export function useHealthTracking() {
     if (!user?.id) return;
     try {
       const { data, error } = await supabase
-        .from('health_metrics')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('recorded_at', { ascending: false })
+        .from("health_metrics")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("recorded_at", { ascending: false })
         .limit(100);
       if (error) throw error;
       setHealthMetrics(data || []);
     } catch (error) {
-      console.error('Error fetching health metrics:', error);
+      console.error("Error fetching health metrics:", error);
     }
   };
 
   // Medications CRUD
-  const addMedication = async (med: Omit<Medication, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+  const addMedication = async (
+    med: Omit<Medication, "id" | "user_id" | "created_at" | "updated_at">,
+  ) => {
     if (!user?.id) return null;
     try {
       const { data, error } = await supabase
-        .from('family_medications')
+        .from("family_medications")
         .insert({ ...med, user_id: user.id })
         .select()
         .single();
       if (error) throw error;
-      setMedications(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
-      toast.success('Medication added');
+      setMedications((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      toast.success("Medication added");
       return data;
     } catch (error) {
-      console.error('Error adding medication:', error);
-      toast.error('Failed to add medication');
+      console.error("Error adding medication:", error);
+      toast.error("Failed to add medication");
       return null;
     }
   };
@@ -164,57 +171,59 @@ export function useHealthTracking() {
   const updateMedication = async (id: string, updates: Partial<Medication>) => {
     try {
       const { data, error } = await supabase
-        .from('family_medications')
+        .from("family_medications")
         .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id)
+        .eq("id", id)
         .select()
         .single();
       if (error) throw error;
-      setMedications(prev => prev.map(m => m.id === id ? data : m));
-      toast.success('Medication updated');
+      setMedications((prev) => prev.map((m) => (m.id === id ? data : m)));
+      toast.success("Medication updated");
       return data;
     } catch (error) {
-      console.error('Error updating medication:', error);
-      toast.error('Failed to update medication');
+      console.error("Error updating medication:", error);
+      toast.error("Failed to update medication");
       return null;
     }
   };
 
   const deleteMedication = async (id: string) => {
     try {
-      const { error } = await supabase.from('family_medications').delete().eq('id', id);
+      const { error } = await supabase.from("family_medications").delete().eq("id", id);
       if (error) throw error;
-      setMedications(prev => prev.filter(m => m.id !== id));
-      toast.success('Medication deleted');
+      setMedications((prev) => prev.filter((m) => m.id !== id));
+      toast.success("Medication deleted");
     } catch (error) {
-      console.error('Error deleting medication:', error);
-      toast.error('Failed to delete medication');
+      console.error("Error deleting medication:", error);
+      toast.error("Failed to delete medication");
     }
   };
 
   // Appointments CRUD
-  const addAppointment = async (appt: Omit<Appointment, 'id' | 'user_id' | 'created_at'>) => {
+  const addAppointment = async (appt: Omit<Appointment, "id" | "user_id" | "created_at">) => {
     if (!user?.id) return null;
     try {
       const { data, error } = await supabase
-        .from('family_appointments')
+        .from("family_appointments")
         .insert({ ...appt, user_id: user.id })
         .select()
         .single();
       if (error) throw error;
-      setAppointments(prev => [...prev, data].sort((a, b) => 
-        new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime()
-      ));
-      toast.success('Appointment added');
-      
+      setAppointments((prev) =>
+        [...prev, data].sort(
+          (a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime(),
+        ),
+      );
+      toast.success("Appointment added");
+
       // Create in-app notification and schedule native iOS notification
       const appointmentDate = new Date(data.appointment_date);
       notifyAppointmentCreated(data.title, data.id, appointmentDate, data.reminder_before || 30);
-      
+
       return data;
     } catch (error) {
-      console.error('Error adding appointment:', error);
-      toast.error('Failed to add appointment');
+      console.error("Error adding appointment:", error);
+      toast.error("Failed to add appointment");
       return null;
     }
   };
@@ -222,99 +231,102 @@ export function useHealthTracking() {
   const updateAppointment = async (id: string, updates: Partial<Appointment>) => {
     try {
       const { data, error } = await supabase
-        .from('family_appointments')
+        .from("family_appointments")
         .update(updates)
-        .eq('id', id)
+        .eq("id", id)
         .select()
         .single();
       if (error) throw error;
-      setAppointments(prev => prev.map(a => a.id === id ? data : a));
-      toast.success('Appointment updated');
-      
+      setAppointments((prev) => prev.map((a) => (a.id === id ? data : a)));
+      toast.success("Appointment updated");
+
       // Create in-app notification
       notifyAppointmentUpdated(data.title, data.id);
-      
+
       // If date changed, reschedule native notification
       if (updates.appointment_date) {
         const appointmentDate = new Date(data.appointment_date);
         notifyAppointmentCreated(data.title, data.id, appointmentDate, data.reminder_before || 30);
       }
-      
+
       return data;
     } catch (error) {
-      console.error('Error updating appointment:', error);
-      toast.error('Failed to update appointment');
+      console.error("Error updating appointment:", error);
+      toast.error("Failed to update appointment");
       return null;
     }
   };
 
   const deleteAppointment = async (id: string) => {
     try {
-      const { error } = await supabase.from('family_appointments').delete().eq('id', id);
+      const { error } = await supabase.from("family_appointments").delete().eq("id", id);
       if (error) throw error;
-      setAppointments(prev => prev.filter(a => a.id !== id));
-      toast.success('Appointment deleted');
+      setAppointments((prev) => prev.filter((a) => a.id !== id));
+      toast.success("Appointment deleted");
     } catch (error) {
-      console.error('Error deleting appointment:', error);
-      toast.error('Failed to delete appointment');
+      console.error("Error deleting appointment:", error);
+      toast.error("Failed to delete appointment");
     }
   };
 
   // Vaccinations CRUD
-  const addVaccination = async (vax: Omit<Vaccination, 'id' | 'user_id' | 'created_at'>) => {
+  const addVaccination = async (vax: Omit<Vaccination, "id" | "user_id" | "created_at">) => {
     if (!user?.id) return null;
     try {
       const { data, error } = await supabase
-        .from('family_vaccinations')
+        .from("family_vaccinations")
         .insert({ ...vax, user_id: user.id })
         .select()
         .single();
       if (error) throw error;
-      setVaccinations(prev => [data, ...prev]);
-      toast.success('Vaccination record added');
+      setVaccinations((prev) => [data, ...prev]);
+      toast.success("Vaccination record added");
       return data;
     } catch (error) {
-      console.error('Error adding vaccination:', error);
-      toast.error('Failed to add vaccination');
+      console.error("Error adding vaccination:", error);
+      toast.error("Failed to add vaccination");
       return null;
     }
   };
 
   const deleteVaccination = async (id: string) => {
     try {
-      const { error } = await supabase.from('family_vaccinations').delete().eq('id', id);
+      const { error } = await supabase.from("family_vaccinations").delete().eq("id", id);
       if (error) throw error;
-      setVaccinations(prev => prev.filter(v => v.id !== id));
-      toast.success('Vaccination record deleted');
+      setVaccinations((prev) => prev.filter((v) => v.id !== id));
+      toast.success("Vaccination record deleted");
     } catch (error) {
-      console.error('Error deleting vaccination:', error);
-      toast.error('Failed to delete vaccination');
+      console.error("Error deleting vaccination:", error);
+      toast.error("Failed to delete vaccination");
     }
   };
 
   useEffect(() => {
     fetchAll();
-  // fetchAll is defined locally; user?.id is the intended trigger
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // fetchAll is defined locally; user?.id is the intended trigger
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const getUpcomingAppointments = () => appointments.filter(a => 
-    !a.is_completed && new Date(a.appointment_date) >= new Date()
-  );
+  const getUpcomingAppointments = () =>
+    appointments.filter((a) => !a.is_completed && new Date(a.appointment_date) >= new Date());
 
-  const getActiveMedications = () => medications.filter(m => m.is_active);
+  const getActiveMedications = () => medications.filter((m) => m.is_active);
 
-  const getMedicationsNeedingRefill = () => medications.filter(m => 
-    m.is_active && m.refill_date && new Date(m.refill_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  );
+  const getMedicationsNeedingRefill = () =>
+    medications.filter(
+      (m) =>
+        m.is_active &&
+        m.refill_date &&
+        new Date(m.refill_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    );
 
   const getRecentMetrics = (days: number = 30) => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    return healthMetrics.filter(m => new Date(m.recorded_at) >= cutoff);
+    return healthMetrics.filter((m) => new Date(m.recorded_at) >= cutoff);
   };
 
-  const getMetricsByType = (type: string) => healthMetrics.filter(m => m.metric_type === type);
+  const getMetricsByType = (type: string) => healthMetrics.filter((m) => m.metric_type === type);
 
   return {
     medications,

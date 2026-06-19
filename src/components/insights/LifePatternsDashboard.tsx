@@ -1,27 +1,35 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useUserPatterns, UserPattern } from '@/hooks/useUserPatterns';
-import { useDailyCheckins } from '@/hooks/useDailyCheckins';
-import { 
-  Brain, 
-  TrendingUp, 
-  Sparkles, 
-  RefreshCw, 
-  Moon, 
-  Zap, 
-  Target, 
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useUserPatterns, UserPattern } from "@/hooks/useUserPatterns";
+import { useDailyCheckins } from "@/hooks/useDailyCheckins";
+import {
+  Brain,
+  TrendingUp,
+  Sparkles,
+  RefreshCw,
+  Moon,
+  Zap,
+  Target,
   Heart,
   Dumbbell,
   X,
-  Info
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+  Info,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from "recharts";
 
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   sleep: Moon,
@@ -33,20 +41,20 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  sleep: 'text-indigo-500',
-  productivity: 'text-emerald-500',
-  mood: 'text-pink-500',
-  health: 'text-red-500',
-  exercise: 'text-orange-500',
-  general: 'text-blue-500',
+  sleep: "text-indigo-500",
+  productivity: "text-emerald-500",
+  mood: "text-pink-500",
+  health: "text-red-500",
+  exercise: "text-orange-500",
+  general: "text-blue-500",
 };
 
 function PatternCard({ pattern, onDismiss }: { pattern: UserPattern; onDismiss: () => void }) {
   const Icon = CATEGORY_ICONS[pattern.category] || Brain;
-  const colorClass = CATEGORY_COLORS[pattern.category] || 'text-blue-500';
-  
+  const colorClass = CATEGORY_COLORS[pattern.category] || "text-blue-500";
+
   const confidencePercent = Math.round(pattern.confidence_score * 100);
-  
+
   return (
     <Card className="relative group">
       <button
@@ -55,40 +63,36 @@ function PatternCard({ pattern, onDismiss }: { pattern: UserPattern; onDismiss: 
       >
         <X className="w-4 h-4 text-muted-foreground" />
       </button>
-      
+
       <CardContent className="pt-4">
         <div className="flex items-start gap-3">
           <div className={cn("p-2 rounded-lg bg-muted", colorClass)}>
             <Icon className="w-5 h-5" />
           </div>
-          
+
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <Badge variant="secondary" className="text-xs">
                 {pattern.category}
               </Badge>
-              <Badge 
-                variant={pattern.pattern_type === 'correlation' ? 'default' : 'outline'}
+              <Badge
+                variant={pattern.pattern_type === "correlation" ? "default" : "outline"}
                 className="text-xs"
               >
                 {pattern.pattern_type}
               </Badge>
             </div>
-            
+
             <h4 className="font-medium text-sm mb-1">{pattern.title}</h4>
-            <p className="text-xs text-muted-foreground line-clamp-2">
-              {pattern.description}
-            </p>
-            
+            <p className="text-xs text-muted-foreground line-clamp-2">{pattern.description}</p>
+
             <div className="flex items-center gap-2 mt-2">
               <div className="flex-1">
                 <Progress value={confidencePercent} className="h-1.5" />
               </div>
-              <span className="text-xs text-muted-foreground">
-                {confidencePercent}% confidence
-              </span>
+              <span className="text-xs text-muted-foreground">{confidencePercent}% confidence</span>
             </div>
-            
+
             {pattern.times_detected > 1 && (
               <p className="text-xs text-muted-foreground mt-1">
                 Detected {pattern.times_detected} times
@@ -115,44 +119,36 @@ function WeeklyTrendChart({ data }: { data: Record<string, unknown>[] }) {
       <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
         <defs>
           <linearGradient id="colorMood" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
           </linearGradient>
           <linearGradient id="colorEnergy" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3}/>
-            <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0}/>
+            <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis 
-          dataKey="date" 
-          tick={{ fontSize: 10 }} 
-          className="text-muted-foreground"
-        />
-        <YAxis 
-          domain={[0, 5]} 
-          tick={{ fontSize: 10 }}
-          className="text-muted-foreground"
-        />
-        <Tooltip 
-          contentStyle={{ 
-            backgroundColor: 'hsl(var(--background))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '8px'
+        <XAxis dataKey="date" tick={{ fontSize: 10 }} className="text-muted-foreground" />
+        <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} className="text-muted-foreground" />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: "hsl(var(--background))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: "8px",
           }}
         />
-        <Area 
-          type="monotone" 
-          dataKey="mood" 
-          stroke="hsl(var(--primary))" 
+        <Area
+          type="monotone"
+          dataKey="mood"
+          stroke="hsl(var(--primary))"
           fillOpacity={1}
           fill="url(#colorMood)"
           name="Mood"
         />
-        <Area 
-          type="monotone" 
-          dataKey="energy" 
-          stroke="hsl(var(--chart-2))" 
+        <Area
+          type="monotone"
+          dataKey="energy"
+          stroke="hsl(var(--chart-2))"
           fillOpacity={1}
           fill="url(#colorEnergy)"
           name="Energy"
@@ -163,18 +159,18 @@ function WeeklyTrendChart({ data }: { data: Record<string, unknown>[] }) {
 }
 
 export function LifePatternsDashboard() {
-  const { 
-    patterns, 
-    weeklySummaries, 
-    isLoading, 
-    isAnalyzing, 
+  const {
+    patterns,
+    weeklySummaries,
+    isLoading,
+    isAnalyzing,
     analyzePatterns,
     dismissPattern,
-    getHighConfidencePatterns
+    getHighConfidencePatterns,
   } = useUserPatterns();
-  
+
   const { getRecentMoods, getAverageStats } = useDailyCheckins();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
 
   const recentMoods = getRecentMoods();
   const avgStats = getAverageStats(7);
@@ -182,11 +178,13 @@ export function LifePatternsDashboard() {
   const _latestSummary = weeklySummaries[0];
 
   // Transform mood data for chart
-  const moodChartData = recentMoods.map(item => ({
-    date: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }),
-    mood: item.mood ? getMoodValue(item.mood) : null,
-    energy: item.energy ? getEnergyValue(item.energy) : null,
-  })).filter(d => d.mood !== null || d.energy !== null);
+  const moodChartData = recentMoods
+    .map((item) => ({
+      date: new Date(item.date).toLocaleDateString("en-US", { weekday: "short" }),
+      mood: item.mood ? getMoodValue(item.mood) : null,
+      energy: item.energy ? getEnergyValue(item.energy) : null,
+    }))
+    .filter((d) => d.mood !== null || d.energy !== null);
 
   return (
     <div className="space-y-6">
@@ -197,17 +195,10 @@ export function LifePatternsDashboard() {
             <Brain className="w-5 h-5 text-primary" />
             Life Patterns
           </h2>
-          <p className="text-sm text-muted-foreground">
-            AI-detected insights from your data
-          </p>
+          <p className="text-sm text-muted-foreground">AI-detected insights from your data</p>
         </div>
-        
-        <Button 
-          onClick={analyzePatterns} 
-          disabled={isAnalyzing}
-          variant="outline"
-          size="sm"
-        >
+
+        <Button onClick={analyzePatterns} disabled={isAnalyzing} variant="outline" size="sm">
           {isAnalyzing ? (
             <>
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -238,24 +229,20 @@ export function LifePatternsDashboard() {
                   <Moon className="w-4 h-4 text-indigo-500" />
                   <span className="text-xs text-muted-foreground">Avg Sleep</span>
                 </div>
-                <p className="text-2xl font-bold mt-1">
-                  {avgStats.avgSleep.toFixed(1)}h
-                </p>
+                <p className="text-2xl font-bold mt-1">{avgStats.avgSleep.toFixed(1)}h</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-amber-500" />
                   <span className="text-xs text-muted-foreground">Avg Energy</span>
                 </div>
-                <p className="text-2xl font-bold mt-1">
-                  {avgStats.avgEnergy.toFixed(1)}/5
-                </p>
+                <p className="text-2xl font-bold mt-1">{avgStats.avgEnergy.toFixed(1)}/5</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center gap-2">
@@ -267,16 +254,14 @@ export function LifePatternsDashboard() {
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center gap-2">
                   <Heart className="w-4 h-4 text-pink-500" />
                   <span className="text-xs text-muted-foreground">Avg Day</span>
                 </div>
-                <p className="text-2xl font-bold mt-1">
-                  {avgStats.avgDayRating.toFixed(1)}/5
-                </p>
+                <p className="text-2xl font-bold mt-1">{avgStats.avgDayRating.toFixed(1)}/5</p>
               </CardContent>
             </Card>
           </div>
@@ -299,9 +284,9 @@ export function LifePatternsDashboard() {
                 Key Insights
               </h3>
               <div className="grid gap-3 md:grid-cols-2">
-                {highConfidencePatterns.slice(0, 4).map(pattern => (
-                  <PatternCard 
-                    key={pattern.id} 
+                {highConfidencePatterns.slice(0, 4).map((pattern) => (
+                  <PatternCard
+                    key={pattern.id}
                     pattern={pattern}
                     onDismiss={() => dismissPattern(pattern.id)}
                   />
@@ -316,17 +301,17 @@ export function LifePatternsDashboard() {
                 <Brain className="w-10 h-10 text-muted-foreground mb-3" />
                 <h3 className="font-medium mb-1">No patterns detected yet</h3>
                 <p className="text-sm text-muted-foreground max-w-sm">
-                  Complete daily check-ins and track your habits for at least a week 
-                  to start seeing personalized patterns and insights.
+                  Complete daily check-ins and track your habits for at least a week to start seeing
+                  personalized patterns and insights.
                 </p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="mt-4"
                   onClick={analyzePatterns}
                   disabled={isAnalyzing}
                 >
-                  {isAnalyzing ? 'Analyzing...' : 'Run Analysis'}
+                  {isAnalyzing ? "Analyzing..." : "Run Analysis"}
                 </Button>
               </CardContent>
             </Card>
@@ -341,9 +326,9 @@ export function LifePatternsDashboard() {
               </div>
             ) : patterns.length > 0 ? (
               <div className="grid gap-3">
-                {patterns.map(pattern => (
-                  <PatternCard 
-                    key={pattern.id} 
+                {patterns.map((pattern) => (
+                  <PatternCard
+                    key={pattern.id}
                     pattern={pattern}
                     onDismiss={() => dismissPattern(pattern.id)}
                   />
@@ -363,21 +348,20 @@ export function LifePatternsDashboard() {
         <TabsContent value="trends" className="mt-4">
           <div className="space-y-4">
             {weeklySummaries.length > 0 ? (
-              weeklySummaries.slice(0, 4).map(summary => (
+              weeklySummaries.slice(0, 4).map((summary) => (
                 <Card key={summary.id}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm">
                       Week of {new Date(summary.week_start).toLocaleDateString()}
                     </CardTitle>
                     <CardDescription>
-                      {summary.tasks_completed} tasks • {Math.round(summary.focus_minutes / 60)}h focus • {summary.habits_completed}/{summary.habits_possible} habits
+                      {summary.tasks_completed} tasks • {Math.round(summary.focus_minutes / 60)}h
+                      focus • {summary.habits_completed}/{summary.habits_possible} habits
                     </CardDescription>
                   </CardHeader>
                   {summary.ai_summary && (
                     <CardContent className="pt-0">
-                      <p className="text-sm text-muted-foreground">
-                        {summary.ai_summary}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{summary.ai_summary}</p>
                     </CardContent>
                   )}
                 </Card>
@@ -403,14 +387,21 @@ export function LifePatternsDashboard() {
 // Helper functions
 function getMoodValue(moodEmoji: string): number {
   const moodMap: Record<string, number> = {
-    '😊': 5, '🙂': 4, '😐': 3, '😔': 2, '😤': 2, '😰': 1
+    "😊": 5,
+    "🙂": 4,
+    "😐": 3,
+    "😔": 2,
+    "😤": 2,
+    "😰": 1,
   };
   return moodMap[moodEmoji] || 3;
 }
 
 function getEnergyValue(energy: string): number {
   const energyMap: Record<string, number> = {
-    'high': 5, 'medium': 3, 'low': 1
+    high: 5,
+    medium: 3,
+    low: 1,
   };
   return energyMap[energy] || 3;
 }

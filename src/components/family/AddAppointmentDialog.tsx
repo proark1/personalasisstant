@@ -1,12 +1,24 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useHealthTracking } from '@/hooks/useHealthTracking';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useHealthTracking } from "@/hooks/useHealthTracking";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 
 interface AddAppointmentDialogProps {
   open: boolean;
@@ -14,26 +26,26 @@ interface AddAppointmentDialogProps {
 }
 
 const appointmentTypes = [
-  { value: 'checkup', label: 'Check-up' },
-  { value: 'dental', label: 'Dental' },
-  { value: 'specialist', label: 'Specialist' },
-  { value: 'therapy', label: 'Therapy' },
-  { value: 'vaccination', label: 'Vaccination' },
-  { value: 'other', label: 'Other' },
+  { value: "checkup", label: "Check-up" },
+  { value: "dental", label: "Dental" },
+  { value: "specialist", label: "Specialist" },
+  { value: "therapy", label: "Therapy" },
+  { value: "vaccination", label: "Vaccination" },
+  { value: "other", label: "Other" },
 ];
 
 export function AddAppointmentDialog({ open, onOpenChange }: AddAppointmentDialogProps) {
   const { addAppointment } = useHealthTracking();
   const { members } = useFamilyMembers();
-  const [title, setTitle] = useState('');
-  const [appointmentType, setAppointmentType] = useState('checkup');
-  const [memberId, setMemberId] = useState<string>('');
-  const [providerName, setProviderName] = useState('');
-  const [providerPhone, setProviderPhone] = useState('');
-  const [location, setLocation] = useState('');
-  const [appointmentDate, setAppointmentDate] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState('');
-  const [notes, setNotes] = useState('');
+  const [title, setTitle] = useState("");
+  const [appointmentType, setAppointmentType] = useState("checkup");
+  const [memberId, setMemberId] = useState<string>("");
+  const [providerName, setProviderName] = useState("");
+  const [providerPhone, setProviderPhone] = useState("");
+  const [location, setLocation] = useState("");
+  const [appointmentDate, setAppointmentDate] = useState("");
+  const [appointmentTime, setAppointmentTime] = useState("");
+  const [notes, setNotes] = useState("");
 
   const handleSubmit = async () => {
     if (!title.trim() || !appointmentDate || !appointmentTime) return;
@@ -58,15 +70,15 @@ export function AddAppointmentDialog({ open, onOpenChange }: AddAppointmentDialo
   };
 
   const resetForm = () => {
-    setTitle('');
-    setAppointmentType('checkup');
-    setMemberId('');
-    setProviderName('');
-    setProviderPhone('');
-    setLocation('');
-    setAppointmentDate('');
-    setAppointmentTime('');
-    setNotes('');
+    setTitle("");
+    setAppointmentType("checkup");
+    setMemberId("");
+    setProviderName("");
+    setProviderPhone("");
+    setLocation("");
+    setAppointmentDate("");
+    setAppointmentTime("");
+    setNotes("");
   };
 
   return (
@@ -95,7 +107,9 @@ export function AddAppointmentDialog({ open, onOpenChange }: AddAppointmentDialo
                 </SelectTrigger>
                 <SelectContent>
                   {appointmentTypes.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -111,7 +125,9 @@ export function AddAppointmentDialog({ open, onOpenChange }: AddAppointmentDialo
               <SelectContent>
                 <SelectItem value="">Me</SelectItem>
                 {members.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -182,8 +198,13 @@ export function AddAppointmentDialog({ open, onOpenChange }: AddAppointmentDialo
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!title.trim() || !appointmentDate || !appointmentTime}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!title.trim() || !appointmentDate || !appointmentTime}
+          >
             Schedule
           </Button>
         </DialogFooter>

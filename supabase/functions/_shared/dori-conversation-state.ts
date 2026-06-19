@@ -5,10 +5,19 @@
 // Auto-expires after 1h so a stale "awaiting confirm" doesn't leak
 // into tomorrow's first turn.
 
-export type Channel = 'web' | 'tg_private' | 'tg_family' | 'tg_workspace' | 'voice';
+export type Channel = "web" | "tg_private" | "tg_family" | "tg_workspace" | "voice";
 
 export interface RecentEntity {
-  kind: 'task' | 'event' | 'contact' | 'note' | 'contract' | 'project' | 'family_member' | 'business' | 'property';
+  kind:
+    | "task"
+    | "event"
+    | "contact"
+    | "note"
+    | "contract"
+    | "project"
+    | "family_member"
+    | "business"
+    | "property";
   id: string;
   label?: string;
   ref_at: string; // ISO when last referenced
@@ -36,17 +45,17 @@ export async function loadConversationState(
   opts?: { channelRef?: string | null; workspaceId?: string | null },
 ): Promise<ConversationState | null> {
   try {
-    const channelRef = opts?.channelRef ?? '';
+    const channelRef = opts?.channelRef ?? "";
     let q = supabase
-      .from('dori_conversation_state')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('channel', channel)
-      .eq('channel_ref', channelRef);
-    if (opts?.workspaceId) q = q.eq('workspace_id', opts.workspaceId);
+      .from("dori_conversation_state")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("channel", channel)
+      .eq("channel_ref", channelRef);
+    if (opts?.workspaceId) q = q.eq("workspace_id", opts.workspaceId);
     const { data, error } = await q.maybeSingle();
     if (error) {
-      console.warn('[loadConversationState] failed', error.message);
+      console.warn("[loadConversationState] failed", error.message);
       return null;
     }
     if (!data) return null;
@@ -54,16 +63,16 @@ export async function loadConversationState(
     if (data.expires_at && new Date(data.expires_at) < new Date()) {
       // Best-effort clear so we don't keep reading dead state.
       await supabase
-        .from('dori_conversation_state')
+        .from("dori_conversation_state")
         .update({ open_intent: null, pending_payload: {} })
-        .eq('user_id', userId)
-        .eq('channel', channel)
-        .eq('channel_ref', channelRef);
+        .eq("user_id", userId)
+        .eq("channel", channel)
+        .eq("channel_ref", channelRef);
       return { ...data, open_intent: null, pending_payload: {} } as ConversationState;
     }
     return data as ConversationState;
   } catch (e) {
-    console.warn('[loadConversationState] threw', (e as Error).message);
+    console.warn("[loadConversationState] threw", (e as Error).message);
     return null;
   }
 }
@@ -80,13 +89,16 @@ export interface SaveStateArgs {
   ttlMinutes?: number;
 }
 
-export async function saveConversationState(supabase: ConvStateClient, args: SaveStateArgs): Promise<void> {
+export async function saveConversationState(
+  supabase: ConvStateClient,
+  args: SaveStateArgs,
+): Promise<void> {
   try {
     const ttl = args.ttlMinutes ?? 60;
     const row: Record<string, unknown> = {
       user_id: args.userId,
       channel: args.channel,
-      channel_ref: args.channelRef ?? '',
+      channel_ref: args.channelRef ?? "",
       workspace_id: args.workspaceId ?? null,
       open_intent: args.openIntent ?? null,
       pending_payload: args.pendingPayload ?? {},
@@ -96,11 +108,11 @@ export async function saveConversationState(supabase: ConvStateClient, args: Sav
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase
-      .from('dori_conversation_state')
-      .upsert(row, { onConflict: 'user_id,channel,channel_ref' });
-    if (error) console.warn('[saveConversationState] failed', error.message);
+      .from("dori_conversation_state")
+      .upsert(row, { onConflict: "user_id,channel,channel_ref" });
+    if (error) console.warn("[saveConversationState] failed", error.message);
   } catch (e) {
-    console.warn('[saveConversationState] threw', (e as Error).message);
+    console.warn("[saveConversationState] threw", (e as Error).message);
   }
 }
 
@@ -108,7 +120,7 @@ export async function saveConversationState(supabase: ConvStateClient, args: Sav
 // user last turn. Only emitted when there IS open state — silent
 // otherwise so we don't waste tokens.
 export function formatStateForPrompt(s: ConversationState | null): string {
-  if (!s) return '';
+  if (!s) return "";
   const parts: string[] = [];
   if (s.open_intent) {
     parts.push(`## CONVERSATION STATE (carry-over from previous turn)`);
@@ -124,27 +136,27 @@ export function formatStateForPrompt(s: ConversationState | null): string {
         parts.push(`Pending payload: ${json}`);
       } else {
         parts.push(
-          `Pending payload: <oversized: ${json.length} bytes — keys: ${Object.keys(s.pending_payload).join(', ')}>`,
+          `Pending payload: <oversized: ${json.length} bytes — keys: ${Object.keys(s.pending_payload).join(", ")}>`,
         );
       }
     }
     parts.push(
       `If the user's next message is an affirmative ("yes", "do it", "go", "ok"), execute the pending action. ` +
-      `If they say "skip N" or "drop the email step", apply the edit then execute. ` +
-      `If they change topic, drop this state silently.`,
+        `If they say "skip N" or "drop the email step", apply the edit then execute. ` +
+        `If they change topic, drop this state silently.`,
     );
   }
   if (s.recent_entities && s.recent_entities.length > 0) {
     parts.push(`### Recently referenced entities`);
     for (const e of s.recent_entities.slice(0, 8)) {
-      parts.push(`- ${e.kind}#${e.id.slice(0, 8)}${e.label ? ` "${e.label}"` : ''}`);
+      parts.push(`- ${e.kind}#${e.id.slice(0, 8)}${e.label ? ` "${e.label}"` : ""}`);
     }
     parts.push(
       `When the user uses a pronoun ("him", "it", "that one"), prefer the most-recent matching entity above ` +
-      `before asking for clarification.`,
+        `before asking for clarification.`,
     );
   }
-  return parts.length > 0 ? '\n\n' + parts.join('\n') : '';
+  return parts.length > 0 ? "\n\n" + parts.join("\n") : "";
 }
 
 export async function clearConversationState(
@@ -155,12 +167,12 @@ export async function clearConversationState(
 ): Promise<void> {
   try {
     await supabase
-      .from('dori_conversation_state')
+      .from("dori_conversation_state")
       .update({ open_intent: null, pending_payload: {} })
-      .eq('user_id', userId)
-      .eq('channel', channel)
-      .eq('channel_ref', opts?.channelRef ?? '');
+      .eq("user_id", userId)
+      .eq("channel", channel)
+      .eq("channel_ref", opts?.channelRef ?? "");
   } catch (e) {
-    console.warn('[clearConversationState] failed', (e as Error).message);
+    console.warn("[clearConversationState] failed", (e as Error).message);
   }
 }

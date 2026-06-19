@@ -1,8 +1,8 @@
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { useAmbientSounds, AMBIENT_SOUNDS } from '@/hooks/useAmbientSounds';
-import { Volume2, VolumeX } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { useAmbientSounds, AMBIENT_SOUNDS } from "@/hooks/useAmbientSounds";
+import { Volume2, VolumeX } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AmbientSoundsPanelProps {
   className?: string;
@@ -24,14 +24,14 @@ export function AmbientSoundsPanel({ className }: AmbientSoundsPanelProps) {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        {AMBIENT_SOUNDS.map(sound => (
+        {AMBIENT_SOUNDS.map((sound) => (
           <Button
             key={sound.id}
             variant={activeSound === sound.id && isPlaying ? "default" : "outline"}
             size="sm"
             className={cn(
               "h-auto py-3 flex-col gap-1",
-              activeSound === sound.id && isPlaying && "ring-2 ring-primary ring-offset-2"
+              activeSound === sound.id && isPlaying && "ring-2 ring-primary ring-offset-2",
             )}
             onClick={() => toggleSound(sound.id)}
           >

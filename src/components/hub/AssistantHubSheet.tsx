@@ -1,22 +1,31 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  Inbox, ListChecks, ShieldCheck, Bot as BotIcon, Building2, CalendarRange,
-  Sparkles, ChevronRight, Check, X, Play,
-} from 'lucide-react';
-import { useAssistantHub, type HubItem, type HubItemSource } from '@/hooks/useAssistantHub';
-import { useNavigate } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
+  Inbox,
+  ListChecks,
+  ShieldCheck,
+  Bot as BotIcon,
+  Building2,
+  CalendarRange,
+  Sparkles,
+  ChevronRight,
+  Check,
+  X,
+  Play,
+} from "lucide-react";
+import { useAssistantHub, type HubItem, type HubItemSource } from "@/hooks/useAssistantHub";
+import { useNavigate } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const SOURCE_META: Record<HubItemSource, { label: string; icon: typeof Inbox; tone: string }> = {
-  plan:        { label: 'Plan',        icon: ListChecks,  tone: 'text-primary' },
-  action:      { label: 'Action',      icon: ShieldCheck, tone: 'text-amber-500' },
-  meeting_bot: { label: 'Meeting',     icon: BotIcon,     tone: 'text-emerald-500' },
-  bank_reauth: { label: 'Bank',        icon: Building2,   tone: 'text-destructive' },
-  schedule:    { label: 'Schedule',    icon: CalendarRange, tone: 'text-violet-500' },
+  plan: { label: "Plan", icon: ListChecks, tone: "text-primary" },
+  action: { label: "Action", icon: ShieldCheck, tone: "text-amber-500" },
+  meeting_bot: { label: "Meeting", icon: BotIcon, tone: "text-emerald-500" },
+  bank_reauth: { label: "Bank", icon: Building2, tone: "text-destructive" },
+  schedule: { label: "Schedule", icon: CalendarRange, tone: "text-violet-500" },
 };
 
 // Unified "What needs me?" hub — collapses Plans, Action inbox,
@@ -42,7 +51,7 @@ export function AssistantHubSheet() {
               variant="default"
               className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 text-[10px] flex items-center justify-center"
             >
-              {hub.count > 9 ? '9+' : hub.count}
+              {hub.count > 9 ? "9+" : hub.count}
             </Badge>
           )}
         </Button>
@@ -55,7 +64,8 @@ export function AssistantHubSheet() {
             {hub.count > 0 && <Badge variant="secondary">{hub.count}</Badge>}
           </SheetTitle>
           <p className="text-xs text-muted-foreground text-left">
-            Plans, action approvals, live meeting bots, schedule drafts, and bank re-auth alerts — one list.
+            Plans, action approvals, live meeting bots, schedule drafts, and bank re-auth alerts —
+            one list.
           </p>
         </SheetHeader>
 
@@ -85,14 +95,18 @@ function Empty() {
       <Sparkles className="w-10 h-10 mb-3 opacity-50" />
       <p className="text-sm font-medium">Nothing needs you</p>
       <p className="text-xs mt-1 max-w-xs">
-        When the assistant has a plan to approve, an action waiting, or a meeting in flight, it'll surface here.
+        When the assistant has a plan to approve, an action waiting, or a meeting in flight, it'll
+        surface here.
       </p>
     </div>
   );
 }
 
 function HubRow({
-  item, hub, close, navigate,
+  item,
+  hub,
+  close,
+  navigate,
 }: {
   item: HubItem;
   hub: ReturnType<typeof useAssistantHub>;
@@ -106,14 +120,16 @@ function HubRow({
   return (
     <div className="rounded-lg border border-border bg-card p-2.5 space-y-2 animate-fade-in">
       <div className="flex items-start gap-2">
-        <Icon className={cn('w-4 h-4 shrink-0 mt-0.5', meta.tone)} />
+        <Icon className={cn("w-4 h-4 shrink-0 mt-0.5", meta.tone)} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-medium uppercase text-muted-foreground">
               {meta.label}
             </span>
             {item.badge && (
-              <Badge variant="outline" className="text-[10px]">{item.badge}</Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {item.badge}
+              </Badge>
             )}
             <span className="text-[10px] text-muted-foreground ml-auto">{ago}</span>
           </div>
@@ -129,7 +145,10 @@ function HubRow({
 }
 
 function Actions({
-  item, hub, close, navigate,
+  item,
+  hub,
+  close,
+  navigate,
 }: {
   item: HubItem;
   hub: ReturnType<typeof useAssistantHub>;
@@ -139,10 +158,18 @@ function Actions({
   // Per-source inline actions. We only do the common path here —
   // anything deeper opens the dedicated detail sheet/page.
   switch (item.source) {
-    case 'plan': {
-      const planId = item.id.replace(/^plan:/, '');
+    case "plan": {
+      const planId = item.id.replace(/^plan:/, "");
       const plan = hub.plans.plans.find((p) => p.id === planId);
-      if (!plan || !plan.currentStep) return <DeepLink onClick={() => { navigate('/'); close(); }} />;
+      if (!plan || !plan.currentStep)
+        return (
+          <DeepLink
+            onClick={() => {
+              navigate("/");
+              close();
+            }}
+          />
+        );
       return (
         <div className="flex flex-wrap gap-1.5">
           <Button
@@ -175,8 +202,8 @@ function Actions({
         </div>
       );
     }
-    case 'action': {
-      const actionId = item.id.replace(/^action:/, '');
+    case "action": {
+      const actionId = item.id.replace(/^action:/, "");
       return (
         <div className="flex gap-1.5">
           <Button
@@ -198,18 +225,42 @@ function Actions({
         </div>
       );
     }
-    case 'meeting_bot':
-      return <DeepLink label="Open meeting copilots" onClick={() => { navigate('/'); close(); }} />;
-    case 'bank_reauth':
-      return <DeepLink label="Open finance" onClick={() => { navigate('/finance'); close(); }} />;
-    case 'schedule':
-      return <DeepLink label="Open planner" onClick={() => { navigate('/'); close(); }} />;
+    case "meeting_bot":
+      return (
+        <DeepLink
+          label="Open meeting copilots"
+          onClick={() => {
+            navigate("/");
+            close();
+          }}
+        />
+      );
+    case "bank_reauth":
+      return (
+        <DeepLink
+          label="Open finance"
+          onClick={() => {
+            navigate("/finance");
+            close();
+          }}
+        />
+      );
+    case "schedule":
+      return (
+        <DeepLink
+          label="Open planner"
+          onClick={() => {
+            navigate("/");
+            close();
+          }}
+        />
+      );
     default:
       return null;
   }
 }
 
-function DeepLink({ label = 'Open', onClick }: { label?: string; onClick: () => void }) {
+function DeepLink({ label = "Open", onClick }: { label?: string; onClick: () => void }) {
   return (
     <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 ml-auto" onClick={onClick}>
       {label} <ChevronRight className="w-3 h-3" />

@@ -1,5 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 /**
  * Lightweight client-error telemetry.
@@ -15,7 +15,8 @@ import type { Json } from '@/integrations/supabase/types';
  */
 
 function describe(error: unknown): { message: string; stack?: string } {
-  if (error instanceof Error) return { message: `${error.name}: ${error.message}`, stack: error.stack };
+  if (error instanceof Error)
+    return { message: `${error.name}: ${error.message}`, stack: error.stack };
   try {
     return { message: JSON.stringify(error) };
   } catch {
@@ -28,18 +29,21 @@ const DEDUPE_MS = 10_000;
 
 function sessionId(): string {
   try {
-    let id = sessionStorage.getItem('analytics_session_id');
+    let id = sessionStorage.getItem("analytics_session_id");
     if (!id) {
       id = crypto.randomUUID();
-      sessionStorage.setItem('analytics_session_id', id);
+      sessionStorage.setItem("analytics_session_id", id);
     }
     return id;
   } catch {
-    return 'no-session';
+    return "no-session";
   }
 }
 
-export async function reportClientError(error: unknown, context?: Record<string, unknown>): Promise<void> {
+export async function reportClientError(
+  error: unknown,
+  context?: Record<string, unknown>,
+): Promise<void> {
   try {
     const { message, stack } = describe(error);
 
@@ -54,11 +58,11 @@ export async function reportClientError(error: unknown, context?: Record<string,
     const userId = auth?.user?.id;
     if (!userId) return; // RLS-scoped table; skip anonymous noise.
 
-    await supabase.from('analytics_events').insert({
+    await supabase.from("analytics_events").insert({
       user_id: userId,
-      event_type: 'error',
-      event_category: 'error',
-      page_path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+      event_type: "error",
+      event_category: "error",
+      page_path: typeof window !== "undefined" ? window.location.pathname : undefined,
       session_id: sessionId(),
       event_data: {
         message,
@@ -89,11 +93,11 @@ export async function trackEvent(
     const userId = auth?.user?.id;
     if (!userId) return;
 
-    await supabase.from('analytics_events').insert({
+    await supabase.from("analytics_events").insert({
       user_id: userId,
       event_type: eventType,
       event_category: eventCategory,
-      page_path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+      page_path: typeof window !== "undefined" ? window.location.pathname : undefined,
       session_id: sessionId(),
       event_data: (data ?? {}) as Json,
     });
@@ -103,13 +107,13 @@ export async function trackEvent(
 }
 
 /** Categories/types used for the proactivity north-star metric. */
-export const PROACTIVE_CATEGORY = 'proactive';
+export const PROACTIVE_CATEGORY = "proactive";
 /**
  * Outcomes for a proactive surface. `'shown'` is an impression (the surface was
  * displayed to the user); the others are explicit responses. Recording `'shown'`
  * lets us compute the acceptance RATE: accepted ÷ shown.
  */
-export type ProactiveOutcome = 'shown' | 'accepted' | 'dismissed' | 'muted';
+export type ProactiveOutcome = "shown" | "accepted" | "dismissed" | "muted";
 
 /**
  * Record how a user responded to a proactive surface (nudge, suggestion, …),
@@ -129,13 +133,13 @@ let installed = false;
 
 /** Install global handlers for uncaught errors and unhandled promise rejections. */
 export function installGlobalErrorTelemetry(): void {
-  if (installed || typeof window === 'undefined') return;
+  if (installed || typeof window === "undefined") return;
   installed = true;
 
-  window.addEventListener('error', (e) => {
-    void reportClientError(e.error ?? e.message, { kind: 'window.error' });
+  window.addEventListener("error", (e) => {
+    void reportClientError(e.error ?? e.message, { kind: "window.error" });
   });
-  window.addEventListener('unhandledrejection', (e) => {
-    void reportClientError(e.reason, { kind: 'unhandledrejection' });
+  window.addEventListener("unhandledrejection", (e) => {
+    void reportClientError(e.reason, { kind: "unhandledrejection" });
   });
 }

@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useState, useEffect, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search,
   ListTodo,
@@ -19,10 +19,10 @@ import {
   FolderOpen,
   StickyNote,
   Building2,
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import type { SearchResult, SearchFilters, SearchableType } from '@/hooks/useGlobalSearch';
-import { SEARCHABLE_TYPES } from '@/hooks/useGlobalSearch';
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import type { SearchResult, SearchFilters, SearchableType } from "@/hooks/useGlobalSearch";
+import { SEARCHABLE_TYPES } from "@/hooks/useGlobalSearch";
 
 interface GlobalSearchProps {
   open: boolean;
@@ -48,20 +48,24 @@ const typeIcons: Record<string, React.ElementType> = {
 };
 
 const priorityColors: Record<string, string> = {
-  high: 'bg-red-500/20 text-red-400 border-red-500/50',
-  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
-  low: 'bg-green-500/20 text-green-400 border-green-500/50',
+  high: "bg-red-500/20 text-red-400 border-red-500/50",
+  medium: "bg-yellow-500/20 text-yellow-400 border-yellow-500/50",
+  low: "bg-green-500/20 text-green-400 border-green-500/50",
 };
 
 function highlightMatch(text: string, query: string): React.ReactNode {
   if (!query || query.length < 2) return text;
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
   if (parts.length === 1) return text;
   return parts.map((part, i) =>
-    part.toLowerCase() === query.toLowerCase()
-      ? <mark key={i} className="bg-primary/20 text-foreground rounded-sm px-0.5">{part}</mark>
-      : part
+    part.toLowerCase() === query.toLowerCase() ? (
+      <mark key={i} className="bg-primary/20 text-foreground rounded-sm px-0.5">
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
   );
 }
 
@@ -76,7 +80,7 @@ export function GlobalSearch({
   onClearRecent,
   onSelectResult,
 }: GlobalSearchProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<SearchFilters>({
     types: [...SEARCHABLE_TYPES],
   });
@@ -87,7 +91,7 @@ export function GlobalSearch({
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 100);
     } else {
-      setQuery('');
+      setQuery("");
       onClearResults();
     }
   }, [open, onClearResults]);
@@ -113,10 +117,10 @@ export function GlobalSearch({
   }, [query, filters, onSearch, onClearResults]);
 
   const toggleTypeFilter = (type: SearchableType) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       types: prev.types.includes(type)
-        ? prev.types.filter(t => t !== type)
+        ? prev.types.filter((t) => t !== type)
         : [...prev.types, type],
     }));
   };
@@ -153,7 +157,7 @@ export function GlobalSearch({
                 size="icon"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
                 onClick={() => {
-                  setQuery('');
+                  setQuery("");
                   onClearResults();
                 }}
               >
@@ -168,16 +172,22 @@ export function GlobalSearch({
             {SEARCHABLE_TYPES.map((type) => {
               const Icon = typeIcons[type];
               const isActive = filters.types.includes(type);
-              const label = type === 'contract' ? 'Contracts' :
-                           type === 'contact' ? 'Contacts' :
-                           type === 'project' ? 'Projects' :
-                           type === 'note' ? 'Notes' :
-                           type === 'workspace' ? 'Workspaces' :
-                           type.charAt(0).toUpperCase() + type.slice(1) + 's';
+              const label =
+                type === "contract"
+                  ? "Contracts"
+                  : type === "contact"
+                    ? "Contacts"
+                    : type === "project"
+                      ? "Projects"
+                      : type === "note"
+                        ? "Notes"
+                        : type === "workspace"
+                          ? "Workspaces"
+                          : type.charAt(0).toUpperCase() + type.slice(1) + "s";
               return (
                 <Button
                   key={type}
-                  variant={isActive ? 'default' : 'outline'}
+                  variant={isActive ? "default" : "outline"}
                   size="sm"
                   className="h-7 text-xs"
                   onClick={() => toggleTypeFilter(type)}
@@ -199,7 +209,7 @@ export function GlobalSearch({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
-                    {results.length} result{results.length !== 1 ? 's' : ''}
+                    {results.length} result{results.length !== 1 ? "s" : ""}
                   </span>
                 </div>
                 {results.map((result) => {
@@ -216,13 +226,12 @@ export function GlobalSearch({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            {result.type === 'task' && (
-                              result.completed ? (
+                            {result.type === "task" &&
+                              (result.completed ? (
                                 <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                               ) : (
                                 <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              )
-                            )}
+                              ))}
                             <span className="font-medium text-sm truncate">
                               {highlightMatch(result.title, query)}
                             </span>
@@ -237,9 +246,9 @@ export function GlobalSearch({
                               {result.type}
                             </Badge>
                             {result.priority && (
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${priorityColors[result.priority] || ''}`}
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${priorityColors[result.priority] || ""}`}
                               >
                                 {result.priority}
                               </Badge>
@@ -269,12 +278,7 @@ export function GlobalSearch({
                     <Clock className="h-3 w-3" />
                     Recent searches
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={onClearRecent}
-                  >
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClearRecent}>
                     Clear all
                   </Button>
                 </div>
@@ -303,8 +307,13 @@ export function GlobalSearch({
 
         {/* Keyboard shortcuts hint */}
         <div className="p-3 border-t border-border bg-muted/50 text-xs text-muted-foreground flex items-center justify-between">
-          <span>Press <kbd className="px-1.5 py-0.5 bg-background rounded border">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-background rounded border">K</kbd> to open search</span>
-          <span>Press <kbd className="px-1.5 py-0.5 bg-background rounded border">Esc</kbd> to close</span>
+          <span>
+            Press <kbd className="px-1.5 py-0.5 bg-background rounded border">⌘</kbd> +{" "}
+            <kbd className="px-1.5 py-0.5 bg-background rounded border">K</kbd> to open search
+          </span>
+          <span>
+            Press <kbd className="px-1.5 py-0.5 bg-background rounded border">Esc</kbd> to close
+          </span>
         </div>
       </DialogContent>
     </Dialog>

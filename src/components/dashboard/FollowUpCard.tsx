@@ -1,21 +1,21 @@
-import { useState } from 'react';
-import { GlassCard, GlassCardContent, GlassCardHeader } from '@/components/ui/glass-card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useFollowUpQueue } from '@/hooks/useFollowUpQueue';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { 
-  MessageSquare, 
-  CheckCircle2, 
-  Clock, 
+import { useState } from "react";
+import { GlassCard, GlassCardContent, GlassCardHeader } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useFollowUpQueue } from "@/hooks/useFollowUpQueue";
+import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  MessageSquare,
+  CheckCircle2,
+  Clock,
   X,
   ChevronRight,
   Target,
   Flame,
-  Calendar
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
+  Calendar,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const FOLLOW_UP_ICONS: Record<string, React.ReactNode> = {
   stalled_task: <Clock className="w-4 h-4 text-warning" />,
@@ -27,18 +27,19 @@ const FOLLOW_UP_ICONS: Record<string, React.ReactNode> = {
 
 export function FollowUpCard() {
   const { t } = useLanguage();
-  const { dueFollowUps, completeFollowUp, dismissFollowUp, snoozeFollowUp, loading } = useFollowUpQueue();
+  const { dueFollowUps, completeFollowUp, dismissFollowUp, snoozeFollowUp, loading } =
+    useFollowUpQueue();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const getFollowUpLabel = (type: string) => {
     const labels: Record<string, string> = {
-      stalled_task: t('followUp.taskCheckin'),
-      post_event: t('followUp.eventFollowup'),
-      goal_check: t('followUp.goalProgress'),
-      habit_reminder: t('followUp.habitReminder'),
-      day_prediction: t('followUp.dayInsight'),
+      stalled_task: t("followUp.taskCheckin"),
+      post_event: t("followUp.eventFollowup"),
+      goal_check: t("followUp.goalProgress"),
+      habit_reminder: t("followUp.habitReminder"),
+      day_prediction: t("followUp.dayInsight"),
     };
-    return labels[type] || t('followUp.title');
+    return labels[type] || t("followUp.title");
   };
 
   if (loading) {
@@ -63,7 +64,7 @@ export function FollowUpCard() {
       <GlassCardHeader className="pb-2">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <MessageSquare className="w-4 h-4 text-primary" />
-          {t('followUp.quick')}
+          {t("followUp.quick")}
           <Badge variant="secondary" className="ml-auto">
             {dueFollowUps.length}
           </Badge>
@@ -75,10 +76,10 @@ export function FollowUpCard() {
             key={followUp.id}
             className={cn(
               "p-3 rounded-lg bg-muted/50 transition-all",
-              expandedId === followUp.id && "bg-primary/10 ring-1 ring-primary/20"
+              expandedId === followUp.id && "bg-primary/10 ring-1 ring-primary/20",
             )}
           >
-            <div 
+            <div
               className="flex items-start gap-3 cursor-pointer"
               onClick={() => setExpandedId(expandedId === followUp.id ? null : followUp.id)}
             >
@@ -93,13 +94,16 @@ export function FollowUpCard() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-1">
-                  {followUp.message_template || `${t('followUp.about')}: ${followUp.context?.title || followUp.entity_type}`}
+                  {followUp.message_template ||
+                    `${t("followUp.about")}: ${followUp.context?.title || followUp.entity_type}`}
                 </p>
               </div>
-              <ChevronRight className={cn(
-                "w-4 h-4 text-muted-foreground transition-transform",
-                expandedId === followUp.id && "rotate-90"
-              )} />
+              <ChevronRight
+                className={cn(
+                  "w-4 h-4 text-muted-foreground transition-transform",
+                  expandedId === followUp.id && "rotate-90",
+                )}
+              />
             </div>
 
             {expandedId === followUp.id && (
@@ -110,7 +114,7 @@ export function FollowUpCard() {
                 {followUp.message_template && (
                   <p className="text-sm text-muted-foreground">{followUp.message_template}</p>
                 )}
-                
+
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
@@ -118,11 +122,11 @@ export function FollowUpCard() {
                     className="flex-1"
                     onClick={(e) => {
                       e.stopPropagation();
-                      completeFollowUp(followUp.id, 'done');
+                      completeFollowUp(followUp.id, "done");
                     }}
                   >
                     <CheckCircle2 className="w-3 h-3 mr-1" />
-                    {t('followUp.done')}
+                    {t("followUp.done")}
                   </Button>
                   <Button
                     size="sm"
@@ -133,7 +137,7 @@ export function FollowUpCard() {
                     }}
                   >
                     <Clock className="w-3 h-3 mr-1" />
-                    {t('followUp.later')}
+                    {t("followUp.later")}
                     Later
                   </Button>
                   <Button
@@ -151,10 +155,10 @@ export function FollowUpCard() {
             )}
           </div>
         ))}
-        
+
         {dueFollowUps.length > 3 && (
           <p className="text-xs text-muted-foreground text-center">
-            +{dueFollowUps.length - 3} {t('followUp.more')}
+            +{dueFollowUps.length - 3} {t("followUp.more")}
           </p>
         )}
       </GlassCardContent>

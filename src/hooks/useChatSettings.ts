@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
+import { useState, useCallback, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
 
 export interface ChatSettings {
   dndEnabled: boolean;
@@ -35,9 +35,9 @@ export function useChatSettings() {
     if (!user) return;
 
     const { data, error } = await supabase
-      .from('user_chat_settings')
-      .select('*')
-      .eq('user_id', user.id)
+      .from("user_chat_settings")
+      .select("*")
+      .eq("user_id", user.id)
       .single();
 
     if (!error && data) {
@@ -53,30 +53,32 @@ export function useChatSettings() {
   }, [user]);
 
   // Update chat settings
-  const updateSettings = useCallback(async (newSettings: Partial<ChatSettings>) => {
-    if (!user) return;
+  const updateSettings = useCallback(
+    async (newSettings: Partial<ChatSettings>) => {
+      if (!user) return;
 
-    const { error } = await supabase
-      .from('user_chat_settings')
-      .upsert({
+      const { error } = await supabase.from("user_chat_settings").upsert({
         user_id: user.id,
         dnd_enabled: newSettings.dndEnabled ?? settings.dndEnabled,
         dnd_start: newSettings.dndStart ?? settings.dndStart,
         dnd_end: newSettings.dndEnd ?? settings.dndEnd,
         dnd_days: newSettings.dndDays ?? settings.dndDays,
-        disappearing_messages_default: newSettings.disappearingMessagesDefault ?? settings.disappearingMessagesDefault,
+        disappearing_messages_default:
+          newSettings.disappearingMessagesDefault ?? settings.disappearingMessagesDefault,
         priority_contacts: newSettings.priorityContacts ?? settings.priorityContacts,
         updated_at: new Date().toISOString(),
       });
 
-    if (error) {
-      toast.error('Failed to update settings');
-      return;
-    }
+      if (error) {
+        toast.error("Failed to update settings");
+        return;
+      }
 
-    setSettings(prev => ({ ...prev, ...newSettings }));
-    toast.success('Settings updated');
-  }, [user, settings]);
+      setSettings((prev) => ({ ...prev, ...newSettings }));
+      toast.success("Settings updated");
+    },
+    [user, settings],
+  );
 
   // Check if currently in DND mode
   const isInDndMode = useCallback(() => {
@@ -106,99 +108,117 @@ export function useChatSettings() {
     if (!user) return;
 
     const { data, error } = await supabase
-      .from('blocked_users')
-      .select('*')
-      .eq('blocker_id', user.id);
+      .from("blocked_users")
+      .select("*")
+      .eq("blocker_id", user.id);
 
     if (!error && data) {
       // Get blocked user names
-      const blockedIds = data.map(b => b.blocked_id);
+      const blockedIds = data.map((b) => b.blocked_id);
       const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .in('user_id', blockedIds);
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", blockedIds);
 
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+      const profileMap = new Map(profiles?.map((p) => [p.user_id, p.display_name]) || []);
 
-      setBlockedUsers(data.map(b => ({
-        id: b.id,
-        blockedId: b.blocked_id,
-        blockedName: profileMap.get(b.blocked_id) || 'Unknown',
-        reason: b.reason,
-        createdAt: new Date(b.created_at),
-      })));
+      setBlockedUsers(
+        data.map((b) => ({
+          id: b.id,
+          blockedId: b.blocked_id,
+          blockedName: profileMap.get(b.blocked_id) || "Unknown",
+          reason: b.reason,
+          createdAt: new Date(b.created_at),
+        })),
+      );
     }
   }, [user]);
 
   // Block a user
-  const blockUser = useCallback(async (blockedId: string, reason?: string) => {
-    if (!user) return;
+  const blockUser = useCallback(
+    async (blockedId: string, reason?: string) => {
+      if (!user) return;
 
-    const { error } = await supabase
-      .from('blocked_users')
-      .insert({
+      const { error } = await supabase.from("blocked_users").insert({
         blocker_id: user.id,
         blocked_id: blockedId,
         reason,
       });
 
-    if (error) {
-      if (error.code === '23505') {
-        toast.error('User already blocked');
-      } else {
-        toast.error('Failed to block user');
+      if (error) {
+        if (error.code === "23505") {
+          toast.error("User already blocked");
+        } else {
+          toast.error("Failed to block user");
+        }
+        return;
       }
-      return;
-    }
 
-    toast.success('User blocked');
-    fetchBlockedUsers();
-  }, [user, fetchBlockedUsers]);
+      toast.success("User blocked");
+      fetchBlockedUsers();
+    },
+    [user, fetchBlockedUsers],
+  );
 
   // Unblock a user
-  const unblockUser = useCallback(async (blockedId: string) => {
-    if (!user) return;
+  const unblockUser = useCallback(
+    async (blockedId: string) => {
+      if (!user) return;
 
-    const { error } = await supabase
-      .from('blocked_users')
-      .delete()
-      .eq('blocker_id', user.id)
-      .eq('blocked_id', blockedId);
+      const { error } = await supabase
+        .from("blocked_users")
+        .delete()
+        .eq("blocker_id", user.id)
+        .eq("blocked_id", blockedId);
 
-    if (error) {
-      toast.error('Failed to unblock user');
-      return;
-    }
+      if (error) {
+        toast.error("Failed to unblock user");
+        return;
+      }
 
-    setBlockedUsers(prev => prev.filter(b => b.blockedId !== blockedId));
-    toast.success('User unblocked');
-  }, [user]);
+      setBlockedUsers((prev) => prev.filter((b) => b.blockedId !== blockedId));
+      toast.success("User unblocked");
+    },
+    [user],
+  );
 
   // Check if a user is blocked
-  const isUserBlocked = useCallback((userId: string) => {
-    return blockedUsers.some(b => b.blockedId === userId);
-  }, [blockedUsers]);
+  const isUserBlocked = useCallback(
+    (userId: string) => {
+      return blockedUsers.some((b) => b.blockedId === userId);
+    },
+    [blockedUsers],
+  );
 
   // Add priority contact
-  const addPriorityContact = useCallback(async (contactId: string) => {
-    if (!settings.priorityContacts.includes(contactId)) {
-      await updateSettings({
-        priorityContacts: [...settings.priorityContacts, contactId],
-      });
-    }
-  }, [settings.priorityContacts, updateSettings]);
+  const addPriorityContact = useCallback(
+    async (contactId: string) => {
+      if (!settings.priorityContacts.includes(contactId)) {
+        await updateSettings({
+          priorityContacts: [...settings.priorityContacts, contactId],
+        });
+      }
+    },
+    [settings.priorityContacts, updateSettings],
+  );
 
   // Remove priority contact
-  const removePriorityContact = useCallback(async (contactId: string) => {
-    await updateSettings({
-      priorityContacts: settings.priorityContacts.filter(id => id !== contactId),
-    });
-  }, [settings.priorityContacts, updateSettings]);
+  const removePriorityContact = useCallback(
+    async (contactId: string) => {
+      await updateSettings({
+        priorityContacts: settings.priorityContacts.filter((id) => id !== contactId),
+      });
+    },
+    [settings.priorityContacts, updateSettings],
+  );
 
   // Check if contact is priority
-  const isPriorityContact = useCallback((contactId: string) => {
-    return settings.priorityContacts.includes(contactId);
-  }, [settings.priorityContacts]);
+  const isPriorityContact = useCallback(
+    (contactId: string) => {
+      return settings.priorityContacts.includes(contactId);
+    },
+    [settings.priorityContacts],
+  );
 
   useEffect(() => {
     if (user) {

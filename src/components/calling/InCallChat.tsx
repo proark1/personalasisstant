@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
-import { useInCallChat } from '@/hooks/useInCallChat';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, MessageCircle, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { useState, useRef, useEffect } from "react";
+import { useInCallChat } from "@/hooks/useInCallChat";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Send, MessageCircle, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface InCallChatProps {
   sessionId: string | null;
@@ -17,22 +17,22 @@ interface InCallChatProps {
 
 export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: InCallChatProps) {
   const { messages, sendMessage } = useInCallChat(sessionId, userId);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' });
+    endRef.current?.scrollIntoView({ block: "end" });
   }, [messages]);
 
   const handleSend = () => {
     if (!input.trim()) return;
     sendMessage(input, userName);
-    setInput('');
+    setInput("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -50,7 +50,7 @@ export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: In
         <MessageCircle className="w-5 h-5" />
         {messages.length > 0 && (
           <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-            {messages.length > 9 ? '9+' : messages.length}
+            {messages.length > 9 ? "9+" : messages.length}
           </span>
         )}
       </Button>
@@ -62,7 +62,13 @@ export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: In
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <span className="text-sm font-medium">In-Call Chat</span>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onToggle} aria-label="Close chat">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={onToggle}
+          aria-label="Close chat"
+        >
           <X className="w-4 h-4" />
         </Button>
       </div>
@@ -80,21 +86,24 @@ export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: In
               return (
                 <div
                   key={msg.id}
-                  className={cn('flex flex-col max-w-[85%]', isOwn ? 'ml-auto items-end' : 'items-start')}
+                  className={cn(
+                    "flex flex-col max-w-[85%]",
+                    isOwn ? "ml-auto items-end" : "items-start",
+                  )}
                 >
                   {!isOwn && (
                     <span className="text-xs text-muted-foreground mb-0.5">{msg.senderName}</span>
                   )}
                   <div
                     className={cn(
-                      'px-3 py-1.5 rounded-lg text-sm',
-                      isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
+                      "px-3 py-1.5 rounded-lg text-sm",
+                      isOwn ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
                     )}
                   >
                     {msg.content}
                   </div>
                   <span className="text-[10px] text-muted-foreground mt-0.5">
-                    {format(msg.timestamp, 'HH:mm')}
+                    {format(msg.timestamp, "HH:mm")}
                   </span>
                 </div>
               );
@@ -108,14 +117,14 @@ export function InCallChat({ sessionId, userId, userName, isOpen, onToggle }: In
       <div className="flex gap-2 p-2 border-t border-border">
         <Input
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type a message..."
           className="h-8 text-sm"
         />
-        <Button 
-          size="icon" 
-          className="h-8 w-8 shrink-0" 
+        <Button
+          size="icon"
+          className="h-8 w-8 shrink-0"
           onClick={handleSend}
           disabled={!input.trim()}
           aria-label="Send message"

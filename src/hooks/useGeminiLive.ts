@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { AssistantPersonality, VoiceTaskAction } from '@/types/flux';
+import { useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { AssistantPersonality, VoiceTaskAction } from "@/types/flux";
 
 interface UserProfile {
   displayName?: string | null;
@@ -26,13 +26,40 @@ interface TaskItem {
 }
 
 interface ContextData {
-  overdueTasks?: Array<{ title: string; category: string; priority: string; dueDate: string | null }>;
+  overdueTasks?: Array<{
+    title: string;
+    category: string;
+    priority: string;
+    dueDate: string | null;
+  }>;
   todayTasks?: Array<{ title: string; category: string; priority: string; dueDate: string | null }>;
-  upcomingTasks?: Array<{ title: string; category: string; priority: string; dueDate: string | null }>;
+  upcomingTasks?: Array<{
+    title: string;
+    category: string;
+    priority: string;
+    dueDate: string | null;
+  }>;
   allTasks?: TaskItem[];
-  upcomingEvents?: Array<{ title: string; startTime: string; endTime: string; location?: string | null; category?: string | null }>;
-  contactsDue?: Array<{ name: string; company?: string | null; role?: string | null; nextContactDue?: string | null }>;
-  contractsWithRenewals?: Array<{ name: string; category: string; renewalDate?: string | null; costAmount?: number | null; costFrequency?: string | null }>;
+  upcomingEvents?: Array<{
+    title: string;
+    startTime: string;
+    endTime: string;
+    location?: string | null;
+    category?: string | null;
+  }>;
+  contactsDue?: Array<{
+    name: string;
+    company?: string | null;
+    role?: string | null;
+    nextContactDue?: string | null;
+  }>;
+  contractsWithRenewals?: Array<{
+    name: string;
+    category: string;
+    renewalDate?: string | null;
+    costAmount?: number | null;
+    costFrequency?: string | null;
+  }>;
   totalPendingTasks?: number;
   totalOverdue?: number;
   totalEvents?: number;
@@ -52,7 +79,7 @@ interface UseGeminiLiveOptions {
 }
 
 export function useGeminiLive({
-  personality = 'balanced',
+  personality = "balanced",
   userProfile,
   contextData,
   memories,
@@ -62,107 +89,126 @@ export function useGeminiLive({
   onSpeakingChange,
 }: UseGeminiLiveOptions = {}) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [lastResponse, setLastResponse] = useState('');
-  const sendText = useCallback(async (text: string) => {
-    if (!text.trim()) return;
+  const [lastResponse, setLastResponse] = useState("");
+  const sendText = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
 
-    setIsProcessing(true);
-    onSpeakingChange?.(false);
+      setIsProcessing(true);
+      onSpeakingChange?.(false);
 
-    try {
-      const { data, error } = await supabase.functions.invoke('gemini-live', {
-        body: { 
-          action: 'send_text', 
-          text, 
-          personality,
-          userProfile: userProfile ? {
-            displayName: userProfile.displayName,
-            role: userProfile.role,
-            bio: userProfile.bio,
-            businesses: userProfile.businesses,
-            interests: userProfile.interests,
-            skills: userProfile.skills,
-            goals: userProfile.goals,
-            locationCity: userProfile.locationCity,
-            locationCountry: userProfile.locationCountry,
-            timezone: userProfile.timezone,
-            preferredWorkHours: userProfile.preferredWorkHours,
-          } : undefined,
-          contextData: contextData || undefined,
-          memories: memories || undefined,
+      try {
+        const { data, error } = await supabase.functions.invoke("gemini-live", {
+          body: {
+            action: "send_text",
+            text,
+            personality,
+            userProfile: userProfile
+              ? {
+                  displayName: userProfile.displayName,
+                  role: userProfile.role,
+                  bio: userProfile.bio,
+                  businesses: userProfile.businesses,
+                  interests: userProfile.interests,
+                  skills: userProfile.skills,
+                  goals: userProfile.goals,
+                  locationCity: userProfile.locationCity,
+                  locationCountry: userProfile.locationCountry,
+                  timezone: userProfile.timezone,
+                  preferredWorkHours: userProfile.preferredWorkHours,
+                }
+              : undefined,
+            contextData: contextData || undefined,
+            memories: memories || undefined,
+          },
+        });
+
+        if (error) throw error;
+
+        const responseText = data?.text || "I couldn't process that.";
+        setLastResponse(responseText);
+        onResponse?.(responseText);
+
+        // Handle voice action if present
+        if (data?.action) {
+          console.log("Voice action received:", data.action);
+          onAction?.(data.action as VoiceTaskAction);
         }
-      });
 
-      if (error) throw error;
-
-      const responseText = data?.text || "I couldn't process that.";
-      setLastResponse(responseText);
-      onResponse?.(responseText);
-
-      // Handle voice action if present
-      if (data?.action) {
-        console.log('Voice action received:', data.action);
-        onAction?.(data.action as VoiceTaskAction);
+        return responseText;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Failed to get response";
+        console.error("Gemini Live error:", err);
+        onError?.(errorMsg);
+        return null;
+      } finally {
+        setIsProcessing(false);
       }
+    },
+    [
+      personality,
+      userProfile,
+      contextData,
+      memories,
+      onResponse,
+      onAction,
+      onError,
+      onSpeakingChange,
+    ],
+  );
 
-      return responseText;
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to get response';
-      console.error('Gemini Live error:', err);
-      onError?.(errorMsg);
-      return null;
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [personality, userProfile, contextData, memories, onResponse, onAction, onError, onSpeakingChange]);
+  const sendAudio = useCallback(
+    async (audioData: Float32Array, sampleRate: number = 16000) => {
+      setIsProcessing(true);
+      onSpeakingChange?.(false);
 
-  const sendAudio = useCallback(async (audioData: Float32Array, sampleRate: number = 16000) => {
-    setIsProcessing(true);
-    onSpeakingChange?.(false);
+      try {
+        const wavBuffer = encodeWAV(audioData, sampleRate);
+        const base64Audio = arrayBufferToBase64(wavBuffer);
 
-    try {
-      const wavBuffer = encodeWAV(audioData, sampleRate);
-      const base64Audio = arrayBufferToBase64(wavBuffer);
+        const { data, error } = await supabase.functions.invoke("gemini-live", {
+          body: {
+            action: "send_audio",
+            audio: base64Audio,
+            personality,
+            userProfile: userProfile
+              ? {
+                  displayName: userProfile.displayName,
+                  role: userProfile.role,
+                  bio: userProfile.bio,
+                  businesses: userProfile.businesses,
+                  interests: userProfile.interests,
+                  skills: userProfile.skills,
+                  goals: userProfile.goals,
+                  locationCity: userProfile.locationCity,
+                  locationCountry: userProfile.locationCountry,
+                  timezone: userProfile.timezone,
+                  preferredWorkHours: userProfile.preferredWorkHours,
+                }
+              : undefined,
+            contextData: contextData || undefined,
+            memories: memories || undefined,
+          },
+        });
 
-      const { data, error } = await supabase.functions.invoke('gemini-live', {
-        body: { 
-          action: 'send_audio', 
-          audio: base64Audio, 
-          personality,
-          userProfile: userProfile ? {
-            displayName: userProfile.displayName,
-            role: userProfile.role,
-            bio: userProfile.bio,
-            businesses: userProfile.businesses,
-            interests: userProfile.interests,
-            skills: userProfile.skills,
-            goals: userProfile.goals,
-            locationCity: userProfile.locationCity,
-            locationCountry: userProfile.locationCountry,
-            timezone: userProfile.timezone,
-            preferredWorkHours: userProfile.preferredWorkHours,
-          } : undefined,
-          contextData: contextData || undefined,
-          memories: memories || undefined,
-        }
-      });
+        if (error) throw error;
 
-      if (error) throw error;
+        const responseText = data?.text || "I couldn't understand that.";
+        setLastResponse(responseText);
+        onResponse?.(responseText);
 
-      const responseText = data?.text || "I couldn't understand that.";
-      setLastResponse(responseText);
-      onResponse?.(responseText);
-
-      return responseText;
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to process audio';
-      console.error('Gemini Live audio error:', err);
-      onError?.(errorMsg);
-      return null;
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [personality, userProfile, contextData, memories, onResponse, onError, onSpeakingChange]);
+        return responseText;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Failed to process audio";
+        console.error("Gemini Live audio error:", err);
+        onError?.(errorMsg);
+        return null;
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [personality, userProfile, contextData, memories, onResponse, onError, onSpeakingChange],
+  );
 
   return {
     isProcessing,
@@ -177,10 +223,10 @@ function encodeWAV(samples: Float32Array, sampleRate: number): ArrayBuffer {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
 
-  writeString(view, 0, 'RIFF');
+  writeString(view, 0, "RIFF");
   view.setUint32(4, 36 + samples.length * 2, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
+  writeString(view, 8, "WAVE");
+  writeString(view, 12, "fmt ");
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
   view.setUint16(22, 1, true);
@@ -188,13 +234,13 @@ function encodeWAV(samples: Float32Array, sampleRate: number): ArrayBuffer {
   view.setUint32(28, sampleRate * 2, true);
   view.setUint16(32, 2, true);
   view.setUint16(34, 16, true);
-  writeString(view, 36, 'data');
+  writeString(view, 36, "data");
   view.setUint32(40, samples.length * 2, true);
 
   const offset = 44;
   for (let i = 0; i < samples.length; i++) {
     const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    view.setInt16(offset + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
   }
 
   return buffer;
@@ -208,7 +254,7 @@ function writeString(view: DataView, offset: number, string: string) {
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  let binary = '';
+  let binary = "";
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }

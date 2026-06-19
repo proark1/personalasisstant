@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 
 // Lazy-loaded Capacitor camera wrapper.
 //
@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 interface NativeCameraResult {
   file: File;
-  source: 'native_camera';
+  source: "native_camera";
 }
 
 interface NativeCameraApi {
@@ -21,7 +21,7 @@ interface NativeCameraApi {
   takePhoto: () => Promise<NativeCameraResult | null>;
 }
 
-const OPTIONAL_NATIVE_MODULES = ['@capacitor/camera'] as const;
+const OPTIONAL_NATIVE_MODULES = ["@capacitor/camera"] as const;
 type OptionalNativeModule = (typeof OPTIONAL_NATIVE_MODULES)[number];
 
 // Hide the specifier from Rollup/Vite static analysis. The @vite-ignore
@@ -41,9 +41,9 @@ export function useNativeCamera(): NativeCameraApi {
   useEffect(() => {
     (async () => {
       try {
-        const core = await import('@capacitor/core').catch((): null => null);
+        const core = await import("@capacitor/core").catch((): null => null);
         if (!core?.Capacitor?.isNativePlatform?.()) return;
-        const camera = await importOptional('@capacitor/camera');
+        const camera = await importOptional("@capacitor/camera");
         if (camera?.Camera) setAvailable(true);
       } catch {
         // No native shell or no plugin — silently keep the web fallback.
@@ -54,7 +54,7 @@ export function useNativeCamera(): NativeCameraApi {
   const takePhoto = useCallback(async (): Promise<NativeCameraResult | null> => {
     if (!available) return null;
     try {
-      const camera = await importOptional('@capacitor/camera');
+      const camera = await importOptional("@capacitor/camera");
       if (!camera) return null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { Camera, CameraResultType, CameraSource } = camera as any;
@@ -70,11 +70,13 @@ export function useNativeCamera(): NativeCameraApi {
       if (!path) return null;
       const res = await fetch(path as string);
       const blob = await res.blob();
-      const ext = photoRecord?.format || 'jpeg';
-      const file = new File([blob], `camera-${Date.now()}.${ext}`, { type: blob.type || `image/${ext}` });
-      return { file, source: 'native_camera' };
+      const ext = photoRecord?.format || "jpeg";
+      const file = new File([blob], `camera-${Date.now()}.${ext}`, {
+        type: blob.type || `image/${ext}`,
+      });
+      return { file, source: "native_camera" };
     } catch (err) {
-      console.warn('[useNativeCamera] takePhoto failed', (err as Error).message);
+      console.warn("[useNativeCamera] takePhoto failed", (err as Error).message);
       return null;
     }
   }, [available]);

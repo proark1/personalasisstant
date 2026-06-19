@@ -1,12 +1,21 @@
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw, Plane, Loader2 } from 'lucide-react';
-import { useTripOverview } from '@/hooks/useTripOverview';
-import { TripCard } from '@/components/travel/TripCard';
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, RefreshCw, Plane, Loader2 } from "lucide-react";
+import { useTripOverview } from "@/hooks/useTripOverview";
+import { TripCard } from "@/components/travel/TripCard";
 
 export default function TravelPage() {
   const navigate = useNavigate();
-  const { data, loading, busyTripId, refresh, refreshWeather, generatePacking, togglePackedItem, prepTrip } = useTripOverview();
+  const {
+    data,
+    loading,
+    busyTripId,
+    refresh,
+    refreshWeather,
+    generatePacking,
+    togglePackedItem,
+    prepTrip,
+  } = useTripOverview();
 
   const trips = data?.trips ?? [];
   // In-progress trips (started but not yet ended) belong with upcoming
@@ -18,12 +27,18 @@ export default function TravelPage() {
     <div className="min-h-screen bg-background">
       <div className="container max-w-5xl mx-auto py-8 px-4 space-y-5">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
+          <Button variant="ghost" onClick={() => navigate("/")} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={refresh} disabled={loading}>
-            <RefreshCw className={loading ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={refresh}
+            disabled={loading}
+          >
+            <RefreshCw className={loading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
             Refresh
           </Button>
         </div>
@@ -103,7 +118,8 @@ function EmptyState() {
       <Plane className="w-12 h-12 mx-auto opacity-40 mb-3" />
       <p className="font-medium text-sm">No trips yet</p>
       <p className="text-xs mt-1 max-w-sm mx-auto">
-        Add a trip from the Travel panel or ask the assistant to plan one. Trips you book on your calendar are also auto-detected.
+        Add a trip from the Travel panel or ask the assistant to plan one. Trips you book on your
+        calendar are also auto-detected.
       </p>
     </div>
   );

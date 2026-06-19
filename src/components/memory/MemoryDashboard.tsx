@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +13,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 import {
   Brain,
   Trash2,
@@ -28,19 +28,12 @@ import {
   Sparkles,
   Loader2,
   RefreshCw,
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import {
-  useKnowledgeGraph,
-  type KgEntity,
-  type KgEntityKind,
-} from '@/hooks/useKnowledgeGraph';
-import {
-  useMemoryAudit,
-  type MemoryAuditItem,
-} from '@/hooks/useMemoryAudit';
-import { AIUsageCard } from './AIUsageCard';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { useKnowledgeGraph, type KgEntity, type KgEntityKind } from "@/hooks/useKnowledgeGraph";
+import { useMemoryAudit, type MemoryAuditItem } from "@/hooks/useMemoryAudit";
+import { AIUsageCard } from "./AIUsageCard";
+import { cn } from "@/lib/utils";
 
 // "Memory & Privacy" view — three tabs:
 //   1. Entities       — knowledge graph (people, projects, places…),
@@ -50,19 +43,19 @@ import { cn } from '@/lib/utils';
 //   3. Forget log     — audit trail of every prior forget action.
 
 const KIND_META: Record<KgEntityKind, { label: string; icon: typeof Users; tone: string }> = {
-  person:       { label: 'People',        icon: Users,     tone: 'text-sky-500' },
-  project:      { label: 'Projects',      icon: Briefcase, tone: 'text-violet-500' },
-  place:        { label: 'Places',        icon: MapPin,    tone: 'text-emerald-500' },
-  organization: { label: 'Organizations', icon: Building2, tone: 'text-amber-500' },
-  topic:        { label: 'Topics',        icon: Tag,       tone: 'text-pink-500' },
-  product:      { label: 'Products',      icon: Package,   tone: 'text-cyan-500' },
-  event:        { label: 'Events',        icon: Calendar,  tone: 'text-rose-500' },
+  person: { label: "People", icon: Users, tone: "text-sky-500" },
+  project: { label: "Projects", icon: Briefcase, tone: "text-violet-500" },
+  place: { label: "Places", icon: MapPin, tone: "text-emerald-500" },
+  organization: { label: "Organizations", icon: Building2, tone: "text-amber-500" },
+  topic: { label: "Topics", icon: Tag, tone: "text-pink-500" },
+  product: { label: "Products", icon: Package, tone: "text-cyan-500" },
+  event: { label: "Events", icon: Calendar, tone: "text-rose-500" },
 };
 
 const SOURCE_LABEL: Record<string, string> = {
-  semantic:  'Semantic recall',
-  episodic:  'Life events',
-  ai_memory: 'Saved facts',
+  semantic: "Semantic recall",
+  episodic: "Life events",
+  ai_memory: "Saved facts",
 };
 
 export function MemoryDashboard() {
@@ -84,7 +77,10 @@ export function MemoryDashboard() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => { kg.refresh(); audit.refresh(); }}
+          onClick={() => {
+            kg.refresh();
+            audit.refresh();
+          }}
           className="gap-2"
         >
           <RefreshCw className="w-3.5 h-3.5" />
@@ -146,8 +142,13 @@ function EntitiesPanel({ kg }: { kg: ReturnType<typeof useKnowledgeGraph> }) {
 
   // Group by kind for a clean visual.
   const groups: Record<KgEntityKind, KgEntity[]> = {
-    person: [], project: [], place: [], organization: [],
-    topic: [], product: [], event: [],
+    person: [],
+    project: [],
+    place: [],
+    organization: [],
+    topic: [],
+    product: [],
+    event: [],
   };
   for (const e of kg.entities) {
     if (groups[e.kind]) groups[e.kind].push(e);
@@ -164,7 +165,7 @@ function EntitiesPanel({ kg }: { kg: ReturnType<typeof useKnowledgeGraph> }) {
             return (
               <section key={k}>
                 <div className="flex items-center gap-2 mb-2">
-                  <Icon className={cn('w-4 h-4', meta.tone)} />
+                  <Icon className={cn("w-4 h-4", meta.tone)} />
                   <h3 className="text-sm font-medium">{meta.label}</h3>
                   <Badge variant="secondary" className="ml-auto text-[10px]">
                     {groups[k].length}
@@ -186,25 +187,27 @@ function EntitiesPanel({ kg }: { kg: ReturnType<typeof useKnowledgeGraph> }) {
 
       <AlertDialog
         open={!!confirm}
-        onOpenChange={(o) => { if (!o) setConfirm(null); }}
+        onOpenChange={(o) => {
+          if (!o) setConfirm(null);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirm?.deep ? 'Forget everything about this entity?' : 'Forget this entity?'}
+              {confirm?.deep ? "Forget everything about this entity?" : "Forget this entity?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirm?.deep ? (
                 <>
-                  This deletes <strong>{confirm.entity.name}</strong> and every memory item
-                  that mentions it ({confirm.entity.mentionCount} item
-                  {confirm.entity.mentionCount === 1 ? '' : 's'}). This can't be undone.
+                  This deletes <strong>{confirm.entity.name}</strong> and every memory item that
+                  mentions it ({confirm.entity.mentionCount} item
+                  {confirm.entity.mentionCount === 1 ? "" : "s"}). This can't be undone.
                 </>
               ) : (
                 <>
-                  This removes the link to <strong>{confirm?.entity.name}</strong> but
-                  keeps the underlying memory items intact. You can re-discover
-                  the entity later by chatting about it.
+                  This removes the link to <strong>{confirm?.entity.name}</strong> but keeps the
+                  underlying memory items intact. You can re-discover the entity later by chatting
+                  about it.
                 </>
               )}
             </AlertDialogDescription>
@@ -230,7 +233,7 @@ function EntitiesPanel({ kg }: { kg: ReturnType<typeof useKnowledgeGraph> }) {
               }}
               className="bg-destructive hover:bg-destructive/90"
             >
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Forget'}
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Forget"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -239,16 +242,10 @@ function EntitiesPanel({ kg }: { kg: ReturnType<typeof useKnowledgeGraph> }) {
   );
 }
 
-function EntityRow({
-  entity,
-  onForget,
-}: {
-  entity: KgEntity;
-  onForget: (deep: boolean) => void;
-}) {
+function EntityRow({ entity, onForget }: { entity: KgEntity; onForget: (deep: boolean) => void }) {
   const last = entity.lastMentionedAt
     ? formatDistanceToNow(new Date(entity.lastMentionedAt), { addSuffix: true })
-    : 'never';
+    : "never";
   return (
     <Card className="p-3 flex items-start justify-between gap-3 bg-card/60">
       <div className="min-w-0 flex-1">
@@ -258,13 +255,11 @@ function EntityRow({
             {entity.kind}
           </Badge>
           <span className="text-[10px] text-muted-foreground">
-            {entity.mentionCount} mention{entity.mentionCount === 1 ? '' : 's'} · last {last}
+            {entity.mentionCount} mention{entity.mentionCount === 1 ? "" : "s"} · last {last}
           </span>
         </div>
         {entity.description && (
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-            {entity.description}
-          </p>
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{entity.description}</p>
         )}
       </div>
       <div className="flex flex-col gap-1 shrink-0">
@@ -321,14 +316,17 @@ function ItemsPanel({ audit }: { audit: ReturnType<typeof useMemoryAudit> }) {
 
       <AlertDialog
         open={!!confirm}
-        onOpenChange={(o) => { if (!o) setConfirm(null); }}
+        onOpenChange={(o) => {
+          if (!o) setConfirm(null);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Forget this memory item?</AlertDialogTitle>
             <AlertDialogDescription>
-              The assistant will permanently lose this {SOURCE_LABEL[confirm?.sourceKind ?? ''] ?? 'item'}.
-              Linked entities are kept; only this row is removed.
+              The assistant will permanently lose this{" "}
+              {SOURCE_LABEL[confirm?.sourceKind ?? ""] ?? "item"}. Linked entities are kept; only
+              this row is removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -348,7 +346,7 @@ function ItemsPanel({ audit }: { audit: ReturnType<typeof useMemoryAudit> }) {
               }}
               className="bg-destructive hover:bg-destructive/90"
             >
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Forget'}
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Forget"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -373,13 +371,9 @@ function ItemRow({ item, onForget }: { item: MemoryAuditItem; onForget: () => vo
           )}
           <span className="text-[10px] text-muted-foreground">{when}</span>
         </div>
-        {item.title && (
-          <p className="font-medium text-sm mt-1 truncate">{item.title}</p>
-        )}
+        {item.title && <p className="font-medium text-sm mt-1 truncate">{item.title}</p>}
         {item.content && (
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
-            {item.content}
-          </p>
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{item.content}</p>
         )}
       </div>
       <Button
@@ -400,7 +394,7 @@ function ItemRow({ item, onForget }: { item: MemoryAuditItem; onForget: () => vo
 function AuditPanel({
   redactions,
 }: {
-  redactions: ReturnType<typeof useMemoryAudit>['redactions'];
+  redactions: ReturnType<typeof useMemoryAudit>["redactions"];
 }) {
   if (!redactions.length) {
     return (
@@ -420,17 +414,13 @@ function AuditPanel({
                 {r.targetKind}
               </Badge>
               <span className="text-xs">
-                {r.cascadedCount} item{r.cascadedCount === 1 ? '' : 's'}
+                {r.cascadedCount} item{r.cascadedCount === 1 ? "" : "s"}
               </span>
               <span className="text-[10px] text-muted-foreground ml-auto">
                 {formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}
               </span>
             </div>
-            {r.reason && (
-              <p className="text-xs text-muted-foreground mt-1 italic">
-                "{r.reason}"
-              </p>
-            )}
+            {r.reason && <p className="text-xs text-muted-foreground mt-1 italic">"{r.reason}"</p>}
           </Card>
         ))}
       </div>
@@ -453,9 +443,7 @@ function EmptyState({ title, description }: { title: string; description: string
     <div className="text-center py-10 px-4">
       <Brain className="w-8 h-8 mx-auto text-muted-foreground/50 mb-3" />
       <p className="font-medium text-sm">{title}</p>
-      <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-        {description}
-      </p>
+      <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">{description}</p>
     </div>
   );
 }

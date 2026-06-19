@@ -1,27 +1,27 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { useAuth } from './useAuth';
-import { useSharedRealtime } from './useSharedRealtime';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { useAuth } from "./useAuth";
+import { useSharedRealtime } from "./useSharedRealtime";
+import { toast } from "sonner";
 
 export type MeetingBotStatus =
-  | 'pending'
-  | 'scheduled'
-  | 'joining'
-  | 'in_call'
-  | 'call_ended'
-  | 'transcript_ready'
-  | 'analysis_ready'
-  | 'done'
-  | 'error'
-  | 'cancelled';
+  | "pending"
+  | "scheduled"
+  | "joining"
+  | "in_call"
+  | "call_ended"
+  | "transcript_ready"
+  | "analysis_ready"
+  | "done"
+  | "error"
+  | "cancelled";
 
 export interface TranscriptEntry {
   speaker: string;
   text: string;
   timestamp: number;
-  source?: 'voice' | 'chat';
+  source?: "voice" | "chat";
 }
 
 export interface ActionItem {
@@ -65,8 +65,13 @@ export interface ScheduleArgs {
 }
 
 const ACTIVE: MeetingBotStatus[] = [
-  'pending', 'scheduled', 'joining', 'in_call',
-  'call_ended', 'transcript_ready', 'analysis_ready',
+  "pending",
+  "scheduled",
+  "joining",
+  "in_call",
+  "call_ended",
+  "transcript_ready",
+  "analysis_ready",
 ];
 
 // Manages meeting copilots (rows in `meeting_bots`). Reads from the
@@ -84,84 +89,98 @@ export function useMeetingBots() {
     setLoading(true);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any).from('meeting_bots')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      const { data, error } = await (supabase as any)
+        .from("meeting_bots")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
       setBots((data ?? []).map(rowFromDb));
     } catch (e) {
-      console.warn('[useMeetingBots] refresh failed', (e as Error).message);
+      console.warn("[useMeetingBots] refresh failed", (e as Error).message);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   // Routed through the shared coordinator so multiple useMeetingBots()
   // callers don't each spin up their own channel.
-  useSharedRealtime('meeting_bots', user?.id, () => { refresh(); });
+  useSharedRealtime("meeting_bots", user?.id, () => {
+    refresh();
+  });
 
-  const schedule = useCallback(async (args: ScheduleArgs) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('meeting-bot-schedule', {
-        body: {
-          meeting_url: args.meetingUrl,
-          title: args.title,
-          bot_name: args.botName,
-          join_at: args.joinAt ?? null,
-          event_id: args.eventId ?? null,
-          workspace_id: args.workspaceId ?? null,
-          record_video: !!args.recordVideo,
-          vocabulary: args.vocabulary ?? [],
-        },
-      });
-      if (error) throw error;
-      if (data?.error) {
-        toast.error(`Schedule failed: ${data.error}`);
+  const schedule = useCallback(
+    async (args: ScheduleArgs) => {
+      try {
+        const { data, error } = await supabase.functions.invoke("meeting-bot-schedule", {
+          body: {
+            meeting_url: args.meetingUrl,
+            title: args.title,
+            bot_name: args.botName,
+            join_at: args.joinAt ?? null,
+            event_id: args.eventId ?? null,
+            workspace_id: args.workspaceId ?? null,
+            record_video: !!args.recordVideo,
+            vocabulary: args.vocabulary ?? [],
+          },
+        });
+        if (error) throw error;
+        if (data?.error) {
+          toast.error(`Schedule failed: ${data.error}`);
+          return null;
+        }
+        toast.success("Bot scheduled");
+        await refresh();
+        return data;
+      } catch (e) {
+        toast.error(await describeEdgeError(e, "Failed to schedule bot"));
         return null;
       }
-      toast.success('Bot scheduled');
-      await refresh();
-      return data;
-    } catch (e) {
-      toast.error(await describeEdgeError(e, 'Failed to schedule bot'));
-      return null;
-    }
-  }, [refresh]);
+    },
+    [refresh],
+  );
 
-  const cancel = useCallback(async (id: string) => {
-    setBusyId(id);
-    try {
-      const { error } = await supabase.functions.invoke('meeting-bot-control', {
-        body: { id, action: 'cancel' },
-      });
-      if (error) throw error;
-      toast.info('Bot cancelled');
-      await refresh();
-    } catch (e) {
-      toast.error(await describeEdgeError(e, 'Failed to cancel bot'));
-    } finally {
-      setBusyId(null);
-    }
-  }, [refresh]);
+  const cancel = useCallback(
+    async (id: string) => {
+      setBusyId(id);
+      try {
+        const { error } = await supabase.functions.invoke("meeting-bot-control", {
+          body: { id, action: "cancel" },
+        });
+        if (error) throw error;
+        toast.info("Bot cancelled");
+        await refresh();
+      } catch (e) {
+        toast.error(await describeEdgeError(e, "Failed to cancel bot"));
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [refresh],
+  );
 
-  const refreshOne = useCallback(async (id: string) => {
-    setBusyId(id);
-    try {
-      const { error } = await supabase.functions.invoke('meeting-bot-control', {
-        body: { id, action: 'refresh' },
-      });
-      if (error) throw error;
-      await refresh();
-    } catch (e) {
-      toast.error(await describeEdgeError(e, 'Failed to refresh bot'));
-    } finally {
-      setBusyId(null);
-    }
-  }, [refresh]);
+  const refreshOne = useCallback(
+    async (id: string) => {
+      setBusyId(id);
+      try {
+        const { error } = await supabase.functions.invoke("meeting-bot-control", {
+          body: { id, action: "refresh" },
+        });
+        if (error) throw error;
+        await refresh();
+      } catch (e) {
+        toast.error(await describeEdgeError(e, "Failed to refresh bot"));
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [refresh],
+  );
 
   const activeCount = bots.filter((b) => ACTIVE.includes(b.status)).length;
 

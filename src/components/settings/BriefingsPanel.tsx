@@ -1,34 +1,31 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { Newspaper, Plus, Trash2, X, Send, Clock, Sunrise } from 'lucide-react';
-import {
-  useBriefings,
-  type Briefing,
-  type BriefingChannel,
-} from '@/hooks/useBriefings';
-import { BriefingFeedCard } from '@/components/notifications/BriefingFeedCard';
+import { useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { Newspaper, Plus, Trash2, X, Send, Clock, Sunrise } from "lucide-react";
+import { useBriefings, type Briefing, type BriefingChannel } from "@/hooks/useBriefings";
+import { BriefingFeedCard } from "@/components/notifications/BriefingFeedCard";
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const CHANNELS: { key: BriefingChannel; label: string }[] = [
-  { key: 'telegram', label: 'Telegram text' },
-  { key: 'telegram_voice', label: 'Telegram voice' },
-  { key: 'push', label: 'Push' },
+  { key: "telegram", label: "Telegram text" },
+  { key: "telegram_voice", label: "Telegram voice" },
+  { key: "push", label: "Push" },
 ];
 
 function toTimeInput(value: string): string {
   // Accepts "HH:MM:SS" or "HH:MM" → "HH:MM" for <input type="time">.
-  return (value || '08:00').slice(0, 5);
+  return (value || "08:00").slice(0, 5);
 }
 
 export function BriefingsPanel() {
-  const { briefings, loading, createBriefing, updateBriefing, deleteBriefing, sendNow } = useBriefings();
+  const { briefings, loading, createBriefing, updateBriefing, deleteBriefing, sendNow } =
+    useBriefings();
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
@@ -41,20 +38,20 @@ export function BriefingsPanel() {
   const handleQuickStart = async () => {
     setCreating(true);
     await createBriefing({
-      name: 'Morning Briefing',
+      name: "Morning Briefing",
       topics: [],
-      deliver_at: '08:00',
+      deliver_at: "08:00",
       days_of_week: [0, 1, 2, 3, 4, 5, 6],
-      channels: ['push'],
+      channels: ["push"],
       max_items: 5,
       enabled: true,
     });
     await createBriefing({
-      name: 'Evening Briefing',
+      name: "Evening Briefing",
       topics: [],
-      deliver_at: '20:00',
+      deliver_at: "20:00",
       days_of_week: [0, 1, 2, 3, 4, 5, 6],
-      channels: ['push'],
+      channels: ["push"],
       max_items: 5,
       enabled: true,
     });
@@ -133,7 +130,7 @@ function BriefingCard({
   onSendNow: () => void;
 }) {
   const [name, setName] = useState(briefing.name);
-  const [topicInput, setTopicInput] = useState('');
+  const [topicInput, setTopicInput] = useState("");
   const [sending, setSending] = useState(false);
 
   const topics = briefing.topics || [];
@@ -142,15 +139,20 @@ function BriefingCard({
 
   const addTopic = () => {
     const t = topicInput.trim();
-    if (!t || topics.includes(t)) { setTopicInput(''); return; }
+    if (!t || topics.includes(t)) {
+      setTopicInput("");
+      return;
+    }
     onUpdate({ topics: [...topics, t] });
-    setTopicInput('');
+    setTopicInput("");
   };
 
   const removeTopic = (t: string) => onUpdate({ topics: topics.filter((x) => x !== t) });
 
   const toggleDay = (d: number) => {
-    const next = days.includes(d) ? days.filter((x) => x !== d) : [...days, d].sort((a, b) => a - b);
+    const next = days.includes(d)
+      ? days.filter((x) => x !== d)
+      : [...days, d].sort((a, b) => a - b);
     onUpdate({ days_of_week: next });
   };
 
@@ -166,13 +168,15 @@ function BriefingCard({
   };
 
   return (
-    <Card className={cn(!briefing.enabled && 'opacity-60')}>
+    <Card className={cn(!briefing.enabled && "opacity-60")}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onBlur={() => { if (name.trim() && name !== briefing.name) onUpdate({ name: name.trim() }); }}
+            onBlur={() => {
+              if (name.trim() && name !== briefing.name) onUpdate({ name: name.trim() });
+            }}
             className="h-8 text-base font-semibold border-0 px-0 focus-visible:ring-0 shadow-none"
             placeholder="Briefing name"
           />
@@ -181,7 +185,12 @@ function BriefingCard({
               checked={briefing.enabled}
               onCheckedChange={(enabled) => onUpdate({ enabled })}
             />
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onDelete}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground"
+              onClick={onDelete}
+            >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -206,7 +215,9 @@ function BriefingCard({
               </Badge>
             ))}
             {topics.length === 0 && (
-              <span className="text-xs text-muted-foreground">Add topics like "AI", "crypto", "Premier League"</span>
+              <span className="text-xs text-muted-foreground">
+                Add topics like "AI", "crypto", "Premier League"
+              </span>
             )}
           </div>
           <div className="flex gap-2">
@@ -214,7 +225,12 @@ function BriefingCard({
               value={topicInput}
               onChange={(e) => setTopicInput(e.target.value)}
               placeholder="Add a topic"
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTopic(); } }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addTopic();
+                }
+              }}
             />
             <Button type="button" variant="outline" size="icon" onClick={addTopic}>
               <Plus className="h-4 w-4" />
@@ -246,10 +262,10 @@ function BriefingCard({
                 type="button"
                 onClick={() => toggleDay(idx)}
                 className={cn(
-                  'h-8 w-11 rounded-md border text-xs font-medium transition-colors',
+                  "h-8 w-11 rounded-md border text-xs font-medium transition-colors",
                   days.includes(idx)
-                    ? 'border-primary/40 bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:bg-muted',
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted",
                 )}
               >
                 {label}
@@ -268,19 +284,20 @@ function BriefingCard({
                 type="button"
                 onClick={() => toggleChannel(key)}
                 className={cn(
-                  'h-8 px-3 rounded-md border text-xs font-medium transition-colors',
+                  "h-8 px-3 rounded-md border text-xs font-medium transition-colors",
                   channels.includes(key)
-                    ? 'border-primary/40 bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:bg-muted',
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted",
                 )}
               >
                 {label}
               </button>
             ))}
           </div>
-          {(channels.includes('telegram') || channels.includes('telegram_voice')) && (
+          {(channels.includes("telegram") || channels.includes("telegram_voice")) && (
             <p className="text-xs text-muted-foreground">
-              Telegram delivery requires your account to be linked in the Telegram tab. Voice briefings always send the text version too, so links and fallback are preserved.
+              Telegram delivery requires your account to be linked in the Telegram tab. Voice
+              briefings always send the text version too, so links and fallback are preserved.
             </p>
           )}
         </div>
@@ -288,7 +305,7 @@ function BriefingCard({
         {/* Send now */}
         <Button variant="outline" className="w-full" onClick={handleSendNow} disabled={sending}>
           <Send className="h-4 w-4 mr-1" />
-          {sending ? 'Sending…' : 'Send now'}
+          {sending ? "Sending…" : "Send now"}
         </Button>
       </CardContent>
     </Card>

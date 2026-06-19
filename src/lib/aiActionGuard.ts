@@ -22,7 +22,7 @@ export interface QuotaStorage {
 
 function defaultStorage(): QuotaStorage | null {
   try {
-    if (typeof localStorage !== 'undefined') return localStorage;
+    if (typeof localStorage !== "undefined") return localStorage;
   } catch {
     /* access can throw in sandboxed iframes */
   }
@@ -32,13 +32,13 @@ function defaultStorage(): QuotaStorage | null {
 /** Local calendar day, e.g. "2026-05-28" — quotas reset at local midnight. */
 export function quotaDayKey(now: Date = new Date()): string {
   const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
 function storageKey(userId: string | undefined, now: Date): string {
-  return `darai-ai-quota-${userId ?? 'anon'}-${quotaDayKey(now)}`;
+  return `darai-ai-quota-${userId ?? "anon"}-${quotaDayKey(now)}`;
 }
 
 export function getAiActionCount(
@@ -89,7 +89,7 @@ export function recordAiActions(
 
 /** Normalise a title for dedup: lowercase, trimmed, whitespace-collapsed. */
 export function normalizeTitle(title: string): string {
-  return title.toLowerCase().trim().replace(/\s+/g, ' ');
+  return title.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
 /**

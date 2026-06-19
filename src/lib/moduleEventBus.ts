@@ -14,29 +14,58 @@
 
 export type ModuleEventName =
   // Tasks
-  | 'task:created' | 'task:updated' | 'task:deleted' | 'task:completed' | 'task:trashed'
+  | "task:created"
+  | "task:updated"
+  | "task:deleted"
+  | "task:completed"
+  | "task:trashed"
   // Events / calendar
-  | 'event:created' | 'event:updated' | 'event:deleted' | 'event:synced'
+  | "event:created"
+  | "event:updated"
+  | "event:deleted"
+  | "event:synced"
   // Contacts
-  | 'contact:created' | 'contact:updated' | 'contact:deleted' | 'contact:contacted'
+  | "contact:created"
+  | "contact:updated"
+  | "contact:deleted"
+  | "contact:contacted"
   // Contracts
-  | 'contract:created' | 'contract:updated' | 'contract:deleted' | 'contract:renewed'
+  | "contract:created"
+  | "contract:updated"
+  | "contract:deleted"
+  | "contract:renewed"
   // Email
-  | 'email:synced' | 'email:read' | 'email:replied' | 'email:archived'
+  | "email:synced"
+  | "email:read"
+  | "email:replied"
+  | "email:archived"
   // Health
-  | 'health:metric-recorded' | 'health:checkin-logged' | 'health:synced'
+  | "health:metric-recorded"
+  | "health:checkin-logged"
+  | "health:synced"
   // Habits
-  | 'habit:logged' | 'habit:created' | 'habit:streak-broken'
+  | "habit:logged"
+  | "habit:created"
+  | "habit:streak-broken"
   // Notes
-  | 'note:created' | 'note:updated' | 'note:deleted'
+  | "note:created"
+  | "note:updated"
+  | "note:deleted"
   // Family / shopping
-  | 'family:member-changed' | 'shopping:list-updated'
+  | "family:member-changed"
+  | "shopping:list-updated"
   // Workspace / sharing
-  | 'workspace:switched' | 'item:shared' | 'item:unshared'
+  | "workspace:switched"
+  | "item:shared"
+  | "item:unshared"
   // AI / system
-  | 'ai:context-stale' | 'ai:memory-updated' | 'sync:started' | 'sync:completed'
+  | "ai:context-stale"
+  | "ai:memory-updated"
+  | "sync:started"
+  | "sync:completed"
   // Module lifecycle
-  | 'module:error' | 'module:recovered';
+  | "module:error"
+  | "module:recovered";
 
 export interface ModuleEvent<T = unknown> {
   name: ModuleEventName;
@@ -57,20 +86,20 @@ type Listener<T = unknown> = (event: ModuleEvent<T>) => void;
 function dedupeSignature(payload: unknown): string {
   if (payload === null || payload === undefined) return String(payload);
   const t = typeof payload;
-  if (t !== 'object') return `${t}:${String(payload)}`;
+  if (t !== "object") return `${t}:${String(payload)}`;
   try {
     const obj = payload as Record<string, unknown>;
     const keys = Object.keys(obj).sort();
-    if (keys.length === 0) return '{}';
-    let out = '';
+    if (keys.length === 0) return "{}";
+    let out = "";
     for (const k of keys) {
       const v = obj[k];
       const vt = typeof v;
-      out += `${k}=${vt === 'object' ? '[obj]' : String(v)};`;
+      out += `${k}=${vt === "object" ? "[obj]" : String(v)};`;
     }
     return out;
   } catch {
-    return '?';
+    return "?";
   }
 }
 
@@ -116,12 +145,15 @@ class ModuleEventBus {
       try {
         fn(event as ModuleEvent);
       } catch (err) {
-        console.error('[ModuleEventBus] wildcard handler threw:', err);
+        console.error("[ModuleEventBus] wildcard handler threw:", err);
       }
     });
 
-    if (typeof window !== 'undefined' && (window as Window & { __DARAI_DEBUG_BUS?: boolean }).__DARAI_DEBUG_BUS) {
-      console.log('[ModuleEventBus]', name, payload);
+    if (
+      typeof window !== "undefined" &&
+      (window as Window & { __DARAI_DEBUG_BUS?: boolean }).__DARAI_DEBUG_BUS
+    ) {
+      console.log("[ModuleEventBus]", name, payload);
     }
   }
 

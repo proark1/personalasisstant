@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useCallback, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export interface UserNotification {
   id: string;
   user_id: string;
-  type: 'info' | 'task' | 'event' | 'contract' | 'contact' | 'invitation' | 'share' | 'reminder';
+  type: "info" | "task" | "event" | "contract" | "contact" | "invitation" | "share" | "reminder";
   title: string;
   message: string;
   read: boolean;
@@ -22,20 +22,20 @@ export function useRealtimeNotifications(userId: string | undefined) {
   // Fetch all notifications for user
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('user_notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+        .from("user_notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
         .limit(100);
 
       if (error) throw error;
       setNotifications((data || []) as UserNotification[]);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error("Error fetching notifications:", error);
     } finally {
       setLoading(false);
     }
@@ -45,77 +45,73 @@ export function useRealtimeNotifications(userId: string | undefined) {
   const markRead = useCallback(async (notificationId: string) => {
     try {
       const { error } = await supabase
-        .from('user_notifications')
+        .from("user_notifications")
         .update({ read: true })
-        .eq('id', notificationId);
+        .eq("id", notificationId);
 
       if (error) throw error;
 
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
       );
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error("Error marking notification as read:", error);
     }
   }, []);
 
   // Mark all notifications as read
   const markAllRead = useCallback(async () => {
     if (!userId) return;
-    
+
     try {
       const { error } = await supabase
-        .from('user_notifications')
+        .from("user_notifications")
         .update({ read: true })
-        .eq('user_id', userId)
-        .eq('read', false);
+        .eq("user_id", userId)
+        .eq("read", false);
 
       if (error) throw error;
 
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (error) {
-      console.error('Error marking all as read:', error);
+      console.error("Error marking all as read:", error);
     }
   }, [userId]);
 
   // Delete a notification
   const deleteNotification = useCallback(async (notificationId: string) => {
     try {
-      const { error } = await supabase
-        .from('user_notifications')
-        .delete()
-        .eq('id', notificationId);
+      const { error } = await supabase.from("user_notifications").delete().eq("id", notificationId);
 
       if (error) throw error;
 
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      console.error("Error deleting notification:", error);
     }
   }, []);
 
   // Clear all notifications
   const clearAll = useCallback(async () => {
     if (!userId) return;
-    
+
     try {
-      const { error } = await supabase
-        .from('user_notifications')
-        .delete()
-        .eq('user_id', userId);
+      const { error } = await supabase.from("user_notifications").delete().eq("user_id", userId);
 
       if (error) throw error;
 
       setNotifications([]);
     } catch (error) {
-      console.error('Error clearing notifications:', error);
+      console.error("Error clearing notifications:", error);
     }
   }, [userId]);
 
   // Play notification sound
   const playNotificationSound = useCallback(() => {
     try {
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const audioContext = new AudioContextClass();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
@@ -124,7 +120,7 @@ export function useRealtimeNotifications(userId: string | undefined) {
       gainNode.connect(audioContext.destination);
 
       oscillator.frequency.value = 800;
-      oscillator.type = 'sine';
+      oscillator.type = "sine";
 
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
@@ -140,16 +136,17 @@ export function useRealtimeNotifications(userId: string | undefined) {
   const showBrowserNotification = useCallback((notification: UserNotification) => {
     interface BrowserNotifAPI {
       permission: NotificationPermission;
-      new(title: string, opts?: NotificationOptions): Notification;
+      new (title: string, opts?: NotificationOptions): Notification;
     }
-    const BrowserNotification = (typeof window !== 'undefined'
-      ? (window as unknown as { Notification?: BrowserNotifAPI }).Notification
-      : undefined);
+    const BrowserNotification =
+      typeof window !== "undefined"
+        ? (window as unknown as { Notification?: BrowserNotifAPI }).Notification
+        : undefined;
 
-    if (BrowserNotification?.permission === 'granted') {
+    if (BrowserNotification?.permission === "granted") {
       new BrowserNotification(notification.title, {
         body: notification.message,
-        icon: '/pwa-192x192.svg',
+        icon: "/pwa-192x192.svg",
         tag: notification.id,
       });
     }
@@ -161,44 +158,44 @@ export function useRealtimeNotifications(userId: string | undefined) {
 
     fetchNotifications();
 
-    console.log('[useRealtimeNotifications] Setting up realtime subscription for user:', userId);
+    console.log("[useRealtimeNotifications] Setting up realtime subscription for user:", userId);
 
     const channel = supabase
-      .channel('user-notifications')
+      .channel("user-notifications")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'user_notifications',
+          event: "INSERT",
+          schema: "public",
+          table: "user_notifications",
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('[useRealtimeNotifications] New notification received:', payload);
+          console.log("[useRealtimeNotifications] New notification received:", payload);
           const newNotification = payload.new as UserNotification;
-          
+
           // Add to local state
-          setNotifications(prev => [newNotification, ...prev]);
-          
+          setNotifications((prev) => [newNotification, ...prev]);
+
           // Show toast notification
           toast({
             title: newNotification.title,
             description: newNotification.message,
           });
-          
+
           // Play sound
           playNotificationSound();
-          
+
           // Show browser notification
           showBrowserNotification(newNotification);
-        }
+        },
       )
       .subscribe((status) => {
-        console.log('[useRealtimeNotifications] Subscription status:', status);
+        console.log("[useRealtimeNotifications] Subscription status:", status);
       });
 
     return () => {
-      console.log('[useRealtimeNotifications] Cleaning up subscription');
+      console.log("[useRealtimeNotifications] Cleaning up subscription");
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };
@@ -206,7 +203,7 @@ export function useRealtimeNotifications(userId: string | undefined) {
 
   return {
     notifications,
-    unreadCount: notifications.filter(n => !n.read).length,
+    unreadCount: notifications.filter((n) => !n.read).length,
     loading,
     markRead,
     markAllRead,

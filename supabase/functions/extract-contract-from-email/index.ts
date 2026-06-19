@@ -1,11 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  'X-Content-Type-Options': 'nosniff',
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "X-Content-Type-Options": "nosniff",
 };
 
 serve(async (req) => {
@@ -23,9 +24,12 @@ serve(async (req) => {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: authHeader } } },
     );
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -33,7 +37,8 @@ serve(async (req) => {
       });
     }
 
-    const { from_name, from_email, subject, snippet, body_preview, body_html, received_at } = await req.json();
+    const { from_name, from_email, subject, snippet, body_preview, body_html, received_at } =
+      await req.json();
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
@@ -65,19 +70,20 @@ Extract the following as JSON. Use null for fields you cannot determine. Be smar
 
 Return ONLY valid JSON, no markdown or explanation.`;
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gemini-2.5-flash",
+          messages: [{ role: "user", content: prompt }],
+        }),
       },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
+    );
 
     if (!response.ok) {
       const errText = await response.text();
@@ -90,9 +96,12 @@ Return ONLY valid JSON, no markdown or explanation.`;
 
     const result = await response.json();
     const content = result.choices?.[0]?.message?.content || "";
-    
+
     // Parse the JSON from the AI response (strip markdown fences if present)
-    const jsonStr = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    const jsonStr = content
+      .replace(/```json\s*/g, "")
+      .replace(/```\s*/g, "")
+      .trim();
     let extracted;
     try {
       extracted = JSON.parse(jsonStr);
@@ -109,9 +118,12 @@ Return ONLY valid JSON, no markdown or explanation.`;
     });
   } catch (e) {
     console.error("extract-contract-from-email error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });

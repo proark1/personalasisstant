@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { Card } from '@/components/ui/card';
-import { Flame } from 'lucide-react';
-import { subDays, format, startOfDay } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Flame } from "lucide-react";
+import { subDays, format, startOfDay } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface HabitWithStreak {
   id: string;
@@ -18,8 +18,8 @@ interface StreakDisplayProps {
 }
 
 export function StreakDisplay({ habits }: StreakDisplayProps) {
-  const longestStreak = Math.max(...habits.map(h => h.streak), 0);
-  const totalCompletedToday = habits.filter(h => h.isCompleted).length;
+  const longestStreak = Math.max(...habits.map((h) => h.streak), 0);
+  const totalCompletedToday = habits.filter((h) => h.isCompleted).length;
 
   // Generate last 7 days for calendar view
   const lastSevenDays = useMemo(() => {
@@ -47,18 +47,18 @@ export function StreakDisplay({ habits }: StreakDisplayProps) {
       <div className="grid grid-cols-7 gap-1 mb-4">
         {lastSevenDays.map((day, i) => {
           const isToday = startOfDay(day).getTime() === startOfDay(new Date()).getTime();
-          const dayName = format(day, 'EEE')[0];
-          
+          const dayName = format(day, "EEE")[0];
+
           return (
             <div key={i} className="text-center">
               <span className="text-xs text-muted-foreground">{dayName}</span>
-              <div 
+              <div
                 className={cn(
                   "w-8 h-8 mx-auto mt-1 rounded-full flex items-center justify-center text-xs font-medium",
-                  isToday ? "bg-primary text-primary-foreground" : "bg-muted"
+                  isToday ? "bg-primary text-primary-foreground" : "bg-muted",
                 )}
               >
-                {format(day, 'd')}
+                {format(day, "d")}
               </div>
             </div>
           );
@@ -68,10 +68,10 @@ export function StreakDisplay({ habits }: StreakDisplayProps) {
       {/* Habit Streaks */}
       <div className="space-y-2">
         {habits
-          .filter(h => h.streak > 0)
+          .filter((h) => h.streak > 0)
           .sort((a, b) => b.streak - a.streak)
           .slice(0, 5)
-          .map(habit => (
+          .map((habit) => (
             <div key={habit.id} className="flex items-center gap-2">
               <span className="text-sm">{habit.icon}</span>
               <span className="text-sm flex-1 truncate">{habit.name}</span>
@@ -80,10 +80,9 @@ export function StreakDisplay({ habits }: StreakDisplayProps) {
                 <span className="text-sm font-medium">{habit.streak}</span>
               </div>
             </div>
-          ))
-        }
-        
-        {habits.filter(h => h.streak > 0).length === 0 && (
+          ))}
+
+        {habits.filter((h) => h.streak > 0).length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-2">
             Complete habits to build streaks!
           </p>
@@ -93,7 +92,11 @@ export function StreakDisplay({ habits }: StreakDisplayProps) {
       {/* Today's Summary */}
       <div className="mt-4 pt-4 border-t border-border text-center">
         <p className="text-sm text-muted-foreground">
-          Today: <span className="font-medium text-foreground">{totalCompletedToday}/{habits.length}</span> habits completed
+          Today:{" "}
+          <span className="font-medium text-foreground">
+            {totalCompletedToday}/{habits.length}
+          </span>{" "}
+          habits completed
         </p>
       </div>
     </Card>

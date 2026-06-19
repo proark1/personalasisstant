@@ -1,20 +1,20 @@
-import { useState } from 'react';
-import { GlassCard } from '@/components/ui/glass-card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useState } from "react";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { motion } from 'framer-motion';
-import { staggerItem, staggerContainer } from '@/components/ui/panel-shell';
-import { MapPin, Loader2 } from 'lucide-react';
-import { useUserLocationSettings, MAJOR_CITIES } from '@/hooks/useUserLocationSettings';
+} from "@/components/ui/select";
+import { motion } from "framer-motion";
+import { staggerItem, staggerContainer } from "@/components/ui/panel-shell";
+import { MapPin, Loader2 } from "lucide-react";
+import { useUserLocationSettings, MAJOR_CITIES } from "@/hooks/useUserLocationSettings";
 
 export function LocationSettingsTab() {
   const {
@@ -26,12 +26,12 @@ export function LocationSettingsTab() {
     updatePrayerCalculationMethod,
   } = useUserLocationSettings();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredCities = MAJOR_CITIES.filter(
     (c) =>
       c.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.country.toLowerCase().includes(searchQuery.toLowerCase())
+      c.country.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   if (isLoading) {
@@ -43,11 +43,18 @@ export function LocationSettingsTab() {
   }
 
   if (!settings) {
-    return <div className="p-6 text-center text-muted-foreground">Failed to load location settings</div>;
+    return (
+      <div className="p-6 text-center text-muted-foreground">Failed to load location settings</div>
+    );
   }
 
   return (
-    <motion.div className="p-3 md:p-4 space-y-4" variants={staggerContainer} initial="initial" animate="animate">
+    <motion.div
+      className="p-3 md:p-4 space-y-4"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
       {/* Current Location */}
       <motion.div variants={staggerItem}>
         <GlassCard className="p-5">
@@ -57,7 +64,9 @@ export function LocationSettingsTab() {
             </div>
             <div>
               <h3 className="font-medium text-base">Your Location</h3>
-              <p className="text-xs text-muted-foreground mt-1">Set your home city for accurate prayer times and weather</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Set your home city for accurate prayer times and weather
+              </p>
             </div>
           </div>
 
@@ -77,7 +86,9 @@ export function LocationSettingsTab() {
 
             {/* Quick City Selection */}
             <div>
-              <Label className="text-xs text-muted-foreground mb-2 block">Quick Select Major Cities</Label>
+              <Label className="text-xs text-muted-foreground mb-2 block">
+                Quick Select Major Cities
+              </Label>
               <Input
                 placeholder="Search cities..."
                 value={searchQuery}
@@ -90,10 +101,14 @@ export function LocationSettingsTab() {
                     <Button
                       key={`${city.city}-${city.country}`}
                       variant={
-                        settings.city === city.city && settings.country === city.country ? 'default' : 'outline'
+                        settings.city === city.city && settings.country === city.country
+                          ? "default"
+                          : "outline"
                       }
                       className="w-full justify-start text-sm"
-                      onClick={() => updateLocation(city.city, city.country, city.lat, city.lng, city.tz)}
+                      onClick={() =>
+                        updateLocation(city.city, city.country, city.lat, city.lng, city.tz)
+                      }
                       disabled={isSaving}
                     >
                       <MapPin className="w-4 h-4 mr-2" />
@@ -128,17 +143,17 @@ export function LocationSettingsTab() {
               <Label className="text-xs text-muted-foreground">Temperature Display</Label>
               <div className="flex gap-2">
                 <Button
-                  variant={settings.temperature_unit === 'celsius' ? 'default' : 'outline'}
+                  variant={settings.temperature_unit === "celsius" ? "default" : "outline"}
                   className="flex-1"
-                  onClick={() => updateTemperatureUnit('celsius')}
+                  onClick={() => updateTemperatureUnit("celsius")}
                   disabled={isSaving}
                 >
                   °C Celsius
                 </Button>
                 <Button
-                  variant={settings.temperature_unit === 'fahrenheit' ? 'default' : 'outline'}
+                  variant={settings.temperature_unit === "fahrenheit" ? "default" : "outline"}
                   className="flex-1"
-                  onClick={() => updateTemperatureUnit('fahrenheit')}
+                  onClick={() => updateTemperatureUnit("fahrenheit")}
                   disabled={isSaving}
                 >
                   °F Fahrenheit
@@ -168,7 +183,8 @@ export function LocationSettingsTab() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Different regions use different calculation methods. Choose the method preferred in your area.
+                Different regions use different calculation methods. Choose the method preferred in
+                your area.
               </p>
             </div>
           </div>
@@ -183,8 +199,9 @@ export function LocationSettingsTab() {
             <div>
               <p className="text-sm font-medium mb-1">Location Accuracy</p>
               <p className="text-xs text-muted-foreground">
-                Your location is used to calculate accurate prayer times and display local weather information. Make sure
-                to set your home location rather than your current location for consistent prayer times.
+                Your location is used to calculate accurate prayer times and display local weather
+                information. Make sure to set your home location rather than your current location
+                for consistent prayer times.
               </p>
             </div>
           </div>

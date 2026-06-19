@@ -6,7 +6,9 @@ export type NetworkStatus = {
 };
 
 export function useNetworkStatus(): NetworkStatus {
-  const [online, setOnline] = useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [online, setOnline] = useState<boolean>(
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
   const effectiveType =
     typeof navigator !== "undefined" && "connection" in navigator
       ? // eslint-disable-next-line @typescript-eslint/no-explicit-any

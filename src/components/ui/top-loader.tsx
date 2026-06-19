@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function TopLoader() {
   const [loading, setLoading] = useState(false);
@@ -24,9 +24,9 @@ export function TopLoader() {
         >
           <motion.div
             className="h-full bg-gradient-to-r from-primary via-accent to-primary rounded-full"
-            initial={{ width: '0%' }}
-            animate={{ width: '100%' }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
+            initial={{ width: "0%" }}
+            animate={{ width: "100%" }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
           />
         </motion.div>
       )}

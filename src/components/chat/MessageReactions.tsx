@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { SmilePlus } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SmilePlus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MessageReaction {
   emoji: string;
@@ -15,7 +15,7 @@ interface MessageReactionsProps {
   isOwn: boolean;
 }
 
-const EMOJI_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '👏'];
+const EMOJI_OPTIONS = ["👍", "❤️", "😂", "😮", "😢", "🎉", "🔥", "👏"];
 
 export function MessageReactions({ reactions, userId, onReact, isOwn }: MessageReactionsProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,30 +32,30 @@ export function MessageReactions({ reactions, userId, onReact, isOwn }: MessageR
           key={reaction.emoji}
           onClick={() => onReact(reaction.emoji)}
           className={cn(
-            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-colors',
+            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-colors",
             reaction.user_ids.includes(userId)
-              ? 'bg-primary/20 border border-primary/30'
-              : 'bg-muted/50 border border-transparent hover:bg-muted'
+              ? "bg-primary/20 border border-primary/30"
+              : "bg-muted/50 border border-transparent hover:bg-muted",
           )}
         >
           <span>{reaction.emoji}</span>
           <span className="text-muted-foreground">{reaction.user_ids.length}</span>
         </button>
       ))}
-      
+
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <button
             className={cn(
-              'inline-flex items-center justify-center w-6 h-6 rounded-full',
-              'text-muted-foreground hover:bg-muted hover:text-foreground',
-              'transition-colors opacity-0 group-hover:opacity-100'
+              "inline-flex items-center justify-center w-6 h-6 rounded-full",
+              "text-muted-foreground hover:bg-muted hover:text-foreground",
+              "transition-colors opacity-0 group-hover:opacity-100",
             )}
           >
             <SmilePlus className="w-3.5 h-3.5" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-2" align={isOwn ? 'end' : 'start'}>
+        <PopoverContent className="w-auto p-2" align={isOwn ? "end" : "start"}>
           <div className="flex gap-1">
             {EMOJI_OPTIONS.map((emoji) => (
               <button

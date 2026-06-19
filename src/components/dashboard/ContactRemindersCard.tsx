@@ -1,6 +1,11 @@
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { Users } from 'lucide-react';
-import { differenceInDays } from 'date-fns';
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
+import { Users } from "lucide-react";
+import { differenceInDays } from "date-fns";
 
 interface ContactReminder {
   id: string;
@@ -25,7 +30,7 @@ export function ContactRemindersCard({ contacts, onNavigate }: ContactRemindersC
             Follow Up
           </GlassCardTitle>
           <button
-            onClick={() => onNavigate?.('contacts')}
+            onClick={() => onNavigate?.("contacts")}
             className="text-xs text-primary hover:underline"
           >
             Reach out
@@ -33,7 +38,7 @@ export function ContactRemindersCard({ contacts, onNavigate }: ContactRemindersC
         </div>
       </GlassCardHeader>
       <GlassCardContent className="space-y-1.5">
-        {contacts.map(contact => {
+        {contacts.map((contact) => {
           const daysSince = contact.last_contacted_at
             ? differenceInDays(new Date(), new Date(contact.last_contacted_at))
             : null;

@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFamilyBudget, BudgetCategory } from '@/hooks/useFamilyBudget';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useFamilyBudget, BudgetCategory } from "@/hooks/useFamilyBudget";
+import { format } from "date-fns";
 
 interface FamilyMember {
   id: string;
@@ -19,13 +25,18 @@ interface AddExpenseDialogProps {
   familyMembers: FamilyMember[];
 }
 
-export function AddExpenseDialog({ open, onOpenChange, categories, familyMembers }: AddExpenseDialogProps) {
+export function AddExpenseDialog({
+  open,
+  onOpenChange,
+  categories,
+  familyMembers,
+}: AddExpenseDialogProps) {
   const { addExpense } = useFamilyBudget();
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [familyMemberId, setFamilyMemberId] = useState('');
-  const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [familyMemberId, setFamilyMemberId] = useState("");
+  const [expenseDate, setExpenseDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,11 +52,11 @@ export function AddExpenseDialog({ open, onOpenChange, categories, familyMembers
       expense_date: expenseDate,
     });
 
-    setAmount('');
-    setDescription('');
-    setCategoryId('');
-    setFamilyMemberId('');
-    setExpenseDate(format(new Date(), 'yyyy-MM-dd'));
+    setAmount("");
+    setDescription("");
+    setCategoryId("");
+    setFamilyMemberId("");
+    setExpenseDate(format(new Date(), "yyyy-MM-dd"));
     setIsSubmitting(false);
     onOpenChange(false);
   };
@@ -60,7 +71,9 @@ export function AddExpenseDialog({ open, onOpenChange, categories, familyMembers
           <div className="space-y-2">
             <Label htmlFor="amount">Amount *</Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                $
+              </span>
               <Input
                 id="amount"
                 type="number"
@@ -92,7 +105,7 @@ export function AddExpenseDialog({ open, onOpenChange, categories, familyMembers
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map(cat => (
+                {categories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
                     <span className="flex items-center gap-2">
                       <span>{cat.icon}</span>
@@ -106,13 +119,16 @@ export function AddExpenseDialog({ open, onOpenChange, categories, familyMembers
 
           <div className="space-y-2">
             <Label htmlFor="member">Family Member (optional)</Label>
-            <Select value={familyMemberId || "_none"} onValueChange={(v) => setFamilyMemberId(v === "_none" ? "" : v)}>
+            <Select
+              value={familyMemberId || "_none"}
+              onValueChange={(v) => setFamilyMemberId(v === "_none" ? "" : v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Who made this purchase?" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="_none">None</SelectItem>
-                {familyMembers.map(member => (
+                {familyMembers.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
                     {member.name}
                   </SelectItem>
@@ -136,7 +152,7 @@ export function AddExpenseDialog({ open, onOpenChange, categories, familyMembers
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || !amount}>
-              {isSubmitting ? 'Adding...' : 'Add Expense'}
+              {isSubmitting ? "Adding..." : "Add Expense"}
             </Button>
           </div>
         </form>

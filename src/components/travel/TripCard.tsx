@@ -1,16 +1,27 @@
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  Cloud, MapPin, Plane, Building2, Train, Bus, Car, Ship, Sparkles, Loader2,
-  ChevronRight, CheckCircle2, Circle, RefreshCw, Calendar,
-} from 'lucide-react';
-import {
-  TripOverviewRow, TripSegment, TripBookingRow, PackingList,
-} from '@/hooks/useTripOverview';
-import { cn } from '@/lib/utils';
+  Cloud,
+  MapPin,
+  Plane,
+  Building2,
+  Train,
+  Bus,
+  Car,
+  Ship,
+  Sparkles,
+  Loader2,
+  ChevronRight,
+  CheckCircle2,
+  Circle,
+  RefreshCw,
+  Calendar,
+} from "lucide-react";
+import { TripOverviewRow, TripSegment, TripBookingRow, PackingList } from "@/hooks/useTripOverview";
+import { cn } from "@/lib/utils";
 
 interface TripCardProps {
   trip: TripOverviewRow;
@@ -26,11 +37,19 @@ interface TripCardProps {
 }
 
 export function TripCard({
-  trip, segments, bookings, packingLists, busy,
-  onRefreshWeather, onGeneratePacking, onTogglePackedItem, onPrepTrip, pastTrip,
+  trip,
+  segments,
+  bookings,
+  packingLists,
+  busy,
+  onRefreshWeather,
+  onGeneratePacking,
+  onTogglePackedItem,
+  onPrepTrip,
+  pastTrip,
 }: TripCardProps) {
   const [stepsOpen, setStepsOpen] = useState(false);
-  const aiList = packingLists.find((p) => p.source === 'ai_generated');
+  const aiList = packingLists.find((p) => p.source === "ai_generated");
 
   return (
     <Card className="p-4 space-y-3">
@@ -41,7 +60,9 @@ export function TripCard({
             <h3 className="text-base font-semibold">{trip.title}</h3>
             <DepartureBadge daysUntil={trip.days_until_departure} pastTrip={pastTrip} />
             {trip.purpose && (
-              <Badge variant="outline" className="text-[10px] capitalize">{trip.purpose}</Badge>
+              <Badge variant="outline" className="text-[10px] capitalize">
+                {trip.purpose}
+              </Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
@@ -50,7 +71,8 @@ export function TripCard({
             {trip.destination_country && <span>· {trip.destination_country}</span>}
             <span className="mx-1">·</span>
             <Calendar className="w-3 h-3" />
-            {trip.start_date} → {trip.end_date} ({trip.trip_length_days + 1} day{trip.trip_length_days === 0 ? '' : 's'})
+            {trip.start_date} → {trip.end_date} ({trip.trip_length_days + 1} day
+            {trip.trip_length_days === 0 ? "" : "s"})
           </p>
         </div>
       </div>
@@ -62,8 +84,8 @@ export function TripCard({
           {trip.weather_summary
             ? trip.weather_summary
             : trip.destination_lat == null
-              ? 'No coordinates set — add lat/lon to fetch weather.'
-              : 'Weather not loaded yet.'}
+              ? "No coordinates set — add lat/lon to fetch weather."
+              : "Weather not loaded yet."}
         </span>
         {trip.destination_lat != null && (
           <Button
@@ -73,7 +95,11 @@ export function TripCard({
             onClick={onRefreshWeather}
             disabled={busy || pastTrip}
           >
-            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            {busy ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3 h-3" />
+            )}
             Refresh
           </Button>
         )}
@@ -83,14 +109,16 @@ export function TripCard({
       {segments.length > 0 && (
         <div className="space-y-1">
           <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            Itinerary · {segments.length} step{segments.length === 1 ? '' : 's'}
+            Itinerary · {segments.length} step{segments.length === 1 ? "" : "s"}
           </p>
           <div className="space-y-1">
             {segments.slice(0, 4).map((s) => (
               <SegmentRow key={s.id} segment={s} />
             ))}
             {segments.length > 4 && (
-              <p className="text-[10px] text-muted-foreground italic">+{segments.length - 4} more</p>
+              <p className="text-[10px] text-muted-foreground italic">
+                +{segments.length - 4} more
+              </p>
             )}
           </div>
         </div>
@@ -113,20 +141,28 @@ export function TripCard({
                 disabled={busy}
                 title="Auto-create the 'Pack for X' task and (when imminent) generate the packing list"
               >
-                {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                {busy ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3" />
+                )}
                 Auto-prep
               </Button>
             )}
             {!pastTrip && (
               <Button
                 size="sm"
-                variant={aiList ? 'ghost' : 'default'}
+                variant={aiList ? "ghost" : "default"}
                 className="h-6 text-[10px] gap-1"
                 onClick={() => onGeneratePacking({ replace: !!aiList })}
                 disabled={busy}
               >
-                {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                {aiList ? 'Regenerate list' : 'Generate list'}
+                {busy ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3" />
+                )}
+                {aiList ? "Regenerate list" : "Generate list"}
               </Button>
             )}
           </div>
@@ -145,9 +181,15 @@ export function TripCard({
       {packingLists.length > 0 && (
         <Collapsible open={stepsOpen} onOpenChange={setStepsOpen}>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-6 w-full text-[10px] text-muted-foreground gap-1">
-              {stepsOpen ? 'Hide' : 'Show'} packing details
-              <ChevronRight className={cn('w-3 h-3 transition-transform', stepsOpen && 'rotate-90')} />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-full text-[10px] text-muted-foreground gap-1"
+            >
+              {stepsOpen ? "Hide" : "Show"} packing details
+              <ChevronRight
+                className={cn("w-3 h-3 transition-transform", stepsOpen && "rotate-90")}
+              />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 pt-1">
@@ -166,8 +208,8 @@ export function TripCard({
       {/* Bookings hint */}
       {bookings.length > 0 && (
         <p className="text-[10px] text-muted-foreground">
-          {bookings.length} booking{bookings.length === 1 ? '' : 's'} on file
-          {bookings.some((b) => b.confirmation_number) && ' · confirmation numbers ready'}
+          {bookings.length} booking{bookings.length === 1 ? "" : "s"} on file
+          {bookings.some((b) => b.confirmation_number) && " · confirmation numbers ready"}
         </p>
       )}
     </Card>
@@ -176,13 +218,21 @@ export function TripCard({
 
 function DepartureBadge({ daysUntil, pastTrip }: { daysUntil: number; pastTrip?: boolean }) {
   if (pastTrip) {
-    return <Badge variant="outline" className="text-[10px]">past</Badge>;
+    return (
+      <Badge variant="outline" className="text-[10px]">
+        past
+      </Badge>
+    );
   }
   if (daysUntil === 0) {
     return <Badge className="text-[10px] bg-emerald-500/15 text-emerald-600">today</Badge>;
   }
   if (daysUntil < 0) {
-    return <Badge variant="outline" className="text-[10px]">in progress</Badge>;
+    return (
+      <Badge variant="outline" className="text-[10px]">
+        in progress
+      </Badge>
+    );
   }
   if (daysUntil === 1) {
     return <Badge className="text-[10px] bg-amber-500/15 text-amber-600">tomorrow</Badge>;
@@ -190,12 +240,22 @@ function DepartureBadge({ daysUntil, pastTrip }: { daysUntil: number; pastTrip?:
   if (daysUntil <= 7) {
     return <Badge className="text-[10px] bg-amber-500/15 text-amber-600">in {daysUntil}d</Badge>;
   }
-  return <Badge variant="secondary" className="text-[10px]">in {daysUntil}d</Badge>;
+  return (
+    <Badge variant="secondary" className="text-[10px]">
+      in {daysUntil}d
+    </Badge>
+  );
 }
 
 const SEGMENT_ICONS: Record<string, typeof Plane> = {
-  flight: Plane, train: Train, bus: Bus, car: Car,
-  ferry: Ship, hotel: Building2, activity: Sparkles, free: Sparkles,
+  flight: Plane,
+  train: Train,
+  bus: Bus,
+  car: Car,
+  ferry: Ship,
+  hotel: Building2,
+  activity: Sparkles,
+  free: Sparkles,
 };
 
 function SegmentRow({ segment }: { segment: TripSegment }) {
@@ -205,9 +265,12 @@ function SegmentRow({ segment }: { segment: TripSegment }) {
   // Falls back to the browser's local zone otherwise.
   const time = segment.start_time
     ? new Date(segment.start_time).toLocaleString(undefined, {
-      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-      timeZone: segment.timezone || undefined,
-    })
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: segment.timezone || undefined,
+      })
     : null;
   return (
     <div className="flex items-start gap-2 rounded px-2 py-1.5 bg-background/50 text-xs">
@@ -216,7 +279,9 @@ function SegmentRow({ segment }: { segment: TripSegment }) {
         <p className="font-medium truncate">{segment.title}</p>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
           {segment.origin && segment.destination && segment.origin !== segment.destination && (
-            <span>{segment.origin} → {segment.destination}</span>
+            <span>
+              {segment.origin} → {segment.destination}
+            </span>
           )}
           {time && <span>{time}</span>}
           {segment.reference && <span>· {segment.reference}</span>}
@@ -227,16 +292,18 @@ function SegmentRow({ segment }: { segment: TripSegment }) {
 }
 
 function PackingListView({
-  list, onToggle, disabled,
+  list,
+  onToggle,
+  disabled,
 }: {
   list: PackingList;
   onToggle: (idx: number) => void;
   disabled?: boolean;
 }) {
   // Group items by category for cleaner rendering.
-  const groups: Record<string, Array<{ idx: number; item: PackingList['items'][0] }>> = {};
+  const groups: Record<string, Array<{ idx: number; item: PackingList["items"][0] }>> = {};
   (list.items ?? []).forEach((item, idx) => {
-    const cat = item.category || 'other';
+    const cat = item.category || "other";
     if (!groups[cat]) groups[cat] = [];
     groups[cat].push({ idx, item });
   });
@@ -246,7 +313,7 @@ function PackingListView({
     <div className="rounded-md border border-border/60 p-2 space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium">{list.name}</p>
-        {list.source === 'ai_generated' && (
+        {list.source === "ai_generated" && (
           <Badge variant="outline" className="text-[9px] gap-1">
             <Sparkles className="w-2.5 h-2.5" /> AI
           </Badge>
@@ -265,17 +332,21 @@ function PackingListView({
                 disabled={disabled}
                 onClick={() => onToggle(idx)}
                 className={cn(
-                  'flex items-center gap-1.5 px-1 py-0.5 text-xs text-left rounded hover:bg-muted/40 transition-colors',
-                  item.packed && 'text-muted-foreground line-through',
-                  disabled && 'opacity-60 cursor-not-allowed',
+                  "flex items-center gap-1.5 px-1 py-0.5 text-xs text-left rounded hover:bg-muted/40 transition-colors",
+                  item.packed && "text-muted-foreground line-through",
+                  disabled && "opacity-60 cursor-not-allowed",
                 )}
               >
-                {item.packed
-                  ? <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                  : <Circle className="w-3 h-3 text-muted-foreground shrink-0" />}
+                {item.packed ? (
+                  <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                ) : (
+                  <Circle className="w-3 h-3 text-muted-foreground shrink-0" />
+                )}
                 <span className="truncate">
                   {item.name}
-                  {item.qty && item.qty > 1 ? <span className="text-muted-foreground"> ×{item.qty}</span> : null}
+                  {item.qty && item.qty > 1 ? (
+                    <span className="text-muted-foreground"> ×{item.qty}</span>
+                  ) : null}
                 </span>
               </button>
             ))}

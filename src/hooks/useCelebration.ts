@@ -1,8 +1,8 @@
-import { useCallback, useRef } from 'react';
-import confetti from 'canvas-confetti';
+import { useCallback, useRef } from "react";
+import confetti from "canvas-confetti";
 
 interface CelebrationOptions {
-  type: 'taskComplete' | 'highPriorityComplete' | 'streak';
+  type: "taskComplete" | "highPriorityComplete" | "streak";
   streakCount?: number;
 }
 
@@ -16,36 +16,35 @@ export function useCelebration() {
     lastCelebrationRef.current = now;
 
     switch (options.type) {
-      case 'highPriorityComplete':
+      case "highPriorityComplete":
         // Big confetti burst for high priority tasks
         confetti({
           particleCount: 100,
           spread: 70,
           origin: { y: 0.6 },
-          colors: ['#00d4ff', '#7c3aed', '#10b981', '#f59e0b'],
+          colors: ["#00d4ff", "#7c3aed", "#10b981", "#f59e0b"],
         });
         break;
 
-      case 'taskComplete':
+      case "taskComplete":
         // Subtle celebration for regular task completion
         confetti({
           particleCount: 30,
           spread: 50,
           origin: { y: 0.7 },
-          colors: ['#00d4ff', '#7c3aed'],
+          colors: ["#00d4ff", "#7c3aed"],
           gravity: 1.2,
           scalar: 0.8,
         });
         break;
 
-      case 'streak': {
+      case "streak": {
         // Epic celebration for streak milestones
         const duration = 2000;
         const animationEnd = Date.now() + duration;
         const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
 
-        const randomInRange = (min: number, max: number) =>
-          Math.random() * (max - min) + min;
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
         const interval = setInterval(() => {
           const timeLeft = animationEnd - Date.now();
@@ -60,13 +59,13 @@ export function useCelebration() {
             ...defaults,
             particleCount,
             origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-            colors: ['#00d4ff', '#7c3aed', '#10b981'],
+            colors: ["#00d4ff", "#7c3aed", "#10b981"],
           });
           confetti({
             ...defaults,
             particleCount,
             origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-            colors: ['#f59e0b', '#ef4444', '#7c3aed'],
+            colors: ["#f59e0b", "#ef4444", "#7c3aed"],
           });
         }, 250);
         break;
@@ -75,14 +74,17 @@ export function useCelebration() {
   }, []);
 
   // Check for streak milestones
-  const checkStreak = useCallback((consecutiveDays: number) => {
-    const milestones = [7, 14, 30, 60, 100];
-    if (milestones.includes(consecutiveDays)) {
-      celebrate({ type: 'streak', streakCount: consecutiveDays });
-      return true;
-    }
-    return false;
-  }, [celebrate]);
+  const checkStreak = useCallback(
+    (consecutiveDays: number) => {
+      const milestones = [7, 14, 30, 60, 100];
+      if (milestones.includes(consecutiveDays)) {
+        celebrate({ type: "streak", streakCount: consecutiveDays });
+        return true;
+      }
+      return false;
+    },
+    [celebrate],
+  );
 
   return { celebrate, checkStreak };
 }

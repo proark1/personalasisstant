@@ -86,7 +86,10 @@ export function languageName(code?: string | null): string {
 // How many of `total` ideas should be "current" (trending-now) given the
 // creator's trending↔evergreen ratio. Kept deliberately simple and mirrored by
 // the frontend's computeIdeaSplit() in src/lib/content.ts.
-export function splitIdeaCounts(total: number, trendingRatio: number): { current: number; evergreen: number } {
+export function splitIdeaCounts(
+  total: number,
+  trendingRatio: number,
+): { current: number; evergreen: number } {
   const t = Math.max(1, Math.min(total, 20));
   const r = Math.max(0, Math.min(Number.isFinite(trendingRatio) ? trendingRatio : 0.5, 1));
   const current = Math.max(0, Math.min(Math.round(t * r), t));
@@ -95,19 +98,28 @@ export function splitIdeaCounts(total: number, trendingRatio: number): { current
 
 function buildLocationContext(location?: IdeaLocation | null): string {
   if (!location) return "";
-  if (location.city && location.country) return ` They are based in ${location.city}, ${location.country}.`;
+  if (location.city && location.country)
+    return ` They are based in ${location.city}, ${location.country}.`;
   if (location.country) return ` They are based in ${location.country}.`;
   return "";
 }
 
 function extractText(data: Record<string, unknown>): string {
-  const parts = (data?.candidates as { content?: { parts?: { text?: unknown }[] } }[] | undefined)?.[0]?.content?.parts;
+  const parts = (
+    data?.candidates as { content?: { parts?: { text?: unknown }[] } }[] | undefined
+  )?.[0]?.content?.parts;
   if (!Array.isArray(parts)) return "";
-  return parts.map((p) => (typeof p?.text === "string" ? p.text : "")).join("").trim();
+  return parts
+    .map((p) => (typeof p?.text === "string" ? p.text : ""))
+    .join("")
+    .trim();
 }
 
 function parseItems(text: string): RawIdea[] {
-  const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  const cleaned = text
+    .replace(/```json\n?/g, "")
+    .replace(/```\n?/g, "")
+    .trim();
   const tryParse = (s: string): RawIdea[] | null => {
     try {
       const parsed = JSON.parse(s);
@@ -136,7 +148,9 @@ function resolveSources(
   const chunks = grounding?.groundingChunks ?? [];
   const supports = grounding?.groundingSupports ?? [];
   const at = (i?: number) => (i != null && i >= 0 ? chunks[i]?.web : undefined);
-  const pool = chunks.map((c) => c?.web).filter((w): w is { uri?: string; title?: string } => Boolean(w?.uri));
+  const pool = chunks
+    .map((c) => c?.web)
+    .filter((w): w is { uri?: string; title?: string } => Boolean(w?.uri));
 
   return items.map((item, idx) => {
     const headline = (item.headline || "").trim().toLowerCase();
@@ -171,7 +185,17 @@ interface BatchOpts {
 // ideas need the live web; evergreen ideas come from the model's own expertise
 // (no search, no source required).
 async function fetchIdeaBatch(opts: BatchOpts): Promise<ContentIdea[]> {
-  const { apiKey, grounded, kind, n, topicsString, personaBlock, locationContext, langName, avoidBlock } = opts;
+  const {
+    apiKey,
+    grounded,
+    kind,
+    n,
+    topicsString,
+    personaBlock,
+    locationContext,
+    langName,
+    avoidBlock,
+  } = opts;
   const today = new Date().toISOString().split("T")[0];
 
   const kindInstruction = grounded
@@ -215,7 +239,11 @@ Respond with ONLY a JSON array (no markdown fences, no commentary). Each object 
     body: JSON.stringify(requestBody),
   });
   if (!response.ok) {
-    console.error(`Gemini error (${kind} ideas):`, response.status, await response.text().catch(() => ""));
+    console.error(
+      `Gemini error (${kind} ideas):`,
+      response.status,
+      await response.text().catch(() => ""),
+    );
     throw new Error("Failed to generate content ideas");
   }
 
@@ -268,13 +296,17 @@ export async function generateContentIdeas(
     wantCurrent = 0;
     wantEvergreen = total;
   } else {
-    ({ current: wantCurrent, evergreen: wantEvergreen } = splitIdeaCounts(total, opts.trendingRatio ?? 0.5));
+    ({ current: wantCurrent, evergreen: wantEvergreen } = splitIdeaCounts(
+      total,
+      opts.trendingRatio ?? 0.5,
+    ));
   }
 
   const topics = (profile.topics || []).map((t) => t.trim()).filter(Boolean);
   const topicsString = topics.length ? topics.join(", ") : "business, startups, entrepreneurship";
   const tone = (profile.tone || []).filter(Boolean).join(", ");
-  const platforms = (profile.platforms || []).filter(Boolean).join(", ") || "YouTube, Instagram, TikTok";
+  const platforms =
+    (profile.platforms || []).filter(Boolean).join(", ") || "YouTube, Instagram, TikTok";
   const langName = languageName(opts.language || profile.primary_language);
   const locationContext = buildLocationContext(location);
   const personaBlock = [
@@ -284,7 +316,9 @@ export async function generateContentIdeas(
     profile.business_context ? `Their business: ${profile.business_context}` : "",
     `Topics they want to talk about: ${topicsString}`,
     `Platforms: ${platforms}`,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
   const avoid = opts.avoidHeadlines ?? [];
   const avoidBlock = avoid.length
     ? `\n\nAvoid repeating anything close to these recent ideas:\n- ${avoid.slice(0, 40).join("\n- ")}`
@@ -295,12 +329,20 @@ export async function generateContentIdeas(
   // failure in one (e.g. grounding hiccup, rate limit) still returns the other.
   const [currentIdeas, evergreenIdeas] = await Promise.all([
     wantCurrent > 0
-      ? fetchIdeaBatch({ ...shared, grounded: true, kind: "current", n: wantCurrent })
-          .catch((err) => { console.error("Failed to fetch current ideas:", err); return []; })
+      ? fetchIdeaBatch({ ...shared, grounded: true, kind: "current", n: wantCurrent }).catch(
+          (err) => {
+            console.error("Failed to fetch current ideas:", err);
+            return [];
+          },
+        )
       : Promise.resolve([]),
     wantEvergreen > 0
-      ? fetchIdeaBatch({ ...shared, grounded: false, kind: "evergreen", n: wantEvergreen })
-          .catch((err) => { console.error("Failed to fetch evergreen ideas:", err); return []; })
+      ? fetchIdeaBatch({ ...shared, grounded: false, kind: "evergreen", n: wantEvergreen }).catch(
+          (err) => {
+            console.error("Failed to fetch evergreen ideas:", err);
+            return [];
+          },
+        )
       : Promise.resolve([]),
   ]);
 

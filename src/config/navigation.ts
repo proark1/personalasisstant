@@ -47,7 +47,7 @@ import {
   ThumbsUp,
   UserRound,
   type LucideIcon,
-} from 'lucide-react';
+} from "lucide-react";
 
 export interface NavItem {
   /** Panel id consumed by the layout switch statements. */
@@ -73,117 +73,127 @@ export interface NavArea {
  */
 export const NAV_AREAS: NavArea[] = [
   {
-    id: 'home',
-    label: 'Home',
+    id: "home",
+    label: "Home",
     icon: LayoutDashboard,
     items: [
-      { id: 'dashboard', label: 'Dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+      { id: "dashboard", label: "Dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
     ],
   },
   {
-    id: 'plan',
-    label: 'Plan',
+    id: "plan",
+    label: "Plan",
     icon: CheckSquare,
     items: [
-      { id: 'tasks', label: 'Tasks', labelKey: 'nav.tasks', icon: CheckSquare },
-      { id: 'calendar', label: 'Calendar', labelKey: 'nav.calendar', icon: Calendar },
+      { id: "tasks", label: "Tasks", labelKey: "nav.tasks", icon: CheckSquare },
+      { id: "calendar", label: "Calendar", labelKey: "nav.calendar", icon: Calendar },
     ],
   },
   {
-    id: 'dori',
-    label: 'Dori',
+    id: "dori",
+    label: "Dori",
     icon: Sparkles,
     items: [
-      { id: 'assistant', label: 'Assistant', labelKey: 'nav.assistant', icon: Sparkles },
-      { id: 'notes', label: 'Notes', labelKey: 'nav.notes', icon: StickyNote },
-      { id: 'journal', label: 'Journal', labelKey: 'nav.journal', icon: BookHeart },
-      { id: 'activity', label: 'Activity', labelKey: 'nav.activity', icon: Activity },
-      { id: 'location-reminders', label: 'Location Reminders', icon: MapPin },
-      { id: 'meetings', label: 'Meeting Bots', icon: Video },
+      { id: "assistant", label: "Assistant", labelKey: "nav.assistant", icon: Sparkles },
+      { id: "notes", label: "Notes", labelKey: "nav.notes", icon: StickyNote },
+      { id: "journal", label: "Journal", labelKey: "nav.journal", icon: BookHeart },
+      { id: "activity", label: "Activity", labelKey: "nav.activity", icon: Activity },
+      { id: "location-reminders", label: "Location Reminders", icon: MapPin },
+      { id: "meetings", label: "Meeting Bots", icon: Video },
     ],
   },
   {
     // Content Studio — the daily content-idea engine for the user's business.
     // Its own top-level area; each item deep-links to a tab of the same panel.
-    id: 'content',
-    label: 'Content',
+    id: "content",
+    label: "Content",
     icon: Clapperboard,
     items: [
-      { id: 'content', label: "Today's Ideas", icon: Lightbulb },
-      { id: 'content-liked', label: 'Liked & Scripts', icon: ThumbsUp },
-      { id: 'content-calendar', label: 'Content Calendar', icon: CalendarCheck },
-      { id: 'content-profile', label: 'Creator Profile', icon: UserRound },
+      { id: "content", label: "Today's Ideas", icon: Lightbulb },
+      { id: "content-liked", label: "Liked & Scripts", icon: ThumbsUp },
+      { id: "content-calendar", label: "Content Calendar", icon: CalendarCheck },
+      { id: "content-profile", label: "Creator Profile", icon: UserRound },
     ],
   },
   {
     // Communication & relationships — the people you reach out to.
-    id: 'people',
-    label: 'People',
+    id: "people",
+    label: "People",
     icon: MessageCircle,
     items: [
-      { id: 'email', label: 'Email', labelKey: 'nav.email', icon: Mail },
-      { id: 'social', label: 'Team Chat', labelKey: 'nav.social', icon: MessageCircle },
-      { id: 'contacts', label: 'Contacts', labelKey: 'nav.contacts', icon: BookUser },
-      { id: 'relationships-plus', label: 'Relationships+', labelKey: 'nav.relationships', icon: Heart },
+      { id: "email", label: "Email", labelKey: "nav.email", icon: Mail },
+      { id: "social", label: "Team Chat", labelKey: "nav.social", icon: MessageCircle },
+      { id: "contacts", label: "Contacts", labelKey: "nav.contacts", icon: BookUser },
+      {
+        id: "relationships-plus",
+        label: "Relationships+",
+        labelKey: "nav.relationships",
+        icon: Heart,
+      },
     ],
   },
   {
     // Personal wellbeing — slimmed so it's no longer a 9-item catch-all.
-    id: 'life',
-    label: 'Life',
+    id: "life",
+    label: "Life",
     icon: Heart,
     items: [
-      { id: 'health', label: 'Health', labelKey: 'nav.health', icon: Heart },
-      { id: 'personal-health', label: 'Personal Health', labelKey: 'nav.personalHealth', icon: Pill },
-      { id: 'habits', label: 'Habits', labelKey: 'nav.habits', icon: Flame },
-      { id: 'islam', label: 'Islam', labelKey: 'nav.islam', icon: Moon },
-      { id: 'challenges', label: 'Challenges', icon: Trophy },
+      { id: "health", label: "Health", labelKey: "nav.health", icon: Heart },
+      {
+        id: "personal-health",
+        label: "Personal Health",
+        labelKey: "nav.personalHealth",
+        icon: Pill,
+      },
+      { id: "habits", label: "Habits", labelKey: "nav.habits", icon: Flame },
+      { id: "islam", label: "Islam", labelKey: "nav.islam", icon: Moon },
+      { id: "challenges", label: "Challenges", icon: Trophy },
     ],
   },
   {
     // All family surfaces in one coherent place instead of split across
     // People and Life.
-    id: 'family',
-    label: 'Family',
+    id: "family",
+    label: "Family",
     icon: Users,
     items: [
-      { id: 'family', label: 'Family Hub', labelKey: 'nav.familyHub', icon: Users },
-      { id: 'family-members', label: 'Family Members', icon: Users },
-      { id: 'family-calendar', label: 'Family Calendar', icon: CalendarCheck },
-      { id: 'cooking', label: 'Cooking', labelKey: 'nav.cooking', icon: Utensils },
-      { id: 'child-mode', label: 'Child Mode', icon: Baby },
+      { id: "family", label: "Family Hub", labelKey: "nav.familyHub", icon: Users },
+      { id: "family-members", label: "Family Members", icon: Users },
+      { id: "family-calendar", label: "Family Calendar", icon: CalendarCheck },
+      { id: "cooking", label: "Cooking", labelKey: "nav.cooking", icon: Utensils },
+      { id: "child-mode", label: "Child Mode", icon: Baby },
     ],
   },
   {
-    id: 'work',
-    label: 'Money & Work',
+    id: "work",
+    label: "Money & Work",
     icon: Wallet,
     items: [
-      { id: 'finances', label: 'Finances', labelKey: 'nav.finances', icon: Wallet },
-      { id: 'contracts', label: 'Contracts', labelKey: 'nav.contracts', icon: FileText },
-      { id: 'projects', label: 'Projects', labelKey: 'nav.projects', icon: FolderKanban },
-      { id: 'startups', label: 'Startups', labelKey: 'nav.startups', icon: Briefcase },
-      { id: 'assets', label: 'Properties & Vehicles', labelKey: 'nav.assets', icon: Home },
-      { id: 'travel', label: 'Travel', labelKey: 'nav.travel', icon: Plane },
+      { id: "finances", label: "Finances", labelKey: "nav.finances", icon: Wallet },
+      { id: "contracts", label: "Contracts", labelKey: "nav.contracts", icon: FileText },
+      { id: "projects", label: "Projects", labelKey: "nav.projects", icon: FolderKanban },
+      { id: "startups", label: "Startups", labelKey: "nav.startups", icon: Briefcase },
+      { id: "assets", label: "Properties & Vehicles", labelKey: "nav.assets", icon: Home },
+      { id: "travel", label: "Travel", labelKey: "nav.travel", icon: Plane },
     ],
   },
   {
-    id: 'learn',
-    label: 'Learn',
+    id: "learn",
+    label: "Learn",
     icon: GraduationCap,
     items: [
-      { id: 'learning', label: 'Learning', labelKey: 'nav.learning', icon: GraduationCap },
-      { id: 'correlations', label: 'Life Correlations', icon: LineChart },
-      { id: 'news', label: 'Tech News', labelKey: 'nav.news', icon: Newspaper },
+      { id: "learning", label: "Learning", labelKey: "nav.learning", icon: GraduationCap },
+      { id: "correlations", label: "Life Correlations", icon: LineChart },
+      { id: "news", label: "Tech News", labelKey: "nav.news", icon: Newspaper },
     ],
   },
 ];
 
 /** Settings lives in the footer, separate from the 7 content areas. */
 export const SETTINGS_ITEM: NavItem = {
-  id: 'settings',
-  label: 'Settings',
-  labelKey: 'nav.settings',
+  id: "settings",
+  label: "Settings",
+  labelKey: "nav.settings",
   icon: Settings,
 };
 
@@ -191,12 +201,17 @@ export const SETTINGS_ITEM: NavItem = {
  * Mobile bottom bar. The center slot (id `dori`) is the Dori assistant FAB and
  * is rendered specially. The other four map straight to panel ids.
  */
-export const MOBILE_PRIMARY_TABS: { id: string; label: string; icon: LucideIcon | null; isCenter?: boolean }[] = [
-  { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
-  { id: 'calendar', label: 'Plan', icon: Calendar },
-  { id: 'dori', label: 'Dori', icon: null, isCenter: true },
-  { id: 'contacts', label: 'People', icon: Users },
-  { id: 'health', label: 'Life', icon: Heart },
+export const MOBILE_PRIMARY_TABS: {
+  id: string;
+  label: string;
+  icon: LucideIcon | null;
+  isCenter?: boolean;
+}[] = [
+  { id: "dashboard", label: "Home", icon: LayoutDashboard },
+  { id: "calendar", label: "Plan", icon: Calendar },
+  { id: "dori", label: "Dori", icon: null, isCenter: true },
+  { id: "contacts", label: "People", icon: Users },
+  { id: "health", label: "Life", icon: Heart },
 ];
 
 /** Flat list of every leaf nav item (excludes Settings). */
@@ -204,7 +219,9 @@ export const ALL_NAV_ITEMS: NavItem[] = NAV_AREAS.flatMap((a) => a.items);
 
 /** Lookup: panel id -> human label (falls back to a Title-Cased id). */
 export function panelLabel(panelId: string): string {
-  const found = ALL_NAV_ITEMS.find((i) => i.id === panelId) ?? (panelId === 'settings' ? SETTINGS_ITEM : undefined);
+  const found =
+    ALL_NAV_ITEMS.find((i) => i.id === panelId) ??
+    (panelId === "settings" ? SETTINGS_ITEM : undefined);
   if (found) return found.label;
   return panelId.charAt(0).toUpperCase() + panelId.slice(1);
 }

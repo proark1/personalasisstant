@@ -1,30 +1,26 @@
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 interface SuccessCheckmarkProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   className?: string;
   onComplete?: () => void;
 }
 
 const sizes = {
-  sm: 'w-8 h-8',
-  md: 'w-12 h-12',
-  lg: 'w-16 h-16',
+  sm: "w-8 h-8",
+  md: "w-12 h-12",
+  lg: "w-16 h-16",
 };
 
 const iconSizes = {
-  sm: 'w-4 h-4',
-  md: 'w-6 h-6',
-  lg: 'w-8 h-8',
+  sm: "w-4 h-4",
+  md: "w-6 h-6",
+  lg: "w-8 h-8",
 };
 
-export function SuccessCheckmark({ 
-  size = 'md', 
-  className,
-  onComplete 
-}: SuccessCheckmarkProps) {
+export function SuccessCheckmark({ size = "md", className, onComplete }: SuccessCheckmarkProps) {
   return (
     <motion.div
       className={cn(
@@ -32,7 +28,7 @@ export function SuccessCheckmark({
         "bg-gradient-to-br from-green-400 to-emerald-500",
         "shadow-lg shadow-green-500/30",
         sizes[size],
-        className
+        className,
       )}
       initial={{ scale: 0, rotate: -180 }}
       animate={{ scale: 1, rotate: 0 }}
@@ -54,7 +50,7 @@ export function SuccessCheckmark({
           ease: "easeOut",
         }}
       />
-      
+
       {/* Check icon */}
       <motion.div
         initial={{ opacity: 0, scale: 0 }}
@@ -79,7 +75,7 @@ export function InlineCheckmark({ className }: { className?: string }) {
       className={cn(
         "inline-flex items-center justify-center w-5 h-5 rounded-full",
         "bg-green-500 text-white",
-        className
+        className,
       )}
       initial={{ scale: 0 }}
       animate={{ scale: 1 }}

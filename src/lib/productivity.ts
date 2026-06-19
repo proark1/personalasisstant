@@ -9,9 +9,7 @@ interface StreakTask {
 // dueDate was completed. Caps at 30 days to bound the scan.
 export function calculateProductivityStreak(tasks: StreakTask[]): number {
   const completedDays = new Set(
-    tasks
-      .filter((t) => t.completed && t.dueDate)
-      .map((t) => startOfDay(t.dueDate!).getTime()),
+    tasks.filter((t) => t.completed && t.dueDate).map((t) => startOfDay(t.dueDate!).getTime()),
   );
   if (completedDays.size === 0) return 0;
 

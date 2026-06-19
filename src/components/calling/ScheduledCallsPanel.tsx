@@ -1,20 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  Calendar, 
-  Video, 
-  Phone, 
-  Clock, 
-  Users,
-  X,
-  ExternalLink
-} from 'lucide-react';
-import { useCallFeatures, ScheduledCall } from '@/hooks/useCallFeatures';
-import { useCall } from '@/components/calling/CallProvider';
-import { format, isToday, isTomorrow, differenceInMinutes } from 'date-fns';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Calendar, Video, Phone, Clock, Users, X, ExternalLink } from "lucide-react";
+import { useCallFeatures, ScheduledCall } from "@/hooks/useCallFeatures";
+import { useCall } from "@/components/calling/CallProvider";
+import { format, isToday, isTomorrow, differenceInMinutes } from "date-fns";
 
 interface ScheduledCallsPanelProps {
   userId: string;
@@ -25,13 +17,18 @@ export function ScheduledCallsPanel({ userId: _userId }: ScheduledCallsPanelProp
   const { startVideoCall, startAudioCall } = useCall();
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const getTimeLabel = (date: Date) => {
-    if (isToday(date)) return 'Today';
-    if (isTomorrow(date)) return 'Tomorrow';
-    return format(date, 'MMM d');
+    if (isToday(date)) return "Today";
+    if (isTomorrow(date)) return "Tomorrow";
+    return format(date, "MMM d");
   };
 
   const canStartCall = (scheduledFor: Date) => {
@@ -41,7 +38,7 @@ export function ScheduledCallsPanel({ userId: _userId }: ScheduledCallsPanelProp
 
   const handleStartCall = (call: ScheduledCall) => {
     const participantId = call.participantIds[0];
-    if (call.callType === 'video') {
+    if (call.callType === "video") {
       startVideoCall(participantId);
     } else {
       startAudioCall(participantId);
@@ -73,13 +70,13 @@ export function ScheduledCallsPanel({ userId: _userId }: ScheduledCallsPanelProp
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      {call.callType === 'video' ? (
+                      {call.callType === "video" ? (
                         <Video className="w-4 h-4 text-primary" />
                       ) : (
                         <Phone className="w-4 h-4 text-primary" />
                       )}
                       <span className="font-medium">
-                        {call.title || `${call.callType === 'video' ? 'Video' : 'Audio'} Call`}
+                        {call.title || `${call.callType === "video" ? "Video" : "Audio"} Call`}
                       </span>
                     </div>
                     <Button
@@ -101,11 +98,12 @@ export function ScheduledCallsPanel({ userId: _userId }: ScheduledCallsPanelProp
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {getTimeLabel(call.scheduledFor)} at {format(call.scheduledFor, 'h:mm a')}
+                      {getTimeLabel(call.scheduledFor)} at {format(call.scheduledFor, "h:mm a")}
                     </div>
                     <div className="flex items-center gap-1">
                       <Users className="w-3 h-3" />
-                      {call.participantIds.length} participant{call.participantIds.length !== 1 ? 's' : ''}
+                      {call.participantIds.length} participant
+                      {call.participantIds.length !== 1 ? "s" : ""}
                     </div>
                   </div>
 
@@ -113,9 +111,7 @@ export function ScheduledCallsPanel({ userId: _userId }: ScheduledCallsPanelProp
                     <div className="flex -space-x-2">
                       {call.participants?.slice(0, 3).map((p) => (
                         <Avatar key={p.id} className="h-6 w-6 border-2 border-background">
-                          <AvatarFallback className="text-xs">
-                            {getInitials(p.name)}
-                          </AvatarFallback>
+                          <AvatarFallback className="text-xs">{getInitials(p.name)}</AvatarFallback>
                         </Avatar>
                       ))}
                       {call.participantIds.length > 3 && (
@@ -128,20 +124,14 @@ export function ScheduledCallsPanel({ userId: _userId }: ScheduledCallsPanelProp
                     <div className="flex-1" />
 
                     {canStartCall(call.scheduledFor) && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleStartCall(call)}
-                      >
+                      <Button size="sm" onClick={() => handleStartCall(call)}>
                         <ExternalLink className="w-4 h-4 mr-1" />
                         Join
                       </Button>
                     )}
                   </div>
 
-                  <Badge 
-                    variant="outline" 
-                    className="mt-2"
-                  >
+                  <Badge variant="outline" className="mt-2">
                     {call.durationMinutes} min
                   </Badge>
                 </div>

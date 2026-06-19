@@ -1,7 +1,7 @@
-import { useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Contact } from './useContacts';
-import { differenceInDays, addDays, format, isPast, isToday } from 'date-fns';
+import { useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Contact } from "./useContacts";
+import { differenceInDays, addDays, format, isPast, isToday } from "date-fns";
 
 interface UseSmartContactRemindersProps {
   contacts: Contact[];
@@ -33,17 +33,17 @@ export function useSmartContactReminders({
 
     // Get existing notifications to avoid duplicates
     const { data: existingNotifications } = await supabase
-      .from('user_notifications')
-      .select('data')
-      .eq('user_id', userId)
-      .eq('type', 'contact_reminder')
-      .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString());
+      .from("user_notifications")
+      .select("data")
+      .eq("user_id", userId)
+      .eq("type", "contact_reminder")
+      .gte("created_at", new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString());
 
     const existingContactIds = new Set(
       (existingNotifications || [])
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .map((n: any) => (n.data as { contact_id?: string } | null)?.contact_id)
-        .filter(Boolean)
+        .filter(Boolean),
     );
 
     for (const contact of contacts) {
@@ -56,37 +56,37 @@ export function useSmartContactReminders({
 
       // Check if we should send a reminder for this stage
       let shouldRemind = false;
-      let reminderType = '';
+      let reminderType = "";
 
       if (isPastDue) {
         const daysOverdue = -daysUntilDue;
         if (daysOverdue === 1 || daysOverdue === 3 || daysOverdue === 7) {
           shouldRemind = true;
-          reminderType = 'overdue';
+          reminderType = "overdue";
         }
       } else if (isDueToday) {
         shouldRemind = true;
-        reminderType = 'due_today';
+        reminderType = "due_today";
       } else if (REMINDER_STAGES.includes(daysUntilDue)) {
         shouldRemind = true;
-        reminderType = 'upcoming';
+        reminderType = "upcoming";
       }
 
       if (!shouldRemind) continue;
 
       // Build notification message
-      let title = '';
-      let message = '';
+      let title = "";
+      let message = "";
 
-      if (reminderType === 'overdue') {
+      if (reminderType === "overdue") {
         title = `📞 Overdue: Contact ${contact.name}`;
         message = `You're ${-daysUntilDue} days overdue to contact ${contact.name}. Time to reach out!`;
-      } else if (reminderType === 'due_today') {
+      } else if (reminderType === "due_today") {
         title = `⏰ Today: Contact ${contact.name}`;
         message = `Today is the day to reach out to ${contact.name}!`;
       } else {
         title = `🔔 Upcoming: Contact ${contact.name}`;
-        message = `Remember to contact ${contact.name} in ${daysUntilDue} days (${format(contact.nextContactDue, 'MMM d')}).`;
+        message = `Remember to contact ${contact.name} in ${daysUntilDue} days (${format(contact.nextContactDue, "MMM d")}).`;
       }
 
       // Add context
@@ -94,12 +94,12 @@ export function useSmartContactReminders({
         message += ` (${contact.company})`;
       }
       if (contact.notes) {
-        message += `\n\nNote: ${contact.notes.slice(0, 100)}${contact.notes.length > 100 ? '...' : ''}`;
+        message += `\n\nNote: ${contact.notes.slice(0, 100)}${contact.notes.length > 100 ? "..." : ""}`;
       }
 
       notifications.push({
         user_id: userId,
-        type: 'contact_reminder',
+        type: "contact_reminder",
         title,
         message,
         data: {
@@ -114,12 +114,12 @@ export function useSmartContactReminders({
     // Insert all notifications
     if (notifications.length > 0) {
       const { error } = await supabase
-        .from('user_notifications')
+        .from("user_notifications")
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .insert(notifications as any);
 
       if (error) {
-        console.error('Error creating contact reminders:', error);
+        console.error("Error creating contact reminders:", error);
       } else {
         console.log(`Created ${notifications.length} contact reminders`);
       }
@@ -129,7 +129,7 @@ export function useSmartContactReminders({
   // Run once on mount
   useEffect(() => {
     if (hasCheckedRef.current || !userId) return;
-    
+
     const timer = setTimeout(() => {
       hasCheckedRef.current = true;
       createReminders();
@@ -143,7 +143,7 @@ export function useSmartContactReminders({
     if (!userId) return;
 
     const now = new Date();
-    const upcomingContacts = contacts.filter(c => {
+    const upcomingContacts = contacts.filter((c) => {
       if (!c.nextContactDue) return false;
       const daysUntil = differenceInDays(c.nextContactDue, now);
       return daysUntil >= 0 && daysUntil <= 14;
@@ -154,12 +154,12 @@ export function useSmartContactReminders({
 
       // Check if event already exists
       const { data: existing } = await supabase
-        .from('events')
-        .select('id')
-        .eq('user_id', userId)
-        .ilike('title', `%Contact: ${contact.name}%`)
-        .gte('start_time', contact.nextContactDue.toISOString().split('T')[0])
-        .lt('start_time', addDays(contact.nextContactDue, 1).toISOString().split('T')[0]);
+        .from("events")
+        .select("id")
+        .eq("user_id", userId)
+        .ilike("title", `%Contact: ${contact.name}%`)
+        .gte("start_time", contact.nextContactDue.toISOString().split("T")[0])
+        .lt("start_time", addDays(contact.nextContactDue, 1).toISOString().split("T")[0]);
 
       if (existing && existing.length > 0) continue;
 
@@ -170,13 +170,13 @@ export function useSmartContactReminders({
       const endTime = new Date(startTime);
       endTime.setMinutes(endTime.getMinutes() + 30);
 
-      await supabase.from('events').insert({
+      await supabase.from("events").insert({
         user_id: userId,
         title: `📞 Contact: ${contact.name}`,
         description: contact.notes || `Time to reach out to ${contact.name}`,
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
-        category: contact.contactType === 'business' ? 'business' : 'personal',
+        category: contact.contactType === "business" ? "business" : "personal",
       });
     }
   }, [contacts, userId]);

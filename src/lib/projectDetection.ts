@@ -1,24 +1,84 @@
-import { Project } from '@/types/flux';
+import { Project } from "@/types/flux";
 
 // Keyword mappings for common project types
 const PROJECT_KEYWORDS: Record<string, string[]> = {
   // Shopping/groceries
-  shopping: ['buy', 'shop', 'grocery', 'groceries', 'store', 'market', 'purchase', 'get', 'pick up', 'milk', 'bread', 'eggs'],
-  
+  shopping: [
+    "buy",
+    "shop",
+    "grocery",
+    "groceries",
+    "store",
+    "market",
+    "purchase",
+    "get",
+    "pick up",
+    "milk",
+    "bread",
+    "eggs",
+  ],
+
   // Family
-  family: ['family', 'kids', 'children', 'wife', 'husband', 'spouse', 'mom', 'dad', 'parent', 'school', 'doctor', 'appointment'],
-  
+  family: [
+    "family",
+    "kids",
+    "children",
+    "wife",
+    "husband",
+    "spouse",
+    "mom",
+    "dad",
+    "parent",
+    "school",
+    "doctor",
+    "appointment",
+  ],
+
   // Work/business
-  work: ['meeting', 'call', 'email', 'client', 'project', 'deadline', 'report', 'presentation', 'invoice', 'contract', 'proposal'],
-  
+  work: [
+    "meeting",
+    "call",
+    "email",
+    "client",
+    "project",
+    "deadline",
+    "report",
+    "presentation",
+    "invoice",
+    "contract",
+    "proposal",
+  ],
+
   // Health/fitness
-  health: ['gym', 'workout', 'exercise', 'run', 'yoga', 'doctor', 'medicine', 'prescription', 'health', 'fitness'],
-  
+  health: [
+    "gym",
+    "workout",
+    "exercise",
+    "run",
+    "yoga",
+    "doctor",
+    "medicine",
+    "prescription",
+    "health",
+    "fitness",
+  ],
+
   // Home
-  home: ['clean', 'fix', 'repair', 'garden', 'lawn', 'laundry', 'dishes', 'cook', 'organize', 'maintenance'],
-  
+  home: [
+    "clean",
+    "fix",
+    "repair",
+    "garden",
+    "lawn",
+    "laundry",
+    "dishes",
+    "cook",
+    "organize",
+    "maintenance",
+  ],
+
   // Finance
-  finance: ['pay', 'bill', 'bank', 'transfer', 'budget', 'tax', 'expense', 'invoice', 'payment'],
+  finance: ["pay", "bill", "bank", "transfer", "budget", "tax", "expense", "invoice", "payment"],
 };
 
 export interface ProjectSuggestion {
@@ -30,10 +90,7 @@ export interface ProjectSuggestion {
 /**
  * Detect which project a task might belong to based on keywords
  */
-export function detectProjectFromText(
-  text: string,
-  projects: Project[]
-): ProjectSuggestion | null {
+export function detectProjectFromText(text: string, projects: Project[]): ProjectSuggestion | null {
   if (!text || projects.length === 0) return null;
 
   const lowerText = text.toLowerCase();
@@ -118,7 +175,7 @@ export function detectProjectFromText(
 export function getProjectSuggestions(
   text: string,
   projects: Project[],
-  limit: number = 3
+  limit: number = 3,
 ): ProjectSuggestion[] {
   if (!text || projects.length === 0) return [];
 
@@ -179,7 +236,5 @@ export function getProjectSuggestions(
     }
   }
 
-  return suggestions
-    .sort((a, b) => b.confidence - a.confidence)
-    .slice(0, limit);
+  return suggestions.sort((a, b) => b.confidence - a.confidence).slice(0, limit);
 }

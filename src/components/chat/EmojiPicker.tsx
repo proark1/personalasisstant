@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Smile } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Smile } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface EmojiPickerProps {
   onEmojiSelect: (emoji: string) => void;
@@ -11,20 +11,104 @@ interface EmojiPickerProps {
 
 const EMOJI_CATEGORIES = [
   {
-    name: 'Smileys',
-    emojis: ['😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂', '😉', '😍', '🥰', '😘', '😋', '😜', '🤪', '😎', '🤩', '🥳'],
+    name: "Smileys",
+    emojis: [
+      "😀",
+      "😃",
+      "😄",
+      "😁",
+      "😅",
+      "😂",
+      "🤣",
+      "😊",
+      "😇",
+      "🙂",
+      "😉",
+      "😍",
+      "🥰",
+      "😘",
+      "😋",
+      "😜",
+      "🤪",
+      "😎",
+      "🤩",
+      "🥳",
+    ],
   },
   {
-    name: 'Gestures',
-    emojis: ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '👏', '🙌', '👐', '🤝', '🙏', '💪', '🫶', '❤️', '🧡', '💛', '💚', '💙', '💜'],
+    name: "Gestures",
+    emojis: [
+      "👍",
+      "👎",
+      "👌",
+      "✌️",
+      "🤞",
+      "🤟",
+      "🤘",
+      "👏",
+      "🙌",
+      "👐",
+      "🤝",
+      "🙏",
+      "💪",
+      "🫶",
+      "❤️",
+      "🧡",
+      "💛",
+      "💚",
+      "💙",
+      "💜",
+    ],
   },
   {
-    name: 'Objects',
-    emojis: ['🎉', '🎊', '🎁', '🎈', '✨', '🔥', '💯', '⭐', '🌟', '💫', '🎯', '🏆', '🥇', '📌', '💡', '📝', '✅', '❌', '⏰', '📅'],
+    name: "Objects",
+    emojis: [
+      "🎉",
+      "🎊",
+      "🎁",
+      "🎈",
+      "✨",
+      "🔥",
+      "💯",
+      "⭐",
+      "🌟",
+      "💫",
+      "🎯",
+      "🏆",
+      "🥇",
+      "📌",
+      "💡",
+      "📝",
+      "✅",
+      "❌",
+      "⏰",
+      "📅",
+    ],
   },
   {
-    name: 'Faces',
-    emojis: ['😢', '😭', '😤', '😠', '🤬', '😈', '💀', '☠️', '🤡', '👻', '👽', '🤖', '😺', '😸', '😹', '😻', '🙀', '😿', '😾', '🐱'],
+    name: "Faces",
+    emojis: [
+      "😢",
+      "😭",
+      "😤",
+      "😠",
+      "🤬",
+      "😈",
+      "💀",
+      "☠️",
+      "🤡",
+      "👻",
+      "👽",
+      "🤖",
+      "😺",
+      "😸",
+      "😹",
+      "😻",
+      "🙀",
+      "😿",
+      "😾",
+      "🐱",
+    ],
   },
 ];
 
@@ -51,21 +135,15 @@ export function EmojiPicker({ onEmojiSelect, disabled }: EmojiPickerProps) {
           <Smile className="w-4 h-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="w-72 p-2" 
-        align="start"
-        side="top"
-      >
+      <PopoverContent className="w-72 p-2" align="start" side="top">
         <div className="flex gap-1 mb-2 border-b pb-2">
           {EMOJI_CATEGORIES.map((category, idx) => (
             <button
               key={category.name}
               onClick={() => setActiveCategory(idx)}
               className={cn(
-                'text-xs px-2 py-1 rounded transition-colors',
-                activeCategory === idx
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
+                "text-xs px-2 py-1 rounded transition-colors",
+                activeCategory === idx ? "bg-primary text-primary-foreground" : "hover:bg-muted",
               )}
             >
               {category.name}

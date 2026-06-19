@@ -42,13 +42,21 @@ function cacheSet(userId: string, value: QuotaCheck) {
 
 // Minimal Supabase client surface these functions use.
 export interface SupabaseQuotaClient {
-  rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>;
-  from(table: string): { insert(row: Record<string, unknown>): Promise<{ error: { message: string } | null }> };
+  rpc(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<{ data: unknown; error: { message: string } | null }>;
+  from(table: string): {
+    insert(row: Record<string, unknown>): Promise<{ error: { message: string } | null }>;
+  };
 }
 
-export async function checkQuota(supabase: SupabaseQuotaClient, userId: string): Promise<QuotaCheck> {
+export async function checkQuota(
+  supabase: SupabaseQuotaClient,
+  userId: string,
+): Promise<QuotaCheck> {
   try {
-    const { data, error } = await supabase.rpc('check_ai_quota', { p_user_id: userId });
+    const { data, error } = await supabase.rpc("check_ai_quota", { p_user_id: userId });
     if (error) throw error;
     const r = Array.isArray(data) ? data[0] : data;
     const result: QuotaCheck = {
@@ -67,13 +75,10 @@ export async function checkQuota(supabase: SupabaseQuotaClient, userId: string):
     // message than to let one DB outage burn unbounded AI spend.
     const cached = cacheGet(userId);
     if (cached) {
-      console.warn(
-        '[ai-quota.checkQuota] RPC failed, serving cached value',
-        (e as Error).message,
-      );
+      console.warn("[ai-quota.checkQuota] RPC failed, serving cached value", (e as Error).message);
       return cached;
     }
-    console.error('[ai-quota.checkQuota] RPC failed with no cache, denying', (e as Error).message);
+    console.error("[ai-quota.checkQuota] RPC failed with no cache, denying", (e as Error).message);
     return {
       allowed: false,
       used_cents: 0,
@@ -87,23 +92,28 @@ export async function checkQuota(supabase: SupabaseQuotaClient, userId: string):
 
 // Convenience: throw if over cap. Edge functions can wrap their AI
 // section in try/catch and surface the message.
-export async function assertWithinQuota(supabase: SupabaseQuotaClient, userId: string): Promise<QuotaCheck> {
+export async function assertWithinQuota(
+  supabase: SupabaseQuotaClient,
+  userId: string,
+): Promise<QuotaCheck> {
   const q = await checkQuota(supabase, userId);
   if (!q.allowed) {
     // Best-effort: log the rejection so it shows up in the usage feed.
     try {
-      await supabase.from('ai_usage').insert({
+      await supabase.from("ai_usage").insert({
         user_id: userId,
-        function_name: 'quota_rejection',
-        model: 'n/a',
+        function_name: "quota_rejection",
+        model: "n/a",
         prompt_tokens: 0,
         completion_tokens: 0,
         total_tokens: 0,
         cost_estimate: 0,
-        response_status: 'rate_limited',
+        response_status: "rate_limited",
         request_data: { used_cents: q.used_cents, cap_cents: q.cap_cents },
       });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     // cap_cents == 0 is the sentinel that the quota service was
     // unreachable AND no cached value was available. Surface that
     // explicitly so the client can retry rather than think it's locked
@@ -111,12 +121,14 @@ export async function assertWithinQuota(supabase: SupabaseQuotaClient, userId: s
     const isServiceDown = q.cap_cents === 0;
     const err = new Error(
       isServiceDown
-        ? 'AI quota service unavailable. Please retry shortly.'
+        ? "AI quota service unavailable. Please retry shortly."
         : `AI monthly cap reached (${(q.used_cents / 100).toFixed(2)} / ${(q.cap_cents / 100).toFixed(2)} USD). ` +
-          'Wait until next month or ask the operator to bump your cap.',
+            "Wait until next month or ask the operator to bump your cap.",
     );
     (err as unknown as Record<string, unknown>).quota = q;
-    (err as unknown as Record<string, unknown>).code = isServiceDown ? 'quota_service_unavailable' : 'quota_exceeded';
+    (err as unknown as Record<string, unknown>).code = isServiceDown
+      ? "quota_service_unavailable"
+      : "quota_exceeded";
     throw err;
   }
   return q;

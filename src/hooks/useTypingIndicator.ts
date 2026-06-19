@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TypingUser {
   id: string;
@@ -27,12 +27,19 @@ export function useTypingIndicator({ chatId, userId, userName }: UseTypingIndica
     channelRef.current = channel;
 
     channel
-      .on('presence', { event: 'sync' }, () => {
+      .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
         const users: TypingUser[] = [];
-        
+
         Object.values(state).forEach((presences) => {
-          (presences as { user_id: string; user_name: string; typing: boolean; presence_ref: string }[]).forEach((presence) => {
+          (
+            presences as {
+              user_id: string;
+              user_name: string;
+              typing: boolean;
+              presence_ref: string;
+            }[]
+          ).forEach((presence) => {
             if (presence.user_id !== userId && presence.typing) {
               users.push({
                 id: presence.user_id,
@@ -42,11 +49,11 @@ export function useTypingIndicator({ chatId, userId, userName }: UseTypingIndica
             }
           });
         });
-        
+
         setTypingUsers(users);
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
+        if (status === "SUBSCRIBED") {
           // Track initial presence (not typing)
           await channel.track({
             user_id: userId,
@@ -68,18 +75,21 @@ export function useTypingIndicator({ chatId, userId, userName }: UseTypingIndica
   }, [chatId, userId, userName]);
 
   // Set typing status
-  const setTyping = useCallback(async (isTyping: boolean) => {
-    if (!channelRef.current || isTypingRef.current === isTyping) return;
-    
-    isTypingRef.current = isTyping;
-    
-    await channelRef.current.track({
-      user_id: userId,
-      user_name: userName,
-      typing: isTyping,
-      online_at: new Date().toISOString(),
-    });
-  }, [userId, userName]);
+  const setTyping = useCallback(
+    async (isTyping: boolean) => {
+      if (!channelRef.current || isTypingRef.current === isTyping) return;
+
+      isTypingRef.current = isTyping;
+
+      await channelRef.current.track({
+        user_id: userId,
+        user_name: userName,
+        typing: isTyping,
+        online_at: new Date().toISOString(),
+      });
+    },
+    [userId, userName],
+  );
 
   // Handle input change - start typing indicator with auto-stop
   const onInputChange = useCallback(() => {

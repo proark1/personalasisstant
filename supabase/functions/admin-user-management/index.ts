@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -85,9 +85,10 @@ Deno.serve(async (req) => {
       if (Object.keys(updates).length > 0) {
         const { error } = await admin.auth.admin.updateUserById(target_user_id, updates);
         if (error) {
-          const msg = (error as { code?: string; message?: string }).code === "weak_password"
-            ? "This password was found in a known data breach. Please choose a stronger, unique password."
-            : error.message;
+          const msg =
+            (error as { code?: string; message?: string }).code === "weak_password"
+              ? "This password was found in a known data breach. Please choose a stronger, unique password."
+              : error.message;
           return new Response(JSON.stringify({ error: msg }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },

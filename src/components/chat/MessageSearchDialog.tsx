@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, MessageCircle } from 'lucide-react';
-import { useMessageFeatures } from '@/hooks/useMessageFeatures';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search, MessageCircle } from "lucide-react";
+import { useMessageFeatures } from "@/hooks/useMessageFeatures";
+import { format } from "date-fns";
 
 interface MessageSearchDialogProps {
   open: boolean;
@@ -14,13 +14,13 @@ interface MessageSearchDialogProps {
   onMessageSelect?: (messageId: string) => void;
 }
 
-export function MessageSearchDialog({ 
-  open, 
-  onOpenChange, 
+export function MessageSearchDialog({
+  open,
+  onOpenChange,
   chatPartnerId,
-  onMessageSelect 
+  onMessageSelect,
 }: MessageSearchDialogProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<{ id: string; content: string; created_at: string }[]>([]);
   const [searching, setSearching] = useState(false);
   const { searchMessages } = useMessageFeatures();
@@ -34,7 +34,7 @@ export function MessageSearchDialog({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSearch();
     }
   };
@@ -58,7 +58,7 @@ export function MessageSearchDialog({
             autoFocus
           />
           <Button onClick={handleSearch} disabled={searching}>
-            {searching ? 'Searching...' : 'Search'}
+            {searching ? "Searching..." : "Search"}
           </Button>
         </div>
 
@@ -66,7 +66,7 @@ export function MessageSearchDialog({
           {results.length === 0 && query && !searching && (
             <p className="text-center text-muted-foreground py-8">No messages found</p>
           )}
-          
+
           {results.map((message) => (
             <div
               key={message.id}
@@ -81,7 +81,7 @@ export function MessageSearchDialog({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm line-clamp-2">{message.content}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {format(new Date(message.created_at), 'MMM d, yyyy h:mm a')}
+                    {format(new Date(message.created_at), "MMM d, yyyy h:mm a")}
                   </p>
                 </div>
               </div>
@@ -91,7 +91,7 @@ export function MessageSearchDialog({
 
         {results.length > 0 && (
           <p className="text-xs text-muted-foreground text-center">
-            {results.length} message{results.length !== 1 ? 's' : ''} found
+            {results.length} message{results.length !== 1 ? "s" : ""} found
           </p>
         )}
       </DialogContent>

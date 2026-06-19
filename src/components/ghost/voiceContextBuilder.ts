@@ -2,18 +2,18 @@
 // session. Pure transformation — extracted from GhostMode.tsx so it can
 // be unit-tested and reasoned about independently. The exact shape is
 // preserved 1:1 from the previous inline `useMemo` body.
-import type { Task, CalendarEvent, Project } from '@/types/flux';
-import type { Contact } from '@/hooks/useContacts';
-import type { Contract } from '@/hooks/useContracts';
-import type { HealthMetric, DailyHealthSummary } from '@/hooks/useAppleHealth';
-import type { Habit, HabitLog } from '@/hooks/useHabits';
-import type { Note } from '@/hooks/useNotes';
-import type { Conversation } from '@/hooks/useDirectMessages';
-import type { StartupIdea } from '@/hooks/useStartupIdeas';
-import type { Email } from '@/hooks/useEmails';
-import type { FamilyMember } from '@/hooks/useFamilyMembers';
-import type { FamilyContext } from '@/hooks/useFamilyContext';
-import type { ShoppingList } from '@/hooks/useShoppingLists';
+import type { Task, CalendarEvent, Project } from "@/types/flux";
+import type { Contact } from "@/hooks/useContacts";
+import type { Contract } from "@/hooks/useContracts";
+import type { HealthMetric, DailyHealthSummary } from "@/hooks/useAppleHealth";
+import type { Habit, HabitLog } from "@/hooks/useHabits";
+import type { Note } from "@/hooks/useNotes";
+import type { Conversation } from "@/hooks/useDirectMessages";
+import type { StartupIdea } from "@/hooks/useStartupIdeas";
+import type { Email } from "@/hooks/useEmails";
+import type { FamilyMember } from "@/hooks/useFamilyMembers";
+import type { FamilyContext } from "@/hooks/useFamilyContext";
+import type { ShoppingList } from "@/hooks/useShoppingLists";
 
 export interface BuildVoiceContextInputs {
   tasks: Task[];
@@ -62,54 +62,60 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
     now = new Date(),
   } = inputs;
 
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = now.toISOString().split("T")[0];
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   // Filter tasks
-  const pendingTasks = tasks.filter(t => !t.completed && !t.trashed);
-  const overdueTasks = pendingTasks.filter(t => t.dueDate && t.dueDate < now);
-  const todayTasks = pendingTasks.filter(t => {
+  const pendingTasks = tasks.filter((t) => !t.completed && !t.trashed);
+  const overdueTasks = pendingTasks.filter((t) => t.dueDate && t.dueDate < now);
+  const todayTasks = pendingTasks.filter((t) => {
     if (!t.dueDate) return false;
-    return t.dueDate.toISOString().split('T')[0] === todayStr;
+    return t.dueDate.toISOString().split("T")[0] === todayStr;
   });
-  const upcomingTasks = pendingTasks.filter(t => {
+  const upcomingTasks = pendingTasks.filter((t) => {
     if (!t.dueDate) return false;
     return t.dueDate > now && t.dueDate <= nextWeek;
   });
 
   // Filter events for next 7 days
-  const upcomingEvents = events.filter(e => {
-    return e.startTime >= now && e.startTime <= nextWeek;
-  }).slice(0, 10);
+  const upcomingEvents = events
+    .filter((e) => {
+      return e.startTime >= now && e.startTime <= nextWeek;
+    })
+    .slice(0, 10);
 
   // Get key contacts (due for follow-up or recently added)
-  const contactsDue = contacts.filter(c =>
-    c.nextContactDue && c.nextContactDue <= now
-  ).slice(0, 5);
+  const contactsDue = contacts
+    .filter((c) => c.nextContactDue && c.nextContactDue <= now)
+    .slice(0, 5);
 
   // Get active contracts with upcoming renewals
-  const activeContracts = contracts.filter(c => c.isActive);
-  const contractsWithRenewals = activeContracts.filter(c => {
-    if (!c.renewalDate) return false;
-    return c.renewalDate <= nextWeek;
-  }).slice(0, 5);
+  const activeContracts = contracts.filter((c) => c.isActive);
+  const contractsWithRenewals = activeContracts
+    .filter((c) => {
+      if (!c.renewalDate) return false;
+      return c.renewalDate <= nextWeek;
+    })
+    .slice(0, 5);
 
   // Active projects
-  const activeProjects = projects.filter(p => !p.isArchived);
+  const activeProjects = projects.filter((p) => !p.isArchived);
 
   // All tasks for voice command matching (include id)
-  const allTasks = tasks.filter(t => !t.trashed).map(t => ({
-    id: t.id,
-    title: t.title,
-    category: String(t.category),
-    priority: String(t.priority),
-    dueDate: t.dueDate?.toISOString() || null,
-    completed: t.completed,
-    projectId: t.projectId || null,
-  }));
+  const allTasks = tasks
+    .filter((t) => !t.trashed)
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      category: String(t.category),
+      priority: String(t.priority),
+      dueDate: t.dueDate?.toISOString() || null,
+      completed: t.completed,
+      projectId: t.projectId || null,
+    }));
 
   // All events for matching
-  const allEvents = events.map(e => ({
+  const allEvents = events.map((e) => ({
     id: e.id,
     title: e.title,
     startTime: e.startTime.toISOString(),
@@ -118,7 +124,7 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
   }));
 
   // All contacts for matching (include familyRelationship for voice commands like "call my wife")
-  const allContacts = contacts.slice(0, 100).map(c => ({
+  const allContacts = contacts.slice(0, 100).map((c) => ({
     id: c.id,
     name: c.name,
     company: c.company || null,
@@ -138,7 +144,7 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
   }));
 
   // All contracts for matching
-  const allContracts = activeContracts.map(c => ({
+  const allContracts = activeContracts.map((c) => ({
     id: c.id,
     name: c.name,
     provider: c.provider || null,
@@ -152,7 +158,7 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
   }));
 
   // All projects for matching
-  const allProjects = activeProjects.map(p => ({
+  const allProjects = activeProjects.map((p) => ({
     id: p.id,
     name: p.name,
     description: p.description || null,
@@ -162,35 +168,37 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
   // Health data for AI access - include all available metrics
   const healthData = {
     isConnected: healthConnected,
-    todaySummary: todaySummary ? {
-      date: todaySummary.date,
-      steps: todaySummary.steps,
-      calories: todaySummary.calories,
-      activeMinutes: todaySummary.activeMinutes,
-      sleepHours: todaySummary.sleepHours,
-      heartRateAvg: todaySummary.heartRateAvg,
-      weight: todaySummary.weight,
-      waterIntake: todaySummary.waterIntake,
-      restingHeartRate: todaySummary.restingHeartRate,
-      hrv: todaySummary.hrv,
-      respiratoryRate: todaySummary.respiratoryRate,
-      bloodOxygen: todaySummary.bloodOxygen,
-      bloodPressureSystolic: todaySummary.bloodPressureSystolic,
-      bloodPressureDiastolic: todaySummary.bloodPressureDiastolic,
-      distance: todaySummary.distance,
-      flightsClimbed: todaySummary.flightsClimbed,
-      bodyFat: todaySummary.bodyFat,
-      mindfulnessMinutes: todaySummary.mindfulnessMinutes,
-      sleepStartTime: todaySummary.sleepStartTime,
-      sleepEndTime: todaySummary.sleepEndTime,
-      sleepRemMinutes: todaySummary.sleepRemMinutes,
-      sleepDeepMinutes: todaySummary.sleepDeepMinutes,
-      sleepCoreMinutes: todaySummary.sleepCoreMinutes,
-      sleepAwakeMinutes: todaySummary.sleepAwakeMinutes,
-      sleepEfficiency: todaySummary.sleepEfficiency,
-      sleepInBedMinutes: todaySummary.sleepInBedMinutes,
-    } : null,
-    weeklyData: weeklyData.map(d => ({
+    todaySummary: todaySummary
+      ? {
+          date: todaySummary.date,
+          steps: todaySummary.steps,
+          calories: todaySummary.calories,
+          activeMinutes: todaySummary.activeMinutes,
+          sleepHours: todaySummary.sleepHours,
+          heartRateAvg: todaySummary.heartRateAvg,
+          weight: todaySummary.weight,
+          waterIntake: todaySummary.waterIntake,
+          restingHeartRate: todaySummary.restingHeartRate,
+          hrv: todaySummary.hrv,
+          respiratoryRate: todaySummary.respiratoryRate,
+          bloodOxygen: todaySummary.bloodOxygen,
+          bloodPressureSystolic: todaySummary.bloodPressureSystolic,
+          bloodPressureDiastolic: todaySummary.bloodPressureDiastolic,
+          distance: todaySummary.distance,
+          flightsClimbed: todaySummary.flightsClimbed,
+          bodyFat: todaySummary.bodyFat,
+          mindfulnessMinutes: todaySummary.mindfulnessMinutes,
+          sleepStartTime: todaySummary.sleepStartTime,
+          sleepEndTime: todaySummary.sleepEndTime,
+          sleepRemMinutes: todaySummary.sleepRemMinutes,
+          sleepDeepMinutes: todaySummary.sleepDeepMinutes,
+          sleepCoreMinutes: todaySummary.sleepCoreMinutes,
+          sleepAwakeMinutes: todaySummary.sleepAwakeMinutes,
+          sleepEfficiency: todaySummary.sleepEfficiency,
+          sleepInBedMinutes: todaySummary.sleepInBedMinutes,
+        }
+      : null,
+    weeklyData: weeklyData.map((d) => ({
       date: d.date,
       steps: d.steps,
       calories: d.calories,
@@ -200,15 +208,27 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
       // Include sleep details in weekly data too. These fields aren't on
       // DailyHealthSummary's static type — they're attached by upstream
       // aggregation. Cast through the extended type to preserve runtime behavior.
-      sleepRemMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepRemMinutes as number | undefined,
-      sleepDeepMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepDeepMinutes as number | undefined,
-      sleepCoreMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepCoreMinutes as number | undefined,
-      sleepAwakeMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepAwakeMinutes as number | undefined,
-      sleepEfficiency: (d as DailyHealthSummary & Record<string, unknown>).sleepEfficiency as number | undefined,
+      sleepRemMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepRemMinutes as
+        | number
+        | undefined,
+      sleepDeepMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepDeepMinutes as
+        | number
+        | undefined,
+      sleepCoreMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepCoreMinutes as
+        | number
+        | undefined,
+      sleepAwakeMinutes: (d as DailyHealthSummary & Record<string, unknown>).sleepAwakeMinutes as
+        | number
+        | undefined,
+      sleepEfficiency: (d as DailyHealthSummary & Record<string, unknown>).sleepEfficiency as
+        | number
+        | undefined,
       hrv: (d as DailyHealthSummary & Record<string, unknown>).hrv as number | undefined,
-      restingHeartRate: (d as DailyHealthSummary & Record<string, unknown>).restingHeartRate as number | undefined,
+      restingHeartRate: (d as DailyHealthSummary & Record<string, unknown>).restingHeartRate as
+        | number
+        | undefined,
     })),
-    recentMetrics: healthMetrics.slice(0, 100).map(m => ({
+    recentMetrics: healthMetrics.slice(0, 100).map((m) => ({
       type: m.metric_type,
       value: m.value,
       unit: m.unit,
@@ -219,7 +239,7 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
 
   // Habit data for AI access
   const habitData = {
-    habits: habits.map(h => ({
+    habits: habits.map((h) => ({
       id: h.id,
       name: h.name,
       description: h.description,
@@ -228,15 +248,15 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
       targetCount: h.targetCount,
       isActive: h.isActive,
     })),
-    recentLogs: habitLogs.slice(0, 50).map(l => ({
+    recentLogs: habitLogs.slice(0, 50).map((l) => ({
       habitId: l.habitId,
-      date: l.logDate.toISOString().split('T')[0],
+      date: l.logDate.toISOString().split("T")[0],
       completedCount: l.completedCount,
     })),
   };
 
   // Notes data for AI access
-  const notesData = notes.slice(0, 50).map(n => ({
+  const notesData = notes.slice(0, 50).map((n) => ({
     id: n.id,
     title: n.title,
     contentPreview: n.content.substring(0, 100),
@@ -246,7 +266,7 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
   }));
 
   // Conversations data for AI access (who can receive messages)
-  const conversationPartners = conversations.map(c => ({
+  const conversationPartners = conversations.map((c) => ({
     partnerId: c.partnerId,
     partnerName: c.partnerName,
     partnerEmail: c.partnerEmail,
@@ -262,38 +282,38 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
     habitData,
     notesData,
     conversationPartners,
-    overdueTasks: overdueTasks.slice(0, 5).map(t => ({
+    overdueTasks: overdueTasks.slice(0, 5).map((t) => ({
       title: t.title,
       category: String(t.category),
       priority: String(t.priority),
       dueDate: t.dueDate?.toISOString() || null,
     })),
-    todayTasks: todayTasks.slice(0, 5).map(t => ({
+    todayTasks: todayTasks.slice(0, 5).map((t) => ({
       title: t.title,
       category: String(t.category),
       priority: String(t.priority),
       dueDate: t.dueDate?.toISOString() || null,
     })),
-    upcomingTasks: upcomingTasks.slice(0, 5).map(t => ({
+    upcomingTasks: upcomingTasks.slice(0, 5).map((t) => ({
       title: t.title,
       category: String(t.category),
       priority: String(t.priority),
       dueDate: t.dueDate?.toISOString() || null,
     })),
-    upcomingEvents: upcomingEvents.map(e => ({
+    upcomingEvents: upcomingEvents.map((e) => ({
       title: e.title,
       startTime: e.startTime.toISOString(),
       endTime: e.endTime.toISOString(),
       location: e.location || null,
       category: e.category || null,
     })),
-    contactsDue: contactsDue.map(c => ({
+    contactsDue: contactsDue.map((c) => ({
       name: c.name,
       company: c.company || null,
       role: c.role || null,
       nextContactDue: c.nextContactDue?.toISOString() || null,
     })),
-    contractsWithRenewals: contractsWithRenewals.map(c => ({
+    contractsWithRenewals: contractsWithRenewals.map((c) => ({
       name: c.name,
       category: String(c.category),
       renewalDate: c.renewalDate?.toISOString() || null,
@@ -308,7 +328,7 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
     totalProjects: activeProjects.length,
     totalHabits: habits.length,
     totalNotes: notes.length,
-    startupIdeas: startupIdeas.map(idea => ({
+    startupIdeas: startupIdeas.map((idea) => ({
       id: idea.id,
       name: idea.name,
       description: idea.description,
@@ -318,9 +338,9 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
       created_at: idea.created_at,
     })),
     unreadEmails: emailList
-      .filter(e => !e.is_read)
+      .filter((e) => !e.is_read)
       .slice(0, 10)
-      .map(e => ({
+      .map((e) => ({
         subject: e.subject,
         from: e.from_name || e.from_email,
         from_email: e.from_email,
@@ -332,16 +352,18 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
         receivedAt: e.received_at,
       })),
     totalUnreadEmails,
-    familyMembers: familyMembers.map(m => ({
+    familyMembers: familyMembers.map((m) => ({
       name: m.name,
       relationship: m.relationship,
       age: m.birth_date
-        ? Math.floor((Date.now() - new Date(m.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+        ? Math.floor(
+            (Date.now() - new Date(m.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+          )
         : null,
       school: m.attends_school ? m.school_name : null,
       grade: m.school_grade,
       kindergarten: m.attends_kindergarten ? m.kindergarten_name : null,
-      activities: (m.activities || []).map(a => ({
+      activities: (m.activities || []).map((a) => ({
         name: a.name,
         schedule: a.schedule,
         location: a.location,
@@ -350,13 +372,13 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
       medicalNotes: m.medical_notes,
     })),
     familySchedule: {
-      todayEvents: familyContext.schedule.todayEvents.map(e => ({
+      todayEvents: familyContext.schedule.todayEvents.map((e) => ({
         title: e.title,
         startTime: e.start_time,
         endTime: e.end_time,
         location: e.location,
       })),
-      tomorrowEvents: familyContext.schedule.tomorrowEvents.map(e => ({
+      tomorrowEvents: familyContext.schedule.tomorrowEvents.map((e) => ({
         title: e.title,
         startTime: e.start_time,
         location: e.location,
@@ -364,8 +386,8 @@ export function buildVoiceContextData(inputs: BuildVoiceContextInputs) {
       upcomingBirthdays: familyContext.schedule.upcomingBirthdays,
     },
     shoppingLists: shoppingLists
-      .filter(l => !l.is_template && !l.is_completed)
-      .map(l => ({
+      .filter((l) => !l.is_template && !l.is_completed)
+      .map((l) => ({
         id: l.id,
         name: l.name,
         category: l.category,

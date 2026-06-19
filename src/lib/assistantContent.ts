@@ -23,7 +23,7 @@ const TOOL_BLOCK_PATTERNS: RegExp[] = [
 export function cleanAssistantContent(raw: string): string {
   let out = raw;
   for (const pattern of TOOL_BLOCK_PATTERNS) {
-    out = out.replace(pattern, '');
+    out = out.replace(pattern, "");
   }
   return out.trim();
 }

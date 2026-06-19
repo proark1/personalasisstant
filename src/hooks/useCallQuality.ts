@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export interface CallQualityStats {
-  connectionState: RTCPeerConnectionState | 'idle';
-  iceConnectionState: RTCIceConnectionState | 'idle';
-  signalStrength: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown';
+  connectionState: RTCPeerConnectionState | "idle";
+  iceConnectionState: RTCIceConnectionState | "idle";
+  signalStrength: "excellent" | "good" | "fair" | "poor" | "unknown";
   latency: number | null; // in ms
   packetLoss: number | null; // percentage
   bitrate: number | null; // in kbps
@@ -26,9 +26,9 @@ export interface CallQualityStats {
 }
 
 const initialStats: CallQualityStats = {
-  connectionState: 'idle',
-  iceConnectionState: 'idle',
-  signalStrength: 'unknown',
+  connectionState: "idle",
+  iceConnectionState: "idle",
+  signalStrength: "unknown",
   latency: null,
   packetLoss: null,
   bitrate: null,
@@ -51,38 +51,41 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
   const prevBytesReceived = useRef<number>(0);
   const prevTimestamp = useRef<number>(0);
 
-  const calculateSignalStrength = useCallback((
-    packetLoss: number | null,
-    latency: number | null,
-    jitter: number | null
-  ): CallQualityStats['signalStrength'] => {
-    if (packetLoss === null || latency === null) return 'unknown';
-    
-    // Calculate quality score based on multiple factors
-    let score = 100;
-    
-    // Packet loss impact (0-5% is good, >10% is poor)
-    if (packetLoss > 10) score -= 40;
-    else if (packetLoss > 5) score -= 25;
-    else if (packetLoss > 2) score -= 10;
-    
-    // Latency impact (<100ms excellent, 100-200 good, 200-400 fair, >400 poor)
-    if (latency > 400) score -= 40;
-    else if (latency > 200) score -= 25;
-    else if (latency > 100) score -= 10;
-    
-    // Jitter impact
-    if (jitter !== null) {
-      if (jitter > 100) score -= 20;
-      else if (jitter > 50) score -= 10;
-      else if (jitter > 30) score -= 5;
-    }
-    
-    if (score >= 80) return 'excellent';
-    if (score >= 60) return 'good';
-    if (score >= 40) return 'fair';
-    return 'poor';
-  }, []);
+  const calculateSignalStrength = useCallback(
+    (
+      packetLoss: number | null,
+      latency: number | null,
+      jitter: number | null,
+    ): CallQualityStats["signalStrength"] => {
+      if (packetLoss === null || latency === null) return "unknown";
+
+      // Calculate quality score based on multiple factors
+      let score = 100;
+
+      // Packet loss impact (0-5% is good, >10% is poor)
+      if (packetLoss > 10) score -= 40;
+      else if (packetLoss > 5) score -= 25;
+      else if (packetLoss > 2) score -= 10;
+
+      // Latency impact (<100ms excellent, 100-200 good, 200-400 fair, >400 poor)
+      if (latency > 400) score -= 40;
+      else if (latency > 200) score -= 25;
+      else if (latency > 100) score -= 10;
+
+      // Jitter impact
+      if (jitter !== null) {
+        if (jitter > 100) score -= 20;
+        else if (jitter > 50) score -= 10;
+        else if (jitter > 30) score -= 5;
+      }
+
+      if (score >= 80) return "excellent";
+      if (score >= 60) return "good";
+      if (score >= 40) return "fair";
+      return "poor";
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!peerConnection) {
@@ -100,15 +103,26 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
 
         // We’ll resolve candidate IDs after we find the selected pair.
         // RTCStats candidate-pair fields are not fully typed in lib.dom.d.ts
-        interface CandidatePairStat { selected?: boolean; nominated?: boolean; localCandidateId?: string; remoteCandidateId?: string; currentRoundTripTime?: number; }
-        interface CandidateStat { candidateType?: string; protocol?: string; ip?: string; address?: string; }
+        interface CandidatePairStat {
+          selected?: boolean;
+          nominated?: boolean;
+          localCandidateId?: string;
+          remoteCandidateId?: string;
+          currentRoundTripTime?: number;
+        }
+        interface CandidateStat {
+          candidateType?: string;
+          protocol?: string;
+          ip?: string;
+          address?: string;
+        }
         let selectedPair: (RTCStats & CandidatePairStat) | null = null;
         let localCandidateId: string | undefined;
         let remoteCandidateId: string | undefined;
 
         report.forEach((stat) => {
           // Get inbound RTP stats for audio/video
-          if (stat.type === 'inbound-rtp' && (stat.kind === 'video' || stat.kind === 'audio')) {
+          if (stat.type === "inbound-rtp" && (stat.kind === "video" || stat.kind === "audio")) {
             const packetsLost = stat.packetsLost || 0;
             const packetsReceived = stat.packetsReceived || 0;
             const totalPackets = packetsLost + packetsReceived;
@@ -140,7 +154,7 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
           }
 
           // Get video track stats for resolution and frame rate
-          if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
+          if (stat.type === "inbound-rtp" && stat.kind === "video") {
             if (stat.frameWidth && stat.frameHeight) {
               newStats.resolution = {
                 width: stat.frameWidth,
@@ -153,7 +167,10 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
           }
 
           // Find the *selected* candidate pair (best for "why doesn't this connect")
-          if (stat.type === 'candidate-pair' && (stat as RTCStats & { state?: string }).state === 'succeeded') {
+          if (
+            stat.type === "candidate-pair" &&
+            (stat as RTCStats & { state?: string }).state === "succeeded"
+          ) {
             // Modern browsers set either `selected` or `nominated` (or both).
             const pair = stat as RTCStats & CandidatePairStat;
             const isSelected = pair.selected === true || pair.nominated === true;
@@ -187,11 +204,17 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
         }
 
         // Check if we should suggest fallback to audio (this tick's fresh readings)
-        const isVideoQualityPoor = (
-          (newStats.packetLoss !== undefined && newStats.packetLoss !== null && newStats.packetLoss > PACKET_LOSS_THRESHOLD) ||
-          (newStats.latency !== undefined && newStats.latency !== null && newStats.latency > LATENCY_THRESHOLD) ||
-          (newStats.bitrate !== undefined && newStats.bitrate !== null && newStats.bitrate < BITRATE_LOW_THRESHOLD && newStats.bitrate > 0)
-        );
+        const isVideoQualityPoor =
+          (newStats.packetLoss !== undefined &&
+            newStats.packetLoss !== null &&
+            newStats.packetLoss > PACKET_LOSS_THRESHOLD) ||
+          (newStats.latency !== undefined &&
+            newStats.latency !== null &&
+            newStats.latency > LATENCY_THRESHOLD) ||
+          (newStats.bitrate !== undefined &&
+            newStats.bitrate !== null &&
+            newStats.bitrate < BITRATE_LOW_THRESHOLD &&
+            newStats.bitrate > 0);
 
         setStats((prev) => {
           // Derive the streak and signal strength from `prev` (not the effect
@@ -206,14 +229,14 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
             signalStrength: calculateSignalStrength(
               newStats.packetLoss ?? prev.packetLoss,
               newStats.latency ?? prev.latency,
-              newStats.jitter ?? prev.jitter
+              newStats.jitter ?? prev.jitter,
             ),
             poorQualityStreak: newPoorStreak,
             shouldFallbackToAudio: newPoorStreak >= POOR_QUALITY_STREAK_THRESHOLD,
           };
         });
       } catch (error) {
-        console.error('Error getting WebRTC stats:', error);
+        console.error("Error getting WebRTC stats:", error);
       }
     };
 
@@ -232,13 +255,13 @@ export function useCallQuality(peerConnection: RTCPeerConnection | null) {
       }));
     };
 
-    peerConnection.addEventListener('connectionstatechange', handleConnectionChange);
-    peerConnection.addEventListener('iceconnectionstatechange', handleConnectionChange);
+    peerConnection.addEventListener("connectionstatechange", handleConnectionChange);
+    peerConnection.addEventListener("iceconnectionstatechange", handleConnectionChange);
 
     return () => {
       clearInterval(interval);
-      peerConnection.removeEventListener('connectionstatechange', handleConnectionChange);
-      peerConnection.removeEventListener('iceconnectionstatechange', handleConnectionChange);
+      peerConnection.removeEventListener("connectionstatechange", handleConnectionChange);
+      peerConnection.removeEventListener("iceconnectionstatechange", handleConnectionChange);
     };
   }, [peerConnection, calculateSignalStrength]);
 

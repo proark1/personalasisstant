@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
 
-export type BriefingChannel = 'telegram' | 'telegram_voice' | 'push';
+export type BriefingChannel = "telegram" | "telegram_voice" | "push";
 
 export interface Briefing {
   id: string;
@@ -12,8 +12,8 @@ export interface Briefing {
   name: string;
   enabled: boolean;
   topics: string[];
-  deliver_at: string;        // "HH:MM:SS" or "HH:MM"
-  days_of_week: number[];    // 0=Sunday .. 6=Saturday
+  deliver_at: string; // "HH:MM:SS" or "HH:MM"
+  days_of_week: number[]; // 0=Sunday .. 6=Saturday
   channels: BriefingChannel[];
   max_items: number;
   last_sent_on: string | null;
@@ -23,15 +23,15 @@ export interface Briefing {
 
 export type NewBriefing = Pick<
   Briefing,
-  'name' | 'topics' | 'deliver_at' | 'days_of_week' | 'channels' | 'max_items' | 'enabled'
+  "name" | "topics" | "deliver_at" | "days_of_week" | "channels" | "max_items" | "enabled"
 >;
 
 export const DEFAULT_NEW_BRIEFING: NewBriefing = {
-  name: 'Morning Briefing',
+  name: "Morning Briefing",
   topics: [],
-  deliver_at: '08:00',
+  deliver_at: "08:00",
   days_of_week: [0, 1, 2, 3, 4, 5, 6],
-  channels: ['telegram', 'push'],
+  channels: ["telegram", "push"],
   max_items: 5,
   enabled: true,
 };
@@ -52,72 +52,83 @@ export function useBriefings() {
     if (!user?.id) return;
     try {
       const { data, error } = await db
-        .from('briefings')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+        .from("briefings")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
       if (error) {
-        console.error('Error fetching briefings:', error);
+        console.error("Error fetching briefings:", error);
       } else {
         setBriefings((data || []) as Briefing[]);
       }
     } catch (err) {
-      console.error('Failed to fetch briefings:', err);
+      console.error("Failed to fetch briefings:", err);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
-  useEffect(() => { fetchBriefings(); }, [fetchBriefings]);
-
-  const createBriefing = useCallback(async (input: NewBriefing = DEFAULT_NEW_BRIEFING) => {
-    if (!user?.id) return null;
-    try {
-      const { data, error } = await db
-        .from('briefings')
-        .insert({ ...input, user_id: user.id })
-        .select()
-        .single();
-      if (error) throw error;
-      setBriefings((prev) => [...prev, data as Briefing]);
-      toast.success('Briefing created');
-      return data as Briefing;
-    } catch (err) {
-      console.error('Failed to create briefing:', err);
-      toast.error('Failed to create briefing');
-      return null;
-    }
-  }, [user?.id]);
-
-  const updateBriefing = useCallback(async (id: string, updates: Partial<Briefing>) => {
-    // Optimistic update.
-    setBriefings((prev) => prev.map((b) => (b.id === id ? { ...b, ...updates } : b)));
-    try {
-      const { error } = await db
-        .from('briefings')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
-    } catch (err) {
-      console.error('Failed to update briefing:', err);
-      toast.error('Failed to save briefing');
-      fetchBriefings(); // revert to server state
-    }
+  useEffect(() => {
+    fetchBriefings();
   }, [fetchBriefings]);
 
-  const deleteBriefing = useCallback(async (id: string) => {
-    const prev = briefings;
-    setBriefings((p) => p.filter((b) => b.id !== id));
-    try {
-      const { error } = await db.from('briefings').delete().eq('id', id);
-      if (error) throw error;
-      toast.success('Briefing deleted');
-    } catch (err) {
-      console.error('Failed to delete briefing:', err);
-      toast.error('Failed to delete briefing');
-      setBriefings(prev); // revert
-    }
-  }, [briefings]);
+  const createBriefing = useCallback(
+    async (input: NewBriefing = DEFAULT_NEW_BRIEFING) => {
+      if (!user?.id) return null;
+      try {
+        const { data, error } = await db
+          .from("briefings")
+          .insert({ ...input, user_id: user.id })
+          .select()
+          .single();
+        if (error) throw error;
+        setBriefings((prev) => [...prev, data as Briefing]);
+        toast.success("Briefing created");
+        return data as Briefing;
+      } catch (err) {
+        console.error("Failed to create briefing:", err);
+        toast.error("Failed to create briefing");
+        return null;
+      }
+    },
+    [user?.id],
+  );
+
+  const updateBriefing = useCallback(
+    async (id: string, updates: Partial<Briefing>) => {
+      // Optimistic update.
+      setBriefings((prev) => prev.map((b) => (b.id === id ? { ...b, ...updates } : b)));
+      try {
+        const { error } = await db
+          .from("briefings")
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq("id", id);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Failed to update briefing:", err);
+        toast.error("Failed to save briefing");
+        fetchBriefings(); // revert to server state
+      }
+    },
+    [fetchBriefings],
+  );
+
+  const deleteBriefing = useCallback(
+    async (id: string) => {
+      const prev = briefings;
+      setBriefings((p) => p.filter((b) => b.id !== id));
+      try {
+        const { error } = await db.from("briefings").delete().eq("id", id);
+        if (error) throw error;
+        toast.success("Briefing deleted");
+      } catch (err) {
+        console.error("Failed to delete briefing:", err);
+        toast.error("Failed to delete briefing");
+        setBriefings(prev); // revert
+      }
+    },
+    [briefings],
+  );
 
   const sendNow = useCallback(async (id: string) => {
     try {
@@ -125,10 +136,10 @@ export function useBriefings() {
         body: {},
       });
       if (error) throw error;
-      toast.success('Briefing sent — check your channels');
+      toast.success("Briefing sent — check your channels");
     } catch (err) {
-      console.error('Failed to send briefing:', err);
-      toast.error(await describeEdgeError(err, 'Failed to send briefing'));
+      console.error("Failed to send briefing:", err);
+      toast.error(await describeEdgeError(err, "Failed to send briefing"));
     }
   }, []);
 

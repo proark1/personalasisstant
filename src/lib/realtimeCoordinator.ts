@@ -10,9 +10,9 @@
  * happens in one place.
  */
 
-import { supabase } from '@/integrations/supabase/client';
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { moduleBus, type ModuleEventName } from './moduleEventBus';
+import { supabase } from "@/integrations/supabase/client";
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { moduleBus, type ModuleEventName } from "./moduleEventBus";
 
 type ChangeHandler = (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void;
 
@@ -28,29 +28,43 @@ const channels = new Map<string, ChannelRegistration>();
  * Maps Supabase table names to ModuleEventBus events.
  * When a row changes, the corresponding event is emitted automatically.
  */
-const TABLE_TO_EVENT: Record<string, { INSERT?: ModuleEventName; UPDATE?: ModuleEventName; DELETE?: ModuleEventName }> = {
-  tasks: { INSERT: 'task:created', UPDATE: 'task:updated', DELETE: 'task:deleted' },
-  events: { INSERT: 'event:created', UPDATE: 'event:updated', DELETE: 'event:deleted' },
-  contacts: { INSERT: 'contact:created', UPDATE: 'contact:updated', DELETE: 'contact:deleted' },
-  contracts: { INSERT: 'contract:created', UPDATE: 'contract:updated', DELETE: 'contract:deleted' },
-  emails: { INSERT: 'email:synced', UPDATE: 'email:synced' },
-  notes: { INSERT: 'note:created', UPDATE: 'note:updated', DELETE: 'note:deleted' },
-  habits: { INSERT: 'habit:created', UPDATE: 'habit:logged' },
-  habit_logs: { INSERT: 'habit:logged' },
-  health_metrics: { INSERT: 'health:metric-recorded', UPDATE: 'health:metric-recorded' },
-  daily_checkins: { INSERT: 'health:checkin-logged' },
-  family_members: { INSERT: 'family:member-changed', UPDATE: 'family:member-changed', DELETE: 'family:member-changed' },
-  shopping_lists: { INSERT: 'shopping:list-updated', UPDATE: 'shopping:list-updated' },
-  shared_items: { INSERT: 'item:shared', DELETE: 'item:unshared' },
-  ai_memory: { INSERT: 'ai:memory-updated', UPDATE: 'ai:memory-updated', DELETE: 'ai:memory-updated' },
+const TABLE_TO_EVENT: Record<
+  string,
+  { INSERT?: ModuleEventName; UPDATE?: ModuleEventName; DELETE?: ModuleEventName }
+> = {
+  tasks: { INSERT: "task:created", UPDATE: "task:updated", DELETE: "task:deleted" },
+  events: { INSERT: "event:created", UPDATE: "event:updated", DELETE: "event:deleted" },
+  contacts: { INSERT: "contact:created", UPDATE: "contact:updated", DELETE: "contact:deleted" },
+  contracts: { INSERT: "contract:created", UPDATE: "contract:updated", DELETE: "contract:deleted" },
+  emails: { INSERT: "email:synced", UPDATE: "email:synced" },
+  notes: { INSERT: "note:created", UPDATE: "note:updated", DELETE: "note:deleted" },
+  habits: { INSERT: "habit:created", UPDATE: "habit:logged" },
+  habit_logs: { INSERT: "habit:logged" },
+  health_metrics: { INSERT: "health:metric-recorded", UPDATE: "health:metric-recorded" },
+  daily_checkins: { INSERT: "health:checkin-logged" },
+  family_members: {
+    INSERT: "family:member-changed",
+    UPDATE: "family:member-changed",
+    DELETE: "family:member-changed",
+  },
+  shopping_lists: { INSERT: "shopping:list-updated", UPDATE: "shopping:list-updated" },
+  shared_items: { INSERT: "item:shared", DELETE: "item:unshared" },
+  ai_memory: {
+    INSERT: "ai:memory-updated",
+    UPDATE: "ai:memory-updated",
+    DELETE: "ai:memory-updated",
+  },
 };
 
-function emitForTable(table: string, payload: RealtimePostgresChangesPayload<Record<string, unknown>>) {
+function emitForTable(
+  table: string,
+  payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
+) {
   const mapping = TABLE_TO_EVENT[table];
   if (!mapping) return;
-  const eventName = mapping[payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE'];
+  const eventName = mapping[payload.eventType as "INSERT" | "UPDATE" | "DELETE"];
   if (eventName) {
-    moduleBus.emit(eventName, payload.new ?? payload.old, 'realtime');
+    moduleBus.emit(eventName, payload.new ?? payload.old, "realtime");
   }
 }
 
@@ -66,7 +80,7 @@ export function subscribeToTable(
   handler: ChangeHandler,
   filter?: string,
 ): () => void {
-  const key = `${table}::${userId}::${filter ?? 'user_id=eq.' + userId}`;
+  const key = `${table}::${userId}::${filter ?? "user_id=eq." + userId}`;
   let reg = channels.get(key);
 
   if (!reg) {
@@ -74,10 +88,10 @@ export function subscribeToTable(
     const handlers = new Set<ChangeHandler>();
 
     channel.on(
-      'postgres_changes' as never,
+      "postgres_changes" as never,
       {
-        event: '*',
-        schema: 'public',
+        event: "*",
+        schema: "public",
         table,
         filter: filter ?? `user_id=eq.${userId}`,
       },
@@ -99,17 +113,17 @@ export function subscribeToTable(
     // table's invalidation event so subscribers refetch and catch up.
     let hasErrored = false;
     channel.subscribe((status) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
         hasErrored = true;
-        moduleBus.emit('module:error', { module: 'realtime', table, status }, 'realtime');
-      } else if (status === 'SUBSCRIBED' && hasErrored) {
+        moduleBus.emit("module:error", { module: "realtime", table, status }, "realtime");
+      } else if (status === "SUBSCRIBED" && hasErrored) {
         // Reconnected after a gap. Reuse the same invalidation event a real
         // row change would emit so subscribers refetch the affected table.
         hasErrored = false;
         const mapping = TABLE_TO_EVENT[table];
         const eventName = mapping?.UPDATE ?? mapping?.INSERT ?? mapping?.DELETE;
         if (eventName) {
-          moduleBus.emit(eventName, null, 'realtime');
+          moduleBus.emit(eventName, null, "realtime");
         }
       }
     });

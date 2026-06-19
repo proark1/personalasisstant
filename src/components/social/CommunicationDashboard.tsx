@@ -1,23 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { 
-  MessageCircle, 
-  Phone, 
-  Clock, 
-  Users, 
-  TrendingUp,
-  Activity
-} from 'lucide-react';
-import { useCommunicationStats } from '@/hooks/useCommunicationStats';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  ResponsiveContainer 
-} from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { MessageCircle, Phone, Clock, Users, TrendingUp, Activity } from "lucide-react";
+import { useCommunicationStats } from "@/hooks/useCommunicationStats";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 interface CommunicationDashboardProps {
   userId: string;
@@ -42,28 +28,28 @@ export function CommunicationDashboard({ userId: _userId }: CommunicationDashboa
 
   const stats = [
     {
-      title: 'Total Messages',
+      title: "Total Messages",
       value: dashboard.totalMessages.toLocaleString(),
       icon: MessageCircle,
-      color: 'text-blue-500',
+      color: "text-blue-500",
     },
     {
-      title: 'Total Calls',
+      title: "Total Calls",
       value: dashboard.totalCalls.toLocaleString(),
       icon: Phone,
-      color: 'text-green-500',
+      color: "text-green-500",
     },
     {
-      title: 'Call Minutes',
+      title: "Call Minutes",
       value: dashboard.totalCallMinutes.toLocaleString(),
       icon: Clock,
-      color: 'text-purple-500',
+      color: "text-purple-500",
     },
     {
-      title: 'Active Contacts',
+      title: "Active Contacts",
       value: dashboard.totalContacts.toLocaleString(),
       icon: Users,
-      color: 'text-orange-500',
+      color: "text-orange-500",
     },
   ];
 
@@ -98,32 +84,34 @@ export function CommunicationDashboard({ userId: _userId }: CommunicationDashboa
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dashboard.recentActivity}>
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={(date) => new Date(date).toLocaleDateString('en', { weekday: 'short' })}
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(date) =>
+                    new Date(date).toLocaleDateString("en", { weekday: "short" })
+                  }
                   fontSize={12}
                 />
                 <YAxis fontSize={12} />
-                <Tooltip 
+                <Tooltip
                   labelFormatter={(date) => new Date(date).toLocaleDateString()}
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
                   }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="messages" 
-                  stroke="hsl(var(--primary))" 
-                  fill="hsl(var(--primary) / 0.2)" 
+                <Area
+                  type="monotone"
+                  dataKey="messages"
+                  stroke="hsl(var(--primary))"
+                  fill="hsl(var(--primary) / 0.2)"
                   name="Messages"
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="calls" 
-                  stroke="hsl(142.1 76.2% 36.3%)" 
-                  fill="hsl(142.1 76.2% 36.3% / 0.2)" 
+                <Area
+                  type="monotone"
+                  dataKey="calls"
+                  stroke="hsl(142.1 76.2% 36.3%)"
+                  fill="hsl(142.1 76.2% 36.3% / 0.2)"
                   name="Calls"
                 />
               </AreaChart>
@@ -147,20 +135,19 @@ export function CommunicationDashboard({ userId: _userId }: CommunicationDashboa
             ) : (
               <div className="space-y-4">
                 {dashboard.mostActiveContacts.map((contact) => {
-                  const total = contact.totalMessagesSent + contact.totalMessagesReceived + contact.totalCalls;
-                  const maxTotal = dashboard.mostActiveContacts[0] 
-                    ? dashboard.mostActiveContacts[0].totalMessagesSent + 
-                      dashboard.mostActiveContacts[0].totalMessagesReceived + 
-                      dashboard.mostActiveContacts[0].totalCalls 
+                  const total =
+                    contact.totalMessagesSent + contact.totalMessagesReceived + contact.totalCalls;
+                  const maxTotal = dashboard.mostActiveContacts[0]
+                    ? dashboard.mostActiveContacts[0].totalMessagesSent +
+                      dashboard.mostActiveContacts[0].totalMessagesReceived +
+                      dashboard.mostActiveContacts[0].totalCalls
                     : 1;
-                  
+
                   return (
                     <div key={contact.id} className="space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{contact.contactName}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {total} interactions
-                        </span>
+                        <span className="text-sm text-muted-foreground">{total} interactions</span>
                       </div>
                       <Progress value={(total / maxTotal) * 100} className="h-2" />
                     </div>
@@ -182,13 +169,9 @@ export function CommunicationDashboard({ userId: _userId }: CommunicationDashboa
           <CardContent>
             <div className="text-center py-4">
               <p className="text-4xl font-bold">
-                {dashboard.avgResponseTime > 0 
-                  ? `${dashboard.avgResponseTime} min`
-                  : 'N/A'}
+                {dashboard.avgResponseTime > 0 ? `${dashboard.avgResponseTime} min` : "N/A"}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Average response time
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">Average response time</p>
             </div>
 
             {dashboard.neglectedContacts.length > 0 && (
@@ -201,9 +184,7 @@ export function CommunicationDashboard({ userId: _userId }: CommunicationDashboa
                     </Badge>
                   ))}
                   {dashboard.neglectedContacts.length > 3 && (
-                    <Badge variant="outline">
-                      +{dashboard.neglectedContacts.length - 3} more
-                    </Badge>
+                    <Badge variant="outline">+{dashboard.neglectedContacts.length - 3} more</Badge>
                   )}
                 </div>
               </div>

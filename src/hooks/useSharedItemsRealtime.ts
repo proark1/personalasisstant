@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface UseSharedItemsRealtimeProps {
   userId: string | undefined;
@@ -19,13 +19,13 @@ export function useSharedItemsRealtime({ userId, onNewShare }: UseSharedItemsRea
     let active = true;
 
     const channel = supabase
-      .channel('shared-items-realtime')
+      .channel("shared-items-realtime")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'shared_items',
+          event: "INSERT",
+          schema: "public",
+          table: "shared_items",
           filter: `shared_with_id=eq.${userId}`,
         },
         async (payload) => {
@@ -38,30 +38,30 @@ export function useSharedItemsRealtime({ userId, onNewShare }: UseSharedItemsRea
 
           // Fetch owner's profile to show who shared
           const { data: ownerProfile } = await supabase
-            .from('profiles')
-            .select('display_name, email')
-            .eq('user_id', newShare.owner_id)
+            .from("profiles")
+            .select("display_name, email")
+            .eq("user_id", newShare.owner_id)
             .single();
 
           // Fetch item title
-          let itemTitle = 'item';
-          if (newShare.item_type === 'task') {
+          let itemTitle = "item";
+          if (newShare.item_type === "task") {
             const { data: task } = await supabase
-              .from('tasks')
-              .select('title')
-              .eq('id', newShare.item_id)
+              .from("tasks")
+              .select("title")
+              .eq("id", newShare.item_id)
               .single();
             if (task) itemTitle = task.title;
-          } else if (newShare.item_type === 'event') {
+          } else if (newShare.item_type === "event") {
             const { data: event } = await supabase
-              .from('events')
-              .select('title')
-              .eq('id', newShare.item_id)
+              .from("events")
+              .select("title")
+              .eq("id", newShare.item_id)
               .single();
             if (event) itemTitle = event.title;
           }
 
-          const ownerName = ownerProfile?.display_name || ownerProfile?.email || 'Someone';
+          const ownerName = ownerProfile?.display_name || ownerProfile?.email || "Someone";
 
           if (!active) return;
 
@@ -71,7 +71,7 @@ export function useSharedItemsRealtime({ userId, onNewShare }: UseSharedItemsRea
           });
 
           onNewShare?.();
-        }
+        },
       )
       .subscribe();
 

@@ -1,27 +1,51 @@
-import { useMemo, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { GlassCard } from '@/components/ui/glass-card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { staggerItem } from '@/components/ui/panel-shell';
-import { Clock, BookOpen, Flame, Calendar, CheckCircle2, MessageSquareQuote } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format, differenceInDays } from 'date-fns';
-import { DhikrCounter } from './DhikrCounter';
-import { useQuranReadingProgress } from '@/hooks/useQuranReadingProgress';
-import type { IslamicEvent } from '@/hooks/useIslamicFeatures';
+import { useMemo, useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { staggerItem } from "@/components/ui/panel-shell";
+import { Clock, BookOpen, Flame, Calendar, CheckCircle2, MessageSquareQuote } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format, differenceInDays } from "date-fns";
+import { DhikrCounter } from "./DhikrCounter";
+import { useQuranReadingProgress } from "@/hooks/useQuranReadingProgress";
+import type { IslamicEvent } from "@/hooks/useIslamicFeatures";
 
 // Small curated hadith list for daily display
 const DAILY_HADITHS = [
-  { text: "The best of you are those who learn the Quran and teach it.", source: "Sahih al-Bukhari" },
-  { text: "None of you truly believes until he loves for his brother what he loves for himself.", source: "Sahih al-Bukhari" },
-  { text: "The strong man is not one who is good at wrestling, but the strong man is one who controls himself in a fit of rage.", source: "Sahih al-Bukhari" },
+  {
+    text: "The best of you are those who learn the Quran and teach it.",
+    source: "Sahih al-Bukhari",
+  },
+  {
+    text: "None of you truly believes until he loves for his brother what he loves for himself.",
+    source: "Sahih al-Bukhari",
+  },
+  {
+    text: "The strong man is not one who is good at wrestling, but the strong man is one who controls himself in a fit of rage.",
+    source: "Sahih al-Bukhari",
+  },
   { text: "Every act of kindness is charity.", source: "Sahih al-Bukhari" },
-  { text: "Make things easy and do not make them difficult. Give glad tidings and do not repel people.", source: "Sahih al-Bukhari" },
-  { text: "Whoever believes in Allah and the Last Day, let him speak good or remain silent.", source: "Sahih al-Bukhari" },
-  { text: "The most beloved of deeds to Allah are those that are most consistent, even if they are small.", source: "Sahih al-Bukhari" },
-  { text: "He who is not grateful to the people is not grateful to Allah.", source: "Sunan Abu Dawud" },
-  { text: "Take advantage of five before five: your youth before your old age, your health before your illness, your wealth before your poverty, your free time before your work, and your life before your death.", source: "Shu'ab al-Iman" },
+  {
+    text: "Make things easy and do not make them difficult. Give glad tidings and do not repel people.",
+    source: "Sahih al-Bukhari",
+  },
+  {
+    text: "Whoever believes in Allah and the Last Day, let him speak good or remain silent.",
+    source: "Sahih al-Bukhari",
+  },
+  {
+    text: "The most beloved of deeds to Allah are those that are most consistent, even if they are small.",
+    source: "Sahih al-Bukhari",
+  },
+  {
+    text: "He who is not grateful to the people is not grateful to Allah.",
+    source: "Sunan Abu Dawud",
+  },
+  {
+    text: "Take advantage of five before five: your youth before your old age, your health before your illness, your wealth before your poverty, your free time before your work, and your life before your death.",
+    source: "Shu'ab al-Iman",
+  },
   { text: "Verily, with hardship comes ease.", source: "Quran 94:6" },
 ];
 
@@ -29,7 +53,13 @@ interface IslamOverviewTabProps {
   hijriToday: { day: number; month: number; year: number; monthName: string };
   islamicEvents: IslamicEvent[];
   dhikrTypes: { id: string; arabic: string; english: string; defaultTarget: number }[];
-  dhikrLogs: { id: string; dhikr_type: string; target_count: number; completed_count: number; log_date: string }[];
+  dhikrLogs: {
+    id: string;
+    dhikr_type: string;
+    target_count: number;
+    completed_count: number;
+    log_date: string;
+  }[];
   incrementDhikr: (type: string) => void;
   resetDhikr: (type: string) => void;
   nextPrayerName?: string;
@@ -39,7 +69,7 @@ interface IslamOverviewTabProps {
 }
 
 function getPrayerCompletion(): { completed: number; total: number } {
-  const key = `completed-prayers-${format(new Date(), 'yyyy-MM-dd')}`;
+  const key = `completed-prayers-${format(new Date(), "yyyy-MM-dd")}`;
   try {
     const data = localStorage.getItem(key);
     if (!data) return { completed: 0, total: 5 };
@@ -84,7 +114,7 @@ export function IslamOverviewTab({
 
   const nextEvent = useMemo(() => {
     const now = new Date();
-    return islamicEvents.find(e => e.date >= now);
+    return islamicEvents.find((e) => e.date >= now);
   }, [islamicEvents]);
 
   const daysUntilEvent = nextEvent ? differenceInDays(nextEvent.date, new Date()) : null;
@@ -99,7 +129,7 @@ export function IslamOverviewTab({
             {hijriToday.day} {hijriToday.monthName} {hijriToday.year} هـ
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {format(new Date(), 'EEEE, MMMM d, yyyy')}
+            {format(new Date(), "EEEE, MMMM d, yyyy")}
           </p>
         </GlassCard>
       </motion.div>
@@ -107,12 +137,7 @@ export function IslamOverviewTab({
       {/* Next prayer card with completion badge */}
       {nextPrayerName && countdown && (
         <motion.div variants={staggerItem}>
-          <GlassCard
-            pressable
-            haptic="light"
-            onClick={() => onNavigate('prayer')}
-            className="p-4"
-          >
+          <GlassCard pressable haptic="light" onClick={() => onNavigate("prayer")} className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -142,12 +167,7 @@ export function IslamOverviewTab({
 
       {/* Daily Hadith */}
       <motion.div variants={staggerItem}>
-        <GlassCard
-          pressable
-          haptic="light"
-          onClick={() => onNavigate('more')}
-          className="p-4"
-        >
+        <GlassCard pressable haptic="light" onClick={() => onNavigate("more")} className="p-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               <MessageSquareQuote className="w-5 h-5 text-primary" />
@@ -163,12 +183,7 @@ export function IslamOverviewTab({
 
       {/* Quran progress */}
       <motion.div variants={staggerItem}>
-        <GlassCard
-          pressable
-          haptic="light"
-          onClick={() => onNavigate('quran')}
-          className="p-4"
-        >
+        <GlassCard pressable haptic="light" onClick={() => onNavigate("quran")} className="p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-primary" />
@@ -209,12 +224,7 @@ export function IslamOverviewTab({
       {/* Next Islamic event */}
       {nextEvent && (
         <motion.div variants={staggerItem}>
-          <GlassCard
-            pressable
-            haptic="light"
-            onClick={() => onNavigate('more')}
-            className="p-4"
-          >
+          <GlassCard pressable haptic="light" onClick={() => onNavigate("more")} className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
@@ -228,11 +238,9 @@ export function IslamOverviewTab({
               </div>
               <div className="text-right shrink-0">
                 <p className="text-2xl font-bold text-amber-500">
-                  {daysUntilEvent === 0 ? 'Today' : `${daysUntilEvent}d`}
+                  {daysUntilEvent === 0 ? "Today" : `${daysUntilEvent}d`}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {format(nextEvent.date, 'MMM d')}
-                </p>
+                <p className="text-xs text-muted-foreground">{format(nextEvent.date, "MMM d")}</p>
               </div>
             </div>
           </GlassCard>

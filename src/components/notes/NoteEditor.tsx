@@ -1,26 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  ArrowLeft, 
-  Pin, 
-  PinOff, 
-  Eye, 
-  Edit3, 
-  Link2, 
-  Tag,
-  Trash2,
-  Save
-} from 'lucide-react';
-import { Note } from '@/hooks/useNotes';
-import DOMPurify from 'dompurify';
+import { useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ArrowLeft, Pin, PinOff, Eye, Edit3, Link2, Tag, Trash2, Save } from "lucide-react";
+import { Note } from "@/hooks/useNotes";
+import DOMPurify from "dompurify";
 
 interface NoteEditorProps {
   note: Note;
-  onUpdate: (noteId: string, updates: Partial<Pick<Note, 'title' | 'content' | 'linkedItems' | 'tags' | 'isPinned'>>) => Promise<void>;
+  onUpdate: (
+    noteId: string,
+    updates: Partial<Pick<Note, "title" | "content" | "linkedItems" | "tags" | "isPinned">>,
+  ) => Promise<void>;
   onDelete: (noteId: string) => Promise<void>;
   onBack: () => void;
 }
@@ -71,52 +64,76 @@ export function NoteEditor({ note, onUpdate, onDelete, onBack }: NoteEditorProps
 
   // Simple markdown preview
   const renderMarkdown = (text: string) => {
-    return text
-      .split('\n')
-      .map((line, i) => {
-        // Headers
-        if (line.startsWith('### ')) {
-          return <h3 key={i} className="text-lg font-semibold mt-4 mb-2">{line.slice(4)}</h3>;
-        }
-        if (line.startsWith('## ')) {
-          return <h2 key={i} className="text-xl font-semibold mt-4 mb-2">{line.slice(3)}</h2>;
-        }
-        if (line.startsWith('# ')) {
-          return <h1 key={i} className="text-2xl font-bold mt-4 mb-2">{line.slice(2)}</h1>;
-        }
-        // Lists
-        if (line.startsWith('- ') || line.startsWith('* ')) {
-          return <li key={i} className="ml-4">{line.slice(2)}</li>;
-        }
-        // Checkboxes
-        if (line.startsWith('- [ ] ')) {
-          return <div key={i} className="flex items-center gap-2"><input type="checkbox" disabled /><span>{line.slice(6)}</span></div>;
-        }
-        if (line.startsWith('- [x] ')) {
-          return <div key={i} className="flex items-center gap-2"><input type="checkbox" checked disabled /><span className="line-through">{line.slice(6)}</span></div>;
-        }
-        // Empty lines
-        if (!line.trim()) {
-          return <br key={i} />;
-        }
-        // Regular text with bold/italic — escape HTML first, then apply formatting, then sanitize.
-        const escaped = line
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-        const formatted = escaped
-          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-          .replace(/`(.*?)`/g, '<code class="bg-muted px-1 rounded">$1</code>');
-        const safe = DOMPurify.sanitize(formatted, {
-          ALLOWED_TAGS: ['strong', 'em', 'code'],
-          ALLOWED_ATTR: ['class'],
-          ALLOW_DATA_ATTR: false,
-        });
-        return <p key={i} className="mb-1" dangerouslySetInnerHTML={{ __html: safe }} />;
+    return text.split("\n").map((line, i) => {
+      // Headers
+      if (line.startsWith("### ")) {
+        return (
+          <h3 key={i} className="text-lg font-semibold mt-4 mb-2">
+            {line.slice(4)}
+          </h3>
+        );
+      }
+      if (line.startsWith("## ")) {
+        return (
+          <h2 key={i} className="text-xl font-semibold mt-4 mb-2">
+            {line.slice(3)}
+          </h2>
+        );
+      }
+      if (line.startsWith("# ")) {
+        return (
+          <h1 key={i} className="text-2xl font-bold mt-4 mb-2">
+            {line.slice(2)}
+          </h1>
+        );
+      }
+      // Lists
+      if (line.startsWith("- ") || line.startsWith("* ")) {
+        return (
+          <li key={i} className="ml-4">
+            {line.slice(2)}
+          </li>
+        );
+      }
+      // Checkboxes
+      if (line.startsWith("- [ ] ")) {
+        return (
+          <div key={i} className="flex items-center gap-2">
+            <input type="checkbox" disabled />
+            <span>{line.slice(6)}</span>
+          </div>
+        );
+      }
+      if (line.startsWith("- [x] ")) {
+        return (
+          <div key={i} className="flex items-center gap-2">
+            <input type="checkbox" checked disabled />
+            <span className="line-through">{line.slice(6)}</span>
+          </div>
+        );
+      }
+      // Empty lines
+      if (!line.trim()) {
+        return <br key={i} />;
+      }
+      // Regular text with bold/italic — escape HTML first, then apply formatting, then sanitize.
+      const escaped = line
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+      const formatted = escaped
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g, "<em>$1</em>")
+        .replace(/`(.*?)`/g, '<code class="bg-muted px-1 rounded">$1</code>');
+      const safe = DOMPurify.sanitize(formatted, {
+        ALLOWED_TAGS: ["strong", "em", "code"],
+        ALLOWED_ATTR: ["class"],
+        ALLOW_DATA_ATTR: false,
       });
+      return <p key={i} className="mb-1" dangerouslySetInnerHTML={{ __html: safe }} />;
+    });
   };
 
   return (
@@ -126,7 +143,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onBack }: NoteEditorProps
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        
+
         <Input
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
@@ -138,30 +155,30 @@ export function NoteEditor({ note, onUpdate, onDelete, onBack }: NoteEditorProps
           {hasChanges && (
             <Button variant="ghost" size="sm" onClick={handleSave} disabled={saving}>
               <Save className="w-4 h-4 mr-1" />
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? "Saving..." : "Save"}
             </Button>
           )}
-          
-          <Button 
-            variant="ghost" 
+
+          <Button
+            variant="ghost"
             size="icon"
             onClick={() => setIsPreview(!isPreview)}
-            title={isPreview ? 'Edit' : 'Preview'}
+            title={isPreview ? "Edit" : "Preview"}
           >
             {isPreview ? <Edit3 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </Button>
-          
-          <Button 
-            variant="ghost" 
+
+          <Button
+            variant="ghost"
             size="icon"
             onClick={handleTogglePin}
-            title={note.isPinned ? 'Unpin' : 'Pin'}
+            title={note.isPinned ? "Unpin" : "Pin"}
           >
             {note.isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
           </Button>
-          
-          <Button 
-            variant="ghost" 
+
+          <Button
+            variant="ghost"
             size="icon"
             onClick={() => onDelete(note.id)}
             className="text-destructive hover:text-destructive"
@@ -194,7 +211,9 @@ export function NoteEditor({ note, onUpdate, onDelete, onBack }: NoteEditorProps
         <div className="p-4">
           {isPreview ? (
             <div className="prose prose-sm dark:prose-invert max-w-none">
-              {content ? renderMarkdown(content) : (
+              {content ? (
+                renderMarkdown(content)
+              ) : (
                 <p className="text-muted-foreground italic">No content yet. Start writing!</p>
               )}
             </div>

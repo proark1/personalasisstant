@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useState, useCallback, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 export interface WeeklyCoachReport {
   id: string;
@@ -35,18 +35,18 @@ export function useWeeklyCoach() {
 
   const fetchLatestReport = useCallback(async () => {
     if (!user?.id) return;
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('weekly_coach_reports')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('week_start', { ascending: false })
+        .from("weekly_coach_reports")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("week_start", { ascending: false })
         .limit(1)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== "PGRST116") throw error;
 
       if (data) {
         setReport({
@@ -75,7 +75,7 @@ export function useWeeklyCoach() {
         });
       }
     } catch (err) {
-      console.error('Error fetching weekly report:', err);
+      console.error("Error fetching weekly report:", err);
     } finally {
       setLoading(false);
     }
@@ -83,19 +83,19 @@ export function useWeeklyCoach() {
 
   const generateReport = useCallback(async () => {
     if (!user?.id) return;
-    
+
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('weekly-coach', {
-        body: { userId: user.id }
+      const { data, error } = await supabase.functions.invoke("weekly-coach", {
+        body: { userId: user.id },
       });
 
       if (error) throw error;
-      
+
       await fetchLatestReport();
       return data;
     } catch (err) {
-      console.error('Error generating report:', err);
+      console.error("Error generating report:", err);
       throw err;
     } finally {
       setGenerating(false);
@@ -104,19 +104,19 @@ export function useWeeklyCoach() {
 
   const markAsRead = useCallback(async () => {
     if (!user?.id || !report?.id) return;
-    
+
     try {
       const { error } = await supabase
-        .from('weekly_coach_reports')
+        .from("weekly_coach_reports")
         .update({ is_read: true })
-        .eq('id', report.id)
-        .eq('user_id', user.id);
+        .eq("id", report.id)
+        .eq("user_id", user.id);
 
       if (error) throw error;
-      
-      setReport(prev => prev ? { ...prev, isRead: true } : null);
+
+      setReport((prev) => (prev ? { ...prev, isRead: true } : null));
     } catch (err) {
-      console.error('Error marking report as read:', err);
+      console.error("Error marking report as read:", err);
     }
   }, [user?.id, report?.id]);
 

@@ -1,36 +1,37 @@
-import { useState, useEffect } from 'react';
-import { useAssistantConversations, AssistantConversation, AssistantMessage } from '@/hooks/useAssistantConversations';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { 
-  History, 
-  MessageSquare, 
-  Lightbulb, 
-  ChevronLeft, 
-  Trash2, 
-  User, 
+import { useState, useEffect } from "react";
+import {
+  useAssistantConversations,
+  AssistantConversation,
+  AssistantMessage,
+} from "@/hooks/useAssistantConversations";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import {
+  History,
+  MessageSquare,
+  Lightbulb,
+  ChevronLeft,
+  Trash2,
+  User,
   Bot,
   Loader2,
-  RefreshCw
-} from 'lucide-react';
+  RefreshCw,
+} from "lucide-react";
 
 interface ConversationHistoryPanelProps {
   onClose?: () => void;
 }
 
 export function ConversationHistoryPanel({ onClose }: ConversationHistoryPanelProps) {
-  const { 
-    conversations, 
-    loading, 
-    fetchConversations, 
-    fetchMessages, 
-    deleteConversation 
-  } = useAssistantConversations();
-  
-  const [selectedConversation, setSelectedConversation] = useState<AssistantConversation | null>(null);
+  const { conversations, loading, fetchConversations, fetchMessages, deleteConversation } =
+    useAssistantConversations();
+
+  const [selectedConversation, setSelectedConversation] = useState<AssistantConversation | null>(
+    null,
+  );
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
@@ -69,10 +70,10 @@ export function ConversationHistoryPanel({ onClose }: ConversationHistoryPanelPr
           </Button>
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-sm truncate">
-              {selectedConversation.title || 'Conversation'}
+              {selectedConversation.title || "Conversation"}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {format(new Date(selectedConversation.started_at), 'MMM d, yyyy HH:mm')}
+              {format(new Date(selectedConversation.started_at), "MMM d, yyyy HH:mm")}
             </p>
           </div>
           {selectedConversation.is_startup_brainstorm && (
@@ -104,10 +105,10 @@ export function ConversationHistoryPanel({ onClose }: ConversationHistoryPanelPr
                   key={message.id}
                   className={cn(
                     "flex gap-3",
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
+                    message.role === "user" ? "justify-end" : "justify-start",
                   )}
                 >
-                  {message.role === 'assistant' && (
+                  {message.role === "assistant" && (
                     <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
                       <Bot className="w-4 h-4 text-primary" />
                     </div>
@@ -115,17 +116,17 @@ export function ConversationHistoryPanel({ onClose }: ConversationHistoryPanelPr
                   <div
                     className={cn(
                       "max-w-[80%] rounded-xl px-4 py-3",
-                      message.role === 'user' 
-                        ? "bg-primary text-primary-foreground" 
-                        : "glass-panel"
+                      message.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "glass-panel",
                     )}
                   >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     <span className="text-[10px] text-muted-foreground mt-1 block opacity-70">
-                      {format(new Date(message.timestamp), 'HH:mm:ss')}
+                      {format(new Date(message.timestamp), "HH:mm:ss")}
                     </span>
                   </div>
-                  {message.role === 'user' && (
+                  {message.role === "user" && (
                     <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                       <User className="w-4 h-4 text-muted-foreground" />
                     </div>
@@ -163,9 +164,9 @@ export function ConversationHistoryPanel({ onClose }: ConversationHistoryPanelPr
           </div>
           <h3 className="font-medium text-sm">Conversation History</h3>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => fetchConversations()}
           className="h-8 w-8"
           disabled={loading}
@@ -198,12 +199,12 @@ export function ConversationHistoryPanel({ onClose }: ConversationHistoryPanelPr
                 className="group flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                 onClick={() => handleSelectConversation(conversation)}
               >
-                <div className={cn(
-                  "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                  conversation.is_startup_brainstorm 
-                    ? "bg-amber-500/20" 
-                    : "bg-primary/20"
-                )}>
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                    conversation.is_startup_brainstorm ? "bg-amber-500/20" : "bg-primary/20",
+                  )}
+                >
                   {conversation.is_startup_brainstorm ? (
                     <Lightbulb className="w-5 h-5 text-amber-500" />
                   ) : (
@@ -213,7 +214,7 @@ export function ConversationHistoryPanel({ onClose }: ConversationHistoryPanelPr
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h4 className="font-medium text-sm truncate">
-                      {conversation.title || 'Voice Chat'}
+                      {conversation.title || "Voice Chat"}
                     </h4>
                     {conversation.is_startup_brainstorm && (
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
@@ -222,7 +223,8 @@ export function ConversationHistoryPanel({ onClose }: ConversationHistoryPanelPr
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
-                    {conversation.summary || format(new Date(conversation.started_at), 'MMM d, yyyy HH:mm')}
+                    {conversation.summary ||
+                      format(new Date(conversation.started_at), "MMM d, yyyy HH:mm")}
                   </p>
                 </div>
                 <Button

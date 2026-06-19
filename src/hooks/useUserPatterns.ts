@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { toast } from "sonner";
 
 export interface UserPattern {
   id: string;
   user_id: string;
-  pattern_type: 'correlation' | 'trend' | 'anomaly' | 'prediction';
-  category: 'sleep' | 'productivity' | 'mood' | 'health' | 'exercise' | 'general';
+  pattern_type: "correlation" | "trend" | "anomaly" | "prediction";
+  category: "sleep" | "productivity" | "mood" | "health" | "exercise" | "general";
   title: string;
   description: string;
   confidence_score: number;
@@ -56,50 +56,53 @@ export function useUserPatterns() {
   const fetchPatterns = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    
+
     try {
       const { data, error } = await supabase
-        .from('user_patterns')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('confidence_score', { ascending: false })
+        .from("user_patterns")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("confidence_score", { ascending: false })
         .limit(20);
 
       if (error) throw error;
       setPatterns((data || []) as UserPattern[]);
     } catch (error) {
-      console.error('Error fetching patterns:', error);
+      console.error("Error fetching patterns:", error);
     } finally {
       setIsLoading(false);
     }
   }, [user]);
 
-  const fetchWeeklySummaries = useCallback(async (limit = 8) => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('weekly_summaries')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('week_start', { ascending: false })
-        .limit(limit);
+  const fetchWeeklySummaries = useCallback(
+    async (limit = 8) => {
+      if (!user) return;
 
-      if (error) throw error;
-      setWeeklySummaries((data || []) as WeeklySummary[]);
-    } catch (error) {
-      console.error('Error fetching weekly summaries:', error);
-    }
-  }, [user]);
+      try {
+        const { data, error } = await supabase
+          .from("weekly_summaries")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("week_start", { ascending: false })
+          .limit(limit);
+
+        if (error) throw error;
+        setWeeklySummaries((data || []) as WeeklySummary[]);
+      } catch (error) {
+        console.error("Error fetching weekly summaries:", error);
+      }
+    },
+    [user],
+  );
 
   const analyzePatterns = useCallback(async () => {
     if (!user) return;
     setIsAnalyzing(true);
-    
+
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-patterns', {
-        body: { userId: user.id }
+      const { data, error } = await supabase.functions.invoke("analyze-patterns", {
+        body: { userId: user.id },
       });
 
       if (error) throw error;
@@ -108,48 +111,57 @@ export function useUserPatterns() {
         toast.success(`Discovered ${data.patterns.length} new pattern(s)!`);
         await fetchPatterns();
       } else {
-        toast.info('No new patterns found. Keep tracking for better insights!');
+        toast.info("No new patterns found. Keep tracking for better insights!");
       }
 
       return data;
     } catch (error) {
-      console.error('Error analyzing patterns:', error);
-      toast.error(await describeEdgeError(error, 'Failed to analyze patterns'));
+      console.error("Error analyzing patterns:", error);
+      toast.error(await describeEdgeError(error, "Failed to analyze patterns"));
       return null;
     } finally {
       setIsAnalyzing(false);
     }
   }, [user, fetchPatterns]);
 
-  const dismissPattern = useCallback(async (patternId: string) => {
-    if (!user) return;
-    
-    try {
-      const { error } = await supabase
-        .from('user_patterns')
-        .update({ is_active: false })
-        .eq('id', patternId)
-        .eq('user_id', user.id);
+  const dismissPattern = useCallback(
+    async (patternId: string) => {
+      if (!user) return;
 
-      if (error) throw error;
-      
-      setPatterns(prev => prev.filter(p => p.id !== patternId));
-      toast.success('Pattern dismissed');
-    } catch (error) {
-      console.error('Error dismissing pattern:', error);
-      toast.error(await describeEdgeError(error, 'Failed to dismiss pattern'));
-    }
-  }, [user]);
+      try {
+        const { error } = await supabase
+          .from("user_patterns")
+          .update({ is_active: false })
+          .eq("id", patternId)
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+
+        setPatterns((prev) => prev.filter((p) => p.id !== patternId));
+        toast.success("Pattern dismissed");
+      } catch (error) {
+        console.error("Error dismissing pattern:", error);
+        toast.error(await describeEdgeError(error, "Failed to dismiss pattern"));
+      }
+    },
+    [user],
+  );
 
   // Get patterns by category
-  const getPatternsByCategory = useCallback((category: UserPattern['category']) => {
-    return patterns.filter(p => p.category === category);
-  }, [patterns]);
+  const getPatternsByCategory = useCallback(
+    (category: UserPattern["category"]) => {
+      return patterns.filter((p) => p.category === category);
+    },
+    [patterns],
+  );
 
   // Get high confidence patterns
-  const getHighConfidencePatterns = useCallback((threshold = 0.7) => {
-    return patterns.filter(p => p.confidence_score >= threshold);
-  }, [patterns]);
+  const getHighConfidencePatterns = useCallback(
+    (threshold = 0.7) => {
+      return patterns.filter((p) => p.confidence_score >= threshold);
+    },
+    [patterns],
+  );
 
   // Get latest weekly summary
   const getLatestSummary = useCallback(() => {

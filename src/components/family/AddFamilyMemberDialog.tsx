@@ -1,25 +1,37 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 
 const relationships = [
-  { value: 'spouse', label: 'Spouse/Partner' },
-  { value: 'child', label: 'Child' },
-  { value: 'parent', label: 'Parent' },
-  { value: 'sibling', label: 'Sibling' },
-  { value: 'grandparent', label: 'Grandparent' },
-  { value: 'grandchild', label: 'Grandchild' },
-  { value: 'aunt', label: 'Aunt' },
-  { value: 'uncle', label: 'Uncle' },
-  { value: 'cousin', label: 'Cousin' },
-  { value: 'in-law', label: 'In-Law' },
-  { value: 'other', label: 'Other' },
+  { value: "spouse", label: "Spouse/Partner" },
+  { value: "child", label: "Child" },
+  { value: "parent", label: "Parent" },
+  { value: "sibling", label: "Sibling" },
+  { value: "grandparent", label: "Grandparent" },
+  { value: "grandchild", label: "Grandchild" },
+  { value: "aunt", label: "Aunt" },
+  { value: "uncle", label: "Uncle" },
+  { value: "cousin", label: "Cousin" },
+  { value: "in-law", label: "In-Law" },
+  { value: "other", label: "Other" },
 ];
 
 interface AddFamilyMemberDialogProps {
@@ -30,34 +42,34 @@ interface AddFamilyMemberDialogProps {
 export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDialogProps) {
   const { addMember } = useFamilyMembers();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const [formData, setFormData] = useState({
-    name: '',
-    relationship: '',
-    birth_date: '',
-    phone: '',
-    email: '',
-    notes: '',
+    name: "",
+    relationship: "",
+    birth_date: "",
+    phone: "",
+    email: "",
+    notes: "",
     lives_with_user: true,
-    address: '',
+    address: "",
     // Child-specific fields
     attends_kindergarten: false,
     attends_school: false,
-    kindergarten_name: '',
-    kindergarten_teacher_name: '',
-    kindergarten_teacher_contact: '',
-    school_name: '',
-    school_grade: '',
-    teacher_name: '',
-    teacher_contact: '',
+    kindergarten_name: "",
+    kindergarten_teacher_name: "",
+    kindergarten_teacher_contact: "",
+    school_name: "",
+    school_grade: "",
+    teacher_name: "",
+    teacher_contact: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.relationship) return;
-    
+
     setIsSubmitting(true);
-    
+
     const result = await addMember({
       name: formData.name,
       relationship: formData.relationship,
@@ -88,32 +100,32 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
     });
 
     setIsSubmitting(false);
-    
+
     if (result) {
       setFormData({
-        name: '',
-        relationship: '',
-        birth_date: '',
-        phone: '',
-        email: '',
-        notes: '',
+        name: "",
+        relationship: "",
+        birth_date: "",
+        phone: "",
+        email: "",
+        notes: "",
         lives_with_user: true,
-        address: '',
+        address: "",
         attends_kindergarten: false,
         attends_school: false,
-        kindergarten_name: '',
-        kindergarten_teacher_name: '',
-        kindergarten_teacher_contact: '',
-        school_name: '',
-        school_grade: '',
-        teacher_name: '',
-        teacher_contact: '',
+        kindergarten_name: "",
+        kindergarten_teacher_name: "",
+        kindergarten_teacher_contact: "",
+        school_name: "",
+        school_grade: "",
+        teacher_name: "",
+        teacher_contact: "",
       });
       onOpenChange(false);
     }
   };
 
-  const isChild = formData.relationship === 'child' || formData.relationship === 'grandchild';
+  const isChild = formData.relationship === "child" || formData.relationship === "grandchild";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,17 +141,17 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="Enter name"
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="relationship">Relationship *</Label>
               <Select
                 value={formData.relationship}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, relationship: value }))}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, relationship: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select relationship" />
@@ -162,17 +174,17 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
                 id="birth_date"
                 type="date"
                 value={formData.birth_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, birth_date: e.target.value }))}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
                 placeholder="Phone number"
               />
             </div>
@@ -184,7 +196,7 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
               id="email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
               placeholder="Email address"
             />
           </div>
@@ -194,7 +206,9 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
             <Switch
               id="lives_with_user"
               checked={formData.lives_with_user}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, lives_with_user: checked }))}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({ ...prev, lives_with_user: checked }))
+              }
             />
           </div>
 
@@ -204,7 +218,7 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
               <Input
                 id="address"
                 value={formData.address}
-                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
                 placeholder="Their address"
               />
             </div>
@@ -214,17 +228,19 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
             <>
               <div className="border-t pt-4">
                 <h4 className="font-medium mb-3">Education</h4>
-                
+
                 {/* Kindergarten Section */}
                 <div className="flex items-center justify-between mb-3">
                   <Label htmlFor="attends_kindergarten">Attends Kindergarten</Label>
                   <Switch
                     id="attends_kindergarten"
                     checked={formData.attends_kindergarten}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, attends_kindergarten: checked }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, attends_kindergarten: checked }))
+                    }
                   />
                 </div>
-                
+
                 {formData.attends_kindergarten && (
                   <div className="grid gap-4 sm:grid-cols-2 mb-4 pl-4 border-l-2 border-primary/20">
                     <div className="space-y-2">
@@ -232,7 +248,9 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
                       <Input
                         id="kindergarten_name"
                         value={formData.kindergarten_name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, kindergarten_name: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, kindergarten_name: e.target.value }))
+                        }
                         placeholder="Kindergarten name"
                       />
                     </div>
@@ -241,7 +259,12 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
                       <Input
                         id="kindergarten_teacher_name"
                         value={formData.kindergarten_teacher_name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, kindergarten_teacher_name: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            kindergarten_teacher_name: e.target.value,
+                          }))
+                        }
                         placeholder="Teacher's name"
                       />
                     </div>
@@ -250,7 +273,12 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
                       <Input
                         id="kindergarten_teacher_contact"
                         value={formData.kindergarten_teacher_contact}
-                        onChange={(e) => setFormData(prev => ({ ...prev, kindergarten_teacher_contact: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            kindergarten_teacher_contact: e.target.value,
+                          }))
+                        }
                         placeholder="Email or phone"
                       />
                     </div>
@@ -263,10 +291,12 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
                   <Switch
                     id="attends_school"
                     checked={formData.attends_school}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, attends_school: checked }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, attends_school: checked }))
+                    }
                   />
                 </div>
-                
+
                 {formData.attends_school && (
                   <div className="grid gap-4 sm:grid-cols-2 pl-4 border-l-2 border-primary/20">
                     <div className="space-y-2">
@@ -274,7 +304,9 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
                       <Input
                         id="school_name"
                         value={formData.school_name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, school_name: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, school_name: e.target.value }))
+                        }
                         placeholder="School name"
                       />
                     </div>
@@ -283,7 +315,9 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
                       <Input
                         id="school_grade"
                         value={formData.school_grade}
-                        onChange={(e) => setFormData(prev => ({ ...prev, school_grade: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, school_grade: e.target.value }))
+                        }
                         placeholder="e.g., 3rd Grade"
                       />
                     </div>
@@ -292,7 +326,9 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
                       <Input
                         id="teacher_name"
                         value={formData.teacher_name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, teacher_name: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, teacher_name: e.target.value }))
+                        }
                         placeholder="Teacher's name"
                       />
                     </div>
@@ -301,7 +337,9 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
                       <Input
                         id="teacher_contact"
                         value={formData.teacher_contact}
-                        onChange={(e) => setFormData(prev => ({ ...prev, teacher_contact: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, teacher_contact: e.target.value }))
+                        }
                         placeholder="Email or phone"
                       />
                     </div>
@@ -316,7 +354,7 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
             <Textarea
               id="notes"
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
               placeholder="Any additional notes..."
               rows={3}
             />
@@ -326,8 +364,11 @@ export function AddFamilyMemberDialog({ open, onOpenChange }: AddFamilyMemberDia
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !formData.name || !formData.relationship}>
-              {isSubmitting ? 'Adding...' : 'Add Member'}
+            <Button
+              type="submit"
+              disabled={isSubmitting || !formData.name || !formData.relationship}
+            >
+              {isSubmitting ? "Adding..." : "Add Member"}
             </Button>
           </DialogFooter>
         </form>

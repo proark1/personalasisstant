@@ -1,10 +1,21 @@
-import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useDailyBriefing } from '@/hooks/useDailyBriefing';
-import { useTextToSpeech } from '@/hooks/useTextToSpeech';
-import { Volume2, VolumeX, RefreshCw, ListTodo, Calendar, Mail, FileText, Users, Target, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDailyBriefing } from "@/hooks/useDailyBriefing";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import {
+  Volume2,
+  VolumeX,
+  RefreshCw,
+  ListTodo,
+  Calendar,
+  Mail,
+  FileText,
+  Users,
+  Target,
+  Loader2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const highlightIcons: Record<string, typeof ListTodo> = {
   task: ListTodo,
@@ -16,12 +27,12 @@ const highlightIcons: Record<string, typeof ListTodo> = {
 };
 
 const highlightColors: Record<string, string> = {
-  task: 'bg-primary/10 text-primary',
-  calendar: 'bg-accent/10 text-accent-foreground',
-  email: 'bg-amber-500/10 text-amber-600',
-  contract: 'bg-destructive/10 text-destructive',
-  contact: 'bg-emerald-500/10 text-emerald-600',
-  habit: 'bg-indigo-500/10 text-indigo-600',
+  task: "bg-primary/10 text-primary",
+  calendar: "bg-accent/10 text-accent-foreground",
+  email: "bg-amber-500/10 text-amber-600",
+  contract: "bg-destructive/10 text-destructive",
+  contact: "bg-emerald-500/10 text-emerald-600",
+  habit: "bg-indigo-500/10 text-indigo-600",
 };
 
 export function DailyBriefingCard() {
@@ -73,7 +84,9 @@ export function DailyBriefingCard() {
               <Volume2 className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">Daily Briefing</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                Daily Briefing
+              </p>
               <p className="text-[10px] text-muted-foreground">by Dori</p>
             </div>
           </div>
@@ -106,20 +119,21 @@ export function DailyBriefingCard() {
         </div>
 
         {/* Briefing text */}
-        <p className="text-sm text-foreground/80 leading-relaxed">
-          {briefing.briefingText}
-        </p>
+        <p className="text-sm text-foreground/80 leading-relaxed">{briefing.briefingText}</p>
 
         {/* Highlight chips */}
         {briefing.highlights.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {briefing.highlights.map((h, i) => {
               const Icon = highlightIcons[h.type] || ListTodo;
-              const colorClass = highlightColors[h.type] || 'bg-muted text-muted-foreground';
+              const colorClass = highlightColors[h.type] || "bg-muted text-muted-foreground";
               return (
                 <span
                   key={i}
-                  className={cn("inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-medium", colorClass)}
+                  className={cn(
+                    "inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-medium",
+                    colorClass,
+                  )}
                 >
                   <Icon className="w-3 h-3" />
                   {h.label}

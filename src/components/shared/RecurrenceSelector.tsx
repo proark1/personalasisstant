@@ -1,14 +1,20 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
-import { Repeat, X, CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { recurrencePresets, getRecurrenceDescription, toRRuleString } from '@/lib/recurrence';
-import { RecurrenceFrequency } from '@/types/flux';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { Repeat, X, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { recurrencePresets, getRecurrenceDescription, toRRuleString } from "@/lib/recurrence";
+import { RecurrenceFrequency } from "@/types/flux";
 
 interface RecurrenceSelectorProps {
   value?: string;
@@ -17,19 +23,19 @@ interface RecurrenceSelectorProps {
 }
 
 const WEEKDAYS = [
-  { value: 1, label: 'Mon' },
-  { value: 2, label: 'Tue' },
-  { value: 3, label: 'Wed' },
-  { value: 4, label: 'Thu' },
-  { value: 5, label: 'Fri' },
-  { value: 6, label: 'Sat' },
-  { value: 0, label: 'Sun' },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" },
 ];
 
 export function RecurrenceSelector({ value, onChange, className }: RecurrenceSelectorProps) {
   const [open, setOpen] = useState(false);
   const [customMode, setCustomMode] = useState(false);
-  const [frequency, setFrequency] = useState<RecurrenceFrequency>('weekly');
+  const [frequency, setFrequency] = useState<RecurrenceFrequency>("weekly");
   const [interval, setInterval] = useState(1);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [endDate, setEndDate] = useState<Date | undefined>();
@@ -48,7 +54,7 @@ export function RecurrenceSelector({ value, onChange, className }: RecurrenceSel
     const rule = toRRuleString({
       frequency,
       interval,
-      daysOfWeek: frequency === 'weekly' ? selectedDays : undefined,
+      daysOfWeek: frequency === "weekly" ? selectedDays : undefined,
       endDate,
     });
     onChange(rule);
@@ -56,10 +62,8 @@ export function RecurrenceSelector({ value, onChange, className }: RecurrenceSel
   };
 
   const toggleDay = (day: number) => {
-    setSelectedDays(prev => 
-      prev.includes(day) 
-        ? prev.filter(d => d !== day)
-        : [...prev, day]
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
     );
   };
 
@@ -69,12 +73,12 @@ export function RecurrenceSelector({ value, onChange, className }: RecurrenceSel
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant={value ? 'secondary' : 'outline'}
+          variant={value ? "secondary" : "outline"}
           size="sm"
-          className={cn('gap-1.5', className)}
+          className={cn("gap-1.5", className)}
         >
           <Repeat className="w-3.5 h-3.5" />
-          {description || 'Repeat'}
+          {description || "Repeat"}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="start">
@@ -95,7 +99,7 @@ export function RecurrenceSelector({ value, onChange, className }: RecurrenceSel
               {recurrencePresets.map((preset) => (
                 <Button
                   key={preset.value}
-                  variant={value === preset.value ? 'secondary' : 'ghost'}
+                  variant={value === preset.value ? "secondary" : "ghost"}
                   size="sm"
                   className="justify-start"
                   onClick={() => handlePresetSelect(preset.value)}
@@ -126,21 +130,20 @@ export function RecurrenceSelector({ value, onChange, className }: RecurrenceSel
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Label className="text-sm w-16">Every</Label>
-                <Select 
-                  value={interval.toString()} 
-                  onValueChange={(v) => setInterval(parseInt(v))}
-                >
+                <Select value={interval.toString()} onValueChange={(v) => setInterval(parseInt(v))}>
                   <SelectTrigger className="w-20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[1, 2, 3, 4, 5, 6].map(n => (
-                      <SelectItem key={n} value={n.toString()}>{n}</SelectItem>
+                    {[1, 2, 3, 4, 5, 6].map((n) => (
+                      <SelectItem key={n} value={n.toString()}>
+                        {n}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Select 
-                  value={frequency} 
+                <Select
+                  value={frequency}
                   onValueChange={(v) => setFrequency(v as RecurrenceFrequency)}
                 >
                   <SelectTrigger className="flex-1">
@@ -155,14 +158,14 @@ export function RecurrenceSelector({ value, onChange, className }: RecurrenceSel
                 </Select>
               </div>
 
-              {frequency === 'weekly' && (
+              {frequency === "weekly" && (
                 <div>
                   <Label className="text-sm mb-2 block">On days</Label>
                   <div className="flex gap-1">
-                    {WEEKDAYS.map(day => (
+                    {WEEKDAYS.map((day) => (
                       <Button
                         key={day.value}
-                        variant={selectedDays.includes(day.value) ? 'default' : 'outline'}
+                        variant={selectedDays.includes(day.value) ? "default" : "outline"}
                         size="sm"
                         className="w-9 h-9 p-0 text-xs"
                         onClick={() => toggleDay(day.value)}
@@ -180,7 +183,7 @@ export function RecurrenceSelector({ value, onChange, className }: RecurrenceSel
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start">
                       <CalendarIcon className="w-4 h-4 mr-2" />
-                      {endDate ? format(endDate, 'PPP') : 'Never'}
+                      {endDate ? format(endDate, "PPP") : "Never"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -193,9 +196,9 @@ export function RecurrenceSelector({ value, onChange, className }: RecurrenceSel
                     />
                     {endDate && (
                       <div className="p-2 border-t">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="w-full"
                           onClick={() => setEndDate(undefined)}
                         >

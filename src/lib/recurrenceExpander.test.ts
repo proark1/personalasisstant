@@ -66,9 +66,7 @@ describe("expandRecurringItems", () => {
       expect(inst.endTime).toBeInstanceOf(Date);
       expect(Number.isNaN(inst.endTime!.getTime())).toBe(false);
       // 90-minute duration preserved relative to the instance start.
-      expect(inst.endTime!.getTime() - inst.startTime!.getTime()).toBe(
-        90 * 60 * 1000,
-      );
+      expect(inst.endTime!.getTime() - inst.startTime!.getTime()).toBe(90 * 60 * 1000);
     }
   });
 
@@ -87,9 +85,7 @@ describe("expandRecurringItems", () => {
     expect(result.length).toBeGreaterThan(1);
     for (const inst of result) {
       expect(inst.endTime).toBeInstanceOf(Date);
-      expect(inst.endTime!.getTime() - inst.startTime!.getTime()).toBe(
-        60 * 60 * 1000,
-      );
+      expect(inst.endTime!.getTime() - inst.startTime!.getTime()).toBe(60 * 60 * 1000);
     }
   });
 });

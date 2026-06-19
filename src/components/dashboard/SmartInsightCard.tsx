@@ -1,11 +1,20 @@
-import { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
-import { Lightbulb, Brain, TrendingUp, Mail, FileText, Users, Calendar, LineChart } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { differenceInDays } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
+import {
+  Lightbulb,
+  Brain,
+  TrendingUp,
+  Mail,
+  FileText,
+  Users,
+  Calendar,
+  LineChart,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { differenceInDays } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Insight {
   id: string;
@@ -15,11 +24,33 @@ interface Insight {
   color: string;
 }
 
-interface TaskItem { completed?: boolean; trashed?: boolean; priority?: string; title?: string; }
-interface EmailItem { is_read?: boolean; user_archived?: boolean; priority_score?: number; from_name?: string; from_email?: string; subject?: string; }
-interface ContractItem { renewalDate?: Date | null; name?: string; cost_amount?: number | string; }
-interface ContactItem { id?: string; name?: string; last_contacted_at?: string | null; }
-interface EventItem { title?: string; }
+interface TaskItem {
+  completed?: boolean;
+  trashed?: boolean;
+  priority?: string;
+  title?: string;
+}
+interface EmailItem {
+  is_read?: boolean;
+  user_archived?: boolean;
+  priority_score?: number;
+  from_name?: string;
+  from_email?: string;
+  subject?: string;
+}
+interface ContractItem {
+  renewalDate?: Date | null;
+  name?: string;
+  cost_amount?: number | string;
+}
+interface ContactItem {
+  id?: string;
+  name?: string;
+  last_contacted_at?: string | null;
+}
+interface EventItem {
+  title?: string;
+}
 
 interface SmartInsightCardProps {
   tasks?: TaskItem[];
@@ -29,10 +60,20 @@ interface SmartInsightCardProps {
   events?: EventItem[];
 }
 
-export function SmartInsightCard({ tasks = [], emails = [], contracts = [], contacts = [], events = [] }: SmartInsightCardProps) {
+export function SmartInsightCard({
+  tasks = [],
+  emails = [],
+  contracts = [],
+  contacts = [],
+  events = [],
+}: SmartInsightCardProps) {
   const { user } = useAuth();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [topPattern, setTopPattern] = useState<{ id: string; description: string; confidence_score: number } | null>(null);
+  const [topPattern, setTopPattern] = useState<{
+    id: string;
+    description: string;
+    confidence_score: number;
+  } | null>(null);
 
   // Surface the user's strongest cross-module life-correlation (e.g. "your
   // worst-sleep weeks have the most evening meetings") as a headline insight —
@@ -42,33 +83,35 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     let cancelled = false;
     (async () => {
       const { data } = await supabase
-        .from('user_patterns')
-        .select('id, description, confidence_score')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .gte('confidence_score', 0.6)
-        .order('confidence_score', { ascending: false })
+        .from("user_patterns")
+        .select("id, description, confidence_score")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .gte("confidence_score", 0.6)
+        .order("confidence_score", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!cancelled && data) setTopPattern(data as typeof topPattern);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const baseInsights = useMemo<Insight[]>(() => {
     const result: Insight[] = [];
     const incompleteTasks = tasks.filter((t) => !t.completed && !t.trashed);
-    const highPriority = incompleteTasks.filter((t) => t.priority === 'high');
+    const highPriority = incompleteTasks.filter((t) => t.priority === "high");
     const now = new Date();
 
     // Task insights
     if (highPriority.length > 0) {
       result.push({
-        id: 'priority',
+        id: "priority",
         icon: <TrendingUp className="w-5 h-5" />,
-        title: 'Priority Focus',
-        content: `You have ${highPriority.length} high-priority task${highPriority.length > 1 ? 's' : ''} waiting. Tackling "${highPriority[0].title}" first could set a productive tone.`,
-        color: 'from-destructive/10 to-warning/10',
+        title: "Priority Focus",
+        content: `You have ${highPriority.length} high-priority task${highPriority.length > 1 ? "s" : ""} waiting. Tackling "${highPriority[0].title}" first could set a productive tone.`,
+        color: "from-destructive/10 to-warning/10",
       });
     }
 
@@ -78,19 +121,19 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     if (priorityEmails.length > 0) {
       const sender = priorityEmails[0].from_name || priorityEmails[0].from_email;
       result.push({
-        id: 'priority-email',
+        id: "priority-email",
         icon: <Mail className="w-5 h-5" />,
-        title: 'Priority Email',
-        content: `${priorityEmails.length} priority email${priorityEmails.length > 1 ? 's' : ''} need${priorityEmails.length === 1 ? 's' : ''} attention. "${priorityEmails[0].subject}" from ${sender} is most urgent.`,
-        color: 'from-amber-500/10 to-primary/10',
+        title: "Priority Email",
+        content: `${priorityEmails.length} priority email${priorityEmails.length > 1 ? "s" : ""} need${priorityEmails.length === 1 ? "s" : ""} attention. "${priorityEmails[0].subject}" from ${sender} is most urgent.`,
+        color: "from-amber-500/10 to-primary/10",
       });
     } else if (unreadEmails.length > 3) {
       result.push({
-        id: 'unread-emails',
+        id: "unread-emails",
         icon: <Mail className="w-5 h-5" />,
-        title: 'Email Inbox',
+        title: "Email Inbox",
         content: `You have ${unreadEmails.length} unread emails. Consider a quick inbox sweep to stay on top of things.`,
-        color: 'from-amber-500/10 to-accent/10',
+        color: "from-amber-500/10 to-accent/10",
       });
     }
 
@@ -104,11 +147,11 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
       const c = urgentContracts[0];
       const days = differenceInDays(new Date(c.renewalDate!), now);
       result.push({
-        id: 'contract-alert',
+        id: "contract-alert",
         icon: <FileText className="w-5 h-5" />,
-        title: 'Contract Alert',
-        content: `"${c.name}" renews in ${days} day${days !== 1 ? 's' : ''}${c.cost_amount ? ` (${c.cost_amount}€)` : ''}. Review or cancel before it auto-renews.`,
-        color: 'from-destructive/10 to-amber-500/10',
+        title: "Contract Alert",
+        content: `"${c.name}" renews in ${days} day${days !== 1 ? "s" : ""}${c.cost_amount ? ` (${c.cost_amount}€)` : ""}. Review or cancel before it auto-renews.`,
+        color: "from-destructive/10 to-amber-500/10",
       });
     }
 
@@ -119,15 +162,17 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     });
     if (overdueContacts.length > 0) {
       const c = overdueContacts[0];
-      const days = c.last_contacted_at ? differenceInDays(now, new Date(c.last_contacted_at)) : null;
+      const days = c.last_contacted_at
+        ? differenceInDays(now, new Date(c.last_contacted_at))
+        : null;
       result.push({
-        id: 'contact-followup',
+        id: "contact-followup",
         icon: <Users className="w-5 h-5" />,
-        title: 'Stay Connected',
+        title: "Stay Connected",
         content: days
           ? `You haven't reached out to ${c.name} in ${days} days. A quick message can keep the relationship strong.`
           : `It's been a while since you connected with ${c.name}. Consider reaching out.`,
-        color: 'from-emerald-500/10 to-primary/10',
+        color: "from-emerald-500/10 to-primary/10",
       });
     }
 
@@ -135,15 +180,15 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     if (events.length > 0 && contacts.length > 0) {
       for (const event of events) {
         const matchedContact = contacts.find((c) =>
-          event.title?.toLowerCase().includes(c.name?.toLowerCase())
+          event.title?.toLowerCase().includes(c.name?.toLowerCase()),
         );
         if (matchedContact) {
           result.push({
             id: `meeting-${matchedContact.id}`,
             icon: <Calendar className="w-5 h-5" />,
-            title: 'Meeting Prep',
+            title: "Meeting Prep",
             content: `You have "${event.title}" coming up. Check ${matchedContact.name}'s latest emails and notes to prepare.`,
-            color: 'from-accent/10 to-primary/10',
+            color: "from-accent/10 to-primary/10",
           });
           break;
         }
@@ -154,23 +199,25 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     const hour = now.getHours();
     if (hour >= 14 && hour <= 16) {
       result.push({
-        id: 'energy',
+        id: "energy",
         icon: <Brain className="w-5 h-5" />,
-        title: 'Energy Tip',
-        content: 'Afternoon slump? Try a quick 5-min walk or switch to a lighter task. Your focus will bounce back.',
-        color: 'from-primary/10 to-accent/10',
+        title: "Energy Tip",
+        content:
+          "Afternoon slump? Try a quick 5-min walk or switch to a lighter task. Your focus will bounce back.",
+        color: "from-primary/10 to-accent/10",
       });
     }
 
     // Default insight
     result.push({
-      id: 'motivate',
+      id: "motivate",
       icon: <Lightbulb className="w-5 h-5" />,
-      title: 'Daily Insight',
-      content: incompleteTasks.length === 0
-        ? "All tasks done! Use this momentum to plan ahead or invest in a personal project."
-        : `${incompleteTasks.length} task${incompleteTasks.length > 1 ? 's' : ''} remaining. Break the biggest one into smaller steps to get moving.`,
-      color: 'from-accent/10 to-primary/10',
+      title: "Daily Insight",
+      content:
+        incompleteTasks.length === 0
+          ? "All tasks done! Use this momentum to plan ahead or invest in a personal project."
+          : `${incompleteTasks.length} task${incompleteTasks.length > 1 ? "s" : ""} remaining. Break the biggest one into smaller steps to get moving.`,
+      color: "from-accent/10 to-primary/10",
     });
 
     return result;
@@ -182,9 +229,9 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
     const patternInsight: Insight = {
       id: `pattern-${topPattern.id}`,
       icon: <LineChart className="w-5 h-5" />,
-      title: 'Life Pattern',
+      title: "Life Pattern",
       content: `${topPattern.description} (${Math.round(topPattern.confidence_score * 100)}% confidence)`,
-      color: 'from-primary/10 to-accent/10',
+      color: "from-primary/10 to-accent/10",
     };
     return [patternInsight, ...baseInsights];
   }, [topPattern, baseInsights]);
@@ -192,7 +239,7 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
   useEffect(() => {
     if (insights.length <= 1) return;
     const timer = setInterval(() => {
-      setActiveIndex(prev => (prev + 1) % insights.length);
+      setActiveIndex((prev) => (prev + 1) % insights.length);
     }, 8000);
     return () => clearInterval(timer);
   }, [insights.length]);
@@ -221,9 +268,7 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-1">
                   {current.title}
                 </p>
-                <p className="text-sm text-foreground/80 leading-relaxed">
-                  {current.content}
-                </p>
+                <p className="text-sm text-foreground/80 leading-relaxed">{current.content}</p>
               </div>
             </div>
           </motion.div>
@@ -237,9 +282,7 @@ export function SmartInsightCard({ tasks = [], emails = [], contracts = [], cont
                 onClick={() => setActiveIndex(i)}
                 className={cn(
                   "w-1.5 h-1.5 rounded-full transition-all",
-                  i === activeIndex % insights.length
-                    ? "bg-primary w-4"
-                    : "bg-muted-foreground/30"
+                  i === activeIndex % insights.length ? "bg-primary w-4" : "bg-muted-foreground/30",
                 )}
               />
             ))}

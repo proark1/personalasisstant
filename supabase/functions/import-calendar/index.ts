@@ -1,11 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  'X-Content-Type-Options': 'nosniff',
+  "X-Content-Type-Options": "nosniff",
 };
 
 interface ImportRequest {
@@ -20,42 +20,49 @@ serve(async (req) => {
   }
 
   // Get user from authorization header
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Authentication required' }), {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Authentication required" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
   // Create client with user's auth header to validate token
   const userClient = createClient(supabaseUrl, supabaseAnonKey);
 
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: userError } = await userClient.auth.getUser(token);
+  const token = authHeader.replace("Bearer ", "");
+  const {
+    data: { user },
+    error: userError,
+  } = await userClient.auth.getUser(token);
 
   if (userError || !user) {
-    console.error('Auth error:', userError);
-    return new Response(JSON.stringify({ error: 'Authentication required' }), {
+    console.error("Auth error:", userError);
+    return new Response(JSON.stringify({ error: "Authentication required" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   const userId = user.id;
-  
+
   // Create service client for database operations
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const { icsContent, calendarName = 'Imported Calendar', color = '#3b82f6' }: ImportRequest = await req.json();
+    const {
+      icsContent,
+      calendarName = "Imported Calendar",
+      color = "#3b82f6",
+    }: ImportRequest = await req.json();
 
     if (!icsContent) {
-      return new Response(JSON.stringify({ error: 'ICS content is required' }), {
+      return new Response(JSON.stringify({ error: "ICS content is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -65,22 +72,25 @@ serve(async (req) => {
 
     // Parse ICS content
     const events = parseICS(icsContent);
-    
+
     if (events.length === 0) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        message: 'No events found in the calendar file' 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "No events found in the calendar file",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Create calendar connection record
     const { data: connection, error: connError } = await supabase
-      .from('external_calendar_connections')
+      .from("external_calendar_connections")
       .insert({
         user_id: userId,
-        provider: 'ics',
+        provider: "ics",
         name: calendarName,
         color: color,
         last_synced_at: new Date().toISOString(),
@@ -89,7 +99,7 @@ serve(async (req) => {
       .single();
 
     if (connError) {
-      console.error('Error creating calendar connection:', connError);
+      console.error("Error creating calendar connection:", connError);
     }
 
     // Import events
@@ -101,11 +111,11 @@ serve(async (req) => {
       try {
         // Check for duplicate (same title and start time)
         const { data: existing } = await supabase
-          .from('events')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('title', event.title)
-          .eq('start_time', event.startTime)
+          .from("events")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("title", event.title)
+          .eq("start_time", event.startTime)
           .single();
 
         if (existing) {
@@ -113,18 +123,16 @@ serve(async (req) => {
           continue;
         }
 
-        const { error: insertError } = await supabase
-          .from('events')
-          .insert({
-            user_id: userId,
-            title: event.title,
-            description: event.description,
-            start_time: event.startTime,
-            end_time: event.endTime,
-            location: event.location,
-            category: 'personal',
-            recurrence_rule: event.rrule,
-          });
+        const { error: insertError } = await supabase.from("events").insert({
+          user_id: userId,
+          title: event.title,
+          description: event.description,
+          start_time: event.startTime,
+          end_time: event.endTime,
+          location: event.location,
+          category: "personal",
+          recurrence_rule: event.rrule,
+        });
 
         if (insertError) {
           errors.push(`Failed to import "${event.title}": ${insertError.message}`);
@@ -138,25 +146,30 @@ serve(async (req) => {
 
     console.log(`Import complete: ${importedCount} imported, ${skippedCount} skipped`);
 
-    return new Response(JSON.stringify({
-      success: true,
-      imported: importedCount,
-      skipped: skippedCount,
-      total: events.length,
-      errors: errors.length > 0 ? errors : undefined,
-      connectionId: connection?.id,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        imported: importedCount,
+        skipped: skippedCount,
+        total: events.length,
+        errors: errors.length > 0 ? errors : undefined,
+        connectionId: connection?.id,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
     console.error("Calendar import error:", error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : "Unknown error" 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
 
@@ -175,12 +188,12 @@ function parseICS(content: string): ICSEvent[] {
   const lines = content.split(/\r?\n/);
 
   let currentEvent: Partial<ICSEvent> | null = null;
-  let currentField = '';
-  let currentValue = '';
+  let currentField = "";
+  let currentValue = "";
 
   for (const line of lines) {
     // Handle line continuations
-    if (line.startsWith(' ') || line.startsWith('\t')) {
+    if (line.startsWith(" ") || line.startsWith("\t")) {
       currentValue += line.substring(1);
       continue;
     }
@@ -191,21 +204,21 @@ function parseICS(content: string): ICSEvent[] {
     }
 
     // Parse new line
-    const colonIndex = line.indexOf(':');
+    const colonIndex = line.indexOf(":");
     if (colonIndex === -1) continue;
 
     currentField = line.substring(0, colonIndex);
     currentValue = line.substring(colonIndex + 1);
 
     // Handle field parameters (e.g., DTSTART;TZID=...)
-    const semicolonIndex = currentField.indexOf(';');
+    const semicolonIndex = currentField.indexOf(";");
     if (semicolonIndex !== -1) {
       currentField = currentField.substring(0, semicolonIndex);
     }
 
-    if (currentField === 'BEGIN' && currentValue === 'VEVENT') {
+    if (currentField === "BEGIN" && currentValue === "VEVENT") {
       currentEvent = {};
-    } else if (currentField === 'END' && currentValue === 'VEVENT') {
+    } else if (currentField === "END" && currentValue === "VEVENT") {
       if (currentEvent && currentEvent.title && currentEvent.startTime) {
         // Default end time to 1 hour after start if not provided
         if (!currentEvent.endTime) {
@@ -216,8 +229,8 @@ function parseICS(content: string): ICSEvent[] {
         events.push(currentEvent);
       }
       currentEvent = null;
-      currentField = '';
-      currentValue = '';
+      currentField = "";
+      currentValue = "";
     }
   }
 
@@ -226,22 +239,22 @@ function parseICS(content: string): ICSEvent[] {
 
 function processField(event: Partial<ICSEvent>, field: string, value: string) {
   switch (field) {
-    case 'SUMMARY':
+    case "SUMMARY":
       event.title = unescapeICS(value);
       break;
-    case 'DESCRIPTION':
+    case "DESCRIPTION":
       event.description = unescapeICS(value);
       break;
-    case 'DTSTART':
+    case "DTSTART":
       event.startTime = parseICSDate(value);
       break;
-    case 'DTEND':
+    case "DTEND":
       event.endTime = parseICSDate(value);
       break;
-    case 'LOCATION':
+    case "LOCATION":
       event.location = unescapeICS(value);
       break;
-    case 'RRULE':
+    case "RRULE":
       event.rrule = value;
       break;
   }
@@ -249,8 +262,8 @@ function processField(event: Partial<ICSEvent>, field: string, value: string) {
 
 function parseICSDate(value: string): string {
   // Remove any timezone info prefix
-  const cleanValue = value.replace(/^TZID=[^:]+:/, '');
-  
+  const cleanValue = value.replace(/^TZID=[^:]+:/, "");
+
   // Format: YYYYMMDD or YYYYMMDDTHHmmss or YYYYMMDDTHHmmssZ
   if (cleanValue.length === 8) {
     // All day event
@@ -265,8 +278,8 @@ function parseICSDate(value: string): string {
     const hour = cleanValue.substring(9, 11);
     const minute = cleanValue.substring(11, 13);
     const second = cleanValue.substring(13, 15);
-    
-    const isUTC = cleanValue.endsWith('Z');
+
+    const isUTC = cleanValue.endsWith("Z");
     if (isUTC) {
       return `${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`;
     } else {
@@ -277,19 +290,19 @@ function parseICSDate(value: string): string {
         parseInt(day),
         parseInt(hour),
         parseInt(minute),
-        parseInt(second)
+        parseInt(second),
       );
       return date.toISOString();
     }
   }
-  
+
   return new Date().toISOString();
 }
 
 function unescapeICS(value: string): string {
   return value
-    .replace(/\\n/g, '\n')
-    .replace(/\\,/g, ',')
-    .replace(/\\;/g, ';')
-    .replace(/\\\\/g, '\\');
+    .replace(/\\n/g, "\n")
+    .replace(/\\,/g, ",")
+    .replace(/\\;/g, ";")
+    .replace(/\\\\/g, "\\");
 }

@@ -1,25 +1,20 @@
-import { useMemo } from 'react';
-import { usePlans } from './usePlans';
-import { useAgentActions } from './useAgentActions';
-import { useMeetingBots } from './useMeetingBots';
-import { useFinanceSummary } from './useFinanceSummary';
-import { useSchedule } from './useSchedule';
+import { useMemo } from "react";
+import { usePlans } from "./usePlans";
+import { useAgentActions } from "./useAgentActions";
+import { useMeetingBots } from "./useMeetingBots";
+import { useFinanceSummary } from "./useFinanceSummary";
+import { useSchedule } from "./useSchedule";
 
-export type HubItemSource =
-  | 'plan'
-  | 'action'
-  | 'meeting_bot'
-  | 'bank_reauth'
-  | 'schedule';
+export type HubItemSource = "plan" | "action" | "meeting_bot" | "bank_reauth" | "schedule";
 
 export interface HubItem {
   id: string;
   source: HubItemSource;
   title: string;
   subtitle?: string;
-  ageMs: number;          // time since the source emitted/changed
-  priority: number;       // 0..1, higher = more urgent
-  badge?: string;         // small label, e.g. "3 steps", "live"
+  ageMs: number; // time since the source emitted/changed
+  priority: number; // 0..1, higher = more urgent
+  badge?: string; // small label, e.g. "3 steps", "live"
   // Action key — the hub UI maps these to deep-link callbacks.
   defaultActionKey?: string;
 }
@@ -43,10 +38,10 @@ export function useAssistantHub() {
 
     // Plans needing the next step approved.
     for (const p of plans.plans) {
-      if (p.status === 'awaiting_confirm' || p.status === 'running') {
+      if (p.status === "awaiting_confirm" || p.status === "running") {
         out.push({
           id: `plan:${p.id}`,
-          source: 'plan',
+          source: "plan",
           title: p.title,
           subtitle: p.currentStep
             ? `Next: ${p.currentStep.title}`
@@ -54,7 +49,7 @@ export function useAssistantHub() {
           ageMs: now - new Date(p.updatedAt).getTime(),
           priority: 0.7,
           badge: `${p.completedStepCount}/${p.stepCount}`,
-          defaultActionKey: 'open_plans',
+          defaultActionKey: "open_plans",
         });
       }
     }
@@ -63,60 +58,64 @@ export function useAssistantHub() {
     for (const a of actions.actions) {
       out.push({
         id: `action:${a.id}`,
-        source: 'action',
+        source: "action",
         title: a.reason,
-        subtitle: a.actionType.replace(/_/g, ' '),
+        subtitle: a.actionType.replace(/_/g, " "),
         ageMs: now - new Date(a.createdAt).getTime(),
         priority: 0.6,
-        defaultActionKey: 'open_actions',
+        defaultActionKey: "open_actions",
       });
     }
 
     // Meeting bots in flight (joining / live / wrapping up).
     for (const b of bots.bots) {
-      const inFlight = ['joining', 'in_call', 'transcript_ready', 'analysis_ready'].includes(b.status);
+      const inFlight = ["joining", "in_call", "transcript_ready", "analysis_ready"].includes(
+        b.status,
+      );
       if (!inFlight) continue;
       out.push({
         id: `bot:${b.id}`,
-        source: 'meeting_bot',
+        source: "meeting_bot",
         title: b.title || b.meetingUrl,
-        subtitle: b.status === 'in_call' ? 'Bot is live in the meeting' : `Status: ${b.status}`,
+        subtitle: b.status === "in_call" ? "Bot is live in the meeting" : `Status: ${b.status}`,
         ageMs: now - new Date(b.updatedAt).getTime(),
-        priority: b.status === 'in_call' ? 0.9 : 0.4,
-        badge: b.status === 'in_call' ? 'live' : undefined,
-        defaultActionKey: 'open_meeting_bots',
+        priority: b.status === "in_call" ? 0.9 : 0.4,
+        badge: b.status === "in_call" ? "live" : undefined,
+        defaultActionKey: "open_meeting_bots",
       });
     }
 
     // Bank connections needing re-auth.
     for (const c of finance.summary?.connections ?? []) {
-      if (c.status === 'reauth_required') {
+      if (c.status === "reauth_required") {
         out.push({
           id: `bank_reauth:${c.id}`,
-          source: 'bank_reauth',
-          title: `${c.institution_name || 'Bank'} needs re-link`,
-          subtitle: c.last_error || 'Plaid item login required',
+          source: "bank_reauth",
+          title: `${c.institution_name || "Bank"} needs re-link`,
+          subtitle: c.last_error || "Plaid item login required",
           ageMs: c.last_synced_at ? now - new Date(c.last_synced_at).getTime() : 0,
           priority: 0.85,
-          badge: 'reauth',
-          defaultActionKey: 'open_finance',
+          badge: "reauth",
+          defaultActionKey: "open_finance",
         });
       }
     }
 
     // Draft schedule waiting for review.
-    if (schedule.latest && schedule.latest.status === 'draft') {
-      const pending = schedule.latest.blocks.filter(b => b.applied_event_id == null && b.accepted !== false).length;
+    if (schedule.latest && schedule.latest.status === "draft") {
+      const pending = schedule.latest.blocks.filter(
+        (b) => b.applied_event_id == null && b.accepted !== false,
+      ).length;
       if (pending > 0) {
         out.push({
           id: `schedule:${schedule.latest.id}`,
-          source: 'schedule',
+          source: "schedule",
           title: `Week plan ready`,
-          subtitle: `${pending} block${pending === 1 ? '' : 's'} to review`,
+          subtitle: `${pending} block${pending === 1 ? "" : "s"} to review`,
           ageMs: now - new Date(schedule.latest.updated_at).getTime(),
           priority: 0.5,
           badge: `${pending}`,
-          defaultActionKey: 'open_schedule',
+          defaultActionKey: "open_schedule",
         });
       }
     }
@@ -133,6 +132,10 @@ export function useAssistantHub() {
   return {
     items,
     count: items.length,
-    plans, actions, bots, finance, schedule,
+    plans,
+    actions,
+    bots,
+    finance,
+    schedule,
   };
 }

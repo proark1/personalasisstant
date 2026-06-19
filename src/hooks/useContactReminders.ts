@@ -1,28 +1,29 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { Contact } from './useContacts';
-import { Task } from '@/types/flux';
-import { isPast, isToday, isTomorrow } from 'date-fns';
+import { useEffect, useRef, useCallback } from "react";
+import { Contact } from "./useContacts";
+import { Task } from "@/types/flux";
+import { isPast, isToday, isTomorrow } from "date-fns";
 
 interface UseContactRemindersProps {
   contacts: Contact[];
   tasks: Task[];
-  onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+  onAddTask: (task: Omit<Task, "id" | "createdAt">) => void;
   onShowToast?: (title: string, description?: string) => void;
   enabled?: boolean;
 }
 
 // Generate a consistent task title for a contact reminder
 const getContactReminderTitle = (contact: Contact): string => {
-  const action = contact.contactType === 'personal' ? 'Reach out to' : 'Follow up with';
+  const action = contact.contactType === "personal" ? "Reach out to" : "Follow up with";
   return `${action} ${contact.name}`;
 };
 
 // Check if a reminder task already exists for this contact
 const hasExistingReminder = (contact: Contact, tasks: Task[]): boolean => {
-  return tasks.some(task =>
-    !task.completed && 
-    task.title.includes(contact.name) &&
-    (task.title.includes('Reach out') || task.title.includes('Follow up'))
+  return tasks.some(
+    (task) =>
+      !task.completed &&
+      task.title.includes(contact.name) &&
+      (task.title.includes("Reach out") || task.title.includes("Follow up")),
   );
 };
 
@@ -44,12 +45,13 @@ export function useContactReminders({
     for (const contact of contacts) {
       // Skip if no due date or not due yet
       if (!contact.nextContactDue) continue;
-      
+
       // Check if due (today, past, or tomorrow for advance notice)
-      const isDue = isPast(contact.nextContactDue) || 
-                    isToday(contact.nextContactDue) || 
-                    isTomorrow(contact.nextContactDue);
-      
+      const isDue =
+        isPast(contact.nextContactDue) ||
+        isToday(contact.nextContactDue) ||
+        isTomorrow(contact.nextContactDue);
+
       if (!isDue) continue;
 
       // Skip if reminder already exists
@@ -57,9 +59,9 @@ export function useContactReminders({
 
       // Create the reminder task
       const title = getContactReminderTitle(contact);
-      const tierLabel = contact.personalTier || contact.businessLevel || '';
-      const tierText = tierLabel ? ` (${tierLabel.replace('_', ' ')})` : '';
-      
+      const tierLabel = contact.personalTier || contact.businessLevel || "";
+      const tierText = tierLabel ? ` (${tierLabel.replace("_", " ")})` : "";
+
       let description = `Time to connect with ${contact.name}${tierText}.`;
       if (contact.notes) {
         description += `\n\nNotes: ${contact.notes}`;
@@ -72,13 +74,13 @@ export function useContactReminders({
       }
 
       // Set priority based on relationship
-      let priority: 'low' | 'medium' | 'high' = 'medium';
-      if (contact.personalTier === 'family') {
-        priority = 'high';
-      } else if (contact.personalTier === 'close_friend' || contact.businessLevel === 'very_well') {
-        priority = 'high';
-      } else if (contact.personalTier === 'acquaintance' || contact.businessLevel === 'barely') {
-        priority = 'low';
+      let priority: "low" | "medium" | "high" = "medium";
+      if (contact.personalTier === "family") {
+        priority = "high";
+      } else if (contact.personalTier === "close_friend" || contact.businessLevel === "very_well") {
+        priority = "high";
+      } else if (contact.personalTier === "acquaintance" || contact.businessLevel === "barely") {
+        priority = "low";
       }
 
       // Due date is the contact's next due date (or today if past)
@@ -89,7 +91,7 @@ export function useContactReminders({
         description,
         completed: false,
         priority,
-        category: contact.contactType === 'personal' ? 'personal' : 'business',
+        category: contact.contactType === "personal" ? "personal" : "business",
         dueDate,
       });
 
@@ -98,12 +100,9 @@ export function useContactReminders({
 
     // Show toast if reminders were created
     if (createdReminders.length > 0 && onShowToast) {
-      const names = createdReminders.slice(0, 3).join(', ');
-      const extra = createdReminders.length > 3 ? ` and ${createdReminders.length - 3} more` : '';
-      onShowToast(
-        'Contact Reminders Created',
-        `Time to reach out to ${names}${extra}`
-      );
+      const names = createdReminders.slice(0, 3).join(", ");
+      const extra = createdReminders.length > 3 ? ` and ${createdReminders.length - 3} more` : "";
+      onShowToast("Contact Reminders Created", `Time to reach out to ${names}${extra}`);
     }
 
     return createdReminders;
@@ -113,7 +112,7 @@ export function useContactReminders({
   useEffect(() => {
     if (hasCheckedRef.current) return;
     if (contacts.length === 0) return;
-    
+
     // Small delay to ensure tasks are loaded
     const timer = setTimeout(() => {
       hasCheckedRef.current = true;

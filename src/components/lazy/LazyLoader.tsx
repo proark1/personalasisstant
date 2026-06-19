@@ -1,5 +1,5 @@
-import { Suspense, ComponentType, ReactNode, lazy } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Suspense, ComponentType, ReactNode, lazy } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface LazyLoaderProps {
   children: ReactNode;
@@ -11,11 +11,7 @@ interface LazyLoaderProps {
  * Retries up to 3 times with exponential backoff
  */
 // eslint-disable-next-line react-refresh/only-export-components
-export function retryImport<T>(
-  importFn: () => Promise<T>,
-  retries = 3,
-  delay = 1000
-): Promise<T> {
+export function retryImport<T>(importFn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
   return importFn().catch((error) => {
     if (retries === 0) {
       throw error;
@@ -33,7 +29,7 @@ export function retryImport<T>(
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function lazyWithRetry<T extends ComponentType<unknown>>(
-  importFn: () => Promise<{ default: T }>
+  importFn: () => Promise<{ default: T }>,
 ) {
   return lazy(() => retryImport(importFn));
 }
@@ -95,11 +91,7 @@ export function PanelFallback() {
  * Wrapper component for lazy-loaded content with Suspense
  */
 export function LazyLoader({ children, fallback }: LazyLoaderProps) {
-  return (
-    <Suspense fallback={fallback || <DefaultFallback />}>
-      {children}
-    </Suspense>
-  );
+  return <Suspense fallback={fallback || <DefaultFallback />}>{children}</Suspense>;
 }
 
 /**
@@ -108,7 +100,7 @@ export function LazyLoader({ children, fallback }: LazyLoaderProps) {
 // eslint-disable-next-line react-refresh/only-export-components
 export function withLazyLoading<P extends object>(
   LazyComponent: ComponentType<P>,
-  FallbackComponent: ComponentType = DefaultFallback
+  FallbackComponent: ComponentType = DefaultFallback,
 ) {
   return function LazyWrapped(props: P) {
     return (

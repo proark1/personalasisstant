@@ -1,10 +1,10 @@
-import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ActivityFeed } from './ActivityFeed';
-import { DoriActivityLog } from './DoriActivityLog';
-import { Activity } from 'lucide-react';
-import type { ActivityItem } from '@/hooks/useActivityFeed';
+import React from "react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ActivityFeed } from "./ActivityFeed";
+import { DoriActivityLog } from "./DoriActivityLog";
+import { Activity } from "lucide-react";
+import type { ActivityItem } from "@/hooks/useActivityFeed";
 
 interface ActivityPanelProps {
   open: boolean;

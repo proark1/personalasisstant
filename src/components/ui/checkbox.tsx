@@ -10,15 +10,15 @@ const Checkbox = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
 >(({ className, onCheckedChange, ...props }, ref) => {
   const { vibrate } = useHaptics();
-  
+
   const handleCheckedChange = React.useCallback(
     (checked: boolean | "indeterminate") => {
       vibrate("light");
       onCheckedChange?.(checked);
     },
-    [vibrate, onCheckedChange]
+    [vibrate, onCheckedChange],
   );
-  
+
   return (
     <CheckboxPrimitive.Root
       ref={ref}

@@ -18,10 +18,10 @@ export interface MeetingBotConfig {
 }
 
 export function loadConfig(): MeetingBotConfig {
-  const baseUrl = (Deno.env.get('MEETINGBOT_BASE_URL') || '').replace(/\/+$/, '');
-  const apiKey = Deno.env.get('MEETINGBOT_API_KEY') || '';
-  if (!baseUrl) throw new Error('MEETINGBOT_BASE_URL is not configured');
-  if (!apiKey) throw new Error('MEETINGBOT_API_KEY is not configured');
+  const baseUrl = (Deno.env.get("MEETINGBOT_BASE_URL") || "").replace(/\/+$/, "");
+  const apiKey = Deno.env.get("MEETINGBOT_API_KEY") || "";
+  if (!baseUrl) throw new Error("MEETINGBOT_BASE_URL is not configured");
+  if (!apiKey) throw new Error("MEETINGBOT_API_KEY is not configured");
   return { baseUrl, apiKey };
 }
 
@@ -34,7 +34,7 @@ export interface CreateBotRequest {
   // our own webhook function URL and rely on HMAC verify.
   webhook_url?: string;
   template?: string;
-  analysis_mode?: 'default' | 'detailed' | 'minimal';
+  analysis_mode?: "default" | "detailed" | "minimal";
   record_video?: boolean;
   live_transcription?: boolean;
   vocabulary?: string[];
@@ -60,7 +60,7 @@ export interface TranscriptEntry {
   speaker: string;
   text: string;
   timestamp: number;
-  source?: 'voice' | 'chat';
+  source?: "voice" | "chat";
   message_id?: string;
   bot_generated?: boolean;
 }
@@ -82,8 +82,8 @@ export interface BotAnalysis {
 export function buildHeaders(cfg: MeetingBotConfig, subUser: string): Record<string, string> {
   return {
     Authorization: `Bearer ${cfg.apiKey}`,
-    'Content-Type': 'application/json',
-    'X-Sub-User': subUser,
+    "Content-Type": "application/json",
+    "X-Sub-User": subUser,
   };
 }
 
@@ -93,15 +93,15 @@ export async function createBot(
   body: CreateBotRequest,
 ): Promise<MeetingBotRow> {
   const res = await fetch(`${cfg.baseUrl}/api/v1/bot`, {
-    method: 'POST',
+    method: "POST",
     headers: buildHeaders(cfg, subUser),
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(KEEPALIVE_MS),
   });
   if (!res.ok) {
-    throw new Error(`createBot failed: ${res.status} ${await res.text().catch(() => '')}`);
+    throw new Error(`createBot failed: ${res.status} ${await res.text().catch(() => "")}`);
   }
-  return await res.json() as MeetingBotRow;
+  return (await res.json()) as MeetingBotRow;
 }
 
 export async function getBot(
@@ -114,9 +114,9 @@ export async function getBot(
     signal: AbortSignal.timeout(KEEPALIVE_MS),
   });
   if (!res.ok) {
-    throw new Error(`getBot failed: ${res.status} ${await res.text().catch(() => '')}`);
+    throw new Error(`getBot failed: ${res.status} ${await res.text().catch(() => "")}`);
   }
-  return await res.json() as MeetingBotRow;
+  return (await res.json()) as MeetingBotRow;
 }
 
 export async function deleteBot(
@@ -125,13 +125,13 @@ export async function deleteBot(
   botId: string,
 ): Promise<void> {
   const res = await fetch(`${cfg.baseUrl}/api/v1/bot/${botId}`, {
-    method: 'DELETE',
+    method: "DELETE",
     headers: buildHeaders(cfg, subUser),
     signal: AbortSignal.timeout(KEEPALIVE_MS),
   });
   // 204 expected; tolerate 404 too (already deleted upstream).
   if (!res.ok && res.status !== 404) {
-    throw new Error(`deleteBot failed: ${res.status} ${await res.text().catch(() => '')}`);
+    throw new Error(`deleteBot failed: ${res.status} ${await res.text().catch(() => "")}`);
   }
 }
 
@@ -145,25 +145,26 @@ export async function verifyHmac(
 ): Promise<boolean> {
   if (!signatureHeader || !secret) return false;
   // Header may be "sha256=<hex>" or just "<hex>". Tolerate both.
-  const hex = signatureHeader.replace(/^sha256=/i, '').trim().toLowerCase();
+  const hex = signatureHeader
+    .replace(/^sha256=/i, "")
+    .trim()
+    .toLowerCase();
   const key = await crypto.subtle.importKey(
-    'raw',
+    "raw",
     new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
+    { name: "HMAC", hash: "SHA-256" },
     false,
-    ['sign'],
+    ["sign"],
   );
-  const sig = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    new TextEncoder().encode(rawBody),
-  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
   const expected = bytesToHex(new Uint8Array(sig));
   return constantTimeEquals(expected, hex);
 }
 
 function bytesToHex(b: Uint8Array): string {
-  return Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('');
+  return Array.from(b)
+    .map((x) => x.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function constantTimeEquals(a: string, b: string): boolean {
@@ -176,22 +177,27 @@ function constantTimeEquals(a: string, b: string): boolean {
 // Map MeetingBot's lifecycle into ours. We accept anything they send
 // but coerce to the local CHECK constraint values.
 export function normaliseStatus(s: string | undefined | null): string {
-  const v = (s || '').toLowerCase();
+  const v = (s || "").toLowerCase();
   switch (v) {
-    case 'joining':
-    case 'scheduled':
-    case 'in_call':
-    case 'call_ended':
-    case 'transcript_ready':
-    case 'analysis_ready':
-    case 'done':
-    case 'error':
-    case 'cancelled':
+    case "joining":
+    case "scheduled":
+    case "in_call":
+    case "call_ended":
+    case "transcript_ready":
+    case "analysis_ready":
+    case "done":
+    case "error":
+    case "cancelled":
       return v;
-    case 'in-call':           return 'in_call';
-    case 'call-ended':        return 'call_ended';
-    case 'transcript-ready':  return 'transcript_ready';
-    case 'analysis-ready':    return 'analysis_ready';
-    default:                  return 'pending';
+    case "in-call":
+      return "in_call";
+    case "call-ended":
+      return "call_ended";
+    case "transcript-ready":
+      return "transcript_ready";
+    case "analysis-ready":
+      return "analysis_ready";
+    default:
+      return "pending";
   }
 }

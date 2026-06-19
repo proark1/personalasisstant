@@ -5,7 +5,7 @@ everything else) from Supabase to Railway Postgres + Auth.js + Node services.
 The migration is staged so the app keeps running between PRs.
 
 > **Status — superseded.** The phase plan below (Auth.js, converting Deno edge
-> functions to Node, replacing `supabase-js`) reflects the *original* direction.
+> functions to Node, replacing `supabase-js`) reflects the _original_ direction.
 > The project ultimately chose a different shape: **self-host the open-source,
 > Supabase-compatible services on Railway** so `@supabase/supabase-js` and the
 > Deno edge functions keep working unchanged. See
@@ -16,17 +16,17 @@ The migration is staged so the app keeps running between PRs.
 
 ## Phase plan
 
-| Phase | Scope | Status |
-|------:|-------|:------:|
-| 1a | DB schema bootstrap for Railway — no app changes | **done** (#4) |
-| ~~1b~~ | ~~Data dump/transform/import scripts (Supabase → Railway)~~ | **skipped** — fresh start, see below |
-| 1c | Provision Railway PG, apply bootstrap | **runnable** (`db/migration/apply-bootstrap.sh`) |
-| 2  | Replace Supabase Auth with Auth.js (NextAuth) |  |
-| 3  | Convert Deno edge functions → Node services on Railway |  |
-| 4  | Replace `@supabase/supabase-js` client calls with a Postgres client + service modules |  |
-| 5  | Move storage (Supabase Storage → S3-compatible: R2 / Backblaze / Railway volume) |  |
-| 6  | Replace Realtime subscriptions (custom websocket or third-party — Ably/Pusher) |  |
-| 7  | Cutover + decommission Supabase |  |
+|  Phase | Scope                                                                                 |                      Status                      |
+| -----: | ------------------------------------------------------------------------------------- | :----------------------------------------------: |
+|     1a | DB schema bootstrap for Railway — no app changes                                      |                  **done** (#4)                   |
+| ~~1b~~ | ~~Data dump/transform/import scripts (Supabase → Railway)~~                           |       **skipped** — fresh start, see below       |
+|     1c | Provision Railway PG, apply bootstrap                                                 | **runnable** (`db/migration/apply-bootstrap.sh`) |
+|      2 | Replace Supabase Auth with Auth.js (NextAuth)                                         |                                                  |
+|      3 | Convert Deno edge functions → Node services on Railway                                |                                                  |
+|      4 | Replace `@supabase/supabase-js` client calls with a Postgres client + service modules |                                                  |
+|      5 | Move storage (Supabase Storage → S3-compatible: R2 / Backblaze / Railway volume)      |                                                  |
+|      6 | Replace Realtime subscriptions (custom websocket or third-party — Ably/Pusher)        |                                                  |
+|      7 | Cutover + decommission Supabase                                                       |                                                  |
 
 Each phase is its own draft PR with an explicit test plan. The app stays
 runnable against Supabase until phase 7.
@@ -100,7 +100,7 @@ NOT executed by this PR.
    `CREATE EXTENSION`. Either run `00_extensions.sql` (below) or open the
    Railway PG → "Data" tab → "Query" and paste the file's contents.
 
-3. **Apply the bootstrap** from your laptop with the *public* connection
+3. **Apply the bootstrap** from your laptop with the _public_ connection
    string:
 
    ```bash

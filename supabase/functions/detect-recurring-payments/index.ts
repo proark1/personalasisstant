@@ -1,11 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { strictAppOrigin } from '../_shared/cors.ts';
-import { generateStructured } from '../_shared/geminiStructured.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
+import { generateStructured } from "../_shared/geminiStructured.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "X-Content-Type-Options": "nosniff",
 };
 
@@ -26,7 +27,7 @@ serve(async (req) => {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: authHeader } } },
     );
 
     const token = authHeader.replace("Bearer ", "");
@@ -72,17 +73,35 @@ serve(async (req) => {
       .select("name, provider")
       .eq("user_id", userId);
 
-    const existingNames = (contracts || []).map((c: { name?: string; provider?: string }) =>
-      `${(c.name || "").toLowerCase()}|${(c.provider || "").toLowerCase()}`
+    const existingNames = (contracts || []).map(
+      (c: { name?: string; provider?: string }) =>
+        `${(c.name || "").toLowerCase()}|${(c.provider || "").toLowerCase()}`,
     );
 
     // Filter emails likely related to payments/subscriptions
     const paymentKeywords = [
-      "invoice", "receipt", "payment", "subscription", "billing",
-      "charge", "renewal", "monthly", "yearly", "annual",
-      "plan", "membership", "statement", "order confirmation",
-      "auto-pay", "autopay", "direct debit", "rechnung",
-      "zahlung", "abbuchung", "abonnement", "lastschrift",
+      "invoice",
+      "receipt",
+      "payment",
+      "subscription",
+      "billing",
+      "charge",
+      "renewal",
+      "monthly",
+      "yearly",
+      "annual",
+      "plan",
+      "membership",
+      "statement",
+      "order confirmation",
+      "auto-pay",
+      "autopay",
+      "direct debit",
+      "rechnung",
+      "zahlung",
+      "abbuchung",
+      "abonnement",
+      "lastschrift",
     ];
 
     const relevantEmails = emails.filter((e: { subject?: string; snippet?: string }) => {
@@ -97,13 +116,23 @@ serve(async (req) => {
     }
 
     // Prepare email summaries for AI (limit to keep tokens low)
-    const emailSummaries = relevantEmails.slice(0, 100).map((e: { from_email?: string; from_name?: string; subject?: string; snippet?: string; received_at?: string }) => ({
-      sender: e.from_email || e.from_name || "unknown",
-      senderName: e.from_name || "",
-      subject: e.subject || "",
-      snippet: (e.snippet || "").slice(0, 120),
-      date: e.received_at,
-    }));
+    const emailSummaries = relevantEmails
+      .slice(0, 100)
+      .map(
+        (e: {
+          from_email?: string;
+          from_name?: string;
+          subject?: string;
+          snippet?: string;
+          received_at?: string;
+        }) => ({
+          sender: e.from_email || e.from_name || "unknown",
+          senderName: e.from_name || "",
+          subject: e.subject || "",
+          snippet: (e.snippet || "").slice(0, 120),
+          date: e.received_at,
+        }),
+      );
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
@@ -114,7 +143,9 @@ serve(async (req) => {
     }
 
     const existingContractsList = (contracts || [])
-      .map((c: { name?: string; provider?: string }) => `${c.name} (${c.provider || "no provider"})`)
+      .map(
+        (c: { name?: string; provider?: string }) => `${c.name} (${c.provider || "no provider"})`,
+      )
       .join(", ");
 
     // Native generateContent + responseSchema (the OpenAI-compat endpoint with
@@ -137,11 +168,30 @@ serve(async (req) => {
                   provider: { type: "string", description: "Provider/company full name" },
                   amount: { type: "number", description: "Detected payment amount (0 if unknown)" },
                   frequency: { type: "string", enum: ["monthly", "quarterly", "yearly"] },
-                  category: { type: "string", enum: ["insurance", "utilities", "subscription", "phone", "internet", "streaming", "other"] },
+                  category: {
+                    type: "string",
+                    enum: [
+                      "insurance",
+                      "utilities",
+                      "subscription",
+                      "phone",
+                      "internet",
+                      "streaming",
+                      "other",
+                    ],
+                  },
                   emailCount: { type: "number", description: "Number of matching emails found" },
                   confidence: { type: "string", enum: ["high", "medium", "low"] },
                 },
-                required: ["name", "provider", "amount", "frequency", "category", "emailCount", "confidence"],
+                required: [
+                  "name",
+                  "provider",
+                  "amount",
+                  "frequency",
+                  "category",
+                  "emailCount",
+                  "confidence",
+                ],
               },
             },
           },
@@ -155,7 +205,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    
+
     // Filter out existing contracts
     const newPayments = (parsed.payments || []).filter((p: Record<string, unknown>) => {
       const key = `${(p.name || "").toLowerCase()}|${(p.provider || "").toLowerCase()}`;
@@ -177,8 +227,7 @@ serve(async (req) => {
     console.error("detect-recurring-payments error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
-

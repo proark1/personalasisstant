@@ -1,22 +1,34 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { useFamilyEvents } from '@/hooks/useFamilyEvents';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
-import { format } from 'date-fns';
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { useFamilyEvents } from "@/hooks/useFamilyEvents";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
+import { format } from "date-fns";
 
 const eventTypes = [
-  { value: 'general', label: 'General' },
-  { value: 'birthday', label: 'Birthday' },
-  { value: 'school', label: 'School' },
-  { value: 'medical', label: 'Medical' },
-  { value: 'activity', label: 'Activity' },
-  { value: 'holiday', label: 'Holiday' },
+  { value: "general", label: "General" },
+  { value: "birthday", label: "Birthday" },
+  { value: "school", label: "School" },
+  { value: "medical", label: "Medical" },
+  { value: "activity", label: "Activity" },
+  { value: "holiday", label: "Holiday" },
 ];
 
 interface AddFamilyEventDialogProps {
@@ -25,30 +37,34 @@ interface AddFamilyEventDialogProps {
   defaultDate?: Date | null;
 }
 
-export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFamilyEventDialogProps) {
+export function AddFamilyEventDialog({
+  open,
+  onOpenChange,
+  defaultDate,
+}: AddFamilyEventDialogProps) {
   const { addEvent } = useFamilyEvents();
   const { members } = useFamilyMembers();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    event_type: 'general',
-    related_member_id: '',
-    start_date: '',
-    start_time: '09:00',
-    end_date: '',
-    end_time: '10:00',
-    location: '',
+    title: "",
+    description: "",
+    event_type: "general",
+    related_member_id: "",
+    start_date: "",
+    start_time: "09:00",
+    end_date: "",
+    end_time: "10:00",
+    location: "",
     is_all_day: false,
-    notes: '',
+    notes: "",
   });
 
   useEffect(() => {
     if (defaultDate) {
-      const dateStr = format(defaultDate, 'yyyy-MM-dd');
-      setFormData(prev => ({ 
-        ...prev, 
+      const dateStr = format(defaultDate, "yyyy-MM-dd");
+      setFormData((prev) => ({
+        ...prev,
         start_date: dateStr,
         end_date: dateStr,
       }));
@@ -58,27 +74,27 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.start_date) return;
-    
+
     setIsSubmitting(true);
-    
+
     let startTime: Date;
     let endTime: Date;
-    
+
     if (formData.is_all_day) {
       startTime = new Date(formData.start_date);
       startTime.setHours(0, 0, 0, 0);
       endTime = new Date(formData.end_date || formData.start_date);
       endTime.setHours(23, 59, 59, 999);
     } else {
-      const [startHours, startMinutes] = formData.start_time.split(':');
+      const [startHours, startMinutes] = formData.start_time.split(":");
       startTime = new Date(formData.start_date);
       startTime.setHours(parseInt(startHours), parseInt(startMinutes));
-      
-      const [endHours, endMinutes] = formData.end_time.split(':');
+
+      const [endHours, endMinutes] = formData.end_time.split(":");
       endTime = new Date(formData.end_date || formData.start_date);
       endTime.setHours(parseInt(endHours), parseInt(endMinutes));
     }
-    
+
     const result = await addEvent({
       title: formData.title,
       description: formData.description || null,
@@ -94,20 +110,20 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
     });
 
     setIsSubmitting(false);
-    
+
     if (result) {
       setFormData({
-        title: '',
-        description: '',
-        event_type: 'general',
-        related_member_id: '',
-        start_date: '',
-        start_time: '09:00',
-        end_date: '',
-        end_time: '10:00',
-        location: '',
+        title: "",
+        description: "",
+        event_type: "general",
+        related_member_id: "",
+        start_date: "",
+        start_time: "09:00",
+        end_date: "",
+        end_time: "10:00",
+        location: "",
         is_all_day: false,
-        notes: '',
+        notes: "",
       });
       onOpenChange(false);
     }
@@ -126,7 +142,7 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
               placeholder="Event name"
               required
             />
@@ -137,7 +153,7 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
               <Label>Event Type</Label>
               <Select
                 value={formData.event_type}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, event_type: value }))}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, event_type: value }))}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -151,12 +167,14 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label>Related To</Label>
               <Select
                 value={formData.related_member_id}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, related_member_id: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, related_member_id: value }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select family member" />
@@ -178,7 +196,9 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
             <Switch
               id="is_all_day"
               checked={formData.is_all_day}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_all_day: checked }))}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({ ...prev, is_all_day: checked }))
+              }
             />
           </div>
 
@@ -188,11 +208,13 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
               <Input
                 type="date"
                 value={formData.start_date}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  start_date: e.target.value,
-                  end_date: prev.end_date || e.target.value,
-                }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    start_date: e.target.value,
+                    end_date: prev.end_date || e.target.value,
+                  }))
+                }
                 required
               />
             </div>
@@ -202,7 +224,7 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
                 <Input
                   type="time"
                   value={formData.start_time}
-                  onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, start_time: e.target.value }))}
                 />
               </div>
             )}
@@ -214,7 +236,7 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
               <Input
                 type="date"
                 value={formData.end_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, end_date: e.target.value }))}
                 min={formData.start_date}
               />
             </div>
@@ -224,7 +246,7 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
                 <Input
                   type="time"
                   value={formData.end_time}
-                  onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, end_time: e.target.value }))}
                 />
               </div>
             )}
@@ -234,7 +256,7 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
             <Label>Location</Label>
             <Input
               value={formData.location}
-              onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
               placeholder="Event location"
             />
           </div>
@@ -243,7 +265,7 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
             <Label>Description</Label>
             <Textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               placeholder="Event details..."
               rows={3}
             />
@@ -253,8 +275,11 @@ export function AddFamilyEventDialog({ open, onOpenChange, defaultDate }: AddFam
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !formData.title || !formData.start_date}>
-              {isSubmitting ? 'Adding...' : 'Add Event'}
+            <Button
+              type="submit"
+              disabled={isSubmitting || !formData.title || !formData.start_date}
+            >
+              {isSubmitting ? "Adding..." : "Add Event"}
             </Button>
           </DialogFooter>
         </form>

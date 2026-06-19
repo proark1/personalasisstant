@@ -7,12 +7,12 @@
 // like "remind me to email Sarah".
 
 const RULES: Array<{ keywords: readonly string[]; status: string }> = [
-  { keywords: ['search', 'news', 'latest'],         status: 'Searching the web...' },
-  { keywords: ['task', 'todo', 'remind'],            status: 'Checking your tasks...' },
-  { keywords: ['calendar', 'event', 'schedule'],     status: 'Looking at your calendar...' },
-  { keywords: ['email', 'mail', 'inbox'],            status: 'Checking your emails...' },
-  { keywords: ['health', 'sleep', 'steps'],          status: 'Analyzing health data...' },
-  { keywords: ['contact', 'who'],                    status: 'Searching contacts...' },
+  { keywords: ["search", "news", "latest"], status: "Searching the web..." },
+  { keywords: ["task", "todo", "remind"], status: "Checking your tasks..." },
+  { keywords: ["calendar", "event", "schedule"], status: "Looking at your calendar..." },
+  { keywords: ["email", "mail", "inbox"], status: "Checking your emails..." },
+  { keywords: ["health", "sleep", "steps"], status: "Analyzing health data..." },
+  { keywords: ["contact", "who"], status: "Searching contacts..." },
 ];
 
 export function classifyThinkingStatus(userText: string): string {
@@ -20,5 +20,5 @@ export function classifyThinkingStatus(userText: string): string {
   for (const rule of RULES) {
     if (rule.keywords.some((k) => lower.includes(k))) return rule.status;
   }
-  return 'Thinking...';
+  return "Thinking...";
 }

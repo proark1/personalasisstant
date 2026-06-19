@@ -1,10 +1,10 @@
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { List, LayoutGrid, Layers, Clock } from 'lucide-react';
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { List, LayoutGrid, Layers, Clock } from "lucide-react";
 
-export type TaskView = 'list' | 'kanban' | 'priority' | 'timeline';
+export type TaskView = "list" | "kanban" | "priority" | "timeline";
 
 interface TaskViewSwitcherProps {
   activeView: TaskView;
@@ -13,10 +13,10 @@ interface TaskViewSwitcherProps {
 }
 
 const views: { id: TaskView; icon: React.ElementType; label: string }[] = [
-  { id: 'list', icon: List, label: 'List' },
-  { id: 'kanban', icon: LayoutGrid, label: 'Board' },
-  { id: 'priority', icon: Layers, label: 'Priority' },
-  { id: 'timeline', icon: Clock, label: 'Timeline' },
+  { id: "list", icon: List, label: "List" },
+  { id: "kanban", icon: LayoutGrid, label: "Board" },
+  { id: "priority", icon: Layers, label: "Priority" },
+  { id: "timeline", icon: Clock, label: "Timeline" },
 ];
 
 export function TaskViewSwitcher({ activeView, onViewChange, className }: TaskViewSwitcherProps) {
@@ -28,16 +28,13 @@ export function TaskViewSwitcher({ activeView, onViewChange, className }: TaskVi
         {views.map((view) => {
           const Icon = view.icon;
           const isActive = activeView === view.id;
-          
+
           const button = (
             <Button
               key={view.id}
-              variant={isActive ? 'secondary' : 'ghost'}
+              variant={isActive ? "secondary" : "ghost"}
               size="sm"
-              className={cn(
-                "h-7 px-2 gap-1",
-                isActive && "bg-background shadow-sm"
-              )}
+              className={cn("h-7 px-2 gap-1", isActive && "bg-background shadow-sm")}
               onClick={() => onViewChange(view.id)}
             >
               <Icon className="w-3.5 h-3.5" />

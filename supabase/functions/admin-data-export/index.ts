@@ -9,7 +9,7 @@
 //   export_auth_users → auth.users page (page, perPage)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 // Echo the caller's Origin instead of pinning to APP_URL — preview
 // deploys can land on rotating subdomains, and a static APP_URL
@@ -23,7 +23,7 @@ function buildCors(req: Request): Record<string, string> {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Max-Age": "86400",
-    "Vary": "Origin",
+    Vary: "Origin",
   };
 }
 

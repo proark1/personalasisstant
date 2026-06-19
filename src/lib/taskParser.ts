@@ -1,5 +1,18 @@
-import { addDays, addWeeks, addMonths, setHours, setMinutes, startOfDay, nextMonday, nextTuesday, nextWednesday, nextThursday, nextFriday, nextSaturday, nextSunday } from 'date-fns';
-import { TaskPriority, TaskCategory } from '@/types/flux';
+import {
+  addDays,
+  addWeeks,
+  addMonths,
+  setHours,
+  setMinutes,
+  nextMonday,
+  nextTuesday,
+  nextWednesday,
+  nextThursday,
+  nextFriday,
+  nextSaturday,
+  nextSunday,
+} from "date-fns";
+import { TaskPriority, TaskCategory } from "@/types/flux";
 
 interface ParsedTask {
   title: string;
@@ -9,12 +22,42 @@ interface ParsedTask {
 }
 
 // Priority keywords
-const HIGH_PRIORITY_WORDS = ['urgent', 'asap', 'critical', 'important', 'high priority', '!', '!!', '!!!'];
-const LOW_PRIORITY_WORDS = ['low priority', 'when possible', 'someday', 'eventually', 'low'];
+const HIGH_PRIORITY_WORDS = [
+  "urgent",
+  "asap",
+  "critical",
+  "important",
+  "high priority",
+  "!",
+  "!!",
+  "!!!",
+];
+const LOW_PRIORITY_WORDS = ["low priority", "when possible", "someday", "eventually", "low"];
 
 // Category keywords
-const BUSINESS_WORDS = ['work', 'meeting', 'client', 'project', 'deadline', 'review', 'pr', 'call', 'email', 'report', 'presentation'];
-const _PERSONAL_WORDS = ['home', 'family', 'personal', 'health', 'gym', 'groceries', 'doctor', 'dentist'];
+const BUSINESS_WORDS = [
+  "work",
+  "meeting",
+  "client",
+  "project",
+  "deadline",
+  "review",
+  "pr",
+  "call",
+  "email",
+  "report",
+  "presentation",
+];
+const _PERSONAL_WORDS = [
+  "home",
+  "family",
+  "personal",
+  "health",
+  "gym",
+  "groceries",
+  "doctor",
+  "dentist",
+];
 
 // Time patterns
 const TIME_PATTERNS = [
@@ -22,22 +65,40 @@ const TIME_PATTERNS = [
   { regex: /(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i, extractor: extractTime },
 ];
 
+function dateOnlyDueDate(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
+
 // Date patterns
 const DATE_PATTERNS = [
-  { regex: /\btoday\b/i, extractor: () => startOfDay(new Date()) },
-  { regex: /\btomorrow\b/i, extractor: () => startOfDay(addDays(new Date(), 1)) },
-  { regex: /\bnext week\b/i, extractor: () => startOfDay(addWeeks(new Date(), 1)) },
-  { regex: /\bnext month\b/i, extractor: () => startOfDay(addMonths(new Date(), 1)) },
-  { regex: /\bmonday\b/i, extractor: () => nextMonday(new Date()) },
-  { regex: /\btuesday\b/i, extractor: () => nextTuesday(new Date()) },
-  { regex: /\bwednesday\b/i, extractor: () => nextWednesday(new Date()) },
-  { regex: /\bthursday\b/i, extractor: () => nextThursday(new Date()) },
-  { regex: /\bfriday\b/i, extractor: () => nextFriday(new Date()) },
-  { regex: /\bsaturday\b/i, extractor: () => nextSaturday(new Date()) },
-  { regex: /\bsunday\b/i, extractor: () => nextSunday(new Date()) },
-  { regex: /in (\d+) days?/i, extractor: (match: RegExpMatchArray) => addDays(new Date(), parseInt(match[1])) },
-  { regex: /in (\d+) weeks?/i, extractor: (match: RegExpMatchArray) => addWeeks(new Date(), parseInt(match[1])) },
-  { regex: /in (\d+) months?/i, extractor: (match: RegExpMatchArray) => addMonths(new Date(), parseInt(match[1])) },
+  { regex: /\btoday\b/i, extractor: () => dateOnlyDueDate(new Date()) },
+  { regex: /\btomorrow\b/i, extractor: () => dateOnlyDueDate(addDays(new Date(), 1)) },
+  { regex: /\bnext week\b/i, extractor: () => dateOnlyDueDate(addWeeks(new Date(), 1)) },
+  { regex: /\bnext month\b/i, extractor: () => dateOnlyDueDate(addMonths(new Date(), 1)) },
+  { regex: /\bmonday\b/i, extractor: () => dateOnlyDueDate(nextMonday(new Date())) },
+  { regex: /\btuesday\b/i, extractor: () => dateOnlyDueDate(nextTuesday(new Date())) },
+  { regex: /\bwednesday\b/i, extractor: () => dateOnlyDueDate(nextWednesday(new Date())) },
+  { regex: /\bthursday\b/i, extractor: () => dateOnlyDueDate(nextThursday(new Date())) },
+  { regex: /\bfriday\b/i, extractor: () => dateOnlyDueDate(nextFriday(new Date())) },
+  { regex: /\bsaturday\b/i, extractor: () => dateOnlyDueDate(nextSaturday(new Date())) },
+  { regex: /\bsunday\b/i, extractor: () => dateOnlyDueDate(nextSunday(new Date())) },
+  {
+    regex: /in (\d+) days?/i,
+    extractor: (match: RegExpMatchArray) =>
+      dateOnlyDueDate(addDays(new Date(), parseInt(match[1]))),
+  },
+  {
+    regex: /in (\d+) weeks?/i,
+    extractor: (match: RegExpMatchArray) =>
+      dateOnlyDueDate(addWeeks(new Date(), parseInt(match[1]))),
+  },
+  {
+    regex: /in (\d+) months?/i,
+    extractor: (match: RegExpMatchArray) =>
+      dateOnlyDueDate(addMonths(new Date(), parseInt(match[1]))),
+  },
 ];
 
 function extractTime(match: RegExpMatchArray): { hours: number; minutes: number } {
@@ -45,8 +106,8 @@ function extractTime(match: RegExpMatchArray): { hours: number; minutes: number 
   const minutes = match[2] ? parseInt(match[2]) : 0;
   const period = match[3]?.toLowerCase();
 
-  if (period === 'pm' && hours < 12) hours += 12;
-  if (period === 'am' && hours === 12) hours = 0;
+  if (period === "pm" && hours < 12) hours += 12;
+  if (period === "am" && hours === 12) hours = 0;
 
   return { hours, minutes };
 }
@@ -54,24 +115,24 @@ function extractTime(match: RegExpMatchArray): { hours: number; minutes: number 
 export function parseTaskInput(input: string): ParsedTask {
   let title = input.trim();
   let dueDate: Date | undefined;
-  let priority: TaskPriority = 'medium';
-  let category: TaskCategory = 'personal';
+  let priority: TaskPriority = "medium";
+  let category: TaskCategory = "personal";
 
   const lowerInput = input.toLowerCase();
 
   // Extract priority
   for (const word of HIGH_PRIORITY_WORDS) {
     if (lowerInput.includes(word)) {
-      priority = 'high';
-      title = title.replace(new RegExp(word, 'gi'), '').trim();
+      priority = "high";
+      title = title.replace(new RegExp(word, "gi"), "").trim();
       break;
     }
   }
-  if (priority === 'medium') {
+  if (priority === "medium") {
     for (const word of LOW_PRIORITY_WORDS) {
       if (lowerInput.includes(word)) {
-        priority = 'low';
-        title = title.replace(new RegExp(word, 'gi'), '').trim();
+        priority = "low";
+        title = title.replace(new RegExp(word, "gi"), "").trim();
         break;
       }
     }
@@ -80,7 +141,7 @@ export function parseTaskInput(input: string): ParsedTask {
   // Extract category
   for (const word of BUSINESS_WORDS) {
     if (lowerInput.includes(word)) {
-      category = 'business';
+      category = "business";
       break;
     }
   }
@@ -89,7 +150,7 @@ export function parseTaskInput(input: string): ParsedTask {
     const match = title.match(pattern.regex);
     if (match) {
       dueDate = pattern.extractor(match);
-      title = title.replace(pattern.regex, '').trim();
+      title = title.replace(pattern.regex, "").trim();
       break;
     }
   }
@@ -101,7 +162,7 @@ export function parseTaskInput(input: string): ParsedTask {
       if (match) {
         const time = pattern.extractor(match);
         dueDate = setHours(setMinutes(dueDate, time.minutes), time.hours);
-        title = title.replace(pattern.regex, '').trim();
+        title = title.replace(pattern.regex, "").trim();
         break;
       }
     }
@@ -109,8 +170,8 @@ export function parseTaskInput(input: string): ParsedTask {
 
   // Clean up title
   title = title
-    .replace(/\s+/g, ' ')
-    .replace(/^[-,\s]+|[-,\s]+$/g, '')
+    .replace(/\s+/g, " ")
+    .replace(/^[-,\s]+|[-,\s]+$/g, "")
     .trim();
 
   // Capitalize first letter

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 export interface ProactiveReminder {
   id: string;
@@ -10,7 +10,7 @@ export interface ProactiveReminder {
   trigger_entity_id?: string;
   title: string;
   message: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  priority: "low" | "medium" | "high" | "urgent";
   scheduled_for: string;
   delivered_at?: string;
   read_at?: string;
@@ -33,24 +33,26 @@ export function useProactiveReminders() {
 
     try {
       const { data, error } = await supabase
-        .from('proactive_reminders')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .or('snooze_until.is.null,snooze_until.lt.now()')
-        .order('scheduled_for', { ascending: false })
+        .from("proactive_reminders")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .or("snooze_until.is.null,snooze_until.lt.now()")
+        .order("scheduled_for", { ascending: false })
         .limit(50);
 
       if (error) {
-        console.error('Error fetching proactive reminders:', error);
+        console.error("Error fetching proactive reminders:", error);
         return;
       }
 
-      const activeReminders = ((data || []) as ProactiveReminder[]).filter(r => r.is_active && !r.action_taken);
+      const activeReminders = ((data || []) as ProactiveReminder[]).filter(
+        (r) => r.is_active && !r.action_taken,
+      );
       setReminders(activeReminders);
-      setUnreadCount(activeReminders.filter(r => !r.read_at).length);
+      setUnreadCount(activeReminders.filter((r) => !r.read_at).length);
     } catch (err) {
-      console.error('Failed to fetch proactive reminders:', err);
+      console.error("Failed to fetch proactive reminders:", err);
     } finally {
       setLoading(false);
     }
@@ -65,19 +67,19 @@ export function useProactiveReminders() {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel('proactive-reminders')
+      .channel("proactive-reminders")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'proactive_reminders',
+          event: "*",
+          schema: "public",
+          table: "proactive_reminders",
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Proactive reminder update:', payload);
+          console.log("Proactive reminder update:", payload);
           fetchReminders();
-        }
+        },
       )
       .subscribe();
 
@@ -90,16 +92,16 @@ export function useProactiveReminders() {
   const markAsRead = async (reminderId: string) => {
     try {
       await supabase
-        .from('proactive_reminders')
+        .from("proactive_reminders")
         .update({ read_at: new Date().toISOString() })
-        .eq('id', reminderId);
+        .eq("id", reminderId);
 
-      setReminders(prev => 
-        prev.map(r => r.id === reminderId ? { ...r, read_at: new Date().toISOString() } : r)
+      setReminders((prev) =>
+        prev.map((r) => (r.id === reminderId ? { ...r, read_at: new Date().toISOString() } : r)),
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
-      console.error('Failed to mark reminder as read:', err);
+      console.error("Failed to mark reminder as read:", err);
     }
   };
 
@@ -108,38 +110,38 @@ export function useProactiveReminders() {
 
     try {
       await supabase
-        .from('proactive_reminders')
+        .from("proactive_reminders")
         .update({ read_at: new Date().toISOString() })
-        .eq('user_id', user.id)
-        .is('read_at', null);
+        .eq("user_id", user.id)
+        .is("read_at", null);
 
-      setReminders(prev => 
-        prev.map(r => ({ ...r, read_at: r.read_at || new Date().toISOString() }))
+      setReminders((prev) =>
+        prev.map((r) => ({ ...r, read_at: r.read_at || new Date().toISOString() })),
       );
       setUnreadCount(0);
     } catch (err) {
-      console.error('Failed to mark all reminders as read:', err);
+      console.error("Failed to mark all reminders as read:", err);
     }
   };
 
   const dismissReminder = async (reminderId: string) => {
     try {
       await supabase
-        .from('proactive_reminders')
-        .update({ 
+        .from("proactive_reminders")
+        .update({
           is_active: false,
           action_taken: true,
-          action_type: 'dismissed'
+          action_type: "dismissed",
         })
-        .eq('id', reminderId);
+        .eq("id", reminderId);
 
-      setReminders(prev => prev.filter(r => r.id !== reminderId));
-      setUnreadCount(prev => {
-        const reminder = reminders.find(r => r.id === reminderId);
+      setReminders((prev) => prev.filter((r) => r.id !== reminderId));
+      setUnreadCount((prev) => {
+        const reminder = reminders.find((r) => r.id === reminderId);
         return reminder && !reminder.read_at ? Math.max(0, prev - 1) : prev;
       });
     } catch (err) {
-      console.error('Failed to dismiss reminder:', err);
+      console.error("Failed to dismiss reminder:", err);
     }
   };
 
@@ -148,33 +150,33 @@ export function useProactiveReminders() {
 
     try {
       await supabase
-        .from('proactive_reminders')
-        .update({ 
+        .from("proactive_reminders")
+        .update({
           snooze_until: snoozeUntil,
-          action_type: 'snoozed'
+          action_type: "snoozed",
         })
-        .eq('id', reminderId);
+        .eq("id", reminderId);
 
-      setReminders(prev => prev.filter(r => r.id !== reminderId));
+      setReminders((prev) => prev.filter((r) => r.id !== reminderId));
     } catch (err) {
-      console.error('Failed to snooze reminder:', err);
+      console.error("Failed to snooze reminder:", err);
     }
   };
 
   const completeReminder = async (reminderId: string) => {
     try {
       await supabase
-        .from('proactive_reminders')
-        .update({ 
+        .from("proactive_reminders")
+        .update({
           is_active: false,
           action_taken: true,
-          action_type: 'completed'
+          action_type: "completed",
         })
-        .eq('id', reminderId);
+        .eq("id", reminderId);
 
-      setReminders(prev => prev.filter(r => r.id !== reminderId));
+      setReminders((prev) => prev.filter((r) => r.id !== reminderId));
     } catch (err) {
-      console.error('Failed to complete reminder:', err);
+      console.error("Failed to complete reminder:", err);
     }
   };
 

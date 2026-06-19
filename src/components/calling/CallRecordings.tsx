@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useCallRecordings, CallRecording } from '@/hooks/useCallRecordings';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useState } from "react";
+import { useCallRecordings, CallRecording } from "@/hooks/useCallRecordings";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,18 +12,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { 
-  Play, 
-  Pause,
-  Download, 
-  Trash2,
-  Circle,
-  RefreshCw,
-  Clock
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { useRef } from 'react';
+} from "@/components/ui/alert-dialog";
+import { Play, Pause, Download, Trash2, Circle, RefreshCw, Clock } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { useRef } from "react";
 
 interface CallRecordingsProps {
   userId: string;
@@ -36,17 +28,22 @@ export function CallRecordings({ userId }: CallRecordingsProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return '';
+    if (!bytes) return "";
     if (bytes < 1024 * 1024) {
       return `${(bytes / 1024).toFixed(1)} KB`;
     }
@@ -69,7 +66,7 @@ export function CallRecordings({ userId }: CallRecordingsProps) {
   };
 
   const handleDownload = (recording: CallRecording) => {
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = recording.fileUrl;
     link.download = `call-recording-${recording.id}.webm`;
     document.body.appendChild(link);
@@ -109,32 +106,31 @@ export function CallRecordings({ userId }: CallRecordingsProps) {
           <RefreshCw className="w-4 h-4" />
         </Button>
       </div>
-      
+
       <ScrollArea className="flex-1">
         <div className="divide-y divide-border">
-          {recordings.map(recording => {
-            const otherName = recording.callerId === userId 
-              ? recording.calleeName 
-              : recording.callerName;
+          {recordings.map((recording) => {
+            const otherName =
+              recording.callerId === userId ? recording.calleeName : recording.callerName;
             const isPlaying = playingId === recording.id;
-            
+
             return (
-              <div 
-                key={recording.id} 
+              <div
+                key={recording.id}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
               >
                 <Avatar className="h-10 w-10 shrink-0">
                   <AvatarFallback className="bg-destructive/10 text-destructive">
-                    {getInitials(otherName || 'UN')}
+                    {getInitials(otherName || "UN")}
                   </AvatarFallback>
                 </Avatar>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-foreground truncate">{otherName}</span>
                     <Circle className="w-2 h-2 fill-destructive text-destructive shrink-0" />
                   </div>
-                  
+
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Clock className="w-3 h-3" />
                     <span>{formatDuration(recording.durationSeconds)}</span>
@@ -146,26 +142,22 @@ export function CallRecordings({ userId }: CallRecordingsProps) {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-1 shrink-0">
                   <span className="text-xs text-muted-foreground whitespace-nowrap mr-2">
                     {formatDistanceToNow(recording.createdAt, { addSuffix: true })}
                   </span>
-                  
+
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
                     onClick={() => handlePlay(recording)}
-                    title={isPlaying ? 'Pause' : 'Play'}
+                    title={isPlaying ? "Pause" : "Play"}
                   >
-                    {isPlaying ? (
-                      <Pause className="w-4 h-4" />
-                    ) : (
-                      <Play className="w-4 h-4" />
-                    )}
+                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                   </Button>
-                  
+
                   <Button
                     variant="ghost"
                     size="icon"
@@ -175,7 +167,7 @@ export function CallRecordings({ userId }: CallRecordingsProps) {
                   >
                     <Download className="w-4 h-4" />
                   </Button>
-                  
+
                   <Button
                     variant="ghost"
                     size="icon"
@@ -202,7 +194,10 @@ export function CallRecordings({ userId }: CallRecordingsProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

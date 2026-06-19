@@ -1,12 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'X-Content-Type-Options': 'nosniff',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "X-Content-Type-Options": "nosniff",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 interface UserProfile {
@@ -71,7 +71,13 @@ interface ContextData {
 }
 
 interface VoiceAction {
-  type: 'create_task' | 'edit_task' | 'complete_task' | 'trash_task' | 'restore_task' | 'reschedule_task';
+  type:
+    | "create_task"
+    | "edit_task"
+    | "complete_task"
+    | "trash_task"
+    | "restore_task"
+    | "reschedule_task";
   taskTitle?: string;
   taskId?: string;
   updates?: {
@@ -85,7 +91,7 @@ interface VoiceAction {
 }
 
 interface LiveSessionRequest {
-  action: 'send_audio' | 'send_text';
+  action: "send_audio" | "send_text";
   personality?: string;
   audio?: string;
   text?: string;
@@ -95,16 +101,23 @@ interface LiveSessionRequest {
 }
 
 const personalityPrompts: Record<string, string> = {
-  balanced: "You are DarAI, a helpful and balanced AI assistant. Be clear, supportive, and efficient.",
-  strict: "You are DarAI in strict mode. Be direct, focused on productivity, and push the user to complete their tasks. No fluff, just results.",
-  supportive: "You are DarAI in supportive mode. Be empathetic, encouraging, and understanding. Celebrate progress and be patient.",
-  creative: "You are DarAI in creative mode. Think outside the box, brainstorm freely, and encourage exploration of new ideas.",
+  balanced:
+    "You are DarAI, a helpful and balanced AI assistant. Be clear, supportive, and efficient.",
+  strict:
+    "You are DarAI in strict mode. Be direct, focused on productivity, and push the user to complete their tasks. No fluff, just results.",
+  supportive:
+    "You are DarAI in supportive mode. Be empathetic, encouraging, and understanding. Celebrate progress and be patient.",
+  creative:
+    "You are DarAI in creative mode. Think outside the box, brainstorm freely, and encourage exploration of new ideas.",
 };
 
 // Detect task-related commands in user input
-function detectTaskCommand(input: string, allTasks?: TaskItem[]): { command: string | null; details: Record<string, unknown> } {
+function detectTaskCommand(
+  input: string,
+  allTasks?: TaskItem[],
+): { command: string | null; details: Record<string, unknown> } {
   const text = input.toLowerCase().trim();
-  
+
   // Create task patterns
   const createPatterns = [
     /(?:create|add|new|make)\s+(?:a\s+)?(?:new\s+)?task\s*(?:called|named|titled)?\s*[:-]?\s*["']?(.+?)["']?$/i,
@@ -112,14 +125,14 @@ function detectTaskCommand(input: string, allTasks?: TaskItem[]): { command: str
     /(?:remind me to|i need to|i have to|i should|i must)\s+(.+)/i,
     /(?:erinner mich an|ich muss|ich sollte)\s+(.+)/i,
   ];
-  
+
   for (const pattern of createPatterns) {
     const match = text.match(pattern);
     if (match && match[1]) {
-      return { command: 'create', details: { title: match[1].trim() } };
+      return { command: "create", details: { title: match[1].trim() } };
     }
   }
-  
+
   // Complete/done task patterns
   const completePatterns = [
     /(?:mark|set)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?\s+(?:as\s+)?(?:done|complete|completed|finished)/i,
@@ -127,115 +140,119 @@ function detectTaskCommand(input: string, allTasks?: TaskItem[]): { command: str
     /(?:ich habe|ich bin fertig mit|erledigt)\s+(?:die\s+)?(?:aufgabe\s+)?["']?(.+?)["']?/i,
     /["']?(.+?)["']?\s+(?:is\s+)?(?:done|complete|finished|erledigt)/i,
   ];
-  
+
   for (const pattern of completePatterns) {
     const match = text.match(pattern);
     if (match && match[1]) {
       const taskTitle = match[1].trim();
       const matchedTask = findMatchingTask(taskTitle, allTasks);
-      return { 
-        command: 'complete', 
-        details: { 
+      return {
+        command: "complete",
+        details: {
           title: taskTitle,
-          taskId: matchedTask?.id 
-        } 
+          taskId: matchedTask?.id,
+        },
       };
     }
   }
-  
+
   // Trash/delete task patterns
   const trashPatterns = [
     /(?:trash|delete|remove|throw away)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?/i,
     /(?:put|move)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?\s+(?:in|to)\s+(?:the\s+)?trash/i,
     /(?:lösch|entfern|weg mit)\s+(?:die\s+)?(?:aufgabe\s+)?["']?(.+?)["']?/i,
   ];
-  
+
   for (const pattern of trashPatterns) {
     const match = text.match(pattern);
     if (match && match[1]) {
       const taskTitle = match[1].trim();
       const matchedTask = findMatchingTask(taskTitle, allTasks);
-      return { 
-        command: 'trash', 
-        details: { 
+      return {
+        command: "trash",
+        details: {
           title: taskTitle,
-          taskId: matchedTask?.id 
-        } 
+          taskId: matchedTask?.id,
+        },
       };
     }
   }
-  
+
   // Reschedule task patterns
   const reschedulePatterns = [
     /(?:move|reschedule|shift|change)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?\s+(?:to|for)\s+(.+)/i,
     /(?:verschieb|ändere)\s+(?:die\s+)?(?:aufgabe\s+)?["']?(.+?)["']?\s+(?:auf|zu|für)\s+(.+)/i,
   ];
-  
+
   for (const pattern of reschedulePatterns) {
     const match = text.match(pattern);
     if (match && match[1] && match[2]) {
       const taskTitle = match[1].trim();
       const matchedTask = findMatchingTask(taskTitle, allTasks);
-      return { 
-        command: 'reschedule', 
-        details: { 
+      return {
+        command: "reschedule",
+        details: {
           title: taskTitle,
           taskId: matchedTask?.id,
-          newDateText: match[2].trim()
-        } 
+          newDateText: match[2].trim(),
+        },
       };
     }
   }
-  
+
   // Edit task patterns
   const editPatterns = [
     /(?:edit|update|change|modify)\s+(?:the\s+)?(?:task\s+)?["']?(.+?)["']?\s+(?:to|as)\s+["']?(.+?)["']?$/i,
     /(?:rename|bearbeite|ändere)\s+(?:die\s+)?(?:aufgabe\s+)?["']?(.+?)["']?\s+(?:zu|in)\s+["']?(.+?)["']?$/i,
   ];
-  
+
   for (const pattern of editPatterns) {
     const match = text.match(pattern);
     if (match && match[1] && match[2]) {
       const taskTitle = match[1].trim();
       const matchedTask = findMatchingTask(taskTitle, allTasks);
-      return { 
-        command: 'edit', 
-        details: { 
+      return {
+        command: "edit",
+        details: {
           title: taskTitle,
           taskId: matchedTask?.id,
-          newTitle: match[2].trim()
-        } 
+          newTitle: match[2].trim(),
+        },
       };
     }
   }
-  
+
   return { command: null, details: null };
 }
 
 // Find a task that matches the given title (fuzzy matching)
 function findMatchingTask(searchTitle: string, tasks?: TaskItem[]): TaskItem | null {
   if (!tasks || tasks.length === 0) return null;
-  
+
   const search = searchTitle.toLowerCase().trim();
-  
+
   // Exact match first
-  let match = tasks.find(t => t.title.toLowerCase() === search);
+  let match = tasks.find((t) => t.title.toLowerCase() === search);
   if (match) return match;
-  
+
   // Contains match
-  match = tasks.find(t => t.title.toLowerCase().includes(search) || search.includes(t.title.toLowerCase()));
+  match = tasks.find(
+    (t) => t.title.toLowerCase().includes(search) || search.includes(t.title.toLowerCase()),
+  );
   if (match) return match;
-  
+
   // Word-based fuzzy match
   const searchWords = search.split(/\s+/);
   for (const task of tasks) {
     const taskWords = task.title.toLowerCase().split(/\s+/);
-    const matchingWords = searchWords.filter(sw => taskWords.some(tw => tw.includes(sw) || sw.includes(tw)));
+    const matchingWords = searchWords.filter((sw) =>
+      taskWords.some((tw) => tw.includes(sw) || sw.includes(tw)),
+    );
     if (matchingWords.length >= Math.min(2, searchWords.length)) {
       return task;
     }
   }
-  
+
   return null;
 }
 
@@ -243,27 +260,35 @@ function findMatchingTask(searchTitle: string, tasks?: TaskItem[]): TaskItem | n
 function parseNaturalDate(text: string): string | null {
   const lower = text.toLowerCase().trim();
   const now = new Date();
-  
-  if (lower === 'today' || lower === 'heute') {
+
+  if (lower === "today" || lower === "heute") {
     return now.toISOString();
   }
-  
-  if (lower === 'tomorrow' || lower === 'morgen') {
+
+  if (lower === "tomorrow" || lower === "morgen") {
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow.toISOString();
   }
-  
-  if (lower === 'next week' || lower === 'nächste woche') {
+
+  if (lower === "next week" || lower === "nächste woche") {
     const nextWeek = new Date(now);
     nextWeek.setDate(nextWeek.getDate() + 7);
     return nextWeek.toISOString();
   }
-  
+
   // Day names
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const germanDays = ['sonntag', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag'];
-  
+  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const germanDays = [
+    "sonntag",
+    "montag",
+    "dienstag",
+    "mittwoch",
+    "donnerstag",
+    "freitag",
+    "samstag",
+  ];
+
   for (let i = 0; i < days.length; i++) {
     if (lower.includes(days[i]) || lower.includes(germanDays[i])) {
       const targetDay = i;
@@ -275,47 +300,48 @@ function parseNaturalDate(text: string): string | null {
       return target.toISOString();
     }
   }
-  
+
   // Try parsing as date
   const parsed = new Date(text);
   if (!isNaN(parsed.getTime())) {
     return parsed.toISOString();
   }
-  
+
   return null;
 }
 
 function looksLikeAboutMeQuestion(input?: string): boolean {
-  const t = (input || '').trim().toLowerCase();
+  const t = (input || "").trim().toLowerCase();
   if (!t) return false;
   return (
-    t.includes('was weisst du ueber mich') ||
-    t.includes('was weißt du über mich') ||
-    t.includes('wer bin ich') ||
-    t.includes('who am i') ||
-    t.includes('what do you know about me')
+    t.includes("was weisst du ueber mich") ||
+    t.includes("was weißt du über mich") ||
+    t.includes("wer bin ich") ||
+    t.includes("who am i") ||
+    t.includes("what do you know about me")
   );
 }
 
 function buildAboutMeAnswerGerman(profile?: UserProfile): string {
-  if (!profile) return 'Ich habe gerade keine Profildaten von dir geladen.';
+  if (!profile) return "Ich habe gerade keine Profildaten von dir geladen.";
 
   const name = profile.displayName?.trim();
   const role = profile.role?.trim();
   const businesses = (profile.businesses || []).map((b) => b.trim()).filter(Boolean);
-  const location = [profile.locationCity, profile.locationCountry].filter(Boolean).join(', ');
+  const location = [profile.locationCity, profile.locationCountry].filter(Boolean).join(", ");
 
   const lines: string[] = [];
   if (name) lines.push(`Dein Name (laut Profil) ist: ${name}.`);
-  else lines.push('Deinen Namen habe ich in deinem Profil nicht gespeichert.');
+  else lines.push("Deinen Namen habe ich in deinem Profil nicht gespeichert.");
 
   if (role) lines.push(`Deine Rolle: ${role}.`);
-  if (businesses.length) lines.push(`Deine Businesses/Projekte (laut Profil): ${businesses.join(', ')}.`);
+  if (businesses.length)
+    lines.push(`Deine Businesses/Projekte (laut Profil): ${businesses.join(", ")}.`);
   if (location) lines.push(`Dein Standort (laut Profil): ${location}.`);
 
-  if (lines.length === 0) return 'Ich habe aktuell keine Profildetails von dir gespeichert.';
+  if (lines.length === 0) return "Ich habe aktuell keine Profildetails von dir gespeichert.";
 
-  return `${lines.join(' ')} Wenn etwas davon nicht stimmt, sag mir kurz was ich im Profil korrigieren soll.`;
+  return `${lines.join(" ")} Wenn etwas davon nicht stimmt, sag mir kurz was ich im Profil korrigieren soll.`;
 }
 
 function buildUserContext(profile?: UserProfile): string {
@@ -324,60 +350,66 @@ function buildUserContext(profile?: UserProfile): string {
   }
 
   const parts: string[] = [];
-  
+
   if (profile.displayName) {
     parts.push(`**NAME**: ${profile.displayName}`);
   }
-  
+
   if (profile.role) {
     parts.push(`**ROLE**: ${profile.role}`);
   }
-  
+
   if (profile.businesses && profile.businesses.length > 0) {
-    parts.push(`**BUSINESSES**:\n${profile.businesses.map((b, i) => `  ${i + 1}. ${b}`).join('\n')}`);
+    parts.push(
+      `**BUSINESSES**:\n${profile.businesses.map((b, i) => `  ${i + 1}. ${b}`).join("\n")}`,
+    );
   }
-  
+
   if (profile.locationCity && profile.locationCountry) {
     parts.push(`**LOCATION**: ${profile.locationCity}, ${profile.locationCountry}`);
   } else if (profile.locationCountry) {
     parts.push(`**LOCATION**: ${profile.locationCountry}`);
   }
-  
+
   if (profile.timezone) {
     parts.push(`**TIMEZONE**: ${profile.timezone}`);
   }
-  
+
   if (profile.interests && profile.interests.length > 0) {
-    parts.push(`**INTERESTS**: ${profile.interests.join(', ')}`);
+    parts.push(`**INTERESTS**: ${profile.interests.join(", ")}`);
   }
-  
+
   if (profile.skills && profile.skills.length > 0) {
-    parts.push(`**SKILLS**: ${profile.skills.join(', ')}`);
+    parts.push(`**SKILLS**: ${profile.skills.join(", ")}`);
   }
-  
+
   if (profile.goals) {
     parts.push(`**GOALS**: ${profile.goals}`);
   }
 
-  return `\n\n## USER IDENTITY\n${parts.join('\n')}`;
+  return `\n\n## USER IDENTITY\n${parts.join("\n")}`;
 }
 
 function buildDataContext(contextData?: ContextData): string {
-  if (!contextData) return '';
+  if (!contextData) return "";
 
   const parts: string[] = [];
   const now = new Date();
-  
-  parts.push(`\n\n## Current Date & Time\n${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
 
-  parts.push(`\n\n## Quick Stats\n- ${contextData.totalPendingTasks || 0} pending tasks (${contextData.totalOverdue || 0} overdue)\n- ${contextData.totalEvents || 0} upcoming events`);
+  parts.push(
+    `\n\n## Current Date & Time\n${now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} at ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`,
+  );
+
+  parts.push(
+    `\n\n## Quick Stats\n- ${contextData.totalPendingTasks || 0} pending tasks (${contextData.totalOverdue || 0} overdue)\n- ${contextData.totalEvents || 0} upcoming events`,
+  );
 
   // All tasks for reference
   if (contextData.allTasks && contextData.allTasks.length > 0) {
     parts.push(`\n\n## ALL ACTIVE TASKS (for command matching)`);
     for (const task of contextData.allTasks.slice(0, 20)) {
-      const status = task.completed ? '✓' : '○';
-      const due = task.dueDate ? ` - due ${new Date(task.dueDate).toLocaleDateString()}` : '';
+      const status = task.completed ? "✓" : "○";
+      const due = task.dueDate ? ` - due ${new Date(task.dueDate).toLocaleDateString()}` : "";
       parts.push(`- [${status}] "${task.title}" (${task.priority})${due} [ID: ${task.id}]`);
     }
   }
@@ -385,7 +417,9 @@ function buildDataContext(contextData?: ContextData): string {
   if (contextData.overdueTasks && contextData.overdueTasks.length > 0) {
     parts.push(`\n\n## OVERDUE TASKS`);
     for (const task of contextData.overdueTasks) {
-      parts.push(`- ${task.title} (${task.priority}) - was due ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}`);
+      parts.push(
+        `- ${task.title} (${task.priority}) - was due ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ""}`,
+      );
     }
   }
 
@@ -400,71 +434,90 @@ function buildDataContext(contextData?: ContextData): string {
     parts.push(`\n\n## CALENDAR EVENTS`);
     for (const event of contextData.upcomingEvents) {
       const eventDate = new Date(event.startTime);
-      const dateStr = eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      const timeStr = eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = eventDate.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      const timeStr = eventDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
       parts.push(`- ${event.title} - ${dateStr} at ${timeStr}`);
     }
   }
 
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   // Auth gate
-  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   {
-    const _sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user }, error } = await _sb.auth.getUser();
+    const _sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const {
+      data: { user },
+      error,
+    } = await _sb.auth.getUser();
     if (error || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured');
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const { action, personality = 'balanced', audio, text, userProfile, contextData, memories } = await req.json() as LiveSessionRequest;
+    const {
+      action,
+      personality = "balanced",
+      audio,
+      text,
+      userProfile,
+      contextData,
+      memories,
+    } = (await req.json()) as LiveSessionRequest;
 
-    console.log('=== GEMINI LIVE REQUEST ===');
-    console.log('Action:', action);
-    console.log('Text:', text?.substring(0, 100));
+    console.log("=== GEMINI LIVE REQUEST ===");
+    console.log("Action:", action);
+    console.log("Text:", text?.substring(0, 100));
 
     // Check for task commands in the text
-    const { command, details } = detectTaskCommand(text || '', contextData?.allTasks);
-    
+    const { command, details } = detectTaskCommand(text || "", contextData?.allTasks);
+
     if (command && details) {
-      console.log('Task command detected:', command, details);
-      
+      console.log("Task command detected:", command, details);
+
       let voiceAction: VoiceAction | null = null;
-      let responseText = '';
-      
+      let responseText = "";
+
       switch (command) {
-        case 'create':
+        case "create":
           voiceAction = {
-            type: 'create_task',
+            type: "create_task",
             taskTitle: details.title,
           };
           responseText = `I'll create a new task: "${details.title}". Done!`;
           break;
-          
-        case 'complete':
+
+        case "complete":
           if (details.taskId) {
             voiceAction = {
-              type: 'complete_task',
+              type: "complete_task",
               taskId: details.taskId,
               taskTitle: details.title,
             };
@@ -473,11 +526,11 @@ serve(async (req) => {
             responseText = `I couldn't find a task matching "${details.title}". Can you be more specific?`;
           }
           break;
-          
-        case 'trash':
+
+        case "trash":
           if (details.taskId) {
             voiceAction = {
-              type: 'trash_task',
+              type: "trash_task",
               taskId: details.taskId,
               taskTitle: details.title,
             };
@@ -486,17 +539,21 @@ serve(async (req) => {
             responseText = `I couldn't find a task matching "${details.title}". Which task do you want to delete?`;
           }
           break;
-          
-        case 'reschedule': {
+
+        case "reschedule": {
           const newDate = parseNaturalDate(details.newDateText);
           if (details.taskId && newDate) {
             voiceAction = {
-              type: 'reschedule_task',
+              type: "reschedule_task",
               taskId: details.taskId,
               taskTitle: details.title,
               newDate: newDate,
             };
-            const dateStr = new Date(newDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+            const dateStr = new Date(newDate).toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            });
             responseText = `Rescheduling "${details.title}" to ${dateStr}.`;
           } else if (!details.taskId) {
             responseText = `I couldn't find a task matching "${details.title}".`;
@@ -505,11 +562,11 @@ serve(async (req) => {
           }
           break;
         }
-          
-        case 'edit':
+
+        case "edit":
           if (details.taskId) {
             voiceAction = {
-              type: 'edit_task',
+              type: "edit_task",
               taskId: details.taskId,
               taskTitle: details.title,
               updates: { title: details.newTitle },
@@ -520,27 +577,27 @@ serve(async (req) => {
           }
           break;
       }
-      
+
       return new Response(
-        JSON.stringify({ 
-          text: responseText, 
-          action: voiceAction 
+        JSON.stringify({
+          text: responseText,
+          action: voiceAction,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     const userContext = buildUserContext(userProfile);
     const dataContext = buildDataContext(contextData);
-    
-    let memoryContext = '';
+
+    let memoryContext = "";
     if (memories && memories.length > 0) {
       memoryContext = `\n\n## LONG-TERM MEMORY (Things you know about this user)\n`;
       for (const mem of memories) {
-        memoryContext += `- [${mem.type}]${mem.category ? ` (${mem.category})` : ''} ${mem.key}: "${mem.value}"\n`;
+        memoryContext += `- [${mem.type}]${mem.category ? ` (${mem.category})` : ""} ${mem.key}: "${mem.value}"\n`;
       }
     }
-    
+
     const systemPrompt = `## CRITICAL RULES
 1. NEVER INVENT OR FABRICATE any names, companies, tasks, or facts
 2. ONLY USE the exact data provided below
@@ -568,27 +625,27 @@ The user can also give you commands like:
 
 These commands are processed automatically, so just confirm when you recognize them.`;
 
-    if (action === 'send_text') {
+    if (action === "send_text") {
       if (looksLikeAboutMeQuestion(text)) {
         const safe = buildAboutMeAnswerGerman(userProfile);
         return new Response(JSON.stringify({ text: safe }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             systemInstruction: {
               parts: [{ text: systemPrompt }],
             },
             contents: [
               {
-                role: 'user',
-                parts: [{ text: text ? String(text) : '' }],
+                role: "user",
+                parts: [{ text: text ? String(text) : "" }],
               },
             ],
             generationConfig: {
@@ -596,46 +653,47 @@ These commands are processed automatically, so just confirm when you recognize t
               maxOutputTokens: 512,
             },
           }),
-        }
+        },
       );
-      
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Gemini API error:', response.status, errorText);
+        console.error("Gemini API error:", response.status, errorText);
         throw new Error(`Gemini API error: ${response.status}`);
       }
 
       const data = await response.json();
-      const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't process that. Please try again.";
-      console.log('Gemini response:', responseText.substring(0, 100));
+      const responseText =
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "I couldn't process that. Please try again.";
+      console.log("Gemini response:", responseText.substring(0, 100));
 
-      return new Response(
-        JSON.stringify({ text: responseText }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ text: responseText }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    if (action === 'send_audio') {
+    if (action === "send_audio") {
       if (!audio) {
-        throw new Error('Audio data is required for send_audio action');
+        throw new Error("Audio data is required for send_audio action");
       }
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             systemInstruction: {
               parts: [{ text: systemPrompt }],
             },
             contents: [
               {
-                role: 'user',
+                role: "user",
                 parts: [
                   {
                     inlineData: {
-                      mimeType: 'audio/wav',
+                      mimeType: "audio/wav",
                       data: audio,
                     },
                   },
@@ -647,34 +705,32 @@ These commands are processed automatically, so just confirm when you recognize t
               maxOutputTokens: 512,
             },
           }),
-        }
+        },
       );
-      
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Gemini audio API error:', response.status, errorText);
+        console.error("Gemini audio API error:", response.status, errorText);
         throw new Error(`Gemini API error: ${response.status}`);
       }
 
       const data = await response.json();
-      const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't understand that. Please try again.";
+      const responseText =
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "I couldn't understand that. Please try again.";
 
-      return new Response(
-        JSON.stringify({ text: responseText }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ text: responseText }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     throw new Error(`Unknown action: ${action}`);
   } catch (error) {
-    console.error('Gemini Live error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    console.error("Gemini Live error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

@@ -1,12 +1,24 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapPin, Navigation, Loader2 } from 'lucide-react';
-import { useLocationReminders, CreateLocationTrigger } from '@/hooks/useLocationReminders';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { MapPin, Navigation, Loader2 } from "lucide-react";
+import { useLocationReminders, CreateLocationTrigger } from "@/hooks/useLocationReminders";
 
 interface AddLocationTriggerDialogProps {
   open: boolean;
@@ -14,31 +26,36 @@ interface AddLocationTriggerDialogProps {
   onCreated?: () => void;
 }
 
-export function AddLocationTriggerDialog({ open, onOpenChange, onCreated }: AddLocationTriggerDialogProps) {
-  const { createTrigger, getCurrentPosition, permissionStatus, requestPermissions } = useLocationReminders();
+export function AddLocationTriggerDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: AddLocationTriggerDialogProps) {
+  const { createTrigger, getCurrentPosition, permissionStatus, requestPermissions } =
+    useLocationReminders();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  
+
   const [formData, setFormData] = useState<CreateLocationTrigger>({
-    name: '',
+    name: "",
     latitude: 0,
     longitude: 0,
     radius_meters: 100,
-    trigger_type: 'exit',
-    reminder_message: '',
+    trigger_type: "exit",
+    reminder_message: "",
   });
 
   const handleUseCurrentLocation = async () => {
-    if (permissionStatus !== 'granted') {
+    if (permissionStatus !== "granted") {
       await requestPermissions();
     }
-    
+
     setIsGettingLocation(true);
     const position = await getCurrentPosition();
     setIsGettingLocation(false);
-    
+
     if (position) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -59,12 +76,12 @@ export function AddLocationTriggerDialog({ open, onOpenChange, onCreated }: AddL
       onCreated?.();
       // Reset form
       setFormData({
-        name: '',
+        name: "",
         latitude: 0,
         longitude: 0,
         radius_meters: 100,
-        trigger_type: 'exit',
-        reminder_message: '',
+        trigger_type: "exit",
+        reminder_message: "",
       });
     }
   };
@@ -86,7 +103,7 @@ export function AddLocationTriggerDialog({ open, onOpenChange, onCreated }: AddL
               id="name"
               placeholder="e.g., Work, Home, Gym"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               required
             />
           </div>
@@ -98,16 +115,20 @@ export function AddLocationTriggerDialog({ open, onOpenChange, onCreated }: AddL
                 type="number"
                 step="any"
                 placeholder="Latitude"
-                value={formData.latitude || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, latitude: parseFloat(e.target.value) || 0 }))}
+                value={formData.latitude || ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, latitude: parseFloat(e.target.value) || 0 }))
+                }
                 className="flex-1"
               />
               <Input
                 type="number"
                 step="any"
                 placeholder="Longitude"
-                value={formData.longitude || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, longitude: parseFloat(e.target.value) || 0 }))}
+                value={formData.longitude || ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, longitude: parseFloat(e.target.value) || 0 }))
+                }
                 className="flex-1"
               />
             </div>
@@ -137,7 +158,12 @@ export function AddLocationTriggerDialog({ open, onOpenChange, onCreated }: AddL
                 min={50}
                 max={5000}
                 value={formData.radius_meters}
-                onChange={(e) => setFormData(prev => ({ ...prev, radius_meters: parseInt(e.target.value) || 100 }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    radius_meters: parseInt(e.target.value) || 100,
+                  }))
+                }
               />
             </div>
 
@@ -145,8 +171,8 @@ export function AddLocationTriggerDialog({ open, onOpenChange, onCreated }: AddL
               <Label htmlFor="trigger_type">Trigger When</Label>
               <Select
                 value={formData.trigger_type}
-                onValueChange={(value: 'enter' | 'exit' | 'both') => 
-                  setFormData(prev => ({ ...prev, trigger_type: value }))
+                onValueChange={(value: "enter" | "exit" | "both") =>
+                  setFormData((prev) => ({ ...prev, trigger_type: value }))
                 }
               >
                 <SelectTrigger id="trigger_type">
@@ -167,7 +193,9 @@ export function AddLocationTriggerDialog({ open, onOpenChange, onCreated }: AddL
               id="message"
               placeholder="What should I remind you about?"
               value={formData.reminder_message}
-              onChange={(e) => setFormData(prev => ({ ...prev, reminder_message: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, reminder_message: e.target.value }))
+              }
               required
               rows={3}
             />
@@ -177,9 +205,14 @@ export function AddLocationTriggerDialog({ open, onOpenChange, onCreated }: AddL
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting || !formData.name || !formData.reminder_message || formData.latitude === 0}
+            <Button
+              type="submit"
+              disabled={
+                isSubmitting ||
+                !formData.name ||
+                !formData.reminder_message ||
+                formData.latitude === 0
+              }
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Create Reminder

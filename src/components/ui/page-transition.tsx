@@ -1,10 +1,10 @@
-import { motion } from 'framer-motion';
-import { ReactNode } from 'react';
+import { motion } from "framer-motion";
+import { ReactNode } from "react";
 
 interface PageTransitionProps {
   children: ReactNode;
   className?: string;
-  mode?: 'fade' | 'slide' | 'scale' | 'slideUp';
+  mode?: "fade" | "slide" | "scale" | "slideUp";
 }
 
 const variants = {
@@ -30,20 +30,16 @@ const variants = {
   },
 };
 
-export function PageTransition({ 
-  children, 
-  className,
-  mode = 'slideUp' 
-}: PageTransitionProps) {
+export function PageTransition({ children, className, mode = "slideUp" }: PageTransitionProps) {
   return (
     <motion.div
       className={className}
       initial={variants[mode].initial}
       animate={variants[mode].animate}
       exit={variants[mode].exit}
-      transition={{ 
-        duration: 0.3, 
-        ease: [0.4, 0, 0.2, 1] 
+      transition={{
+        duration: 0.3,
+        ease: [0.4, 0, 0.2, 1],
       }}
     >
       {children}
@@ -57,10 +53,10 @@ interface StaggerContainerProps {
   staggerDelay?: number;
 }
 
-export function StaggerContainer({ 
-  children, 
+export function StaggerContainer({
+  children,
   className,
-  staggerDelay = 0.05 
+  staggerDelay = 0.05,
 }: StaggerContainerProps) {
   return (
     <motion.div
@@ -82,25 +78,19 @@ export function StaggerContainer({
   );
 }
 
-export function StaggerItem({ 
-  children, 
-  className 
-}: { 
-  children: ReactNode; 
-  className?: string;
-}) {
+export function StaggerItem({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <motion.div
       className={className}
       variants={{
         hidden: { opacity: 0, y: 10 },
-        visible: { 
-          opacity: 1, 
+        visible: {
+          opacity: 1,
           y: 0,
           transition: {
             duration: 0.4,
             ease: [0.4, 0, 0.2, 1],
-          }
+          },
         },
       }}
     >

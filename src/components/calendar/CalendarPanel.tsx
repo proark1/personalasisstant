@@ -1,19 +1,19 @@
-import { useState, useRef, useMemo } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { CalendarEvent, Task } from '@/types/flux';
-import { parseICS, validateICSFile } from '@/lib/icsParser';
-import { useToast } from '@/hooks/use-toast';
-import { RecurrenceSelector } from '@/components/shared/RecurrenceSelector';
-import { getRecurrenceDescription } from '@/lib/recurrence';
-import { EditTaskModal } from '@/components/tasks/EditTaskModal';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Users, 
+import { useState, useRef, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { CalendarEvent, Task } from "@/types/flux";
+import { parseICS, validateICSFile } from "@/lib/icsParser";
+import { useToast } from "@/hooks/use-toast";
+import { RecurrenceSelector } from "@/components/shared/RecurrenceSelector";
+import { getRecurrenceDescription } from "@/lib/recurrence";
+import { EditTaskModal } from "@/components/tasks/EditTaskModal";
+import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Users,
   Plus,
   ChevronRight,
   Upload,
@@ -25,16 +25,16 @@ import {
   Maximize2,
   Minimize2,
   Pencil,
-  UserCircle
-} from 'lucide-react';
-import { format, isToday, isTomorrow, startOfDay, isPast } from 'date-fns';
-import { de, enUS } from 'date-fns/locale';
-import { toValidDate, formatSafe } from '@/lib/safeDate';
+  UserCircle,
+} from "lucide-react";
+import { format, isToday, isTomorrow, startOfDay, isPast } from "date-fns";
+import { de, enUS } from "date-fns/locale";
+import { toValidDate, formatSafe } from "@/lib/safeDate";
 
 interface CalendarPanelProps {
   events: CalendarEvent[];
   tasks?: Task[];
-  onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
+  onAddEvent: (event: Omit<CalendarEvent, "id">) => void;
   onImportEvents?: (events: CalendarEvent[]) => void;
   onShareEvent?: (id: string, title: string) => void;
   onShareTask?: (id: string, title: string) => void;
@@ -49,7 +49,7 @@ interface CalendarPanelProps {
 
 interface CalendarItem {
   id: string;
-  type: 'event' | 'task';
+  type: "event" | "task";
   title: string;
   date: Date;
   endTime?: Date;
@@ -72,11 +72,11 @@ interface GroupedItems {
   items: CalendarItem[];
 }
 
-export function CalendarPanel({ 
-  events, 
-  tasks = [], 
-  onAddEvent, 
-  onImportEvents, 
+export function CalendarPanel({
+  events,
+  tasks = [],
+  onAddEvent,
+  onImportEvents,
   onShareEvent,
   onShareTask,
   onToggleTaskComplete,
@@ -89,7 +89,7 @@ export function CalendarPanel({
 }: CalendarPanelProps) {
   const { toast } = useToast();
   const { t, language } = useLanguage();
-  const dateLocale = language === 'de' ? de : enUS;
+  const dateLocale = language === "de" ? de : enUS;
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -100,10 +100,10 @@ export function CalendarPanel({
     const items: CalendarItem[] = [];
 
     // Add events
-    events.forEach(event => {
+    events.forEach((event) => {
       items.push({
         id: event.id,
-        type: 'event',
+        type: "event",
         title: event.title,
         date: event.startTime,
         endTime: event.endTime,
@@ -117,24 +117,27 @@ export function CalendarPanel({
     });
 
     // Add tasks with due dates
-    tasks.filter(task => task.dueDate && !task.parentId).forEach(task => {
-      const isOverdue = task.dueDate && !task.completed && isPast(task.dueDate) && !isToday(task.dueDate);
-      items.push({
-        id: task.id,
-        type: 'task',
-        title: task.title,
-        date: task.dueDate!,
-        priority: task.priority,
-        completed: task.completed,
-        recurrenceRule: task.recurrenceRule,
-        recurrenceEnd: task.recurrenceEnd,
-        isOverdue,
-        description: task.description,
-        category: task.category,
-        reminderBefore: task.reminderBefore,
-        sharedBy: task.sharedBy,
+    tasks
+      .filter((task) => task.dueDate && !task.parentId)
+      .forEach((task) => {
+        const isOverdue =
+          task.dueDate && !task.completed && isPast(task.dueDate) && !isToday(task.dueDate);
+        items.push({
+          id: task.id,
+          type: "task",
+          title: task.title,
+          date: task.dueDate!,
+          priority: task.priority,
+          completed: task.completed,
+          recurrenceRule: task.recurrenceRule,
+          recurrenceEnd: task.recurrenceEnd,
+          isOverdue,
+          description: task.description,
+          category: task.category,
+          reminderBefore: task.reminderBefore,
+          sharedBy: task.sharedBy,
+        });
       });
-    });
 
     return items;
   }, [events, tasks]);
@@ -143,7 +146,7 @@ export function CalendarPanel({
   const groupedItems: GroupedItems[] = useMemo(() => {
     const itemsByDate = new Map<string, CalendarItem[]>();
 
-    calendarItems.forEach(item => {
+    calendarItems.forEach((item) => {
       // Guard against an unparseable date — startOfDay(Invalid).toISOString()
       // throws and would blank the entire agenda.
       const validDate = toValidDate(item.date);
@@ -157,18 +160,16 @@ export function CalendarPanel({
 
     // Sort and create groups
     const sortedDates = Array.from(itemsByDate.keys()).sort();
-    return sortedDates.map(dateKey => {
+    return sortedDates.map((dateKey) => {
       const date = new Date(dateKey);
-      let label = format(date, 'EEEE, MMMM d', { locale: dateLocale });
-      if (isToday(date)) label = t('common.today');
-      else if (isTomorrow(date)) label = t('common.tomorrow');
+      let label = format(date, "EEEE, MMMM d", { locale: dateLocale });
+      if (isToday(date)) label = t("common.today");
+      else if (isTomorrow(date)) label = t("common.tomorrow");
 
       return {
         label,
         date,
-        items: itemsByDate.get(dateKey)!.sort((a, b) => 
-          a.date.getTime() - b.date.getTime()
-        ),
+        items: itemsByDate.get(dateKey)!.sort((a, b) => a.date.getTime() - b.date.getTime()),
       };
     });
   }, [calendarItems, dateLocale, t]);
@@ -179,9 +180,9 @@ export function CalendarPanel({
 
     if (!validateICSFile(file)) {
       toast({
-        variant: 'destructive',
-        title: t('calendar.invalidFile'),
-        description: t('calendar.invalidFileDesc'),
+        variant: "destructive",
+        title: t("calendar.invalidFile"),
+        description: t("calendar.invalidFileDesc"),
       });
       return;
     }
@@ -190,12 +191,12 @@ export function CalendarPanel({
     try {
       const content = await file.text();
       const importedEvents = parseICS(content);
-      
+
       if (importedEvents.length === 0) {
         toast({
-          variant: 'destructive',
-          title: t('calendar.noEventsFound'),
-          description: t('calendar.noEventsFoundDesc'),
+          variant: "destructive",
+          title: t("calendar.noEventsFound"),
+          description: t("calendar.noEventsFoundDesc"),
         });
         return;
       }
@@ -203,7 +204,7 @@ export function CalendarPanel({
       if (onImportEvents) {
         onImportEvents(importedEvents);
       } else {
-        importedEvents.forEach(event => {
+        importedEvents.forEach((event) => {
           onAddEvent({
             title: event.title,
             description: event.description,
@@ -216,28 +217,31 @@ export function CalendarPanel({
       }
 
       toast({
-        title: t('calendar.importSuccess'),
-        description: t('calendar.importedEvents').replace('{count}', importedEvents.length.toString()),
+        title: t("calendar.importSuccess"),
+        description: t("calendar.importedEvents").replace(
+          "{count}",
+          importedEvents.length.toString(),
+        ),
       });
     } catch (error) {
-      console.error('ICS import error:', error);
+      console.error("ICS import error:", error);
       toast({
-        variant: 'destructive',
-        title: t('calendar.importFailed'),
-        description: t('calendar.importFailedDesc'),
+        variant: "destructive",
+        title: t("calendar.importFailed"),
+        description: t("calendar.importFailedDesc"),
       });
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
 
   const handleEditItem = (item: CalendarItem) => {
-    if (item.type === 'task') {
+    if (item.type === "task") {
       // Find the full task object to edit
-      const fullTask = tasks.find(t => t.id === item.id);
+      const fullTask = tasks.find((t) => t.id === item.id);
       if (fullTask) {
         setEditingTask(fullTask);
       }
@@ -249,8 +253,8 @@ export function CalendarPanel({
         title: item.title,
         description: item.description,
         dueDate: item.date,
-        priority: 'medium',
-        category: 'personal',
+        priority: "medium",
+        category: "personal",
         completed: false,
         createdAt: new Date(),
         recurrenceRule: item.recurrenceRule,
@@ -262,58 +266,62 @@ export function CalendarPanel({
 
   const handleSaveTask = async (id: string, updates: Partial<Task>) => {
     // Check if this is actually an event
-    const isEvent = events.some(e => e.id === id);
+    const isEvent = events.some((e) => e.id === id);
 
     if (isEvent && onUpdateEvent) {
       await Promise.resolve(
         onUpdateEvent(id, {
           title: updates.title,
           startTime: updates.dueDate,
-          endTime: updates.dueDate ? new Date(updates.dueDate.getTime() + 60 * 60 * 1000) : undefined,
-        })
+          endTime: updates.dueDate
+            ? new Date(updates.dueDate.getTime() + 60 * 60 * 1000)
+            : undefined,
+        }),
       );
     } else if (onUpdateTask) {
       await Promise.resolve(onUpdateTask(id, updates));
     }
 
-    toast({ title: t('calendar.updatedSuccess') });
+    toast({ title: t("calendar.updatedSuccess") });
   };
 
   const handleDeleteItem = (id: string) => {
-    const isEvent = events.some(e => e.id === id);
-    
+    const isEvent = events.some((e) => e.id === id);
+
     if (isEvent && onDeleteEvent) {
       onDeleteEvent(id);
     } else if (onDeleteTask) {
       onDeleteTask(id);
     }
     setEditingTask(null);
-    toast({ title: t('calendar.deletedSuccess') });
+    toast({ title: t("calendar.deletedSuccess") });
   };
 
   const priorityColors: Record<string, string> = {
-    high: 'text-destructive',
-    medium: 'text-warning',
-    low: 'text-muted-foreground',
+    high: "text-destructive",
+    medium: "text-warning",
+    low: "text-muted-foreground",
   };
 
   const ItemCard = ({ item }: { item: CalendarItem }) => (
-    <div 
+    <div
       onClick={() => handleEditItem(item)}
       className={cn(
         "flex gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group cursor-pointer",
         item.completed && "opacity-60",
-        item.isOverdue && "border-l-2 border-l-destructive"
+        item.isOverdue && "border-l-2 border-l-destructive",
       )}
     >
-      <div className={cn(
-        "w-1 rounded-full shrink-0",
-        item.type === 'event' ? "bg-primary" : "bg-accent"
-      )} />
+      <div
+        className={cn(
+          "w-1 rounded-full shrink-0",
+          item.type === "event" ? "bg-primary" : "bg-accent",
+        )}
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            {item.type === 'task' && (
+            {item.type === "task" && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -321,48 +329,58 @@ export function CalendarPanel({
                 }}
                 className="shrink-0"
               >
-                <CheckSquare className={cn(
-                  "w-4 h-4",
-                  item.completed ? "text-primary" : "text-muted-foreground hover:text-primary"
-                )} />
+                <CheckSquare
+                  className={cn(
+                    "w-4 h-4",
+                    item.completed ? "text-primary" : "text-muted-foreground hover:text-primary",
+                  )}
+                />
               </button>
             )}
-            <h4 className={cn(
-              "font-medium text-sm truncate",
-              item.completed && "line-through text-muted-foreground"
-            )}>
+            <h4
+              className={cn(
+                "font-medium text-sm truncate",
+                item.completed && "line-through text-muted-foreground",
+              )}
+            >
               {item.title}
             </h4>
-            {item.type === 'task' && item.priority && (
-              <span className={cn(
-                "text-[10px] font-medium uppercase",
-                priorityColors[item.priority]
-              )}>
+            {item.type === "task" && item.priority && (
+              <span
+                className={cn("text-[10px] font-medium uppercase", priorityColors[item.priority])}
+              >
                 {item.priority}
               </span>
             )}
-            {item.isOverdue && (
-              <AlertCircle className="w-3 h-3 text-destructive shrink-0" />
-            )}
+            {item.isOverdue && <AlertCircle className="w-3 h-3 text-destructive shrink-0" />}
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
-              onClick={(e) => { e.stopPropagation(); handleEditItem(item); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditItem(item);
+              }}
               className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
-            {item.type === 'event' && onShareEvent && (
+            {item.type === "event" && onShareEvent && (
               <button
-                onClick={(e) => { e.stopPropagation(); onShareEvent(item.id, item.title); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShareEvent(item.id, item.title);
+                }}
                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
               >
                 <Share2 className="w-3.5 h-3.5" />
               </button>
             )}
-            {item.type === 'task' && onShareTask && (
+            {item.type === "task" && onShareTask && (
               <button
-                onClick={(e) => { e.stopPropagation(); onShareTask(item.id, item.title); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShareTask(item.id, item.title);
+                }}
                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
               >
                 <Share2 className="w-3.5 h-3.5" />
@@ -371,14 +389,13 @@ export function CalendarPanel({
             <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            {item.type === 'event' && item.endTime
-              ? `${formatSafe(item.date, 'h:mm a')} - ${formatSafe(item.endTime, 'h:mm a')}`
-              : formatSafe(item.date, 'h:mm a')
-            }
+            {item.type === "event" && item.endTime
+              ? `${formatSafe(item.date, "h:mm a")} - ${formatSafe(item.endTime, "h:mm a")}`
+              : formatSafe(item.date, "h:mm a")}
           </span>
           {item.location && (
             <span className="flex items-center gap-1 truncate">
@@ -386,18 +403,22 @@ export function CalendarPanel({
               <span className="truncate">{item.location}</span>
             </span>
           )}
-          <span className={cn(
-            "px-1.5 py-0.5 rounded text-[10px] font-medium",
-            item.type === 'event' ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent-foreground"
-          )}>
-            {item.type === 'event' ? t('taskList.event') : t('taskList.task')}
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded text-[10px] font-medium",
+              item.type === "event"
+                ? "bg-primary/20 text-primary"
+                : "bg-accent/20 text-accent-foreground",
+            )}
+          >
+            {item.type === "event" ? t("taskList.event") : t("taskList.task")}
           </span>
         </div>
 
         {item.attendees && item.attendees.length > 0 && (
           <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground min-w-0">
             <Users className="w-3 h-3 shrink-0" />
-            <span className="truncate">{item.attendees.join(', ')}</span>
+            <span className="truncate">{item.attendees.join(", ")}</span>
           </div>
         )}
 
@@ -411,7 +432,10 @@ export function CalendarPanel({
         {item.sharedBy && (
           <div className="flex items-center gap-1 mt-1.5 text-xs text-accent-foreground bg-accent/30 px-1.5 py-0.5 rounded w-fit max-w-full">
             <UserCircle className="w-3 h-3 shrink-0" />
-            <span className="truncate">{t('calendar.sharedBy')} {item.sharedBy.displayName || item.sharedBy.email || 'someone'}</span>
+            <span className="truncate">
+              {t("calendar.sharedBy")}{" "}
+              {item.sharedBy.displayName || item.sharedBy.email || "someone"}
+            </span>
           </div>
         )}
       </div>
@@ -424,10 +448,8 @@ export function CalendarPanel({
       <div className="h-14 px-4 flex items-center justify-between border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
-          <h2 className="font-semibold">{t('calendar.agenda')}</h2>
-          <span className="text-xs text-muted-foreground">
-            ({calendarItems.length})
-          </span>
+          <h2 className="font-semibold">{t("calendar.agenda")}</h2>
+          <span className="text-xs text-muted-foreground">({calendarItems.length})</span>
         </div>
         <div className="flex items-center gap-1">
           <input
@@ -437,32 +459,22 @@ export function CalendarPanel({
             onChange={handleFileImport}
             className="hidden"
           />
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="gap-1"
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
           >
             <Upload className="w-4 h-4" />
-            <span className="hidden sm:inline">{t('calendar.import')}</span>
+            <span className="hidden sm:inline">{t("calendar.import")}</span>
           </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="gap-1"
-            onClick={() => setShowAddModal(true)}
-          >
+          <Button variant="ghost" size="sm" className="gap-1" onClick={() => setShowAddModal(true)}>
             <Plus className="w-4 h-4" />
-            {t('common.add')}
+            {t("common.add")}
           </Button>
           {onToggleFullscreen && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onToggleFullscreen}
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleFullscreen}>
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </Button>
           )}
@@ -474,27 +486,25 @@ export function CalendarPanel({
         {groupedItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-center">
             <Calendar className="w-10 h-10 text-muted-foreground/30 mb-2" />
-            <p className="text-sm text-muted-foreground">{t('calendar.noUpcoming')}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {t('calendar.tasksWithDueDates')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t("calendar.noUpcoming")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("calendar.tasksWithDueDates")}</p>
             <div className="flex gap-2 mt-3">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs gap-1"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <FileUp className="w-3 h-3" />
-                {t('calendar.importIcs')}
+                {t("calendar.importIcs")}
               </Button>
-              <Button 
-                variant="link" 
-                size="sm" 
+              <Button
+                variant="link"
+                size="sm"
                 className="text-primary text-xs"
                 onClick={() => setShowAddModal(true)}
               >
-                {t('calendar.scheduleSomething')}
+                {t("calendar.scheduleSomething")}
               </Button>
             </div>
           </div>
@@ -502,10 +512,7 @@ export function CalendarPanel({
           groupedItems.map((group) => (
             <div key={group.date.toISOString()}>
               <div className="flex items-center gap-2 mb-3">
-                <h3 className={cn(
-                  "text-sm font-medium",
-                  isToday(group.date) && "text-primary"
-                )}>
+                <h3 className={cn("text-sm font-medium", isToday(group.date) && "text-primary")}>
                   {group.label}
                 </h3>
                 {isToday(group.date) && (
@@ -513,12 +520,10 @@ export function CalendarPanel({
                     NOW
                   </span>
                 )}
-                <span className="text-xs text-muted-foreground">
-                  ({group.items.length})
-                </span>
+                <span className="text-xs text-muted-foreground">({group.items.length})</span>
               </div>
               <div className="space-y-2">
-                {group.items.map(item => (
+                {group.items.map((item) => (
                   <ItemCard key={`${item.type}-${item.id}`} item={item} />
                 ))}
               </div>
@@ -528,12 +533,7 @@ export function CalendarPanel({
       </div>
 
       {/* Quick Add Modal */}
-      {showAddModal && (
-        <QuickAddEvent 
-          onClose={() => setShowAddModal(false)}
-          onAdd={onAddEvent}
-        />
-      )}
+      {showAddModal && <QuickAddEvent onClose={() => setShowAddModal(false)} onAdd={onAddEvent} />}
 
       {/* Edit Task Modal - using the detailed one from TaskList */}
       {editingTask && (
@@ -548,17 +548,17 @@ export function CalendarPanel({
   );
 }
 
-function QuickAddEvent({ 
-  onClose, 
-  onAdd 
-}: { 
+function QuickAddEvent({
+  onClose,
+  onAdd,
+}: {
   onClose: () => void;
-  onAdd: (event: Omit<CalendarEvent, 'id'>) => void;
+  onAdd: (event: Omit<CalendarEvent, "id">) => void;
 }) {
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [time, setTime] = useState('09:00');
-  const [duration, setDuration] = useState('60');
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [time, setTime] = useState("09:00");
+  const [duration, setDuration] = useState("60");
   const [recurrence, setRecurrence] = useState<string | undefined>();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -594,19 +594,11 @@ function QuickAddEvent({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm text-muted-foreground">Date</label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Time</label>
-              <Input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
+              <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
           </div>
           <div>
@@ -633,9 +625,7 @@ function QuickAddEvent({
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              Add Event
-            </Button>
+            <Button type="submit">Add Event</Button>
           </div>
         </form>
       </div>

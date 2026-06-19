@@ -1,11 +1,24 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Bot, Zap, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, Bot, Zap, DollarSign, AlertCircle, CheckCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 interface AIUsage {
   id: string;
@@ -25,22 +38,22 @@ interface AIUsagePanelProps {
 }
 
 export function AIUsagePanel({ aiUsage }: AIUsagePanelProps) {
-  const [search, setSearch] = useState('');
-  const [functionFilter, setFunctionFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [search, setSearch] = useState("");
+  const [functionFilter, setFunctionFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const functions = [...new Set(aiUsage.map(a => a.function_name))].sort();
-  const statuses = [...new Set(aiUsage.map(a => a.response_status))].sort();
+  const functions = [...new Set(aiUsage.map((a) => a.function_name))].sort();
+  const statuses = [...new Set(aiUsage.map((a) => a.response_status))].sort();
 
-  const filteredUsage = aiUsage.filter(usage => {
-    const matchesSearch = 
-      search === '' ||
+  const filteredUsage = aiUsage.filter((usage) => {
+    const matchesSearch =
+      search === "" ||
       usage.function_name.toLowerCase().includes(search.toLowerCase()) ||
       usage.user_id.toLowerCase().includes(search.toLowerCase()) ||
       usage.model?.toLowerCase().includes(search.toLowerCase());
-    
-    const matchesFunction = functionFilter === 'all' || usage.function_name === functionFilter;
-    const matchesStatus = statusFilter === 'all' || usage.response_status === statusFilter;
+
+    const matchesFunction = functionFilter === "all" || usage.function_name === functionFilter;
+    const matchesStatus = statusFilter === "all" || usage.response_status === statusFilter;
 
     return matchesSearch && matchesFunction && matchesStatus;
   });
@@ -53,7 +66,7 @@ export function AIUsagePanel({ aiUsage }: AIUsagePanelProps) {
       totalTokens: acc.totalTokens + usage.total_tokens,
       cost: acc.cost + Number(usage.cost_estimate),
     }),
-    { promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0 }
+    { promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0 },
   );
 
   return (
@@ -99,9 +112,7 @@ export function AIUsagePanel({ aiUsage }: AIUsagePanelProps) {
               <DollarSign className="h-4 w-4 text-emerald-500" />
               <span className="text-xs">Estimated Cost</span>
             </div>
-            <p className="text-xl font-bold mt-1 font-mono">
-              ${totals.cost.toFixed(4)}
-            </p>
+            <p className="text-xl font-bold mt-1 font-mono">${totals.cost.toFixed(4)}</p>
           </CardContent>
         </Card>
       </div>
@@ -127,8 +138,10 @@ export function AIUsagePanel({ aiUsage }: AIUsagePanelProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Functions</SelectItem>
-                  {functions.map(fn => (
-                    <SelectItem key={fn} value={fn}>{fn}</SelectItem>
+                  {functions.map((fn) => (
+                    <SelectItem key={fn} value={fn}>
+                      {fn}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -138,8 +151,10 @@ export function AIUsagePanel({ aiUsage }: AIUsagePanelProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  {statuses.map(status => (
-                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  {statuses.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -166,7 +181,7 @@ export function AIUsagePanel({ aiUsage }: AIUsagePanelProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredUsage.map(usage => (
+                filteredUsage.map((usage) => (
                   <TableRow key={usage.id}>
                     <TableCell>
                       <Badge variant="outline" className="font-mono text-xs">
@@ -174,14 +189,10 @@ export function AIUsagePanel({ aiUsage }: AIUsagePanelProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {usage.model || 'N/A'}
-                      </span>
+                      <span className="text-sm text-muted-foreground">{usage.model || "N/A"}</span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="font-mono text-sm">
-                        {usage.total_tokens.toLocaleString()}
-                      </div>
+                      <div className="font-mono text-sm">{usage.total_tokens.toLocaleString()}</div>
                       <div className="text-xs text-muted-foreground">
                         {usage.prompt_tokens} / {usage.completion_tokens}
                       </div>
@@ -190,8 +201,11 @@ export function AIUsagePanel({ aiUsage }: AIUsagePanelProps) {
                       ${Number(usage.cost_estimate).toFixed(6)}
                     </TableCell>
                     <TableCell>
-                      {usage.response_status === 'success' ? (
-                        <Badge variant="outline" className="gap-1 text-emerald-500 border-emerald-500/30">
+                      {usage.response_status === "success" ? (
+                        <Badge
+                          variant="outline"
+                          className="gap-1 text-emerald-500 border-emerald-500/30"
+                        >
                           <CheckCircle className="h-3 w-3" />
                           Success
                         </Badge>

@@ -1,9 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
+import {
+  PushNotifications,
+  Token,
+  PushNotificationSchema,
+  ActionPerformed,
+} from "@capacitor/push-notifications";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
 
 // Capacitor's PushNotifications plugin yields a NATIVE APNs/FCM token, not an
 // Expo push token. We persist the native token as-is and do NOT synthesize an
@@ -16,7 +21,9 @@ export function useExpoPushNotifications() {
   const { user } = useAuth();
   const [token, setToken] = useState<string | null>(null);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [permissionStatus, setPermissionStatus] = useState<"granted" | "denied" | "prompt">(
+    "prompt",
+  );
   const [isNative, setIsNative] = useState(false);
 
   useEffect(() => {
@@ -28,39 +35,37 @@ export function useExpoPushNotifications() {
 
     try {
       const platform = Capacitor.getPlatform();
-      
+
       // Check if token already exists
       const { data: existing } = await supabase
-        .from('push_tokens')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('token', nativeToken)
+        .from("push_tokens")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("token", nativeToken)
         .single();
 
       if (existing) {
         // Update existing token
         await supabase
-          .from('push_tokens')
-          .update({ 
+          .from("push_tokens")
+          .update({
             expo_push_token: expoToken || null,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
-          .eq('id', existing.id);
+          .eq("id", existing.id);
       } else {
         // Insert new token
-        await supabase
-          .from('push_tokens')
-          .insert({
-            user_id: user.id,
-            token: nativeToken,
-            expo_push_token: expoToken || null,
-            platform,
-          });
+        await supabase.from("push_tokens").insert({
+          user_id: user.id,
+          token: nativeToken,
+          expo_push_token: expoToken || null,
+          platform,
+        });
       }
 
-      console.log('Push token saved to database');
+      console.log("Push token saved to database");
     } catch (err) {
-      console.error('Failed to save push token:', err);
+      console.error("Failed to save push token:", err);
     }
   };
 
@@ -68,15 +73,11 @@ export function useExpoPushNotifications() {
     if (!user?.id || !token) return;
 
     try {
-      await supabase
-        .from('push_tokens')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('token', token);
-      
-      console.log('Push token removed from database');
+      await supabase.from("push_tokens").delete().eq("user_id", user.id).eq("token", token);
+
+      console.log("Push token removed from database");
     } catch (err) {
-      console.error('Failed to remove push token:', err);
+      console.error("Failed to remove push token:", err);
     }
   };
 
@@ -84,14 +85,15 @@ export function useExpoPushNotifications() {
     if (!isNative) {
       // For web, use browser notifications
       type NotificationCtor = typeof Notification;
-      const BrowserNotification = (typeof window !== 'undefined'
-        ? (window as unknown as { Notification?: NotificationCtor }).Notification
-        : undefined);
+      const BrowserNotification =
+        typeof window !== "undefined"
+          ? (window as unknown as { Notification?: NotificationCtor }).Notification
+          : undefined;
 
-      if (typeof BrowserNotification?.requestPermission === 'function') {
+      if (typeof BrowserNotification?.requestPermission === "function") {
         const permission = await BrowserNotification.requestPermission();
-        setPermissionStatus(permission === 'granted' ? 'granted' : 'denied');
-        return permission === 'granted';
+        setPermissionStatus(permission === "granted" ? "granted" : "denied");
+        return permission === "granted";
       }
 
       return false;
@@ -99,35 +101,35 @@ export function useExpoPushNotifications() {
 
     try {
       let status = await PushNotifications.checkPermissions();
-      
-      if (status.receive === 'prompt') {
+
+      if (status.receive === "prompt") {
         status = await PushNotifications.requestPermissions();
       }
 
-      setPermissionStatus(status.receive === 'granted' ? 'granted' : 'denied');
-      return status.receive === 'granted';
+      setPermissionStatus(status.receive === "granted" ? "granted" : "denied");
+      return status.receive === "granted";
     } catch (err) {
-      console.error('Failed to request push permission:', err);
+      console.error("Failed to request push permission:", err);
       return false;
     }
   };
 
   const register = useCallback(async () => {
     if (!isNative) {
-      console.log('Push notifications not available on web');
+      console.log("Push notifications not available on web");
       return;
     }
 
     const hasPermission = await requestPermission();
     if (!hasPermission) {
-      console.log('Push notification permission denied');
+      console.log("Push notification permission denied");
       return;
     }
 
     try {
       await PushNotifications.register();
     } catch (err) {
-      console.error('Failed to register for push notifications:', err);
+      console.error("Failed to register for push notifications:", err);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNative]); // intentionally excludes requestPermission — it's a plain function, not a useCallback
@@ -136,77 +138,88 @@ export function useExpoPushNotifications() {
     if (!isNative) return;
 
     // Listen for registration success
-    const registrationListener = PushNotifications.addListener('registration', async (tokenData: Token) => {
-      console.log('Push registration success:', tokenData.value);
-      setToken(tokenData.value);
+    const registrationListener = PushNotifications.addListener(
+      "registration",
+      async (tokenData: Token) => {
+        console.log("Push registration success:", tokenData.value);
+        setToken(tokenData.value);
 
-      // Store ONLY the real native token. We have no genuine Expo push token
-      // here, so we leave it null rather than fabricating one (a faked
-      // `ExponentPushToken[...]` is rejected by Expo's push API).
-      setExpoPushToken(null);
+        // Store ONLY the real native token. We have no genuine Expo push token
+        // here, so we leave it null rather than fabricating one (a faked
+        // `ExponentPushToken[...]` is rejected by Expo's push API).
+        setExpoPushToken(null);
 
-      await saveTokenToDatabase(tokenData.value);
-    });
+        await saveTokenToDatabase(tokenData.value);
+      },
+    );
 
     // Listen for registration errors
-    const errorListener = PushNotifications.addListener('registrationError', (error) => {
-      console.error('Push registration error:', error);
+    const errorListener = PushNotifications.addListener("registrationError", (error) => {
+      console.error("Push registration error:", error);
     });
 
     // Listen for push notifications received
-    const receivedListener = PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-      console.log('Push notification received:', notification);
-      
-      // Show a toast for foreground notifications
-      toast(notification.title || 'Notification', {
-        description: notification.body,
-      });
-    });
+    const receivedListener = PushNotifications.addListener(
+      "pushNotificationReceived",
+      (notification: PushNotificationSchema) => {
+        console.log("Push notification received:", notification);
+
+        // Show a toast for foreground notifications
+        toast(notification.title || "Notification", {
+          description: notification.body,
+        });
+      },
+    );
 
     // Listen for push notification actions (tap)
-    const actionListener = PushNotifications.addListener('pushNotificationActionPerformed', async (action: ActionPerformed) => {
-      console.log('Push notification action:', action);
-      
-      const data = action.notification.data;
-      
-      // Handle reminder actions
-      if (data?.reminder_id) {
-        // Mark reminder as read/actioned
-        await supabase
-          .from('proactive_reminders')
-          .update({ 
-            read_at: new Date().toISOString(),
-            action_taken: true,
-            action_type: 'opened'
-          })
-          .eq('id', data.reminder_id);
+    const actionListener = PushNotifications.addListener(
+      "pushNotificationActionPerformed",
+      async (action: ActionPerformed) => {
+        console.log("Push notification action:", action);
 
-        // Update delivery log
-        await supabase
-          .from('reminder_delivery_log')
-          .update({ clicked_at: new Date().toISOString() })
-          .eq('reminder_id', data.reminder_id)
-          .eq('delivery_channel', 'push');
-      }
+        const data = action.notification.data;
 
-      // Deep-link the user to the right entity. We dispatch a window
-      // event instead of calling a router directly so this hook stays
-      // context-free; whichever component mounts the StandardMode shell
-      // listens and routes (see useDeepLinkHandler).
-      if (data?.trigger_entity_type && data?.trigger_entity_id) {
-        try {
-          window.dispatchEvent(new CustomEvent('dori:open-entity', {
-            detail: {
-              type: String(data.trigger_entity_type),
-              id: String(data.trigger_entity_id),
-              source: 'push',
-            },
-          }));
-        } catch (e) {
-          console.error('open-entity dispatch failed', e);
+        // Handle reminder actions
+        if (data?.reminder_id) {
+          // Mark reminder as read/actioned
+          await supabase
+            .from("proactive_reminders")
+            .update({
+              read_at: new Date().toISOString(),
+              action_taken: true,
+              action_type: "opened",
+            })
+            .eq("id", data.reminder_id);
+
+          // Update delivery log
+          await supabase
+            .from("reminder_delivery_log")
+            .update({ clicked_at: new Date().toISOString() })
+            .eq("reminder_id", data.reminder_id)
+            .eq("delivery_channel", "push");
         }
-      }
-    });
+
+        // Deep-link the user to the right entity. We dispatch a window
+        // event instead of calling a router directly so this hook stays
+        // context-free; whichever component mounts the StandardMode shell
+        // listens and routes (see useDeepLinkHandler).
+        if (data?.trigger_entity_type && data?.trigger_entity_id) {
+          try {
+            window.dispatchEvent(
+              new CustomEvent("dori:open-entity", {
+                detail: {
+                  type: String(data.trigger_entity_type),
+                  id: String(data.trigger_entity_id),
+                  source: "push",
+                },
+              }),
+            );
+          } catch (e) {
+            console.error("open-entity dispatch failed", e);
+          }
+        }
+      },
+    );
 
     // Auto-register on mount if user is logged in
     if (user?.id) {
@@ -214,10 +227,10 @@ export function useExpoPushNotifications() {
     }
 
     return () => {
-      registrationListener.then(l => l.remove());
-      errorListener.then(l => l.remove());
-      receivedListener.then(l => l.remove());
-      actionListener.then(l => l.remove());
+      registrationListener.then((l) => l.remove());
+      errorListener.then((l) => l.remove());
+      receivedListener.then((l) => l.remove());
+      actionListener.then((l) => l.remove());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNative, user?.id, register]); // intentionally excludes saveTokenToDatabase — plain function recreated each render
@@ -225,7 +238,7 @@ export function useExpoPushNotifications() {
   // Clean up token on logout
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
+      if (event === "SIGNED_OUT") {
         removeTokenFromDatabase();
         setToken(null);
         setExpoPushToken(null);

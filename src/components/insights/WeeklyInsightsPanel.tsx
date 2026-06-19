@@ -1,10 +1,10 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   Sparkles,
   TrendingUp,
@@ -16,9 +16,9 @@ import {
   RefreshCw,
   Loader2,
   ChevronRight,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useWeeklyInsights } from '@/hooks/useWeeklyInsights';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useWeeklyInsights } from "@/hooks/useWeeklyInsights";
 
 interface WeeklyInsightsPanelProps {
   className?: string;
@@ -43,7 +43,7 @@ export function WeeklyInsightsPanel({ className, compact = false }: WeeklyInsigh
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="w-5 h-5" />
-            {t('weeklyInsights.title')}
+            {t("weeklyInsights.title")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -63,10 +63,10 @@ export function WeeklyInsightsPanel({ className, compact = false }: WeeklyInsigh
               <Brain className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <p className="font-medium text-sm">{t('weeklyInsights.title')}</p>
+              <p className="font-medium text-sm">{t("weeklyInsights.title")}</p>
               {weeklyStats && (
                 <p className="text-xs text-muted-foreground">
-                  {weeklyStats.tasksCompleted} {t('xp.tasks')} • {weeklyStats.focusMinutes}min
+                  {weeklyStats.tasksCompleted} {t("xp.tasks")} • {weeklyStats.focusMinutes}min
                 </p>
               )}
             </div>
@@ -83,14 +83,9 @@ export function WeeklyInsightsPanel({ className, compact = false }: WeeklyInsigh
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Brain className="w-5 h-5 text-primary" />
-            {t('weeklyInsights.title')}
+            {t("weeklyInsights.title")}
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={generateInsights}
-            disabled={isGenerating}
-          >
+          <Button variant="ghost" size="sm" onClick={generateInsights} disabled={isGenerating}>
             {isGenerating ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
@@ -106,53 +101,44 @@ export function WeeklyInsightsPanel({ className, compact = false }: WeeklyInsigh
             <div className="p-3 rounded-lg bg-muted/50">
               <div className="flex items-center gap-2 text-primary mb-1">
                 <CheckCircle className="w-4 h-4" />
-                <span className="text-xs font-medium">{t('weeklyInsights.tasksDone')}</span>
+                <span className="text-xs font-medium">{t("weeklyInsights.tasksDone")}</span>
               </div>
               <p className="text-2xl font-bold">{weeklyStats.tasksCompleted}</p>
-              <Progress 
-                value={weeklyStats.completionRate} 
-                className="h-1 mt-2" 
-              />
+              <Progress value={weeklyStats.completionRate} className="h-1 mt-2" />
               <p className="text-xs text-muted-foreground mt-1">
-                {weeklyStats.completionRate}% {t('weeklyInsights.completionRate')}
+                {weeklyStats.completionRate}% {t("weeklyInsights.completionRate")}
               </p>
             </div>
-            
+
             <div className="p-3 rounded-lg bg-muted/50">
               <div className="flex items-center gap-2 text-accent mb-1">
                 <Clock className="w-4 h-4" />
-                <span className="text-xs font-medium">{t('weeklyInsights.focusTime')}</span>
+                <span className="text-xs font-medium">{t("weeklyInsights.focusTime")}</span>
               </div>
-              <p className="text-2xl font-bold">
-                {Math.round(weeklyStats.focusMinutes / 60)}h
-              </p>
+              <p className="text-2xl font-bold">{Math.round(weeklyStats.focusMinutes / 60)}h</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {weeklyStats.focusMinutes} {t('weeklyInsights.minutesTotal')}
+                {weeklyStats.focusMinutes} {t("weeklyInsights.minutesTotal")}
               </p>
             </div>
 
             <div className="p-3 rounded-lg bg-muted/50">
               <div className="flex items-center gap-2 text-warning mb-1">
                 <Flame className="w-4 h-4" />
-                <span className="text-xs font-medium">{t('weeklyInsights.habits')}</span>
+                <span className="text-xs font-medium">{t("weeklyInsights.habits")}</span>
               </div>
               <p className="text-2xl font-bold">{weeklyStats.habitsCompleted}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {t('weeklyInsights.completedThisWeek')}
+                {t("weeklyInsights.completedThisWeek")}
               </p>
             </div>
 
             <div className="p-3 rounded-lg bg-muted/50">
               <div className="flex items-center gap-2 text-secondary mb-1">
                 <Target className="w-4 h-4" />
-                <span className="text-xs font-medium">{t('weeklyInsights.energy')}</span>
+                <span className="text-xs font-medium">{t("weeklyInsights.energy")}</span>
               </div>
-              <p className="text-lg font-bold capitalize">
-                {weeklyStats.averageEnergy || '—'}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t('weeklyInsights.avgEnergy')}
-              </p>
+              <p className="text-lg font-bold capitalize">{weeklyStats.averageEnergy || "—"}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("weeklyInsights.avgEnergy")}</p>
             </div>
           </div>
         )}
@@ -162,32 +148,32 @@ export function WeeklyInsightsPanel({ className, compact = false }: WeeklyInsigh
           <ScrollArea className="h-[200px]">
             <div className="space-y-3">
               {insights.slice(0, 5).map((insight) => (
-                <Card 
+                <Card
                   key={insight.id}
                   className={cn(
                     "transition-colors",
-                    !insight.is_read && "border-primary/50 bg-primary/5"
+                    !insight.is_read && "border-primary/50 bg-primary/5",
                   )}
                   onClick={() => !insight.is_read && markInsightRead(insight.id)}
                 >
                   <CardContent className="p-3">
                     <div className="flex items-start gap-2">
-                      <Sparkles className={cn(
-                        "w-4 h-4 mt-0.5 shrink-0",
-                        insight.is_actionable ? "text-warning" : "text-muted-foreground"
-                      )} />
+                      <Sparkles
+                        className={cn(
+                          "w-4 h-4 mt-0.5 shrink-0",
+                          insight.is_actionable ? "text-warning" : "text-muted-foreground",
+                        )}
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="font-medium text-sm">{insight.title}</p>
                           {insight.is_actionable && !insight.action_taken && (
                             <Badge variant="outline" className="text-xs">
-                              {t('weeklyInsights.actionNeeded')}
+                              {t("weeklyInsights.actionNeeded")}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {insight.content}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{insight.content}</p>
                         {insight.is_actionable && !insight.action_taken && (
                           <Button
                             variant="ghost"
@@ -199,7 +185,7 @@ export function WeeklyInsightsPanel({ className, compact = false }: WeeklyInsigh
                             }}
                           >
                             <CheckCircle className="w-3 h-3 mr-1" />
-                            {t('weeklyInsights.markDone')}
+                            {t("weeklyInsights.markDone")}
                           </Button>
                         )}
                       </div>
@@ -212,9 +198,7 @@ export function WeeklyInsightsPanel({ className, compact = false }: WeeklyInsigh
         ) : (
           <div className="text-center py-6">
             <TrendingUp className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              {t('weeklyInsights.noInsights')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t("weeklyInsights.noInsights")}</p>
             <Button
               variant="outline"
               size="sm"
@@ -225,12 +209,12 @@ export function WeeklyInsightsPanel({ className, compact = false }: WeeklyInsigh
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('weeklyInsights.generating')}
+                  {t("weeklyInsights.generating")}
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  {t('weeklyInsights.generate')}
+                  {t("weeklyInsights.generate")}
                 </>
               )}
             </Button>

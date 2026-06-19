@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { useAuth } from './useAuth';
-import { useSharedRealtime } from './useSharedRealtime';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { useAuth } from "./useAuth";
+import { useSharedRealtime } from "./useSharedRealtime";
+import { toast } from "sonner";
 
-export type ProposalStatus = 'draft' | 'reviewed' | 'accepted' | 'rejected' | 'superseded';
-export type BlockKind = 'deep' | 'shallow' | 'meeting' | 'admin' | 'break' | 'errand';
+export type ProposalStatus = "draft" | "reviewed" | "accepted" | "rejected" | "superseded";
+export type BlockKind = "deep" | "shallow" | "meeting" | "admin" | "break" | "errand";
 
 export interface ScheduleBlock {
   id: string;
@@ -17,7 +17,7 @@ export interface ScheduleBlock {
   title: string;
   rationale: string;
   task_id?: string | null;
-  priority?: 'high' | 'medium' | 'low' | null;
+  priority?: "high" | "medium" | "low" | null;
   accepted: boolean | null;
   applied_event_id: string | null;
 }
@@ -58,135 +58,168 @@ export function useSchedule() {
     setLoading(true);
     try {
       type ProposalRow = Record<string, unknown>;
-      const { data, error } = await (supabase as unknown as {
-        from(t: string): {
-          select(c: string): {
-            eq(a: string, b: string): {
-              in(col: string, vals: string[]): {
-                order(c: string, o: Record<string, boolean>): {
-                  limit(n: number): {
-                    maybeSingle(): Promise<{ data: ProposalRow | null; error: unknown }>;
+      const { data, error } = await (
+        supabase as unknown as {
+          from(t: string): {
+            select(c: string): {
+              eq(
+                a: string,
+                b: string,
+              ): {
+                in(
+                  col: string,
+                  vals: string[],
+                ): {
+                  order(
+                    c: string,
+                    o: Record<string, boolean>,
+                  ): {
+                    limit(n: number): {
+                      maybeSingle(): Promise<{ data: ProposalRow | null; error: unknown }>;
+                    };
                   };
                 };
               };
             };
           };
-        };
-      }).from('schedule_proposals')
-        .select('*')
-        .eq('user_id', user.id)
-        .in('status', ['draft', 'reviewed', 'accepted'])
-        .order('created_at', { ascending: false })
+        }
+      )
+        .from("schedule_proposals")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("status", ["draft", "reviewed", "accepted"])
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
       setLatest(data ? normalise(data) : null);
     } catch (e) {
-      console.warn('[useSchedule] refresh failed', (e as Error).message);
+      console.warn("[useSchedule] refresh failed", (e as Error).message);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   // Realtime: any proposal change repaints. Goes through the shared
   // coordinator so multiple useSchedule() callers don't each spin up
   // their own channel and trip supabase-js's "can't add callbacks
   // after subscribe()" guard.
-  useSharedRealtime('schedule_proposals', user?.id, () => { refresh(); });
+  useSharedRealtime("schedule_proposals", user?.id, () => {
+    refresh();
+  });
 
-  const generate = useCallback(async (opts: GenerateOpts = {}) => {
-    if (!user?.id) return null;
-    setBusy(true);
-    try {
-      const tz = opts.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const { data, error } = await supabase.functions.invoke('propose-schedule', {
-        body: {
-          range_start: opts.rangeStart,
-          days: opts.days ?? 7,
-          timezone: tz,
-          deep_work_hours: opts.deepWorkHours,
-          constraints: opts.constraints ?? [],
-        },
-      });
-      if (error) throw error;
-      const dataRecord = data as Record<string, unknown>;
-      if (dataRecord?.error) throw new Error(dataRecord.error as string);
-      const count = (dataRecord?.block_count as number) ?? 0;
-      toast.success(`Drafted ${count} block${count === 1 ? '' : 's'}`);
-      await refresh();
-      return data;
-    } catch (e) {
-      toast.error(await describeEdgeError(e, 'Schedule failed'));
-      return null;
-    } finally {
-      setBusy(false);
-    }
-  }, [user?.id, refresh]);
+  const generate = useCallback(
+    async (opts: GenerateOpts = {}) => {
+      if (!user?.id) return null;
+      setBusy(true);
+      try {
+        const tz = opts.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const { data, error } = await supabase.functions.invoke("propose-schedule", {
+          body: {
+            range_start: opts.rangeStart,
+            days: opts.days ?? 7,
+            timezone: tz,
+            deep_work_hours: opts.deepWorkHours,
+            constraints: opts.constraints ?? [],
+          },
+        });
+        if (error) throw error;
+        const dataRecord = data as Record<string, unknown>;
+        if (dataRecord?.error) throw new Error(dataRecord.error as string);
+        const count = (dataRecord?.block_count as number) ?? 0;
+        toast.success(`Drafted ${count} block${count === 1 ? "" : "s"}`);
+        await refresh();
+        return data;
+      } catch (e) {
+        toast.error(await describeEdgeError(e, "Schedule failed"));
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [user?.id, refresh],
+  );
 
-  const acceptBlocks = useCallback(async (proposalId: string, blockIds: string[]) => {
-    setBusy(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('apply-schedule', {
-        body: { proposal_id: proposalId, action: 'accept_blocks', block_ids: blockIds },
-      });
-      if (error) throw error;
-      const applied = ((data as Record<string, unknown>)?.applied as number) ?? 0;
-      toast.success(`${applied} block${applied === 1 ? '' : 's'} added to calendar`);
-      await refresh();
-      return data;
-    } catch (e) {
-      toast.error(await describeEdgeError(e, 'Apply failed'));
-      return null;
-    } finally {
-      setBusy(false);
-    }
-  }, [refresh]);
+  const acceptBlocks = useCallback(
+    async (proposalId: string, blockIds: string[]) => {
+      setBusy(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("apply-schedule", {
+          body: { proposal_id: proposalId, action: "accept_blocks", block_ids: blockIds },
+        });
+        if (error) throw error;
+        const applied = ((data as Record<string, unknown>)?.applied as number) ?? 0;
+        toast.success(`${applied} block${applied === 1 ? "" : "s"} added to calendar`);
+        await refresh();
+        return data;
+      } catch (e) {
+        toast.error(await describeEdgeError(e, "Apply failed"));
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
 
-  const acceptAll = useCallback(async (proposalId: string) => {
-    setBusy(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('apply-schedule', {
-        body: { proposal_id: proposalId, action: 'accept_all' },
-      });
-      if (error) throw error;
-      const applied = ((data as Record<string, unknown>)?.applied as number) ?? 0;
-      toast.success(`Accepted all (${applied} blocks)`);
-      await refresh();
-      return data;
-    } catch (e) {
-      toast.error(await describeEdgeError(e, 'Apply failed'));
-      return null;
-    } finally {
-      setBusy(false);
-    }
-  }, [refresh]);
+  const acceptAll = useCallback(
+    async (proposalId: string) => {
+      setBusy(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("apply-schedule", {
+          body: { proposal_id: proposalId, action: "accept_all" },
+        });
+        if (error) throw error;
+        const applied = ((data as Record<string, unknown>)?.applied as number) ?? 0;
+        toast.success(`Accepted all (${applied} blocks)`);
+        await refresh();
+        return data;
+      } catch (e) {
+        toast.error(await describeEdgeError(e, "Apply failed"));
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
 
-  const rejectAll = useCallback(async (proposalId: string) => {
-    setBusy(true);
-    try {
-      const { error } = await supabase.functions.invoke('apply-schedule', {
-        body: { proposal_id: proposalId, action: 'reject_all' },
-      });
-      if (error) throw error;
-      toast.info('Schedule rejected');
-      await refresh();
-    } catch (e) {
-      toast.error(`Failed: ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  }, [refresh]);
+  const rejectAll = useCallback(
+    async (proposalId: string) => {
+      setBusy(true);
+      try {
+        const { error } = await supabase.functions.invoke("apply-schedule", {
+          body: { proposal_id: proposalId, action: "reject_all" },
+        });
+        if (error) throw error;
+        toast.info("Schedule rejected");
+        await refresh();
+      } catch (e) {
+        toast.error(`Failed: ${(e as Error).message}`);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
 
-  const markReviewed = useCallback(async (proposalId: string) => {
-    try {
-      await supabase.functions.invoke('apply-schedule', {
-        body: { proposal_id: proposalId, action: 'mark_reviewed' },
-      });
-      await refresh();
-    } catch (e) { /* non-blocking */ console.warn((e as Error).message); }
-  }, [refresh]);
+  const markReviewed = useCallback(
+    async (proposalId: string) => {
+      try {
+        await supabase.functions.invoke("apply-schedule", {
+          body: { proposal_id: proposalId, action: "mark_reviewed" },
+        });
+        await refresh();
+      } catch (e) {
+        /* non-blocking */ console.warn((e as Error).message);
+      }
+    },
+    [refresh],
+  );
 
   return {
     latest,

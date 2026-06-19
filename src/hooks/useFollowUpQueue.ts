@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
 
 export interface FollowUpItem {
   id: string;
@@ -12,7 +12,7 @@ export interface FollowUpItem {
   check_at: string;
   message_template: string | null;
   context: Record<string, unknown>;
-  status: 'pending' | 'sent' | 'completed' | 'dismissed';
+  status: "pending" | "sent" | "completed" | "dismissed";
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -28,16 +28,16 @@ export function useFollowUpQueue() {
 
     try {
       const { data, error } = await supabase
-        .from('follow_up_queue')
-        .select('*')
-        .eq('user_id', user.id)
-        .in('status', ['pending', 'sent'])
-        .order('check_at', { ascending: true });
+        .from("follow_up_queue")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("status", ["pending", "sent"])
+        .order("check_at", { ascending: true });
 
       if (error) throw error;
       setFollowUps((data || []) as FollowUpItem[]);
     } catch (err) {
-      console.error('Error fetching follow-ups:', err);
+      console.error("Error fetching follow-ups:", err);
     } finally {
       setLoading(false);
     }
@@ -52,16 +52,16 @@ export function useFollowUpQueue() {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel('follow_up_queue_changes')
+      .channel("follow_up_queue_changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'follow_up_queue',
+          event: "*",
+          schema: "public",
+          table: "follow_up_queue",
           filter: `user_id=eq.${user.id}`,
         },
-        () => fetchFollowUps()
+        () => fetchFollowUps(),
       )
       .subscribe();
 
@@ -76,20 +76,20 @@ export function useFollowUpQueue() {
 
     try {
       const { error } = await supabase
-        .from('follow_up_queue')
+        .from("follow_up_queue")
         .update({
-          status: 'completed',
+          status: "completed",
           completed_at: new Date().toISOString(),
           context: response ? { response } : undefined,
         })
-        .eq('id', id);
+        .eq("id", id);
 
       if (error) throw error;
-      toast.success('Follow-up completed');
+      toast.success("Follow-up completed");
       fetchFollowUps();
     } catch (err) {
-      console.error('Error completing follow-up:', err);
-      toast.error('Failed to complete follow-up');
+      console.error("Error completing follow-up:", err);
+      toast.error("Failed to complete follow-up");
     }
   };
 
@@ -98,16 +98,16 @@ export function useFollowUpQueue() {
 
     try {
       const { error } = await supabase
-        .from('follow_up_queue')
-        .update({ status: 'dismissed' })
-        .eq('id', id);
+        .from("follow_up_queue")
+        .update({ status: "dismissed" })
+        .eq("id", id);
 
       if (error) throw error;
-      toast.success('Follow-up dismissed');
+      toast.success("Follow-up dismissed");
       fetchFollowUps();
     } catch (err) {
-      console.error('Error dismissing follow-up:', err);
-      toast.error('Failed to dismiss follow-up');
+      console.error("Error dismissing follow-up:", err);
+      toast.error("Failed to dismiss follow-up");
     }
   };
 
@@ -119,16 +119,16 @@ export function useFollowUpQueue() {
       newCheckAt.setHours(newCheckAt.getHours() + hours);
 
       const { error } = await supabase
-        .from('follow_up_queue')
+        .from("follow_up_queue")
         .update({ check_at: newCheckAt.toISOString() })
-        .eq('id', id);
+        .eq("id", id);
 
       if (error) throw error;
       toast.success(`Snoozed for ${hours} hours`);
       fetchFollowUps();
     } catch (err) {
-      console.error('Error snoozing follow-up:', err);
-      toast.error('Failed to snooze follow-up');
+      console.error("Error snoozing follow-up:", err);
+      toast.error("Failed to snooze follow-up");
     }
   };
 
@@ -138,34 +138,32 @@ export function useFollowUpQueue() {
     followUpType: string,
     checkAt: Date,
     messageTemplate?: string,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ) => {
     if (!user?.id) return;
 
     try {
-      const { error } = await supabase
-        .from('follow_up_queue')
-        .insert({
-          user_id: user.id,
-          entity_type: entityType,
-          entity_id: entityId,
-          follow_up_type: followUpType,
-          check_at: checkAt.toISOString(),
-          message_template: messageTemplate,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          context: (context || {}) as any,
-        });
+      const { error } = await supabase.from("follow_up_queue").insert({
+        user_id: user.id,
+        entity_type: entityType,
+        entity_id: entityId,
+        follow_up_type: followUpType,
+        check_at: checkAt.toISOString(),
+        message_template: messageTemplate,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        context: (context || {}) as any,
+      });
 
       if (error) throw error;
       fetchFollowUps();
     } catch (err) {
-      console.error('Error creating follow-up:', err);
+      console.error("Error creating follow-up:", err);
     }
   };
 
   // Get pending follow-ups that are due
-  const dueFollowUps = followUps.filter(f => 
-    f.status === 'pending' && new Date(f.check_at) <= new Date()
+  const dueFollowUps = followUps.filter(
+    (f) => f.status === "pending" && new Date(f.check_at) <= new Date(),
   );
 
   return {

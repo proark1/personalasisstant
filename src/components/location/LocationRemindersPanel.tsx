@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
-import { MapPin, Plus, Navigation, Trash2, Play, Square, AlertCircle } from 'lucide-react';
-import { useLocationReminders, LocationTrigger } from '@/hooks/useLocationReminders';
-import { AddLocationTriggerDialog } from './AddLocationTriggerDialog';
-import { formatDistanceToNow } from 'date-fns';
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MapPin, Plus, Navigation, Trash2, Play, Square, AlertCircle } from "lucide-react";
+import { useLocationReminders, LocationTrigger } from "@/hooks/useLocationReminders";
+import { AddLocationTriggerDialog } from "./AddLocationTriggerDialog";
+import { formatDistanceToNow } from "date-fns";
 
 export function LocationRemindersPanel() {
   const {
@@ -35,10 +35,14 @@ export function LocationRemindersPanel() {
 
   const _getTriggerTypeLabel = (type: string) => {
     switch (type) {
-      case 'enter': return 'On Arrival';
-      case 'exit': return 'On Departure';
-      case 'both': return 'Both';
-      default: return type;
+      case "enter":
+        return "On Arrival";
+      case "exit":
+        return "On Departure";
+      case "both":
+        return "Both";
+      default:
+        return type;
     }
   };
 
@@ -80,28 +84,31 @@ export function LocationRemindersPanel() {
           {/* Permission & Tracking Status */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-3">
-              <Navigation className={`h-5 w-5 ${isTracking ? 'text-green-500 animate-pulse' : 'text-muted-foreground'}`} />
+              <Navigation
+                className={`h-5 w-5 ${isTracking ? "text-green-500 animate-pulse" : "text-muted-foreground"}`}
+              />
               <div>
                 <p className="text-sm font-medium">
-                  {isTracking ? 'Location tracking active' : 'Location tracking paused'}
+                  {isTracking ? "Location tracking active" : "Location tracking paused"}
                 </p>
                 {currentPosition && isTracking && (
                   <p className="text-xs text-muted-foreground">
-                    {currentPosition.coords.latitude.toFixed(4)}, {currentPosition.coords.longitude.toFixed(4)}
+                    {currentPosition.coords.latitude.toFixed(4)},{" "}
+                    {currentPosition.coords.longitude.toFixed(4)}
                   </p>
                 )}
               </div>
             </div>
-            
-            {permissionStatus === 'denied' ? (
+
+            {permissionStatus === "denied" ? (
               <Button size="sm" variant="outline" onClick={requestPermissions}>
                 <AlertCircle className="h-4 w-4 mr-1 text-destructive" />
                 Enable
               </Button>
             ) : (
-              <Button 
-                size="sm" 
-                variant={isTracking ? 'destructive' : 'default'}
+              <Button
+                size="sm"
+                variant={isTracking ? "destructive" : "default"}
                 onClick={handleToggleTracking}
               >
                 {isTracking ? (
@@ -141,10 +148,7 @@ export function LocationRemindersPanel() {
         </CardContent>
       </Card>
 
-      <AddLocationTriggerDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-      />
+      <AddLocationTriggerDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
     </>
   );
 }
@@ -161,30 +165,33 @@ function TriggerItem({ trigger, onToggle, onDelete }: TriggerItemProps) {
       <div className="mt-1">
         <MapPin className="h-5 w-5 text-primary" />
       </div>
-      
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="font-medium truncate">{trigger.name}</p>
           <Badge variant="secondary" className="text-xs">
-            {trigger.trigger_type === 'exit' ? 'Leave' : trigger.trigger_type === 'enter' ? 'Arrive' : 'Both'}
+            {trigger.trigger_type === "exit"
+              ? "Leave"
+              : trigger.trigger_type === "enter"
+                ? "Arrive"
+                : "Both"}
           </Badge>
         </div>
-        <p className="text-sm text-muted-foreground truncate mt-0.5">
-          {trigger.reminder_message}
-        </p>
+        <p className="text-sm text-muted-foreground truncate mt-0.5">{trigger.reminder_message}</p>
         <p className="text-xs text-muted-foreground mt-1">
           {trigger.radius_meters}m radius
           {trigger.last_triggered_at && (
-            <> • Last triggered {formatDistanceToNow(new Date(trigger.last_triggered_at), { addSuffix: true })}</>
+            <>
+              {" "}
+              • Last triggered{" "}
+              {formatDistanceToNow(new Date(trigger.last_triggered_at), { addSuffix: true })}
+            </>
           )}
         </p>
       </div>
 
       <div className="flex items-center gap-2">
-        <Switch
-          checked={trigger.is_active}
-          onCheckedChange={onToggle}
-        />
+        <Switch checked={trigger.is_active} onCheckedChange={onToggle} />
         <Button
           size="icon"
           variant="ghost"

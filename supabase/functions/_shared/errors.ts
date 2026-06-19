@@ -8,7 +8,7 @@
 // respondError logs the full detail server-side and returns a generic
 // payload to the client with a request_id the user can quote in support.
 
-import { buildCorsHeaders } from './cors.ts';
+import { buildCorsHeaders } from "./cors.ts";
 
 interface ErrorRespondOptions {
   // HTTP status to return. Defaults to 500.
@@ -46,8 +46,8 @@ export function respondError(
   // are intentional surfaces — pass their message through. Everything
   // else gets a generic.
   const errCode = (err as Error & { code?: string }).code || opts.code;
-  const clientMessage = opts.publicMessage
-    || (errCode && isSafeMessage(err.message) ? err.message : 'Internal error.');
+  const clientMessage =
+    opts.publicMessage || (errCode && isSafeMessage(err.message) ? err.message : "Internal error.");
 
   const body: Record<string, unknown> = {
     error: clientMessage,
@@ -59,7 +59,7 @@ export function respondError(
     status,
     headers: {
       ...buildCorsHeaders(req),
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 }
@@ -71,14 +71,11 @@ export function respondClientError(
   status = 400,
   code?: string,
 ): Response {
-  return new Response(
-    JSON.stringify({ error: message, ...(code ? { code } : {}) }),
-    {
-      status,
-      headers: {
-        ...buildCorsHeaders(req),
-        'Content-Type': 'application/json',
-      },
+  return new Response(JSON.stringify({ error: message, ...(code ? { code } : {}) }), {
+    status,
+    headers: {
+      ...buildCorsHeaders(req),
+      "Content-Type": "application/json",
     },
-  );
+  });
 }

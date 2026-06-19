@@ -1,20 +1,41 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Contact } from '@/hooks/useContacts';
-import { useContactInteractions, ContactInteraction, InteractionType } from '@/hooks/useContactInteractions';
-import { useContactAI, RelationshipInsights } from '@/hooks/useContactAI';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  Phone, Mail, Building, MapPin, Linkedin, Twitter, Globe, MessageSquare, Calendar, Video, Sparkles, TrendingUp,
-  AlertCircle, CheckCircle
-} from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import React, { useState, useEffect, useCallback } from "react";
+import { Contact } from "@/hooks/useContacts";
+import {
+  useContactInteractions,
+  ContactInteraction,
+  InteractionType,
+} from "@/hooks/useContactInteractions";
+import { useContactAI, RelationshipInsights } from "@/hooks/useContactAI";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Phone,
+  Mail,
+  Building,
+  MapPin,
+  Linkedin,
+  Twitter,
+  Globe,
+  MessageSquare,
+  Calendar,
+  Video,
+  Sparkles,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
 
 interface ContactProfileCardProps {
   contact: Contact;
@@ -33,22 +54,26 @@ const INTERACTION_ICONS: Record<InteractionType, React.ComponentType<{ className
   contact: CheckCircle,
 };
 
-export function ContactProfileCard({ 
-  contact, 
-  open, 
+export function ContactProfileCard({
+  contact,
+  open,
   onOpenChange,
   onMarkContacted,
   onEdit,
-  userId
+  userId,
 }: ContactProfileCardProps) {
-  const { getInteractions, addInteraction, loading: interactionsLoading } = useContactInteractions(userId);
+  const {
+    getInteractions,
+    addInteraction,
+    loading: interactionsLoading,
+  } = useContactInteractions(userId);
   const { getConversationStarters, getRelationshipInsights, loading: aiLoading } = useContactAI();
-  
+
   const [interactions, setInteractions] = useState<ContactInteraction[]>([]);
   const [conversationStarters, setConversationStarters] = useState<string[]>([]);
   const [insights, setInsights] = useState<RelationshipInsights | null>(null);
-  const [newNote, setNewNote] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [newNote, setNewNote] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
 
   const loadInteractions = useCallback(async () => {
     const data = await getInteractions(contact.id);
@@ -74,21 +99,30 @@ export function ContactProfileCard({
   const handleLogInteraction = async (type: InteractionType) => {
     if (!userId) return;
     await addInteraction(contact.id, type, newNote || undefined);
-    setNewNote('');
+    setNewNote("");
     loadInteractions();
     onMarkContacted(contact);
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
-      case 'low': return 'text-green-500';
-      case 'medium': return 'text-yellow-500';
-      case 'high': return 'text-red-500';
-      default: return 'text-muted-foreground';
+      case "low":
+        return "text-green-500";
+      case "medium":
+        return "text-yellow-500";
+      case "high":
+        return "text-red-500";
+      default:
+        return "text-muted-foreground";
     }
   };
 
@@ -103,9 +137,7 @@ export function ContactProfileCard({
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <DialogTitle className="text-xl flex items-center gap-2">
-                {contact.name}
-              </DialogTitle>
+              <DialogTitle className="text-xl flex items-center gap-2">{contact.name}</DialogTitle>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {contact.company && (
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
@@ -117,7 +149,10 @@ export function ContactProfileCard({
               </div>
               <div className="flex items-center gap-2 mt-2">
                 {contact.email && (
-                  <a href={`mailto:${contact.email}`} className="text-primary hover:underline text-sm flex items-center gap-1">
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="text-primary hover:underline text-sm flex items-center gap-1"
+                  >
                     <Mail className="w-3 h-3" />
                     {contact.email}
                   </a>
@@ -127,7 +162,11 @@ export function ContactProfileCard({
           </div>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="flex-1 overflow-hidden flex flex-col"
+        >
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
@@ -143,7 +182,10 @@ export function ContactProfileCard({
                 </GlassCardHeader>
                 <GlassCardContent className="space-y-2 text-sm">
                   {contact.phone && (
-                    <a href={`tel:${contact.phone}`} className="flex items-center gap-2 hover:text-primary">
+                    <a
+                      href={`tel:${contact.phone}`}
+                      className="flex items-center gap-2 hover:text-primary"
+                    >
                       <Phone className="w-4 h-4" />
                       {contact.phone}
                     </a>
@@ -151,22 +193,37 @@ export function ContactProfileCard({
                   {(contact.city || contact.country) && (
                     <p className="flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
-                      {[contact.city, contact.country].filter(Boolean).join(', ')}
+                      {[contact.city, contact.country].filter(Boolean).join(", ")}
                     </p>
                   )}
                   <div className="flex items-center gap-3 pt-2">
                     {contact.linkedinUrl && (
-                      <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
+                      <a
+                        href={contact.linkedinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-primary"
+                      >
                         <Linkedin className="w-5 h-5" />
                       </a>
                     )}
                     {contact.twitterUrl && (
-                      <a href={contact.twitterUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
+                      <a
+                        href={contact.twitterUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-primary"
+                      >
                         <Twitter className="w-5 h-5" />
                       </a>
                     )}
                     {contact.websiteUrl && (
-                      <a href={contact.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
+                      <a
+                        href={contact.websiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-primary"
+                      >
                         <Globe className="w-5 h-5" />
                       </a>
                     )}
@@ -182,7 +239,9 @@ export function ContactProfileCard({
                   <GlassCardContent>
                     <div className="flex flex-wrap gap-1">
                       {contact.tags.map((tag, i) => (
-                        <Badge key={i} variant="secondary">{tag}</Badge>
+                        <Badge key={i} variant="secondary">
+                          {tag}
+                        </Badge>
                       ))}
                     </div>
                   </GlassCardContent>
@@ -195,7 +254,9 @@ export function ContactProfileCard({
                     <GlassCardTitle className="text-sm">Notes</GlassCardTitle>
                   </GlassCardHeader>
                   <GlassCardContent>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{contact.notes}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {contact.notes}
+                    </p>
                   </GlassCardContent>
                 </GlassCard>
               )}
@@ -212,17 +273,17 @@ export function ContactProfileCard({
                   <div>
                     <p className="text-muted-foreground">Last Contact</p>
                     <p className="font-medium">
-                      {contact.lastContactedAt 
+                      {contact.lastContactedAt
                         ? formatDistanceToNow(contact.lastContactedAt, { addSuffix: true })
-                        : 'Never'}
+                        : "Never"}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Next Due</p>
                     <p className="font-medium">
-                      {contact.nextContactDue 
-                        ? format(contact.nextContactDue, 'MMM d, yyyy')
-                        : 'Not set'}
+                      {contact.nextContactDue
+                        ? format(contact.nextContactDue, "MMM d, yyyy")
+                        : "Not set"}
                     </p>
                   </div>
                   <div>
@@ -246,16 +307,32 @@ export function ContactProfileCard({
                     rows={2}
                   />
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleLogInteraction('call')}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleLogInteraction("call")}
+                    >
                       <Phone className="w-4 h-4 mr-1" /> Call
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleLogInteraction('email')}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleLogInteraction("email")}
+                    >
                       <Mail className="w-4 h-4 mr-1" /> Email
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleLogInteraction('meeting')}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleLogInteraction("meeting")}
+                    >
                       <Video className="w-4 h-4 mr-1" /> Meeting
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleLogInteraction('message')}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleLogInteraction("message")}
+                    >
                       <MessageSquare className="w-4 h-4 mr-1" /> Message
                     </Button>
                   </div>
@@ -281,12 +358,14 @@ export function ContactProfileCard({
                               <Icon className="w-4 h-4 text-primary" />
                             </div>
                             <div className="flex-1">
-                              <p className="font-medium capitalize">{interaction.interactionType}</p>
+                              <p className="font-medium capitalize">
+                                {interaction.interactionType}
+                              </p>
                               {interaction.notes && (
                                 <p className="text-muted-foreground">{interaction.notes}</p>
                               )}
                               <p className="text-xs text-muted-foreground mt-1">
-                                {format(interaction.interactionDate, 'MMM d, yyyy h:mm a')}
+                                {format(interaction.interactionDate, "MMM d, yyyy h:mm a")}
                               </p>
                             </div>
                           </div>
@@ -309,7 +388,7 @@ export function ContactProfileCard({
                 <GlassCardContent>
                   {conversationStarters.length === 0 ? (
                     <Button variant="outline" onClick={handleLoadStarters} disabled={aiLoading}>
-                      {aiLoading ? 'Generating...' : 'Generate Starters'}
+                      {aiLoading ? "Generating..." : "Generate Starters"}
                     </Button>
                   ) : (
                     <ul className="space-y-2">
@@ -334,7 +413,7 @@ export function ContactProfileCard({
                 <GlassCardContent>
                   {!insights ? (
                     <Button variant="outline" onClick={handleLoadInsights} disabled={aiLoading}>
-                      {aiLoading ? 'Analyzing...' : 'Analyze Relationship'}
+                      {aiLoading ? "Analyzing..." : "Analyze Relationship"}
                     </Button>
                   ) : (
                     <div className="space-y-4">
@@ -342,7 +421,7 @@ export function ContactProfileCard({
                         <span className="text-sm">Relationship Strength</span>
                         <div className="flex items-center gap-2">
                           <div className="w-32 h-2 bg-secondary rounded-full overflow-hidden">
-                            <div 
+                            <div
                               className="h-full bg-primary rounded-full transition-all"
                               style={{ width: `${insights.strengthScore}%` }}
                             />
@@ -353,14 +432,19 @@ export function ContactProfileCard({
 
                       <div className="flex items-center gap-2">
                         <AlertCircle className={`w-4 h-4 ${getRiskColor(insights.riskLevel)}`} />
-                        <span className="text-sm">Risk Level: <span className="font-medium capitalize">{insights.riskLevel}</span></span>
+                        <span className="text-sm">
+                          Risk Level:{" "}
+                          <span className="font-medium capitalize">{insights.riskLevel}</span>
+                        </span>
                       </div>
 
                       <div>
                         <p className="text-sm font-medium mb-2">Insights</p>
                         <ul className="space-y-1">
                           {insights.insights.map((insight, i) => (
-                            <li key={i} className="text-sm text-muted-foreground">• {insight}</li>
+                            <li key={i} className="text-sm text-muted-foreground">
+                              • {insight}
+                            </li>
                           ))}
                         </ul>
                       </div>
@@ -369,7 +453,9 @@ export function ContactProfileCard({
                         <p className="text-sm font-medium mb-2">Recommendations</p>
                         <ul className="space-y-1">
                           {insights.recommendations.map((rec, i) => (
-                            <li key={i} className="text-sm text-muted-foreground">• {rec}</li>
+                            <li key={i} className="text-sm text-muted-foreground">
+                              • {rec}
+                            </li>
                           ))}
                         </ul>
                       </div>
@@ -378,7 +464,9 @@ export function ContactProfileCard({
                         <p className="text-sm font-medium mb-2">Suggested Actions</p>
                         <div className="flex flex-wrap gap-2">
                           {insights.suggestedActions.map((action, i) => (
-                            <Badge key={i} variant="outline">{action}</Badge>
+                            <Badge key={i} variant="outline">
+                              {action}
+                            </Badge>
                           ))}
                         </div>
                       </div>
@@ -395,7 +483,7 @@ export function ContactProfileCard({
                 </GlassCardHeader>
                 <GlassCardContent className="space-y-2">
                   {contact.phone && (
-                    <a 
+                    <a
                       href={`tel:${contact.phone}`}
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
                     >
@@ -406,7 +494,7 @@ export function ContactProfileCard({
                     </a>
                   )}
                   {contact.email && (
-                    <a 
+                    <a
                       href={`mailto:${contact.email}`}
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
                     >
@@ -417,8 +505,8 @@ export function ContactProfileCard({
                     </a>
                   )}
                   {contact.phone && (
-                    <a 
-                      href={`https://wa.me/${contact.phone.replace(/\D/g, '')}`}
+                    <a
+                      href={`https://wa.me/${contact.phone.replace(/\D/g, "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
@@ -429,8 +517,11 @@ export function ContactProfileCard({
                       <span>WhatsApp {contact.name}</span>
                     </a>
                   )}
-                  <button 
-                    onClick={() => { onMarkContacted(contact); onOpenChange(false); }}
+                  <button
+                    onClick={() => {
+                      onMarkContacted(contact);
+                      onOpenChange(false);
+                    }}
                     className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors text-left"
                   >
                     <div className="p-2 rounded-full bg-primary/10">
@@ -438,8 +529,11 @@ export function ContactProfileCard({
                     </div>
                     <span>Mark as Contacted</span>
                   </button>
-                  <button 
-                    onClick={() => { onEdit(contact); onOpenChange(false); }}
+                  <button
+                    onClick={() => {
+                      onEdit(contact);
+                      onOpenChange(false);
+                    }}
                     className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors text-left"
                   >
                     <div className="p-2 rounded-full bg-orange-500/10">

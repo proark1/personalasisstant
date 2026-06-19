@@ -1,21 +1,21 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Sparkles, PawPrint, Wrench, Car } from 'lucide-react';
-import { useFamilyMemoryHome } from '@/hooks/useFamilyMemoryHome';
-import { AddTraditionDialog } from './AddTraditionDialog';
-import { AddPetDialog } from './AddPetDialog';
-import { AddMaintenanceDialog } from './AddMaintenanceDialog';
-import { AddVehicleDialog } from './AddVehicleDialog';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Sparkles, PawPrint, Wrench, Car } from "lucide-react";
+import { useFamilyMemoryHome } from "@/hooks/useFamilyMemoryHome";
+import { AddTraditionDialog } from "./AddTraditionDialog";
+import { AddPetDialog } from "./AddPetDialog";
+import { AddMaintenanceDialog } from "./AddMaintenanceDialog";
+import { AddVehicleDialog } from "./AddVehicleDialog";
+import { format, parseISO, differenceInDays } from "date-fns";
 
 const dueLabel = (dateStr: string | null) => {
   if (!dateStr) return null;
   const d = differenceInDays(parseISO(dateStr), new Date());
-  if (d < 0) return { text: `${Math.abs(d)}d overdue`, variant: 'destructive' as const };
-  if (d <= 14) return { text: `in ${d}d`, variant: 'default' as const };
-  return { text: format(parseISO(dateStr), 'MMM d'), variant: 'secondary' as const };
+  if (d < 0) return { text: `${Math.abs(d)}d overdue`, variant: "destructive" as const };
+  if (d <= 14) return { text: `in ${d}d`, variant: "default" as const };
+  return { text: format(parseISO(dateStr), "MMM d"), variant: "secondary" as const };
 };
 
 export function FamilyMemoryHomeCard() {
@@ -40,8 +40,12 @@ export function FamilyMemoryHomeCard() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-2">
-          {traditions.length === 0 && <p className="text-sm text-muted-foreground">Capture rituals like Friday pizza or annual anniversaries.</p>}
-          {traditions.map(t => {
+          {traditions.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Capture rituals like Friday pizza or annual anniversaries.
+            </p>
+          )}
+          {traditions.map((t) => {
             const d = dueLabel(t.next_occurrence);
             return (
               <div key={t.id} className="flex items-center justify-between rounded-lg border p-3">
@@ -49,7 +53,11 @@ export function FamilyMemoryHomeCard() {
                   <div className="font-medium text-sm truncate">{t.title}</div>
                   <div className="text-xs text-muted-foreground capitalize">{t.cadence}</div>
                 </div>
-                {d && <Badge variant={d.variant} className="text-[10px]">{d.text}</Badge>}
+                {d && (
+                  <Badge variant={d.variant} className="text-[10px]">
+                    {d.text}
+                  </Badge>
+                )}
               </div>
             );
           })}
@@ -68,14 +76,16 @@ export function FamilyMemoryHomeCard() {
         </CardHeader>
         <CardContent className="space-y-2">
           {pets.length === 0 && <p className="text-sm text-muted-foreground">No pets yet.</p>}
-          {pets.map(p => {
+          {pets.map((p) => {
             const vacc = dueLabel(p.next_vaccination_date);
             const checkup = dueLabel(p.next_vet_checkup);
             return (
               <div key={p.id} className="rounded-lg border p-3">
                 <div className="flex items-center justify-between">
                   <div className="font-medium text-sm">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">{[p.species, p.breed].filter(Boolean).join(' • ')}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {[p.species, p.breed].filter(Boolean).join(" • ")}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2 text-xs">
                   {vacc && <Badge variant={vacc.variant}>💉 {vacc.text}</Badge>}
@@ -99,16 +109,26 @@ export function FamilyMemoryHomeCard() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-2">
-          {maintenance.length === 0 && <p className="text-sm text-muted-foreground">Track boiler, smoke alarms, filter changes…</p>}
-          {maintenance.map(m => {
+          {maintenance.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Track boiler, smoke alarms, filter changes…
+            </p>
+          )}
+          {maintenance.map((m) => {
             const d = dueLabel(m.next_due_date);
             return (
               <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
                 <div className="min-w-0">
                   <div className="font-medium text-sm truncate">{m.task_name}</div>
-                  <div className="text-xs text-muted-foreground">{m.category} {m.provider_name && `• ${m.provider_name}`}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {m.category} {m.provider_name && `• ${m.provider_name}`}
+                  </div>
                 </div>
-                {d && <Badge variant={d.variant} className="text-[10px]">{d.text}</Badge>}
+                {d && (
+                  <Badge variant={d.variant} className="text-[10px]">
+                    {d.text}
+                  </Badge>
+                )}
               </div>
             );
           })}
@@ -126,8 +146,10 @@ export function FamilyMemoryHomeCard() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-2">
-          {vehicles.length === 0 && <p className="text-sm text-muted-foreground">No vehicles yet.</p>}
-          {vehicles.map(v => {
+          {vehicles.length === 0 && (
+            <p className="text-sm text-muted-foreground">No vehicles yet.</p>
+          )}
+          {vehicles.map((v) => {
             const insp = dueLabel(v.next_inspection_date);
             const ins = dueLabel(v.insurance_renewal_date);
             const svc = dueLabel(v.next_service_date);
@@ -135,7 +157,9 @@ export function FamilyMemoryHomeCard() {
               <div key={v.id} className="rounded-lg border p-3">
                 <div className="flex items-center justify-between">
                   <div className="font-medium text-sm">{v.nickname}</div>
-                  <div className="text-xs text-muted-foreground">{[v.make, v.model, v.year].filter(Boolean).join(' ')}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {[v.make, v.model, v.year].filter(Boolean).join(" ")}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2 text-xs">
                   {insp && <Badge variant={insp.variant}>🔍 Insp: {insp.text}</Badge>}

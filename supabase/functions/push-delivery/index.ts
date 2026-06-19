@@ -1,29 +1,29 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isUserQuietNow } from "../_shared/dori-quiet.ts";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'X-Content-Type-Options': 'nosniff',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "X-Content-Type-Options": "nosniff",
 };
 
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY');
+const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
 
 async function sendTelegram(chatId: number, title: string, body: string) {
-  if (!TELEGRAM_API_KEY) return { ok: false, error: 'telegram not configured' };
+  if (!TELEGRAM_API_KEY) return { ok: false, error: "telegram not configured" };
   try {
     const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_API_KEY}/sendMessage`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         chat_id: chatId,
         text: `<b>${title}</b>\n${body}`,
-        parse_mode: 'HTML',
+        parse_mode: "HTML",
       }),
     });
     const data = await res.json();
@@ -38,39 +38,45 @@ interface ExpoPushMessage {
   title: string;
   body: string;
   data?: Record<string, unknown>;
-  sound?: 'default' | null;
+  sound?: "default" | null;
   badge?: number;
-  priority?: 'default' | 'normal' | 'high';
+  priority?: "default" | "normal" | "high";
   categoryId?: string;
 }
 
 interface ExpoPushTicket {
   id?: string;
-  status: 'ok' | 'error';
+  status: "ok" | "error";
   message?: string;
   details?: { error?: string };
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   // Service key auth gate
-  const authHeader = req.headers.get('Authorization');
-  const supabaseServiceKeyCheck = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const authHeader = req.headers.get("Authorization");
+  const supabaseServiceKeyCheck = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   if (!authHeader || authHeader !== `Bearer ${supabaseServiceKeyCheck}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { reminder_id, user_ids, title, body, data, priority = 'high' } = await req.json();
+    const { reminder_id, user_ids, title, body, data, priority = "high" } = await req.json();
 
     let targetUserIds: string[] = [];
     let reminderData: Record<string, unknown> | null = null;
@@ -78,17 +84,17 @@ serve(async (req) => {
     // If reminder_id provided, fetch the reminder details
     if (reminder_id) {
       const { data: reminder, error } = await supabase
-        .from('proactive_reminders')
-        .select('*')
-        .eq('id', reminder_id)
+        .from("proactive_reminders")
+        .select("*")
+        .eq("id", reminder_id)
         .single();
 
       if (error || !reminder) {
-        console.error('Reminder not found:', reminder_id);
-        return new Response(
-          JSON.stringify({ error: 'Reminder not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error("Reminder not found:", reminder_id);
+        return new Response(JSON.stringify({ error: "Reminder not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       reminderData = reminder;
@@ -96,10 +102,10 @@ serve(async (req) => {
     } else if (user_ids && user_ids.length > 0) {
       targetUserIds = user_ids;
     } else {
-      return new Response(
-        JSON.stringify({ error: 'Must provide reminder_id or user_ids' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "Must provide reminder_id or user_ids" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log(`Sending push notifications to ${targetUserIds.length} users`);
@@ -121,9 +127,9 @@ serve(async (req) => {
 
       // Get user's proactive settings
       const { data: settings } = await supabase
-        .from('proactive_settings')
-        .select('push_notifications_enabled, in_app_notifications_enabled')
-        .eq('user_id', userId)
+        .from("proactive_settings")
+        .select("push_notifications_enabled, in_app_notifications_enabled")
+        .eq("user_id", userId)
         .single();
 
       const pushEnabled = settings?.push_notifications_enabled ?? true;
@@ -131,13 +137,15 @@ serve(async (req) => {
 
       // Get user's Expo push tokens
       const { data: tokens } = await supabase
-        .from('push_tokens')
-        .select('token, expo_push_token, platform')
-        .eq('user_id', userId);
+        .from("push_tokens")
+        .select("token, expo_push_token, platform")
+        .eq("user_id", userId);
 
       const notificationTitle = reminderData?.title || title;
       const notificationBody = reminderData?.message || body;
-      const notificationData = reminderData?.metadata || data || {};
+      const notificationData = { ...asRecord(reminderData?.metadata || data) };
+      const suppressTelegram = notificationData.suppress_telegram === true;
+      delete notificationData.suppress_telegram;
 
       // Add reminder_id to data for handling
       if (reminder_id) {
@@ -149,49 +157,52 @@ serve(async (req) => {
 
       // Get user's settings (telegram + group toggles)
       const { data: fullSettings } = await supabase
-        .from('proactive_settings')
-        .select('telegram_proactive_enabled, telegram_group_enabled')
-        .eq('user_id', userId)
+        .from("proactive_settings")
+        .select("telegram_proactive_enabled, telegram_group_enabled")
+        .eq("user_id", userId)
         .maybeSingle();
       const telegramEnabled = fullSettings?.telegram_proactive_enabled !== false;
       const groupEnabled = fullSettings?.telegram_group_enabled !== false;
 
       // Telegram delivery — prefer family group, fall back to personal 1:1
-      if (telegramEnabled) {
+      if (telegramEnabled && !suppressTelegram) {
         let chatId: number | null = null;
-        let channelLabel = 'telegram';
+        let channelLabel = "telegram";
         if (groupEnabled) {
           const { data: glink } = await supabase
-            .from('telegram_group_links')
-            .select('chat_id')
-            .eq('owner_user_id', userId)
-            .eq('is_active', true)
+            .from("telegram_group_links")
+            .select("chat_id")
+            .eq("owner_user_id", userId)
+            .eq("is_active", true)
             .maybeSingle();
-          if (glink?.chat_id) { chatId = Number(glink.chat_id); channelLabel = 'telegram_group'; }
+          if (glink?.chat_id) {
+            chatId = Number(glink.chat_id);
+            channelLabel = "telegram_group";
+          }
         }
         if (!chatId) {
           const { data: link } = await supabase
-            .from('telegram_links')
-            .select('chat_id')
-            .eq('user_id', userId)
-            .eq('is_active', true)
+            .from("telegram_links")
+            .select("chat_id")
+            .eq("user_id", userId)
+            .eq("is_active", true)
             .maybeSingle();
           if (link?.chat_id) chatId = Number(link.chat_id);
         }
         if (chatId) {
           const tgRes = await sendTelegram(chatId, notificationTitle, notificationBody);
-          await supabase.from('reminder_delivery_log').insert({
+          await supabase.from("reminder_delivery_log").insert({
             user_id: userId,
             reminder_id: reminder_id || null,
             delivery_channel: channelLabel,
-            delivery_status: tgRes.ok ? 'sent' : 'failed',
-            error_message: tgRes.ok ? null : (tgRes.error || JSON.stringify(tgRes.data)),
+            delivery_status: tgRes.ok ? "sent" : "failed",
+            error_message: tgRes.ok ? null : tgRes.error || JSON.stringify(tgRes.data),
             sent_at: new Date().toISOString(),
           });
           if (tgRes.ok) {
-            results.push({ user_id: userId, channel: channelLabel, status: 'sent' });
+            results.push({ user_id: userId, channel: channelLabel, status: "sent" });
           } else {
-            errors.push(`Telegram failed for ${userId}: ${tgRes.error || 'unknown'}`);
+            errors.push(`Telegram failed for ${userId}: ${tgRes.error || "unknown"}`);
           }
         }
       }
@@ -201,9 +212,12 @@ serve(async (req) => {
         for (const tokenRecord of tokens) {
           // Use expo_push_token if available, otherwise try the regular token
           const pushToken = tokenRecord.expo_push_token || tokenRecord.token;
-          
+
           // Check if it's a valid Expo push token format
-          if (!pushToken || (!pushToken.startsWith('ExponentPushToken[') && !pushToken.startsWith('ExpoPushToken['))) {
+          if (
+            !pushToken ||
+            (!pushToken.startsWith("ExponentPushToken[") && !pushToken.startsWith("ExpoPushToken["))
+          ) {
             console.log(`Skipping non-Expo token for user ${userId}`);
             continue;
           }
@@ -213,88 +227,88 @@ serve(async (req) => {
             title: notificationTitle,
             body: notificationBody,
             data: notificationData,
-            sound: 'default',
-            priority: reminderData?.priority === 'urgent' ? 'high' : priority,
+            sound: "default",
+            priority: reminderData?.priority === "urgent" ? "high" : priority,
             badge: 1,
           };
 
           try {
             const response = await fetch(EXPO_PUSH_URL, {
-              method: 'POST',
+              method: "POST",
               headers: {
-                'Accept': 'application/json',
-                'Accept-Encoding': 'gzip, deflate',
-                'Content-Type': 'application/json',
+                Accept: "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
               },
               body: JSON.stringify(message),
             });
 
             const result = await response.json();
-            console.log('Expo push result:', JSON.stringify(result));
+            console.log("Expo push result:", JSON.stringify(result));
 
             // Log the delivery attempt
             const ticket = result.data?.[0] as ExpoPushTicket;
-            
-            await supabase
-              .from('reminder_delivery_log')
-              .insert({
-                user_id: userId,
-                reminder_id: reminder_id || null,
-                delivery_channel: 'push',
-                delivery_status: ticket?.status === 'ok' ? 'sent' : 'failed',
-                expo_push_ticket: ticket?.id || null,
-                error_message: ticket?.status === 'error' ? (ticket.message || ticket.details?.error) : null,
-                sent_at: new Date().toISOString(),
-              });
 
-            if (ticket?.status === 'ok') {
-              results.push({ user_id: userId, channel: 'push', status: 'sent', ticket_id: ticket.id });
+            await supabase.from("reminder_delivery_log").insert({
+              user_id: userId,
+              reminder_id: reminder_id || null,
+              delivery_channel: "push",
+              delivery_status: ticket?.status === "ok" ? "sent" : "failed",
+              expo_push_ticket: ticket?.id || null,
+              error_message:
+                ticket?.status === "error" ? ticket.message || ticket.details?.error : null,
+              sent_at: new Date().toISOString(),
+            });
+
+            if (ticket?.status === "ok") {
+              results.push({
+                user_id: userId,
+                channel: "push",
+                status: "sent",
+                ticket_id: ticket.id,
+              });
             } else {
-              errors.push(`Push failed for ${userId}: ${ticket?.message || 'Unknown error'}`);
+              errors.push(`Push failed for ${userId}: ${ticket?.message || "Unknown error"}`);
             }
           } catch (pushError) {
-            console.error('Expo push error:', pushError);
-            errors.push(`Push error for ${userId}: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-            
-            await supabase
-              .from('reminder_delivery_log')
-              .insert({
-                user_id: userId,
-                reminder_id: reminder_id || null,
-                delivery_channel: 'push',
-                delivery_status: 'failed',
-                error_message: pushError instanceof Error ? pushError.message : String(pushError),
-                sent_at: new Date().toISOString(),
-              });
+            console.error("Expo push error:", pushError);
+            errors.push(
+              `Push error for ${userId}: ${pushError instanceof Error ? pushError.message : String(pushError)}`,
+            );
+
+            await supabase.from("reminder_delivery_log").insert({
+              user_id: userId,
+              reminder_id: reminder_id || null,
+              delivery_channel: "push",
+              delivery_status: "failed",
+              error_message: pushError instanceof Error ? pushError.message : String(pushError),
+              sent_at: new Date().toISOString(),
+            });
           }
         }
       }
 
       // Create in-app notification
       if (inAppEnabled) {
-        const { error: notifError } = await supabase
-          .from('user_notifications')
-          .insert({
-            user_id: userId,
-            type: reminderData?.reminder_type || 'proactive',
-            title: notificationTitle,
-            message: notificationBody,
-            data: notificationData,
-            read: false,
-          });
+        const { error: notifError } = await supabase.from("user_notifications").insert({
+          user_id: userId,
+          type: reminderData?.reminder_type || "proactive",
+          title: notificationTitle,
+          message: notificationBody,
+          data: notificationData,
+          read: false,
+        });
 
         if (!notifError) {
-          results.push({ user_id: userId, channel: 'in_app', status: 'created' });
-          
-          await supabase
-            .from('reminder_delivery_log')
-            .insert({
-              user_id: userId,
-              reminder_id: reminder_id || null,
-              delivery_channel: 'in_app',
-              delivery_status: 'delivered',
-              delivered_at: new Date().toISOString(),
-            });
+          results.push({ user_id: userId, channel: "in_app", status: "created" });
+
+          await supabase.from("reminder_delivery_log").insert({
+            user_id: userId,
+            reminder_id: reminder_id || null,
+            delivery_channel: "in_app",
+            delivery_status: "delivered",
+            delivered_at: new Date().toISOString(),
+          });
         } else {
           errors.push(`In-app notification failed for ${userId}: ${notifError.message}`);
         }
@@ -303,9 +317,9 @@ serve(async (req) => {
       // Update reminder as delivered
       if (reminder_id) {
         await supabase
-          .from('proactive_reminders')
+          .from("proactive_reminders")
           .update({ delivered_at: new Date().toISOString() })
-          .eq('id', reminder_id);
+          .eq("id", reminder_id);
       }
     }
 
@@ -316,15 +330,14 @@ serve(async (req) => {
         errors: errors.length > 0 ? errors : undefined,
         total_sent: results.length,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error in push-delivery:', errorMessage);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error in push-delivery:", errorMessage);
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

@@ -12,8 +12,18 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { strictAppOrigin } from "../_shared/cors.ts";
-import { generateContentIdeas, type ContentIdea, type CreatorProfileLike, type IdeaSource } from "../_shared/contentIdeas.ts";
-import { dateKeyInTimezone, recentHeadlines, persistDailyBatch, type ContentAdminClient } from "../_shared/contentPersist.ts";
+import {
+  generateContentIdeas,
+  type ContentIdea,
+  type CreatorProfileLike,
+  type IdeaSource,
+} from "../_shared/contentIdeas.ts";
+import {
+  dateKeyInTimezone,
+  recentHeadlines,
+  persistDailyBatch,
+  type ContentAdminClient,
+} from "../_shared/contentPersist.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -46,7 +56,10 @@ interface ProfileRow {
 }
 
 function escapeHtml(s: string): string {
-  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 // For HTML attribute values (e.g. href): also escape double quotes, which would
@@ -57,10 +70,12 @@ function escapeAttr(s: string): string {
 
 function partsIn(now: Date, tz: string) {
   const hour = parseInt(
-    new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", hour12: false }).format(now), 10,
+    new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", hour12: false }).format(now),
+    10,
   );
   const minute = parseInt(
-    new Intl.DateTimeFormat("en-GB", { timeZone: tz, minute: "2-digit" }).format(now), 10,
+    new Intl.DateTimeFormat("en-GB", { timeZone: tz, minute: "2-digit" }).format(now),
+    10,
   );
   const date = dateKeyInTimezone(now, tz);
   return { hour, minute, date };
@@ -78,17 +93,27 @@ function localParts(now: Date, tz: string) {
   }
 }
 
-interface TzRow { user_id: string; timezone?: string | null }
+interface TzRow {
+  user_id: string;
+  timezone?: string | null;
+}
 
-async function loadTimezoneMap(supabase: SupabaseClient, userIds: string[]): Promise<Map<string, string>> {
+async function loadTimezoneMap(
+  supabase: SupabaseClient,
+  userIds: string[],
+): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   if (userIds.length === 0) return map;
   const [{ data: locs }, { data: profiles }] = await Promise.all([
     supabase.from("user_location_settings").select("user_id, timezone").in("user_id", userIds),
     supabase.from("profiles").select("user_id, timezone").in("user_id", userIds),
   ]);
-  (profiles as TzRow[] || []).forEach((p) => { if (p.timezone) map.set(p.user_id, p.timezone); });
-  (locs as TzRow[] || []).forEach((l) => { if (l.timezone) map.set(l.user_id, l.timezone); });
+  ((profiles as TzRow[]) || []).forEach((p) => {
+    if (p.timezone) map.set(p.user_id, p.timezone);
+  });
+  ((locs as TzRow[]) || []).forEach((l) => {
+    if (l.timezone) map.set(l.user_id, l.timezone);
+  });
   return map;
 }
 
@@ -101,7 +126,10 @@ function deliveryMinuteOfDay(deliverAt: string | null | undefined): number {
   return hour * 60 + minute;
 }
 
-function shouldGenerateToday(p: ProfileRow, parts: { hour: number; minute: number; date: string }): boolean {
+function shouldGenerateToday(
+  p: ProfileRow,
+  parts: { hour: number; minute: number; date: string },
+): boolean {
   if (p.last_generated_on === parts.date) return false;
   return parts.hour * 60 + parts.minute >= deliveryMinuteOfDay(p.deliver_at);
 }
@@ -112,9 +140,17 @@ async function tgSend(chatId: number, text: string): Promise<boolean> {
     const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_API_KEY}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      }),
     });
-    if (!res.ok) { console.error("tgSend failed", res.status, await res.text()); return false; }
+    if (!res.ok) {
+      console.error("tgSend failed", res.status, await res.text());
+      return false;
+    }
     return true;
   } catch (e) {
     console.error("tgSend threw", e);
@@ -129,7 +165,10 @@ async function sendPush(userId: string, title: string, body: string): Promise<bo
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
       body: JSON.stringify({ user_ids: [userId], title, body, data: { type: "content_ideas" } }),
     });
-    if (!res.ok) { console.error("sendPush failed", res.status, await res.text()); return false; }
+    if (!res.ok) {
+      console.error("sendPush failed", res.status, await res.text());
+      return false;
+    }
     const payload = await res.json().catch(() => ({}));
     if (payload?.success === false || Number(payload?.sent ?? 0) < 1) {
       console.error("sendPush reported no delivery", payload);
@@ -180,7 +219,11 @@ function buildTelegramMessages(ideas: ContentIdea[]): string[] {
 
 function buildPushBody(ideas: ContentIdea[]): string {
   if (!ideas.length) return "Open Content Studio to generate ideas.";
-  return ideas.slice(0, 4).map((i) => `• ${i.headline}`).join("\n").slice(0, 500);
+  return ideas
+    .slice(0, 4)
+    .map((i) => `• ${i.headline}`)
+    .join("\n")
+    .slice(0, 500);
 }
 
 Deno.serve(async (req) => {
@@ -189,7 +232,8 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
   if (authHeader !== `Bearer ${SERVICE_KEY}`) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -199,13 +243,17 @@ Deno.serve(async (req) => {
   const { data, error } = await supabase.from("creator_profiles").select("*").eq("enabled", true);
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const profiles = (data || []) as ProfileRow[];
 
   const now = new Date();
-  const tzMap = await loadTimezoneMap(supabase, profiles.map((p) => p.user_id));
+  const tzMap = await loadTimezoneMap(
+    supabase,
+    profiles.map((p) => p.user_id),
+  );
   const tzOf = (uid: string) => tzMap.get(uid) || "UTC";
 
   // Decide who is due before doing any expensive LLM work.
@@ -218,12 +266,27 @@ Deno.serve(async (req) => {
   const locMap = new Map<string, { city: string | null; country: string | null }>();
   if (dueIds.length > 0) {
     const [{ data: links }, { data: locProfiles }] = await Promise.all([
-      supabase.from("telegram_links").select("user_id, chat_id, is_active")
-        .in("user_id", dueIds).eq("is_active", true).not("chat_id", "is", null),
-      supabase.from("profiles").select("user_id, location_city, location_country").in("user_id", dueIds),
+      supabase
+        .from("telegram_links")
+        .select("user_id, chat_id, is_active")
+        .in("user_id", dueIds)
+        .eq("is_active", true)
+        .not("chat_id", "is", null),
+      supabase
+        .from("profiles")
+        .select("user_id, location_city, location_country")
+        .in("user_id", dueIds),
     ]);
-    (links as Array<{ user_id: string; chat_id?: number | null }> || []).forEach((l) => { if (l.chat_id) chatMap.set(l.user_id, Number(l.chat_id)); });
-    (locProfiles as Array<{ user_id: string; location_city: string | null; location_country: string | null }> || []).forEach((p) => {
+    ((links as Array<{ user_id: string; chat_id?: number | null }>) || []).forEach((l) => {
+      if (l.chat_id) chatMap.set(l.user_id, Number(l.chat_id));
+    });
+    (
+      (locProfiles as Array<{
+        user_id: string;
+        location_city: string | null;
+        location_country: string | null;
+      }>) || []
+    ).forEach((p) => {
       locMap.set(p.user_id, { city: p.location_city, country: p.location_country });
     });
   }
@@ -238,13 +301,23 @@ Deno.serve(async (req) => {
       const channels = Array.isArray(p.channels) ? p.channels : [];
       const wantsTelegram = channels.includes("telegram");
       const wantsPush = channels.includes("push");
-      const selectedDeliveryChannels = [wantsTelegram ? "telegram" : null, wantsPush ? "push" : null].filter(Boolean);
+      const selectedDeliveryChannels = [
+        wantsTelegram ? "telegram" : null,
+        wantsPush ? "push" : null,
+      ].filter(Boolean);
       const chatId = chatMap.get(p.user_id);
 
-      if (selectedDeliveryChannels.length > 0 && !wantsPush && wantsTelegram && (!TELEGRAM_API_KEY || !chatId)) {
-        throw new Error(!TELEGRAM_API_KEY
-          ? "telegram channel selected but TELEGRAM_API_KEY is not configured"
-          : "telegram channel selected but no active Telegram chat link was found");
+      if (
+        selectedDeliveryChannels.length > 0 &&
+        !wantsPush &&
+        wantsTelegram &&
+        (!TELEGRAM_API_KEY || !chatId)
+      ) {
+        throw new Error(
+          !TELEGRAM_API_KEY
+            ? "telegram channel selected but TELEGRAM_API_KEY is not configured"
+            : "telegram channel selected but no active Telegram chat link was found",
+        );
       }
 
       const profileLike: CreatorProfileLike = {
@@ -260,7 +333,9 @@ Deno.serve(async (req) => {
       const ideas = await generateContentIdeas(profileLike, locMap.get(p.user_id), {
         count: p.ideas_per_day || 10,
         trendingRatio: p.trending_ratio ?? 0.5,
-        ideaSource: (["mixed", "trending", "knowledge"].includes(p.idea_source) ? p.idea_source : "mixed") as IdeaSource,
+        ideaSource: (["mixed", "trending", "knowledge"].includes(p.idea_source)
+          ? p.idea_source
+          : "mixed") as IdeaSource,
         language: p.primary_language,
         avoidHeadlines: avoid,
       });
@@ -300,7 +375,8 @@ Deno.serve(async (req) => {
       // Stamp after at least one selected notification channel succeeds. If no
       // selected channel delivers, the user remains eligible for a later retry
       // instead of silently losing the day's suggestions.
-      const { error: stampErr } = await supabase.from("creator_profiles")
+      const { error: stampErr } = await supabase
+        .from("creator_profiles")
         .update({ last_generated_on: date, updated_at: new Date().toISOString() })
         .eq("user_id", p.user_id);
       if (stampErr) throw new Error(stampErr.message);

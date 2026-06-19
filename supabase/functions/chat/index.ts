@@ -1,7 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { recordUndo } from "../_shared/dori-undo.ts";
-import { buildDoriContext, formatContextForAI, fmtNowLocal, tzOffset } from "../_shared/dori-context.ts";
+import {
+  buildDoriContext,
+  formatContextForAI,
+  fmtNowLocal,
+  tzOffset,
+} from "../_shared/dori-context.ts";
 import { findTimeSlots, rankProposedSlots } from "../_shared/dori-scheduling.ts";
 import {
   retrieveRelevantMemories,
@@ -17,12 +22,14 @@ import {
 } from "../_shared/dori-conversation-state.ts";
 import { decideRoute } from "../_shared/dori-router.ts";
 import { NATIVE_TOOLS, toolCallsToLegacyXml } from "../_shared/dori-tools.ts";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
+import { mintInternalToken, resolveUserId } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  'X-Content-Type-Options': 'nosniff',
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-telegram-user-id, x-internal-token, x-dori-channel, x-dori-channel-ref",
+  "X-Content-Type-Options": "nosniff",
 };
 
 interface Message {
@@ -62,8 +69,20 @@ interface RelevantContract {
 }
 
 interface HealthData {
-  medications?: { name: string; dosage?: string; frequency?: string; isActive: boolean; refillDate?: string }[];
-  appointments?: { title: string; date: string; provider?: string; type?: string; isCompleted: boolean }[];
+  medications?: {
+    name: string;
+    dosage?: string;
+    frequency?: string;
+    isActive: boolean;
+    refillDate?: string;
+  }[];
+  appointments?: {
+    title: string;
+    date: string;
+    provider?: string;
+    type?: string;
+    isCompleted: boolean;
+  }[];
   vaccinations?: { name: string; date: string; nextDose?: string }[];
   metrics?: { type: string; value: number; unit: string; date: string; source: string }[];
   // Daily health summary with detailed data
@@ -161,11 +180,18 @@ interface WorkspaceCtx {
 interface ChatRequest {
   messages: Message[];
   imageUrl?: string; // Base64 data URL for image input
-  tasks?: { id: string; title: string; completed: boolean; category: string; priority: string; dueDate?: string }[];
+  tasks?: {
+    id: string;
+    title: string;
+    completed: boolean;
+    category: string;
+    priority: string;
+    dueDate?: string;
+  }[];
   events?: { id: string; title: string; startTime: string; endTime: string }[];
   overdueTasks?: OverdueTask[];
   todayTasks?: OverdueTask[];
-  personality?: 'balanced' | 'strict' | 'supportive' | 'creative';
+  personality?: "balanced" | "strict" | "supportive" | "creative";
   // Enhanced context
   userProfile?: UserProfile;
   relevantContacts?: RelevantContact[];
@@ -176,7 +202,7 @@ interface ChatRequest {
   familyContext?: FamilyContext;
   // Workspace context (set when the user is acting inside a team space)
   workspace?: WorkspaceCtx;
-  workspaceId?: string;  // short-hand if the caller didn't preload members
+  workspaceId?: string; // short-hand if the caller didn't preload members
   // Smart payload fields
   statsSummary?: string;
   emailSummary?: { subject: string; from: string; priority: string; snippet: string }[];
@@ -187,10 +213,14 @@ interface ChatRequest {
 }
 
 const personalityPrompts: Record<string, string> = {
-  balanced: 'Be friendly, balanced, and adaptable. Match the user\'s energy and provide helpful guidance.',
-  strict: 'Be direct, no-nonsense, and focused on productivity. Push the user to take action immediately. Use short, commanding sentences. Hold them accountable. No excuses. Be like a drill sergeant for productivity.',
-  supportive: 'Be warm, encouraging, and empathetic. Celebrate every small win. Understand when things are hard. Offer gentle encouragement and break tasks into manageable steps. Be like a supportive friend.',
-  creative: 'Be playful, creative, and imaginative. Use metaphors and storytelling. Make productivity feel like an adventure. Inject humor and fun into interactions.',
+  balanced:
+    "Be friendly, balanced, and adaptable. Match the user's energy and provide helpful guidance.",
+  strict:
+    "Be direct, no-nonsense, and focused on productivity. Push the user to take action immediately. Use short, commanding sentences. Hold them accountable. No excuses. Be like a drill sergeant for productivity.",
+  supportive:
+    "Be warm, encouraging, and empathetic. Celebrate every small win. Understand when things are hard. Offer gentle encouragement and break tasks into manageable steps. Be like a supportive friend.",
+  creative:
+    "Be playful, creative, and imaginative. Use metaphors and storytelling. Make productivity feel like an adventure. Inject humor and fun into interactions.",
 };
 
 const baseSystemPrompt = `You are DarAI, an intelligent AI productivity assistant that KNOWS the user AND THEIR FAMILY personally. You help users manage tasks, schedule events, connect with contacts, coordinate family activities, and stay organized.
@@ -985,7 +1015,6 @@ Before responding, think step by step:
 3. What's the most helpful thing I can do beyond just answering the question?
 4. Is there something proactive I should mention (overdue tasks, upcoming deadlines, health trends)?`;
 
-
 async function logAIUsage(
   supabase: SupabaseClient,
   userId: string,
@@ -995,15 +1024,16 @@ async function logAIUsage(
   completionTokens: number,
   totalTokens: number,
   status: string,
-  requestData?: Record<string, unknown>
+  requestData?: Record<string, unknown>,
 ) {
   try {
     // Estimate cost based on model (rough estimates for Gemini Flash)
     const inputCostPer1K = 0.000075; // $0.075 per 1M input tokens
-    const outputCostPer1K = 0.0003;  // $0.30 per 1M output tokens
-    const costEstimate = (promptTokens / 1000) * inputCostPer1K + (completionTokens / 1000) * outputCostPer1K;
+    const outputCostPer1K = 0.0003; // $0.30 per 1M output tokens
+    const costEstimate =
+      (promptTokens / 1000) * inputCostPer1K + (completionTokens / 1000) * outputCostPer1K;
 
-    await supabase.from('ai_usage').insert({
+    await supabase.from("ai_usage").insert({
       user_id: userId,
       function_name: functionName,
       model,
@@ -1015,7 +1045,7 @@ async function logAIUsage(
       request_data: requestData,
     });
   } catch (error) {
-    console.error('Failed to log AI usage:', error);
+    console.error("Failed to log AI usage:", error);
   }
 }
 
@@ -1027,24 +1057,29 @@ function detectWebSearchIntent(msg: string): boolean {
     /\b(search|look up|find out|google|tell me about)\b/i,
     /\b(what happened|what's happening|trending)\b/i,
   ];
-  
+
   // Don't trigger for personal data queries
   const personalPatterns = [
     /\b(my task|my event|my contact|my contract|my habit|my note|my email|my family|my health|my calendar|my schedule|add|create|delete|update|complete|mark|remind me|set reminder)\b/i,
     /\b(shopping list|brain dump|how am i doing|life score)\b/i,
   ];
-  
-  if (personalPatterns.some(p => p.test(msg))) return false;
-  return searchPatterns.some(p => p.test(msg));
+
+  if (personalPatterns.some((p) => p.test(msg))) return false;
+  return searchPatterns.some((p) => p.test(msg));
 }
 
 // Extract a clean search query from the user message
 function extractSearchQuery(msg: string): string {
   // Remove common prefixes
-  return msg
-    .replace(/^(hey dori|dori|can you|could you|please|search for|look up|google|find out|tell me)\s*/i, '')
-    .replace(/\?$/, '')
-    .trim() || msg;
+  return (
+    msg
+      .replace(
+        /^(hey dori|dori|can you|could you|please|search for|look up|google|find out|tell me)\s*/i,
+        "",
+      )
+      .replace(/\?$/, "")
+      .trim() || msg
+  );
 }
 
 // ============================================================================
@@ -1055,10 +1090,13 @@ function extractSearchQuery(msg: string): string {
 
 function stripAllToolTags(text: string): string {
   return text
-    .replace(/<tool>[\s\S]*?<\/(?:task|event|note|criteria|plan|item|contact|contract|project|habit|email|reminder|memory|query|type|property|business|member|filter|draft|meeting|target|packing|prep|cancel|wellbeing|bulk|goal|pref|expense|summary|recipe|weather|trip|lang|tag|estimate|subtask|assign|period|fasting|pantry|flight|presence|budget|zakat|timezone|currency|snooze|forward|star|unsubscribe|translate|duplicate|complete_note|status_filter)>/g, '')
-    .replace(/<tool>[\s\S]*?<\/tool>/g, '')
-    .replace(/<action>[\s\S]*?<\/action>/g, '')
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(
+      /<tool>[\s\S]*?<\/(?:task|event|note|criteria|plan|item|contact|contract|project|habit|email|reminder|memory|query|type|property|business|member|filter|draft|meeting|target|packing|prep|cancel|wellbeing|bulk|goal|pref|expense|summary|recipe|weather|trip|lang|tag|estimate|subtask|assign|period|fasting|pantry|flight|presence|budget|zakat|timezone|currency|snooze|forward|star|unsubscribe|translate|duplicate|complete_note|status_filter)>/g,
+      "",
+    )
+    .replace(/<tool>[\s\S]*?<\/tool>/g, "")
+    .replace(/<action>[\s\S]*?<\/action>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -1066,14 +1104,16 @@ function stripAllToolTags(text: string): string {
 // recognize the tool, figure out whether it's a create/update/delete, and
 // produce a human-readable summary for the action-confirmation prompt
 // (shown in the web inbox and/or sent as a Telegram confirmation message).
-type OpKind = 'create' | 'update' | 'delete';
+type OpKind = "create" | "update" | "delete";
 interface MutatingTool {
   tool: string;
-  entity: string;   // logical module name used for per-entity overrides
+  entity: string; // logical module name used for per-entity overrides
   // Regex capturing (action?, payload?) for the tool XML block.
   // Groups vary per tool: provide a `parse` to normalize to { action, data, fullMatch }.
   regex: RegExp;
-  parse: (m: RegExpMatchArray) => { action: string; data: Record<string, unknown>; fullMatch: string } | null;
+  parse: (
+    m: RegExpMatchArray,
+  ) => { action: string; data: Record<string, unknown>; fullMatch: string } | null;
   // Given action + data return OpKind (or null to skip confirmation for that action).
   classify: (action: string, data: Record<string, unknown>) => OpKind | null;
   summarize: (action: string, data: Record<string, unknown>, tz?: string) => string;
@@ -1100,64 +1140,88 @@ const fmtEventWhen = (s?: string | null, tz?: string): string | null => {
   const dt = new Date(s);
   if (isNaN(dt.getTime())) return null;
   try {
-    return dt.toLocaleString('en-GB', {
-      weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    return dt.toLocaleString("en-GB", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
       timeZone: tz,
     });
   } catch {
-    return dt.toLocaleString('en-GB', {
-      weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-      timeZone: 'UTC',
+    return dt.toLocaleString("en-GB", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
     });
   }
 };
 
-const safeParseJson = (s: string): Record<string, unknown> | null => { try { return JSON.parse(s); } catch { return null; } };
+const safeParseJson = (s: string): Record<string, unknown> | null => {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+};
 
 const MUTATING_TOOLS: MutatingTool[] = [
   {
-    tool: 'manage_task', entity: 'task',
+    tool: "manage_task",
+    entity: "task",
     regex: /<tool>manage_task<\/tool>\s*<action>(\w+)<\/action>\s*<task>(\{[\s\S]*?\})<\/task>/g,
     parse: (m) => {
-      const data = safeParseJson(m[2]); if (!data) return null;
+      const data = safeParseJson(m[2]);
+      if (!data) return null;
       return { action: m[1], data, fullMatch: m[0] };
     },
-    classify: (action) => action === 'add' ? 'create'
-      : action === 'update' ? 'update'
-      : action === 'delete' ? 'delete'
-      : null, // 'complete' is not a mutation we gate
+    classify: (action) =>
+      action === "add"
+        ? "create"
+        : action === "update"
+          ? "update"
+          : action === "delete"
+            ? "delete"
+            : null, // 'complete' is not a mutation we gate
     summarize: (action, d) => {
-      const label = d.title || d.id || 'task';
-      if (action === 'add') return `Add task: ${label}${d.dueDate ? ` (due ${d.dueDate})` : ''}`;
-      if (action === 'update') return `Update task: ${label}`;
-      if (action === 'delete') return `Delete task: ${label}`;
+      const label = d.title || d.id || "task";
+      if (action === "add") return `Add task: ${label}${d.dueDate ? ` (due ${d.dueDate})` : ""}`;
+      if (action === "update") return `Update task: ${label}`;
+      if (action === "delete") return `Delete task: ${label}`;
       return `Task action: ${label}`;
     },
   },
   {
-    tool: 'schedule_event', entity: 'event',
+    tool: "schedule_event",
+    entity: "event",
     regex: /<tool>schedule_event<\/tool>\s*<event>(\{[\s\S]*?\})<\/event>/g,
     parse: (m) => {
-      const data = safeParseJson(m[1]); if (!data) return null;
-      return { action: 'create', data, fullMatch: m[0] };
+      const data = safeParseJson(m[1]);
+      if (!data) return null;
+      return { action: "create", data, fullMatch: m[0] };
     },
-    classify: () => 'create',
+    classify: () => "create",
     summarize: (_a, d, tz) => {
       const when = fmtEventWhen(d.startTime as string | null | undefined, tz);
-      return `Schedule event: ${d.title || '(untitled)'}${when ? ` at ${when}` : ''}${d.location ? ` (${d.location})` : ''}`;
+      return `Schedule event: ${d.title || "(untitled)"}${when ? ` at ${when}` : ""}${d.location ? ` (${d.location})` : ""}`;
     },
   },
   {
-    tool: 'manage_event', entity: 'event',
+    tool: "manage_event",
+    entity: "event",
     regex: /<tool>manage_event<\/tool>\s*<action>(\w+)<\/action>\s*<event>(\{[\s\S]*?\})<\/event>/g,
     parse: (m) => {
-      const data = safeParseJson(m[2]); if (!data) return null;
+      const data = safeParseJson(m[2]);
+      if (!data) return null;
       return { action: m[1], data, fullMatch: m[0] };
     },
-    classify: (action) => action === 'update' ? 'update' : action === 'delete' ? 'delete' : null,
+    classify: (action) => (action === "update" ? "update" : action === "delete" ? "delete" : null),
     summarize: (action, d, tz) => {
-      const who = d.query || d.title || 'event';
-      if (action === 'update') {
+      const who = d.query || d.title || "event";
+      if (action === "update") {
         // Spell out the actual change so the confirmation isn't just the name.
         // (When preflight resolves the target it replaces this with an
         // old→new summary; this is the fallback when we only have the request.)
@@ -1166,190 +1230,263 @@ const MUTATING_TOOLS: MutatingTool[] = [
         const when = fmtEventWhen(d.startTime as string | null | undefined, tz);
         if (when) bits.push(`move to ${when}`);
         if (d.location) bits.push(`location "${d.location}"`);
-        return `Update event: ${who}${bits.length ? ` — ${bits.join(', ')}` : ''}`;
+        return `Update event: ${who}${bits.length ? ` — ${bits.join(", ")}` : ""}`;
       }
-      if (action === 'delete') return `Delete event: ${who}`;
+      if (action === "delete") return `Delete event: ${who}`;
       return `Event action: ${who}`;
     },
     // Resolve the event before prompting so a missing event is reported up
     // front, and so the confirmation can show the real old→new change.
     preflight: async (action, d, { supabase, userId, timezone }) => {
-      if ((action !== 'update' && action !== 'delete') || !d.query) return null;
-      const { data: rows } = await supabase.from('events').select('*')
-        .eq('user_id', userId).ilike('title', `%${d.query}%`)
-        .gte('end_time', new Date(Date.now() - 24 * 3600 * 1000).toISOString())
-        .order('start_time').limit(1);
+      if ((action !== "update" && action !== "delete") || !d.query) return null;
+      const { data: rows } = await supabase
+        .from("events")
+        .select("*")
+        .eq("user_id", userId)
+        .ilike("title", `%${d.query}%`)
+        .gte("end_time", new Date(Date.now() - 24 * 3600 * 1000).toISOString())
+        .order("start_time")
+        .limit(1);
       const target = rows?.[0];
       if (!target) return { ok: false, message: `Could not find event matching "${d.query}"` };
-      if (action === 'delete') {
+      if (action === "delete") {
         const when = fmtEventWhen(target.start_time, timezone);
-        return { ok: true, summary: `Delete event: ${target.title}${when ? ` (${when})` : ''}` };
+        return { ok: true, summary: `Delete event: ${target.title}${when ? ` (${when})` : ""}` };
       }
       const bits: string[] = [];
       if (d.title && d.title !== target.title) bits.push(`rename to "${d.title}"`);
       if (d.startTime) {
         const oldW = fmtEventWhen(target.start_time, timezone);
         const newW = fmtEventWhen(d.startTime, timezone);
-        if (newW && newW !== oldW) bits.push(`move ${oldW ? `from ${oldW} ` : ''}to ${newW}`);
+        if (newW && newW !== oldW) bits.push(`move ${oldW ? `from ${oldW} ` : ""}to ${newW}`);
       }
       if (d.location !== undefined && d.location && d.location !== target.location) {
         bits.push(`set location to "${d.location}"`);
       }
-      return { ok: true, summary: `Update "${target.title}"${bits.length ? `: ${bits.join(', ')}` : ''}` };
+      return {
+        ok: true,
+        summary: `Update "${target.title}"${bits.length ? `: ${bits.join(", ")}` : ""}`,
+      };
     },
   },
   {
-    tool: 'manage_contact', entity: 'contact',
-    regex: /<tool>manage_contact<\/tool>\s*<action>(\w+)<\/action>\s*<contact>(\{[\s\S]*?\})<\/contact>/g,
+    tool: "manage_contact",
+    entity: "contact",
+    regex:
+      /<tool>manage_contact<\/tool>\s*<action>(\w+)<\/action>\s*<contact>(\{[\s\S]*?\})<\/contact>/g,
     parse: (m) => {
-      const data = safeParseJson(m[2]); if (!data) return null;
+      const data = safeParseJson(m[2]);
+      if (!data) return null;
       return { action: m[1], data, fullMatch: m[0] };
     },
-    classify: (action) => action === 'create' ? 'create' : action === 'update' ? 'update' : action === 'delete' ? 'delete' : null,
+    classify: (action) =>
+      action === "create"
+        ? "create"
+        : action === "update"
+          ? "update"
+          : action === "delete"
+            ? "delete"
+            : null,
     summarize: (action, d) => {
-      const who = d.name || d.query || 'contact';
-      if (action === 'create') return `Add contact: ${who}${d.company ? ` (${d.company})` : ''}`;
-      if (action === 'update') return `Update contact: ${who}`;
-      if (action === 'delete') return `Delete contact: ${who}`;
+      const who = d.name || d.query || "contact";
+      if (action === "create") return `Add contact: ${who}${d.company ? ` (${d.company})` : ""}`;
+      if (action === "update") return `Update contact: ${who}`;
+      if (action === "delete") return `Delete contact: ${who}`;
       return `Contact action: ${who}`;
     },
   },
   {
-    tool: 'manage_contract', entity: 'contract',
-    regex: /<tool>manage_contract<\/tool>\s*<action>(\w+)<\/action>\s*<contract>(\{[\s\S]*?\})<\/contract>/g,
+    tool: "manage_contract",
+    entity: "contract",
+    regex:
+      /<tool>manage_contract<\/tool>\s*<action>(\w+)<\/action>\s*<contract>(\{[\s\S]*?\})<\/contract>/g,
     parse: (m) => {
-      const data = safeParseJson(m[2]); if (!data) return null;
+      const data = safeParseJson(m[2]);
+      if (!data) return null;
       return { action: m[1], data, fullMatch: m[0] };
     },
-    classify: (action) => action === 'create' ? 'create' : action === 'update' ? 'update' : action === 'delete' ? 'delete' : null,
+    classify: (action) =>
+      action === "create"
+        ? "create"
+        : action === "update"
+          ? "update"
+          : action === "delete"
+            ? "delete"
+            : null,
     summarize: (action, d) => {
-      const who = d.name || d.query || 'contract';
-      const cost = d.costAmount ? ` (€${d.costAmount}/${d.costFrequency || 'mo'})` : '';
-      if (action === 'create') return `Add contract: ${who}${cost}`;
-      if (action === 'update') return `Update contract: ${who}${cost}`;
-      if (action === 'delete') return `Delete contract: ${who}`;
+      const who = d.name || d.query || "contract";
+      const cost = d.costAmount ? ` (€${d.costAmount}/${d.costFrequency || "mo"})` : "";
+      if (action === "create") return `Add contract: ${who}${cost}`;
+      if (action === "update") return `Update contract: ${who}${cost}`;
+      if (action === "delete") return `Delete contract: ${who}`;
       return `Contract action: ${who}`;
     },
   },
   {
-    tool: 'manage_property', entity: 'property',
-    regex: /<tool>manage_property<\/tool>\s*<action>(\w+)<\/action>\s*<property>(\{[\s\S]*?\})<\/property>/g,
+    tool: "manage_property",
+    entity: "property",
+    regex:
+      /<tool>manage_property<\/tool>\s*<action>(\w+)<\/action>\s*<property>(\{[\s\S]*?\})<\/property>/g,
     parse: (m) => {
-      const data = safeParseJson(m[2]); if (!data) return null;
+      const data = safeParseJson(m[2]);
+      if (!data) return null;
       return { action: m[1], data, fullMatch: m[0] };
     },
-    classify: (action) => action === 'create' ? 'create' : action === 'update' ? 'update' : action === 'delete' ? 'delete' : null,
+    classify: (action) =>
+      action === "create"
+        ? "create"
+        : action === "update"
+          ? "update"
+          : action === "delete"
+            ? "delete"
+            : null,
     summarize: (action, d) => {
-      const who = d.name || d.query || 'property';
-      if (action === 'create') return `Add property: ${who}`;
-      if (action === 'update') return `Update property: ${who}`;
-      if (action === 'delete') return `Delete property: ${who}`;
+      const who = d.name || d.query || "property";
+      if (action === "create") return `Add property: ${who}`;
+      if (action === "update") return `Update property: ${who}`;
+      if (action === "delete") return `Delete property: ${who}`;
       return `Property action: ${who}`;
     },
   },
   {
-    tool: 'manage_business', entity: 'business',
-    regex: /<tool>manage_business<\/tool>\s*<action>(\w+)<\/action>\s*<business>(\{[\s\S]*?\})<\/business>/g,
+    tool: "manage_business",
+    entity: "business",
+    regex:
+      /<tool>manage_business<\/tool>\s*<action>(\w+)<\/action>\s*<business>(\{[\s\S]*?\})<\/business>/g,
     parse: (m) => {
-      const data = safeParseJson(m[2]); if (!data) return null;
+      const data = safeParseJson(m[2]);
+      if (!data) return null;
       return { action: m[1], data, fullMatch: m[0] };
     },
-    classify: (action) => action === 'create' ? 'create' : action === 'update' ? 'update' : action === 'delete' ? 'delete' : null,
+    classify: (action) =>
+      action === "create"
+        ? "create"
+        : action === "update"
+          ? "update"
+          : action === "delete"
+            ? "delete"
+            : null,
     summarize: (action, d) => {
-      const who = d.name || d.query || 'business';
-      if (action === 'create') return `Add business: ${who}`;
-      if (action === 'update') return `Update business: ${who}`;
-      if (action === 'delete') return `Delete business: ${who}`;
+      const who = d.name || d.query || "business";
+      if (action === "create") return `Add business: ${who}`;
+      if (action === "update") return `Update business: ${who}`;
+      if (action === "delete") return `Delete business: ${who}`;
       return `Business action: ${who}`;
     },
   },
   {
-    tool: 'manage_family_member', entity: 'family_member',
-    regex: /<tool>manage_family_member<\/tool>\s*<action>(\w+)<\/action>\s*<member>(\{[\s\S]*?\})<\/member>/g,
+    tool: "manage_family_member",
+    entity: "family_member",
+    regex:
+      /<tool>manage_family_member<\/tool>\s*<action>(\w+)<\/action>\s*<member>(\{[\s\S]*?\})<\/member>/g,
     parse: (m) => {
-      const data = safeParseJson(m[2]); if (!data) return null;
+      const data = safeParseJson(m[2]);
+      if (!data) return null;
       return { action: m[1], data, fullMatch: m[0] };
     },
-    classify: (action) => action === 'create' ? 'create' : action === 'update' ? 'update' : action === 'delete' ? 'delete' : null,
+    classify: (action) =>
+      action === "create"
+        ? "create"
+        : action === "update"
+          ? "update"
+          : action === "delete"
+            ? "delete"
+            : null,
     summarize: (action, d) => {
-      const who = d.name || d.query || 'family member';
-      if (action === 'create') return `Add family member: ${who}${d.relationship ? ` (${d.relationship})` : ''}`;
-      if (action === 'update') return `Update family member: ${who}`;
-      if (action === 'delete') return `Remove family member: ${who}`;
+      const who = d.name || d.query || "family member";
+      if (action === "create")
+        return `Add family member: ${who}${d.relationship ? ` (${d.relationship})` : ""}`;
+      if (action === "update") return `Update family member: ${who}`;
+      if (action === "delete") return `Remove family member: ${who}`;
       return `Family-member action: ${who}`;
     },
   },
   {
-    tool: 'manage_note', entity: 'note',
+    tool: "manage_note",
+    entity: "note",
     regex: /<tool>manage_note<\/tool>\s*<action>(\w+)<\/action>\s*<note>(\{[\s\S]*?\})<\/note>/g,
     parse: (m) => {
-      const data = safeParseJson(m[2]); if (!data) return null;
+      const data = safeParseJson(m[2]);
+      if (!data) return null;
       return { action: m[1], data, fullMatch: m[0] };
     },
-    classify: (action) => action === 'create' ? 'create' : action === 'delete' ? 'delete' : null,
+    classify: (action) => (action === "create" ? "create" : action === "delete" ? "delete" : null),
     summarize: (action, d) => {
-      const who = d.title || d.query || 'note';
-      if (action === 'create') return `Save note: ${who}`;
-      if (action === 'delete') return `Delete note: ${who}`;
+      const who = d.title || d.query || "note";
+      if (action === "create") return `Save note: ${who}`;
+      if (action === "delete") return `Delete note: ${who}`;
       return `Note action: ${who}`;
     },
   },
   {
-    tool: 'create_note', entity: 'note',
+    tool: "create_note",
+    entity: "note",
     regex: /<tool>create_note<\/tool>\s*<note>(\{[\s\S]*?\})<\/note>/g,
     parse: (m) => {
-      const data = safeParseJson(m[1]); if (!data) return null;
-      return { action: 'create', data, fullMatch: m[0] };
+      const data = safeParseJson(m[1]);
+      if (!data) return null;
+      return { action: "create", data, fullMatch: m[0] };
     },
-    classify: () => 'create',
-    summarize: (_a, d) => `Save note: ${d.title || '(untitled)'}`,
+    classify: () => "create",
+    summarize: (_a, d) => `Save note: ${d.title || "(untitled)"}`,
   },
   {
-    tool: 'add_shopping_item', entity: 'shopping_item',
+    tool: "add_shopping_item",
+    entity: "shopping_item",
     regex: /<tool>add_shopping_item<\/tool>\s*<item>(\{[\s\S]*?\})<\/item>/g,
     parse: (m) => {
-      const data = safeParseJson(m[1]); if (!data) return null;
-      return { action: 'create', data, fullMatch: m[0] };
+      const data = safeParseJson(m[1]);
+      if (!data) return null;
+      return { action: "create", data, fullMatch: m[0] };
     },
-    classify: () => 'create',
-    summarize: (_a, d) => `Add to shopping: ${d.quantity && d.quantity > 1 ? `${d.quantity}× ` : ''}${d.name || '(item)'}`,
+    classify: () => "create",
+    summarize: (_a, d) =>
+      `Add to shopping: ${d.quantity && d.quantity > 1 ? `${d.quantity}× ` : ""}${d.name || "(item)"}`,
   },
   {
-    tool: 'set_reminder', entity: 'reminder',
+    tool: "set_reminder",
+    entity: "reminder",
     regex: /<tool>set_reminder<\/tool>\s*<reminder>(\{[\s\S]*?\})<\/reminder>/g,
     parse: (m) => {
-      const data = safeParseJson(m[1]); if (!data) return null;
-      return { action: 'create', data, fullMatch: m[0] };
+      const data = safeParseJson(m[1]);
+      if (!data) return null;
+      return { action: "create", data, fullMatch: m[0] };
     },
-    classify: () => 'create',
-    summarize: (_a, d) => `Set reminder${d.triggerAt ? ` for ${new Date(d.triggerAt).toLocaleString()}` : ''}: ${d.message || ''}`,
+    classify: () => "create",
+    summarize: (_a, d) =>
+      `Set reminder${d.triggerAt ? ` for ${new Date(d.triggerAt).toLocaleString()}` : ""}: ${d.message || ""}`,
   },
   {
     // send_email is always gated: sending is irreversible so the user must
     // explicitly approve the destination + body before it hits Gmail.
     // Classified as 'delete' so the default confirm_deletes=true rule
     // catches it; per-module overrides can opt out for power users.
-    tool: 'send_email', entity: 'email',
+    tool: "send_email",
+    entity: "email",
     regex: /<tool>send_email<\/tool>\s*<email>(\{[\s\S]*?\})<\/email>/g,
     parse: (m) => {
-      const data = safeParseJson(m[1]); if (!data) return null;
-      return { action: 'send', data, fullMatch: m[0] };
+      const data = safeParseJson(m[1]);
+      if (!data) return null;
+      return { action: "send", data, fullMatch: m[0] };
     },
-    classify: () => 'delete',
-    summarize: (_a, d) => `📧 Send email to ${d.to}${d.subject ? ` — "${d.subject}"` : ''}`,
+    classify: () => "delete",
+    summarize: (_a, d) => `📧 Send email to ${d.to}${d.subject ? ` — "${d.subject}"` : ""}`,
   },
   {
     // send_family_message is gated like send_email: relaying to a third party
     // is user-visible and not silently reversible, so the sender must approve
     // the recipient + body before the bot posts it.
-    tool: 'send_family_message', entity: 'family_message',
+    tool: "send_family_message",
+    entity: "family_message",
     regex: /<tool>send_family_message<\/tool>\s*<msg>(\{[\s\S]*?\})<\/msg>/g,
     parse: (m) => {
-      const data = safeParseJson(m[1]); if (!data) return null;
-      return { action: 'send', data, fullMatch: m[0] };
+      const data = safeParseJson(m[1]);
+      if (!data) return null;
+      return { action: "send", data, fullMatch: m[0] };
     },
-    classify: () => 'delete',
-    summarize: (_a, d) => `💬 Send to ${d.to || '(?)'}: "${String(d.body || '').slice(0, 60)}${(d.body || '').length > 60 ? '…' : ''}"`,
+    classify: () => "delete",
+    summarize: (_a, d) =>
+      `💬 Send to ${d.to || "(?)"}: "${String(d.body || "").slice(0, 60)}${(d.body || "").length > 60 ? "…" : ""}"`,
   },
 ];
 
@@ -1360,23 +1497,29 @@ function requiresConfirmation(
   entity: string,
   op: OpKind,
 ): boolean {
-  if (!settings) return op === 'delete'; // sensible default until prefs are stored
+  if (!settings) return op === "delete"; // sensible default until prefs are stored
   if (settings.require_action_confirmation === false) return false;
-  const overrides = (settings.confirmation_overrides as Record<string, Record<string, boolean>> | null) || {};
+  const overrides =
+    (settings.confirmation_overrides as Record<string, Record<string, boolean>> | null) || {};
   const entOverride = overrides?.[entity];
-  if (entOverride && typeof entOverride[op] === 'boolean') return entOverride[op];
-  if (op === 'create') return !!settings.confirm_creates;
-  if (op === 'update') return settings.confirm_updates !== false; // default true
-  if (op === 'delete') return settings.confirm_deletes !== false; // default true
+  if (entOverride && typeof entOverride[op] === "boolean") return entOverride[op];
+  if (op === "create") return !!settings.confirm_creates;
+  if (op === "update") return settings.confirm_updates !== false; // default true
+  if (op === "delete") return settings.confirm_deletes !== false; // default true
   return false;
 }
 
-async function loadConfirmationSettings(supabase: SupabaseClient, userId: string): Promise<Record<string, unknown> | null> {
+async function loadConfirmationSettings(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<Record<string, unknown> | null> {
   try {
     const { data } = await supabase
-      .from('proactive_settings')
-      .select('require_action_confirmation, confirm_creates, confirm_updates, confirm_deletes, confirmation_overrides')
-      .eq('user_id', userId)
+      .from("proactive_settings")
+      .select(
+        "require_action_confirmation, confirm_creates, confirm_updates, confirm_deletes, confirmation_overrides",
+      )
+      .eq("user_id", userId)
       .maybeSingle();
     return data || null;
   } catch {
@@ -1390,22 +1533,22 @@ interface ToolExecResult {
   message: string;
   data?: Record<string, unknown>;
   queued?: boolean;
-  actionId?: string;   // set when the call was queued for approval
-  summary?: string;    // human-readable summary shown in confirmation prompts
-  undoId?: string;     // set when the executed mutation can be reversed via /undo or an inline button
-  entityId?: string;   // id of the row this result refers to (for row-level inline buttons)
-  id?: string;         // alternate id field some tools set
+  actionId?: string; // set when the call was queued for approval
+  summary?: string; // human-readable summary shown in confirmation prompts
+  undoId?: string; // set when the executed mutation can be reversed via /undo or an inline button
+  entityId?: string; // id of the row this result refers to (for row-level inline buttons)
+  id?: string; // alternate id field some tools set
   entityKind?: string; // kind of entity this result refers to
-  kind?: string;       // alternate kind field some tools set
-  label?: string;      // human-readable label for the entity
-  title?: string;      // alternate label some tools set
-  planId?: string;     // set when the tool created a multi-step plan (propose_plan)
-  payload?: Record<string, unknown>;       // tool-specific structured payload (e.g. propose_plan steps)
+  kind?: string; // alternate kind field some tools set
+  label?: string; // human-readable label for the entity
+  title?: string; // alternate label some tools set
+  planId?: string; // set when the tool created a multi-step plan (propose_plan)
+  payload?: Record<string, unknown>; // tool-specific structured payload (e.g. propose_plan steps)
 }
 
 interface ServerExecOpts {
   skipApprovalGate?: boolean;
-  source?: string;       // 'web' | 'tg_private' | 'tg_family' | 'tg_workspace' | 'voice' | 'proactive'
+  source?: string; // 'web' | 'tg_private' | 'tg_family' | 'tg_workspace' | 'voice' | 'proactive'
   sourceRef?: string | null;
   // When set, every NEW row the executor creates is tagged with this workspace.
   workspaceId?: string | null;
@@ -1426,39 +1569,60 @@ interface ServerExecOpts {
 // one-off events into repeats. `startISO` supplies the weekday when the phrase
 // says "every week" without naming a day. Returns null when nothing matches.
 function inferRecurrenceFromText(text: string, startISO: string): string | null {
-  const t = (text || '').toLowerCase();
-  if (!/\b(every|each|recurring|repeat|weekly|daily|monthly|yearly|annually|biweekly|fortnight)\b/.test(t)) {
+  const t = (text || "").toLowerCase();
+  if (
+    !/\b(every|each|recurring|repeat|weekly|daily|monthly|yearly|annually|biweekly|fortnight)\b/.test(
+      t,
+    )
+  ) {
     return null;
   }
-  const interval = /\b(every other|bi-?weekly|fortnight|every 2 weeks|every two weeks)\b/.test(t) ? 2 : 1;
-  const intervalPart = interval > 1 ? `;INTERVAL=${interval}` : '';
+  const interval = /\b(every other|bi-?weekly|fortnight|every 2 weeks|every two weeks)\b/.test(t)
+    ? 2
+    : 1;
+  const intervalPart = interval > 1 ? `;INTERVAL=${interval}` : "";
 
   if (/\b(daily|every day|each day)\b/.test(t)) return `FREQ=DAILY${intervalPart}`;
-  if (/\b(every weekday|weekdays|each weekday)\b/.test(t)) return 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR';
+  if (/\b(every weekday|weekdays|each weekday)\b/.test(t))
+    return "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR";
   if (/\b(monthly|every month|each month)\b/.test(t)) return `FREQ=MONTHLY${intervalPart}`;
   if (/\b(yearly|annually|every year|each year)\b/.test(t)) return `FREQ=YEARLY${intervalPart}`;
 
   const DAY: Record<string, string> = {
-    sunday: 'SU', sun: 'SU', monday: 'MO', mon: 'MO', tuesday: 'TU', tue: 'TU', tues: 'TU',
-    wednesday: 'WE', wed: 'WE', thursday: 'TH', thu: 'TH', thurs: 'TH',
-    friday: 'FR', fri: 'FR', saturday: 'SA', sat: 'SA',
+    sunday: "SU",
+    sun: "SU",
+    monday: "MO",
+    mon: "MO",
+    tuesday: "TU",
+    tue: "TU",
+    tues: "TU",
+    wednesday: "WE",
+    wed: "WE",
+    thursday: "TH",
+    thu: "TH",
+    thurs: "TH",
+    friday: "FR",
+    fri: "FR",
+    saturday: "SA",
+    sat: "SA",
   };
   const days: string[] = [];
   for (const [name, code] of Object.entries(DAY)) {
     if (new RegExp(`\\b${name}\\b`).test(t) && !days.includes(code)) days.push(code);
   }
-  const weeklyTrigger = /\b(weekly|biweekly|every week|each week|every other|fortnight)\b/.test(t) || days.length > 0;
+  const weeklyTrigger =
+    /\b(weekly|biweekly|every week|each week|every other|fortnight)\b/.test(t) || days.length > 0;
   if (weeklyTrigger) {
     let byday = days;
     if (byday.length === 0) {
       // "every week" with no named day → use the start date's weekday.
-      const wd = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][new Date(startISO).getUTCDay()];
+      const wd = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"][new Date(startISO).getUTCDay()];
       byday = [wd];
     }
     // Preserve a stable Mon→Sun order.
-    const order = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+    const order = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
     byday.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-    return `FREQ=WEEKLY${intervalPart};BYDAY=${byday.join(',')}`;
+    return `FREQ=WEEKLY${intervalPart};BYDAY=${byday.join(",")}`;
   }
   return null;
 }
@@ -1468,55 +1632,55 @@ function inferRecurrenceFromText(text: string, startISO: string): string | null 
 // replicate those checks here. The caller never waits on this.
 async function notifyAssignee(
   userId: string,
-  entityType: 'task' | 'event',
+  entityType: "task" | "event",
   entityId: string,
   title: string,
   assigneeName: string | null,
   fromDisplayName: string | null,
 ): Promise<void> {
   if (!userId) return;
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceKey) return;
-  const from = fromDisplayName ? ` from ${fromDisplayName}` : '';
-  const body = entityType === 'task'
-    ? `New task${from}: ${title}`
-    : `You've been added to an event${from}: ${title}`;
+  const from = fromDisplayName ? ` from ${fromDisplayName}` : "";
+  const body =
+    entityType === "task"
+      ? `New task${from}: ${title}`
+      : `You've been added to an event${from}: ${title}`;
   try {
     await fetch(`${supabaseUrl}/functions/v1/push-delivery`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         user_ids: [userId],
-        title: assigneeName ? `For ${assigneeName}` : 'You were tagged',
+        title: assigneeName ? `For ${assigneeName}` : "You were tagged",
         body,
-        data: { entity_type: entityType, entity_id: entityId, source: 'assignment' },
+        data: { entity_type: entityType, entity_id: entityId, source: "assignment" },
       }),
     });
-  } catch (e) { console.warn('notifyAssignee failed', e); }
+  } catch (e) {
+    console.warn("notifyAssignee failed", e);
+  }
 }
 
 // Match an "assignee"-like field in the AI's payload against the workspace
 // member list. Accepts user_id, display_name, or @handle. Returns null if no
 // member matches — caller keeps assignee_id NULL in that case.
-function resolveAssignee(
-  raw: unknown,
-  members: WorkspaceMemberCtx[] | undefined,
-): string | null {
-  if (!raw || typeof raw !== 'string' || !members?.length) return null;
-  const needle = raw.trim().replace(/^@+/, '').toLowerCase();
+function resolveAssignee(raw: unknown, members: WorkspaceMemberCtx[] | undefined): string | null {
+  if (!raw || typeof raw !== "string" || !members?.length) return null;
+  const needle = raw.trim().replace(/^@+/, "").toLowerCase();
   if (!needle) return null;
   // Exact UUID match first (AI may already know the id).
   const exactId = members.find((m) => m.user_id === raw);
   if (exactId) return exactId.user_id;
   // Case-insensitive display-name match.
-  const byName = members.find((m) => (m.display_name || '').toLowerCase() === needle);
+  const byName = members.find((m) => (m.display_name || "").toLowerCase() === needle);
   if (byName) return byName.user_id;
   // Loose prefix/contains on display name, as a fallback.
-  const byLoose = members.find((m) => (m.display_name || '').toLowerCase().includes(needle));
+  const byLoose = members.find((m) => (m.display_name || "").toLowerCase().includes(needle));
   return byLoose?.user_id || null;
 }
 
@@ -1534,12 +1698,15 @@ async function insertWithSchemaCacheFallback(
   selectCols: string,
 ) {
   let res = await supabase.from(table).insert(row).select(selectCols).single();
-  const msg = (res?.error?.message || '') as string;
-  const isSchemaCacheMiss = msg.includes('schema cache') && optionalCols.some((c) => msg.includes(`'${c}'`));
+  const msg = (res?.error?.message || "") as string;
+  const isSchemaCacheMiss =
+    msg.includes("schema cache") && optionalCols.some((c) => msg.includes(`'${c}'`));
   if (!isSchemaCacheMiss) return res;
   const stripped: Record<string, unknown> = { ...row };
   for (const c of optionalCols) delete stripped[c];
-  console.warn(`[${table}] schema cache missing one of [${optionalCols.join(', ')}] — retrying without them`);
+  console.warn(
+    `[${table}] schema cache missing one of [${optionalCols.join(", ")}] — retrying without them`,
+  );
   res = await supabase.from(table).insert(stripped).select(selectCols).single();
   return res;
 }
@@ -1551,7 +1718,7 @@ async function executeToolsServerSide(
   opts?: ServerExecOpts,
 ): Promise<ToolExecResult[]> {
   const out: ToolExecResult[] = [];
-  if (!userId || userId === 'anonymous') return out;
+  if (!userId || userId === "anonymous") return out;
 
   // Approval gate: inspect every mutating tool, look up the user's confirmation
   // preferences, and for any op that requires acknowledgment queue it in
@@ -1560,7 +1727,7 @@ async function executeToolsServerSide(
     const settings = await loadConfirmationSettings(supabase, userId);
     let strippedText = text;
     for (const spec of MUTATING_TOOLS) {
-      const fullRegex = new RegExp(spec.regex.source, 'g');
+      const fullRegex = new RegExp(spec.regex.source, "g");
       const matches = [...text.matchAll(fullRegex)];
       for (const m of matches) {
         const parsed = spec.parse(m);
@@ -1574,10 +1741,14 @@ async function executeToolsServerSide(
         // found, tell the user now instead of queueing a confirmation that would
         // only fail with "could not find" *after* they tap Yes.
         if (spec.preflight) {
-          const pf = await spec.preflight(parsed.action, parsed.data, { supabase, userId, timezone: opts?.timezone });
+          const pf = await spec.preflight(parsed.action, parsed.data, {
+            supabase,
+            userId,
+            timezone: opts?.timezone,
+          });
           if (pf && !pf.ok) {
             out.push({ tool: spec.tool, ok: false, message: pf.message });
-            strippedText = strippedText.replace(parsed.fullMatch, '');
+            strippedText = strippedText.replace(parsed.fullMatch, "");
             continue;
           }
           if (pf && pf.ok && pf.summary) summary = pf.summary;
@@ -1590,56 +1761,66 @@ async function executeToolsServerSide(
         // an identical action is already awaiting the user's OK, or (for a new
         // event) if it's already on their calendar.
         const dedupeNowIso = new Date().toISOString();
-        const { data: dupePending } = await supabase.from('auto_actions_log')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('action_type', actionType)
-          .eq('reason', summary)
-          .eq('status', 'pending')
+        const { data: dupePending } = await supabase
+          .from("auto_actions_log")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("action_type", actionType)
+          .eq("reason", summary)
+          .eq("status", "pending")
           .or(`expires_at.is.null,expires_at.gt.${dedupeNowIso}`)
           .limit(1);
         if (dupePending && dupePending.length > 0) {
-          strippedText = strippedText.replace(parsed.fullMatch, '');
+          strippedText = strippedText.replace(parsed.fullMatch, "");
           continue;
         }
-        if (spec.tool === 'schedule_event' && parsed.data.title && parsed.data.startTime) {
+        if (spec.tool === "schedule_event" && parsed.data.title && parsed.data.startTime) {
           const startD = new Date(parsed.data.startTime as string);
           if (!isNaN(startD.getTime())) {
-            const { data: alreadyOnCal } = await supabase.from('events')
-              .select('id')
-              .eq('user_id', userId)
-              .eq('start_time', startD.toISOString())
-              .ilike('title', String(parsed.data.title))
+            const { data: alreadyOnCal } = await supabase
+              .from("events")
+              .select("id")
+              .eq("user_id", userId)
+              .eq("start_time", startD.toISOString())
+              .ilike("title", String(parsed.data.title))
               .limit(1);
             if (alreadyOnCal && alreadyOnCal.length > 0) {
-              out.push({ tool: spec.tool, ok: false, message: `📅 Already on your calendar — skipped "${parsed.data.title}".` });
-              strippedText = strippedText.replace(parsed.fullMatch, '');
+              out.push({
+                tool: spec.tool,
+                ok: false,
+                message: `📅 Already on your calendar — skipped "${parsed.data.title}".`,
+              });
+              strippedText = strippedText.replace(parsed.fullMatch, "");
               continue;
             }
           }
         }
 
         try {
-          const { data: inserted, error } = await supabase.from('auto_actions_log').insert({
-            user_id: userId,
-            action_type: actionType,
-            entity_type: spec.entity,
-            action_data: {
-              tool_xml: parsed.fullMatch,
-              parsed: parsed.data,
-              op,
-              source: opts?.source || 'web',
+          const { data: inserted, error } = await supabase
+            .from("auto_actions_log")
+            .insert({
+              user_id: userId,
+              action_type: actionType,
+              entity_type: spec.entity,
+              action_data: {
+                tool_xml: parsed.fullMatch,
+                parsed: parsed.data,
+                op,
+                source: opts?.source || "web",
+                source_ref: opts?.sourceRef || null,
+                workspace_id: opts?.workspaceId || null,
+                household_id: opts?.householdId || null,
+              },
+              reason: summary,
+              status: "pending",
+              source: opts?.source || "web",
               source_ref: opts?.sourceRef || null,
-              workspace_id: opts?.workspaceId || null,
-              household_id: opts?.householdId || null,
-            },
-            reason: summary,
-            status: 'pending',
-            source: opts?.source || 'web',
-            source_ref: opts?.sourceRef || null,
-            // 24h TTL — if the user doesn't respond in a day, the prompt is stale.
-            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          }).select('id').single();
+              // 24h TTL — if the user doesn't respond in a day, the prompt is stale.
+              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            })
+            .select("id")
+            .single();
           if (error) throw error;
           out.push({
             tool: spec.tool,
@@ -1650,16 +1831,30 @@ async function executeToolsServerSide(
             message: `⏸️ Needs your OK: ${summary}`,
           });
         } catch (e) {
-          out.push({ tool: spec.tool, ok: false, message: `Could not queue: ${(e as Error).message}` });
+          out.push({
+            tool: spec.tool,
+            ok: false,
+            message: `Could not queue: ${(e as Error).message}`,
+          });
         }
-        strippedText = strippedText.replace(parsed.fullMatch, '');
+        strippedText = strippedText.replace(parsed.fullMatch, "");
       }
     }
     text = strippedText;
   }
 
-  const safeJSON = (s: string) => { try { return JSON.parse(s); } catch { return null; } };
-  const isoOrNull = (s?: string) => { if (!s) return null; const d = new Date(s); return isNaN(d.getTime()) ? null : d.toISOString(); };
+  const safeJSON = (s: string) => {
+    try {
+      return JSON.parse(s);
+    } catch {
+      return null;
+    }
+  };
+  const isoOrNull = (s?: string) => {
+    if (!s) return null;
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  };
 
   // Human-readable short summary of an RRULE so the confirmation message
   // tells the user "every Tuesday" was actually persisted as recurring,
@@ -1669,40 +1864,47 @@ async function executeToolsServerSide(
   const summarizeRRule = (rule?: string | null): string | null => {
     if (!rule) return null;
     const parts: Record<string, string> = {};
-    for (const seg of rule.split(';')) {
-      const [k, v] = seg.split('=');
+    for (const seg of rule.split(";")) {
+      const [k, v] = seg.split("=");
       if (k && v) parts[k.trim().toUpperCase()] = v.trim().toUpperCase();
     }
     const freq = parts.FREQ;
     const interval = parts.INTERVAL ? parseInt(parts.INTERVAL, 10) : 1;
-    const byday = parts.BYDAY ? parts.BYDAY.split(',') : [];
+    const byday = parts.BYDAY ? parts.BYDAY.split(",") : [];
     const dayNames: Record<string, string> = {
-      MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat', SU: 'Sun',
+      MO: "Mon",
+      TU: "Tue",
+      WE: "Wed",
+      TH: "Thu",
+      FR: "Fri",
+      SA: "Sat",
+      SU: "Sun",
     };
-    const days = byday.map((d) => dayNames[d] || d).join(', ');
-    const every = (n: number, unit: string) =>
-      n === 1 ? `every ${unit}` : `every ${n} ${unit}s`;
+    const days = byday.map((d) => dayNames[d] || d).join(", ");
+    const every = (n: number, unit: string) => (n === 1 ? `every ${unit}` : `every ${n} ${unit}s`);
     // "UNTIL=YYYYMMDDTHHMMSSZ" — render as " until 31 Jul" so the confirmation
     // tells the user the recurrence has an end date.
-    let untilSuffix = '';
+    let untilSuffix = "";
     if (parts.UNTIL) {
       const m = parts.UNTIL.match(/^(\d{4})(\d{2})(\d{2})/);
       if (m) {
         const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
         if (!isNaN(d.getTime())) {
-          untilSuffix = ` until ${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
+          untilSuffix = ` until ${d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`;
         }
       }
     }
     let base = rule;
-    if (freq === 'DAILY') base = every(interval, 'day');
-    else if (freq === 'WEEKLY') {
+    if (freq === "DAILY") base = every(interval, "day");
+    else if (freq === "WEEKLY") {
       base = days
-        ? (interval === 1 ? `every ${days}` : `every ${interval} weeks on ${days}`)
-        : every(interval, 'week');
-    } else if (freq === 'MONTHLY') {
-      base = parts.BYMONTHDAY ? `every month on the ${parts.BYMONTHDAY}` : every(interval, 'month');
-    } else if (freq === 'YEARLY') base = every(interval, 'year');
+        ? interval === 1
+          ? `every ${days}`
+          : `every ${interval} weeks on ${days}`
+        : every(interval, "week");
+    } else if (freq === "MONTHLY") {
+      base = parts.BYMONTHDAY ? `every month on the ${parts.BYMONTHDAY}` : every(interval, "month");
+    } else if (freq === "YEARLY") base = every(interval, "year");
     return base + untilSuffix;
   };
 
@@ -1710,68 +1912,98 @@ async function executeToolsServerSide(
   // row so the Telegram surface (or the web app) can offer an Undo button.
   // Returns the undo id to attach to the corresponding ToolExecResult.
   const undoMeta = {
-    source: opts?.source || 'web',
+    source: opts?.source || "web",
     source_ref: opts?.sourceRef || null,
   };
   const undoCreate = (table: string, id: string, label: string, entity: string) =>
     recordUndo(supabase, {
-      user_id: userId, op: 'create', entity_type: entity, entity_id: String(id),
-      label, inverse_tool_xml: null,
-      snapshot: { kind: 'delete_by_id', table, id },
+      user_id: userId,
+      op: "create",
+      entity_type: entity,
+      entity_id: String(id),
+      label,
+      inverse_tool_xml: null,
+      snapshot: { kind: "delete_by_id", table, id },
       ...undoMeta,
     });
   const undoDelete = (table: string, row: Record<string, unknown>, label: string, entity: string) =>
     recordUndo(supabase, {
-      user_id: userId, op: 'delete', entity_type: entity, entity_id: row?.id ?? null,
-      label, inverse_tool_xml: null,
-      snapshot: { kind: 'reinsert', table, row },
+      user_id: userId,
+      op: "delete",
+      entity_type: entity,
+      entity_id: row?.id ?? null,
+      label,
+      inverse_tool_xml: null,
+      snapshot: { kind: "reinsert", table, row },
       ...undoMeta,
     });
-  const undoPatch = (table: string, id: string, oldPatch: Record<string, unknown>, label: string, entity: string) =>
+  const undoPatch = (
+    table: string,
+    id: string,
+    oldPatch: Record<string, unknown>,
+    label: string,
+    entity: string,
+  ) =>
     recordUndo(supabase, {
-      user_id: userId, op: 'update', entity_type: entity, entity_id: String(id),
-      label, inverse_tool_xml: null,
-      snapshot: { kind: 'patch', table, id, patch: oldPatch },
+      user_id: userId,
+      op: "update",
+      entity_type: entity,
+      entity_id: String(id),
+      label,
+      inverse_tool_xml: null,
+      snapshot: { kind: "patch", table, id, patch: oldPatch },
       ...undoMeta,
     });
 
   // ---------- manage_task ----------
-  for (const m of text.matchAll(/<tool>manage_task<\/tool>\s*<action>(\w+)<\/action>\s*<task>(\{[\s\S]*?\})<\/task>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]); if (!data) continue;
+  for (const m of text.matchAll(
+    /<tool>manage_task<\/tool>\s*<action>(\w+)<\/action>\s*<task>(\{[\s\S]*?\})<\/task>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]);
+    if (!data) continue;
     try {
-      if (action === 'add') {
+      if (action === "add") {
         const assigneeId = resolveAssignee(data.assignee, opts?.workspaceMembers);
         const { data: t, error } = await insertWithSchemaCacheFallback(
           supabase,
-          'tasks',
+          "tasks",
           {
-            user_id: userId, title: data.title, category: data.category || 'personal',
-            priority: data.priority || 'medium', due_date: isoOrNull(data.dueDate),
+            user_id: userId,
+            title: data.title,
+            category: data.category || "personal",
+            priority: data.priority || "medium",
+            due_date: isoOrNull(data.dueDate),
             recurrence_rule: data.recurrenceRule || null,
             workspace_id: opts?.workspaceId || null,
             assignee_id: assigneeId,
           },
-          ['workspace_id', 'assignee_id'],
-          'id, title, due_date',
+          ["workspace_id", "assignee_id"],
+          "id, title, due_date",
         );
         if (error) throw error;
-        const undoId = await undoCreate('tasks', t.id, `added task "${t.title}"`, 'task');
+        const undoId = await undoCreate("tasks", t.id, `added task "${t.title}"`, "task");
         const assigneeName = assigneeId
-          ? (opts?.workspaceMembers?.find((m) => m.user_id === assigneeId)?.display_name || 'teammate')
+          ? opts?.workspaceMembers?.find((m) => m.user_id === assigneeId)?.display_name ||
+            "teammate"
           : null;
         // Ping the assignee so they actually find out — previously assignee_id
         // was set silently and the teammate had to notice the new row.
         if (assigneeId && assigneeId !== userId) {
-          const self = opts?.workspaceMembers?.find((m) => m.user_id === userId)?.display_name || null;
-          notifyAssignee(assigneeId, 'task', t.id, t.title, assigneeName, self);
+          const self =
+            opts?.workspaceMembers?.find((m) => m.user_id === userId)?.display_name || null;
+          notifyAssignee(assigneeId, "task", t.id, t.title, assigneeName, self);
         }
         const recurrenceLabel = summarizeRRule(data.recurrenceRule);
         out.push({
-          tool: 'manage_task', ok: true,
-          message: `✅ Added task: ${t.title}${t.due_date ? ` (${recurrenceLabel ? `🔁 ${recurrenceLabel}, starting ` : 'due '}${new Date(t.due_date).toLocaleString()})` : ''}${assigneeName ? ` — for ${assigneeName}` : ''}`,
-          data: t, undoId, entityId: t.id,
+          tool: "manage_task",
+          ok: true,
+          message: `✅ Added task: ${t.title}${t.due_date ? ` (${recurrenceLabel ? `🔁 ${recurrenceLabel}, starting ` : "due "}${new Date(t.due_date).toLocaleString()})` : ""}${assigneeName ? ` — for ${assigneeName}` : ""}`,
+          data: t,
+          undoId,
+          entityId: t.id,
         });
-      } else if (action === 'complete' || action === 'delete' || action === 'update') {
+      } else if (action === "complete" || action === "delete" || action === "update") {
         // Resolve the target row. The model is supposed to send `id`, but the
         // user's task list isn't always exposed to it with IDs — and even when
         // it is, the model often hands back the title instead. Mirror the
@@ -1786,56 +2018,108 @@ async function executeToolsServerSide(
           // milk") would search for the new name and fail. delete/complete
           // can still fall back to `title` because there's no ambiguity:
           // there's no "new title" in those flows.
-          const needle = ((action === 'update' ? data.query : (data.query || data.title)) || '').trim();
+          const needle = (
+            (action === "update" ? data.query : data.query || data.title) || ""
+          ).trim();
           if (!needle) {
-            out.push({ tool: 'manage_task', ok: false, message: `I need a task ${action === 'update' ? 'query' : 'title'} (or id) to ${action} — which one?` });
+            out.push({
+              tool: "manage_task",
+              ok: false,
+              message: `I need a task ${action === "update" ? "query" : "title"} (or id) to ${action} — which one?`,
+            });
             continue;
           }
           // Only look at the caller's still-actionable tasks. Completed/
           // trashed rows would surface stale targets ("delete buy milk" →
           // matches a milk task from last month) and the morning digest
           // already excludes them.
-          const { data: matches } = await supabase.from('tasks')
-            .select('id, title, completed, trashed, due_date')
-            .eq('user_id', userId)
-            .eq('trashed', false)
-            .ilike('title', `%${needle}%`)
-            .order('created_at', { ascending: false })
+          const { data: matches } = await supabase
+            .from("tasks")
+            .select("id, title, completed, trashed, due_date")
+            .eq("user_id", userId)
+            .eq("trashed", false)
+            .ilike("title", `%${needle}%`)
+            .order("created_at", { ascending: false })
             .limit(5);
           const candidates = (matches || []).filter((r: { completed?: boolean }) =>
-            action === 'complete' ? !r.completed : true);
+            action === "complete" ? !r.completed : true,
+          );
           if (!candidates.length) {
-            out.push({ tool: 'manage_task', ok: false, message: `No task matches "${needle}".` });
+            out.push({ tool: "manage_task", ok: false, message: `No task matches "${needle}".` });
             continue;
           }
           if (candidates.length > 1) {
-            const list = candidates.map((r: { completed?: boolean; due_date?: string; title?: string }, i: number) => {
-              const status = r.completed ? ' (completed)' : '';
-              const due = r.due_date ? ` [due ${new Date(r.due_date).toLocaleDateString()}]` : '';
-              return `${i + 1}. ${r.title}${status}${due}`;
-            }).join('\n');
-            out.push({ tool: 'manage_task', ok: false, message: `Multiple tasks match "${needle}":\n${list}\n\nWhich one?` });
+            const list = candidates
+              .map((r: { completed?: boolean; due_date?: string; title?: string }, i: number) => {
+                const status = r.completed ? " (completed)" : "";
+                const due = r.due_date ? ` [due ${new Date(r.due_date).toLocaleDateString()}]` : "";
+                return `${i + 1}. ${r.title}${status}${due}`;
+              })
+              .join("\n");
+            out.push({
+              tool: "manage_task",
+              ok: false,
+              message: `Multiple tasks match "${needle}":\n${list}\n\nWhich one?`,
+            });
             continue;
           }
           targetId = candidates[0].id;
         }
 
-        if (action === 'complete') {
-          const { data: before } = await supabase.from('tasks')
-            .select('title, completed, completed_at').eq('id', targetId!).eq('user_id', userId).maybeSingle();
-          if (!before) { out.push({ tool: 'manage_task', ok: false, message: `Task not found.` }); continue; }
-          await supabase.from('tasks').update({ completed: true, completed_at: new Date().toISOString() }).eq('id', targetId!).eq('user_id', userId);
-          const undoId = await undoPatch('tasks', targetId!,
+        if (action === "complete") {
+          const { data: before } = await supabase
+            .from("tasks")
+            .select("title, completed, completed_at")
+            .eq("id", targetId!)
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (!before) {
+            out.push({ tool: "manage_task", ok: false, message: `Task not found.` });
+            continue;
+          }
+          await supabase
+            .from("tasks")
+            .update({ completed: true, completed_at: new Date().toISOString() })
+            .eq("id", targetId!)
+            .eq("user_id", userId);
+          const undoId = await undoPatch(
+            "tasks",
+            targetId!,
             { completed: before?.completed ?? false, completed_at: before?.completed_at ?? null },
-            `marked "${before?.title || 'task'}" complete`, 'task');
-          out.push({ tool: 'manage_task', ok: true, message: `✅ Marked task complete: ${before?.title || 'task'}`, undoId, entityId: targetId });
-        } else if (action === 'delete') {
-          const { data: before } = await supabase.from('tasks')
-            .select('*').eq('id', targetId!).eq('user_id', userId).maybeSingle();
-          if (!before) { out.push({ tool: 'manage_task', ok: false, message: `Task not found.` }); continue; }
-          await supabase.from('tasks').delete().eq('id', targetId!).eq('user_id', userId);
-          const undoId = await undoDelete('tasks', before, `deleted task "${before.title}"`, 'task');
-          out.push({ tool: 'manage_task', ok: true, message: `🗑️ Deleted task: ${before.title}`, undoId });
+            `marked "${before?.title || "task"}" complete`,
+            "task",
+          );
+          out.push({
+            tool: "manage_task",
+            ok: true,
+            message: `✅ Marked task complete: ${before?.title || "task"}`,
+            undoId,
+            entityId: targetId,
+          });
+        } else if (action === "delete") {
+          const { data: before } = await supabase
+            .from("tasks")
+            .select("*")
+            .eq("id", targetId!)
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (!before) {
+            out.push({ tool: "manage_task", ok: false, message: `Task not found.` });
+            continue;
+          }
+          await supabase.from("tasks").delete().eq("id", targetId!).eq("user_id", userId);
+          const undoId = await undoDelete(
+            "tasks",
+            before,
+            `deleted task "${before.title}"`,
+            "task",
+          );
+          out.push({
+            tool: "manage_task",
+            ok: true,
+            message: `🗑️ Deleted task: ${before.title}`,
+            undoId,
+          });
         } else {
           const upd: Record<string, unknown> = {};
           if (data.title) upd.title = data.title;
@@ -1843,28 +2127,57 @@ async function executeToolsServerSide(
           if (data.priority) upd.priority = data.priority;
           if (data.dueDate) upd.due_date = isoOrNull(data.dueDate as string | undefined);
           if (!Object.keys(upd).length) {
-            out.push({ tool: 'manage_task', ok: false, message: `Nothing to update — say what should change.` });
+            out.push({
+              tool: "manage_task",
+              ok: false,
+              message: `Nothing to update — say what should change.`,
+            });
             continue;
           }
-          const { data: before } = await supabase.from('tasks')
-            .select(Object.keys(upd).join(', ') + ', title').eq('id', targetId!).eq('user_id', userId).maybeSingle();
-          if (!before) { out.push({ tool: 'manage_task', ok: false, message: `Task not found.` }); continue; }
-          await supabase.from('tasks').update(upd).eq('id', targetId!).eq('user_id', userId);
+          const { data: before } = await supabase
+            .from("tasks")
+            .select(Object.keys(upd).join(", ") + ", title")
+            .eq("id", targetId!)
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (!before) {
+            out.push({ tool: "manage_task", ok: false, message: `Task not found.` });
+            continue;
+          }
+          await supabase.from("tasks").update(upd).eq("id", targetId!).eq("user_id", userId);
           const oldPatch: Record<string, unknown> = {};
-          for (const k of Object.keys(upd)) oldPatch[k] = (before as Record<string, unknown>)?.[k] ?? null;
-          const undoId = await undoPatch('tasks', targetId!, oldPatch, `edited task "${before?.title || targetId}"`, 'task');
-          out.push({ tool: 'manage_task', ok: true, message: `✏️ Updated task: ${upd.title || before?.title || 'task'}`, undoId, entityId: targetId });
+          for (const k of Object.keys(upd))
+            oldPatch[k] = (before as Record<string, unknown>)?.[k] ?? null;
+          const undoId = await undoPatch(
+            "tasks",
+            targetId!,
+            oldPatch,
+            `edited task "${before?.title || targetId}"`,
+            "task",
+          );
+          out.push({
+            tool: "manage_task",
+            ok: true,
+            message: `✏️ Updated task: ${upd.title || before?.title || "task"}`,
+            undoId,
+            entityId: targetId,
+          });
         }
       }
-    } catch (e) { out.push({ tool: 'manage_task', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "manage_task", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- schedule_event (create) ----------
   for (const m of text.matchAll(/<tool>schedule_event<\/tool>\s*<event>(\{[\s\S]*?\})<\/event>/g)) {
-    const data = safeJSON(m[1]); if (!data?.title || !data.startTime) continue;
+    const data = safeJSON(m[1]);
+    if (!data?.title || !data.startTime) continue;
     try {
       const start = isoOrNull(data.startTime)!;
-      const end = isoOrNull(data.endTime) || new Date(new Date(start).getTime() + 60 * 60 * 1000).toISOString();
+      const end =
+        isoOrNull(data.endTime) ||
+        new Date(new Date(start).getTime() + 60 * 60 * 1000).toISOString();
       // Deterministic recurrence fallback: if the model didn't emit a rule but
       // the user clearly asked for a repeat ("every Friday", "weekly"), infer it.
       if (!data.recurrenceRule && opts?.userText) {
@@ -1874,447 +2187,963 @@ async function executeToolsServerSide(
       // Inline conflict probe: warn (don't block) if the requested window
       // overlaps any existing event for this user. Cheap query, fires
       // before the insert so the confirmation message can flag it.
-      let conflictNote = '';
+      let conflictNote = "";
       try {
-        const { data: clash } = await supabase.from('events')
-          .select('id, title, start_time, end_time')
-          .eq('user_id', userId)
-          .lt('start_time', end)
-          .gt('end_time', start)
-          .order('start_time').limit(2);
+        const { data: clash } = await supabase
+          .from("events")
+          .select("id, title, start_time, end_time")
+          .eq("user_id", userId)
+          .lt("start_time", end)
+          .gt("end_time", start)
+          .order("start_time")
+          .limit(2);
         if (clash && clash.length > 0) {
           const first = clash[0];
-          const when = new Date(first.start_time).toLocaleString('en-GB', {
-            weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+          const when = new Date(first.start_time).toLocaleString("en-GB", {
+            weekday: "short",
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
             timeZone: opts?.timezone,
           });
-          conflictNote = ` ⚠️ Overlaps "${first.title}" (${when})${clash.length > 1 ? ` and ${clash.length - 1} more` : ''}`;
+          conflictNote = ` ⚠️ Overlaps "${first.title}" (${when})${clash.length > 1 ? ` and ${clash.length - 1} more` : ""}`;
         }
-      } catch (e) { console.warn('schedule_event conflict probe failed', (e as Error).message); }
+      } catch (e) {
+        console.warn("schedule_event conflict probe failed", (e as Error).message);
+      }
       const assigneeId = resolveAssignee(data.assignee, opts?.workspaceMembers);
       const { data: e, error } = await insertWithSchemaCacheFallback(
         supabase,
-        'events',
+        "events",
         {
-          user_id: userId, title: data.title, start_time: start, end_time: end,
-          location: data.location || null, attendees: data.attendees || null,
-          recurrence_rule: data.recurrenceRule || null, category: data.category || 'personal',
+          user_id: userId,
+          title: data.title,
+          start_time: start,
+          end_time: end,
+          location: data.location || null,
+          attendees: data.attendees || null,
+          recurrence_rule: data.recurrenceRule || null,
+          category: data.category || "personal",
           workspace_id: opts?.workspaceId || null,
           household_id: opts?.householdId || null,
           assignee_id: assigneeId,
         },
         // household_id is listed as droppable so a stale schema cache (or an
         // environment where the migration hasn't run yet) still inserts the event.
-        ['workspace_id', 'household_id', 'assignee_id'],
-        'id, title, start_time',
+        ["workspace_id", "household_id", "assignee_id"],
+        "id, title, start_time",
       );
       if (error) throw error;
-      const undoId = await undoCreate('events', e.id, `scheduled "${e.title}"`, 'event');
+      const undoId = await undoCreate("events", e.id, `scheduled "${e.title}"`, "event");
       if (assigneeId && assigneeId !== userId) {
-        const self = opts?.workspaceMembers?.find((m) => m.user_id === userId)?.display_name || null;
-        const assigneeName = opts?.workspaceMembers?.find((m) => m.user_id === assigneeId)?.display_name || null;
-        notifyAssignee(assigneeId, 'event', e.id, e.title, assigneeName, self);
+        const self =
+          opts?.workspaceMembers?.find((m) => m.user_id === userId)?.display_name || null;
+        const assigneeName =
+          opts?.workspaceMembers?.find((m) => m.user_id === assigneeId)?.display_name || null;
+        notifyAssignee(assigneeId, "event", e.id, e.title, assigneeName, self);
       }
       const recurrenceLabel = summarizeRRule(data.recurrenceRule);
       out.push({
-        tool: 'schedule_event', ok: true,
-        message: `📅 Scheduled: ${e.title} — ${recurrenceLabel ? `🔁 ${recurrenceLabel}, starting ` : ''}${new Date(e.start_time).toLocaleString()}${conflictNote}`,
-        data: e, undoId, entityId: e.id,
+        tool: "schedule_event",
+        ok: true,
+        message: `📅 Scheduled: ${e.title} — ${recurrenceLabel ? `🔁 ${recurrenceLabel}, starting ` : ""}${new Date(e.start_time).toLocaleString()}${conflictNote}`,
+        data: e,
+        undoId,
+        entityId: e.id,
       });
-    } catch (e) { out.push({ tool: 'schedule_event', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "schedule_event", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- manage_event (update / delete / search / list) ----------
-  for (const m of text.matchAll(/<tool>manage_event<\/tool>\s*<action>(\w+)<\/action>\s*<event>(\{[\s\S]*?\})<\/event>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]); if (!data) continue;
+  for (const m of text.matchAll(
+    /<tool>manage_event<\/tool>\s*<action>(\w+)<\/action>\s*<event>(\{[\s\S]*?\})<\/event>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]);
+    if (!data) continue;
     try {
       // List / empty-query search: surface the next upcoming events instead
       // of returning a misleading "Could not find event matching ''" error.
       // Triggered explicitly via action="list" or implicitly when the model
       // emits search/update/delete with no query.
-      const wantsList = action === 'list' || !data.query;
-      if (wantsList && action !== 'update' && action !== 'delete') {
+      const wantsList = action === "list" || !data.query;
+      if (wantsList && action !== "update" && action !== "delete") {
         const limit = Math.max(1, Math.min(20, Number(data.limit) || 5));
-        const { data: rows } = await supabase.from('events')
-          .select('id, title, start_time, end_time, location')
-          .eq('user_id', userId)
-          .gte('start_time', new Date().toISOString())
-          .order('start_time').limit(limit);
+        const { data: rows } = await supabase
+          .from("events")
+          .select("id, title, start_time, end_time, location")
+          .eq("user_id", userId)
+          .gte("start_time", new Date().toISOString())
+          .order("start_time")
+          .limit(limit);
         if (!rows || rows.length === 0) {
-          out.push({ tool: 'manage_event', ok: true, message: '📭 No upcoming events.' });
+          out.push({ tool: "manage_event", ok: true, message: "📭 No upcoming events." });
         } else {
           const lines = rows.map((e: { start_time: string; title: string; location?: string }) => {
-            const when = new Date(e.start_time).toLocaleString('en-GB', {
-              weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+            const when = new Date(e.start_time).toLocaleString("en-GB", {
+              weekday: "short",
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
               timeZone: opts?.timezone,
             });
-            return `• ${when} — ${e.title}${e.location ? ` @ ${e.location}` : ''}`;
+            return `• ${when} — ${e.title}${e.location ? ` @ ${e.location}` : ""}`;
           });
           out.push({
-            tool: 'manage_event', ok: true,
-            message: `📅 Next ${rows.length} event${rows.length === 1 ? '' : 's'}:\n${lines.join('\n')}`,
+            tool: "manage_event",
+            ok: true,
+            message: `📅 Next ${rows.length} event${rows.length === 1 ? "" : "s"}:\n${lines.join("\n")}`,
           });
         }
         continue;
       }
       let target: Record<string, unknown> | null = null;
       if (data.query) {
-        const { data: rows } = await supabase.from('events').select('*')
-          .eq('user_id', userId).ilike('title', `%${data.query}%`)
-          .gte('end_time', new Date(Date.now() - 24 * 3600 * 1000).toISOString())
-          .order('start_time').limit(1);
+        const { data: rows } = await supabase
+          .from("events")
+          .select("*")
+          .eq("user_id", userId)
+          .ilike("title", `%${data.query}%`)
+          .gte("end_time", new Date(Date.now() - 24 * 3600 * 1000).toISOString())
+          .order("start_time")
+          .limit(1);
         target = rows?.[0];
       }
-      if (!target) { out.push({ tool: 'manage_event', ok: false, message: `Could not find event matching "${data.query}"` }); continue; }
-      if (action === 'delete') {
-        await supabase.from('events').delete().eq('id', target.id).eq('user_id', userId);
-        const undoId = await undoDelete('events', target, `deleted event "${target.title}"`, 'event');
-        out.push({ tool: 'manage_event', ok: true, message: `🗑️ Deleted event: ${target.title}`, undoId });
-      } else if (action === 'update') {
+      if (!target) {
+        out.push({
+          tool: "manage_event",
+          ok: false,
+          message: `Could not find event matching "${data.query}"`,
+        });
+        continue;
+      }
+      if (action === "delete") {
+        await supabase.from("events").delete().eq("id", target.id).eq("user_id", userId);
+        const undoId = await undoDelete(
+          "events",
+          target,
+          `deleted event "${target.title}"`,
+          "event",
+        );
+        out.push({
+          tool: "manage_event",
+          ok: true,
+          message: `🗑️ Deleted event: ${target.title}`,
+          undoId,
+        });
+      } else if (action === "update") {
         const upd: Record<string, unknown> = {};
         if (data.title) upd.title = data.title;
         if (data.startTime) upd.start_time = isoOrNull(data.startTime as string | undefined);
         if (data.endTime) upd.end_time = isoOrNull(data.endTime as string | undefined);
         if (data.location !== undefined) upd.location = data.location;
         const oldPatch: Record<string, unknown> = {};
-        for (const k of Object.keys(upd)) oldPatch[k] = (target as Record<string, unknown>)[k] ?? null;
-        await supabase.from('events').update(upd).eq('id', target.id).eq('user_id', userId);
-        const undoId = await undoPatch('events', target.id, oldPatch, `edited event "${target.title}"`, 'event');
+        for (const k of Object.keys(upd))
+          oldPatch[k] = (target as Record<string, unknown>)[k] ?? null;
+        await supabase.from("events").update(upd).eq("id", target.id).eq("user_id", userId);
+        const undoId = await undoPatch(
+          "events",
+          target.id,
+          oldPatch,
+          `edited event "${target.title}"`,
+          "event",
+        );
         const updatedTitle = upd.title || target.title;
         // Echo the new time/location too so users see what actually changed,
         // not just the (possibly unchanged) title.
         const newStart = upd.start_time || target.start_time;
-        const whenStr = newStart ? new Date(newStart).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+        const whenStr = newStart
+          ? new Date(newStart).toLocaleString("en-GB", {
+              weekday: "short",
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "";
         const locStr = upd.location !== undefined ? upd.location : target.location;
         const bits = [updatedTitle];
         if (whenStr) bits.push(`→ ${whenStr}`);
         if (locStr) bits.push(`@ ${locStr}`);
-        out.push({ tool: 'manage_event', ok: true, message: `✏️ Updated event: ${bits.join(' ')}`, undoId, entityId: target.id, title: updatedTitle, entityKind: 'event' });
+        out.push({
+          tool: "manage_event",
+          ok: true,
+          message: `✏️ Updated event: ${bits.join(" ")}`,
+          undoId,
+          entityId: target.id,
+          title: updatedTitle,
+          entityKind: "event",
+        });
       } else {
-        out.push({ tool: 'manage_event', ok: true, message: `Found: ${target.title} on ${new Date(target.start_time).toLocaleString()}`, entityId: target.id, title: target.title, entityKind: 'event' });
+        out.push({
+          tool: "manage_event",
+          ok: true,
+          message: `Found: ${target.title} on ${new Date(target.start_time).toLocaleString()}`,
+          entityId: target.id,
+          title: target.title,
+          entityKind: "event",
+        });
       }
-    } catch (e) { out.push({ tool: 'manage_event', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "manage_event", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- manage_contact ----------
-  for (const m of text.matchAll(/<tool>manage_contact<\/tool>\s*<action>(\w+)<\/action>\s*<contact>(\{[\s\S]*?\})<\/contact>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]); if (!data) continue;
+  for (const m of text.matchAll(
+    /<tool>manage_contact<\/tool>\s*<action>(\w+)<\/action>\s*<contact>(\{[\s\S]*?\})<\/contact>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]);
+    if (!data) continue;
     try {
-      if (action === 'create') {
-        const { data: c, error } = await supabase.from('user_contacts').insert({
-          user_id: userId, name: data.name, email: data.email || null, phone: data.phone || null,
-          company: data.company || null, role: data.role || null, city: data.city || null,
-          country: data.country || null, contact_type: data.contactType || 'business',
-          notes: data.notes || null,
-        }).select('id, name').single();
+      if (action === "create") {
+        const { data: c, error } = await supabase
+          .from("user_contacts")
+          .insert({
+            user_id: userId,
+            name: data.name,
+            email: data.email || null,
+            phone: data.phone || null,
+            company: data.company || null,
+            role: data.role || null,
+            city: data.city || null,
+            country: data.country || null,
+            contact_type: data.contactType || "business",
+            notes: data.notes || null,
+          })
+          .select("id, name")
+          .single();
         if (error) throw error;
-        const undoId = await undoCreate('user_contacts', c.id, `added contact ${c.name}`, 'contact');
-        out.push({ tool: 'manage_contact', ok: true, message: `👤 Added contact: ${c.name}`, data: c, undoId, entityId: c.id });
+        const undoId = await undoCreate(
+          "user_contacts",
+          c.id,
+          `added contact ${c.name}`,
+          "contact",
+        );
+        out.push({
+          tool: "manage_contact",
+          ok: true,
+          message: `👤 Added contact: ${c.name}`,
+          data: c,
+          undoId,
+          entityId: c.id,
+        });
       } else {
-        const { data: rows } = await supabase.from('user_contacts').select('*')
-          .eq('user_id', userId)
-          .or(`name.ilike.%${data.query}%,email.ilike.%${data.query}%,company.ilike.%${data.query}%`).limit(1);
+        const { data: rows } = await supabase
+          .from("user_contacts")
+          .select("*")
+          .eq("user_id", userId)
+          .or(
+            `name.ilike.%${data.query}%,email.ilike.%${data.query}%,company.ilike.%${data.query}%`,
+          )
+          .limit(1);
         const target = rows?.[0];
-        if (!target) { out.push({ tool: 'manage_contact', ok: false, message: `No contact matches "${data.query}"` }); continue; }
-        if (action === 'delete') {
-          await supabase.from('user_contacts').delete().eq('id', target.id).eq('user_id', userId);
-          const undoId = await undoDelete('user_contacts', target, `deleted contact ${target.name}`, 'contact');
-          out.push({ tool: 'manage_contact', ok: true, message: `🗑️ Deleted contact: ${target.name}`, undoId });
-        } else if (action === 'update') {
+        if (!target) {
+          out.push({
+            tool: "manage_contact",
+            ok: false,
+            message: `No contact matches "${data.query}"`,
+          });
+          continue;
+        }
+        if (action === "delete") {
+          await supabase.from("user_contacts").delete().eq("id", target.id).eq("user_id", userId);
+          const undoId = await undoDelete(
+            "user_contacts",
+            target,
+            `deleted contact ${target.name}`,
+            "contact",
+          );
+          out.push({
+            tool: "manage_contact",
+            ok: true,
+            message: `🗑️ Deleted contact: ${target.name}`,
+            undoId,
+          });
+        } else if (action === "update") {
           const upd: Record<string, unknown> = {};
-          ['name','email','phone','company','role','city','country','notes'].forEach(k => { if (data[k] !== undefined) upd[k] = data[k]; });
+          ["name", "email", "phone", "company", "role", "city", "country", "notes"].forEach((k) => {
+            if (data[k] !== undefined) upd[k] = data[k];
+          });
           const oldPatch: Record<string, unknown> = {};
-          for (const k of Object.keys(upd)) oldPatch[k] = (target as Record<string, unknown>)[k] ?? null;
-          await supabase.from('user_contacts').update(upd).eq('id', target.id).eq('user_id', userId);
-          const undoId = await undoPatch('user_contacts', target.id, oldPatch, `edited contact ${target.name}`, 'contact');
-          out.push({ tool: 'manage_contact', ok: true, message: `✏️ Updated contact: ${target.name}`, undoId, entityId: target.id });
-        } else if (action === 'mark_contacted') {
-          await supabase.from('contact_interactions').insert({ user_id: userId, contact_id: target.id, interaction_type: 'note', notes: 'Logged via Dori' });
-          out.push({ tool: 'manage_contact', ok: true, message: `✅ Logged interaction with ${target.name}`, entityId: target.id });
+          for (const k of Object.keys(upd))
+            oldPatch[k] = (target as Record<string, unknown>)[k] ?? null;
+          await supabase
+            .from("user_contacts")
+            .update(upd)
+            .eq("id", target.id)
+            .eq("user_id", userId);
+          const undoId = await undoPatch(
+            "user_contacts",
+            target.id,
+            oldPatch,
+            `edited contact ${target.name}`,
+            "contact",
+          );
+          out.push({
+            tool: "manage_contact",
+            ok: true,
+            message: `✏️ Updated contact: ${target.name}`,
+            undoId,
+            entityId: target.id,
+          });
+        } else if (action === "mark_contacted") {
+          await supabase.from("contact_interactions").insert({
+            user_id: userId,
+            contact_id: target.id,
+            interaction_type: "note",
+            notes: "Logged via Dori",
+          });
+          out.push({
+            tool: "manage_contact",
+            ok: true,
+            message: `✅ Logged interaction with ${target.name}`,
+            entityId: target.id,
+          });
         } else {
-          out.push({ tool: 'manage_contact', ok: true, message: `Found contact: ${target.name}`, entityId: target.id });
+          out.push({
+            tool: "manage_contact",
+            ok: true,
+            message: `Found contact: ${target.name}`,
+            entityId: target.id,
+          });
         }
       }
-    } catch (e) { out.push({ tool: 'manage_contact', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "manage_contact", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- manage_contract ----------
-  for (const m of text.matchAll(/<tool>manage_contract<\/tool>\s*<action>(\w+)<\/action>\s*<contract>(\{[\s\S]*?\})<\/contract>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]); if (!data) continue;
+  for (const m of text.matchAll(
+    /<tool>manage_contract<\/tool>\s*<action>(\w+)<\/action>\s*<contract>(\{[\s\S]*?\})<\/contract>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]);
+    if (!data) continue;
     try {
-      if (action === 'create') {
-        const { data: c, error } = await supabase.from('contracts').insert({
-          user_id: userId, name: data.name, provider: data.provider || null,
-          category: data.category || 'subscription', cost_amount: data.costAmount || null,
-          cost_frequency: data.costFrequency || null, renewal_date: isoOrNull(data.renewalDate),
-          auto_renews: data.autoRenews ?? null, notes: data.notes || null,
-        }).select('id, name').single();
+      if (action === "create") {
+        const { data: c, error } = await supabase
+          .from("contracts")
+          .insert({
+            user_id: userId,
+            name: data.name,
+            provider: data.provider || null,
+            category: data.category || "subscription",
+            cost_amount: data.costAmount || null,
+            cost_frequency: data.costFrequency || null,
+            renewal_date: isoOrNull(data.renewalDate),
+            auto_renews: data.autoRenews ?? null,
+            notes: data.notes || null,
+          })
+          .select("id, name")
+          .single();
         if (error) throw error;
-        out.push({ tool: 'manage_contract', ok: true, message: `📄 Added contract: ${c.name}`, data: c });
-      } else if (action === 'get_costs') {
-        const { data: rows } = await supabase.from('contracts').select('name, cost_amount, cost_frequency').eq('user_id', userId).eq('is_active', true);
+        out.push({
+          tool: "manage_contract",
+          ok: true,
+          message: `📄 Added contract: ${c.name}`,
+          data: c,
+        });
+      } else if (action === "get_costs") {
+        const { data: rows } = await supabase
+          .from("contracts")
+          .select("name, cost_amount, cost_frequency")
+          .eq("user_id", userId)
+          .eq("is_active", true);
         let monthly = 0;
         rows?.forEach((r: { cost_amount?: number; cost_frequency?: string }) => {
           if (!r.cost_amount) return;
-          if (r.cost_frequency === 'monthly') monthly += r.cost_amount;
-          else if (r.cost_frequency === 'yearly') monthly += r.cost_amount / 12;
-          else if (r.cost_frequency === 'weekly') monthly += r.cost_amount * 4.33;
+          if (r.cost_frequency === "monthly") monthly += r.cost_amount;
+          else if (r.cost_frequency === "yearly") monthly += r.cost_amount / 12;
+          else if (r.cost_frequency === "weekly") monthly += r.cost_amount * 4.33;
         });
-        out.push({ tool: 'manage_contract', ok: true, message: `💰 Total active contracts: ${rows?.length || 0}, ~${monthly.toFixed(2)}/month` });
+        out.push({
+          tool: "manage_contract",
+          ok: true,
+          message: `💰 Total active contracts: ${rows?.length || 0}, ~${monthly.toFixed(2)}/month`,
+        });
       } else {
-        const { data: rows } = await supabase.from('contracts').select('id, name')
-          .eq('user_id', userId)
-          .or(`name.ilike.%${data.query}%,provider.ilike.%${data.query}%`).limit(1);
+        const { data: rows } = await supabase
+          .from("contracts")
+          .select("id, name")
+          .eq("user_id", userId)
+          .or(`name.ilike.%${data.query}%,provider.ilike.%${data.query}%`)
+          .limit(1);
         const target = rows?.[0];
-        if (!target) { out.push({ tool: 'manage_contract', ok: false, message: `No contract matches "${data.query}"` }); continue; }
-        if (action === 'delete') {
-          await supabase.from('contracts').delete().eq('id', target.id).eq('user_id', userId);
-          out.push({ tool: 'manage_contract', ok: true, message: `🗑️ Deleted contract: ${target.name}` });
-        } else if (action === 'update') {
+        if (!target) {
+          out.push({
+            tool: "manage_contract",
+            ok: false,
+            message: `No contract matches "${data.query}"`,
+          });
+          continue;
+        }
+        if (action === "delete") {
+          await supabase.from("contracts").delete().eq("id", target.id).eq("user_id", userId);
+          out.push({
+            tool: "manage_contract",
+            ok: true,
+            message: `🗑️ Deleted contract: ${target.name}`,
+          });
+        } else if (action === "update") {
           const upd: Record<string, unknown> = {};
           if (data.name) upd.name = data.name;
           if (data.provider) upd.provider = data.provider;
           if (data.category) upd.category = data.category;
           if (data.costAmount !== undefined) upd.cost_amount = data.costAmount;
           if (data.costFrequency) upd.cost_frequency = data.costFrequency;
-          if (data.renewalDate) upd.renewal_date = isoOrNull(data.renewalDate as string | undefined);
+          if (data.renewalDate)
+            upd.renewal_date = isoOrNull(data.renewalDate as string | undefined);
           if (data.autoRenews !== undefined) upd.auto_renews = data.autoRenews;
           if (data.notes !== undefined) upd.notes = data.notes;
-          await supabase.from('contracts').update(upd).eq('id', target.id).eq('user_id', userId);
-          out.push({ tool: 'manage_contract', ok: true, message: `✏️ Updated contract: ${target.name}` });
+          await supabase.from("contracts").update(upd).eq("id", target.id).eq("user_id", userId);
+          out.push({
+            tool: "manage_contract",
+            ok: true,
+            message: `✏️ Updated contract: ${target.name}`,
+          });
         } else {
-          out.push({ tool: 'manage_contract', ok: true, message: `Found contract: ${target.name}` });
+          out.push({
+            tool: "manage_contract",
+            ok: true,
+            message: `Found contract: ${target.name}`,
+          });
         }
       }
-    } catch (e) { out.push({ tool: 'manage_contract', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "manage_contract", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- manage_property ----------
-  for (const m of text.matchAll(/<tool>manage_property<\/tool>\s*<action>(\w+)<\/action>\s*<property>(\{[\s\S]*?\})<\/property>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]); if (!data) continue;
+  for (const m of text.matchAll(
+    /<tool>manage_property<\/tool>\s*<action>(\w+)<\/action>\s*<property>(\{[\s\S]*?\})<\/property>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]);
+    if (!data) continue;
     try {
-      if (action === 'create') {
-        const { data: p, error } = await supabase.from('properties').insert({
-          user_id: userId, name: data.name, property_type: data.propertyType || 'apartment',
-          address: data.address || null, city: data.city || null, country: data.country || null,
-          purchase_price: data.purchasePrice || null, current_value: data.currentValue || null,
-          size_sqm: data.sizeSqm || null, notes: data.notes || null,
-        }).select('id, name').single();
+      if (action === "create") {
+        const { data: p, error } = await supabase
+          .from("properties")
+          .insert({
+            user_id: userId,
+            name: data.name,
+            property_type: data.propertyType || "apartment",
+            address: data.address || null,
+            city: data.city || null,
+            country: data.country || null,
+            purchase_price: data.purchasePrice || null,
+            current_value: data.currentValue || null,
+            size_sqm: data.sizeSqm || null,
+            notes: data.notes || null,
+          })
+          .select("id, name")
+          .single();
         if (error) throw error;
-        out.push({ tool: 'manage_property', ok: true, message: `🏠 Added property: ${p.name}`, data: p });
-      } else if (action === 'list') {
-        const { data: rows } = await supabase.from('properties').select('name, property_type, city').eq('user_id', userId).eq('is_active', true);
-        out.push({ tool: 'manage_property', ok: true, message: `🏠 Properties (${rows?.length || 0}): ${rows?.map((r: { name: string; city?: string }) => `${r.name}${r.city ? ` (${r.city})` : ''}`).join(', ') || 'none'}` });
+        out.push({
+          tool: "manage_property",
+          ok: true,
+          message: `🏠 Added property: ${p.name}`,
+          data: p,
+        });
+      } else if (action === "list") {
+        const { data: rows } = await supabase
+          .from("properties")
+          .select("name, property_type, city")
+          .eq("user_id", userId)
+          .eq("is_active", true);
+        out.push({
+          tool: "manage_property",
+          ok: true,
+          message: `🏠 Properties (${rows?.length || 0}): ${rows?.map((r: { name: string; city?: string }) => `${r.name}${r.city ? ` (${r.city})` : ""}`).join(", ") || "none"}`,
+        });
       } else {
-        const { data: rows } = await supabase.from('properties').select('id, name')
-          .eq('user_id', userId)
-          .or(`name.ilike.%${data.query}%,address.ilike.%${data.query}%,city.ilike.%${data.query}%`).limit(1);
+        const { data: rows } = await supabase
+          .from("properties")
+          .select("id, name")
+          .eq("user_id", userId)
+          .or(`name.ilike.%${data.query}%,address.ilike.%${data.query}%,city.ilike.%${data.query}%`)
+          .limit(1);
         const target = rows?.[0];
-        if (!target) { out.push({ tool: 'manage_property', ok: false, message: `No property matches "${data.query}"` }); continue; }
-        if (action === 'delete') {
-          await supabase.from('properties').delete().eq('id', target.id).eq('user_id', userId);
-          out.push({ tool: 'manage_property', ok: true, message: `🗑️ Deleted property: ${target.name}` });
-        } else if (action === 'update') {
+        if (!target) {
+          out.push({
+            tool: "manage_property",
+            ok: false,
+            message: `No property matches "${data.query}"`,
+          });
+          continue;
+        }
+        if (action === "delete") {
+          await supabase.from("properties").delete().eq("id", target.id).eq("user_id", userId);
+          out.push({
+            tool: "manage_property",
+            ok: true,
+            message: `🗑️ Deleted property: ${target.name}`,
+          });
+        } else if (action === "update") {
           const upd: Record<string, unknown> = {};
           if (data.name) upd.name = data.name;
           if (data.propertyType) upd.property_type = data.propertyType;
-          ['address','city','country','notes'].forEach(k => { if (data[k] !== undefined) upd[k] = data[k]; });
+          ["address", "city", "country", "notes"].forEach((k) => {
+            if (data[k] !== undefined) upd[k] = data[k];
+          });
           if (data.purchasePrice !== undefined) upd.purchase_price = data.purchasePrice;
           if (data.currentValue !== undefined) upd.current_value = data.currentValue;
           if (data.sizeSqm !== undefined) upd.size_sqm = data.sizeSqm;
-          await supabase.from('properties').update(upd).eq('id', target.id).eq('user_id', userId);
-          out.push({ tool: 'manage_property', ok: true, message: `✏️ Updated property: ${target.name}` });
+          await supabase.from("properties").update(upd).eq("id", target.id).eq("user_id", userId);
+          out.push({
+            tool: "manage_property",
+            ok: true,
+            message: `✏️ Updated property: ${target.name}`,
+          });
         } else {
-          out.push({ tool: 'manage_property', ok: true, message: `Found property: ${target.name}` });
+          out.push({
+            tool: "manage_property",
+            ok: true,
+            message: `Found property: ${target.name}`,
+          });
         }
       }
-    } catch (e) { out.push({ tool: 'manage_property', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "manage_property", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- manage_business (startup_ideas) ----------
-  for (const m of text.matchAll(/<tool>manage_business<\/tool>\s*<action>(\w+)<\/action>\s*<business>(\{[\s\S]*?\})<\/business>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]); if (!data) continue;
+  for (const m of text.matchAll(
+    /<tool>manage_business<\/tool>\s*<action>(\w+)<\/action>\s*<business>(\{[\s\S]*?\})<\/business>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]);
+    if (!data) continue;
     try {
-      if (action === 'create') {
-        const { data: b, error } = await supabase.from('startup_ideas').insert({
-          user_id: userId, name: data.name, description: data.description || null,
-          problem_statement: data.problemStatement || null, target_audience: data.targetAudience || null,
-          business_model: data.businessModel || null, unique_value_proposition: data.uniqueValueProposition || null,
-          status: data.status || 'idea', tags: data.tags || null, notes: data.notes || null,
-        }).select('id, name').single();
+      if (action === "create") {
+        const { data: b, error } = await supabase
+          .from("startup_ideas")
+          .insert({
+            user_id: userId,
+            name: data.name,
+            description: data.description || null,
+            problem_statement: data.problemStatement || null,
+            target_audience: data.targetAudience || null,
+            business_model: data.businessModel || null,
+            unique_value_proposition: data.uniqueValueProposition || null,
+            status: data.status || "idea",
+            tags: data.tags || null,
+            notes: data.notes || null,
+          })
+          .select("id, name")
+          .single();
         if (error) throw error;
-        out.push({ tool: 'manage_business', ok: true, message: `🚀 Added business: ${b.name}`, data: b });
-      } else if (action === 'list') {
-        const { data: rows } = await supabase.from('startup_ideas').select('name, status').eq('user_id', userId);
-        out.push({ tool: 'manage_business', ok: true, message: `🚀 Businesses (${rows?.length || 0}): ${rows?.map((r: { name: string; status?: string }) => `${r.name} [${r.status || 'idea'}]`).join(', ') || 'none'}` });
+        out.push({
+          tool: "manage_business",
+          ok: true,
+          message: `🚀 Added business: ${b.name}`,
+          data: b,
+        });
+      } else if (action === "list") {
+        const { data: rows } = await supabase
+          .from("startup_ideas")
+          .select("name, status")
+          .eq("user_id", userId);
+        out.push({
+          tool: "manage_business",
+          ok: true,
+          message: `🚀 Businesses (${rows?.length || 0}): ${rows?.map((r: { name: string; status?: string }) => `${r.name} [${r.status || "idea"}]`).join(", ") || "none"}`,
+        });
       } else {
-        const { data: rows } = await supabase.from('startup_ideas').select('id, name').eq('user_id', userId).ilike('name', `%${data.query}%`).limit(1);
+        const { data: rows } = await supabase
+          .from("startup_ideas")
+          .select("id, name")
+          .eq("user_id", userId)
+          .ilike("name", `%${data.query}%`)
+          .limit(1);
         const target = rows?.[0];
-        if (!target) { out.push({ tool: 'manage_business', ok: false, message: `No business matches "${data.query}"` }); continue; }
-        if (action === 'delete') {
-          await supabase.from('startup_ideas').delete().eq('id', target.id).eq('user_id', userId);
-          out.push({ tool: 'manage_business', ok: true, message: `🗑️ Deleted business: ${target.name}` });
-        } else if (action === 'update') {
+        if (!target) {
+          out.push({
+            tool: "manage_business",
+            ok: false,
+            message: `No business matches "${data.query}"`,
+          });
+          continue;
+        }
+        if (action === "delete") {
+          await supabase.from("startup_ideas").delete().eq("id", target.id).eq("user_id", userId);
+          out.push({
+            tool: "manage_business",
+            ok: true,
+            message: `🗑️ Deleted business: ${target.name}`,
+          });
+        } else if (action === "update") {
           const upd: Record<string, unknown> = {};
-          ['name','description','status','notes'].forEach(k => { if (data[k] !== undefined) upd[k] = data[k]; });
+          ["name", "description", "status", "notes"].forEach((k) => {
+            if (data[k] !== undefined) upd[k] = data[k];
+          });
           if (data.problemStatement !== undefined) upd.problem_statement = data.problemStatement;
           if (data.targetAudience !== undefined) upd.target_audience = data.targetAudience;
           if (data.businessModel !== undefined) upd.business_model = data.businessModel;
-          if (data.uniqueValueProposition !== undefined) upd.unique_value_proposition = data.uniqueValueProposition;
+          if (data.uniqueValueProposition !== undefined)
+            upd.unique_value_proposition = data.uniqueValueProposition;
           if (data.tags !== undefined) upd.tags = data.tags;
-          await supabase.from('startup_ideas').update(upd).eq('id', target.id).eq('user_id', userId);
-          out.push({ tool: 'manage_business', ok: true, message: `✏️ Updated business: ${target.name}` });
+          await supabase
+            .from("startup_ideas")
+            .update(upd)
+            .eq("id", target.id)
+            .eq("user_id", userId);
+          out.push({
+            tool: "manage_business",
+            ok: true,
+            message: `✏️ Updated business: ${target.name}`,
+          });
         } else {
-          out.push({ tool: 'manage_business', ok: true, message: `Found business: ${target.name}` });
+          out.push({
+            tool: "manage_business",
+            ok: true,
+            message: `Found business: ${target.name}`,
+          });
         }
       }
-    } catch (e) { out.push({ tool: 'manage_business', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "manage_business", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- manage_family_member ----------
-  for (const m of text.matchAll(/<tool>manage_family_member<\/tool>\s*<action>(\w+)<\/action>\s*<member>(\{[\s\S]*?\})<\/member>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]); if (!data) continue;
+  for (const m of text.matchAll(
+    /<tool>manage_family_member<\/tool>\s*<action>(\w+)<\/action>\s*<member>(\{[\s\S]*?\})<\/member>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]);
+    if (!data) continue;
     try {
-      if (action === 'create') {
-        const { data: f, error } = await supabase.from('family_members').insert({
-          user_id: userId, name: data.name, relationship: data.relationship || 'other',
-          birth_date: isoOrNull(data.birthDate),
-          anniversary_date: data.anniversaryDate ? new Date(isoOrNull(data.anniversaryDate) || data.anniversaryDate).toISOString().slice(0, 10) : null,
-          email: data.email || null, phone: data.phone || null,
-          school_name: data.schoolName || null, school_grade: data.schoolGrade || null,
-          allergies: data.allergies || null, medical_notes: data.medicalNotes || null,
-          notes: data.notes || null,
-        }).select('id, name').single();
+      if (action === "create") {
+        const { data: f, error } = await supabase
+          .from("family_members")
+          .insert({
+            user_id: userId,
+            name: data.name,
+            relationship: data.relationship || "other",
+            birth_date: isoOrNull(data.birthDate),
+            anniversary_date: data.anniversaryDate
+              ? new Date(isoOrNull(data.anniversaryDate) || data.anniversaryDate)
+                  .toISOString()
+                  .slice(0, 10)
+              : null,
+            email: data.email || null,
+            phone: data.phone || null,
+            school_name: data.schoolName || null,
+            school_grade: data.schoolGrade || null,
+            allergies: data.allergies || null,
+            medical_notes: data.medicalNotes || null,
+            notes: data.notes || null,
+          })
+          .select("id, name")
+          .single();
         if (error) throw error;
-        out.push({ tool: 'manage_family_member', ok: true, message: `👨‍👩‍👧 Added family member: ${f.name}`, data: f });
+        out.push({
+          tool: "manage_family_member",
+          ok: true,
+          message: `👨‍👩‍👧 Added family member: ${f.name}`,
+          data: f,
+        });
       } else {
-        const { data: rows } = await supabase.from('family_members').select('id, name').eq('user_id', userId).ilike('name', `%${data.query}%`).limit(1);
+        const { data: rows } = await supabase
+          .from("family_members")
+          .select("id, name")
+          .eq("user_id", userId)
+          .ilike("name", `%${data.query}%`)
+          .limit(1);
         const target = rows?.[0];
-        if (!target) { out.push({ tool: 'manage_family_member', ok: false, message: `No family member matches "${data.query}"` }); continue; }
-        if (action === 'delete') {
-          await supabase.from('family_members').update({ is_active: false }).eq('id', target.id).eq('user_id', userId);
-          out.push({ tool: 'manage_family_member', ok: true, message: `🗑️ Removed family member: ${target.name}` });
-        } else if (action === 'update') {
+        if (!target) {
+          out.push({
+            tool: "manage_family_member",
+            ok: false,
+            message: `No family member matches "${data.query}"`,
+          });
+          continue;
+        }
+        if (action === "delete") {
+          await supabase
+            .from("family_members")
+            .update({ is_active: false })
+            .eq("id", target.id)
+            .eq("user_id", userId);
+          out.push({
+            tool: "manage_family_member",
+            ok: true,
+            message: `🗑️ Removed family member: ${target.name}`,
+          });
+        } else if (action === "update") {
           const upd: Record<string, unknown> = {};
-          ['name','relationship','email','phone','notes'].forEach(k => { if (data[k] !== undefined) upd[k] = data[k]; });
+          ["name", "relationship", "email", "phone", "notes"].forEach((k) => {
+            if (data[k] !== undefined) upd[k] = data[k];
+          });
           if (data.birthDate) upd.birth_date = isoOrNull(data.birthDate as string | undefined);
           if (data.anniversaryDate !== undefined) {
-            const iso = data.anniversaryDate ? isoOrNull(data.anniversaryDate as string | undefined) : null;
+            const iso = data.anniversaryDate
+              ? isoOrNull(data.anniversaryDate as string | undefined)
+              : null;
             upd.anniversary_date = iso ? new Date(iso).toISOString().slice(0, 10) : null;
           }
           if (data.schoolName !== undefined) upd.school_name = data.schoolName;
           if (data.schoolGrade !== undefined) upd.school_grade = data.schoolGrade;
           if (data.allergies !== undefined) upd.allergies = data.allergies;
           if (data.medicalNotes !== undefined) upd.medical_notes = data.medicalNotes;
-          await supabase.from('family_members').update(upd).eq('id', target.id).eq('user_id', userId);
-          out.push({ tool: 'manage_family_member', ok: true, message: `✏️ Updated family member: ${target.name}` });
+          await supabase
+            .from("family_members")
+            .update(upd)
+            .eq("id", target.id)
+            .eq("user_id", userId);
+          out.push({
+            tool: "manage_family_member",
+            ok: true,
+            message: `✏️ Updated family member: ${target.name}`,
+          });
         } else {
-          out.push({ tool: 'manage_family_member', ok: true, message: `Found family member: ${target.name}` });
+          out.push({
+            tool: "manage_family_member",
+            ok: true,
+            message: `Found family member: ${target.name}`,
+          });
         }
       }
-    } catch (e) { out.push({ tool: 'manage_family_member', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({
+        tool: "manage_family_member",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
+    }
   }
 
   // ---------- create_note / manage_note ----------
-  for (const m of text.matchAll(/<tool>(?:create_note|manage_note)<\/tool>(?:\s*<action>(\w+)<\/action>)?\s*<note>(\{[\s\S]*?\})<\/note>/g)) {
-    const action = m[1] || 'create'; const data = safeJSON(m[2]); if (!data) continue;
+  for (const m of text.matchAll(
+    /<tool>(?:create_note|manage_note)<\/tool>(?:\s*<action>(\w+)<\/action>)?\s*<note>(\{[\s\S]*?\})<\/note>/g,
+  )) {
+    const action = m[1] || "create";
+    const data = safeJSON(m[2]);
+    if (!data) continue;
     try {
-      if (action === 'create') {
+      if (action === "create") {
         const { data: n, error } = await insertWithSchemaCacheFallback(
           supabase,
-          'notes',
+          "notes",
           {
-            user_id: userId, title: data.title || 'Note', content: data.content || '', tags: data.tags || null,
+            user_id: userId,
+            title: data.title || "Note",
+            content: data.content || "",
+            tags: data.tags || null,
             workspace_id: opts?.workspaceId || null,
           },
-          ['workspace_id'],
-          'id, title',
+          ["workspace_id"],
+          "id, title",
         );
         if (error) throw error;
-        const undoId = await undoCreate('notes', n.id, `saved note "${n.title}"`, 'note');
-        out.push({ tool: 'manage_note', ok: true, message: `📝 Saved note: ${n.title}`, data: n, undoId, entityId: n.id });
-      } else if (action === 'delete' && data.query) {
-        const { data: rows } = await supabase.from('notes').select('*').eq('user_id', userId).ilike('title', `%${data.query}%`).limit(1);
+        const undoId = await undoCreate("notes", n.id, `saved note "${n.title}"`, "note");
+        out.push({
+          tool: "manage_note",
+          ok: true,
+          message: `📝 Saved note: ${n.title}`,
+          data: n,
+          undoId,
+          entityId: n.id,
+        });
+      } else if (action === "delete" && data.query) {
+        const { data: rows } = await supabase
+          .from("notes")
+          .select("*")
+          .eq("user_id", userId)
+          .ilike("title", `%${data.query}%`)
+          .limit(1);
         if (rows?.[0]) {
           const snap = rows[0];
-          await supabase.from('notes').delete().eq('id', snap.id).eq('user_id', userId);
-          const undoId = await undoDelete('notes', snap, `deleted note "${snap.title}"`, 'note');
-          out.push({ tool: 'manage_note', ok: true, message: `🗑️ Deleted note: ${snap.title}`, undoId });
+          await supabase.from("notes").delete().eq("id", snap.id).eq("user_id", userId);
+          const undoId = await undoDelete("notes", snap, `deleted note "${snap.title}"`, "note");
+          out.push({
+            tool: "manage_note",
+            ok: true,
+            message: `🗑️ Deleted note: ${snap.title}`,
+            undoId,
+          });
         }
       }
-    } catch (e) { out.push({ tool: 'manage_note', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "manage_note", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- add_shopping_item ----------
   // Supports three forms (back-compat with the original add-only XML):
   //   <tool>add_shopping_item</tool><item>{...}</item>                  (add)
   //   <tool>add_shopping_item</tool><action>add|remove|clear</action><item>{...}</item>
-  for (const m of text.matchAll(/<tool>add_shopping_item<\/tool>(?:\s*<action>(\w+)<\/action>)?\s*<item>(\{[\s\S]*?\})<\/item>/g)) {
-    const action = (m[1] || 'add').toLowerCase();
+  for (const m of text.matchAll(
+    /<tool>add_shopping_item<\/tool>(?:\s*<action>(\w+)<\/action>)?\s*<item>(\{[\s\S]*?\})<\/item>/g,
+  )) {
+    const action = (m[1] || "add").toLowerCase();
     const data = safeJSON(m[2]) || {};
     try {
-      let { data: list } = await supabase.from('shopping_lists').select('id').eq('user_id', userId).eq('is_completed', false).order('created_at').limit(1).maybeSingle();
-      if (action === 'clear') {
-        if (!list) { out.push({ tool: 'add_shopping_item', ok: true, message: '🛒 Shopping list is already empty.' }); continue; }
-        const { count } = await supabase.from('shopping_list_items')
-          .delete({ count: 'exact' }).eq('list_id', list.id).eq('is_checked', false);
-        out.push({ tool: 'add_shopping_item', ok: true, message: `🗑️ Cleared ${count || 0} item${count === 1 ? '' : 's'} from shopping.` });
-        continue;
-      }
-      if (action === 'remove') {
-        if (!data?.name || !list) {
-          out.push({ tool: 'add_shopping_item', ok: false, message: data?.name ? '🛒 Shopping list is empty.' : 'No item name to remove.' });
+      let { data: list } = await supabase
+        .from("shopping_lists")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("is_completed", false)
+        .order("created_at")
+        .limit(1)
+        .maybeSingle();
+      if (action === "clear") {
+        if (!list) {
+          out.push({
+            tool: "add_shopping_item",
+            ok: true,
+            message: "🛒 Shopping list is already empty.",
+          });
           continue;
         }
-        const { data: matches } = await supabase.from('shopping_list_items')
-          .select('id, name').eq('list_id', list.id).eq('is_checked', false)
-          .ilike('name', `%${data.name}%`).limit(2);
-        if (!matches?.length) { out.push({ tool: 'add_shopping_item', ok: false, message: `🔍 No shopping item matches "${data.name}".` }); continue; }
-        if (matches.length > 1) { out.push({ tool: 'add_shopping_item', ok: false, message: `🤔 Multiple items match "${data.name}": ${matches.map((x: { name: string }) => x.name).join(', ')}. Be more specific.` }); continue; }
+        const { count } = await supabase
+          .from("shopping_list_items")
+          .delete({ count: "exact" })
+          .eq("list_id", list.id)
+          .eq("is_checked", false);
+        out.push({
+          tool: "add_shopping_item",
+          ok: true,
+          message: `🗑️ Cleared ${count || 0} item${count === 1 ? "" : "s"} from shopping.`,
+        });
+        continue;
+      }
+      if (action === "remove") {
+        if (!data?.name || !list) {
+          out.push({
+            tool: "add_shopping_item",
+            ok: false,
+            message: data?.name ? "🛒 Shopping list is empty." : "No item name to remove.",
+          });
+          continue;
+        }
+        const { data: matches } = await supabase
+          .from("shopping_list_items")
+          .select("id, name")
+          .eq("list_id", list.id)
+          .eq("is_checked", false)
+          .ilike("name", `%${data.name}%`)
+          .limit(2);
+        if (!matches?.length) {
+          out.push({
+            tool: "add_shopping_item",
+            ok: false,
+            message: `🔍 No shopping item matches "${data.name}".`,
+          });
+          continue;
+        }
+        if (matches.length > 1) {
+          out.push({
+            tool: "add_shopping_item",
+            ok: false,
+            message: `🤔 Multiple items match "${data.name}": ${matches.map((x: { name: string }) => x.name).join(", ")}. Be more specific.`,
+          });
+          continue;
+        }
         const target = matches[0];
-        await supabase.from('shopping_list_items').delete().eq('id', target.id);
-        out.push({ tool: 'add_shopping_item', ok: true, message: `🗑️ Removed from shopping: ${target.name}` });
+        await supabase.from("shopping_list_items").delete().eq("id", target.id);
+        out.push({
+          tool: "add_shopping_item",
+          ok: true,
+          message: `🗑️ Removed from shopping: ${target.name}`,
+        });
         continue;
       }
       // ---- add (default) ----
       if (!data?.name) continue;
       if (!list) {
-        const { data: newList } = await supabase.from('shopping_lists').insert({ user_id: userId, name: 'Shopping', category: 'grocery' }).select('id').single();
+        const { data: newList } = await supabase
+          .from("shopping_lists")
+          .insert({ user_id: userId, name: "Shopping", category: "grocery" })
+          .select("id")
+          .single();
         list = newList;
       }
-      const { data: item } = await supabase.from('shopping_list_items')
-        .insert({ list_id: list.id, user_id: userId, name: data.name, quantity: data.quantity || 1, category: data.category || null })
-        .select('id, name').single();
-      const undoId = item ? await undoCreate('shopping_list_items', item.id, `added ${data.name} to shopping`, 'shopping_item') : undefined;
-      out.push({ tool: 'add_shopping_item', ok: true, message: `🛒 Added to shopping: ${data.quantity && data.quantity > 1 ? `${data.quantity}× ` : ''}${data.name}`, undoId, entityId: item?.id });
-    } catch (e) { out.push({ tool: 'add_shopping_item', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const { data: item } = await supabase
+        .from("shopping_list_items")
+        .insert({
+          list_id: list.id,
+          user_id: userId,
+          name: data.name,
+          quantity: data.quantity || 1,
+          category: data.category || null,
+        })
+        .select("id, name")
+        .single();
+      const undoId = item
+        ? await undoCreate(
+            "shopping_list_items",
+            item.id,
+            `added ${data.name} to shopping`,
+            "shopping_item",
+          )
+        : undefined;
+      out.push({
+        tool: "add_shopping_item",
+        ok: true,
+        message: `🛒 Added to shopping: ${data.quantity && data.quantity > 1 ? `${data.quantity}× ` : ""}${data.name}`,
+        undoId,
+        entityId: item?.id,
+      });
+    } catch (e) {
+      out.push({
+        tool: "add_shopping_item",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
+    }
   }
 
   // ---------- set_reminder ----------
-  for (const m of text.matchAll(/<tool>set_reminder<\/tool>\s*<reminder>(\{[\s\S]*?\})<\/reminder>/g)) {
-    const data = safeJSON(m[1]); if (!data?.message || !data.triggerAt) continue;
+  for (const m of text.matchAll(
+    /<tool>set_reminder<\/tool>\s*<reminder>(\{[\s\S]*?\})<\/reminder>/g,
+  )) {
+    const data = safeJSON(m[1]);
+    if (!data?.message || !data.triggerAt) continue;
     try {
       const trigger = isoOrNull(data.triggerAt);
       if (!trigger) continue;
       // Store reminders as scheduled tasks with due_date (+ recurrence_rule
       // so "every Sunday at 6 PM" fires beyond the first occurrence).
-      await supabase.from('tasks').insert({
-        user_id: userId, title: data.message, category: 'personal', priority: 'medium',
+      await supabase.from("tasks").insert({
+        user_id: userId,
+        title: data.message,
+        category: "personal",
+        priority: "medium",
         due_date: trigger,
         recurrence_rule: data.recurrenceRule || null,
       });
       const recurrenceLabel = summarizeRRule(data.recurrenceRule);
       out.push({
-        tool: 'set_reminder', ok: true,
-        message: `⏰ Reminder set for ${new Date(trigger).toLocaleString()}${recurrenceLabel ? ` (🔁 ${recurrenceLabel})` : ''}: ${data.message}`,
+        tool: "set_reminder",
+        ok: true,
+        message: `⏰ Reminder set for ${new Date(trigger).toLocaleString()}${recurrenceLabel ? ` (🔁 ${recurrenceLabel})` : ""}: ${data.message}`,
       });
-    } catch (e) { out.push({ tool: 'set_reminder', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "set_reminder", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- compose_email ----------
   for (const m of text.matchAll(/<tool>compose_email<\/tool>\s*<email>(\{[\s\S]*?\})<\/email>/g)) {
-    const data = safeJSON(m[1]); if (!data?.to) continue;
-    out.push({ tool: 'compose_email', ok: true, message: `✉️ Email draft prepared for ${data.to} — Subject: "${data.subject || ''}"\n\n${data.body || ''}`, data });
+    const data = safeJSON(m[1]);
+    if (!data?.to) continue;
+    out.push({
+      tool: "compose_email",
+      ok: true,
+      message: `✉️ Email draft prepared for ${data.to} — Subject: "${data.subject || ""}"\n\n${data.body || ""}`,
+      data,
+    });
   }
 
   // ---------- send_email (actually dispatches via Gmail) ----------
@@ -2324,30 +3153,35 @@ async function executeToolsServerSide(
   for (const m of text.matchAll(/<tool>send_email<\/tool>\s*<email>(\{[\s\S]*?\})<\/email>/g)) {
     const data = safeJSON(m[1]);
     if (!data?.to || !data?.body) {
-      out.push({ tool: 'send_email', ok: false, message: '⚠️ send_email needs `to` and `body`.' });
+      out.push({ tool: "send_email", ok: false, message: "⚠️ send_email needs `to` and `body`." });
       continue;
     }
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRe.test(data.to)) {
-      out.push({ tool: 'send_email', ok: false, message: `⚠️ "${data.to}" doesn't look like a valid email.` });
+      out.push({
+        tool: "send_email",
+        ok: false,
+        message: `⚠️ "${data.to}" doesn't look like a valid email.`,
+      });
       continue;
     }
     try {
       // Reuse the existing Gmail pipeline. Authorization header uses the
       // service-role key + x-telegram-user-id so the chat function can
       // dispatch on behalf of any user it's already acting for.
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const resp = await fetch(`${supabaseUrl}/functions/v1/gmail-send-reply`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${serviceKey}`,
-          'Content-Type': 'application/json',
-          'x-telegram-user-id': userId,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          "x-telegram-user-id": userId,
+          "x-internal-token": await mintInternalToken(userId),
         },
         body: JSON.stringify({
           to: data.to,
-          subject: data.subject || '',
+          subject: data.subject || "",
           body: data.body,
           threadId: data.threadId || null,
           gmailMessageId: data.gmailMessageId || null,
@@ -2355,12 +3189,20 @@ async function executeToolsServerSide(
       });
       if (!resp.ok) {
         const err = await resp.text();
-        out.push({ tool: 'send_email', ok: false, message: `⚠️ Gmail send failed: ${err.slice(0, 200)}` });
+        out.push({
+          tool: "send_email",
+          ok: false,
+          message: `⚠️ Gmail send failed: ${err.slice(0, 200)}`,
+        });
         continue;
       }
-      out.push({ tool: 'send_email', ok: true, message: `📧 Sent — "${data.subject || '(no subject)'}" to ${data.to}.` });
+      out.push({
+        tool: "send_email",
+        ok: true,
+        message: `📧 Sent — "${data.subject || "(no subject)"}" to ${data.to}.`,
+      });
     } catch (e) {
-      out.push({ tool: 'send_email', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "send_email", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
@@ -2368,11 +3210,19 @@ async function executeToolsServerSide(
   for (const m of text.matchAll(/<tool>find_time<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
     const data = safeJSON(m[1]);
     if (!data?.participants?.length || !data.durationMinutes) {
-      out.push({ tool: 'find_time', ok: false, message: '⚠️ find_time needs participants and durationMinutes.' });
+      out.push({
+        tool: "find_time",
+        ok: false,
+        message: "⚠️ find_time needs participants and durationMinutes.",
+      });
       continue;
     }
     if (!opts?.workspaceId || !opts?.workspaceMembers?.length) {
-      out.push({ tool: 'find_time', ok: false, message: 'find_time only works inside a workspace.' });
+      out.push({
+        tool: "find_time",
+        ok: false,
+        message: "find_time only works inside a workspace.",
+      });
       continue;
     }
     // Resolve names to user ids via the workspace member list.
@@ -2384,7 +3234,11 @@ async function executeToolsServerSide(
       else missing.push(String(raw));
     }
     if (missing.length) {
-      out.push({ tool: 'find_time', ok: false, message: `⚠️ Not sure who ${missing.join(', ')} is — ask to clarify.` });
+      out.push({
+        tool: "find_time",
+        ok: false,
+        message: `⚠️ Not sure who ${missing.join(", ")} is — ask to clarify.`,
+      });
       continue;
     }
     try {
@@ -2399,17 +3253,26 @@ async function executeToolsServerSide(
       });
       const ranked = rankProposedSlots(slots).slice(0, 5);
       if (ranked.length === 0) {
-        out.push({ tool: 'find_time', ok: true, message: `😕 No slot works for all ${participantIds.length} in the next week. Try a different duration or a later window.` });
+        out.push({
+          tool: "find_time",
+          ok: true,
+          message: `😕 No slot works for all ${participantIds.length} in the next week. Try a different duration or a later window.`,
+        });
       } else {
         const lines = ranked.map((s, i) => `${i + 1}. ${s.local}`);
         out.push({
-          tool: 'find_time', ok: true,
-          message: `🗓 Found ${ranked.length} slot${ranked.length === 1 ? '' : 's'} for ${participantIds.length} people:\n${lines.join('\n')}\n\nTap the one that works and I'll book it.`,
+          tool: "find_time",
+          ok: true,
+          message: `🗓 Found ${ranked.length} slot${ranked.length === 1 ? "" : "s"} for ${participantIds.length} people:\n${lines.join("\n")}\n\nTap the one that works and I'll book it.`,
           data: { slots: ranked, participantIds },
         });
       }
     } catch (e) {
-      out.push({ tool: 'find_time', ok: false, message: `find_time failed: ${(e as Error).message}` });
+      out.push({
+        tool: "find_time",
+        ok: false,
+        message: `find_time failed: ${(e as Error).message}`,
+      });
     }
   }
 
@@ -2420,71 +3283,151 @@ async function executeToolsServerSide(
       // On-demand sync: if last Gmail sync was >2h ago, trigger a refresh first (throttled).
       try {
         const { data: conn } = await supabase
-          .from('external_calendar_connections')
-          .select('last_synced_at')
-          .eq('user_id', userId).eq('provider', 'google').eq('sync_enabled', true)
-          .order('last_synced_at', { ascending: false, nullsFirst: false })
-          .limit(1).maybeSingle();
+          .from("external_calendar_connections")
+          .select("last_synced_at")
+          .eq("user_id", userId)
+          .eq("provider", "google")
+          .eq("sync_enabled", true)
+          .order("last_synced_at", { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
         const lastSync = conn?.last_synced_at ? new Date(conn.last_synced_at).getTime() : 0;
         const twoHoursMs = 2 * 60 * 60 * 1000;
         if (Date.now() - lastSync > twoHoursMs) {
-          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-          const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-          console.log(`[fetch_emails] Triggering on-demand sync for ${userId} (last sync ${lastSync ? new Date(lastSync).toISOString() : 'never'})`);
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          console.log(
+            `[fetch_emails] Triggering on-demand sync for ${userId} (last sync ${lastSync ? new Date(lastSync).toISOString() : "never"})`,
+          );
           await fetch(`${supabaseUrl}/functions/v1/gmail-sync`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Authorization': `Bearer ${serviceRoleKey}`,
-              'Content-Type': 'application/json',
-              'x-internal-user-id': userId,
+              Authorization: `Bearer ${serviceRoleKey}`,
+              "Content-Type": "application/json",
+              "x-internal-user-id": userId,
             },
             body: JSON.stringify({ maxResults: 30 }),
-          }).catch(e => console.error('[fetch_emails] sync trigger failed:', e));
+          }).catch((e) => console.error("[fetch_emails] sync trigger failed:", e));
         }
       } catch (e) {
-        console.error('[fetch_emails] throttle check failed:', e);
+        console.error("[fetch_emails] throttle check failed:", e);
       }
 
       const limit = Math.min(data.limit || 5, 20);
-      let q = supabase.from('user_emails').select('id, subject, from_name, from_email, snippet, received_at, priority_score, is_important, is_read').eq('user_id', userId).eq('user_archived', false);
-      if (data.scope === 'important') q = q.eq('is_important', true);
-      if (data.scope === 'unread') q = q.eq('is_read', false);
-      if (data.scope === 'from' && data.from) q = q.or(`from_name.ilike.%${data.from}%,from_email.ilike.%${data.from}%`);
-      const { data: rows } = await q.order('received_at', { ascending: false }).limit(limit);
-      if (!rows?.length) { out.push({ tool: 'fetch_emails', ok: true, message: `📭 No emails found.` }); continue; }
-      const lines = (rows as Array<{ is_important?: boolean; subject?: string; from_name?: string; from_email?: string; snippet?: string }>).map((e, i) => `${i + 1}. ${e.is_important ? '⭐ ' : ''}${e.subject || '(no subject)'} — ${e.from_name || e.from_email}\n   ${(e.snippet || '').slice(0, 120)}`);
-      out.push({ tool: 'fetch_emails', ok: true, message: `📬 Recent emails:\n${lines.join('\n\n')}`, data: rows });
-    } catch (e) { out.push({ tool: 'fetch_emails', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      let q = supabase
+        .from("user_emails")
+        .select(
+          "id, subject, from_name, from_email, snippet, received_at, priority_score, is_important, is_read",
+        )
+        .eq("user_id", userId)
+        .eq("user_archived", false);
+      if (data.scope === "important") q = q.eq("is_important", true);
+      if (data.scope === "unread") q = q.eq("is_read", false);
+      if (data.scope === "from" && data.from)
+        q = q.or(`from_name.ilike.%${data.from}%,from_email.ilike.%${data.from}%`);
+      const { data: rows } = await q.order("received_at", { ascending: false }).limit(limit);
+      if (!rows?.length) {
+        out.push({ tool: "fetch_emails", ok: true, message: `📭 No emails found.` });
+        continue;
+      }
+      const lines = (
+        rows as Array<{
+          is_important?: boolean;
+          subject?: string;
+          from_name?: string;
+          from_email?: string;
+          snippet?: string;
+        }>
+      ).map(
+        (e, i) =>
+          `${i + 1}. ${e.is_important ? "⭐ " : ""}${e.subject || "(no subject)"} — ${e.from_name || e.from_email}\n   ${(e.snippet || "").slice(0, 120)}`,
+      );
+      out.push({
+        tool: "fetch_emails",
+        ok: true,
+        message: `📬 Recent emails:\n${lines.join("\n\n")}`,
+        data: rows,
+      });
+    } catch (e) {
+      out.push({ tool: "fetch_emails", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- draft_email_reply ----------
-  for (const m of text.matchAll(/<tool>draft_email_reply<\/tool>\s*<draft>(\{[\s\S]*?\})<\/draft>/g)) {
-    const data = safeJSON(m[1]); if (!data?.emailQuery) continue;
+  for (const m of text.matchAll(
+    /<tool>draft_email_reply<\/tool>\s*<draft>(\{[\s\S]*?\})<\/draft>/g,
+  )) {
+    const data = safeJSON(m[1]);
+    if (!data?.emailQuery) continue;
     try {
-      const { data: rows } = await supabase.from('user_emails').select('id, subject, from_name, from_email, snippet, ai_summary').eq('user_id', userId)
-        .or(`subject.ilike.%${data.emailQuery}%,from_name.ilike.%${data.emailQuery}%,from_email.ilike.%${data.emailQuery}%`)
-        .order('received_at', { ascending: false }).limit(1);
+      const { data: rows } = await supabase
+        .from("user_emails")
+        .select("id, subject, from_name, from_email, snippet, ai_summary")
+        .eq("user_id", userId)
+        .or(
+          `subject.ilike.%${data.emailQuery}%,from_name.ilike.%${data.emailQuery}%,from_email.ilike.%${data.emailQuery}%`,
+        )
+        .order("received_at", { ascending: false })
+        .limit(1);
       const target = rows?.[0];
-      if (!target) { out.push({ tool: 'draft_email_reply', ok: false, message: `No email matches "${data.emailQuery}"` }); continue; }
+      if (!target) {
+        out.push({
+          tool: "draft_email_reply",
+          ok: false,
+          message: `No email matches "${data.emailQuery}"`,
+        });
+        continue;
+      }
 
-      const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-      const aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${GEMINI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'gemini-2.5-flash-lite',
-          messages: [
-            { role: 'system', content: `You draft email replies. Tone: ${data.tone || 'professional'}. Keep it concise (2-5 sentences). Return only the reply body, no subject.` },
-            { role: 'user', content: `Reply to email:\nFrom: ${target.from_name} <${target.from_email}>\nSubject: ${target.subject}\nContent: ${target.snippet || target.ai_summary || ''}\n\nInstruction: ${data.instruction || 'Write an appropriate reply.'}` },
-          ],
-        }),
-      });
+      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+      const aiResp = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${GEMINI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gemini-2.5-flash-lite",
+            messages: [
+              {
+                role: "system",
+                content: `You draft email replies. Tone: ${data.tone || "professional"}. Keep it concise (2-5 sentences). Return only the reply body, no subject.`,
+              },
+              {
+                role: "user",
+                content: `Reply to email:\nFrom: ${target.from_name} <${target.from_email}>\nSubject: ${target.subject}\nContent: ${target.snippet || target.ai_summary || ""}\n\nInstruction: ${data.instruction || "Write an appropriate reply."}`,
+              },
+            ],
+          }),
+        },
+      );
       const aiJson = await aiResp.json();
-      const draft = aiJson.choices?.[0]?.message?.content?.trim() || '';
+      const draft = aiJson.choices?.[0]?.message?.content?.trim() || "";
       // Save draft on the email row (best-effort — column may or may not exist)
-      try { await supabase.from('user_emails').update({ ai_drafted_reply: draft }).eq('id', target.id).eq('user_id', userId); } catch { /* column optional */ }
-      out.push({ tool: 'draft_email_reply', ok: true, message: `✉️ Draft ready (re: "${target.subject}" from ${target.from_name || target.from_email}):\n\n${draft}\n\nOpen the email in the app to send or edit.`, data: { emailId: target.id, draft } });
-    } catch (e) { out.push({ tool: 'draft_email_reply', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      try {
+        await supabase
+          .from("user_emails")
+          .update({ ai_drafted_reply: draft })
+          .eq("id", target.id)
+          .eq("user_id", userId);
+      } catch {
+        /* column optional */
+      }
+      out.push({
+        tool: "draft_email_reply",
+        ok: true,
+        message: `✉️ Draft ready (re: "${target.subject}" from ${target.from_name || target.from_email}):\n\n${draft}\n\nOpen the email in the app to send or edit.`,
+        data: { emailId: target.id, draft },
+      });
+    } catch (e) {
+      out.push({
+        tool: "draft_email_reply",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
+    }
   }
 
   // ---------- save_memory ----------
@@ -2492,46 +3435,62 @@ async function executeToolsServerSide(
   // personal and work facts don't pollute each other (e.g. "my boss is X"
   // stays in the workspace, "my wife prefers Y" stays in personal).
   for (const m of text.matchAll(/<tool>save_memory<\/tool>\s*<memory>(\{[\s\S]*?\})<\/memory>/g)) {
-    const data = safeJSON(m[1]); if (!data?.key || !data.value) continue;
+    const data = safeJSON(m[1]);
+    if (!data?.key || !data.value) continue;
     try {
-      await supabase.from('ai_memory').upsert({
-        user_id: userId, memory_type: data.type || 'fact', category: data.category || null,
-        key: data.key, value: data.value, source: 'chat',
-        workspace_id: opts?.workspaceId || null,
-      }, { onConflict: 'user_id,key,workspace_scope' });
-    } catch { /* silent */ }
+      await supabase.from("ai_memory").upsert(
+        {
+          user_id: userId,
+          memory_type: data.type || "fact",
+          category: data.category || null,
+          key: data.key,
+          value: data.value,
+          source: "chat",
+          workspace_id: opts?.workspaceId || null,
+        },
+        { onConflict: "user_id,key,workspace_scope" },
+      );
+    } catch {
+      /* silent */
+    }
   }
 
   // ---------- learn_preference (auto-learned behavioral patterns) ----------
   for (const m of text.matchAll(/<tool>learn_preference<\/tool>\s*<pref>(\{[\s\S]*?\})<\/pref>/g)) {
-    const data = safeJSON(m[1]); if (!data?.key || !data.value) continue;
+    const data = safeJSON(m[1]);
+    if (!data?.key || !data.value) continue;
     try {
       const { data: existing } = await supabase
-        .from('dori_learned_preferences')
-        .select('id, times_seen, confidence')
-        .eq('user_id', userId)
-        .eq('key', data.key)
+        .from("dori_learned_preferences")
+        .select("id, times_seen, confidence")
+        .eq("user_id", userId)
+        .eq("key", data.key)
         .maybeSingle();
       if (existing) {
         const newSeen = (existing.times_seen || 1) + 1;
         const newConf = Math.min(0.99, (existing.confidence || 0.5) + 0.1);
-        await supabase.from('dori_learned_preferences').update({
-          value: data.value,
-          times_seen: newSeen,
-          confidence: newConf,
-          last_seen_at: new Date().toISOString(),
-          source: data.source || 'chat',
-        }).eq('id', existing.id);
+        await supabase
+          .from("dori_learned_preferences")
+          .update({
+            value: data.value,
+            times_seen: newSeen,
+            confidence: newConf,
+            last_seen_at: new Date().toISOString(),
+            source: data.source || "chat",
+          })
+          .eq("id", existing.id);
       } else {
-        await supabase.from('dori_learned_preferences').insert({
+        await supabase.from("dori_learned_preferences").insert({
           user_id: userId,
           key: data.key,
           value: data.value,
           confidence: data.confidence || 0.6,
-          source: data.source || 'chat',
+          source: data.source || "chat",
         });
       }
-    } catch (e) { console.error('learn_preference failed', e); }
+    } catch (e) {
+      console.error("learn_preference failed", e);
+    }
   }
 
   // ---------- propose_plan ----------
@@ -2541,39 +3500,44 @@ async function executeToolsServerSide(
   for (const m of text.matchAll(/<tool>propose_plan<\/tool>\s*<plan>(\{[\s\S]*?\})<\/plan>/g)) {
     const parsed = safeJSON(m[1]);
     if (!parsed || !Array.isArray(parsed.steps) || parsed.steps.length === 0) {
-      out.push({ tool: 'propose_plan', ok: false, message: 'Invalid plan payload' });
+      out.push({ tool: "propose_plan", ok: false, message: "Invalid plan payload" });
       continue;
     }
     const stepsJson = parsed.steps.map((s: unknown, i: number) => {
       // Accept two shapes: bare strings or { title, description, tool_hint }.
-      if (typeof s === 'string') {
-        const cleaned = s.replace(/^\d+\.\s*/, '').trim();
+      if (typeof s === "string") {
+        const cleaned = s.replace(/^\d+\.\s*/, "").trim();
         return { title: cleaned.slice(0, 200), description: cleaned, requires_confirmation: true };
       }
       const obj = s as Record<string, unknown>;
       return {
         title: String(obj.title || `Step ${i + 1}`).slice(0, 200),
-        description: typeof obj.description === 'string' ? obj.description.slice(0, 1000) : null,
-        tool_hint: typeof obj.tool_hint === 'string' ? obj.tool_hint.slice(0, 4000) : null,
+        description: typeof obj.description === "string" ? obj.description.slice(0, 1000) : null,
+        tool_hint: typeof obj.tool_hint === "string" ? obj.tool_hint.slice(0, 4000) : null,
         requires_confirmation: obj.requires_confirmation !== false,
       };
     });
     try {
-      const { data: planId, error } = await supabase.rpc('dori_create_plan', {
+      const { data: planId, error } = await supabase.rpc("dori_create_plan", {
         p_user_id: userId,
-        p_title: String(parsed.title || 'Untitled plan').slice(0, 200),
-        p_description: typeof parsed.description === 'string' ? parsed.description.slice(0, 1000) : null,
+        p_title: String(parsed.title || "Untitled plan").slice(0, 200),
+        p_description:
+          typeof parsed.description === "string" ? parsed.description.slice(0, 1000) : null,
         p_steps: stepsJson,
-        p_source: opts?.source === 'auto_pilot' ? 'auto_pilot' : 'chat',
-        p_channel: opts?.source || 'web',
+        p_source: opts?.source === "auto_pilot" ? "auto_pilot" : "chat",
+        p_channel: opts?.source || "web",
         p_workspace_id: null,
         p_metadata: { source_ref: opts?.sourceRef ?? null },
       });
       if (error || !planId) {
-        out.push({ tool: 'propose_plan', ok: false, message: `Plan create failed: ${error?.message || 'unknown'}` });
+        out.push({
+          tool: "propose_plan",
+          ok: false,
+          message: `Plan create failed: ${error?.message || "unknown"}`,
+        });
       } else {
         out.push({
-          tool: 'propose_plan',
+          tool: "propose_plan",
           ok: true,
           message: `📋 Plan created: ${parsed.title} (${stepsJson.length} steps). Review & approve in your Plans inbox.`,
           planId,
@@ -2581,33 +3545,42 @@ async function executeToolsServerSide(
         } as ToolExecResult);
       }
     } catch (e) {
-      out.push({ tool: 'propose_plan', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "propose_plan", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- schedule_meeting_bot ----------
-  for (const m of text.matchAll(/<tool>schedule_meeting_bot<\/tool>\s*<meeting>(\{[\s\S]*?\})<\/meeting>/g)) {
+  for (const m of text.matchAll(
+    /<tool>schedule_meeting_bot<\/tool>\s*<meeting>(\{[\s\S]*?\})<\/meeting>/g,
+  )) {
     const data = safeJSON(m[1]);
     if (!data?.meeting_url) {
-      out.push({ tool: 'schedule_meeting_bot', ok: false, message: 'meeting_url required' });
+      out.push({ tool: "schedule_meeting_bot", ok: false, message: "meeting_url required" });
       continue;
     }
-    const r = await invokeInternal('meeting-bot-schedule', userId, {
+    const r = await invokeInternal("meeting-bot-schedule", userId, {
       meeting_url: data.meeting_url,
       title: data.title ?? null,
       join_at: data.join_at ?? null,
       record_video: !!data.record_video,
-      bot_name: data.bot_name || 'Notetaker',
+      bot_name: data.bot_name || "Notetaker",
     });
-    out.push(r.ok
-      ? { tool: 'schedule_meeting_bot', ok: true, message: `📹 Meeting bot scheduled · ${data.title || data.meeting_url}`, entityId: r.body?.id }
-      : { tool: 'schedule_meeting_bot', ok: false, message: `Failed: ${r.error}` });
+    out.push(
+      r.ok
+        ? {
+            tool: "schedule_meeting_bot",
+            ok: true,
+            message: `📹 Meeting bot scheduled · ${data.title || data.meeting_url}`,
+            entityId: r.body?.id,
+          }
+        : { tool: "schedule_meeting_bot", ok: false, message: `Failed: ${r.error}` },
+    );
   }
 
   // ---------- plan_my_week ----------
   for (const m of text.matchAll(/<tool>plan_my_week<\/tool>\s*<plan>(\{[\s\S]*?\})<\/plan>/g)) {
     const data = safeJSON(m[1]) ?? {};
-    const r = await invokeInternal('propose-schedule', userId, {
+    const r = await invokeInternal("propose-schedule", userId, {
       days: data.days ?? 7,
       timezone: opts?.timezone,
       deep_work_hours: data.deep_work_hours,
@@ -2616,187 +3589,326 @@ async function executeToolsServerSide(
     if (r.ok) {
       const count = r.body?.block_count ?? 0;
       out.push({
-        tool: 'plan_my_week', ok: true,
-        message: `📅 Drafted a week (${count} block${count === 1 ? '' : 's'}). Open the planner inbox to review and apply.`,
+        tool: "plan_my_week",
+        ok: true,
+        message: `📅 Drafted a week (${count} block${count === 1 ? "" : "s"}). Open the planner inbox to review and apply.`,
         entityId: r.body?.proposal?.id,
       });
     } else {
-      out.push({ tool: 'plan_my_week', ok: false, message: `Failed: ${r.error}` });
+      out.push({ tool: "plan_my_week", ok: false, message: `Failed: ${r.error}` });
     }
   }
 
   // ---------- forget_memory ----------
-  for (const m of text.matchAll(/<tool>forget_memory<\/tool>\s*<target>(\{[\s\S]*?\})<\/target>/g)) {
+  for (const m of text.matchAll(
+    /<tool>forget_memory<\/tool>\s*<target>(\{[\s\S]*?\})<\/target>/g,
+  )) {
     const data = safeJSON(m[1]);
     if (!data?.target_id || !data?.target_kind) {
-      out.push({ tool: 'forget_memory', ok: false, message: 'target_kind + target_id required' });
+      out.push({ tool: "forget_memory", ok: false, message: "target_kind + target_id required" });
       continue;
     }
     const body: Record<string, unknown> = { reason: data.reason ?? null };
-    if (data.target_kind === 'kg_entity' && data.deep) {
+    if (data.target_kind === "kg_entity" && data.deep) {
       body.entity_id = data.target_id;
       body.deep = true;
     } else {
       body.target_kind = data.target_kind;
       body.target_id = data.target_id;
     }
-    const r = await invokeInternal('memory-forget', userId, body);
-    out.push(r.ok
-      ? { tool: 'forget_memory', ok: true, message: `🗑️ Forgotten (${r.body?.forgotten ?? r.body?.cascaded_rows ?? 0} item${(r.body?.forgotten ?? r.body?.cascaded_rows ?? 0) === 1 ? '' : 's'})` }
-      : { tool: 'forget_memory', ok: false, message: `Failed: ${r.error}` });
+    const r = await invokeInternal("memory-forget", userId, body);
+    out.push(
+      r.ok
+        ? {
+            tool: "forget_memory",
+            ok: true,
+            message: `🗑️ Forgotten (${r.body?.forgotten ?? r.body?.cascaded_rows ?? 0} item${(r.body?.forgotten ?? r.body?.cascaded_rows ?? 0) === 1 ? "" : "s"})`,
+          }
+        : { tool: "forget_memory", ok: false, message: `Failed: ${r.error}` },
+    );
   }
 
   // ---------- generate_packing_list ----------
-  for (const m of text.matchAll(/<tool>generate_packing_list<\/tool>\s*<packing>(\{[\s\S]*?\})<\/packing>/g)) {
+  for (const m of text.matchAll(
+    /<tool>generate_packing_list<\/tool>\s*<packing>(\{[\s\S]*?\})<\/packing>/g,
+  )) {
     const data = safeJSON(m[1]);
     if (!data?.trip_id) {
-      out.push({ tool: 'generate_packing_list', ok: false, message: 'trip_id required' });
+      out.push({ tool: "generate_packing_list", ok: false, message: "trip_id required" });
       continue;
     }
-    const r = await invokeInternal('generate-packing-list', userId, {
+    const r = await invokeInternal("generate-packing-list", userId, {
       trip_id: data.trip_id,
       replace: !!data.replace,
-      extra_context: data.extra_context ?? '',
+      extra_context: data.extra_context ?? "",
     });
-    out.push(r.ok
-      ? { tool: 'generate_packing_list', ok: true, message: `🎒 Packing list ready (${r.body?.items_count ?? '?'} items)`, entityId: r.body?.packing_list_id }
-      : { tool: 'generate_packing_list', ok: false, message: `Failed: ${r.error}` });
+    out.push(
+      r.ok
+        ? {
+            tool: "generate_packing_list",
+            ok: true,
+            message: `🎒 Packing list ready (${r.body?.items_count ?? "?"} items)`,
+            entityId: r.body?.packing_list_id,
+          }
+        : { tool: "generate_packing_list", ok: false, message: `Failed: ${r.error}` },
+    );
   }
 
   // ---------- prep_trip ----------
   for (const m of text.matchAll(/<tool>prep_trip<\/tool>\s*<prep>(\{[\s\S]*?\})<\/prep>/g)) {
     const data = safeJSON(m[1]);
     if (!data?.trip_id) {
-      out.push({ tool: 'prep_trip', ok: false, message: 'trip_id required' });
+      out.push({ tool: "prep_trip", ok: false, message: "trip_id required" });
       continue;
     }
-    const r = await invokeInternal('trip-prep', userId, {
+    const r = await invokeInternal("trip-prep", userId, {
       trip_id: data.trip_id,
       force: !!data.force,
     });
-    out.push(r.ok
-      ? { tool: 'prep_trip', ok: true,
-          message: r.body?.skipped
-            ? `🎒 Already prepped`
-            : `🎒 Pack task added${r.body?.packing_kicked_off ? ' + packing list generating' : ''}`,
-          entityId: r.body?.task_id }
-      : { tool: 'prep_trip', ok: false, message: `Failed: ${r.error}` });
+    out.push(
+      r.ok
+        ? {
+            tool: "prep_trip",
+            ok: true,
+            message: r.body?.skipped
+              ? `🎒 Already prepped`
+              : `🎒 Pack task added${r.body?.packing_kicked_off ? " + packing list generating" : ""}`,
+            entityId: r.body?.task_id,
+          }
+        : { tool: "prep_trip", ok: false, message: `Failed: ${r.error}` },
+    );
   }
 
   // ---------- cancel_subscription ----------
-  for (const m of text.matchAll(/<tool>cancel_subscription<\/tool>\s*<cancel>(\{[\s\S]*?\})<\/cancel>/g)) {
+  for (const m of text.matchAll(
+    /<tool>cancel_subscription<\/tool>\s*<cancel>(\{[\s\S]*?\})<\/cancel>/g,
+  )) {
     const data = safeJSON(m[1]);
     if (!data?.contract_id) {
-      out.push({ tool: 'cancel_subscription', ok: false, message: 'contract_id required' });
+      out.push({ tool: "cancel_subscription", ok: false, message: "contract_id required" });
       continue;
     }
-    const r = await invokeInternal('cancel-subscription', userId, {
+    const r = await invokeInternal("cancel-subscription", userId, {
       contract_id: data.contract_id,
-      tone: data.tone ?? 'formal',
-      language: data.language ?? 'en',
+      tone: data.tone ?? "formal",
+      language: data.language ?? "en",
     });
-    out.push(r.ok
-      ? { tool: 'cancel_subscription', ok: true,
-          message: `✉️ Cancellation drafted (${r.body?.drafts_count ?? 0} version${r.body?.drafts_count === 1 ? '' : 's'}) — review in Contracts before sending. Follow-up task added.`,
-          entityId: r.body?.task_id }
-      : { tool: 'cancel_subscription', ok: false, message: `Failed: ${r.error}` });
+    out.push(
+      r.ok
+        ? {
+            tool: "cancel_subscription",
+            ok: true,
+            message: `✉️ Cancellation drafted (${r.body?.drafts_count ?? 0} version${r.body?.drafts_count === 1 ? "" : "s"}) — review in Contracts before sending. Follow-up task added.`,
+            entityId: r.body?.task_id,
+          }
+        : { tool: "cancel_subscription", ok: false, message: `Failed: ${r.error}` },
+    );
   }
 
   // ---------- manage_habit ----------
   // Previously documented but had no executor — silently failed. Now creates,
   // logs (today), deletes, or summarises habits for the user.
-  for (const m of text.matchAll(/<tool>manage_habit<\/tool>\s*<action>(\w+)<\/action>\s*<habit>(\{[\s\S]*?\})<\/habit>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]) || {};
+  for (const m of text.matchAll(
+    /<tool>manage_habit<\/tool>\s*<action>(\w+)<\/action>\s*<habit>(\{[\s\S]*?\})<\/habit>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]) || {};
     try {
-      if (action === 'create') {
-        if (!data.name) { out.push({ tool: 'manage_habit', ok: false, message: 'Habit name required.' }); continue; }
-        const { data: h, error } = await supabase.from('habits').insert({
-          user_id: userId, name: data.name, frequency: data.frequency || 'daily',
-          target_count: data.target_count || 1, icon: data.icon || null, color: data.color || null,
-          is_active: true,
-        }).select('id, name').single();
+      if (action === "create") {
+        if (!data.name) {
+          out.push({ tool: "manage_habit", ok: false, message: "Habit name required." });
+          continue;
+        }
+        const { data: h, error } = await supabase
+          .from("habits")
+          .insert({
+            user_id: userId,
+            name: data.name,
+            frequency: data.frequency || "daily",
+            target_count: data.target_count || 1,
+            icon: data.icon || null,
+            color: data.color || null,
+            is_active: true,
+          })
+          .select("id, name")
+          .single();
         if (error) throw error;
-        const undoId = await undoCreate('habits', h.id, `created habit "${h.name}"`, 'habit');
-        out.push({ tool: 'manage_habit', ok: true, message: `🎯 Created habit: ${h.name}`, undoId, entityId: h.id });
-      } else if (action === 'log') {
-        const q = (data.query || data.name || '').trim();
-        if (!q) { out.push({ tool: 'manage_habit', ok: false, message: 'Habit name required.' }); continue; }
-        const { data: matches } = await supabase.from('habits').select('id, name')
-          .eq('user_id', userId).eq('is_active', true).ilike('name', `%${q}%`).limit(2);
-        if (!matches?.length) { out.push({ tool: 'manage_habit', ok: false, message: `🔍 No habit matches "${q}".` }); continue; }
-        if (matches.length > 1) { out.push({ tool: 'manage_habit', ok: false, message: `🤔 Multiple habits match: ${matches.map((x: { name: string })=>x.name).join(', ')}` }); continue; }
+        const undoId = await undoCreate("habits", h.id, `created habit "${h.name}"`, "habit");
+        out.push({
+          tool: "manage_habit",
+          ok: true,
+          message: `🎯 Created habit: ${h.name}`,
+          undoId,
+          entityId: h.id,
+        });
+      } else if (action === "log") {
+        const q = (data.query || data.name || "").trim();
+        if (!q) {
+          out.push({ tool: "manage_habit", ok: false, message: "Habit name required." });
+          continue;
+        }
+        const { data: matches } = await supabase
+          .from("habits")
+          .select("id, name")
+          .eq("user_id", userId)
+          .eq("is_active", true)
+          .ilike("name", `%${q}%`)
+          .limit(2);
+        if (!matches?.length) {
+          out.push({ tool: "manage_habit", ok: false, message: `🔍 No habit matches "${q}".` });
+          continue;
+        }
+        if (matches.length > 1) {
+          out.push({
+            tool: "manage_habit",
+            ok: false,
+            message: `🤔 Multiple habits match: ${matches.map((x: { name: string }) => x.name).join(", ")}`,
+          });
+          continue;
+        }
         const target = matches[0];
         const today = new Date().toISOString().slice(0, 10);
-        await supabase.from('habit_logs').upsert({
-          habit_id: target.id, user_id: userId, log_date: today,
-          completed_count: data.count || 1,
-        }, { onConflict: 'habit_id,log_date' });
-        out.push({ tool: 'manage_habit', ok: true, message: `✅ Logged habit: ${target.name}`, entityId: target.id });
-      } else if (action === 'delete') {
-        const q = (data.query || data.name || '').trim();
-        const { data: matches } = await supabase.from('habits').select('*')
-          .eq('user_id', userId).ilike('name', `%${q}%`).limit(2);
-        if (!matches?.length) { out.push({ tool: 'manage_habit', ok: false, message: `🔍 No habit matches "${q}".` }); continue; }
-        if (matches.length > 1) { out.push({ tool: 'manage_habit', ok: false, message: `🤔 Multiple habits match. Be more specific.` }); continue; }
+        await supabase.from("habit_logs").upsert(
+          {
+            habit_id: target.id,
+            user_id: userId,
+            log_date: today,
+            completed_count: data.count || 1,
+          },
+          { onConflict: "habit_id,log_date" },
+        );
+        out.push({
+          tool: "manage_habit",
+          ok: true,
+          message: `✅ Logged habit: ${target.name}`,
+          entityId: target.id,
+        });
+      } else if (action === "delete") {
+        const q = (data.query || data.name || "").trim();
+        const { data: matches } = await supabase
+          .from("habits")
+          .select("*")
+          .eq("user_id", userId)
+          .ilike("name", `%${q}%`)
+          .limit(2);
+        if (!matches?.length) {
+          out.push({ tool: "manage_habit", ok: false, message: `🔍 No habit matches "${q}".` });
+          continue;
+        }
+        if (matches.length > 1) {
+          out.push({
+            tool: "manage_habit",
+            ok: false,
+            message: `🤔 Multiple habits match. Be more specific.`,
+          });
+          continue;
+        }
         const before = matches[0];
-        await supabase.from('habits').delete().eq('id', before.id).eq('user_id', userId);
-        const undoId = await undoDelete('habits', before, `deleted habit "${before.name}"`, 'habit');
-        out.push({ tool: 'manage_habit', ok: true, message: `🗑️ Deleted habit: ${before.name}`, undoId });
-      } else if (action === 'summary') {
-        let habitsQ = supabase.from('habits').select('id, name').eq('user_id', userId).eq('is_active', true);
-        if (data.query) habitsQ = habitsQ.ilike('name', `%${data.query}%`);
+        await supabase.from("habits").delete().eq("id", before.id).eq("user_id", userId);
+        const undoId = await undoDelete(
+          "habits",
+          before,
+          `deleted habit "${before.name}"`,
+          "habit",
+        );
+        out.push({
+          tool: "manage_habit",
+          ok: true,
+          message: `🗑️ Deleted habit: ${before.name}`,
+          undoId,
+        });
+      } else if (action === "summary") {
+        let habitsQ = supabase
+          .from("habits")
+          .select("id, name")
+          .eq("user_id", userId)
+          .eq("is_active", true);
+        if (data.query) habitsQ = habitsQ.ilike("name", `%${data.query}%`);
         const { data: hs } = await habitsQ;
-        if (!hs?.length) { out.push({ tool: 'manage_habit', ok: true, message: '📭 No active habits.' }); continue; }
+        if (!hs?.length) {
+          out.push({ tool: "manage_habit", ok: true, message: "📭 No active habits." });
+          continue;
+        }
         const today = new Date().toISOString().slice(0, 10);
-        const { data: logs } = await supabase.from('habit_logs')
-          .select('habit_id, log_date').eq('user_id', userId)
-          .gte('log_date', new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10));
+        const { data: logs } = await supabase
+          .from("habit_logs")
+          .select("habit_id, log_date")
+          .eq("user_id", userId)
+          .gte("log_date", new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10));
         const lines = hs.map((h: { id: string; name: string }) => {
-          const myLogs = (logs || []).filter((l: { habit_id: string; log_date: string }) => l.habit_id === h.id).map((l: { log_date: string })=>l.log_date).sort();
+          const myLogs = (logs || [])
+            .filter((l: { habit_id: string; log_date: string }) => l.habit_id === h.id)
+            .map((l: { log_date: string }) => l.log_date)
+            .sort();
           const doneToday = myLogs.includes(today);
           // streak = consecutive days ending today (or yesterday if not done today)
-          let streak = 0; const cursor = new Date();
+          let streak = 0;
+          const cursor = new Date();
           if (!doneToday) cursor.setDate(cursor.getDate() - 1);
           for (;;) {
             const ds = cursor.toISOString().slice(0, 10);
-            if (myLogs.includes(ds)) { streak++; cursor.setDate(cursor.getDate() - 1); } else break;
+            if (myLogs.includes(ds)) {
+              streak++;
+              cursor.setDate(cursor.getDate() - 1);
+            } else break;
           }
-          return `• ${doneToday ? '✅' : '⬜'} ${h.name} — 🔥 ${streak}d streak`;
+          return `• ${doneToday ? "✅" : "⬜"} ${h.name} — 🔥 ${streak}d streak`;
         });
-        out.push({ tool: 'manage_habit', ok: true, message: `<b>🎯 Habits</b>\n${lines.join('\n')}` });
+        out.push({
+          tool: "manage_habit",
+          ok: true,
+          message: `<b>🎯 Habits</b>\n${lines.join("\n")}`,
+        });
       }
-    } catch (e) { out.push({ tool: 'manage_habit', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "manage_habit", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- log_wellbeing ----------
   // One tool covers mood / energy / sleep_hours / water / exercise — writes to
   // daily_checkins (one row per user per day, upsert-style).
-  for (const m of text.matchAll(/<tool>log_wellbeing<\/tool>\s*<wellbeing>(\{[\s\S]*?\})<\/wellbeing>/g)) {
+  for (const m of text.matchAll(
+    /<tool>log_wellbeing<\/tool>\s*<wellbeing>(\{[\s\S]*?\})<\/wellbeing>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const patch: Record<string, unknown> = { user_id: userId, checkin_date: today, checkin_type: data.checkin_type || 'morning' };
+      const patch: Record<string, unknown> = {
+        user_id: userId,
+        checkin_date: today,
+        checkin_type: data.checkin_type || "morning",
+      };
       if (data.mood !== undefined) patch.mood = String(data.mood);
       if (data.energy_level !== undefined) patch.energy_level = String(data.energy_level);
       if (data.sleep_hours !== undefined) patch.sleep_hours = Number(data.sleep_hours);
       if (data.water_glasses !== undefined) patch.water_glasses = Number(data.water_glasses);
-      if (data.exercise_minutes !== undefined) patch.exercise_minutes = Number(data.exercise_minutes);
+      if (data.exercise_minutes !== undefined)
+        patch.exercise_minutes = Number(data.exercise_minutes);
       if (data.stress_level !== undefined) patch.stress_level = Number(data.stress_level);
       if (data.notes) patch.mood_note = String(data.notes);
       // Upsert by (user_id, checkin_date, checkin_type) — fall back to insert.
-      const { data: existing } = await supabase.from('daily_checkins')
-        .select('id').eq('user_id', userId).eq('checkin_date', today).eq('checkin_type', patch.checkin_type).maybeSingle();
+      const { data: existing } = await supabase
+        .from("daily_checkins")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("checkin_date", today)
+        .eq("checkin_type", patch.checkin_type)
+        .maybeSingle();
       if (existing?.id) {
-        await supabase.from('daily_checkins').update(patch).eq('id', existing.id);
+        await supabase.from("daily_checkins").update(patch).eq("id", existing.id);
       } else {
-        await supabase.from('daily_checkins').insert(patch);
+        await supabase.from("daily_checkins").insert(patch);
       }
       // Also log a mood snapshot (1-5) if numeric — keeps mood_logs as the time series.
       const moodNum = Number(data.mood);
       if (Number.isFinite(moodNum) && moodNum >= 1 && moodNum <= 5) {
-        await supabase.from('mood_logs').insert({
-          user_id: userId, mood_score: moodNum,
-          energy_score: Number.isFinite(Number(data.energy_level)) ? Number(data.energy_level) : null,
+        await supabase.from("mood_logs").insert({
+          user_id: userId,
+          mood_score: moodNum,
+          energy_score: Number.isFinite(Number(data.energy_level))
+            ? Number(data.energy_level)
+            : null,
           notes: data.notes || null,
         });
       }
@@ -2806,65 +3918,158 @@ async function executeToolsServerSide(
       if (data.sleep_hours !== undefined) bits.push(`${data.sleep_hours}h sleep`);
       if (data.water_glasses !== undefined) bits.push(`${data.water_glasses} glasses water`);
       if (data.exercise_minutes !== undefined) bits.push(`${data.exercise_minutes}min exercise`);
-      out.push({ tool: 'log_wellbeing', ok: true, message: `❤️ Logged${bits.length ? ': ' + bits.join(', ') : ' check-in'}.` });
-    } catch (e) { out.push({ tool: 'log_wellbeing', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      out.push({
+        tool: "log_wellbeing",
+        ok: true,
+        message: `❤️ Logged${bits.length ? ": " + bits.join(", ") : " check-in"}.`,
+      });
+    } catch (e) {
+      out.push({ tool: "log_wellbeing", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- manage_goal ----------
-  for (const m of text.matchAll(/<tool>manage_goal<\/tool>\s*<action>(\w+)<\/action>\s*<goal>(\{[\s\S]*?\})<\/goal>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]) || {};
+  for (const m of text.matchAll(
+    /<tool>manage_goal<\/tool>\s*<action>(\w+)<\/action>\s*<goal>(\{[\s\S]*?\})<\/goal>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]) || {};
     try {
-      if (action === 'create') {
-        if (!data.name) { out.push({ tool: 'manage_goal', ok: false, message: 'Goal name required.' }); continue; }
-        const { data: g, error } = await supabase.from('goals').insert({
-          user_id: userId, name: data.name, description: data.description || null,
-          target_value: data.target_value || null, current_value: data.current_value || 0,
-          unit: data.unit || null, target_date: data.target_date || null,
-        }).select('id, name').single();
+      if (action === "create") {
+        if (!data.name) {
+          out.push({ tool: "manage_goal", ok: false, message: "Goal name required." });
+          continue;
+        }
+        const { data: g, error } = await supabase
+          .from("goals")
+          .insert({
+            user_id: userId,
+            name: data.name,
+            description: data.description || null,
+            target_value: data.target_value || null,
+            current_value: data.current_value || 0,
+            unit: data.unit || null,
+            target_date: data.target_date || null,
+          })
+          .select("id, name")
+          .single();
         if (error) throw error;
-        const undoId = await undoCreate('goals', g.id, `created goal "${g.name}"`, 'goal');
-        out.push({ tool: 'manage_goal', ok: true, message: `🎯 Created goal: ${g.name}`, undoId, entityId: g.id });
-      } else if (action === 'progress' || action === 'update') {
-        const q = (data.query || data.name || '').trim();
-        const { data: rows } = await supabase.from('goals').select('*')
-          .eq('user_id', userId).ilike('name', `%${q}%`).limit(2);
-        if (!rows?.length) { out.push({ tool: 'manage_goal', ok: false, message: `🔍 No goal matches "${q}".` }); continue; }
-        if (rows.length > 1) { out.push({ tool: 'manage_goal', ok: false, message: `🤔 Multiple goals match. Be more specific.` }); continue; }
+        const undoId = await undoCreate("goals", g.id, `created goal "${g.name}"`, "goal");
+        out.push({
+          tool: "manage_goal",
+          ok: true,
+          message: `🎯 Created goal: ${g.name}`,
+          undoId,
+          entityId: g.id,
+        });
+      } else if (action === "progress" || action === "update") {
+        const q = (data.query || data.name || "").trim();
+        const { data: rows } = await supabase
+          .from("goals")
+          .select("*")
+          .eq("user_id", userId)
+          .ilike("name", `%${q}%`)
+          .limit(2);
+        if (!rows?.length) {
+          out.push({ tool: "manage_goal", ok: false, message: `🔍 No goal matches "${q}".` });
+          continue;
+        }
+        if (rows.length > 1) {
+          out.push({
+            tool: "manage_goal",
+            ok: false,
+            message: `🤔 Multiple goals match. Be more specific.`,
+          });
+          continue;
+        }
         const target = rows[0];
         const upd: Record<string, unknown> = {};
         if (data.current_value !== undefined) upd.current_value = Number(data.current_value);
-        if (data.add !== undefined) upd.current_value = Number(target.current_value || 0) + Number(data.add);
+        if (data.add !== undefined)
+          upd.current_value = Number(target.current_value || 0) + Number(data.add);
         if (data.target_value !== undefined) upd.target_value = Number(data.target_value);
         if (data.target_date) upd.target_date = data.target_date;
         if (Object.keys(upd).length === 0) {
-          const pct = target.target_value ? Math.round((target.current_value / target.target_value) * 100) : 0;
-          out.push({ tool: 'manage_goal', ok: true, message: `🎯 ${target.name}: ${target.current_value}/${target.target_value} ${target.unit || ''} (${pct}%)`, entityId: target.id });
+          const pct = target.target_value
+            ? Math.round((target.current_value / target.target_value) * 100)
+            : 0;
+          out.push({
+            tool: "manage_goal",
+            ok: true,
+            message: `🎯 ${target.name}: ${target.current_value}/${target.target_value} ${target.unit || ""} (${pct}%)`,
+            entityId: target.id,
+          });
           continue;
         }
-        await supabase.from('goals').update(upd).eq('id', target.id).eq('user_id', userId);
+        await supabase.from("goals").update(upd).eq("id", target.id).eq("user_id", userId);
         const newVal = upd.current_value ?? target.current_value;
         const tv = upd.target_value ?? target.target_value;
         const pct = tv ? Math.round((newVal / tv) * 100) : 0;
-        out.push({ tool: 'manage_goal', ok: true, message: `📈 ${target.name}: ${newVal}/${tv} ${target.unit || ''} (${pct}%)`, entityId: target.id });
-      } else if (action === 'list') {
-        const { data: rows } = await supabase.from('goals').select('name, current_value, target_value, unit, is_completed')
-          .eq('user_id', userId).order('created_at', { ascending: false }).limit(10);
-        if (!rows?.length) { out.push({ tool: 'manage_goal', ok: true, message: '📭 No goals yet.' }); continue; }
-        const lines = rows.map((r: { name: string; is_completed?: boolean; current_value?: number; target_value?: number; unit?: string }) => {
-          const pct = r.target_value ? Math.round(((r.current_value ?? 0) / r.target_value) * 100) : 0;
-          return `• ${r.is_completed ? '✅' : '🎯'} ${r.name} — ${r.current_value}/${r.target_value} ${r.unit || ''} (${pct}%)`;
+        out.push({
+          tool: "manage_goal",
+          ok: true,
+          message: `📈 ${target.name}: ${newVal}/${tv} ${target.unit || ""} (${pct}%)`,
+          entityId: target.id,
         });
-        out.push({ tool: 'manage_goal', ok: true, message: `<b>🎯 Goals</b>\n${lines.join('\n')}` });
-      } else if (action === 'delete') {
-        const q = (data.query || data.name || '').trim();
-        const { data: rows } = await supabase.from('goals').select('*').eq('user_id', userId).ilike('name', `%${q}%`).limit(2);
-        if (!rows?.length || rows.length > 1) { out.push({ tool: 'manage_goal', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No goal matches "${q}".` }); continue; }
+      } else if (action === "list") {
+        const { data: rows } = await supabase
+          .from("goals")
+          .select("name, current_value, target_value, unit, is_completed")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(10);
+        if (!rows?.length) {
+          out.push({ tool: "manage_goal", ok: true, message: "📭 No goals yet." });
+          continue;
+        }
+        const lines = rows.map(
+          (r: {
+            name: string;
+            is_completed?: boolean;
+            current_value?: number;
+            target_value?: number;
+            unit?: string;
+          }) => {
+            const pct = r.target_value
+              ? Math.round(((r.current_value ?? 0) / r.target_value) * 100)
+              : 0;
+            return `• ${r.is_completed ? "✅" : "🎯"} ${r.name} — ${r.current_value}/${r.target_value} ${r.unit || ""} (${pct}%)`;
+          },
+        );
+        out.push({
+          tool: "manage_goal",
+          ok: true,
+          message: `<b>🎯 Goals</b>\n${lines.join("\n")}`,
+        });
+      } else if (action === "delete") {
+        const q = (data.query || data.name || "").trim();
+        const { data: rows } = await supabase
+          .from("goals")
+          .select("*")
+          .eq("user_id", userId)
+          .ilike("name", `%${q}%`)
+          .limit(2);
+        if (!rows?.length || rows.length > 1) {
+          out.push({
+            tool: "manage_goal",
+            ok: false,
+            message: rows?.length ? "🤔 Multiple match." : `🔍 No goal matches "${q}".`,
+          });
+          continue;
+        }
         const before = rows[0];
-        await supabase.from('goals').delete().eq('id', before.id).eq('user_id', userId);
-        const undoId = await undoDelete('goals', before, `deleted goal "${before.name}"`, 'goal');
-        out.push({ tool: 'manage_goal', ok: true, message: `🗑️ Deleted goal: ${before.name}`, undoId });
+        await supabase.from("goals").delete().eq("id", before.id).eq("user_id", userId);
+        const undoId = await undoDelete("goals", before, `deleted goal "${before.name}"`, "goal");
+        out.push({
+          tool: "manage_goal",
+          ok: true,
+          message: `🗑️ Deleted goal: ${before.name}`,
+          undoId,
+        });
       }
-    } catch (e) { out.push({ tool: 'manage_goal', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "manage_goal", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- bulk_reschedule (tasks) ----------
@@ -2873,311 +4078,630 @@ async function executeToolsServerSide(
   for (const m of text.matchAll(/<tool>bulk_reschedule<\/tool>\s*<bulk>(\{[\s\S]*?\})<\/bulk>/g)) {
     const data = safeJSON(m[1]) || {};
     const shift = Number(data.shift_days);
-    if (!Number.isFinite(shift)) { out.push({ tool: 'bulk_reschedule', ok: false, message: 'shift_days (number) required.' }); continue; }
+    if (!Number.isFinite(shift)) {
+      out.push({ tool: "bulk_reschedule", ok: false, message: "shift_days (number) required." });
+      continue;
+    }
     try {
-      const entity = (data.entity === 'event') ? 'event' : 'task';
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
-      const dateCol = entity === 'event' ? 'start_time' : 'due_date';
-      const _table = entity === 'event' ? 'events' : 'tasks'; // used in logging only
-      let q = entity === 'event'
-        ? supabase.from('events').select('id, title, start_time, end_time').eq('user_id', userId)
-        : supabase.from('tasks').select('id, title, due_date').eq('user_id', userId).eq('completed', false);
-      const when = (data.filter?.when || data.when || '').toLowerCase();
-      if (when === 'today') q = q.gte(dateCol, todayStart.toISOString()).lt(dateCol, todayEnd.toISOString());
-      else if (when === 'tomorrow') {
-        const t1 = new Date(todayEnd); const t2 = new Date(t1); t2.setDate(t2.getDate() + 1);
+      const entity = data.entity === "event" ? "event" : "task";
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(todayStart);
+      todayEnd.setDate(todayEnd.getDate() + 1);
+      const dateCol = entity === "event" ? "start_time" : "due_date";
+      const _table = entity === "event" ? "events" : "tasks"; // used in logging only
+      let q =
+        entity === "event"
+          ? supabase.from("events").select("id, title, start_time, end_time").eq("user_id", userId)
+          : supabase
+              .from("tasks")
+              .select("id, title, due_date")
+              .eq("user_id", userId)
+              .eq("completed", false);
+      const when = (data.filter?.when || data.when || "").toLowerCase();
+      if (when === "today")
+        q = q.gte(dateCol, todayStart.toISOString()).lt(dateCol, todayEnd.toISOString());
+      else if (when === "tomorrow") {
+        const t1 = new Date(todayEnd);
+        const t2 = new Date(t1);
+        t2.setDate(t2.getDate() + 1);
         q = q.gte(dateCol, t1.toISOString()).lt(dateCol, t2.toISOString());
-      } else if (when === 'overdue' && entity === 'task') q = q.lt('due_date', todayStart.toISOString()).not('due_date', 'is', null);
+      } else if (when === "overdue" && entity === "task")
+        q = q.lt("due_date", todayStart.toISOString()).not("due_date", "is", null);
       else if (data.filter?.date || data.date) {
-        const d = new Date(data.filter?.date || data.date); d.setHours(0,0,0,0);
-        const d2 = new Date(d); d2.setDate(d2.getDate() + 1);
+        const d = new Date(data.filter?.date || data.date);
+        d.setHours(0, 0, 0, 0);
+        const d2 = new Date(d);
+        d2.setDate(d2.getDate() + 1);
         q = q.gte(dateCol, d.toISOString()).lt(dateCol, d2.toISOString());
-      } else { out.push({ tool: 'bulk_reschedule', ok: false, message: 'filter.when or filter.date required.' }); continue; }
+      } else {
+        out.push({
+          tool: "bulk_reschedule",
+          ok: false,
+          message: "filter.when or filter.date required.",
+        });
+        continue;
+      }
       const { data: rows } = await q;
-      if (!rows?.length) { out.push({ tool: 'bulk_reschedule', ok: true, message: `📭 No ${entity}s matched the filter.` }); continue; }
-      const updates = (rows as Array<{ id: string; start_time?: string; end_time?: string; due_date?: string }>).map((r) => {
-        if (entity === 'event') {
-          const s = new Date(r.start_time!); s.setDate(s.getDate() + shift);
-          const e = r.end_time ? new Date(r.end_time) : null; if (e) e.setDate(e.getDate() + shift);
-          return supabase.from('events').update({
-            start_time: s.toISOString(),
-            ...(e ? { end_time: e.toISOString() } : {}),
-          }).eq('id', r.id).eq('user_id', userId);
+      if (!rows?.length) {
+        out.push({
+          tool: "bulk_reschedule",
+          ok: true,
+          message: `📭 No ${entity}s matched the filter.`,
+        });
+        continue;
+      }
+      const updates = (
+        rows as Array<{ id: string; start_time?: string; end_time?: string; due_date?: string }>
+      ).map((r) => {
+        if (entity === "event") {
+          const s = new Date(r.start_time!);
+          s.setDate(s.getDate() + shift);
+          const e = r.end_time ? new Date(r.end_time) : null;
+          if (e) e.setDate(e.getDate() + shift);
+          return supabase
+            .from("events")
+            .update({
+              start_time: s.toISOString(),
+              ...(e ? { end_time: e.toISOString() } : {}),
+            })
+            .eq("id", r.id)
+            .eq("user_id", userId);
         }
         const cur = new Date(r.due_date!);
         cur.setDate(cur.getDate() + shift);
-        return supabase.from('tasks').update({ due_date: cur.toISOString() }).eq('id', r.id).eq('user_id', userId);
+        return supabase
+          .from("tasks")
+          .update({ due_date: cur.toISOString() })
+          .eq("id", r.id)
+          .eq("user_id", userId);
       });
       await Promise.all(updates);
-      out.push({ tool: 'bulk_reschedule', ok: true, message: `📅 Shifted ${rows.length} ${entity}${rows.length === 1 ? '' : 's'} by ${shift > 0 ? '+' : ''}${shift}d.` });
-    } catch (e) { out.push({ tool: 'bulk_reschedule', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      out.push({
+        tool: "bulk_reschedule",
+        ok: true,
+        message: `📅 Shifted ${rows.length} ${entity}${rows.length === 1 ? "" : "s"} by ${shift > 0 ? "+" : ""}${shift}d.`,
+      });
+    } catch (e) {
+      out.push({ tool: "bulk_reschedule", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- bulk_delete_events ----------
   // Deletes all events on a given date (or in a date range) for the user.
-  for (const m of text.matchAll(/<tool>bulk_delete_events<\/tool>\s*<bulk>(\{[\s\S]*?\})<\/bulk>/g)) {
+  for (const m of text.matchAll(
+    /<tool>bulk_delete_events<\/tool>\s*<bulk>(\{[\s\S]*?\})<\/bulk>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
-    if (!data.date) { out.push({ tool: 'bulk_delete_events', ok: false, message: 'date (YYYY-MM-DD) required.' }); continue; }
+    if (!data.date) {
+      out.push({ tool: "bulk_delete_events", ok: false, message: "date (YYYY-MM-DD) required." });
+      continue;
+    }
     try {
-      const d = new Date(data.date); d.setHours(0,0,0,0);
-      const d2 = new Date(d); d2.setDate(d2.getDate() + 1);
-      const { data: rows } = await supabase.from('events').select('*')
-        .eq('user_id', userId).gte('start_time', d.toISOString()).lt('start_time', d2.toISOString());
-      if (!rows?.length) { out.push({ tool: 'bulk_delete_events', ok: true, message: '📭 No events on that date.' }); continue; }
-      await supabase.from('events').delete().eq('user_id', userId)
-        .gte('start_time', d.toISOString()).lt('start_time', d2.toISOString());
-      out.push({ tool: 'bulk_delete_events', ok: true, message: `🗑️ Cancelled ${rows.length} event${rows.length === 1 ? '' : 's'} on ${data.date}.` });
-    } catch (e) { out.push({ tool: 'bulk_delete_events', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const d = new Date(data.date);
+      d.setHours(0, 0, 0, 0);
+      const d2 = new Date(d);
+      d2.setDate(d2.getDate() + 1);
+      const { data: rows } = await supabase
+        .from("events")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("start_time", d.toISOString())
+        .lt("start_time", d2.toISOString());
+      if (!rows?.length) {
+        out.push({ tool: "bulk_delete_events", ok: true, message: "📭 No events on that date." });
+        continue;
+      }
+      await supabase
+        .from("events")
+        .delete()
+        .eq("user_id", userId)
+        .gte("start_time", d.toISOString())
+        .lt("start_time", d2.toISOString());
+      out.push({
+        tool: "bulk_delete_events",
+        ok: true,
+        message: `🗑️ Cancelled ${rows.length} event${rows.length === 1 ? "" : "s"} on ${data.date}.`,
+      });
+    } catch (e) {
+      out.push({
+        tool: "bulk_delete_events",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
+    }
   }
 
   // ---------- append_note ----------
   // Finds a recent note by title fragment and appends new content with a separator.
   for (const m of text.matchAll(/<tool>append_note<\/tool>\s*<note>(\{[\s\S]*?\})<\/note>/g)) {
     const data = safeJSON(m[1]) || {};
-    if (!data.query || !data.content) { out.push({ tool: 'append_note', ok: false, message: 'query and content required.' }); continue; }
+    if (!data.query || !data.content) {
+      out.push({ tool: "append_note", ok: false, message: "query and content required." });
+      continue;
+    }
     try {
-      const { data: rows } = await supabase.from('notes').select('id, title, content')
-        .eq('user_id', userId).eq('trashed', false).ilike('title', `%${data.query}%`)
-        .order('updated_at', { ascending: false }).limit(1);
-      if (!rows?.length) { out.push({ tool: 'append_note', ok: false, message: `🔍 No note matches "${data.query}".` }); continue; }
+      const { data: rows } = await supabase
+        .from("notes")
+        .select("id, title, content")
+        .eq("user_id", userId)
+        .eq("trashed", false)
+        .ilike("title", `%${data.query}%`)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      if (!rows?.length) {
+        out.push({
+          tool: "append_note",
+          ok: false,
+          message: `🔍 No note matches "${data.query}".`,
+        });
+        continue;
+      }
       const target = rows[0];
-      const newContent = `${target.content || ''}\n\n---\n${new Date().toLocaleString()}\n${data.content}`;
-      await supabase.from('notes').update({ content: newContent }).eq('id', target.id).eq('user_id', userId);
-      out.push({ tool: 'append_note', ok: true, message: `📝 Appended to note: ${target.title}`, entityId: target.id });
-    } catch (e) { out.push({ tool: 'append_note', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const newContent = `${target.content || ""}\n\n---\n${new Date().toLocaleString()}\n${data.content}`;
+      await supabase
+        .from("notes")
+        .update({ content: newContent })
+        .eq("id", target.id)
+        .eq("user_id", userId);
+      out.push({
+        tool: "append_note",
+        ok: true,
+        message: `📝 Appended to note: ${target.title}`,
+        entityId: target.id,
+      });
+    } catch (e) {
+      out.push({ tool: "append_note", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- log_expense ----------
-  for (const m of text.matchAll(/<tool>log_expense<\/tool>\s*<expense>(\{[\s\S]*?\})<\/expense>/g)) {
+  for (const m of text.matchAll(
+    /<tool>log_expense<\/tool>\s*<expense>(\{[\s\S]*?\})<\/expense>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
     const amount = Number(data.amount);
-    if (!Number.isFinite(amount)) { out.push({ tool: 'log_expense', ok: false, message: 'amount required.' }); continue; }
+    if (!Number.isFinite(amount)) {
+      out.push({ tool: "log_expense", ok: false, message: "amount required." });
+      continue;
+    }
     try {
-      const desc = [data.category, data.description].filter(Boolean).join(' · ') || 'expense';
-      const expense_date = (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) ? data.date : new Date().toISOString().slice(0, 10);
-      const { data: row, error } = await supabase.from('family_expenses').insert({
-        user_id: userId, amount, description: desc, expense_date,
-      }).select('id').single();
+      const desc = [data.category, data.description].filter(Boolean).join(" · ") || "expense";
+      const expense_date =
+        data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)
+          ? data.date
+          : new Date().toISOString().slice(0, 10);
+      const { data: row, error } = await supabase
+        .from("family_expenses")
+        .insert({
+          user_id: userId,
+          amount,
+          description: desc,
+          expense_date,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
-      const undoId = await undoCreate('family_expenses', row.id, `logged €${amount} expense`, 'expense');
-      out.push({ tool: 'log_expense', ok: true, message: `💶 Logged ${data.currency || '€'}${amount.toFixed(2)} — ${desc}`, undoId, entityId: row.id });
-    } catch (e) { out.push({ tool: 'log_expense', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const undoId = await undoCreate(
+        "family_expenses",
+        row.id,
+        `logged €${amount} expense`,
+        "expense",
+      );
+      out.push({
+        tool: "log_expense",
+        ok: true,
+        message: `💶 Logged ${data.currency || "€"}${amount.toFixed(2)} — ${desc}`,
+        undoId,
+        entityId: row.id,
+      });
+    } catch (e) {
+      out.push({ tool: "log_expense", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- query_expenses ----------
   for (const m of text.matchAll(/<tool>query_expenses<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
     const data = safeJSON(m[1]) || {};
     try {
-      const period = (data.period || 'month').toLowerCase();
+      const period = (data.period || "month").toLowerCase();
       const since = new Date();
-      if (period === 'today') since.setHours(0,0,0,0);
-      else if (period === 'week') since.setDate(since.getDate() - 7);
-      else if (period === 'year') since.setFullYear(since.getFullYear() - 1);
+      if (period === "today") since.setHours(0, 0, 0, 0);
+      else if (period === "week") since.setDate(since.getDate() - 7);
+      else if (period === "year") since.setFullYear(since.getFullYear() - 1);
       else since.setMonth(since.getMonth() - 1);
-      let q = supabase.from('family_expenses').select('amount, description, expense_date')
-        .eq('user_id', userId).gte('expense_date', since.toISOString().slice(0,10));
-      if (data.category) q = q.ilike('description', `%${data.category}%`);
+      let q = supabase
+        .from("family_expenses")
+        .select("amount, description, expense_date")
+        .eq("user_id", userId)
+        .gte("expense_date", since.toISOString().slice(0, 10));
+      if (data.category) q = q.ilike("description", `%${data.category}%`);
       const { data: rows } = await q;
-      const total = (rows || []).reduce((s: number, r: { amount?: number }) => s + Number(r.amount || 0), 0);
+      const total = (rows || []).reduce(
+        (s: number, r: { amount?: number }) => s + Number(r.amount || 0),
+        0,
+      );
       const count = rows?.length || 0;
-      const cat = data.category ? ` on "${data.category}"` : '';
-      out.push({ tool: 'query_expenses', ok: true, message: `💶 You spent <b>€${total.toFixed(2)}</b>${cat} in the past ${period} (${count} item${count === 1 ? '' : 's'}).` });
-    } catch (e) { out.push({ tool: 'query_expenses', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const cat = data.category ? ` on "${data.category}"` : "";
+      out.push({
+        tool: "query_expenses",
+        ok: true,
+        message: `💶 You spent <b>€${total.toFixed(2)}</b>${cat} in the past ${period} (${count} item${count === 1 ? "" : "s"}).`,
+      });
+    } catch (e) {
+      out.push({ tool: "query_expenses", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- wellbeing_summary ----------
-  for (const m of text.matchAll(/<tool>wellbeing_summary<\/tool>\s*<summary>(\{[\s\S]*?\})<\/summary>/g)) {
+  for (const m of text.matchAll(
+    /<tool>wellbeing_summary<\/tool>\s*<summary>(\{[\s\S]*?\})<\/summary>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
-    const metric = String(data.metric || 'mood').toLowerCase();
-    const period = (data.period || 'week').toLowerCase();
+    const metric = String(data.metric || "mood").toLowerCase();
+    const period = (data.period || "week").toLowerCase();
     try {
       const since = new Date();
-      since.setDate(since.getDate() - (period === 'month' ? 30 : 7));
-      const sinceDate = since.toISOString().slice(0,10);
-      const validCols = new Set(['mood', 'sleep_hours', 'water_glasses', 'exercise_minutes', 'steps', 'stress_level']);
-      if (!validCols.has(metric)) { out.push({ tool: 'wellbeing_summary', ok: false, message: `Unsupported metric "${metric}".` }); continue; }
+      since.setDate(since.getDate() - (period === "month" ? 30 : 7));
+      const sinceDate = since.toISOString().slice(0, 10);
+      const validCols = new Set([
+        "mood",
+        "sleep_hours",
+        "water_glasses",
+        "exercise_minutes",
+        "steps",
+        "stress_level",
+      ]);
+      if (!validCols.has(metric)) {
+        out.push({
+          tool: "wellbeing_summary",
+          ok: false,
+          message: `Unsupported metric "${metric}".`,
+        });
+        continue;
+      }
       // daily_checkins stores `mood` as text — coerce; columns water_glasses/steps may not exist on every deployment, fall back gracefully.
-      const safeCol = ['mood', 'sleep_hours', 'exercise_minutes', 'stress_level'].includes(metric) ? metric : null;
-      if (!safeCol) { out.push({ tool: 'wellbeing_summary', ok: true, message: `📭 ${metric.replace('_',' ')} is not tracked yet — use /checkin to start logging.` }); continue; }
-      const { data: rows } = await supabase.from('daily_checkins')
+      const safeCol = ["mood", "sleep_hours", "exercise_minutes", "stress_level"].includes(metric)
+        ? metric
+        : null;
+      if (!safeCol) {
+        out.push({
+          tool: "wellbeing_summary",
+          ok: true,
+          message: `📭 ${metric.replace("_", " ")} is not tracked yet — use /checkin to start logging.`,
+        });
+        continue;
+      }
+      const { data: rows } = await supabase
+        .from("daily_checkins")
         .select(`checkin_date, ${safeCol}`)
-        .eq('user_id', userId).gte('checkin_date', sinceDate)
-        .order('checkin_date', { ascending: true });
-      const moodMap: Record<string, number> = { terrible: 1, bad: 2, low: 2, ok: 3, mid: 3, neutral: 3, okay: 3, good: 4, great: 5, high: 5, amazing: 5 };
-      const vals = (rows || []).map((r: Record<string, unknown>) => {
-        const v = r[safeCol];
-        if (typeof v === 'number') return v;
-        if (typeof v === 'string') {
-          const n = Number(v); if (Number.isFinite(n)) return n;
-          return moodMap[v.toLowerCase()] ?? NaN;
-        }
-        return NaN;
-      }).filter((n: number) => Number.isFinite(n));
-      if (!vals.length) { out.push({ tool: 'wellbeing_summary', ok: true, message: `📭 No ${metric} entries in the last ${period}.` }); continue; }
+        .eq("user_id", userId)
+        .gte("checkin_date", sinceDate)
+        .order("checkin_date", { ascending: true });
+      const moodMap: Record<string, number> = {
+        terrible: 1,
+        bad: 2,
+        low: 2,
+        ok: 3,
+        mid: 3,
+        neutral: 3,
+        okay: 3,
+        good: 4,
+        great: 5,
+        high: 5,
+        amazing: 5,
+      };
+      const vals = (rows || [])
+        .map((r: Record<string, unknown>) => {
+          const v = r[safeCol];
+          if (typeof v === "number") return v;
+          if (typeof v === "string") {
+            const n = Number(v);
+            if (Number.isFinite(n)) return n;
+            return moodMap[v.toLowerCase()] ?? NaN;
+          }
+          return NaN;
+        })
+        .filter((n: number) => Number.isFinite(n));
+      if (!vals.length) {
+        out.push({
+          tool: "wellbeing_summary",
+          ok: true,
+          message: `📭 No ${metric} entries in the last ${period}.`,
+        });
+        continue;
+      }
       const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-      const min = Math.min(...vals), max = Math.max(...vals);
-      out.push({ tool: 'wellbeing_summary', ok: true, message: `📊 ${metric.replace('_',' ')} (last ${period}): avg <b>${avg.toFixed(1)}</b>, range ${min}–${max}, ${vals.length} entries.` });
-    } catch (e) { out.push({ tool: 'wellbeing_summary', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const min = Math.min(...vals),
+        max = Math.max(...vals);
+      out.push({
+        tool: "wellbeing_summary",
+        ok: true,
+        message: `📊 ${metric.replace("_", " ")} (last ${period}): avg <b>${avg.toFixed(1)}</b>, range ${min}–${max}, ${vals.length} entries.`,
+      });
+    } catch (e) {
+      out.push({
+        tool: "wellbeing_summary",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
+    }
   }
 
   // ---------- recipe_to_shopping ----------
-  for (const m of text.matchAll(/<tool>recipe_to_shopping<\/tool>\s*<recipe>(\{[\s\S]*?\})<\/recipe>/g)) {
+  for (const m of text.matchAll(
+    /<tool>recipe_to_shopping<\/tool>\s*<recipe>(\{[\s\S]*?\})<\/recipe>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
-    if (!data.name) { out.push({ tool: 'recipe_to_shopping', ok: false, message: 'name required.' }); continue; }
+    if (!data.name) {
+      out.push({ tool: "recipe_to_shopping", ok: false, message: "name required." });
+      continue;
+    }
     try {
-      const { data: recipes } = await supabase.from('recipes').select('id, name')
-        .eq('user_id', userId).ilike('name', `%${data.name}%`).limit(1);
-      if (!recipes?.length) { out.push({ tool: 'recipe_to_shopping', ok: false, message: `🔍 No recipe matches "${data.name}".` }); continue; }
+      const { data: recipes } = await supabase
+        .from("recipes")
+        .select("id, name")
+        .eq("user_id", userId)
+        .ilike("name", `%${data.name}%`)
+        .limit(1);
+      if (!recipes?.length) {
+        out.push({
+          tool: "recipe_to_shopping",
+          ok: false,
+          message: `🔍 No recipe matches "${data.name}".`,
+        });
+        continue;
+      }
       const recipe = recipes[0];
-      const { data: ingredients } = await supabase.from('recipe_ingredients')
-        .select('name, quantity, unit, category').eq('recipe_id', recipe.id);
-      if (!ingredients?.length) { out.push({ tool: 'recipe_to_shopping', ok: true, message: `📭 "${recipe.name}" has no saved ingredients.` }); continue; }
-      const { data: list } = await supabase.from('shopping_lists')
-        .select('id').eq('user_id', userId).eq('is_completed', false)
-        .order('created_at', { ascending: false }).limit(1);
+      const { data: ingredients } = await supabase
+        .from("recipe_ingredients")
+        .select("name, quantity, unit, category")
+        .eq("recipe_id", recipe.id);
+      if (!ingredients?.length) {
+        out.push({
+          tool: "recipe_to_shopping",
+          ok: true,
+          message: `📭 "${recipe.name}" has no saved ingredients.`,
+        });
+        continue;
+      }
+      const { data: list } = await supabase
+        .from("shopping_lists")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("is_completed", false)
+        .order("created_at", { ascending: false })
+        .limit(1);
       let listId = list?.[0]?.id;
       if (!listId) {
-        const { data: newList } = await supabase.from('shopping_lists')
-          .insert({ user_id: userId, name: 'Shopping list', is_completed: false }).select('id').single();
+        const { data: newList } = await supabase
+          .from("shopping_lists")
+          .insert({ user_id: userId, name: "Shopping list", is_completed: false })
+          .select("id")
+          .single();
         listId = newList?.id;
       }
-      const items = (ingredients as Array<{ name: string; quantity?: unknown; unit?: string; category?: string }>).map((ing) => ({
-        list_id: listId, user_id: userId, name: ing.name,
-        quantity: Number.isFinite(Number(ing.quantity)) ? Math.max(1, Math.round(Number(ing.quantity))) : 1,
+      const items = (
+        ingredients as Array<{ name: string; quantity?: unknown; unit?: string; category?: string }>
+      ).map((ing) => ({
+        list_id: listId,
+        user_id: userId,
+        name: ing.name,
+        quantity: Number.isFinite(Number(ing.quantity))
+          ? Math.max(1, Math.round(Number(ing.quantity)))
+          : 1,
         unit: ing.unit || null,
-        category: ing.category || 'other', is_checked: false,
+        category: ing.category || "other",
+        is_checked: false,
       }));
-      const { error } = await supabase.from('shopping_list_items').insert(items);
+      const { error } = await supabase.from("shopping_list_items").insert(items);
       if (error) throw error;
-      out.push({ tool: 'recipe_to_shopping', ok: true, message: `🛒 Added ${items.length} ingredient${items.length === 1 ? '' : 's'} from "${recipe.name}" to your shopping list.` });
-    } catch (e) { out.push({ tool: 'recipe_to_shopping', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      out.push({
+        tool: "recipe_to_shopping",
+        ok: true,
+        message: `🛒 Added ${items.length} ingredient${items.length === 1 ? "" : "s"} from "${recipe.name}" to your shopping list.`,
+      });
+    } catch (e) {
+      out.push({
+        tool: "recipe_to_shopping",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
+    }
   }
 
   // ---------- weather (open-meteo, no API key) ----------
   for (const m of text.matchAll(/<tool>weather<\/tool>\s*<weather>(\{[\s\S]*?\})<\/weather>/g)) {
     const data = safeJSON(m[1]) || {};
-    if (!data.location) { out.push({ tool: 'weather', ok: false, message: 'location required.' }); continue; }
+    if (!data.location) {
+      out.push({ tool: "weather", ok: false, message: "location required." });
+      continue;
+    }
     try {
-      const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(data.location)}&count=1`)
-        .then(r => r.json()).catch(() => null);
+      const geo = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(data.location)}&count=1`,
+      )
+        .then((r) => r.json())
+        .catch(() => null);
       const place = geo?.results?.[0];
-      if (!place) { out.push({ tool: 'weather', ok: false, message: `🌍 Couldn't find "${data.location}".` }); continue; }
-      const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=auto&forecast_days=2`)
-        .then(r => r.json()).catch(() => null);
-      if (!w?.daily) { out.push({ tool: 'weather', ok: false, message: `🌍 Weather lookup failed.` }); continue; }
-      const idx = (data.when || 'today').toLowerCase() === 'tomorrow' ? 1 : 0;
+      if (!place) {
+        out.push({ tool: "weather", ok: false, message: `🌍 Couldn't find "${data.location}".` });
+        continue;
+      }
+      const w = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=auto&forecast_days=2`,
+      )
+        .then((r) => r.json())
+        .catch(() => null);
+      if (!w?.daily) {
+        out.push({ tool: "weather", ok: false, message: `🌍 Weather lookup failed.` });
+        continue;
+      }
+      const idx = (data.when || "today").toLowerCase() === "tomorrow" ? 1 : 0;
       const hi = w.daily.temperature_2m_max?.[idx];
       const lo = w.daily.temperature_2m_min?.[idx];
       const rain = w.daily.precipitation_sum?.[idx];
-      out.push({ tool: 'weather', ok: true, message: `🌤 <b>${place.name}, ${place.country_code}</b> (${idx === 0 ? 'today' : 'tomorrow'}): ${lo}°–${hi}°C, ${rain ?? 0}mm precip.` });
-    } catch (e) { out.push({ tool: 'weather', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      out.push({
+        tool: "weather",
+        ok: true,
+        message: `🌤 <b>${place.name}, ${place.country_code}</b> (${idx === 0 ? "today" : "tomorrow"}): ${lo}°–${hi}°C, ${rain ?? 0}mm precip.`,
+      });
+    } catch (e) {
+      out.push({ tool: "weather", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- trip_template ----------
   for (const m of text.matchAll(/<tool>trip_template<\/tool>\s*<trip>(\{[\s\S]*?\})<\/trip>/g)) {
     const data = safeJSON(m[1]) || {};
-    if (!data.destination || !data.start || !data.end) { out.push({ tool: 'trip_template', ok: false, message: 'destination, start, end required.' }); continue; }
+    if (!data.destination || !data.start || !data.end) {
+      out.push({ tool: "trip_template", ok: false, message: "destination, start, end required." });
+      continue;
+    }
     try {
-      const { data: ev, error: evErr } = await supabase.from('events').insert({
-        user_id: userId, title: `Trip: ${data.destination}`,
-        start_time: new Date(data.start + 'T09:00:00').toISOString(),
-        end_time: new Date(data.end + 'T18:00:00').toISOString(),
-        category: 'personal', location: data.destination,
-      }).select('id, title').single();
+      const { data: ev, error: evErr } = await supabase
+        .from("events")
+        .insert({
+          user_id: userId,
+          title: `Trip: ${data.destination}`,
+          start_time: new Date(data.start + "T09:00:00").toISOString(),
+          end_time: new Date(data.end + "T18:00:00").toISOString(),
+          category: "personal",
+          location: data.destination,
+        })
+        .select("id, title")
+        .single();
       if (evErr) throw evErr;
-      const undoId = await undoCreate('events', ev.id, `created trip "${ev.title}"`, 'event');
+      const undoId = await undoCreate("events", ev.id, `created trip "${ev.title}"`, "event");
       let taskCount = 0;
       if (data.packing !== false) {
-        const tripStart = new Date(data.start + 'T00:00:00');
-        const dueDate = new Date(tripStart); dueDate.setDate(dueDate.getDate() - 2);
+        const tripStart = new Date(data.start + "T00:00:00");
+        const dueDate = new Date(tripStart);
+        dueDate.setDate(dueDate.getDate() - 2);
         const dueIso = dueDate.toISOString();
         const seeds = [
-          'Pack clothes', 'Passport / ID', 'Chargers & adapters', 'Toiletries', 'Confirm bookings',
+          "Pack clothes",
+          "Passport / ID",
+          "Chargers & adapters",
+          "Toiletries",
+          "Confirm bookings",
         ];
         const rows = seeds.map((title) => ({
-          user_id: userId, title: `${title} for ${data.destination}`,
-          category: 'personal', priority: 'medium', due_date: dueIso, status: 'backlog',
+          user_id: userId,
+          title: `${title} for ${data.destination}`,
+          category: "personal",
+          priority: "medium",
+          due_date: dueIso,
+          status: "backlog",
         }));
-        const { error: tErr } = await supabase.from('tasks').insert(rows);
+        const { error: tErr } = await supabase.from("tasks").insert(rows);
         if (!tErr) taskCount = rows.length;
       }
-      out.push({ tool: 'trip_template', ok: true, message: `✈️ Trip to ${data.destination} added (${data.start} → ${data.end})${taskCount ? ` + ${taskCount} packing tasks` : ''}.`, undoId, entityId: ev.id });
-    } catch (e) { out.push({ tool: 'trip_template', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      out.push({
+        tool: "trip_template",
+        ok: true,
+        message: `✈️ Trip to ${data.destination} added (${data.start} → ${data.end})${taskCount ? ` + ${taskCount} packing tasks` : ""}.`,
+        undoId,
+        entityId: ev.id,
+      });
+    } catch (e) {
+      out.push({ tool: "trip_template", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- set_language ----------
   for (const m of text.matchAll(/<tool>set_language<\/tool>\s*<lang>(\{[\s\S]*?\})<\/lang>/g)) {
     const data = safeJSON(m[1]) || {};
-    const lang = String(data.lang || '').toLowerCase().slice(0, 5);
-    if (!['de', 'en', 'de-de', 'en-us', 'en-gb'].includes(lang)) { out.push({ tool: 'set_language', ok: false, message: 'lang must be "de" or "en".' }); continue; }
+    const lang = String(data.lang || "")
+      .toLowerCase()
+      .slice(0, 5);
+    if (!["de", "en", "de-de", "en-us", "en-gb"].includes(lang)) {
+      out.push({ tool: "set_language", ok: false, message: 'lang must be "de" or "en".' });
+      continue;
+    }
     try {
-      await supabase.from('profiles').update({ locale: lang }).eq('user_id', userId);
-      out.push({ tool: 'set_language', ok: true, message: lang.startsWith('de') ? '🇩🇪 Sprache auf Deutsch gestellt.' : '🇬🇧 Language set to English.' });
-    } catch (e) { out.push({ tool: 'set_language', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      await supabase.from("profiles").update({ locale: lang }).eq("user_id", userId);
+      out.push({
+        tool: "set_language",
+        ok: true,
+        message: lang.startsWith("de")
+          ? "🇩🇪 Sprache auf Deutsch gestellt."
+          : "🇬🇧 Language set to English.",
+      });
+    } catch (e) {
+      out.push({ tool: "set_language", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- manage_settings (proactive prefs: digest time, quiet hours, nudges) ----------
-  for (const m of text.matchAll(/<tool>manage_settings<\/tool>\s*<settings>(\{[\s\S]*?\})<\/settings>/g)) {
-    const data = safeJSON(m[1]); if (!data || typeof data !== 'object') continue;
+  for (const m of text.matchAll(
+    /<tool>manage_settings<\/tool>\s*<settings>(\{[\s\S]*?\})<\/settings>/g,
+  )) {
+    const data = safeJSON(m[1]);
+    if (!data || typeof data !== "object") continue;
     try {
       const upd: Record<string, unknown> = {};
       const isHHMM = (s: unknown): s is string =>
-        typeof s === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
-      const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
-      const keyMap: Array<[string, string, 'time' | 'bool']> = [
-        ['morningBriefingTime', 'morning_briefing_time', 'time'],
-        ['eveningReviewTime', 'evening_review_time', 'time'],
-        ['quietHoursStart', 'quiet_hours_start', 'time'],
-        ['quietHoursEnd', 'quiet_hours_end', 'time'],
-        ['quietHoursEnabled', 'quiet_hours_enabled', 'bool'],
-        ['forgottenTasksEnabled', 'forgotten_tasks_enabled', 'bool'],
-        ['contractRenewalsEnabled', 'contract_renewals_enabled', 'bool'],
-        ['contactCheckinsEnabled', 'contact_checkins_enabled', 'bool'],
-        ['eventPrepEnabled', 'event_prep_enabled', 'bool'],
-        ['habitStreaksEnabled', 'habit_streaks_enabled', 'bool'],
-        ['weeklyPlanningEnabled', 'weekly_planning_enabled', 'bool'],
-        ['dailyReviewEnabled', 'daily_review_enabled', 'bool'],
-        ['voiceProactiveEnabled', 'voice_proactive_enabled', 'bool'],
-        ['pushNotificationsEnabled', 'push_notifications_enabled', 'bool'],
-        ['enabled', 'enabled', 'bool'],
+        typeof s === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+      const isBool = (v: unknown): v is boolean => typeof v === "boolean";
+      const keyMap: Array<[string, string, "time" | "bool"]> = [
+        ["morningBriefingTime", "morning_briefing_time", "time"],
+        ["eveningReviewTime", "evening_review_time", "time"],
+        ["quietHoursStart", "quiet_hours_start", "time"],
+        ["quietHoursEnd", "quiet_hours_end", "time"],
+        ["quietHoursEnabled", "quiet_hours_enabled", "bool"],
+        ["forgottenTasksEnabled", "forgotten_tasks_enabled", "bool"],
+        ["contractRenewalsEnabled", "contract_renewals_enabled", "bool"],
+        ["contactCheckinsEnabled", "contact_checkins_enabled", "bool"],
+        ["eventPrepEnabled", "event_prep_enabled", "bool"],
+        ["habitStreaksEnabled", "habit_streaks_enabled", "bool"],
+        ["weeklyPlanningEnabled", "weekly_planning_enabled", "bool"],
+        ["dailyReviewEnabled", "daily_review_enabled", "bool"],
+        ["voiceProactiveEnabled", "voice_proactive_enabled", "bool"],
+        ["pushNotificationsEnabled", "push_notifications_enabled", "bool"],
+        ["enabled", "enabled", "bool"],
       ];
       const friendlyChanges: string[] = [];
       for (const [inKey, colName, kind] of keyMap) {
         if (!(inKey in data)) continue;
         const val = (data as Record<string, unknown>)[inKey];
-        if (kind === 'time') {
+        if (kind === "time") {
           if (!isHHMM(val)) continue;
           upd[colName] = `${val}:00`; // postgres TIME wants HH:MM:SS
           friendlyChanges.push(`${inKey} → ${val}`);
         } else {
           if (!isBool(val)) continue;
           upd[colName] = val;
-          friendlyChanges.push(`${inKey} → ${val ? 'on' : 'off'}`);
+          friendlyChanges.push(`${inKey} → ${val ? "on" : "off"}`);
         }
       }
       // pauseUntil — natural-language shorthand for proactive_settings.focus_mode_until.
       // Accepts ISO ("2026-05-17T09:00:00Z"), durations ("2 hours", "30 min", "1h"),
       // or named phrases ("tomorrow", "tomorrow 9am", "tonight", "clear"/"off").
-      if ('pauseUntil' in (data as Record<string, unknown>)) {
+      if ("pauseUntil" in (data as Record<string, unknown>)) {
         const raw = (data as Record<string, unknown>).pauseUntil;
         let target: Date | null = null;
         let cleared = false;
-        if (raw === null || raw === false || raw === 'clear' || raw === 'off' || raw === '') {
+        if (raw === null || raw === false || raw === "clear" || raw === "off" || raw === "") {
           cleared = true;
-        } else if (typeof raw === 'string') {
+        } else if (typeof raw === "string") {
           const s = raw.trim().toLowerCase();
           // 1) Duration: "2 hours", "30 min", "1h", "45m".
-          const m = s.match(/^(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minute|minutes|d|day|days)\b/);
+          const m = s.match(
+            /^(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minute|minutes|d|day|days)\b/,
+          );
           if (m) {
             const n = parseFloat(m[1]);
             const unit = m[2];
             const minutes = /^h/.test(unit) ? n * 60 : /^d/.test(unit) ? n * 60 * 24 : n;
             target = new Date(Date.now() + minutes * 60_000);
-          } else if (s === 'tonight') {
-            target = new Date(); target.setHours(23, 0, 0, 0);
-          } else if (s === 'tomorrow' || s === 'tomorrow morning') {
-            target = new Date(); target.setDate(target.getDate() + 1); target.setHours(9, 0, 0, 0);
+          } else if (s === "tonight") {
+            target = new Date();
+            target.setHours(23, 0, 0, 0);
+          } else if (s === "tomorrow" || s === "tomorrow morning") {
+            target = new Date();
+            target.setDate(target.getDate() + 1);
+            target.setHours(9, 0, 0, 0);
           } else {
             // "tomorrow 9am", "tomorrow at 14:30"
             const tm = s.match(/^tomorrow(?:\s+at)?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
@@ -3185,9 +4709,11 @@ async function executeToolsServerSide(
               let hour = parseInt(tm[1], 10);
               const min = tm[2] ? parseInt(tm[2], 10) : 0;
               const ap = tm[3];
-              if (ap === 'pm' && hour < 12) hour += 12;
-              if (ap === 'am' && hour === 12) hour = 0;
-              target = new Date(); target.setDate(target.getDate() + 1); target.setHours(hour, min, 0, 0);
+              if (ap === "pm" && hour < 12) hour += 12;
+              if (ap === "am" && hour === 12) hour = 0;
+              target = new Date();
+              target.setDate(target.getDate() + 1);
+              target.setHours(hour, min, 0, 0);
             } else {
               // Last resort: ISO parse.
               const d = new Date(raw);
@@ -3196,55 +4722,87 @@ async function executeToolsServerSide(
           }
         }
         if (cleared) {
-          await supabase.from('proactive_settings')
-            .upsert({ user_id: userId, focus_mode_until: null, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-          friendlyChanges.push('pauseUntil → cleared');
+          await supabase
+            .from("proactive_settings")
+            .upsert(
+              { user_id: userId, focus_mode_until: null, updated_at: new Date().toISOString() },
+              { onConflict: "user_id" },
+            );
+          friendlyChanges.push("pauseUntil → cleared");
         } else if (target) {
-          await supabase.from('proactive_settings')
-            .upsert({ user_id: userId, focus_mode_until: target.toISOString(), updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-          friendlyChanges.push(`pauseUntil → ${target.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`);
+          await supabase.from("proactive_settings").upsert(
+            {
+              user_id: userId,
+              focus_mode_until: target.toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id" },
+          );
+          friendlyChanges.push(
+            `pauseUntil → ${target.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+          );
         } else {
           friendlyChanges.push(`pauseUntil → (couldn't parse "${raw}")`);
         }
       }
       // Timezone lives on profiles, not proactive_settings — handle it
       // separately so the rest of the proactive_settings upsert stays clean.
-      if (typeof (data as Record<string, unknown>).timezone === 'string') {
+      if (typeof (data as Record<string, unknown>).timezone === "string") {
         const tz = String((data as Record<string, unknown>).timezone).trim();
         // Quick sanity check via Intl — invalid tz strings throw.
         let tzValid = false;
-        try { new Intl.DateTimeFormat('en', { timeZone: tz }); tzValid = true; } catch { /* invalid */ }
+        try {
+          new Intl.DateTimeFormat("en", { timeZone: tz });
+          tzValid = true;
+        } catch {
+          /* invalid */
+        }
         if (tzValid) {
-          await supabase.from('profiles').update({ timezone: tz }).eq('user_id', userId);
+          await supabase.from("profiles").update({ timezone: tz }).eq("user_id", userId);
           friendlyChanges.push(`timezone → ${tz}`);
         } else {
           friendlyChanges.push(`timezone → (rejected, not a valid IANA name)`);
         }
       }
       if (Object.keys(upd).length === 0 && friendlyChanges.length === 0) {
-        out.push({ tool: 'manage_settings', ok: false, message: 'No valid setting fields provided.' });
+        out.push({
+          tool: "manage_settings",
+          ok: false,
+          message: "No valid setting fields provided.",
+        });
         continue;
       }
       if (Object.keys(upd).length > 0) {
         // Upsert so first-time users get a row created automatically.
-        const { error } = await supabase.from('proactive_settings')
-          .upsert({ user_id: userId, ...upd, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+        const { error } = await supabase
+          .from("proactive_settings")
+          .upsert(
+            { user_id: userId, ...upd, updated_at: new Date().toISOString() },
+            { onConflict: "user_id" },
+          );
         if (error) throw error;
       }
       out.push({
-        tool: 'manage_settings', ok: true,
-        message: `⚙️ Updated settings: ${friendlyChanges.join(', ')}`,
+        tool: "manage_settings",
+        ok: true,
+        message: `⚙️ Updated settings: ${friendlyChanges.join(", ")}`,
       });
     } catch (e) {
-      out.push({ tool: 'manage_settings', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "manage_settings", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- send_family_message (relay a message from the user to another family member's Telegram) ----------
-  for (const m of text.matchAll(/<tool>send_family_message<\/tool>\s*<msg>(\{[\s\S]*?\})<\/msg>/g)) {
+  for (const m of text.matchAll(
+    /<tool>send_family_message<\/tool>\s*<msg>(\{[\s\S]*?\})<\/msg>/g,
+  )) {
     const data = safeJSON(m[1]);
     if (!data?.to || !data.body) {
-      out.push({ tool: 'send_family_message', ok: false, message: 'Both "to" and "body" are required.' });
+      out.push({
+        tool: "send_family_message",
+        ok: false,
+        message: 'Both "to" and "body" are required.',
+      });
       continue;
     }
     try {
@@ -3254,7 +4812,7 @@ async function executeToolsServerSide(
       const recipientNames: string[] = [];
       for (const r of raw) {
         const lower = r.trim().toLowerCase();
-        if (['everyone', 'family', 'all', 'all of us'].includes(lower)) {
+        if (["everyone", "family", "all", "all of us"].includes(lower)) {
           if (opts?.workspaceMembers?.length) {
             for (const wm of opts.workspaceMembers) {
               if (wm.user_id !== userId && wm.display_name) recipientNames.push(wm.display_name);
@@ -3265,28 +4823,48 @@ async function executeToolsServerSide(
         }
       }
       if (recipientNames.length === 0) {
-        out.push({ tool: 'send_family_message', ok: false, message: 'No recipients resolved (try a specific name or invite them to the workspace first).' });
+        out.push({
+          tool: "send_family_message",
+          ok: false,
+          message:
+            "No recipients resolved (try a specific name or invite them to the workspace first).",
+        });
         continue;
       }
       const bodyText = String(data.body).slice(0, 3500);
       let senderName = data.fromLabel as string | undefined;
       if (!senderName) {
-        const { data: senderProfile } = await supabase.from('profiles')
-          .select('display_name').eq('user_id', userId).maybeSingle();
-        senderName = senderProfile?.display_name || 'Family member';
+        const { data: senderProfile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("user_id", userId)
+          .maybeSingle();
+        senderName = senderProfile?.display_name || "Family member";
       }
       const fromLabel = String(senderName).slice(0, 80);
-      const telegramKey = Deno.env.get('TELEGRAM_API_KEY');
+      const telegramKey = Deno.env.get("TELEGRAM_API_KEY");
       if (!telegramKey) {
-        out.push({ tool: 'send_family_message', ok: false, message: 'Telegram bot credentials are not configured server-side.' });
+        out.push({
+          tool: "send_family_message",
+          ok: false,
+          message: "Telegram bot credentials are not configured server-side.",
+        });
         continue;
       }
       const relMap: Record<string, string[]> = {
-        wife: ['spouse'], husband: ['spouse'], partner: ['spouse'],
-        mom: ['parent'], mum: ['parent'], mother: ['parent'],
-        dad: ['parent'], father: ['parent'],
-        son: ['child'], daughter: ['child'], kid: ['child'],
-        brother: ['sibling'], sister: ['sibling'],
+        wife: ["spouse"],
+        husband: ["spouse"],
+        partner: ["spouse"],
+        mom: ["parent"],
+        mum: ["parent"],
+        mother: ["parent"],
+        dad: ["parent"],
+        father: ["parent"],
+        son: ["child"],
+        daughter: ["child"],
+        kid: ["child"],
+        brother: ["sibling"],
+        sister: ["sibling"],
       };
       const composed = `💬 <b>From ${fromLabel}</b>\n${bodyText}`;
       const delivered: string[] = [];
@@ -3297,7 +4875,7 @@ async function executeToolsServerSide(
         let recipientDisplay = recipientName;
         if (opts?.workspaceMembers?.length) {
           const matchByName = opts.workspaceMembers.find((wm) => {
-            const dn = (wm.display_name || '').toLowerCase();
+            const dn = (wm.display_name || "").toLowerCase();
             return dn === recipientName.toLowerCase() || dn.includes(recipientName.toLowerCase());
           });
           if (matchByName) {
@@ -3308,12 +4886,16 @@ async function executeToolsServerSide(
         // 2) Family-members fallback (relationship word or name match).
         if (!recipientUserId) {
           const rels = relMap[recipientName.toLowerCase()];
-          let famQuery = supabase.from('family_members')
-            .select('id, name, relationship')
-            .eq('user_id', userId).eq('is_active', true).limit(1);
-          famQuery = rels && rels.length > 0
-            ? famQuery.in('relationship', rels)
-            : famQuery.ilike('name', `%${recipientName}%`);
+          let famQuery = supabase
+            .from("family_members")
+            .select("id, name, relationship")
+            .eq("user_id", userId)
+            .eq("is_active", true)
+            .limit(1);
+          famQuery =
+            rels && rels.length > 0
+              ? famQuery.in("relationship", rels)
+              : famQuery.ilike("name", `%${recipientName}%`);
           const { data: famRow } = await famQuery;
           if (famRow?.[0]) recipientDisplay = famRow[0].name || recipientName;
         }
@@ -3322,19 +4904,26 @@ async function executeToolsServerSide(
           continue;
         }
         // 3) Their private Telegram chat_id.
-        const { data: link } = await supabase.from('telegram_links')
-          .select('chat_id, is_active').eq('user_id', recipientUserId).maybeSingle();
+        const { data: link } = await supabase
+          .from("telegram_links")
+          .select("chat_id, is_active")
+          .eq("user_id", recipientUserId)
+          .maybeSingle();
         if (!link?.chat_id || link.is_active === false) {
           failures.push(`${recipientDisplay} (Telegram not linked)`);
           continue;
         }
         // 4) Deliver.
         const res = await fetch(`https://api.telegram.org/bot${telegramKey}/sendMessage`, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ chat_id: link.chat_id, text: composed.slice(0, 4000), parse_mode: 'HTML' }),
+          body: JSON.stringify({
+            chat_id: link.chat_id,
+            text: composed.slice(0, 4000),
+            parse_mode: "HTML",
+          }),
         });
         if (!res.ok) {
           failures.push(`${recipientDisplay} (HTTP ${res.status})`);
@@ -3342,17 +4931,21 @@ async function executeToolsServerSide(
           delivered.push(recipientDisplay);
         }
       }
-      const preview = bodyText.length > 60 ? bodyText.slice(0, 57) + '…' : bodyText;
+      const preview = bodyText.length > 60 ? bodyText.slice(0, 57) + "…" : bodyText;
       const parts: string[] = [];
-      if (delivered.length > 0) parts.push(`📨 Sent to ${delivered.join(', ')}: "${preview}"`);
-      if (failures.length > 0) parts.push(`⚠️ Couldn't reach ${failures.join(', ')}.`);
+      if (delivered.length > 0) parts.push(`📨 Sent to ${delivered.join(", ")}: "${preview}"`);
+      if (failures.length > 0) parts.push(`⚠️ Couldn't reach ${failures.join(", ")}.`);
       out.push({
-        tool: 'send_family_message',
+        tool: "send_family_message",
         ok: delivered.length > 0,
-        message: parts.join(' ') || 'No recipients reached.',
+        message: parts.join(" ") || "No recipients reached.",
       });
     } catch (e) {
-      out.push({ tool: 'send_family_message', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({
+        tool: "send_family_message",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
     }
   }
 
@@ -3360,37 +4953,50 @@ async function executeToolsServerSide(
   for (const m of text.matchAll(/<tool>family_poll<\/tool>\s*<poll>(\{[\s\S]*?\})<\/poll>/g)) {
     const data = safeJSON(m[1]);
     if (!data?.question || !Array.isArray(data.options) || data.options.length < 2) {
-      out.push({ tool: 'family_poll', ok: false, message: 'question + at least 2 options required.' });
+      out.push({
+        tool: "family_poll",
+        ok: false,
+        message: "question + at least 2 options required.",
+      });
       continue;
     }
     try {
-      const options = (data.options as unknown[]).map(String).filter((s) => s.trim().length > 0).slice(0, 10);
+      const options = (data.options as unknown[])
+        .map(String)
+        .filter((s) => s.trim().length > 0)
+        .slice(0, 10);
       if (options.length < 2) {
-        out.push({ tool: 'family_poll', ok: false, message: 'Need at least 2 non-empty options.' });
+        out.push({ tool: "family_poll", ok: false, message: "Need at least 2 non-empty options." });
         continue;
       }
       // Either the user owns the group link or they're the linked partner.
-      const { data: group } = await supabase.from('telegram_group_links')
-        .select('chat_id, title, is_active')
+      const { data: group } = await supabase
+        .from("telegram_group_links")
+        .select("chat_id, title, is_active")
         .or(`owner_user_id.eq.${userId},partner_user_id.eq.${userId}`)
-        .eq('is_active', true)
+        .eq("is_active", true)
         .maybeSingle();
       if (!group?.chat_id) {
         out.push({
-          tool: 'family_poll', ok: false,
+          tool: "family_poll",
+          ok: false,
           message: "No linked family group. Add me to the group and run /linkfamily first.",
         });
         continue;
       }
-      const telegramKey = Deno.env.get('TELEGRAM_API_KEY');
+      const telegramKey = Deno.env.get("TELEGRAM_API_KEY");
       if (!telegramKey) {
-        out.push({ tool: 'family_poll', ok: false, message: 'Telegram bot credentials are not configured server-side.' });
+        out.push({
+          tool: "family_poll",
+          ok: false,
+          message: "Telegram bot credentials are not configured server-side.",
+        });
         continue;
       }
       const res = await fetch(`https://api.telegram.org/bot${telegramKey}/sendPoll`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           chat_id: group.chat_id,
@@ -3401,41 +5007,61 @@ async function executeToolsServerSide(
         }),
       });
       if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        out.push({ tool: 'family_poll', ok: false, message: `Poll failed (${res.status}): ${errText.slice(0, 200)}` });
+        const errText = await res.text().catch(() => "");
+        out.push({
+          tool: "family_poll",
+          ok: false,
+          message: `Poll failed (${res.status}): ${errText.slice(0, 200)}`,
+        });
         continue;
       }
       out.push({
-        tool: 'family_poll', ok: true,
-        message: `🗳️ Posted poll to ${group.title || 'family group'}: "${String(data.question).slice(0, 80)}"`,
+        tool: "family_poll",
+        ok: true,
+        message: `🗳️ Posted poll to ${group.title || "family group"}: "${String(data.question).slice(0, 80)}"`,
       });
     } catch (e) {
-      out.push({ tool: 'family_poll', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "family_poll", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- manage_exception (skip a single occurrence of a recurring task/event) ----------
-  for (const m of text.matchAll(/<tool>manage_exception<\/tool>\s*<exception>(\{[\s\S]*?\})<\/exception>/g)) {
+  for (const m of text.matchAll(
+    /<tool>manage_exception<\/tool>\s*<exception>(\{[\s\S]*?\})<\/exception>/g,
+  )) {
     const data = safeJSON(m[1]);
     if (!data?.parentKind || !data.query || !data.date) {
-      out.push({ tool: 'manage_exception', ok: false, message: 'parentKind, query and date are required.' });
+      out.push({
+        tool: "manage_exception",
+        ok: false,
+        message: "parentKind, query and date are required.",
+      });
       continue;
     }
-    if (data.parentKind !== 'task' && data.parentKind !== 'event') {
-      out.push({ tool: 'manage_exception', ok: false, message: 'parentKind must be "task" or "event".' });
+    if (data.parentKind !== "task" && data.parentKind !== "event") {
+      out.push({
+        tool: "manage_exception",
+        ok: false,
+        message: 'parentKind must be "task" or "event".',
+      });
       continue;
     }
     try {
-      const table = data.parentKind === 'task' ? 'tasks' : 'events';
-      const { data: rows } = await supabase.from(table)
-        .select('id, title, recurrence_rule')
-        .eq('user_id', userId)
-        .ilike('title', `%${data.query}%`)
-        .not('recurrence_rule', 'is', null)
+      const table = data.parentKind === "task" ? "tasks" : "events";
+      const { data: rows } = await supabase
+        .from(table)
+        .select("id, title, recurrence_rule")
+        .eq("user_id", userId)
+        .ilike("title", `%${data.query}%`)
+        .not("recurrence_rule", "is", null)
         .limit(1);
       const parent = rows?.[0];
       if (!parent) {
-        out.push({ tool: 'manage_exception', ok: false, message: `No recurring ${data.parentKind} matches "${data.query}".` });
+        out.push({
+          tool: "manage_exception",
+          ok: false,
+          message: `No recurring ${data.parentKind} matches "${data.query}".`,
+        });
         continue;
       }
       const exDate = (() => {
@@ -3444,162 +5070,249 @@ async function executeToolsServerSide(
         return d.toISOString().slice(0, 10);
       })();
       if (!exDate) {
-        out.push({ tool: 'manage_exception', ok: false, message: `Invalid date: ${data.date}` });
+        out.push({ tool: "manage_exception", ok: false, message: `Invalid date: ${data.date}` });
         continue;
       }
-      const { error } = await supabase.from('recurrence_exceptions').upsert({
-        user_id: userId,
-        parent_kind: data.parentKind,
-        parent_id: parent.id,
-        exception_date: exDate,
-        reason: data.reason || null,
-      }, { onConflict: 'parent_kind,parent_id,exception_date' });
+      const { error } = await supabase.from("recurrence_exceptions").upsert(
+        {
+          user_id: userId,
+          parent_kind: data.parentKind,
+          parent_id: parent.id,
+          exception_date: exDate,
+          reason: data.reason || null,
+        },
+        { onConflict: "parent_kind,parent_id,exception_date" },
+      );
       if (error) throw error;
-      const when = new Date(exDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
+      const when = new Date(exDate + "T00:00:00").toLocaleDateString("en-GB", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+      });
       out.push({
-        tool: 'manage_exception', ok: true,
+        tool: "manage_exception",
+        ok: true,
         message: `🚫 Skipping "${parent.title}" on ${when}.`,
       });
     } catch (e) {
-      out.push({ tool: 'manage_exception', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "manage_exception", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- manage_focus (time tracking) ----------
-  for (const m of text.matchAll(/<tool>manage_focus<\/tool>\s*<action>(\w+)<\/action>\s*<focus>(\{[\s\S]*?\})<\/focus>/g)) {
+  for (const m of text.matchAll(
+    /<tool>manage_focus<\/tool>\s*<action>(\w+)<\/action>\s*<focus>(\{[\s\S]*?\})<\/focus>/g,
+  )) {
     const action = m[1];
     const data = safeJSON(m[2]) || {};
     try {
-      if (action === 'start') {
+      if (action === "start") {
         // Resolve task if a query was provided.
         let taskId: string | null = null;
         let label = (data.label as string | undefined) || null;
         if (data.taskQuery) {
-          const { data: tasks } = await supabase.from('tasks')
-            .select('id, title').eq('user_id', userId)
-            .ilike('title', `%${data.taskQuery}%`).limit(1);
-          if (tasks?.[0]) { taskId = tasks[0].id; label = label || tasks[0].title; }
+          const { data: tasks } = await supabase
+            .from("tasks")
+            .select("id, title")
+            .eq("user_id", userId)
+            .ilike("title", `%${data.taskQuery}%`)
+            .limit(1);
+          if (tasks?.[0]) {
+            taskId = tasks[0].id;
+            label = label || tasks[0].title;
+          }
         }
         if (!taskId && !label) {
-          out.push({ tool: 'manage_focus', ok: false, message: 'Provide either taskQuery or label to start a focus session.' });
+          out.push({
+            tool: "manage_focus",
+            ok: false,
+            message: "Provide either taskQuery or label to start a focus session.",
+          });
           continue;
         }
-        const category = ['business', 'personal', 'family', 'shared', 'focus'].includes(String(data.category))
-          ? data.category : 'focus';
-        const { data: inserted, error } = await supabase.from('focus_sessions').insert({
-          user_id: userId, task_id: taskId, label,
-          category, started_at: new Date().toISOString(),
-          workspace_id: opts?.workspaceId || null,
-        }).select('id, started_at, label').single();
+        const category = ["business", "personal", "family", "shared", "focus"].includes(
+          String(data.category),
+        )
+          ? data.category
+          : "focus";
+        const { data: inserted, error } = await supabase
+          .from("focus_sessions")
+          .insert({
+            user_id: userId,
+            task_id: taskId,
+            label,
+            category,
+            started_at: new Date().toISOString(),
+            workspace_id: opts?.workspaceId || null,
+          })
+          .select("id, started_at, label")
+          .single();
         if (error) {
           // 23505 = unique violation → already an open session.
-          if (String(error.code) === '23505') {
-            out.push({ tool: 'manage_focus', ok: false, message: 'You already have an open focus session — stop it first.' });
+          if (String(error.code) === "23505") {
+            out.push({
+              tool: "manage_focus",
+              ok: false,
+              message: "You already have an open focus session — stop it first.",
+            });
             continue;
           }
           throw error;
         }
         out.push({
-          tool: 'manage_focus', ok: true,
-          message: `🎯 Focus session started: ${inserted.label || 'session'} at ${new Date(inserted.started_at).toLocaleTimeString()}`,
+          tool: "manage_focus",
+          ok: true,
+          message: `🎯 Focus session started: ${inserted.label || "session"} at ${new Date(inserted.started_at).toLocaleTimeString()}`,
           entityId: inserted.id,
         });
-      } else if (action === 'stop') {
-        const { data: open } = await supabase.from('focus_sessions')
-          .select('id, started_at, label').eq('user_id', userId).is('ended_at', null)
-          .order('started_at', { ascending: false }).limit(1);
+      } else if (action === "stop") {
+        const { data: open } = await supabase
+          .from("focus_sessions")
+          .select("id, started_at, label")
+          .eq("user_id", userId)
+          .is("ended_at", null)
+          .order("started_at", { ascending: false })
+          .limit(1);
         const session = open?.[0];
         if (!session) {
-          out.push({ tool: 'manage_focus', ok: false, message: 'No open focus session to stop.' });
+          out.push({ tool: "manage_focus", ok: false, message: "No open focus session to stop." });
           continue;
         }
         const endedAt = new Date().toISOString();
-        await supabase.from('focus_sessions').update({ ended_at: endedAt }).eq('id', session.id);
-        const mins = Math.max(0, Math.floor((new Date(endedAt).getTime() - new Date(session.started_at).getTime()) / 60000));
+        await supabase.from("focus_sessions").update({ ended_at: endedAt }).eq("id", session.id);
+        const mins = Math.max(
+          0,
+          Math.floor(
+            (new Date(endedAt).getTime() - new Date(session.started_at).getTime()) / 60000,
+          ),
+        );
         out.push({
-          tool: 'manage_focus', ok: true,
-          message: `🛑 Stopped: ${session.label || 'session'} — ${mins} min logged.`,
+          tool: "manage_focus",
+          ok: true,
+          message: `🛑 Stopped: ${session.label || "session"} — ${mins} min logged.`,
         });
-      } else if (action === 'query') {
-        const sinceArg = String(data.since || 'this_week');
+      } else if (action === "query") {
+        const sinceArg = String(data.since || "this_week");
         const now = new Date();
         let since: Date;
-        if (sinceArg === 'today') {
-          since = new Date(now); since.setHours(0, 0, 0, 0);
-        } else if (sinceArg === 'last_7_days' || sinceArg === 'this_week') {
+        if (sinceArg === "today") {
+          since = new Date(now);
+          since.setHours(0, 0, 0, 0);
+        } else if (sinceArg === "last_7_days" || sinceArg === "this_week") {
           since = new Date(now.getTime() - 7 * 86400000);
-        } else if (sinceArg === 'last_30_days') {
+        } else if (sinceArg === "last_30_days") {
           since = new Date(now.getTime() - 30 * 86400000);
         } else {
           const parsed = new Date(sinceArg);
-          if (isNaN(parsed.getTime())) { out.push({ tool: 'manage_focus', ok: false, message: `Unrecognised since: ${sinceArg}` }); continue; }
+          if (isNaN(parsed.getTime())) {
+            out.push({
+              tool: "manage_focus",
+              ok: false,
+              message: `Unrecognised since: ${sinceArg}`,
+            });
+            continue;
+          }
           since = parsed;
         }
-        let q = supabase.from('focus_sessions')
-          .select('label, task_id, duration_minutes, started_at, tasks(title)')
-          .eq('user_id', userId).not('ended_at', 'is', null)
-          .gte('started_at', since.toISOString());
+        let q = supabase
+          .from("focus_sessions")
+          .select("label, task_id, duration_minutes, started_at, tasks(title)")
+          .eq("user_id", userId)
+          .not("ended_at", "is", null)
+          .gte("started_at", since.toISOString());
         if (data.taskQuery) {
           // Filter by task title via a separate lookup since PostgREST joins
           // don't ilike across the joined table easily.
-          const { data: t } = await supabase.from('tasks').select('id')
-            .eq('user_id', userId).ilike('title', `%${data.taskQuery}%`).limit(20);
+          const { data: t } = await supabase
+            .from("tasks")
+            .select("id")
+            .eq("user_id", userId)
+            .ilike("title", `%${data.taskQuery}%`)
+            .limit(20);
           const ids = (t || []).map((r: { id: string }) => r.id);
-          if (ids.length === 0) { out.push({ tool: 'manage_focus', ok: true, message: `📊 No focus time logged on "${data.taskQuery}" since ${since.toLocaleDateString()}.` }); continue; }
-          q = q.in('task_id', ids);
+          if (ids.length === 0) {
+            out.push({
+              tool: "manage_focus",
+              ok: true,
+              message: `📊 No focus time logged on "${data.taskQuery}" since ${since.toLocaleDateString()}.`,
+            });
+            continue;
+          }
+          q = q.in("task_id", ids);
         }
         const { data: rows } = await q;
         const sessions = rows || [];
-        const totalMin = sessions.reduce((n: number, r: { duration_minutes?: number }) => n + (r.duration_minutes || 0), 0);
+        const totalMin = sessions.reduce(
+          (n: number, r: { duration_minutes?: number }) => n + (r.duration_minutes || 0),
+          0,
+        );
         // Group by task title (or free-text label).
         const buckets: Record<string, number> = {};
-        for (const r of sessions as Array<{ duration_minutes?: number; label?: string; tasks?: { title?: string } }>) {
-          const key = r.tasks?.title || r.label || '(unnamed)';
+        for (const r of sessions as Array<{
+          duration_minutes?: number;
+          label?: string;
+          tasks?: { title?: string };
+        }>) {
+          const key = r.tasks?.title || r.label || "(unnamed)";
           buckets[key] = (buckets[key] || 0) + (r.duration_minutes || 0);
         }
         const topLines = Object.entries(buckets)
-          .sort((a, b) => b[1] - a[1]).slice(0, 5)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
           .map(([k, v]) => `  • ${k}: ${Math.floor(v / 60)}h ${v % 60}m`);
         out.push({
-          tool: 'manage_focus', ok: true,
-          message: `📊 Focus since ${since.toLocaleDateString()}: ${Math.floor(totalMin / 60)}h ${totalMin % 60}m across ${sessions.length} session${sessions.length === 1 ? '' : 's'}.\n${topLines.join('\n')}`.trim(),
+          tool: "manage_focus",
+          ok: true,
+          message:
+            `📊 Focus since ${since.toLocaleDateString()}: ${Math.floor(totalMin / 60)}h ${totalMin % 60}m across ${sessions.length} session${sessions.length === 1 ? "" : "s"}.\n${topLines.join("\n")}`.trim(),
         });
       } else {
-        out.push({ tool: 'manage_focus', ok: false, message: `Unknown action "${action}". Use start/stop/query.` });
+        out.push({
+          tool: "manage_focus",
+          ok: false,
+          message: `Unknown action "${action}". Use start/stop/query.`,
+        });
       }
     } catch (e) {
-      out.push({ tool: 'manage_focus', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "manage_focus", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- fetch_url (pull a webpage and summarise / save) ----------
   for (const m of text.matchAll(/<tool>fetch_url<\/tool>\s*<url>(\{[\s\S]*?\})<\/url>/g)) {
-    const data = safeJSON(m[1]); if (!data?.url) {
-      out.push({ tool: 'fetch_url', ok: false, message: 'URL is required.' });
+    const data = safeJSON(m[1]);
+    if (!data?.url) {
+      out.push({ tool: "fetch_url", ok: false, message: "URL is required." });
       continue;
     }
     try {
       let url: URL;
-      try { url = new URL(String(data.url)); } catch {
-        out.push({ tool: 'fetch_url', ok: false, message: `Invalid URL: ${data.url}` });
+      try {
+        url = new URL(String(data.url));
+      } catch {
+        out.push({ tool: "fetch_url", ok: false, message: `Invalid URL: ${data.url}` });
         continue;
       }
-      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-        out.push({ tool: 'fetch_url', ok: false, message: 'Only http(s) URLs are allowed.' });
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        out.push({ tool: "fetch_url", ok: false, message: "Only http(s) URLs are allowed." });
         continue;
       }
       // Cheap fetch with a short timeout and a sensible UA. We strip HTML
       // server-side rather than passing megabytes to the model.
       const controller = new AbortController();
       const tm = setTimeout(() => controller.abort(), 12_000);
-      let html = '';
+      let html = "";
       try {
         const resp = await fetch(url.toString(), {
-          headers: { 'User-Agent': 'DarAI/1.0 (link summariser)' },
+          headers: { "User-Agent": "DarAI/1.0 (link summariser)" },
           signal: controller.signal,
         });
         if (!resp.ok) {
-          out.push({ tool: 'fetch_url', ok: false, message: `Fetch failed: ${resp.status} ${resp.statusText}` });
+          out.push({
+            tool: "fetch_url",
+            ok: false,
+            message: `Fetch failed: ${resp.status} ${resp.statusText}`,
+          });
           continue;
         }
         const buf = await resp.text();
@@ -3607,181 +5320,280 @@ async function executeToolsServerSide(
       } finally {
         clearTimeout(tm);
       }
-      const title = (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? '').trim().slice(0, 200) || url.hostname;
+      const title =
+        (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? "").trim().slice(0, 200) ||
+        url.hostname;
       // Crude text extraction: strip scripts/styles, then tags. Good enough
       // for an LLM summary; not a full reader-mode parser.
       const stripped = html
-        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-        .replace(/\s+/g, ' ')
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/\s+/g, " ")
         .trim()
         .slice(0, 8_000);
-      const intent = String(data.intent || 'summarise');
-      const geminiKey = Deno.env.get('GEMINI_API_KEY');
+      const intent = String(data.intent || "summarise");
+      const geminiKey = Deno.env.get("GEMINI_API_KEY");
       if (!geminiKey) {
-        out.push({ tool: 'fetch_url', ok: false, message: 'AI gateway not configured server-side.' });
+        out.push({
+          tool: "fetch_url",
+          ok: false,
+          message: "AI gateway not configured server-side.",
+        });
         continue;
       }
       const askMap: Record<string, string> = {
-        summarise: 'Summarise the page in 4-6 bullet points, ending with a one-line "why it matters" framing.',
-        save_note: 'Distil the page into a note: a short title, then 3-7 key bullet points the user will scan later.',
-        extract_tasks: 'Extract concrete, actionable to-dos for the reader. Return them as a numbered list. Skip generic advice.',
+        summarise:
+          'Summarise the page in 4-6 bullet points, ending with a one-line "why it matters" framing.',
+        save_note:
+          "Distil the page into a note: a short title, then 3-7 key bullet points the user will scan later.",
+        extract_tasks:
+          "Extract concrete, actionable to-dos for the reader. Return them as a numbered list. Skip generic advice.",
       };
       const ask = askMap[intent] || askMap.summarise;
-      const aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${geminiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: 'You compress webpages into useful summaries. Be specific, no fluff.' },
-            { role: 'user', content: `URL: ${url.toString()}\nTitle: ${title}\n\nContent:\n${stripped}\n\nTask: ${ask}` },
-          ],
-        }),
-      });
+      const aiResp = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gemini-2.5-flash",
+            messages: [
+              {
+                role: "system",
+                content: "You compress webpages into useful summaries. Be specific, no fluff.",
+              },
+              {
+                role: "user",
+                content: `URL: ${url.toString()}\nTitle: ${title}\n\nContent:\n${stripped}\n\nTask: ${ask}`,
+              },
+            ],
+          }),
+        },
+      );
       const aiJson: Record<string, unknown> | null = await aiResp.json().catch(() => null);
-      const reply = (aiJson?.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content?.trim() || '(no summary)';
+      const reply =
+        (
+          aiJson?.choices as Array<{ message?: { content?: string } }>
+        )?.[0]?.message?.content?.trim() || "(no summary)";
       // Optionally persist as a note if the user wanted it saved.
-      if (intent === 'save_note') {
+      if (intent === "save_note") {
         try {
-          await supabase.from('notes').insert({
+          await supabase.from("notes").insert({
             user_id: userId,
             title: title.slice(0, 200),
             content: `${url.toString()}\n\n${reply}`,
-            tags: ['link', 'web'],
+            tags: ["link", "web"],
           });
-        } catch (e) { console.warn('fetch_url note insert failed', (e as Error).message); }
+        } catch (e) {
+          console.warn("fetch_url note insert failed", (e as Error).message);
+        }
       }
       out.push({
-        tool: 'fetch_url', ok: true,
+        tool: "fetch_url",
+        ok: true,
         message: `🔗 ${title}\n${reply}`,
       });
     } catch (e) {
-      out.push({ tool: 'fetch_url', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "fetch_url", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- summarise_document (uses the latest cached document for this user) ----------
   for (const m of text.matchAll(/<tool>summarise_document<\/tool>\s*<doc>(\{[\s\S]*?\})<\/doc>/g)) {
     const data = safeJSON(m[1]) || {};
-    const intent = String(data.intent || 'summary');
+    const intent = String(data.intent || "summary");
     try {
       // Pull the most recent telegram_documents row for this user.
-      const { data: docRow } = await supabase.from('telegram_documents')
-        .select('id, filename, mime_type, extracted_text, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const { data: docRow } = await supabase
+        .from("telegram_documents")
+        .select("id, filename, mime_type, extracted_text, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (!docRow?.extracted_text) {
         out.push({
-          tool: 'summarise_document', ok: false,
-          message: "I don't have a recent document on file. Send the PDF (or paste the text) and try again.",
+          tool: "summarise_document",
+          ok: false,
+          message:
+            "I don't have a recent document on file. Send the PDF (or paste the text) and try again.",
         });
         continue;
       }
-      const geminiKey = Deno.env.get('GEMINI_API_KEY');
+      const geminiKey = Deno.env.get("GEMINI_API_KEY");
       if (!geminiKey) {
-        out.push({ tool: 'summarise_document', ok: false, message: 'AI gateway not configured server-side.' });
+        out.push({
+          tool: "summarise_document",
+          ok: false,
+          message: "AI gateway not configured server-side.",
+        });
         continue;
       }
       const askMap: Record<string, string> = {
-        summary: 'Summarise the document in 5-8 bullet points. End with a one-line "what to do next" framing.',
-        contract_review: 'Review this as a contract. Call out: parties, term, auto-renewal, notice period, fees, termination clauses, anything unusual. Be terse.',
-        extract_tasks: 'Extract concrete to-dos for the reader. Numbered list. Skip generic advice.',
+        summary:
+          'Summarise the document in 5-8 bullet points. End with a one-line "what to do next" framing.',
+        contract_review:
+          "Review this as a contract. Call out: parties, term, auto-renewal, notice period, fees, termination clauses, anything unusual. Be terse.",
+        extract_tasks:
+          "Extract concrete to-dos for the reader. Numbered list. Skip generic advice.",
       };
       const ask = askMap[intent] || askMap.summary;
-      const aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${geminiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: 'You analyse uploaded documents. Be specific, terse, and structured.' },
-            { role: 'user', content: `Filename: ${docRow.filename}\nType: ${docRow.mime_type}\n\nContent:\n${docRow.extracted_text.slice(0, 15_000)}\n\nTask: ${ask}` },
-          ],
-        }),
-      });
+      const aiResp = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gemini-2.5-flash",
+            messages: [
+              {
+                role: "system",
+                content: "You analyse uploaded documents. Be specific, terse, and structured.",
+              },
+              {
+                role: "user",
+                content: `Filename: ${docRow.filename}\nType: ${docRow.mime_type}\n\nContent:\n${docRow.extracted_text.slice(0, 15_000)}\n\nTask: ${ask}`,
+              },
+            ],
+          }),
+        },
+      );
       const aiJson: Record<string, unknown> | null = await aiResp.json().catch(() => null);
-      const reply = (aiJson?.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content?.trim() || '(no analysis)';
+      const reply =
+        (
+          aiJson?.choices as Array<{ message?: { content?: string } }>
+        )?.[0]?.message?.content?.trim() || "(no analysis)";
       if (data.saveNote) {
         try {
-          await supabase.from('notes').insert({
+          await supabase.from("notes").insert({
             user_id: userId,
             title: `${docRow.filename} — ${intent}`.slice(0, 200),
             content: reply,
-            tags: ['document', intent],
+            tags: ["document", intent],
           });
-        } catch (e) { console.warn('summarise_document note insert failed', (e as Error).message); }
+        } catch (e) {
+          console.warn("summarise_document note insert failed", (e as Error).message);
+        }
       }
       out.push({
-        tool: 'summarise_document', ok: true,
+        tool: "summarise_document",
+        ok: true,
         message: `📄 ${docRow.filename}\n${reply}`,
       });
     } catch (e) {
-      out.push({ tool: 'summarise_document', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({
+        tool: "summarise_document",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
     }
   }
 
   // ---------- translate (free-text translation) ----------
-  for (const m of text.matchAll(/<tool>translate<\/tool>\s*<translate>(\{[\s\S]*?\})<\/translate>/g)) {
+  for (const m of text.matchAll(
+    /<tool>translate<\/tool>\s*<translate>(\{[\s\S]*?\})<\/translate>/g,
+  )) {
     const data = safeJSON(m[1]);
     if (!data?.text || !data?.targetLang) {
-      out.push({ tool: 'translate', ok: false, message: 'text + targetLang required.' });
+      out.push({ tool: "translate", ok: false, message: "text + targetLang required." });
       continue;
     }
     try {
-      const geminiKey = Deno.env.get('GEMINI_API_KEY');
-      if (!geminiKey) { out.push({ tool: 'translate', ok: false, message: 'AI gateway not configured.' }); continue; }
-      const aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${geminiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: 'You are a translator. Output ONLY the translation, no commentary, no quotes.' },
-            { role: 'user', content: `Translate to ${data.targetLang}:\n\n${String(data.text).slice(0, 6000)}` },
-          ],
-        }),
-      });
+      const geminiKey = Deno.env.get("GEMINI_API_KEY");
+      if (!geminiKey) {
+        out.push({ tool: "translate", ok: false, message: "AI gateway not configured." });
+        continue;
+      }
+      const aiResp = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gemini-2.5-flash",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a translator. Output ONLY the translation, no commentary, no quotes.",
+              },
+              {
+                role: "user",
+                content: `Translate to ${data.targetLang}:\n\n${String(data.text).slice(0, 6000)}`,
+              },
+            ],
+          }),
+        },
+      );
       const aiJson: Record<string, unknown> | null = await aiResp.json().catch(() => null);
-      const reply = (aiJson?.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content?.trim() || '';
-      if (!reply) { out.push({ tool: 'translate', ok: false, message: 'Translation came back empty.' }); continue; }
-      out.push({ tool: 'translate', ok: true, message: `🌐 ${reply}` });
+      const reply =
+        (
+          aiJson?.choices as Array<{ message?: { content?: string } }>
+        )?.[0]?.message?.content?.trim() || "";
+      if (!reply) {
+        out.push({ tool: "translate", ok: false, message: "Translation came back empty." });
+        continue;
+      }
+      out.push({ tool: "translate", ok: true, message: `🌐 ${reply}` });
     } catch (e) {
-      out.push({ tool: 'translate', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "translate", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- rewrite_text (tone / length adjustment on arbitrary text) ----------
-  for (const m of text.matchAll(/<tool>rewrite_text<\/tool>\s*<rewrite>(\{[\s\S]*?\})<\/rewrite>/g)) {
+  for (const m of text.matchAll(
+    /<tool>rewrite_text<\/tool>\s*<rewrite>(\{[\s\S]*?\})<\/rewrite>/g,
+  )) {
     const data = safeJSON(m[1]);
-    if (!data?.text) { out.push({ tool: 'rewrite_text', ok: false, message: 'text is required.' }); continue; }
+    if (!data?.text) {
+      out.push({ tool: "rewrite_text", ok: false, message: "text is required." });
+      continue;
+    }
     try {
-      const geminiKey = Deno.env.get('GEMINI_API_KEY');
-      if (!geminiKey) { out.push({ tool: 'rewrite_text', ok: false, message: 'AI gateway not configured.' }); continue; }
+      const geminiKey = Deno.env.get("GEMINI_API_KEY");
+      if (!geminiKey) {
+        out.push({ tool: "rewrite_text", ok: false, message: "AI gateway not configured." });
+        continue;
+      }
       const directives: string[] = [];
       if (data.tone) directives.push(`Tone: ${data.tone}`);
-      if (data.length && data.length !== 'same') directives.push(`Make it ${data.length}`);
+      if (data.length && data.length !== "same") directives.push(`Make it ${data.length}`);
       if (data.language) directives.push(`Write in ${data.language}`);
-      directives.push('Preserve the original meaning. Output only the rewrite, no commentary.');
-      const aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${geminiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: 'You rewrite text to spec. Output only the rewrite.' },
-            { role: 'user', content: `${directives.join('. ')}\n\nText:\n${String(data.text).slice(0, 6000)}` },
-          ],
-        }),
-      });
+      directives.push("Preserve the original meaning. Output only the rewrite, no commentary.");
+      const aiResp = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "You rewrite text to spec. Output only the rewrite." },
+              {
+                role: "user",
+                content: `${directives.join(". ")}\n\nText:\n${String(data.text).slice(0, 6000)}`,
+              },
+            ],
+          }),
+        },
+      );
       const aiJson: Record<string, unknown> | null = await aiResp.json().catch(() => null);
-      const reply = (aiJson?.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content?.trim() || '';
-      if (!reply) { out.push({ tool: 'rewrite_text', ok: false, message: 'Rewrite came back empty.' }); continue; }
-      out.push({ tool: 'rewrite_text', ok: true, message: `✏️ ${reply}` });
+      const reply =
+        (
+          aiJson?.choices as Array<{ message?: { content?: string } }>
+        )?.[0]?.message?.content?.trim() || "";
+      if (!reply) {
+        out.push({ tool: "rewrite_text", ok: false, message: "Rewrite came back empty." });
+        continue;
+      }
+      out.push({ tool: "rewrite_text", ok: true, message: `✏️ ${reply}` });
     } catch (e) {
-      out.push({ tool: 'rewrite_text', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "rewrite_text", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
@@ -3789,209 +5601,314 @@ async function executeToolsServerSide(
   for (const m of text.matchAll(/<tool>email_to_task<\/tool>\s*<e2t>(\{[\s\S]*?\})<\/e2t>/g)) {
     const data = safeJSON(m[1]);
     if (!data?.subject || !data?.body) {
-      out.push({ tool: 'email_to_task', ok: false, message: 'subject + body required.' });
+      out.push({ tool: "email_to_task", ok: false, message: "subject + body required." });
       continue;
     }
     try {
       const title = String(data.subject).slice(0, 200);
-      const from = data.from ? `From: ${data.from}\n\n` : '';
+      const from = data.from ? `From: ${data.from}\n\n` : "";
       const description = `${from}${String(data.body).slice(0, 4000)}`;
       const due = isoOrNull(data.dueDate);
-      const priority = ['high', 'medium', 'low'].includes(String(data.priority)) ? data.priority : 'medium';
-      const { data: t, error } = await supabase.from('tasks').insert({
-        user_id: userId, title, description, category: 'business',
-        priority, due_date: due,
-        workspace_id: opts?.workspaceId || null,
-      }).select('id, title').single();
+      const priority = ["high", "medium", "low"].includes(String(data.priority))
+        ? data.priority
+        : "medium";
+      const { data: t, error } = await supabase
+        .from("tasks")
+        .insert({
+          user_id: userId,
+          title,
+          description,
+          category: "business",
+          priority,
+          due_date: due,
+          workspace_id: opts?.workspaceId || null,
+        })
+        .select("id, title")
+        .single();
       if (error) throw error;
-      const undoId = await undoCreate('tasks', t.id, `task from email "${t.title}"`, 'task');
+      const undoId = await undoCreate("tasks", t.id, `task from email "${t.title}"`, "task");
       out.push({
-        tool: 'email_to_task', ok: true,
-        message: `📧→✅ Saved as task: ${t.title}${due ? ` (due ${new Date(due).toLocaleDateString()})` : ''}`,
-        undoId, entityId: t.id,
+        tool: "email_to_task",
+        ok: true,
+        message: `📧→✅ Saved as task: ${t.title}${due ? ` (due ${new Date(due).toLocaleDateString()})` : ""}`,
+        undoId,
+        entityId: t.id,
       });
     } catch (e) {
-      out.push({ tool: 'email_to_task', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "email_to_task", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- get_capabilities (static feature list for "what can you do?" questions) ----------
   for (const _m of text.matchAll(/<tool>get_capabilities<\/tool>\s*<q>(\{[\s\S]*?\})<\/q>/g)) {
     const sections: string[] = [
-      '📅 *Calendar* — add/move/cancel events, recurring with UNTIL/EXDATE, conflict-aware scheduling, list upcoming.',
-      '✅ *Tasks* — add/update/complete, recurring rules, assignees, bulk reschedule/cancel.',
+      "📅 *Calendar* — add/move/cancel events, recurring with UNTIL/EXDATE, conflict-aware scheduling, list upcoming.",
+      "✅ *Tasks* — add/update/complete, recurring rules, assignees, bulk reschedule/cancel.",
       '⏰ *Reminders* — one-off or recurring ("every Sunday 6 PM"), snooze from notifications.',
       '🎯 *Focus / time tracking* — start/stop focus blocks, "how much time on X this week".',
-      '👨‍👩‍👧 *Family* — store members + birthdays, send messages, broadcast, family polls.',
+      "👨‍👩‍👧 *Family* — store members + birthdays, send messages, broadcast, family polls.",
       '🧠 *Memory* — long-term facts, preferences, recent entities, "forget about X".',
-      '💬 *Conversation* — multi-turn context, follow-up resolution, language switching.',
-      '🖼️ *Vision & docs* — read receipts, business cards, flyers, contracts; summarise PDFs.',
-      '🔗 *Web* — search the web, fetch a URL, summarise / extract tasks.',
-      '✍️ *Writing* — compose / draft / send email, rewrite for tone, translate to any language.',
-      '🛒 *Modules* — notes, shopping list, contacts, contracts, habits, wellbeing, goals, projects, trips, expenses, budget.',
-      '⚙️ *Settings* — morning digest time, quiet hours, per-feature nudges, locale.',
+      "💬 *Conversation* — multi-turn context, follow-up resolution, language switching.",
+      "🖼️ *Vision & docs* — read receipts, business cards, flyers, contracts; summarise PDFs.",
+      "🔗 *Web* — search the web, fetch a URL, summarise / extract tasks.",
+      "✍️ *Writing* — compose / draft / send email, rewrite for tone, translate to any language.",
+      "🛒 *Modules* — notes, shopping list, contacts, contracts, habits, wellbeing, goals, projects, trips, expenses, budget.",
+      "⚙️ *Settings* — morning digest time, quiet hours, per-feature nudges, locale.",
     ];
     out.push({
-      tool: 'get_capabilities', ok: true,
-      message: ['Here\'s what I can do:', ...sections].join('\n'),
+      tool: "get_capabilities",
+      ok: true,
+      message: ["Here's what I can do:", ...sections].join("\n"),
     });
   }
 
   // ---------- daily_recap ("what did I do today / yesterday / this week") ----------
   for (const m of text.matchAll(/<tool>daily_recap<\/tool>\s*<recap>(\{[\s\S]*?\})<\/recap>/g)) {
     const data = safeJSON(m[1]) || {};
-    const period = String(data.period || 'today');
+    const period = String(data.period || "today");
     try {
       const now = new Date();
-      let from: Date; let to: Date; let label: string;
-      if (period === 'yesterday') {
-        const y = new Date(now); y.setDate(y.getDate() - 1); y.setHours(0, 0, 0, 0);
-        const end = new Date(y); end.setHours(23, 59, 59, 999);
-        from = y; to = end; label = 'yesterday';
-      } else if (period === 'this_week' || period === 'last_7_days') {
+      let from: Date;
+      let to: Date;
+      let label: string;
+      if (period === "yesterday") {
+        const y = new Date(now);
+        y.setDate(y.getDate() - 1);
+        y.setHours(0, 0, 0, 0);
+        const end = new Date(y);
+        end.setHours(23, 59, 59, 999);
+        from = y;
+        to = end;
+        label = "yesterday";
+      } else if (period === "this_week" || period === "last_7_days") {
         const start = new Date(now.getTime() - 7 * 86400000);
-        from = start; to = now; label = 'the last 7 days';
+        from = start;
+        to = now;
+        label = "the last 7 days";
       } else {
-        const today = new Date(now); today.setHours(0, 0, 0, 0);
-        from = today; to = now; label = 'today';
+        const today = new Date(now);
+        today.setHours(0, 0, 0, 0);
+        from = today;
+        to = now;
+        label = "today";
       }
-      const fromIso = from.toISOString(); const toIso = to.toISOString();
+      const fromIso = from.toISOString();
+      const toIso = to.toISOString();
       // Parallel fan-out: completed tasks, attended events, habit logs,
       // bot mutations from the undo log. All scoped to the same window.
       const [tasksRes, eventsRes, habitsRes, focusRes, undoRes] = await Promise.all([
-        supabase.from('tasks')
-          .select('title, completed_at, priority')
-          .eq('user_id', userId).eq('completed', true)
-          .gte('completed_at', fromIso).lte('completed_at', toIso)
-          .order('completed_at', { ascending: false }).limit(30),
-        supabase.from('events')
-          .select('title, start_time, location')
-          .eq('user_id', userId)
-          .gte('end_time', fromIso).lte('start_time', toIso)
-          .order('start_time').limit(30),
-        supabase.from('habit_logs')
-          .select('log_date, completed_count, habits(name)')
-          .eq('user_id', userId)
-          .gte('log_date', fromIso.slice(0, 10)).lte('log_date', toIso.slice(0, 10))
-          .order('log_date', { ascending: false }).limit(30),
-        supabase.from('focus_sessions')
-          .select('label, duration_minutes, tasks(title)')
-          .eq('user_id', userId).not('ended_at', 'is', null)
-          .gte('started_at', fromIso).lte('started_at', toIso)
+        supabase
+          .from("tasks")
+          .select("title, completed_at, priority")
+          .eq("user_id", userId)
+          .eq("completed", true)
+          .gte("completed_at", fromIso)
+          .lte("completed_at", toIso)
+          .order("completed_at", { ascending: false })
           .limit(30),
-        supabase.from('dori_undo_log')
-          .select('label, op, entity_type, created_at')
-          .eq('user_id', userId)
-          .gte('created_at', fromIso).lte('created_at', toIso)
-          .order('created_at', { ascending: false }).limit(20),
+        supabase
+          .from("events")
+          .select("title, start_time, location")
+          .eq("user_id", userId)
+          .gte("end_time", fromIso)
+          .lte("start_time", toIso)
+          .order("start_time")
+          .limit(30),
+        supabase
+          .from("habit_logs")
+          .select("log_date, completed_count, habits(name)")
+          .eq("user_id", userId)
+          .gte("log_date", fromIso.slice(0, 10))
+          .lte("log_date", toIso.slice(0, 10))
+          .order("log_date", { ascending: false })
+          .limit(30),
+        supabase
+          .from("focus_sessions")
+          .select("label, duration_minutes, tasks(title)")
+          .eq("user_id", userId)
+          .not("ended_at", "is", null)
+          .gte("started_at", fromIso)
+          .lte("started_at", toIso)
+          .limit(30),
+        supabase
+          .from("dori_undo_log")
+          .select("label, op, entity_type, created_at")
+          .eq("user_id", userId)
+          .gte("created_at", fromIso)
+          .lte("created_at", toIso)
+          .order("created_at", { ascending: false })
+          .limit(20),
       ]);
-      const tasks = (tasksRes.data || []) as Array<{ title: string; priority?: string; completed_at?: string }>;
-      const events = (eventsRes.data || []) as Array<{ title: string; start_time: string; location?: string }>;
-      const habits = (habitsRes.data || []) as Array<{ habits?: { name?: string }; log_date?: string; completed_count?: number }>;
-      const sessions = (focusRes.data || []) as Array<{ duration_minutes?: number; label?: string; tasks?: { title?: string } }>;
-      const undos = (undoRes.data || []) as Array<{ label?: string; op?: string; entity_type?: string; created_at: string }>;
+      const tasks = (tasksRes.data || []) as Array<{
+        title: string;
+        priority?: string;
+        completed_at?: string;
+      }>;
+      const events = (eventsRes.data || []) as Array<{
+        title: string;
+        start_time: string;
+        location?: string;
+      }>;
+      const habits = (habitsRes.data || []) as Array<{
+        habits?: { name?: string };
+        log_date?: string;
+        completed_count?: number;
+      }>;
+      const sessions = (focusRes.data || []) as Array<{
+        duration_minutes?: number;
+        label?: string;
+        tasks?: { title?: string };
+      }>;
+      const undos = (undoRes.data || []) as Array<{
+        label?: string;
+        op?: string;
+        entity_type?: string;
+        created_at: string;
+      }>;
       const tz = opts?.timezone;
       const lines: string[] = [`🗓️ Recap — ${label}`];
       if (tasks.length > 0) {
-        lines.push(`\n✅ Completed ${tasks.length} task${tasks.length === 1 ? '' : 's'}:`);
+        lines.push(`\n✅ Completed ${tasks.length} task${tasks.length === 1 ? "" : "s"}:`);
         for (const t of tasks.slice(0, 8)) lines.push(`  • ${t.title}`);
         if (tasks.length > 8) lines.push(`  … +${tasks.length - 8} more`);
       }
       if (events.length > 0) {
-        lines.push(`\n📅 ${events.length} event${events.length === 1 ? '' : 's'}:`);
+        lines.push(`\n📅 ${events.length} event${events.length === 1 ? "" : "s"}:`);
         for (const e of events.slice(0, 8)) {
-          const when = new Date(e.start_time).toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
-          lines.push(`  • ${when} ${e.title}${e.location ? ` @ ${e.location}` : ''}`);
+          const when = new Date(e.start_time).toLocaleTimeString("en-GB", {
+            timeZone: tz,
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          lines.push(`  • ${when} ${e.title}${e.location ? ` @ ${e.location}` : ""}`);
         }
       }
       if (habits.length > 0) {
         const counts: Record<string, number> = {};
         for (const h of habits) {
-          const name = h.habits?.name || 'habit';
+          const name = h.habits?.name || "habit";
           counts[name] = (counts[name] || 0) + 1;
         }
-        const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5)
-          .map(([n, c]) => `${n}${c > 1 ? ` ×${c}` : ''}`);
-        lines.push(`\n🌱 Habits: ${top.join(', ')}`);
+        const top = Object.entries(counts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([n, c]) => `${n}${c > 1 ? ` ×${c}` : ""}`);
+        lines.push(`\n🌱 Habits: ${top.join(", ")}`);
       }
       if (sessions.length > 0) {
         const totalMin = sessions.reduce((n: number, s) => n + (s.duration_minutes || 0), 0);
-        lines.push(`\n🎯 Focus: ${Math.floor(totalMin / 60)}h ${totalMin % 60}m across ${sessions.length} session${sessions.length === 1 ? '' : 's'}`);
+        lines.push(
+          `\n🎯 Focus: ${Math.floor(totalMin / 60)}h ${totalMin % 60}m across ${sessions.length} session${sessions.length === 1 ? "" : "s"}`,
+        );
       }
       if (undos.length > 0) {
-        lines.push(`\n🤖 Bot did: ${undos.slice(0, 5).map((u) => u.label || `${u.op} ${u.entity_type}`).join('; ')}`);
+        lines.push(
+          `\n🤖 Bot did: ${undos
+            .slice(0, 5)
+            .map((u) => u.label || `${u.op} ${u.entity_type}`)
+            .join("; ")}`,
+        );
       }
-      if (lines.length === 1) lines.push('(nothing recorded yet — go make some progress)');
-      out.push({ tool: 'daily_recap', ok: true, message: lines.join('\n') });
+      if (lines.length === 1) lines.push("(nothing recorded yet — go make some progress)");
+      out.push({ tool: "daily_recap", ok: true, message: lines.join("\n") });
     } catch (e) {
-      out.push({ tool: 'daily_recap', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "daily_recap", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- pick_random (decide-for-me on tasks / notes / contacts / habits) ----------
   for (const m of text.matchAll(/<tool>pick_random<\/tool>\s*<pick>(\{[\s\S]*?\})<\/pick>/g)) {
-    const data = safeJSON(m[1]); if (!data?.kind) {
-      out.push({ tool: 'pick_random', ok: false, message: 'kind is required.' });
+    const data = safeJSON(m[1]);
+    if (!data?.kind) {
+      out.push({ tool: "pick_random", ok: false, message: "kind is required." });
       continue;
     }
     try {
-      const tableMap: Record<string, { table: string; select: string; defaults: Record<string, unknown> }> = {
-        task: { table: 'tasks', select: 'id, title, priority, due_date', defaults: { completed: false, trashed: false } },
-        note: { table: 'notes', select: 'id, title, content', defaults: { trashed: false } },
-        contact: { table: 'user_contacts', select: 'id, name, email, phone', defaults: {} },
-        habit: { table: 'habits', select: 'id, name, frequency', defaults: { is_active: true } },
+      const tableMap: Record<
+        string,
+        { table: string; select: string; defaults: Record<string, unknown> }
+      > = {
+        task: {
+          table: "tasks",
+          select: "id, title, priority, due_date",
+          defaults: { completed: false, trashed: false },
+        },
+        note: { table: "notes", select: "id, title, content", defaults: { trashed: false } },
+        contact: { table: "user_contacts", select: "id, name, email, phone", defaults: {} },
+        habit: { table: "habits", select: "id, name, frequency", defaults: { is_active: true } },
       };
       const spec = tableMap[String(data.kind)];
       if (!spec) {
-        out.push({ tool: 'pick_random', ok: false, message: `Unknown kind "${data.kind}". Use task/note/contact/habit.` });
+        out.push({
+          tool: "pick_random",
+          ok: false,
+          message: `Unknown kind "${data.kind}". Use task/note/contact/habit.`,
+        });
         continue;
       }
-      let q = supabase.from(spec.table).select(spec.select).eq('user_id', userId);
+      let q = supabase.from(spec.table).select(spec.select).eq("user_id", userId);
       for (const [k, v] of Object.entries(spec.defaults)) q = q.eq(k, v);
-      if (data.filters && typeof data.filters === 'object') {
+      if (data.filters && typeof data.filters === "object") {
         for (const [k, v] of Object.entries(data.filters as Record<string, unknown>)) {
           // Defensive: only allow primitives so the AI can't smuggle exotic
           // PostgREST operators in through nested objects.
-          if (['string', 'number', 'boolean'].includes(typeof v)) q = q.eq(k, v);
+          if (["string", "number", "boolean"].includes(typeof v)) q = q.eq(k, v);
         }
       }
       const { data: rows } = await q.limit(200);
       const candidates = rows || [];
       if (candidates.length === 0) {
-        out.push({ tool: 'pick_random', ok: true, message: `🤷 Nothing matches — your ${data.kind} list is empty here.` });
+        out.push({
+          tool: "pick_random",
+          ok: true,
+          message: `🤷 Nothing matches — your ${data.kind} list is empty here.`,
+        });
         continue;
       }
-      const choice = candidates[Math.floor(Math.random() * candidates.length)] as Record<string, unknown>;
+      const choice = candidates[Math.floor(Math.random() * candidates.length)] as Record<
+        string,
+        unknown
+      >;
       const labelMap: Record<string, string> = {
-        task: choice.title, note: choice.title, contact: choice.name, habit: choice.name,
+        task: choice.title,
+        note: choice.title,
+        contact: choice.name,
+        habit: choice.name,
       };
       out.push({
-        tool: 'pick_random', ok: true,
-        message: `🎲 Picked: ${labelMap[String(data.kind)] || '(unnamed)'}`,
+        tool: "pick_random",
+        ok: true,
+        message: `🎲 Picked: ${labelMap[String(data.kind)] || "(unnamed)"}`,
         entityId: choice.id,
       });
     } catch (e) {
-      out.push({ tool: 'pick_random', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "pick_random", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- log_symptom (multi-day symptom thread, separate from log_wellbeing) ----------
-  for (const m of text.matchAll(/<tool>log_symptom<\/tool>\s*<symptom>(\{[\s\S]*?\})<\/symptom>/g)) {
-    const data = safeJSON(m[1]); if (!data?.symptom) {
-      out.push({ tool: 'log_symptom', ok: false, message: 'symptom is required.' });
+  for (const m of text.matchAll(
+    /<tool>log_symptom<\/tool>\s*<symptom>(\{[\s\S]*?\})<\/symptom>/g,
+  )) {
+    const data = safeJSON(m[1]);
+    if (!data?.symptom) {
+      out.push({ tool: "log_symptom", ok: false, message: "symptom is required." });
       continue;
     }
     try {
       const symptom = String(data.symptom).toLowerCase().trim().slice(0, 60);
       // Query mode: report streak + recent severity.
       if (data.query) {
-        const { data: rows } = await supabase.from('symptom_logs')
-          .select('log_date, severity, notes')
-          .eq('user_id', userId).eq('symptom', symptom)
-          .order('log_date', { ascending: false }).limit(30);
+        const { data: rows } = await supabase
+          .from("symptom_logs")
+          .select("log_date, severity, notes")
+          .eq("user_id", userId)
+          .eq("symptom", symptom)
+          .order("log_date", { ascending: false })
+          .limit(30);
         const logs = (rows || []) as Array<{ log_date: string; severity?: number; notes?: string }>;
         if (logs.length === 0) {
-          out.push({ tool: 'log_symptom', ok: true, message: `No "${symptom}" logged yet.` });
+          out.push({ tool: "log_symptom", ok: true, message: `No "${symptom}" logged yet.` });
           continue;
         }
         // Streak: consecutive days ending today (or most recent log).
@@ -4000,19 +5917,30 @@ async function executeToolsServerSide(
           const prev = new Date(logs[i - 1].log_date);
           const cur = new Date(logs[i].log_date);
           const diff = Math.round((prev.getTime() - cur.getTime()) / 86400000);
-          if (diff === 1) streak++; else break;
+          if (diff === 1) streak++;
+          else break;
         }
-        const avgSev = logs.filter((l) => typeof l.severity === 'number')
-          .slice(0, 7).reduce((a, b) => a + (b.severity || 0), 0)
-          / Math.max(1, logs.filter((l) => typeof l.severity === 'number').slice(0, 7).length);
-        const sevTxt = isFinite(avgSev) && avgSev > 0 ? `, avg severity ${avgSev.toFixed(1)}/10 over last 7 days` : '';
+        const avgSev =
+          logs
+            .filter((l) => typeof l.severity === "number")
+            .slice(0, 7)
+            .reduce((a, b) => a + (b.severity || 0), 0) /
+          Math.max(1, logs.filter((l) => typeof l.severity === "number").slice(0, 7).length);
+        const sevTxt =
+          isFinite(avgSev) && avgSev > 0
+            ? `, avg severity ${avgSev.toFixed(1)}/10 over last 7 days`
+            : "";
         out.push({
-          tool: 'log_symptom', ok: true,
+          tool: "log_symptom",
+          ok: true,
           message: `🩺 "${symptom}" — day ${streak} (most recent log ${logs[0].log_date})${sevTxt}.`,
         });
         continue;
       }
-      const sev = typeof data.severity === 'number' ? Math.max(1, Math.min(10, Math.round(data.severity))) : null;
+      const sev =
+        typeof data.severity === "number"
+          ? Math.max(1, Math.min(10, Math.round(data.severity)))
+          : null;
       const today = (() => {
         if (data.date) {
           const d = new Date(data.date);
@@ -4020,133 +5948,225 @@ async function executeToolsServerSide(
         }
         return new Date().toISOString().slice(0, 10);
       })();
-      const { error } = await supabase.from('symptom_logs').upsert({
-        user_id: userId, symptom, severity: sev,
-        notes: data.notes || null, log_date: today,
-      }, { onConflict: 'user_id,symptom,log_date' });
+      const { error } = await supabase.from("symptom_logs").upsert(
+        {
+          user_id: userId,
+          symptom,
+          severity: sev,
+          notes: data.notes || null,
+          log_date: today,
+        },
+        { onConflict: "user_id,symptom,log_date" },
+      );
       if (error) throw error;
       // Compute streak so we can echo "day 3" in the reply.
-      const { data: tail } = await supabase.from('symptom_logs')
-        .select('log_date').eq('user_id', userId).eq('symptom', symptom)
-        .order('log_date', { ascending: false }).limit(30);
+      const { data: tail } = await supabase
+        .from("symptom_logs")
+        .select("log_date")
+        .eq("user_id", userId)
+        .eq("symptom", symptom)
+        .order("log_date", { ascending: false })
+        .limit(30);
       let streak = 1;
       const t = (tail || []) as Array<{ log_date: string }>;
       for (let i = 1; i < t.length; i++) {
         const prev = new Date(t[i - 1].log_date);
         const cur = new Date(t[i].log_date);
         const diff = Math.round((prev.getTime() - cur.getTime()) / 86400000);
-        if (diff === 1) streak++; else break;
+        if (diff === 1) streak++;
+        else break;
       }
       out.push({
-        tool: 'log_symptom', ok: true,
-        message: `🩺 Logged "${symptom}"${sev ? ` (${sev}/10)` : ''} — day ${streak}.`,
+        tool: "log_symptom",
+        ok: true,
+        message: `🩺 Logged "${symptom}"${sev ? ` (${sev}/10)` : ""} — day ${streak}.`,
       });
     } catch (e) {
-      out.push({ tool: 'log_symptom', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "log_symptom", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- manage_anniversary (anniversary_date on family_members) ----------
-  for (const m of text.matchAll(/<tool>manage_anniversary<\/tool>\s*<action>(\w+)<\/action>\s*<anniversary>(\{[\s\S]*?\})<\/anniversary>/g)) {
+  for (const m of text.matchAll(
+    /<tool>manage_anniversary<\/tool>\s*<action>(\w+)<\/action>\s*<anniversary>(\{[\s\S]*?\})<\/anniversary>/g,
+  )) {
     const action = m[1];
-    const data = safeJSON(m[2]); if (!data?.memberQuery) {
-      out.push({ tool: 'manage_anniversary', ok: false, message: 'memberQuery is required.' });
+    const data = safeJSON(m[2]);
+    if (!data?.memberQuery) {
+      out.push({ tool: "manage_anniversary", ok: false, message: "memberQuery is required." });
       continue;
     }
     try {
-      const { data: rows } = await supabase.from('family_members')
-        .select('id, name, anniversary_date')
-        .eq('user_id', userId).eq('is_active', true)
-        .ilike('name', `%${data.memberQuery}%`).limit(1);
+      const { data: rows } = await supabase
+        .from("family_members")
+        .select("id, name, anniversary_date")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .ilike("name", `%${data.memberQuery}%`)
+        .limit(1);
       const member = rows?.[0];
       if (!member) {
-        out.push({ tool: 'manage_anniversary', ok: false, message: `No family member matches "${data.memberQuery}".` });
+        out.push({
+          tool: "manage_anniversary",
+          ok: false,
+          message: `No family member matches "${data.memberQuery}".`,
+        });
         continue;
       }
-      if (action === 'add') {
+      if (action === "add") {
         const dt = isoOrNull(data.anniversaryDate);
-        if (!dt) { out.push({ tool: 'manage_anniversary', ok: false, message: 'Valid anniversaryDate required.' }); continue; }
-        await supabase.from('family_members')
+        if (!dt) {
+          out.push({
+            tool: "manage_anniversary",
+            ok: false,
+            message: "Valid anniversaryDate required.",
+          });
+          continue;
+        }
+        await supabase
+          .from("family_members")
           .update({ anniversary_date: new Date(dt).toISOString().slice(0, 10) })
-          .eq('id', member.id);
+          .eq("id", member.id);
         out.push({
-          tool: 'manage_anniversary', ok: true,
-          message: `💍 ${data.label ? data.label + ' ' : ''}anniversary saved for ${member.name}: ${new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}.`,
+          tool: "manage_anniversary",
+          ok: true,
+          message: `💍 ${data.label ? data.label + " " : ""}anniversary saved for ${member.name}: ${new Date(dt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}.`,
         });
-      } else if (action === 'remove') {
-        await supabase.from('family_members').update({ anniversary_date: null }).eq('id', member.id);
-        out.push({ tool: 'manage_anniversary', ok: true, message: `Removed anniversary for ${member.name}.` });
+      } else if (action === "remove") {
+        await supabase
+          .from("family_members")
+          .update({ anniversary_date: null })
+          .eq("id", member.id);
+        out.push({
+          tool: "manage_anniversary",
+          ok: true,
+          message: `Removed anniversary for ${member.name}.`,
+        });
       } else {
-        out.push({ tool: 'manage_anniversary', ok: false, message: `Unknown action "${action}". Use add/remove.` });
+        out.push({
+          tool: "manage_anniversary",
+          ok: false,
+          message: `Unknown action "${action}". Use add/remove.`,
+        });
       }
     } catch (e) {
-      out.push({ tool: 'manage_anniversary', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({
+        tool: "manage_anniversary",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
     }
   }
 
   // ---------- manage_project (full handler — only the prompt entry existed before) ----------
-  for (const m of text.matchAll(/<tool>manage_project<\/tool>\s*<action>(\w+)<\/action>\s*<project>(\{[\s\S]*?\})<\/project>/g)) {
+  for (const m of text.matchAll(
+    /<tool>manage_project<\/tool>\s*<action>(\w+)<\/action>\s*<project>(\{[\s\S]*?\})<\/project>/g,
+  )) {
     const action = m[1];
     const data = safeJSON(m[2]) || {};
     try {
-      if (action === 'create') {
-        if (!data.name) { out.push({ tool: 'manage_project', ok: false, message: 'name is required.' }); continue; }
-        const { data: p, error } = await supabase.from('projects').insert({
-          user_id: userId,
-          name: String(data.name).slice(0, 120),
-          description: data.description || null,
-          color: data.color || '#3b82f6',
-        }).select('id, name').single();
+      if (action === "create") {
+        if (!data.name) {
+          out.push({ tool: "manage_project", ok: false, message: "name is required." });
+          continue;
+        }
+        const { data: p, error } = await supabase
+          .from("projects")
+          .insert({
+            user_id: userId,
+            name: String(data.name).slice(0, 120),
+            description: data.description || null,
+            color: data.color || "#3b82f6",
+          })
+          .select("id, name")
+          .single();
         if (error) throw error;
-        out.push({ tool: 'manage_project', ok: true, message: `📁 Created project: ${p.name}`, entityId: p.id });
-      } else if (action === 'list') {
-        const { data: rows } = await supabase.from('projects')
-          .select('id, name, description, color, is_archived')
-          .eq('user_id', userId).eq('is_archived', false)
-          .order('updated_at', { ascending: false }).limit(20);
+        out.push({
+          tool: "manage_project",
+          ok: true,
+          message: `📁 Created project: ${p.name}`,
+          entityId: p.id,
+        });
+      } else if (action === "list") {
+        const { data: rows } = await supabase
+          .from("projects")
+          .select("id, name, description, color, is_archived")
+          .eq("user_id", userId)
+          .eq("is_archived", false)
+          .order("updated_at", { ascending: false })
+          .limit(20);
         if (!rows || rows.length === 0) {
-          out.push({ tool: 'manage_project', ok: true, message: '📭 No active projects.' });
+          out.push({ tool: "manage_project", ok: true, message: "📭 No active projects." });
           continue;
         }
         out.push({
-          tool: 'manage_project', ok: true,
-          message: `📁 Projects:\n${rows.map((p: { name: string; description?: string }) => `  • ${p.name}${p.description ? ` — ${p.description.slice(0, 60)}` : ''}`).join('\n')}`,
+          tool: "manage_project",
+          ok: true,
+          message: `📁 Projects:\n${rows.map((p: { name: string; description?: string }) => `  • ${p.name}${p.description ? ` — ${p.description.slice(0, 60)}` : ""}`).join("\n")}`,
         });
-      } else if (action === 'get_status') {
-        if (!data.query) { out.push({ tool: 'manage_project', ok: false, message: 'query is required.' }); continue; }
-        const { data: rows } = await supabase.from('projects')
-          .select('id, name, description')
-          .eq('user_id', userId).ilike('name', `%${data.query}%`).limit(1);
+      } else if (action === "get_status") {
+        if (!data.query) {
+          out.push({ tool: "manage_project", ok: false, message: "query is required." });
+          continue;
+        }
+        const { data: rows } = await supabase
+          .from("projects")
+          .select("id, name, description")
+          .eq("user_id", userId)
+          .ilike("name", `%${data.query}%`)
+          .limit(1);
         const project = rows?.[0];
         if (!project) {
-          out.push({ tool: 'manage_project', ok: false, message: `No project matches "${data.query}".` });
+          out.push({
+            tool: "manage_project",
+            ok: false,
+            message: `No project matches "${data.query}".`,
+          });
           continue;
         }
         // Fan out: open tasks, recently-completed tasks, future events
         // (workspace_id link on events is the only event ↔ project tie
         // we have today, so this is best-effort).
         const [openRes, doneRes] = await Promise.all([
-          supabase.from('tasks')
-            .select('id, title, priority, due_date')
-            .eq('user_id', userId).eq('project_id', project.id)
-            .eq('completed', false).eq('trashed', false)
-            .order('due_date', { ascending: true, nullsFirst: false }).limit(10),
-          supabase.from('tasks')
-            .select('id, title, completed_at')
-            .eq('user_id', userId).eq('project_id', project.id)
-            .eq('completed', true)
-            .order('completed_at', { ascending: false }).limit(5),
+          supabase
+            .from("tasks")
+            .select("id, title, priority, due_date")
+            .eq("user_id", userId)
+            .eq("project_id", project.id)
+            .eq("completed", false)
+            .eq("trashed", false)
+            .order("due_date", { ascending: true, nullsFirst: false })
+            .limit(10),
+          supabase
+            .from("tasks")
+            .select("id, title, completed_at")
+            .eq("user_id", userId)
+            .eq("project_id", project.id)
+            .eq("completed", true)
+            .order("completed_at", { ascending: false })
+            .limit(5),
         ]);
-        const open = (openRes.data || []) as Array<{ id: string; title: string; priority?: string; due_date?: string }>;
-        const done = (doneRes.data || []) as Array<{ id: string; title: string; completed_at?: string }>;
+        const open = (openRes.data || []) as Array<{
+          id: string;
+          title: string;
+          priority?: string;
+          due_date?: string;
+        }>;
+        const done = (doneRes.data || []) as Array<{
+          id: string;
+          title: string;
+          completed_at?: string;
+        }>;
         const lines: string[] = [`📁 ${project.name}`];
         if (project.description) lines.push(project.description);
         lines.push(`\n${open.length} open / ${done.length} recently done`);
         if (open.length > 0) {
           lines.push(`\nOpen:`);
           for (const t of open) {
-            const due = t.due_date ? ` (due ${new Date(t.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })})` : '';
-            const pr = t.priority === 'high' ? '🔴' : t.priority === 'low' ? '⚪️' : '🟡';
+            const due = t.due_date
+              ? ` (due ${new Date(t.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })})`
+              : "";
+            const pr = t.priority === "high" ? "🔴" : t.priority === "low" ? "⚪️" : "🟡";
             lines.push(`  ${pr} ${t.title}${due}`);
           }
         }
@@ -4154,62 +6174,119 @@ async function executeToolsServerSide(
           lines.push(`\nRecently done:`);
           for (const t of done) lines.push(`  ✅ ${t.title}`);
         }
-        out.push({ tool: 'manage_project', ok: true, message: lines.join('\n'), entityId: project.id });
-      } else if (action === 'update' || action === 'delete') {
-        if (!data.query) { out.push({ tool: 'manage_project', ok: false, message: 'query is required.' }); continue; }
-        const { data: rows } = await supabase.from('projects')
-          .select('id, name').eq('user_id', userId).ilike('name', `%${data.query}%`).limit(1);
-        const project = rows?.[0];
-        if (!project) {
-          out.push({ tool: 'manage_project', ok: false, message: `No project matches "${data.query}".` });
+        out.push({
+          tool: "manage_project",
+          ok: true,
+          message: lines.join("\n"),
+          entityId: project.id,
+        });
+      } else if (action === "update" || action === "delete") {
+        if (!data.query) {
+          out.push({ tool: "manage_project", ok: false, message: "query is required." });
           continue;
         }
-        if (action === 'delete') {
-          await supabase.from('projects').update({ is_archived: true }).eq('id', project.id);
-          out.push({ tool: 'manage_project', ok: true, message: `🗄️ Archived project: ${project.name}` });
+        const { data: rows } = await supabase
+          .from("projects")
+          .select("id, name")
+          .eq("user_id", userId)
+          .ilike("name", `%${data.query}%`)
+          .limit(1);
+        const project = rows?.[0];
+        if (!project) {
+          out.push({
+            tool: "manage_project",
+            ok: false,
+            message: `No project matches "${data.query}".`,
+          });
+          continue;
+        }
+        if (action === "delete") {
+          await supabase.from("projects").update({ is_archived: true }).eq("id", project.id);
+          out.push({
+            tool: "manage_project",
+            ok: true,
+            message: `🗄️ Archived project: ${project.name}`,
+          });
         } else {
           const upd: Record<string, unknown> = {};
           if (data.name) upd.name = String(data.name).slice(0, 120);
           if (data.description !== undefined) upd.description = data.description;
           if (data.color) upd.color = data.color;
-          if (Object.keys(upd).length === 0) { out.push({ tool: 'manage_project', ok: false, message: 'No fields to update.' }); continue; }
-          await supabase.from('projects').update(upd).eq('id', project.id);
-          out.push({ tool: 'manage_project', ok: true, message: `✏️ Updated project: ${upd.name || project.name}` });
+          if (Object.keys(upd).length === 0) {
+            out.push({ tool: "manage_project", ok: false, message: "No fields to update." });
+            continue;
+          }
+          await supabase.from("projects").update(upd).eq("id", project.id);
+          out.push({
+            tool: "manage_project",
+            ok: true,
+            message: `✏️ Updated project: ${upd.name || project.name}`,
+          });
         }
       } else {
-        out.push({ tool: 'manage_project', ok: false, message: `Unknown action "${action}". Use create/list/update/delete/get_status.` });
+        out.push({
+          tool: "manage_project",
+          ok: false,
+          message: `Unknown action "${action}". Use create/list/update/delete/get_status.`,
+        });
       }
     } catch (e) {
-      out.push({ tool: 'manage_project', ok: false, message: `Failed: ${(e as Error).message}` });
+      out.push({ tool: "manage_project", ok: false, message: `Failed: ${(e as Error).message}` });
     }
   }
 
   // ---------- recent_actions ----------
-  for (const _m of text.matchAll(/<tool>recent_actions<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g)) {
+  for (const _m of text.matchAll(
+    /<tool>recent_actions<\/tool>\s*<query>(\{[\s\S]*?\})<\/query>/g,
+  )) {
     try {
       // Prefer the rich `label` column when present (some deployments). Fall
       // back to `action`/`payload.label` when it isn't.
       let rows: Array<{ label?: string; created_at: string }> | null = null;
-      const labelTry = await supabase.from('dori_undo_log')
-        .select('label, created_at').eq('user_id', userId)
-        .order('created_at', { ascending: false }).limit(5);
+      const labelTry = await supabase
+        .from("dori_undo_log")
+        .select("label, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5);
       if (!labelTry.error) rows = labelTry.data;
       else {
-        const { data: alt } = await supabase.from('dori_undo_log')
-          .select('action, payload, created_at').eq('user_id', userId)
-          .order('created_at', { ascending: false }).limit(5);
-        rows = (alt || []).map((r: { action?: string; payload?: { label?: string }; created_at: string }) => ({
-          label: r?.payload?.label || r?.action || 'action',
-          created_at: r.created_at,
-        }));
+        const { data: alt } = await supabase
+          .from("dori_undo_log")
+          .select("action, payload, created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        rows = (alt || []).map(
+          (r: { action?: string; payload?: { label?: string }; created_at: string }) => ({
+            label: r?.payload?.label || r?.action || "action",
+            created_at: r.created_at,
+          }),
+        );
       }
-      if (!rows?.length) { out.push({ tool: 'recent_actions', ok: true, message: '📭 No recent actions in the undo window.' }); continue; }
+      if (!rows?.length) {
+        out.push({
+          tool: "recent_actions",
+          ok: true,
+          message: "📭 No recent actions in the undo window.",
+        });
+        continue;
+      }
       const lines = rows.map((r, i: number) => {
-        const mins = Math.max(1, Math.round((Date.now() - new Date(r.created_at).getTime()) / 60000));
+        const mins = Math.max(
+          1,
+          Math.round((Date.now() - new Date(r.created_at).getTime()) / 60000),
+        );
         return `${i + 1}. ${r.label} <i>(${mins}m ago)</i>`;
       });
-      out.push({ tool: 'recent_actions', ok: true, message: `<b>🕓 Recent actions</b>\n${lines.join('\n')}` });
-    } catch (e) { out.push({ tool: 'recent_actions', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      out.push({
+        tool: "recent_actions",
+        ok: true,
+        message: `<b>🕓 Recent actions</b>\n${lines.join("\n")}`,
+      });
+    } catch (e) {
+      out.push({ tool: "recent_actions", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ============================================================================
@@ -4220,132 +6297,374 @@ async function executeToolsServerSide(
   for (const m of text.matchAll(/<tool>task_filter<\/tool>\s*<filter>(\{[\s\S]*?\})<\/filter>/g)) {
     const data = safeJSON(m[1]) || {};
     try {
-      let q = supabase.from('tasks').select('id,title,status,priority,due_date,tags').eq('user_id', userId).eq('trashed', false);
-      if (data.status) q = q.eq('status', String(data.status));
-      if (data.priority) q = q.eq('priority', String(data.priority));
-      if (data.tag) q = q.contains('tags', [String(data.tag)]);
+      let q = supabase
+        .from("tasks")
+        .select("id,title,status,priority,due_date,tags")
+        .eq("user_id", userId)
+        .eq("trashed", false);
+      if (data.status) q = q.eq("status", String(data.status));
+      if (data.priority) q = q.eq("priority", String(data.priority));
+      if (data.tag) q = q.contains("tags", [String(data.tag)]);
       const { data: rows } = await q.limit(20);
-      if (!rows?.length) { out.push({ tool: 'task_filter', ok: true, message: '📭 No matching tasks.' }); continue; }
-      const lines = rows.map((r: { title: string; priority?: string; tags?: string[] }, i: number) => `${i+1}. ${r.title} <i>(${r.priority}${r.tags?.length?` · #${r.tags.join(' #')}`:''})</i>`);
-      out.push({ tool: 'task_filter', ok: true, message: `<b>📋 Tasks</b>\n${lines.join('\n')}` });
-    } catch (e) { out.push({ tool: 'task_filter', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      if (!rows?.length) {
+        out.push({ tool: "task_filter", ok: true, message: "📭 No matching tasks." });
+        continue;
+      }
+      const lines = rows.map(
+        (r: { title: string; priority?: string; tags?: string[] }, i: number) =>
+          `${i + 1}. ${r.title} <i>(${r.priority}${r.tags?.length ? ` · #${r.tags.join(" #")}` : ""})</i>`,
+      );
+      out.push({ tool: "task_filter", ok: true, message: `<b>📋 Tasks</b>\n${lines.join("\n")}` });
+    } catch (e) {
+      out.push({ tool: "task_filter", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- task_tag (add/remove tag on a task by title fragment) ----------
-  for (const m of text.matchAll(/<tool>task_tag<\/tool>\s*<action>(\w+)<\/action>\s*<tag>(\{[\s\S]*?\})<\/tag>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]) || {};
-    if (!data.query || !data.tag) { out.push({ tool: 'task_tag', ok: false, message: 'query and tag required.' }); continue; }
+  for (const m of text.matchAll(
+    /<tool>task_tag<\/tool>\s*<action>(\w+)<\/action>\s*<tag>(\{[\s\S]*?\})<\/tag>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]) || {};
+    if (!data.query || !data.tag) {
+      out.push({ tool: "task_tag", ok: false, message: "query and tag required." });
+      continue;
+    }
     try {
-      const { data: rows } = await supabase.from('tasks').select('id,title,tags').eq('user_id', userId).ilike('title', `%${data.query}%`).limit(2);
-      if (!rows?.length) { out.push({ tool: 'task_tag', ok: false, message: `🔍 No task matches "${data.query}".` }); continue; }
-      if (rows.length > 1) { out.push({ tool: 'task_tag', ok: false, message: `🤔 Multiple tasks match. Be more specific.` }); continue; }
-      const t = rows[0]; const cur = new Set<string>(t.tags || []);
-      if (action === 'add') cur.add(String(data.tag).toLowerCase());
+      const { data: rows } = await supabase
+        .from("tasks")
+        .select("id,title,tags")
+        .eq("user_id", userId)
+        .ilike("title", `%${data.query}%`)
+        .limit(2);
+      if (!rows?.length) {
+        out.push({ tool: "task_tag", ok: false, message: `🔍 No task matches "${data.query}".` });
+        continue;
+      }
+      if (rows.length > 1) {
+        out.push({
+          tool: "task_tag",
+          ok: false,
+          message: `🤔 Multiple tasks match. Be more specific.`,
+        });
+        continue;
+      }
+      const t = rows[0];
+      const cur = new Set<string>(t.tags || []);
+      if (action === "add") cur.add(String(data.tag).toLowerCase());
       else cur.delete(String(data.tag).toLowerCase());
-      await supabase.from('tasks').update({ tags: Array.from(cur) }).eq('id', t.id);
-      out.push({ tool: 'task_tag', ok: true, message: `🏷️ ${action === 'add' ? 'Tagged' : 'Untagged'} "${t.title}" → #${data.tag}` });
-    } catch (e) { out.push({ tool: 'task_tag', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      await supabase
+        .from("tasks")
+        .update({ tags: Array.from(cur) })
+        .eq("id", t.id);
+      out.push({
+        tool: "task_tag",
+        ok: true,
+        message: `🏷️ ${action === "add" ? "Tagged" : "Untagged"} "${t.title}" → #${data.tag}`,
+      });
+    } catch (e) {
+      out.push({ tool: "task_tag", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- task_estimate ----------
-  for (const m of text.matchAll(/<tool>task_estimate<\/tool>\s*<estimate>(\{[\s\S]*?\})<\/estimate>/g)) {
+  for (const m of text.matchAll(
+    /<tool>task_estimate<\/tool>\s*<estimate>(\{[\s\S]*?\})<\/estimate>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
-    if (!data.query || data.minutes === undefined) { out.push({ tool: 'task_estimate', ok: false, message: 'query and minutes required.' }); continue; }
+    if (!data.query || data.minutes === undefined) {
+      out.push({ tool: "task_estimate", ok: false, message: "query and minutes required." });
+      continue;
+    }
     try {
-      const { data: rows } = await supabase.from('tasks').select('id,title').eq('user_id', userId).ilike('title', `%${data.query}%`).limit(2);
-      if (!rows?.length || rows.length > 1) { out.push({ tool: 'task_estimate', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No task matches.` }); continue; }
-      await supabase.from('tasks').update({ estimate_minutes: Number(data.minutes) }).eq('id', rows[0].id);
-      out.push({ tool: 'task_estimate', ok: true, message: `⏱ Estimated "${rows[0].title}" at ${data.minutes} min.` });
-    } catch (e) { out.push({ tool: 'task_estimate', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const { data: rows } = await supabase
+        .from("tasks")
+        .select("id,title")
+        .eq("user_id", userId)
+        .ilike("title", `%${data.query}%`)
+        .limit(2);
+      if (!rows?.length || rows.length > 1) {
+        out.push({
+          tool: "task_estimate",
+          ok: false,
+          message: rows?.length ? "🤔 Multiple match." : `🔍 No task matches.`,
+        });
+        continue;
+      }
+      await supabase
+        .from("tasks")
+        .update({ estimate_minutes: Number(data.minutes) })
+        .eq("id", rows[0].id);
+      out.push({
+        tool: "task_estimate",
+        ok: true,
+        message: `⏱ Estimated "${rows[0].title}" at ${data.minutes} min.`,
+      });
+    } catch (e) {
+      out.push({ tool: "task_estimate", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- task_complete_with_note ----------
-  for (const m of text.matchAll(/<tool>task_complete_note<\/tool>\s*<complete_note>(\{[\s\S]*?\})<\/complete_note>/g)) {
+  for (const m of text.matchAll(
+    /<tool>task_complete_note<\/tool>\s*<complete_note>(\{[\s\S]*?\})<\/complete_note>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
-    if (!data.query) { out.push({ tool: 'task_complete_note', ok: false, message: 'query required.' }); continue; }
+    if (!data.query) {
+      out.push({ tool: "task_complete_note", ok: false, message: "query required." });
+      continue;
+    }
     try {
-      const { data: rows } = await supabase.from('tasks').select('id,title').eq('user_id', userId).eq('completed', false).ilike('title', `%${data.query}%`).limit(2);
-      if (!rows?.length || rows.length > 1) { out.push({ tool: 'task_complete_note', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No task matches.` }); continue; }
-      await supabase.from('tasks').update({ completed: true, status: 'done', completion_note: data.note || null }).eq('id', rows[0].id);
-      out.push({ tool: 'task_complete_note', ok: true, message: `✅ Completed "${rows[0].title}"${data.note ? ` — note saved` : ''}.` });
-    } catch (e) { out.push({ tool: 'task_complete_note', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const { data: rows } = await supabase
+        .from("tasks")
+        .select("id,title")
+        .eq("user_id", userId)
+        .eq("completed", false)
+        .ilike("title", `%${data.query}%`)
+        .limit(2);
+      if (!rows?.length || rows.length > 1) {
+        out.push({
+          tool: "task_complete_note",
+          ok: false,
+          message: rows?.length ? "🤔 Multiple match." : `🔍 No task matches.`,
+        });
+        continue;
+      }
+      await supabase
+        .from("tasks")
+        .update({ completed: true, status: "done", completion_note: data.note || null })
+        .eq("id", rows[0].id);
+      out.push({
+        tool: "task_complete_note",
+        ok: true,
+        message: `✅ Completed "${rows[0].title}"${data.note ? ` — note saved` : ""}.`,
+      });
+    } catch (e) {
+      out.push({
+        tool: "task_complete_note",
+        ok: false,
+        message: `Failed: ${(e as Error).message}`,
+      });
+    }
   }
 
   // ---------- task_duplicate ----------
   for (const m of text.matchAll(/<tool>task_duplicate<\/tool>\s*<task>(\{[\s\S]*?\})<\/task>/g)) {
     const data = safeJSON(m[1]) || {};
-    if (!data.query) { out.push({ tool: 'task_duplicate', ok: false, message: 'query required.' }); continue; }
+    if (!data.query) {
+      out.push({ tool: "task_duplicate", ok: false, message: "query required." });
+      continue;
+    }
     try {
-      const { data: rows } = await supabase.from('tasks').select('*').eq('user_id', userId).ilike('title', `%${data.query}%`).limit(2);
-      if (!rows?.length || rows.length > 1) { out.push({ tool: 'task_duplicate', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No task matches.` }); continue; }
+      const { data: rows } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", userId)
+        .ilike("title", `%${data.query}%`)
+        .limit(2);
+      if (!rows?.length || rows.length > 1) {
+        out.push({
+          tool: "task_duplicate",
+          ok: false,
+          message: rows?.length ? "🤔 Multiple match." : `🔍 No task matches.`,
+        });
+        continue;
+      }
       const src = rows[0];
       const { id: _id, created_at: _created_at, updated_at: _updated_at, ...copy } = src;
-      copy.title = `${src.title} (copy)`; copy.completed = false; copy.status = 'backlog'; copy.completion_note = null;
-      const { data: ins } = await supabase.from('tasks').insert(copy).select('id').single();
-      const undoId = await undoCreate('tasks', ins.id, `duplicated task "${copy.title}"`, 'task');
-      out.push({ tool: 'task_duplicate', ok: true, message: `📑 Duplicated → "${copy.title}"`, undoId, entityId: ins.id });
-    } catch (e) { out.push({ tool: 'task_duplicate', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      copy.title = `${src.title} (copy)`;
+      copy.completed = false;
+      copy.status = "backlog";
+      copy.completion_note = null;
+      const { data: ins } = await supabase.from("tasks").insert(copy).select("id").single();
+      const undoId = await undoCreate("tasks", ins.id, `duplicated task "${copy.title}"`, "task");
+      out.push({
+        tool: "task_duplicate",
+        ok: true,
+        message: `📑 Duplicated → "${copy.title}"`,
+        undoId,
+        entityId: ins.id,
+      });
+    } catch (e) {
+      out.push({ tool: "task_duplicate", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- task_subtask (add child task under a parent) ----------
-  for (const m of text.matchAll(/<tool>task_subtask<\/tool>\s*<subtask>(\{[\s\S]*?\})<\/subtask>/g)) {
+  for (const m of text.matchAll(
+    /<tool>task_subtask<\/tool>\s*<subtask>(\{[\s\S]*?\})<\/subtask>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
-    if (!data.parent_query || !data.title) { out.push({ tool: 'task_subtask', ok: false, message: 'parent_query and title required.' }); continue; }
+    if (!data.parent_query || !data.title) {
+      out.push({ tool: "task_subtask", ok: false, message: "parent_query and title required." });
+      continue;
+    }
     try {
-      const { data: rows } = await supabase.from('tasks').select('id,title,category').eq('user_id', userId).ilike('title', `%${data.parent_query}%`).limit(2);
-      if (!rows?.length || rows.length > 1) { out.push({ tool: 'task_subtask', ok: false, message: rows?.length ? '🤔 Multiple parents match.' : `🔍 No parent task matches.` }); continue; }
+      const { data: rows } = await supabase
+        .from("tasks")
+        .select("id,title,category")
+        .eq("user_id", userId)
+        .ilike("title", `%${data.parent_query}%`)
+        .limit(2);
+      if (!rows?.length || rows.length > 1) {
+        out.push({
+          tool: "task_subtask",
+          ok: false,
+          message: rows?.length ? "🤔 Multiple parents match." : `🔍 No parent task matches.`,
+        });
+        continue;
+      }
       const parent = rows[0];
-      const { data: ins } = await supabase.from('tasks').insert({
-        user_id: userId, title: data.title, parent_id: parent.id,
-        category: parent.category, priority: data.priority || 'medium', status: 'backlog',
-      }).select('id').single();
-      const undoId = await undoCreate('tasks', ins.id, `added subtask "${data.title}"`, 'task');
-      out.push({ tool: 'task_subtask', ok: true, message: `➕ Added subtask under "${parent.title}": ${data.title}`, undoId, entityId: ins.id });
-    } catch (e) { out.push({ tool: 'task_subtask', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const { data: ins } = await supabase
+        .from("tasks")
+        .insert({
+          user_id: userId,
+          title: data.title,
+          parent_id: parent.id,
+          category: parent.category,
+          priority: data.priority || "medium",
+          status: "backlog",
+        })
+        .select("id")
+        .single();
+      const undoId = await undoCreate("tasks", ins.id, `added subtask "${data.title}"`, "task");
+      out.push({
+        tool: "task_subtask",
+        ok: true,
+        message: `➕ Added subtask under "${parent.title}": ${data.title}`,
+        undoId,
+        entityId: ins.id,
+      });
+    } catch (e) {
+      out.push({ tool: "task_subtask", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- task_assign (set main_responsible_id by name) ----------
   for (const m of text.matchAll(/<tool>task_assign<\/tool>\s*<assign>(\{[\s\S]*?\})<\/assign>/g)) {
     const data = safeJSON(m[1]) || {};
-    if (!data.task_query || !data.assignee) { out.push({ tool: 'task_assign', ok: false, message: 'task_query and assignee required.' }); continue; }
+    if (!data.task_query || !data.assignee) {
+      out.push({ tool: "task_assign", ok: false, message: "task_query and assignee required." });
+      continue;
+    }
     try {
-      const { data: tasks } = await supabase.from('tasks').select('id,title').eq('user_id', userId).ilike('title', `%${data.task_query}%`).limit(2);
-      if (!tasks?.length || tasks.length > 1) { out.push({ tool: 'task_assign', ok: false, message: tasks?.length ? '🤔 Multiple tasks match.' : `🔍 No task matches.` }); continue; }
-      const { data: profs } = await supabase.from('profiles').select('id,display_name,email').or(`display_name.ilike.%${data.assignee}%,email.ilike.%${data.assignee}%`).limit(2);
-      if (!profs?.length || profs.length > 1) { out.push({ tool: 'task_assign', ok: false, message: profs?.length ? '🤔 Multiple people match.' : `🔍 No person matches "${data.assignee}".` }); continue; }
-      await supabase.from('tasks').update({ main_responsible_id: profs[0].id }).eq('id', tasks[0].id);
-      out.push({ tool: 'task_assign', ok: true, message: `👤 Assigned "${tasks[0].title}" to ${profs[0].display_name || profs[0].email}.` });
-    } catch (e) { out.push({ tool: 'task_assign', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const { data: tasks } = await supabase
+        .from("tasks")
+        .select("id,title")
+        .eq("user_id", userId)
+        .ilike("title", `%${data.task_query}%`)
+        .limit(2);
+      if (!tasks?.length || tasks.length > 1) {
+        out.push({
+          tool: "task_assign",
+          ok: false,
+          message: tasks?.length ? "🤔 Multiple tasks match." : `🔍 No task matches.`,
+        });
+        continue;
+      }
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,display_name,email")
+        .or(`display_name.ilike.%${data.assignee}%,email.ilike.%${data.assignee}%`)
+        .limit(2);
+      if (!profs?.length || profs.length > 1) {
+        out.push({
+          tool: "task_assign",
+          ok: false,
+          message: profs?.length
+            ? "🤔 Multiple people match."
+            : `🔍 No person matches "${data.assignee}".`,
+        });
+        continue;
+      }
+      await supabase
+        .from("tasks")
+        .update({ main_responsible_id: profs[0].id })
+        .eq("id", tasks[0].id);
+      out.push({
+        tool: "task_assign",
+        ok: true,
+        message: `👤 Assigned "${tasks[0].title}" to ${profs[0].display_name || profs[0].email}.`,
+      });
+    } catch (e) {
+      out.push({ tool: "task_assign", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- email_action (summarize/star/forward/unsubscribe/snooze/translate) ----------
-  for (const m of text.matchAll(/<tool>email_action<\/tool>\s*<action>(\w+)<\/action>\s*<email>(\{[\s\S]*?\})<\/email>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]) || {};
+  for (const m of text.matchAll(
+    /<tool>email_action<\/tool>\s*<action>(\w+)<\/action>\s*<email>(\{[\s\S]*?\})<\/email>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]) || {};
     try {
-      const r = await invokeInternal('email-actions', userId, { action, ...data });
-      if (!r.ok) { out.push({ tool: 'email_action', ok: false, message: `📧 ${action} failed: ${r.error}` }); continue; }
-      out.push({ tool: 'email_action', ok: true, message: r.body?.message || `📧 ${action} done.` });
-    } catch (e) { out.push({ tool: 'email_action', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const r = await invokeInternal("email-actions", userId, { action, ...data });
+      if (!r.ok) {
+        out.push({ tool: "email_action", ok: false, message: `📧 ${action} failed: ${r.error}` });
+        continue;
+      }
+      out.push({
+        tool: "email_action",
+        ok: true,
+        message: r.body?.message || `📧 ${action} done.`,
+      });
+    } catch (e) {
+      out.push({ tool: "email_action", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- summarize_emails ----------
-  for (const m of text.matchAll(/<tool>summarize_emails<\/tool>\s*<summary>(\{[\s\S]*?\})<\/summary>/g)) {
+  for (const m of text.matchAll(
+    /<tool>summarize_emails<\/tool>\s*<summary>(\{[\s\S]*?\})<\/summary>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
     try {
       const limit = Math.min(20, Number(data.limit) || 10);
-      const { data: emails } = await supabase.from('emails').select('subject,from_email,snippet,received_at').eq('user_id', userId).eq('is_read', false).order('received_at', { ascending: false }).limit(limit);
-      if (!emails?.length) { out.push({ tool: 'summarize_emails', ok: true, message: '📭 No unread emails.' }); continue; }
-      const apiKey = Deno.env.get('GEMINI_API_KEY');
-      if (!apiKey) { out.push({ tool: 'summarize_emails', ok: false, message: 'AI key missing.' }); continue; }
-      const list = emails.map((e: { from_email?: string; subject?: string; snippet?: string }, i: number) => `${i+1}. From ${e.from_email} — "${e.subject}": ${(e.snippet || '').slice(0, 200)}`).join('\n');
+      const { data: emails } = await supabase
+        .from("emails")
+        .select("subject,from_email,snippet,received_at")
+        .eq("user_id", userId)
+        .eq("is_read", false)
+        .order("received_at", { ascending: false })
+        .limit(limit);
+      if (!emails?.length) {
+        out.push({ tool: "summarize_emails", ok: true, message: "📭 No unread emails." });
+        continue;
+      }
+      const apiKey = Deno.env.get("GEMINI_API_KEY");
+      if (!apiKey) {
+        out.push({ tool: "summarize_emails", ok: false, message: "AI key missing." });
+        continue;
+      }
+      const list = emails
+        .map(
+          (e: { from_email?: string; subject?: string; snippet?: string }, i: number) =>
+            `${i + 1}. From ${e.from_email} — "${e.subject}": ${(e.snippet || "").slice(0, 200)}`,
+        )
+        .join("\n");
       const prompt = `Summarize these ${emails.length} unread emails into a 3-5 bullet briefing in the user's language. Group by topic. Highlight anything urgent.\n\n${list}`;
-      const aiResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gemini-2.5-flash', messages: [{ role: 'user', content: prompt }] }),
-      }).then(r => r.json()).catch(() => null);
-      const summary = aiResp?.choices?.[0]?.message?.content || 'Summary unavailable.';
-      out.push({ tool: 'summarize_emails', ok: true, message: `📧 <b>Inbox briefing (${emails.length})</b>\n${summary}` });
-    } catch (e) { out.push({ tool: 'summarize_emails', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const aiResp = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gemini-2.5-flash",
+            messages: [{ role: "user", content: prompt }],
+          }),
+        },
+      )
+        .then((r) => r.json())
+        .catch(() => null);
+      const summary = aiResp?.choices?.[0]?.message?.content || "Summary unavailable.";
+      out.push({
+        tool: "summarize_emails",
+        ok: true,
+        message: `📧 <b>Inbox briefing (${emails.length})</b>\n${summary}`,
+      });
+    } catch (e) {
+      out.push({ tool: "summarize_emails", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- period_log ----------
@@ -4353,146 +6672,368 @@ async function executeToolsServerSide(
     const data = safeJSON(m[1]) || {};
     const start = data.start_date || new Date().toISOString().slice(0, 10);
     try {
-      const { data: row } = await supabase.from('period_logs').insert({
-        user_id: userId, start_date: start, end_date: data.end_date || null,
-        flow: data.flow || null, symptoms: data.symptoms || null, notes: data.notes || null,
-      }).select('id').single();
-      const undoId = await undoCreate('period_logs', row.id, `logged period (${start})`, 'period');
-      out.push({ tool: 'period_log', ok: true, message: `🩸 Logged period starting ${start}.`, undoId });
-    } catch (e) { out.push({ tool: 'period_log', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const { data: row } = await supabase
+        .from("period_logs")
+        .insert({
+          user_id: userId,
+          start_date: start,
+          end_date: data.end_date || null,
+          flow: data.flow || null,
+          symptoms: data.symptoms || null,
+          notes: data.notes || null,
+        })
+        .select("id")
+        .single();
+      const undoId = await undoCreate("period_logs", row.id, `logged period (${start})`, "period");
+      out.push({
+        tool: "period_log",
+        ok: true,
+        message: `🩸 Logged period starting ${start}.`,
+        undoId,
+      });
+    } catch (e) {
+      out.push({ tool: "period_log", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- fasting_log ----------
-  for (const m of text.matchAll(/<tool>fasting_log<\/tool>\s*<fasting>(\{[\s\S]*?\})<\/fasting>/g)) {
+  for (const m of text.matchAll(
+    /<tool>fasting_log<\/tool>\s*<fasting>(\{[\s\S]*?\})<\/fasting>/g,
+  )) {
     const data = safeJSON(m[1]) || {};
     const date = data.fast_date || new Date().toISOString().slice(0, 10);
     try {
-      const { data: row } = await supabase.from('fasting_logs').upsert({
-        user_id: userId, fast_date: date, fast_type: data.fast_type || 'ramadan',
-        completed: data.completed !== false, notes: data.notes || null,
-      }, { onConflict: 'user_id,fast_date,fast_type' }).select('id').single();
-      out.push({ tool: 'fasting_log', ok: true, message: `🌙 Logged fast on ${date}.`, entityId: row.id });
-    } catch (e) { out.push({ tool: 'fasting_log', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const { data: row } = await supabase
+        .from("fasting_logs")
+        .upsert(
+          {
+            user_id: userId,
+            fast_date: date,
+            fast_type: data.fast_type || "ramadan",
+            completed: data.completed !== false,
+            notes: data.notes || null,
+          },
+          { onConflict: "user_id,fast_date,fast_type" },
+        )
+        .select("id")
+        .single();
+      out.push({
+        tool: "fasting_log",
+        ok: true,
+        message: `🌙 Logged fast on ${date}.`,
+        entityId: row.id,
+      });
+    } catch (e) {
+      out.push({ tool: "fasting_log", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- pantry_manage ----------
-  for (const m of text.matchAll(/<tool>pantry<\/tool>\s*<action>(\w+)<\/action>\s*<pantry>(\{[\s\S]*?\})<\/pantry>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]) || {};
+  for (const m of text.matchAll(
+    /<tool>pantry<\/tool>\s*<action>(\w+)<\/action>\s*<pantry>(\{[\s\S]*?\})<\/pantry>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]) || {};
     try {
-      if (action === 'add') {
-        if (!data.item) { out.push({ tool: 'pantry', ok: false, message: 'item required.' }); continue; }
-        const { data: row } = await supabase.from('pantry_items').insert({
-          user_id: userId, item: data.item, quantity: data.quantity || null,
-          unit: data.unit || null, category: data.category || null, expires_on: data.expires_on || null,
-        }).select('id').single();
-        const undoId = await undoCreate('pantry_items', row.id, `added "${data.item}" to pantry`, 'pantry');
-        out.push({ tool: 'pantry', ok: true, message: `🥫 Added ${data.item} to pantry.`, undoId });
-      } else if (action === 'list') {
-        const { data: rows } = await supabase.from('pantry_items').select('item,quantity,unit,expires_on').eq('user_id', userId).order('item').limit(50);
-        if (!rows?.length) { out.push({ tool: 'pantry', ok: true, message: '📭 Pantry is empty.' }); continue; }
-        const lines = rows.map((r: { item: string; quantity?: unknown; unit?: string; expires_on?: string }, i: number) => `${i+1}. ${r.item}${r.quantity ? ` (${r.quantity}${r.unit||''})` : ''}${r.expires_on ? ` — exp ${r.expires_on}` : ''}`);
-        out.push({ tool: 'pantry', ok: true, message: `<b>🥫 Pantry</b>\n${lines.join('\n')}` });
-      } else if (action === 'remove') {
-        if (!data.query) { out.push({ tool: 'pantry', ok: false, message: 'query required.' }); continue; }
-        const { data: rows } = await supabase.from('pantry_items').select('id,item').eq('user_id', userId).ilike('item', `%${data.query}%`).limit(2);
-        if (!rows?.length || rows.length > 1) { out.push({ tool: 'pantry', ok: false, message: rows?.length ? '🤔 Multiple match.' : `🔍 No pantry item matches.` }); continue; }
-        await supabase.from('pantry_items').delete().eq('id', rows[0].id);
-        out.push({ tool: 'pantry', ok: true, message: `🗑️ Removed ${rows[0].item} from pantry.` });
+      if (action === "add") {
+        if (!data.item) {
+          out.push({ tool: "pantry", ok: false, message: "item required." });
+          continue;
+        }
+        const { data: row } = await supabase
+          .from("pantry_items")
+          .insert({
+            user_id: userId,
+            item: data.item,
+            quantity: data.quantity || null,
+            unit: data.unit || null,
+            category: data.category || null,
+            expires_on: data.expires_on || null,
+          })
+          .select("id")
+          .single();
+        const undoId = await undoCreate(
+          "pantry_items",
+          row.id,
+          `added "${data.item}" to pantry`,
+          "pantry",
+        );
+        out.push({ tool: "pantry", ok: true, message: `🥫 Added ${data.item} to pantry.`, undoId });
+      } else if (action === "list") {
+        const { data: rows } = await supabase
+          .from("pantry_items")
+          .select("item,quantity,unit,expires_on")
+          .eq("user_id", userId)
+          .order("item")
+          .limit(50);
+        if (!rows?.length) {
+          out.push({ tool: "pantry", ok: true, message: "📭 Pantry is empty." });
+          continue;
+        }
+        const lines = rows.map(
+          (
+            r: { item: string; quantity?: unknown; unit?: string; expires_on?: string },
+            i: number,
+          ) =>
+            `${i + 1}. ${r.item}${r.quantity ? ` (${r.quantity}${r.unit || ""})` : ""}${r.expires_on ? ` — exp ${r.expires_on}` : ""}`,
+        );
+        out.push({ tool: "pantry", ok: true, message: `<b>🥫 Pantry</b>\n${lines.join("\n")}` });
+      } else if (action === "remove") {
+        if (!data.query) {
+          out.push({ tool: "pantry", ok: false, message: "query required." });
+          continue;
+        }
+        const { data: rows } = await supabase
+          .from("pantry_items")
+          .select("id,item")
+          .eq("user_id", userId)
+          .ilike("item", `%${data.query}%`)
+          .limit(2);
+        if (!rows?.length || rows.length > 1) {
+          out.push({
+            tool: "pantry",
+            ok: false,
+            message: rows?.length ? "🤔 Multiple match." : `🔍 No pantry item matches.`,
+          });
+          continue;
+        }
+        await supabase.from("pantry_items").delete().eq("id", rows[0].id);
+        out.push({ tool: "pantry", ok: true, message: `🗑️ Removed ${rows[0].item} from pantry.` });
       }
-    } catch (e) { out.push({ tool: 'pantry', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "pantry", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- flight_track ----------
   for (const m of text.matchAll(/<tool>flight_track<\/tool>\s*<flight>(\{[\s\S]*?\})<\/flight>/g)) {
     const data = safeJSON(m[1]) || {};
-    if (!data.flight_number || !data.depart_at) { out.push({ tool: 'flight_track', ok: false, message: 'flight_number and depart_at required.' }); continue; }
+    if (!data.flight_number || !data.depart_at) {
+      out.push({
+        tool: "flight_track",
+        ok: false,
+        message: "flight_number and depart_at required.",
+      });
+      continue;
+    }
     try {
       const departIso = new Date(data.depart_at).toISOString();
       const checkin = new Date(new Date(departIso).getTime() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: row } = await supabase.from('flight_tracking').insert({
-        user_id: userId, flight_number: data.flight_number, airline: data.airline || null,
-        origin: data.origin || null, destination: data.destination || null,
-        depart_at: departIso, checkin_reminder_at: checkin,
-      }).select('id').single();
-      const undoId = await undoCreate('flight_tracking', row.id, `tracked flight ${data.flight_number}`, 'flight');
-      out.push({ tool: 'flight_track', ok: true, message: `✈️ Tracking ${data.flight_number} — I'll remind you to check in 24h before.`, undoId });
-    } catch (e) { out.push({ tool: 'flight_track', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      const { data: row } = await supabase
+        .from("flight_tracking")
+        .insert({
+          user_id: userId,
+          flight_number: data.flight_number,
+          airline: data.airline || null,
+          origin: data.origin || null,
+          destination: data.destination || null,
+          depart_at: departIso,
+          checkin_reminder_at: checkin,
+        })
+        .select("id")
+        .single();
+      const undoId = await undoCreate(
+        "flight_tracking",
+        row.id,
+        `tracked flight ${data.flight_number}`,
+        "flight",
+      );
+      out.push({
+        tool: "flight_track",
+        ok: true,
+        message: `✈️ Tracking ${data.flight_number} — I'll remind you to check in 24h before.`,
+        undoId,
+      });
+    } catch (e) {
+      out.push({ tool: "flight_track", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- presence ----------
   for (const m of text.matchAll(/<tool>presence<\/tool>\s*<presence>(\{[\s\S]*?\})<\/presence>/g)) {
     const data = safeJSON(m[1]) || {};
     try {
-      if (data.query === 'who') {
+      if (data.query === "who") {
         // Look up presence of household (space members owners)
-        const { data: members } = await supabase.from('space_members').select('owner_id, profiles!space_members_owner_id_fkey(display_name)').eq('member_id', userId).eq('status', 'accepted');
-        const ids = (members as Array<{ owner_id: string; profiles?: { display_name?: string } }> || []).map((r) => r.owner_id);
+        const { data: members } = await supabase
+          .from("space_members")
+          .select("owner_id, profiles!space_members_owner_id_fkey(display_name)")
+          .eq("member_id", userId)
+          .eq("status", "accepted");
+        const ids = (
+          (members as Array<{ owner_id: string; profiles?: { display_name?: string } }>) || []
+        ).map((r) => r.owner_id);
         ids.push(userId);
-        const { data: presences } = await supabase.from('presence_status').select('user_id,status,message,expires_at').in('user_id', ids);
-        const pmap = new Map((presences as Array<{ user_id: string; status?: string; message?: string }> || []).map((p) => [p.user_id, p]));
+        const { data: presences } = await supabase
+          .from("presence_status")
+          .select("user_id,status,message,expires_at")
+          .in("user_id", ids);
+        const pmap = new Map(
+          ((presences as Array<{ user_id: string; status?: string; message?: string }>) || []).map(
+            (p) => [p.user_id, p],
+          ),
+        );
         const lines = ids.map((id: string) => {
           const p = pmap.get(id);
-          const name = id === userId ? 'You' : ((members as Array<{ owner_id: string; profiles?: { display_name?: string } }> || []).find((m) => m.owner_id === id)?.profiles?.display_name || 'Member');
-          return `• ${name}: ${p?.status || 'unknown'}${p?.message ? ` — ${p.message}` : ''}`;
+          const name =
+            id === userId
+              ? "You"
+              : (
+                  (members as Array<{ owner_id: string; profiles?: { display_name?: string } }>) ||
+                  []
+                ).find((m) => m.owner_id === id)?.profiles?.display_name || "Member";
+          return `• ${name}: ${p?.status || "unknown"}${p?.message ? ` — ${p.message}` : ""}`;
         });
-        out.push({ tool: 'presence', ok: true, message: `<b>🏠 Household</b>\n${lines.join('\n')}` });
+        out.push({
+          tool: "presence",
+          ok: true,
+          message: `<b>🏠 Household</b>\n${lines.join("\n")}`,
+        });
       } else {
-        await supabase.from('presence_status').upsert({
-          user_id: userId, status: data.status || 'home', message: data.message || null,
-          expires_at: data.expires_at || null,
-        }, { onConflict: 'user_id' });
-        out.push({ tool: 'presence', ok: true, message: `📍 Status set: ${data.status}${data.message ? ` (${data.message})` : ''}.` });
+        await supabase.from("presence_status").upsert(
+          {
+            user_id: userId,
+            status: data.status || "home",
+            message: data.message || null,
+            expires_at: data.expires_at || null,
+          },
+          { onConflict: "user_id" },
+        );
+        out.push({
+          tool: "presence",
+          ok: true,
+          message: `📍 Status set: ${data.status}${data.message ? ` (${data.message})` : ""}.`,
+        });
       }
-    } catch (e) { out.push({ tool: 'presence', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "presence", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- budget ----------
-  for (const m of text.matchAll(/<tool>budget<\/tool>\s*<action>(\w+)<\/action>\s*<budget>(\{[\s\S]*?\})<\/budget>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]) || {};
+  for (const m of text.matchAll(
+    /<tool>budget<\/tool>\s*<action>(\w+)<\/action>\s*<budget>(\{[\s\S]*?\})<\/budget>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]) || {};
     try {
-      if (action === 'set') {
-        if (!data.category || data.monthly_limit === undefined) { out.push({ tool: 'budget', ok: false, message: 'category and monthly_limit required.' }); continue; }
-        await supabase.from('financial_budgets').upsert({
-          user_id: userId, category: String(data.category).toLowerCase(),
-          monthly_limit: Number(data.monthly_limit), currency: data.currency || 'EUR',
-        }, { onConflict: 'user_id,category' });
-        out.push({ tool: 'budget', ok: true, message: `💰 Budget set: ${data.category} = €${Number(data.monthly_limit).toFixed(2)}/mo.` });
-      } else if (action === 'check') {
-        const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
-        const { data: budgets } = await supabase.from('financial_budgets').select('category,monthly_limit,currency').eq('user_id', userId);
-        if (!budgets?.length) { out.push({ tool: 'budget', ok: true, message: '📭 No budgets set yet.' }); continue; }
-        const { data: exps } = await supabase.from('family_expenses').select('amount,description').eq('user_id', userId).gte('expense_date', monthStart.toISOString().slice(0, 10));
+      if (action === "set") {
+        if (!data.category || data.monthly_limit === undefined) {
+          out.push({ tool: "budget", ok: false, message: "category and monthly_limit required." });
+          continue;
+        }
+        await supabase.from("financial_budgets").upsert(
+          {
+            user_id: userId,
+            category: String(data.category).toLowerCase(),
+            monthly_limit: Number(data.monthly_limit),
+            currency: data.currency || "EUR",
+          },
+          { onConflict: "user_id,category" },
+        );
+        out.push({
+          tool: "budget",
+          ok: true,
+          message: `💰 Budget set: ${data.category} = €${Number(data.monthly_limit).toFixed(2)}/mo.`,
+        });
+      } else if (action === "check") {
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        const { data: budgets } = await supabase
+          .from("financial_budgets")
+          .select("category,monthly_limit,currency")
+          .eq("user_id", userId);
+        if (!budgets?.length) {
+          out.push({ tool: "budget", ok: true, message: "📭 No budgets set yet." });
+          continue;
+        }
+        const { data: exps } = await supabase
+          .from("family_expenses")
+          .select("amount,description")
+          .eq("user_id", userId)
+          .gte("expense_date", monthStart.toISOString().slice(0, 10));
         const lines = budgets.map((b: { category: string; monthly_limit: number }) => {
-          const spent = (exps || []).filter((e: { description?: string }) => (e.description || '').toLowerCase().includes(b.category)).reduce((s: number, e: { amount?: number }) => s + Number(e.amount), 0);
+          const spent = (exps || [])
+            .filter((e: { description?: string }) =>
+              (e.description || "").toLowerCase().includes(b.category),
+            )
+            .reduce((s: number, e: { amount?: number }) => s + Number(e.amount), 0);
           const pct = b.monthly_limit > 0 ? Math.round((spent / b.monthly_limit) * 100) : 0;
-          const bar = pct >= 100 ? '🔴' : pct >= 80 ? '🟡' : '🟢';
+          const bar = pct >= 100 ? "🔴" : pct >= 80 ? "🟡" : "🟢";
           return `${bar} ${b.category}: €${spent.toFixed(2)}/${b.monthly_limit} (${pct}%)`;
         });
-        out.push({ tool: 'budget', ok: true, message: `<b>💰 Budgets this month</b>\n${lines.join('\n')}` });
+        out.push({
+          tool: "budget",
+          ok: true,
+          message: `<b>💰 Budgets this month</b>\n${lines.join("\n")}`,
+        });
       }
-    } catch (e) { out.push({ tool: 'budget', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "budget", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- meds (quick log+list around personal_medications) ----------
-  for (const m of text.matchAll(/<tool>meds<\/tool>\s*<action>(\w+)<\/action>\s*<meds>(\{[\s\S]*?\})<\/meds>/g)) {
-    const action = m[1]; const data = safeJSON(m[2]) || {};
+  for (const m of text.matchAll(
+    /<tool>meds<\/tool>\s*<action>(\w+)<\/action>\s*<meds>(\{[\s\S]*?\})<\/meds>/g,
+  )) {
+    const action = m[1];
+    const data = safeJSON(m[2]) || {};
     try {
-      if (action === 'add') {
-        if (!data.name) { out.push({ tool: 'meds', ok: false, message: 'name required.' }); continue; }
-        const { data: row } = await supabase.from('personal_medications').insert({
-          user_id: userId, name: data.name, dose: data.dose || null,
-          frequency: data.frequency || null, schedule: data.schedule || null,
-          start_date: data.start_date || null, prescriber: data.prescriber || null, reason: data.reason || null,
-        }).select('id').single();
-        const undoId = await undoCreate('personal_medications', row.id, `added med "${data.name}"`, 'medication');
-        out.push({ tool: 'meds', ok: true, message: `💊 Added med: ${data.name}${data.dose ? ` (${data.dose})` : ''}.`, undoId });
-      } else if (action === 'list') {
-        const { data: rows } = await supabase.from('personal_medications').select('name,dose,frequency,refill_date').eq('user_id', userId).eq('is_active', true);
-        if (!rows?.length) { out.push({ tool: 'meds', ok: true, message: '📭 No active medications.' }); continue; }
-        const lines = rows.map((r: { name: string; dose?: string; frequency?: string; refill_date?: string }, i: number) => `${i+1}. ${r.name}${r.dose ? ` ${r.dose}` : ''}${r.frequency ? ` · ${r.frequency}` : ''}${r.refill_date ? ` · refill ${r.refill_date}` : ''}`);
-        out.push({ tool: 'meds', ok: true, message: `<b>💊 Medications</b>\n${lines.join('\n')}` });
+      if (action === "add") {
+        if (!data.name) {
+          out.push({ tool: "meds", ok: false, message: "name required." });
+          continue;
+        }
+        const { data: row } = await supabase
+          .from("personal_medications")
+          .insert({
+            user_id: userId,
+            name: data.name,
+            dose: data.dose || null,
+            frequency: data.frequency || null,
+            schedule: data.schedule || null,
+            start_date: data.start_date || null,
+            prescriber: data.prescriber || null,
+            reason: data.reason || null,
+          })
+          .select("id")
+          .single();
+        const undoId = await undoCreate(
+          "personal_medications",
+          row.id,
+          `added med "${data.name}"`,
+          "medication",
+        );
+        out.push({
+          tool: "meds",
+          ok: true,
+          message: `💊 Added med: ${data.name}${data.dose ? ` (${data.dose})` : ""}.`,
+          undoId,
+        });
+      } else if (action === "list") {
+        const { data: rows } = await supabase
+          .from("personal_medications")
+          .select("name,dose,frequency,refill_date")
+          .eq("user_id", userId)
+          .eq("is_active", true);
+        if (!rows?.length) {
+          out.push({ tool: "meds", ok: true, message: "📭 No active medications." });
+          continue;
+        }
+        const lines = rows.map(
+          (
+            r: { name: string; dose?: string; frequency?: string; refill_date?: string },
+            i: number,
+          ) =>
+            `${i + 1}. ${r.name}${r.dose ? ` ${r.dose}` : ""}${r.frequency ? ` · ${r.frequency}` : ""}${r.refill_date ? ` · refill ${r.refill_date}` : ""}`,
+        );
+        out.push({ tool: "meds", ok: true, message: `<b>💊 Medications</b>\n${lines.join("\n")}` });
       }
-    } catch (e) { out.push({ tool: 'meds', ok: false, message: `Failed: ${(e as Error).message}` }); }
+    } catch (e) {
+      out.push({ tool: "meds", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- zakat (simple 2.5% on net wealth) ----------
@@ -4500,65 +7041,116 @@ async function executeToolsServerSide(
     const data = safeJSON(m[1]) || {};
     const net = Number(data.net_wealth || 0);
     const nisab = Number(data.nisab || 5000); // rough threshold default
-    if (!Number.isFinite(net) || net <= 0) { out.push({ tool: 'zakat', ok: false, message: 'net_wealth required.' }); continue; }
+    if (!Number.isFinite(net) || net <= 0) {
+      out.push({ tool: "zakat", ok: false, message: "net_wealth required." });
+      continue;
+    }
     const zakat = net >= nisab ? net * 0.025 : 0;
-    out.push({ tool: 'zakat', ok: true, message: `🕋 Zakat on €${net.toFixed(2)}: ${zakat > 0 ? `€${zakat.toFixed(2)} (2.5%)` : `none — below nisab (€${nisab})`}.` });
+    out.push({
+      tool: "zakat",
+      ok: true,
+      message: `🕋 Zakat on €${net.toFixed(2)}: ${zakat > 0 ? `€${zakat.toFixed(2)} (2.5%)` : `none — below nisab (€${nisab})`}.`,
+    });
   }
 
   // ---------- timezone ----------
   for (const m of text.matchAll(/<tool>timezone<\/tool>\s*<timezone>(\{[\s\S]*?\})<\/timezone>/g)) {
     const data = safeJSON(m[1]) || {};
-    if (!data.location) { out.push({ tool: 'timezone', ok: false, message: 'location required.' }); continue; }
+    if (!data.location) {
+      out.push({ tool: "timezone", ok: false, message: "location required." });
+      continue;
+    }
     try {
-      const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(data.location)}&count=1`).then(r => r.json()).catch(() => null);
+      const geo = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(data.location)}&count=1`,
+      )
+        .then((r) => r.json())
+        .catch(() => null);
       const place = geo?.results?.[0];
-      if (!place) { out.push({ tool: 'timezone', ok: false, message: `🌍 Couldn't find "${data.location}".` }); continue; }
-      const local = new Date().toLocaleString('en-US', { timeZone: place.timezone, hour: '2-digit', minute: '2-digit', weekday: 'short' });
-      out.push({ tool: 'timezone', ok: true, message: `🕐 ${place.name}: ${local} (${place.timezone}).` });
-    } catch (e) { out.push({ tool: 'timezone', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      if (!place) {
+        out.push({ tool: "timezone", ok: false, message: `🌍 Couldn't find "${data.location}".` });
+        continue;
+      }
+      const local = new Date().toLocaleString("en-US", {
+        timeZone: place.timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        weekday: "short",
+      });
+      out.push({
+        tool: "timezone",
+        ok: true,
+        message: `🕐 ${place.name}: ${local} (${place.timezone}).`,
+      });
+    } catch (e) {
+      out.push({ tool: "timezone", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   // ---------- currency ----------
   for (const m of text.matchAll(/<tool>currency<\/tool>\s*<currency>(\{[\s\S]*?\})<\/currency>/g)) {
     const data = safeJSON(m[1]) || {};
-    const amount = Number(data.amount); const from = String(data.from || 'EUR').toUpperCase(); const to = String(data.to || 'USD').toUpperCase();
-    if (!Number.isFinite(amount)) { out.push({ tool: 'currency', ok: false, message: 'amount required.' }); continue; }
+    const amount = Number(data.amount);
+    const from = String(data.from || "EUR").toUpperCase();
+    const to = String(data.to || "USD").toUpperCase();
+    if (!Number.isFinite(amount)) {
+      out.push({ tool: "currency", ok: false, message: "amount required." });
+      continue;
+    }
     try {
-      const r = await fetch(`https://api.frankfurter.app/latest?amount=${amount}&from=${from}&to=${to}`).then(r => r.json()).catch(() => null);
+      const r = await fetch(
+        `https://api.frankfurter.app/latest?amount=${amount}&from=${from}&to=${to}`,
+      )
+        .then((r) => r.json())
+        .catch(() => null);
       const converted = r?.rates?.[to];
-      if (!converted) { out.push({ tool: 'currency', ok: false, message: `Couldn't convert ${from}→${to}.` }); continue; }
-      out.push({ tool: 'currency', ok: true, message: `💱 ${amount} ${from} = ${converted.toFixed(2)} ${to}` });
-    } catch (e) { out.push({ tool: 'currency', ok: false, message: `Failed: ${(e as Error).message}` }); }
+      if (!converted) {
+        out.push({ tool: "currency", ok: false, message: `Couldn't convert ${from}→${to}.` });
+        continue;
+      }
+      out.push({
+        tool: "currency",
+        ok: true,
+        message: `💱 ${amount} ${from} = ${converted.toFixed(2)} ${to}`,
+      });
+    } catch (e) {
+      out.push({ tool: "currency", ok: false, message: `Failed: ${(e as Error).message}` });
+    }
   }
 
   return out;
 }
 
-// Internal helper for the new chat tools that delegate to other edge
-// functions. Mirrors the pattern from dori-execute-action: service-role
-// bearer + x-telegram-user-id header so the receiving function picks
-// up the right user identity.
+// Internal helper for chat tools that delegate to other edge functions.
+// Service-role bearer + x-telegram-user-id establishes the user context,
+// while x-internal-token proves the caller also has INTERNAL_AUTH_SECRET.
 async function invokeInternal(
   fn: string,
   userId: string,
   body: Record<string, unknown>,
 ): Promise<{ ok: boolean; status: number; body?: Record<string, unknown>; error?: string }> {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   try {
     const resp = await fetch(`${supabaseUrl}/functions/v1/${fn}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization: `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
-        'x-telegram-user-id': userId,
+        "Content-Type": "application/json",
+        "x-telegram-user-id": userId,
+        "x-internal-token": await mintInternalToken(userId),
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(50_000),
     });
     const json = await resp.json().catch(() => null);
     if (!resp.ok || (json && json.error)) {
-      return { ok: false, status: resp.status, body: json, error: json?.error || `HTTP ${resp.status}` };
+      return {
+        ok: false,
+        status: resp.status,
+        body: json,
+        error: json?.error || `HTTP ${resp.status}`,
+      };
     }
     return { ok: true, status: resp.status, body: json };
   } catch (e) {
@@ -4575,9 +7167,9 @@ async function logDoriTurn(
   content: string,
   channelRef?: string | null,
 ) {
-  if (!userId || userId === 'anonymous' || !content) return;
+  if (!userId || userId === "anonymous" || !content) return;
   try {
-    await supabase.from('dori_conversations').insert({
+    await supabase.from("dori_conversations").insert({
       user_id: userId,
       channel,
       channel_ref: channelRef || null,
@@ -4585,7 +7177,7 @@ async function logDoriTurn(
       content: content.slice(0, 8000),
     });
   } catch (e) {
-    console.error('logDoriTurn failed', e);
+    console.error("logDoriTurn failed", e);
   }
 }
 
@@ -4606,48 +7198,51 @@ async function loadDoriIntelligence(
 ) {
   const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const memoryQuery = supabase
-    .from('ai_memory')
-    .select('memory_type, category, key, value')
-    .eq('user_id', userId)
-    .eq('is_active', true)
+    .from("ai_memory")
+    .select("memory_type, category, key, value")
+    .eq("user_id", userId)
+    .eq("is_active", true)
     // Order by updated_at (always set) not last_referenced_at (NULL until
     // the memory is first recalled) — otherwise just-learned facts would
     // fall off the bottom of the window.
-    .order('updated_at', { ascending: false })
+    .order("updated_at", { ascending: false })
     .limit(20);
   const scopedMemoryQuery = workspaceId
-    ? memoryQuery.eq('workspace_id', workspaceId)
-    : memoryQuery.is('workspace_id', null);
+    ? memoryQuery.eq("workspace_id", workspaceId)
+    : memoryQuery.is("workspace_id", null);
 
   const [{ data: turns }, { data: prefs }, { data: memories }] = await Promise.all([
     supabase
-      .from('dori_conversations')
-      .select('channel, channel_ref, role, content, created_at')
-      .eq('user_id', userId)
-      .gte('created_at', sinceIso)
-      .order('created_at', { ascending: false })
+      .from("dori_conversations")
+      .select("channel, channel_ref, role, content, created_at")
+      .eq("user_id", userId)
+      .gte("created_at", sinceIso)
+      .order("created_at", { ascending: false })
       .limit(40),
     supabase
-      .from('dori_learned_preferences')
-      .select('key, value, confidence')
-      .eq('user_id', userId)
-      .gte('confidence', 0.5)
-      .order('confidence', { ascending: false })
+      .from("dori_learned_preferences")
+      .select("key, value, confidence")
+      .eq("user_id", userId)
+      .gte("confidence", 0.5)
+      .order("confidence", { ascending: false })
       .limit(15),
     scopedMemoryQuery,
   ]);
 
-  let memoryBlock = '';
+  let memoryBlock = "";
   if (turns && turns.length > 0) {
     const otherChannelTurns = turns
-      .filter((t: { channel: string; channel_ref?: string | null }) =>
-        t.channel !== currentChannel || (!!currentChannelRef && t.channel_ref !== currentChannelRef),
+      .filter(
+        (t: { channel: string; channel_ref?: string | null }) =>
+          t.channel !== currentChannel ||
+          (!!currentChannelRef && t.channel_ref !== currentChannelRef),
       )
       .slice(0, 12)
       .reverse();
     if (otherChannelTurns.length > 0) {
-      memoryBlock += '\n\n## RECENT CROSS-CHANNEL CONVERSATIONS (last 24h, other channels)';
-      memoryBlock += '\nUse these to maintain context across web, Telegram private, family groups, and workspace groups:';
+      memoryBlock += "\n\n## RECENT CROSS-CHANNEL CONVERSATIONS (last 24h, other channels)";
+      memoryBlock +=
+        "\nUse these to maintain context across web, Telegram private, family groups, and workspace groups:";
       for (const t of otherChannelTurns) {
         const when = new Date(t.created_at).toISOString().slice(11, 16);
         memoryBlock += `\n[${t.channel} ${when}] ${t.role}: ${String(t.content).slice(0, 200)}`;
@@ -4655,32 +7250,42 @@ async function loadDoriIntelligence(
     }
   }
 
-  let prefsBlock = '';
+  let prefsBlock = "";
   if (prefs && prefs.length > 0) {
-    prefsBlock += '\n\n## AUTO-LEARNED USER PREFERENCES (apply these silently to every action)';
+    prefsBlock += "\n\n## AUTO-LEARNED USER PREFERENCES (apply these silently to every action)";
     for (const p of prefs) {
       prefsBlock += `\n- ${p.key}: ${p.value}`;
     }
   }
 
-  let memoriesBlock = '';
+  let memoriesBlock = "";
   if (memories && memories.length > 0) {
-    memoriesBlock += `\n\n## LONG-TERM MEMORY (${workspaceId ? 'workspace' : 'personal'} scope)`;
-    memoriesBlock += '\nFacts, preferences, and patterns saved in prior turns, ordered most-confident first.';
-    memoriesBlock += '\nHow to use them:';
-    memoriesBlock += '\n- Apply relevant memories silently to personalise your answer and any actions (e.g. default times, names, preferences).';
-    memoriesBlock += '\n- Weight earlier (higher-confidence) items above later ones; if two memories conflict, trust the more recent/specific one.';
-    memoriesBlock += "\n- Only rely on a memory that actually fits the current request — don't force-fit unrelated facts.";
-    memoriesBlock += "\n- If a memory seems stale or contradicts what the user just said, prefer the user's current message and quietly update your understanding.";
-    for (const m of (memories as Array<{ memory_type: string; category?: string; key: string; value: string }>)) {
-      memoriesBlock += `\n- [${m.memory_type}]${m.category ? ` (${m.category})` : ''} ${m.key}: "${m.value}"`;
+    memoriesBlock += `\n\n## LONG-TERM MEMORY (${workspaceId ? "workspace" : "personal"} scope)`;
+    memoriesBlock +=
+      "\nFacts, preferences, and patterns saved in prior turns, ordered most-confident first.";
+    memoriesBlock += "\nHow to use them:";
+    memoriesBlock +=
+      "\n- Apply relevant memories silently to personalise your answer and any actions (e.g. default times, names, preferences).";
+    memoriesBlock +=
+      "\n- Weight earlier (higher-confidence) items above later ones; if two memories conflict, trust the more recent/specific one.";
+    memoriesBlock +=
+      "\n- Only rely on a memory that actually fits the current request — don't force-fit unrelated facts.";
+    memoriesBlock +=
+      "\n- If a memory seems stale or contradicts what the user just said, prefer the user's current message and quietly update your understanding.";
+    for (const m of memories as Array<{
+      memory_type: string;
+      category?: string;
+      key: string;
+      value: string;
+    }>) {
+      memoriesBlock += `\n- [${m.memory_type}]${m.category ? ` (${m.category})` : ""} ${m.key}: "${m.value}"`;
     }
   }
 
   // Semantic recall over notes / episodic memories / past tasks / past
   // events / chat turns. Only fires when a query is provided AND it's
   // long enough to be meaningful; otherwise returns empty.
-  let semanticBlock = '';
+  let semanticBlock = "";
   if (query && query.length >= 8) {
     const hits = await retrieveRelevantMemories(supabase, {
       userId,
@@ -4689,7 +7294,7 @@ async function loadDoriIntelligence(
       matchCount: 6,
       minSimilarity: 0.62,
     });
-    semanticBlock = hits.length ? '\n\n' + formatMemoriesForPrompt(hits) : '';
+    semanticBlock = hits.length ? "\n\n" + formatMemoriesForPrompt(hits) : "";
   }
 
   return memoryBlock + prefsBlock + memoriesBlock + semanticBlock;
@@ -4700,37 +7305,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Authenticate the user
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  // Authenticate the user.
+  const auth = await resolveUserId(req);
+  if (!auth) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  let userId: string;
-
-  try {
-    const token = authHeader.replace(/^Bearer\s+/i, '');
-    // Trusted server-to-server call (e.g. Telegram bot): accept service-role token + explicit user id header
-    const telegramUserId = req.headers.get('x-telegram-user-id');
-    if (telegramUserId && token === supabaseServiceKey) {
-      userId = telegramUserId;
-    } else {
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      const { data, error } = await (supabase.auth as { getClaims: (token: string) => Promise<{ data?: { claims?: { sub?: string } }; error?: unknown }> }).getClaims(token);
-      if (error || !data?.claims?.sub) throw new Error('No user');
-      userId = data.claims.sub;
-    }
-  } catch (e) {
-    console.error('Auth error:', e);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const userId = auth.userId;
 
   // Create service role client for logging
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -4742,7 +7328,7 @@ serve(async (req) => {
       imageUrl,
       overdueTasks: clientOverdueTasks,
       todayTasks: clientTodayTasks,
-      personality = 'balanced',
+      personality = "balanced",
       userProfile,
       relevantContacts,
       relevantContracts,
@@ -4783,8 +7369,8 @@ serve(async (req) => {
     // Telegram / voice surfaces don't ship the user's task and event lists
     // in the request body the way the web client does. We hydrate from the
     // DB lower in this handler when both are absent, so keep these mutable.
-    let tasks: ChatRequest['tasks'] = reqBody.tasks;
-    let events: ChatRequest['events'] = reqBody.events;
+    let tasks: ChatRequest["tasks"] = reqBody.tasks;
+    let events: ChatRequest["events"] = reqBody.events;
 
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -4796,13 +7382,13 @@ serve(async (req) => {
     // members or write rows into workspaces they don't belong to.
     let activeWorkspace: WorkspaceCtx | null = null;
     const requestedWorkspaceId = workspace?.id || workspaceId || null;
-    if (requestedWorkspaceId && userId && userId !== 'anonymous') {
+    if (requestedWorkspaceId && userId && userId !== "anonymous") {
       try {
         const { data: membership } = await supabaseAdmin
-          .from('workspace_members')
-          .select('user_id')
-          .eq('workspace_id', requestedWorkspaceId)
-          .eq('user_id', userId)
+          .from("workspace_members")
+          .select("user_id")
+          .eq("workspace_id", requestedWorkspaceId)
+          .eq("user_id", userId)
           .maybeSingle();
         if (!membership) {
           console.warn(`workspace IDOR attempt: user=${userId} ws=${requestedWorkspaceId}`);
@@ -4810,18 +7396,28 @@ serve(async (req) => {
           // Always fetch fresh server-side — ignore the client-supplied
           // member list so a crafted request can't seed a fake "@alice".
           const [{ data: ws }, { data: mems }] = await Promise.all([
-            supabaseAdmin.from('workspaces').select('id, name, icon, description').eq('id', requestedWorkspaceId).maybeSingle(),
-            supabaseAdmin.from('workspace_members').select('user_id, display_name, role').eq('workspace_id', requestedWorkspaceId),
+            supabaseAdmin
+              .from("workspaces")
+              .select("id, name, icon, description")
+              .eq("id", requestedWorkspaceId)
+              .maybeSingle(),
+            supabaseAdmin
+              .from("workspace_members")
+              .select("user_id, display_name, role")
+              .eq("workspace_id", requestedWorkspaceId),
           ]);
           if (ws) {
             activeWorkspace = {
-              id: ws.id, name: ws.name, icon: ws.icon ?? null, description: ws.description ?? null,
+              id: ws.id,
+              name: ws.name,
+              icon: ws.icon ?? null,
+              description: ws.description ?? null,
               members: (mems || []) as WorkspaceMemberCtx[],
             };
           }
         }
       } catch (e) {
-        console.warn('workspace lookup failed', e);
+        console.warn("workspace lookup failed", e);
       }
     }
 
@@ -4829,51 +7425,64 @@ serve(async (req) => {
     // calendar events are tagged with it so every member's individual calendar
     // shows the shared event (via RLS). Carried by header or body. Defined here
     // (before the preformed-tool path) so both code paths can use it.
-    const householdId = (reqBody.householdId as string | undefined)
-      || req.headers.get('x-dori-household') || null;
+    const householdId =
+      (reqBody.householdId as string | undefined) || req.headers.get("x-dori-household") || null;
 
     // preformedToolText path: skip AI call, just execute the queued tool XML directly.
-    if (preformedToolText && executeServerSide && userId && userId !== 'anonymous') {
+    if (preformedToolText && executeServerSide && userId && userId !== "anonymous") {
       const supabaseAdminEarly = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
       // Preformed-tool path runs before we've loaded the profile tz, so look
       // it up once here. Cheap — single row by user id.
       let preformedTz: string | undefined;
       try {
-        const { data: p } = await supabaseAdminEarly.from('profiles').select('timezone').eq('user_id', userId).maybeSingle();
+        const { data: p } = await supabaseAdminEarly
+          .from("profiles")
+          .select("timezone")
+          .eq("user_id", userId)
+          .maybeSingle();
         preformedTz = p?.timezone || undefined;
-      } catch { /* ignore */ }
-      const execResults = await executeToolsServerSide(preformedToolText, userId, supabaseAdminEarly, {
-        skipApprovalGate,
-        source: actionSource,
-        sourceRef: actionSourceRef ?? null,
-        workspaceId: activeWorkspace?.id ?? null,
-        householdId,
-        workspaceMembers: activeWorkspace?.members,
-        timezone: preformedTz,
-      });
-      return new Response(JSON.stringify({ reply: '', toolResults: execResults }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      } catch {
+        /* ignore */
+      }
+      const execResults = await executeToolsServerSide(
+        preformedToolText,
+        userId,
+        supabaseAdminEarly,
+        {
+          skipApprovalGate,
+          source: actionSource,
+          sourceRef: actionSourceRef ?? null,
+          workspaceId: activeWorkspace?.id ?? null,
+          householdId,
+          workspaceMembers: activeWorkspace?.members,
+          timezone: preformedTz,
+        },
+      );
+      return new Response(JSON.stringify({ reply: "", toolResults: execResults }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (!messages?.length) {
       throw new Error("At least one message is required");
     }
-    
+
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured");
     }
 
     // Determine which channel this request is coming from (for unified memory)
-    const telegramUserIdHeader = req.headers.get('x-telegram-user-id');
-    const tgChannelHint = req.headers.get('x-dori-channel'); // 'tg_private' | 'tg_family' | 'tg_workspace'
-    const tgChannelRef = req.headers.get('x-dori-channel-ref') || null;
+    const telegramUserIdHeader = req.headers.get("x-telegram-user-id");
+    const tgChannelHint = req.headers.get("x-dori-channel"); // 'tg_private' | 'tg_family' | 'tg_workspace'
+    const tgChannelRef = req.headers.get("x-dori-channel-ref") || null;
     const currentChannel = telegramUserIdHeader
-      ? (tgChannelHint === 'tg_family' || tgChannelHint === 'tg_workspace' ? tgChannelHint : 'tg_private')
-      : 'web';
+      ? tgChannelHint === "tg_family" || tgChannelHint === "tg_workspace"
+        ? tgChannelHint
+        : "tg_private"
+      : "web";
 
     // Telegram surfaces (and the voice channel) ship one user turn per
     // request, so a follow-up like "yes" / "jes" / "do that one" arrives
@@ -4883,22 +7492,22 @@ serve(async (req) => {
     // asked. Web already passes full history client-side, so skip the
     // hydration there.
     if (
-      currentChannel !== 'web'
-      && userId !== 'anonymous'
-      && Array.isArray(messages)
-      && messages.length <= 2
+      currentChannel !== "web" &&
+      userId !== "anonymous" &&
+      Array.isArray(messages) &&
+      messages.length <= 2
     ) {
       try {
         let priorQuery = supabaseAdmin
-          .from('dori_conversations')
-          .select('role, content, created_at')
-          .eq('user_id', userId)
-          .eq('channel', currentChannel);
+          .from("dori_conversations")
+          .select("role, content, created_at")
+          .eq("user_id", userId)
+          .eq("channel", currentChannel);
         if (tgChannelRef) {
-          priorQuery = priorQuery.eq('channel_ref', tgChannelRef);
+          priorQuery = priorQuery.eq("channel_ref", tgChannelRef);
         }
         const { data: priorTurns } = await priorQuery
-          .order('created_at', { ascending: false })
+          .order("created_at", { ascending: false })
           .limit(8);
         if (priorTurns && priorTurns.length > 0) {
           // Skip the most-recent user turn if it matches the one already
@@ -4907,10 +7516,10 @@ serve(async (req) => {
           const currentUserContent = messages[messages.length - 1]?.content?.trim();
           const hydrated: Message[] = [];
           for (const t of priorTurns) {
-            const c = String(t.content || '').trim();
+            const c = String(t.content || "").trim();
             if (!c) continue;
-            if (hydrated.length === 0 && t.role === 'user' && c === currentUserContent) continue;
-            if (t.role !== 'user' && t.role !== 'assistant') continue;
+            if (hydrated.length === 0 && t.role === "user" && c === currentUserContent) continue;
+            if (t.role !== "user" && t.role !== "assistant") continue;
             hydrated.push({ role: t.role, content: c });
           }
           // priorTurns came back newest-first; reverse for chronological order
@@ -4919,7 +7528,7 @@ serve(async (req) => {
           messages.unshift(...hydrated);
         }
       } catch (e) {
-        console.warn('[same-channel history hydration] failed', (e as Error).message);
+        console.warn("[same-channel history hydration] failed", (e as Error).message);
       }
     }
 
@@ -4928,23 +7537,33 @@ serve(async (req) => {
     // the AI saw zero context, tried manage_event with an empty query and
     // surfaced "Could not find event matching ''". Backfill from the DB
     // (scope-aware) so the same questions answer from context like on web.
-    if (currentChannel !== 'web' && userId !== 'anonymous') {
+    if (currentChannel !== "web" && userId !== "anonymous") {
       const wsId = activeWorkspace?.id ?? null;
       const tasksMissing = !Array.isArray(tasks);
       const eventsMissing = !Array.isArray(events);
       if (tasksMissing || eventsMissing) {
         try {
-          const scoped = <T extends { eq: (col: string, val: unknown) => T; is: (col: string, val: unknown) => T }>(q: T): T =>
-            (wsId ? q.eq('workspace_id', wsId) : q.eq('user_id', userId).is('workspace_id', null));
+          const scoped = <
+            T extends {
+              eq: (col: string, val: unknown) => T;
+              is: (col: string, val: unknown) => T;
+            },
+          >(
+            q: T,
+          ): T =>
+            wsId ? q.eq("workspace_id", wsId) : q.eq("user_id", userId).is("workspace_id", null);
           const hydrationCalls: Promise<{ data: unknown }>[] = [];
           if (tasksMissing) {
             hydrationCalls.push(
               scoped(
-                supabaseAdmin.from('tasks')
-                  .select('id, title, completed, category, priority, due_date')
-                  .eq('completed', false)
-                  .eq('trashed', false),
-              ).order('due_date', { ascending: true, nullsFirst: false }).limit(40),
+                supabaseAdmin
+                  .from("tasks")
+                  .select("id, title, completed, category, priority, due_date")
+                  .eq("completed", false)
+                  .eq("trashed", false),
+              )
+                .order("due_date", { ascending: true, nullsFirst: false })
+                .limit(40),
             );
           } else {
             hydrationCalls.push(Promise.resolve({ data: null }));
@@ -4958,28 +7577,47 @@ serve(async (req) => {
             const horizonEnd = new Date(horizonStart.getTime() + 30 * 24 * 60 * 60 * 1000);
             hydrationCalls.push(
               scoped(
-                supabaseAdmin.from('events')
-                  .select('id, title, start_time, end_time')
-                  .gte('start_time', horizonStart.toISOString())
-                  .lte('start_time', horizonEnd.toISOString()),
-              ).order('start_time').limit(40),
+                supabaseAdmin
+                  .from("events")
+                  .select("id, title, start_time, end_time")
+                  .gte("start_time", horizonStart.toISOString())
+                  .lte("start_time", horizonEnd.toISOString()),
+              )
+                .order("start_time")
+                .limit(40),
             );
           } else {
             hydrationCalls.push(Promise.resolve({ data: null }));
           }
           const [tRes, eRes] = await Promise.all(hydrationCalls);
           if (tasksMissing && tRes?.data) {
-            tasks = (tRes.data as Array<{ id: string; title: string; completed?: boolean; category?: string; priority?: string; due_date?: string }>).map((t) => ({
+            tasks = (
+              tRes.data as Array<{
+                id: string;
+                title: string;
+                completed?: boolean;
+                category?: string;
+                priority?: string;
+                due_date?: string;
+              }>
+            ).map((t) => ({
               id: t.id,
               title: t.title,
               completed: !!t.completed,
-              category: t.category || 'personal',
-              priority: t.priority || 'medium',
+              category: t.category || "personal",
+              priority: t.priority || "medium",
               dueDate: t.due_date || undefined,
             }));
           }
           if (eventsMissing && eRes?.data) {
-            events = (eRes.data as Array<{ id: string; title: string; start_time: string; end_time: string }>).map((e) => ({
+            events = (
+              eRes.data as Array<{
+                id: string;
+                title: string;
+                start_time: string;
+                end_time: string;
+              }>
+            ).map((e) => ({
               id: e.id,
               title: e.title,
               startTime: e.start_time,
@@ -4987,7 +7625,7 @@ serve(async (req) => {
             }));
           }
         } catch (e) {
-          console.warn('[tasks/events hydration] failed', (e as Error).message);
+          console.warn("[tasks/events hydration] failed", (e as Error).message);
         }
       }
     }
@@ -4995,7 +7633,7 @@ serve(async (req) => {
     // The latest user message drives semantic recall (RAG over notes,
     // episodic memories, past tasks/events, chat turns). Without it we
     // only ship structured memory + prefs.
-    const lastUserContent = [...messages].reverse().find(m => m.role === 'user')?.content || '';
+    const lastUserContent = [...messages].reverse().find((m) => m.role === "user")?.content || "";
 
     // Load unified cross-channel memory + auto-learned preferences + semantic recall.
     const intelligenceBlock = await loadDoriIntelligence(
@@ -5022,12 +7660,12 @@ serve(async (req) => {
     // Specialist routing. Cheap regex classifier + sticky-follow-up so
     // a "yes" after a meeting flow stays in the meeting specialist.
     const route = decideRoute(lastUserContent, conversationState?.active_specialist);
-    const specialistBlock = route.prompt ? `\n\n${route.prompt}` : '';
+    const specialistBlock = route.prompt ? `\n\n${route.prompt}` : "";
 
     // Fire-and-forget log of the routing decision (debug + offline eval).
-    if (route.specialist !== 'general' && userId !== 'anonymous') {
+    if (route.specialist !== "general" && userId !== "anonymous") {
       supabaseAdmin
-        .from('dori_intent_routing')
+        .from("dori_intent_routing")
         .insert({
           user_id: userId,
           channel: currentChannel,
@@ -5038,19 +7676,26 @@ serve(async (req) => {
           metadata: { matched: route.matched },
         })
         .then(({ error }: { error: { message?: string } | null }) => {
-          if (error) console.warn('[routing log] failed', error.message);
+          if (error) console.warn("[routing log] failed", error.message);
         });
     }
 
     // Persist the latest user turn into the unified log (fire-and-forget)
-    const lastUserTurn = [...messages].reverse().find(m => m.role === 'user');
+    const lastUserTurn = [...messages].reverse().find((m) => m.role === "user");
     if (lastUserTurn?.content) {
-      logDoriTurn(supabaseAdmin, userId, currentChannel, 'user', lastUserTurn.content, tgChannelRef);
+      logDoriTurn(
+        supabaseAdmin,
+        userId,
+        currentChannel,
+        "user",
+        lastUserTurn.content,
+        tgChannelRef,
+      );
     }
 
     // Build comprehensive context
     let contextMessage = "";
-    
+
     // Add context summary if provided (pre-built by the client)
     if (contextSummary) {
       contextMessage += `\n${contextSummary}`;
@@ -5060,43 +7705,48 @@ serve(async (req) => {
         contextMessage += "\n\n## WHO THIS USER IS (Their Identity)";
         if (userProfile.displayName) contextMessage += `\nName: ${userProfile.displayName}`;
         if (userProfile.role) contextMessage += `\nRole: ${userProfile.role}`;
-        if (userProfile.businesses?.length) contextMessage += `\nBusinesses they run: ${userProfile.businesses.join(', ')}`;
-        if (userProfile.interests?.length) contextMessage += `\nInterests: ${userProfile.interests.join(', ')}`;
-        if (userProfile.skills?.length) contextMessage += `\nSkills: ${userProfile.skills.join(', ')}`;
+        if (userProfile.businesses?.length)
+          contextMessage += `\nBusinesses they run: ${userProfile.businesses.join(", ")}`;
+        if (userProfile.interests?.length)
+          contextMessage += `\nInterests: ${userProfile.interests.join(", ")}`;
+        if (userProfile.skills?.length)
+          contextMessage += `\nSkills: ${userProfile.skills.join(", ")}`;
         if (userProfile.locationCity || userProfile.locationCountry) {
-          contextMessage += `\nLocation: ${[userProfile.locationCity, userProfile.locationCountry].filter(Boolean).join(', ')}`;
+          contextMessage += `\nLocation: ${[userProfile.locationCity, userProfile.locationCountry].filter(Boolean).join(", ")}`;
         }
         if (userProfile.goals) contextMessage += `\nCurrent goals: ${userProfile.goals}`;
         if (userProfile.bio) contextMessage += `\nAbout them: ${userProfile.bio}`;
       }
-      
+
       if (relevantContacts && relevantContacts.length > 0) {
         contextMessage += "\n\n## RELEVANT CONTACTS (for current conversation)";
         for (const contact of relevantContacts) {
-          const location = [contact.city, contact.country].filter(Boolean).join(', ');
-          const details = [contact.role, contact.company, location].filter(Boolean).join(' | ');
-          contextMessage += `\n- ${contact.name}${details ? `: ${details}` : ''}`;
-          if (contact.tags?.length) contextMessage += ` [${contact.tags.join(', ')}]`;
+          const location = [contact.city, contact.country].filter(Boolean).join(", ");
+          const details = [contact.role, contact.company, location].filter(Boolean).join(" | ");
+          contextMessage += `\n- ${contact.name}${details ? `: ${details}` : ""}`;
+          if (contact.tags?.length) contextMessage += ` [${contact.tags.join(", ")}]`;
           if (contact.email) contextMessage += ` (${contact.email})`;
         }
       }
-      
+
       if (relevantContracts && relevantContracts.length > 0) {
         contextMessage += "\n\n## RELEVANT CONTRACTS (for current conversation)";
         for (const contract of relevantContracts) {
-          const cost = contract.costAmount ? `€${contract.costAmount}/${contract.costFrequency || 'month'}` : '';
-          const renewal = contract.renewalDate ? `renews ${contract.renewalDate}` : '';
-          contextMessage += `\n- ${contract.name}${contract.provider ? ` (${contract.provider})` : ''}: ${[cost, renewal].filter(Boolean).join(', ')}`;
+          const cost = contract.costAmount
+            ? `€${contract.costAmount}/${contract.costFrequency || "month"}`
+            : "";
+          const renewal = contract.renewalDate ? `renews ${contract.renewalDate}` : "";
+          contextMessage += `\n- ${contract.name}${contract.provider ? ` (${contract.provider})` : ""}: ${[cost, renewal].filter(Boolean).join(", ")}`;
         }
       }
     }
-    
+
     // Add overdue tasks prominently if provided by client (for proactive suggestions)
     if (clientOverdueTasks && clientOverdueTasks.length > 0) {
       contextMessage += `\n\n## ⚠️ OVERDUE TASKS REQUIRING ATTENTION (${clientOverdueTasks.length} total)`;
       contextMessage += `\nThese tasks are past their due date and need to be addressed. Proactively mention these and offer to reschedule!`;
       for (const task of clientOverdueTasks) {
-        const daysOverdue = task.dueDate 
+        const daysOverdue = task.dueDate
           ? Math.floor((Date.now() - new Date(task.dueDate).getTime()) / (1000 * 60 * 60 * 24))
           : 0;
         contextMessage += `\n- "${task.title}" (${task.priority} priority, ${task.category}) - ${daysOverdue} day(s) overdue`;
@@ -5113,29 +7763,39 @@ serve(async (req) => {
 
     // Add all tasks and events context
     if (tasks && tasks.length > 0) {
-      const pendingTasks = tasks.filter(t => !t.completed);
-      const overdueCount = clientOverdueTasks?.length || pendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length;
-      const todayCount = clientTodayTasks?.length || pendingTasks.filter(t => {
-        if (!t.dueDate) return false;
-        const taskDate = new Date(t.dueDate).toDateString();
-        const today = new Date().toDateString();
-        return taskDate === today;
-      }).length;
-      
+      const pendingTasks = tasks.filter((t) => !t.completed);
+      const overdueCount =
+        clientOverdueTasks?.length ||
+        pendingTasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date()).length;
+      const todayCount =
+        clientTodayTasks?.length ||
+        pendingTasks.filter((t) => {
+          if (!t.dueDate) return false;
+          const taskDate = new Date(t.dueDate).toDateString();
+          const today = new Date().toDateString();
+          return taskDate === today;
+        }).length;
+
       contextMessage += `\n\n## CURRENT WORK ITEMS (Not their identity - these are just things they're working on)`;
       contextMessage += `\n${pendingTasks.length} pending tasks, ${overdueCount} overdue, ${todayCount} due today`;
-      contextMessage += `\nPending tasks:\n${pendingTasks.slice(0, 10).map(t => `- [id:${t.id}] ${t.title} (${t.category}, ${t.priority} priority${t.dueDate ? `, due ${t.dueDate}` : ''})`).join('\n')}`;
+      contextMessage += `\nPending tasks:\n${pendingTasks
+        .slice(0, 10)
+        .map(
+          (t) =>
+            `- [id:${t.id}] ${t.title} (${t.category}, ${t.priority} priority${t.dueDate ? `, due ${t.dueDate}` : ""})`,
+        )
+        .join("\n")}`;
     }
-    
+
     if (events && events.length > 0) {
       // Filter to only future events (in case client sends mixed data)
       const now = new Date();
-      const futureEvents = events.filter(e => new Date(e.startTime) > now);
-      
+      const futureEvents = events.filter((e) => new Date(e.startTime) > now);
+
       if (futureEvents.length > 0) {
         contextMessage += `\n\n## UPCOMING CALENDAR EVENTS (Future events the user has scheduled)`;
         contextMessage += `\nTotal upcoming events: ${futureEvents.length}`;
-        
+
         // Group by time period for better context
         const today = new Date();
         today.setHours(23, 59, 59, 999);
@@ -5143,36 +7803,39 @@ serve(async (req) => {
         tomorrow.setDate(tomorrow.getDate() + 1);
         const thisWeek = new Date(today);
         thisWeek.setDate(thisWeek.getDate() + 7);
-        
-        const todayEvents = futureEvents.filter(e => new Date(e.startTime) <= today);
-        const tomorrowEvents = futureEvents.filter(e => {
+
+        const todayEvents = futureEvents.filter((e) => new Date(e.startTime) <= today);
+        const tomorrowEvents = futureEvents.filter((e) => {
           const eventDate = new Date(e.startTime);
           return eventDate > today && eventDate <= tomorrow;
         });
-        const thisWeekEvents = futureEvents.filter(e => {
+        const thisWeekEvents = futureEvents.filter((e) => {
           const eventDate = new Date(e.startTime);
           return eventDate > tomorrow && eventDate <= thisWeek;
         });
-        const laterEvents = futureEvents.filter(e => new Date(e.startTime) > thisWeek);
-        
+        const laterEvents = futureEvents.filter((e) => new Date(e.startTime) > thisWeek);
+
         if (todayEvents.length > 0) {
           contextMessage += `\n\n### Today:`;
-          contextMessage += `\n${todayEvents.map(e => `- ${e.title} at ${new Date(e.startTime).toLocaleTimeString()}`).join('\n')}`;
+          contextMessage += `\n${todayEvents.map((e) => `- ${e.title} at ${new Date(e.startTime).toLocaleTimeString()}`).join("\n")}`;
         }
-        
+
         if (tomorrowEvents.length > 0) {
           contextMessage += `\n\n### Tomorrow:`;
-          contextMessage += `\n${tomorrowEvents.map(e => `- ${e.title} at ${new Date(e.startTime).toLocaleTimeString()}`).join('\n')}`;
+          contextMessage += `\n${tomorrowEvents.map((e) => `- ${e.title} at ${new Date(e.startTime).toLocaleTimeString()}`).join("\n")}`;
         }
-        
+
         if (thisWeekEvents.length > 0) {
           contextMessage += `\n\n### This week:`;
-          contextMessage += `\n${thisWeekEvents.map(e => `- ${e.title} on ${new Date(e.startTime).toLocaleDateString()} at ${new Date(e.startTime).toLocaleTimeString()}`).join('\n')}`;
+          contextMessage += `\n${thisWeekEvents.map((e) => `- ${e.title} on ${new Date(e.startTime).toLocaleDateString()} at ${new Date(e.startTime).toLocaleTimeString()}`).join("\n")}`;
         }
-        
+
         if (laterEvents.length > 0) {
           contextMessage += `\n\n### Later (next 30 days):`;
-          contextMessage += `\n${laterEvents.slice(0, 10).map(e => `- ${e.title} on ${new Date(e.startTime).toLocaleDateString()}`).join('\n')}`;
+          contextMessage += `\n${laterEvents
+            .slice(0, 10)
+            .map((e) => `- ${e.title} on ${new Date(e.startTime).toLocaleDateString()}`)
+            .join("\n")}`;
           if (laterEvents.length > 10) {
             contextMessage += `\n... and ${laterEvents.length - 10} more events`;
           }
@@ -5187,7 +7850,7 @@ serve(async (req) => {
     // Add health data
     if (healthData) {
       contextMessage += `\n\n## HEALTH & WELLNESS DATA`;
-      
+
       // Daily summary from Apple Health / fitness tracking
       if (healthData.dailySummary) {
         const ds = healthData.dailySummary;
@@ -5198,78 +7861,97 @@ serve(async (req) => {
         if (ds.distance) contextMessage += `\n- Distance: ${ds.distance.toFixed(1)} km`;
         if (ds.flightsClimbed) contextMessage += `\n- Flights climbed: ${ds.flightsClimbed}`;
         contextMessage += `\n- Heart rate (avg): ${ds.heartRateAvg} bpm`;
-        if (ds.restingHeartRate) contextMessage += `\n- Resting heart rate: ${ds.restingHeartRate} bpm`;
+        if (ds.restingHeartRate)
+          contextMessage += `\n- Resting heart rate: ${ds.restingHeartRate} bpm`;
         if (ds.hrv) contextMessage += `\n- Heart Rate Variability (HRV): ${ds.hrv} ms`;
         if (ds.bloodOxygen) contextMessage += `\n- Blood oxygen: ${ds.bloodOxygen}%`;
         if (ds.weight) contextMessage += `\n- Weight: ${ds.weight} kg`;
         contextMessage += `\n- Water intake: ${ds.waterIntake} glasses`;
-        if (ds.mindfulnessMinutes) contextMessage += `\n- Mindfulness: ${ds.mindfulnessMinutes} minutes`;
-        
+        if (ds.mindfulnessMinutes)
+          contextMessage += `\n- Mindfulness: ${ds.mindfulnessMinutes} minutes`;
+
         // Detailed sleep data
         if (ds.sleepHours > 0) {
           contextMessage += `\n\n### Last Night's Sleep:`;
           contextMessage += `\n- Total sleep: ${ds.sleepHours.toFixed(1)} hours`;
           if (ds.sleepStartTime && ds.sleepEndTime) {
-            const startTime = new Date(ds.sleepStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const endTime = new Date(ds.sleepEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const startTime = new Date(ds.sleepStartTime).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const endTime = new Date(ds.sleepEndTime).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
             contextMessage += `\n- Bedtime: ${startTime} → Woke up: ${endTime}`;
           }
-          if (ds.sleepInBedMinutes) contextMessage += `\n- Time in bed: ${Math.round(ds.sleepInBedMinutes / 60 * 10) / 10} hours`;
+          if (ds.sleepInBedMinutes)
+            contextMessage += `\n- Time in bed: ${Math.round((ds.sleepInBedMinutes / 60) * 10) / 10} hours`;
           if (ds.sleepEfficiency) contextMessage += `\n- Sleep efficiency: ${ds.sleepEfficiency}%`;
-          
+
           // Sleep stages
           if (ds.sleepDeepMinutes || ds.sleepRemMinutes || ds.sleepCoreMinutes) {
             contextMessage += `\n- Sleep stages:`;
-            if (ds.sleepDeepMinutes) contextMessage += `\n  - Deep sleep: ${ds.sleepDeepMinutes} min (${Math.round(ds.sleepDeepMinutes / (ds.sleepHours * 60) * 100)}%)`;
-            if (ds.sleepRemMinutes) contextMessage += `\n  - REM sleep: ${ds.sleepRemMinutes} min (${Math.round(ds.sleepRemMinutes / (ds.sleepHours * 60) * 100)}%)`;
-            if (ds.sleepCoreMinutes) contextMessage += `\n  - Core/Light sleep: ${ds.sleepCoreMinutes} min`;
-            if (ds.sleepAwakeMinutes) contextMessage += `\n  - Awake time: ${ds.sleepAwakeMinutes} min`;
+            if (ds.sleepDeepMinutes)
+              contextMessage += `\n  - Deep sleep: ${ds.sleepDeepMinutes} min (${Math.round((ds.sleepDeepMinutes / (ds.sleepHours * 60)) * 100)}%)`;
+            if (ds.sleepRemMinutes)
+              contextMessage += `\n  - REM sleep: ${ds.sleepRemMinutes} min (${Math.round((ds.sleepRemMinutes / (ds.sleepHours * 60)) * 100)}%)`;
+            if (ds.sleepCoreMinutes)
+              contextMessage += `\n  - Core/Light sleep: ${ds.sleepCoreMinutes} min`;
+            if (ds.sleepAwakeMinutes)
+              contextMessage += `\n  - Awake time: ${ds.sleepAwakeMinutes} min`;
           }
         }
       }
-      
+
       // Weekly trends
       if (healthData.weeklyTrends && healthData.weeklyTrends.length > 0) {
-        const avgSteps = healthData.weeklyTrends.reduce((sum, d) => sum + d.steps, 0) / healthData.weeklyTrends.length;
-        const avgSleep = healthData.weeklyTrends.reduce((sum, d) => sum + d.sleepHours, 0) / healthData.weeklyTrends.length;
-        const avgCalories = healthData.weeklyTrends.reduce((sum, d) => sum + d.calories, 0) / healthData.weeklyTrends.length;
-        
+        const avgSteps =
+          healthData.weeklyTrends.reduce((sum, d) => sum + d.steps, 0) /
+          healthData.weeklyTrends.length;
+        const avgSleep =
+          healthData.weeklyTrends.reduce((sum, d) => sum + d.sleepHours, 0) /
+          healthData.weeklyTrends.length;
+        const avgCalories =
+          healthData.weeklyTrends.reduce((sum, d) => sum + d.calories, 0) /
+          healthData.weeklyTrends.length;
+
         contextMessage += `\n\n### Weekly Health Trends (last ${healthData.weeklyTrends.length} days):`;
         contextMessage += `\n- Avg daily steps: ${Math.round(avgSteps).toLocaleString()}`;
         contextMessage += `\n- Avg sleep: ${avgSleep.toFixed(1)} hours/night`;
         contextMessage += `\n- Avg calories burned: ${Math.round(avgCalories).toLocaleString()}`;
       }
-      
+
       if (healthData.medications && healthData.medications.length > 0) {
-        const activeMeds = healthData.medications.filter(m => m.isActive);
+        const activeMeds = healthData.medications.filter((m) => m.isActive);
         if (activeMeds.length > 0) {
           contextMessage += `\n\n### Active Medications (${activeMeds.length}):`;
           for (const med of activeMeds) {
-            const details = [med.dosage, med.frequency].filter(Boolean).join(', ');
-            const refill = med.refillDate ? ` - Refill: ${med.refillDate}` : '';
-            contextMessage += `\n- ${med.name}${details ? `: ${details}` : ''}${refill}`;
+            const details = [med.dosage, med.frequency].filter(Boolean).join(", ");
+            const refill = med.refillDate ? ` - Refill: ${med.refillDate}` : "";
+            contextMessage += `\n- ${med.name}${details ? `: ${details}` : ""}${refill}`;
           }
         }
       }
-      
+
       if (healthData.appointments && healthData.appointments.length > 0) {
-        const upcomingAppts = healthData.appointments.filter(a => !a.isCompleted);
+        const upcomingAppts = healthData.appointments.filter((a) => !a.isCompleted);
         if (upcomingAppts.length > 0) {
           contextMessage += `\n\n### Upcoming Medical Appointments (${upcomingAppts.length}):`;
           for (const appt of upcomingAppts.slice(0, 5)) {
-            const provider = appt.provider ? ` with ${appt.provider}` : '';
-            const type = appt.type ? ` (${appt.type})` : '';
+            const provider = appt.provider ? ` with ${appt.provider}` : "";
+            const type = appt.type ? ` (${appt.type})` : "";
             contextMessage += `\n- ${appt.title}${provider}${type}: ${appt.date}`;
           }
         }
       }
-      
+
       if (healthData.vaccinations && healthData.vaccinations.length > 0) {
         const recentVax = healthData.vaccinations.slice(0, 5);
         if (recentVax.length > 0) {
           contextMessage += `\n\n### Recent Vaccinations:`;
           for (const vax of recentVax) {
-            const nextDose = vax.nextDose ? ` - Next dose: ${vax.nextDose}` : '';
+            const nextDose = vax.nextDose ? ` - Next dose: ${vax.nextDose}` : "";
             contextMessage += `\n- ${vax.name}: ${vax.date}${nextDose}`;
           }
         }
@@ -5277,7 +7959,7 @@ serve(async (req) => {
 
       if (healthData.metrics && healthData.metrics.length > 0) {
         contextMessage += `\n\n### Health Metrics (last 30 days):`;
-        
+
         // Group metrics by type
         const metricsByType: Record<string, typeof healthData.metrics> = {};
         for (const metric of healthData.metrics) {
@@ -5286,13 +7968,15 @@ serve(async (req) => {
           }
           metricsByType[metric.type].push(metric);
         }
-        
+
         for (const [type, metrics] of Object.entries(metricsByType)) {
-          const sortedMetrics = metrics.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const sortedMetrics = metrics.sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+          );
           const latestValue = sortedMetrics[0];
           const avgValue = metrics.reduce((sum, m) => sum + m.value, 0) / metrics.length;
-          
-          contextMessage += `\n- ${type}: Latest: ${latestValue.value} ${latestValue.unit} (${latestValue.date.split('T')[0]})`;
+
+          contextMessage += `\n- ${type}: Latest: ${latestValue.value} ${latestValue.unit} (${latestValue.date.split("T")[0]})`;
           if (metrics.length > 1) {
             contextMessage += `, Avg: ${avgValue.toFixed(1)} ${latestValue.unit} over ${metrics.length} readings`;
           }
@@ -5304,19 +7988,21 @@ serve(async (req) => {
     // Add family context
     if (familyContext && familyContext.members.length > 0) {
       contextMessage += `\n\n## FAMILY INFORMATION`;
-      
-      const children = familyContext.members.filter(m => m.relationship === 'child');
-      const spouse = familyContext.members.find(m => m.relationship === 'spouse');
-      const otherMembers = familyContext.members.filter(m => m.relationship !== 'child' && m.relationship !== 'spouse');
-      
+
+      const children = familyContext.members.filter((m) => m.relationship === "child");
+      const spouse = familyContext.members.find((m) => m.relationship === "spouse");
+      const otherMembers = familyContext.members.filter(
+        (m) => m.relationship !== "child" && m.relationship !== "spouse",
+      );
+
       if (children.length > 0) {
         contextMessage += `\n\n### Children (${children.length}):`;
         for (const child of children) {
-          let childInfo = `\n- **${child.name}** (${child.age || 'age unknown'} years old)`;
+          let childInfo = `\n- **${child.name}** (${child.age || "age unknown"} years old)`;
           if (child.school) {
-            childInfo += `\n  - School: ${child.school}${child.grade ? `, Grade: ${child.grade}` : ''}`;
+            childInfo += `\n  - School: ${child.school}${child.grade ? `, Grade: ${child.grade}` : ""}`;
             if (child.teacherName) {
-              childInfo += `\n  - Teacher: ${child.teacherName}${child.teacherContact ? ` (${child.teacherContact})` : ''}`;
+              childInfo += `\n  - Teacher: ${child.teacherName}${child.teacherContact ? ` (${child.teacherContact})` : ""}`;
             }
           }
           if (child.kindergarten) {
@@ -5326,10 +8012,10 @@ serve(async (req) => {
             }
           }
           if (child.activities && child.activities.length > 0) {
-            childInfo += `\n  - Activities: ${child.activities.map(a => `${a.name} (${a.schedule}${a.location ? ` at ${a.location}` : ''})`).join(', ')}`;
+            childInfo += `\n  - Activities: ${child.activities.map((a) => `${a.name} (${a.schedule}${a.location ? ` at ${a.location}` : ""})`).join(", ")}`;
           }
           if (child.allergies && child.allergies.length > 0) {
-            childInfo += `\n  - ⚠️ ALLERGIES: ${child.allergies.join(', ')}`;
+            childInfo += `\n  - ⚠️ ALLERGIES: ${child.allergies.join(", ")}`;
           }
           if (child.medicalNotes) {
             childInfo += `\n  - Medical notes: ${child.medicalNotes}`;
@@ -5337,47 +8023,60 @@ serve(async (req) => {
           contextMessage += childInfo;
         }
       }
-      
+
       if (spouse) {
         contextMessage += `\n\n### Spouse: ${spouse.name}`;
       }
-      
+
       if (otherMembers.length > 0) {
         contextMessage += `\n\n### Other Family Members:`;
         for (const member of otherMembers) {
-          contextMessage += `\n- ${member.name} (${member.relationship}${member.age ? `, ${member.age} years old` : ''})`;
+          contextMessage += `\n- ${member.name} (${member.relationship}${member.age ? `, ${member.age} years old` : ""})`;
         }
       }
-      
+
       if (familyContext.todayEvents && familyContext.todayEvents.length > 0) {
         contextMessage += `\n\n### Today's Family Schedule:`;
         for (const event of familyContext.todayEvents) {
-          const time = new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const endTime = new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const member = event.relatedMember ? ` (${event.relatedMember})` : '';
-          contextMessage += `\n- ${event.title}: ${time} - ${endTime}${event.location ? ` at ${event.location}` : ''}${member}`;
+          const time = new Date(event.startTime).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const endTime = new Date(event.endTime).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const member = event.relatedMember ? ` (${event.relatedMember})` : "";
+          contextMessage += `\n- ${event.title}: ${time} - ${endTime}${event.location ? ` at ${event.location}` : ""}${member}`;
         }
       }
-      
+
       if (familyContext.tomorrowEvents && familyContext.tomorrowEvents.length > 0) {
         contextMessage += `\n\n### Tomorrow's Family Schedule:`;
         for (const event of familyContext.tomorrowEvents) {
-          const time = new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          contextMessage += `\n- ${event.title} at ${time}${event.location ? ` (${event.location})` : ''}`;
+          const time = new Date(event.startTime).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          contextMessage += `\n- ${event.title} at ${time}${event.location ? ` (${event.location})` : ""}`;
         }
       }
-      
+
       if (familyContext.upcomingBirthdays && familyContext.upcomingBirthdays.length > 0) {
         contextMessage += `\n\n### Upcoming Family Birthdays:`;
         for (const bday of familyContext.upcomingBirthdays) {
-          const daysUntil = Math.ceil((new Date(bday.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          const daysUntil = Math.ceil(
+            (new Date(bday.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+          );
           contextMessage += `\n- 🎂 ${bday.member} turns ${bday.age} in ${daysUntil} days (${bday.date})`;
         }
       }
-      
+
       if (familyContext.shoppingLists && familyContext.shoppingLists.length > 0) {
         contextMessage += `\n\n### Active Shopping Lists:`;
-        contextMessage += familyContext.shoppingLists.map(l => `\n- ${l.name} (${l.itemCount} items)`).join('');
+        contextMessage += familyContext.shoppingLists
+          .map((l) => `\n- ${l.name} (${l.itemCount} items)`)
+          .join("");
       }
     }
 
@@ -5390,7 +8089,7 @@ serve(async (req) => {
     if (emailSummary && emailSummary.length > 0) {
       contextMessage += `\n\n## RECENT UNREAD EMAILS (${emailSummary.length}):`;
       for (const e of emailSummary) {
-        contextMessage += `\n- [${e.priority}] "${e.subject}" from ${e.from}${e.snippet ? ` — ${e.snippet}` : ''}`;
+        contextMessage += `\n- [${e.priority}] "${e.subject}" from ${e.from}${e.snippet ? ` — ${e.snippet}` : ""}`;
       }
       contextMessage += `\nYou can help the user triage, summarize, or respond to these emails.`;
     }
@@ -5399,7 +8098,7 @@ serve(async (req) => {
     if (notesSummary && notesSummary.length > 0) {
       contextMessage += `\n\n## RECENT NOTES (${notesSummary.length}):`;
       for (const n of notesSummary) {
-        const tags = n.tags.length > 0 ? ` [${n.tags.join(', ')}]` : '';
+        const tags = n.tags.length > 0 ? ` [${n.tags.join(", ")}]` : "";
         contextMessage += `\n- "${n.title}"${tags}: ${n.snippet}...`;
       }
       contextMessage += `\nYou can reference these notes when the user asks about things they've written down.`;
@@ -5409,7 +8108,7 @@ serve(async (req) => {
     if (habitsSummary && habitsSummary.length > 0) {
       contextMessage += `\n\n## ACTIVE HABITS:`;
       for (const h of habitsSummary) {
-        const status = h.isCompletedToday ? '✅' : '⬜';
+        const status = h.isCompletedToday ? "✅" : "⬜";
         contextMessage += `\n- ${status} ${h.name} (${h.frequency}) — ${h.streak} day streak`;
       }
       contextMessage += `\nEncourage the user about their streaks and remind about incomplete habits.`;
@@ -5420,7 +8119,7 @@ serve(async (req) => {
       contextMessage += `\n\n## LONG-TERM MEMORY (Things you've learned about this user from previous conversations)`;
       contextMessage += `\nUse this knowledge naturally in your responses. Reference it when relevant.`;
       for (const mem of memories) {
-        contextMessage += `\n- [${mem.type}]${mem.category ? ` (${mem.category})` : ''} ${mem.key}: "${mem.value}"`;
+        contextMessage += `\n- [${mem.type}]${mem.category ? ` (${mem.category})` : ""} ${mem.key}: "${mem.value}"`;
       }
     }
 
@@ -5507,26 +8206,34 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     let userTimezone: string | undefined;
     let userLocale: string | undefined;
     try {
-      const { data: p } = await supabaseAdmin.from('profiles').select('timezone, locale').eq('user_id', userId).maybeSingle();
+      const { data: p } = await supabaseAdmin
+        .from("profiles")
+        .select("timezone, locale")
+        .eq("user_id", userId)
+        .maybeSingle();
       userTimezone = p?.timezone || undefined;
       userLocale = p?.locale || undefined;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Locale directive goes right on top of the dynamic tail so the AI
     // sees it consistently. Null/empty = let the model auto-detect from
     // the user's messages.
     const localeBlock = userLocale
       ? `\n\n## LOCALE\nRespond in locale "${userLocale}". If the user writes in a different language, mirror theirs — but default to this for proactive messages, digests, and prose.`
-      : '';
+      : "";
 
     // Live context block — one round-trip snapshot of "what's on this user's
     // plate RIGHT NOW" so the AI never has to ask a follow-up lookup tool.
-    let liveContextBlock = '';
+    let liveContextBlock = "";
     try {
-      const ctx = await buildDoriContext(supabaseAdmin, userId, activeWorkspace?.id ?? null, { timezone: userTimezone });
-      liveContextBlock = '\n\n' + formatContextForAI(ctx, userProfile?.displayName);
+      const ctx = await buildDoriContext(supabaseAdmin, userId, activeWorkspace?.id ?? null, {
+        timezone: userTimezone,
+      });
+      liveContextBlock = "\n\n" + formatContextForAI(ctx, userProfile?.displayName);
     } catch (e) {
-      console.warn('buildDoriContext failed', e);
+      console.warn("buildDoriContext failed", e);
       // The base prompt deliberately carries no date, so guarantee the model
       // still gets a current "Now:" (in the user's tz) even if context fails.
       const nowIso = new Date().toISOString();
@@ -5535,9 +8242,9 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
         : `\n\n## LIVE CONTEXT\nNow: ${nowIso} (UTC — user timezone unknown).`;
     }
 
-    let workspaceBlock = '';
+    let workspaceBlock = "";
     if (activeWorkspace) {
-      workspaceBlock = `\n\n## ACTIVE WORKSPACE\nYou are currently acting inside the workspace "${activeWorkspace.name}"${activeWorkspace.icon ? ` (${activeWorkspace.icon})` : ''}${activeWorkspace.description ? ` — ${activeWorkspace.description}` : ''}.\n`;
+      workspaceBlock = `\n\n## ACTIVE WORKSPACE\nYou are currently acting inside the workspace "${activeWorkspace.name}"${activeWorkspace.icon ? ` (${activeWorkspace.icon})` : ""}${activeWorkspace.description ? ` — ${activeWorkspace.description}` : ""}.\n`;
       if (activeWorkspace.members?.length) {
         workspaceBlock += `\n### Workspace members (${activeWorkspace.members.length})\n`;
         for (const m of activeWorkspace.members) {
@@ -5559,7 +8266,8 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     //     (intelligenceBlock contains cross-channel history + learned
     //     preferences, both of which change per-turn and would otherwise
     //     break the cache if placed above the boundary).
-    const stablePrefix = baseSystemPrompt + '\n\nPersonality: ' + personalityAddition + staticGuidance;
+    const stablePrefix =
+      baseSystemPrompt + "\n\nPersonality: " + personalityAddition + staticGuidance;
     // Dynamic tail order matters: specialistBlock first because it
     // narrows the model's mindset for this turn; stateBlock right
     // after so any "yes/do it" is resolved against the pending plan
@@ -5569,9 +8277,10 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // like fresh instructions and make the model re-emit tools it already ran —
     // producing duplicate confirmations for appointments the user already saw.
     // Scope tool emission to the latest turn on those channels.
-    const replayGuardBlock = currentChannel !== 'web'
-      ? `\n\n## ACT ON THE LATEST MESSAGE ONLY\nEverything above the final user turn is conversation history, provided only for context. Emit tools ONLY in response to the user's most recent message. Do NOT re-create, re-schedule, or re-add reminders for anything that was requested in an earlier turn — it was already handled or is already awaiting the user's confirmation. If the latest message is small talk (e.g. "how are you", "thanks"), just reply conversationally and call no tools.`
-      : '';
+    const replayGuardBlock =
+      currentChannel !== "web"
+        ? `\n\n## ACT ON THE LATEST MESSAGE ONLY\nEverything above the final user turn is conversation history, provided only for context. Emit tools ONLY in response to the user's most recent message. Do NOT re-create, re-schedule, or re-add reminders for anything that was requested in an earlier turn — it was already handled or is already awaiting the user's confirmation. If the latest message is small talk (e.g. "how are you", "thanks"), just reply conversationally and call no tools.`
+        : "";
     const dynamicTail =
       specialistBlock +
       stateBlock +
@@ -5591,19 +8300,21 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
       eventsCount: events?.length || 0,
       familyMembersCount: familyContext?.members?.length || 0,
       familyTodayEvents: familyContext?.todayEvents?.length || 0,
-      healthData: healthData ? {
-        medications: healthData.medications?.length || 0,
-        appointments: healthData.appointments?.length || 0,
-        vaccinations: healthData.vaccinations?.length || 0,
-        metrics: healthData.metrics?.length || 0,
-      } : null,
+      healthData: healthData
+        ? {
+            medications: healthData.medications?.length || 0,
+            appointments: healthData.appointments?.length || 0,
+            vaccinations: healthData.vaccinations?.length || 0,
+            metrics: healthData.metrics?.length || 0,
+          }
+        : null,
     });
 
-    const model = 'gemini-3-flash-preview';
+    const model = "gemini-3-flash-preview";
     // Stable model used as a fallback when the preview model is capacity
     // throttled (Gemini returns 503/5xx). Same family used by every other
     // call in this file, so quality stays consistent.
-    const FALLBACK_MODEL = 'gemini-2.5-flash';
+    const FALLBACK_MODEL = "gemini-2.5-flash";
 
     // Native function-calling is opt-in per request via a header so we
     // can roll it out one surface at a time. The legacy XML path stays
@@ -5611,20 +8322,26 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // <tool>…</tool> blocks the executor already understands. When
     // tools ARE sent, the model returns a structured `tool_calls`
     // array, which we convert back to legacy XML for execution.
-    const useNativeTools = req.headers.get('x-dori-native-tools') === '1';
+    const useNativeTools = req.headers.get("x-dori-native-tools") === "1";
 
-    type AiMessageContent = string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
-    async function callAIOnce(msgs: { role: string; content: AiMessageContent }[], stream: boolean, modelName: string) {
+    type AiMessageContent =
+      | string
+      | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+    async function callAIOnce(
+      msgs: { role: string; content: AiMessageContent }[],
+      stream: boolean,
+      modelName: string,
+    ) {
       const payload: Record<string, unknown> = { model: modelName, messages: msgs, stream };
       if (useNativeTools) {
         payload.tools = NATIVE_TOOLS;
-        payload.tool_choice = 'auto';
+        payload.tool_choice = "auto";
       }
-      return fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
+      return fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${GEMINI_API_KEY}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
@@ -5645,7 +8362,9 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
         }
         resp = await callAIOnce(msgs, stream, attempts[i]);
         if (resp.ok || resp.status < 500) break;
-        console.error(`Gemini ${attempts[i]} returned ${resp.status}; ${i < attempts.length - 1 ? 'retrying' : 'giving up'}`);
+        console.error(
+          `Gemini ${attempts[i]} returned ${resp.status}; ${i < attempts.length - 1 ? "retrying" : "giving up"}`,
+        );
       }
       return resp;
     }
@@ -5657,7 +8376,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // any prose the model produced still ships to the user, but the
     // executor sees the XML it expects.
     function flattenAssistantMessage(msg: { content?: string; tool_calls?: unknown[] }): string {
-      const content: string = msg?.content || '';
+      const content: string = msg?.content || "";
       const toolCalls = Array.isArray(msg?.tool_calls) ? msg.tool_calls : [];
       if (toolCalls.length === 0) return content;
       const xml = toolCallsToLegacyXml(toolCalls);
@@ -5666,54 +8385,57 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
     // Helper: call Perplexity web search
     async function webSearch(query: string): Promise<{ answer: string; citations: string[] }> {
-      const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+      const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
       if (!PERPLEXITY_API_KEY) {
-        return { answer: 'Web search is not configured.', citations: [] };
+        return { answer: "Web search is not configured.", citations: [] };
       }
       try {
-        const res = await fetch('https://api.perplexity.ai/chat/completions', {
-          method: 'POST',
+        const res = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: 'sonar',
+            model: "sonar",
             messages: [
-              { role: 'system', content: 'Be precise and concise. Provide factual, up-to-date information.' },
-              { role: 'user', content: query },
+              {
+                role: "system",
+                content: "Be precise and concise. Provide factual, up-to-date information.",
+              },
+              { role: "user", content: query },
             ],
           }),
         });
         if (!res.ok) {
-          console.error('Perplexity error:', res.status, await res.text());
-          return { answer: 'Web search failed.', citations: [] };
+          console.error("Perplexity error:", res.status, await res.text());
+          return { answer: "Web search failed.", citations: [] };
         }
         const data = await res.json();
         return {
-          answer: data.choices?.[0]?.message?.content || 'No results found.',
+          answer: data.choices?.[0]?.message?.content || "No results found.",
           citations: data.citations || [],
         };
       } catch (e) {
-        console.error('Web search error:', e);
-        return { answer: 'Web search failed.', citations: [] };
+        console.error("Web search error:", e);
+        return { answer: "Web search failed.", citations: [] };
       }
     }
 
     // Build messages, injecting image into the last user message if present
     const allMessages: { role: string; content: AiMessageContent }[] = [
-      { role: 'system', content: fullSystemPrompt },
+      { role: "system", content: fullSystemPrompt },
     ];
-    
+
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
-      if (imageUrl && i === messages.length - 1 && msg.role === 'user') {
+      if (imageUrl && i === messages.length - 1 && msg.role === "user") {
         // Multimodal message with image
         allMessages.push({
-          role: 'user',
+          role: "user",
           content: [
-            { type: 'text', text: msg.content || 'What do you see in this image?' },
-            { type: 'image_url', image_url: { url: imageUrl } },
+            { type: "text", text: msg.content || "What do you see in this image?" },
+            { type: "image_url", image_url: { url: imageUrl } },
           ],
         });
       } else {
@@ -5722,25 +8444,31 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     }
 
     // Pre-detect web search intent from the user's last message to avoid two-pass
-    const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || '';
+    const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || "";
     const isWebSearchLikely = detectWebSearchIntent(lastUserMsg);
-    
+
     if (isWebSearchLikely) {
       // Pre-fetch search results and inject them into context (single AI call)
       const searchQuery = extractSearchQuery(lastUserMsg);
-      console.log('Pre-fetching web search for:', searchQuery);
-      
+      console.log("Pre-fetching web search for:", searchQuery);
+
       const searchResult = await webSearch(searchQuery);
-      
-      if (searchResult.answer && searchResult.answer !== 'Web search failed.' && searchResult.answer !== 'Web search is not configured.') {
-        let citationText = '';
+
+      if (
+        searchResult.answer &&
+        searchResult.answer !== "Web search failed." &&
+        searchResult.answer !== "Web search is not configured."
+      ) {
+        let citationText = "";
         if (searchResult.citations.length > 0) {
-          citationText = '\n\nSources:\n' + searchResult.citations.map((c: string, i: number) => `[${i + 1}] ${c}`).join('\n');
+          citationText =
+            "\n\nSources:\n" +
+            searchResult.citations.map((c: string, i: number) => `[${i + 1}] ${c}`).join("\n");
         }
-        
+
         // Inject search results into the conversation context
         allMessages.push({
-          role: 'system',
+          role: "system",
           content: `Web search results for the user's question:\n\n${searchResult.answer}${citationText}\n\nUse these results to give a comprehensive answer. Cite sources as [1], [2], etc. Do NOT use the web_search tool — results are already provided.`,
         });
       }
@@ -5756,16 +8484,26 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
       const conversationMsgs: { role: string; content: AiMessageContent }[] = [...allMessages];
       const allExecResults: ToolExecResult[] = [];
 
-      const effectiveSource = actionSource || (currentChannel === 'tg_family' || currentChannel === 'tg_workspace' ? currentChannel
-        : currentChannel === 'tg_private' ? 'tg_private'
-        : 'web');
+      const effectiveSource =
+        actionSource ||
+        (currentChannel === "tg_family" || currentChannel === "tg_workspace"
+          ? currentChannel
+          : currentChannel === "tg_private"
+            ? "tg_private"
+            : "web");
       const effectiveSourceRef = actionSourceRef ?? tgChannelRef ?? null;
 
       // Approximate token counter for logAIUsage. Accumulates completion
       // chars across rounds, and the initial prompt size already counts the
       // system prompt + the full messages array we're about to send.
-      const initialPromptChars = fullSystemPrompt.length
-        + allMessages.reduce((n, m) => n + (typeof m.content === 'string' ? m.content.length : JSON.stringify(m.content).length), 0);
+      const initialPromptChars =
+        fullSystemPrompt.length +
+        allMessages.reduce(
+          (n, m) =>
+            n +
+            (typeof m.content === "string" ? m.content.length : JSON.stringify(m.content).length),
+          0,
+        );
       let totalStreamCompletionChars = 0;
 
       const sse = new ReadableStream({
@@ -5775,13 +8513,13 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
           };
 
           try {
-            let finalPromptText = '';
+            let finalPromptText = "";
             for (let round = 0; round < MAX_AGENT_ROUNDS; round++) {
               const aiResp = await callAI(conversationMsgs, true);
               if (!aiResp.ok || !aiResp.body) {
                 const t = aiResp.body ? await aiResp.text() : `status ${aiResp.status}`;
                 console.error(`stream round ${round} AI error:`, aiResp.status, t);
-                emit({ type: 'error', status: aiResp.status, detail: t });
+                emit({ type: "error", status: aiResp.status, detail: t });
                 break;
               }
 
@@ -5791,19 +8529,19 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               // never sees raw XML mid-reply.
               const reader = aiResp.body.getReader();
               const decoder = new TextDecoder();
-              let roundText = '';
-              let lineBuffer = '';
+              let roundText = "";
+              let lineBuffer = "";
               let emittedSafeLength = 0;
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
                 lineBuffer += decoder.decode(value, { stream: true });
-                const lines = lineBuffer.split('\n');
-                lineBuffer = lines.pop() || '';
+                const lines = lineBuffer.split("\n");
+                lineBuffer = lines.pop() || "";
                 for (const line of lines) {
-                  if (!line.startsWith('data: ')) continue;
+                  if (!line.startsWith("data: ")) continue;
                   const payload = line.slice(6).trim();
-                  if (!payload || payload === '[DONE]') continue;
+                  if (!payload || payload === "[DONE]") continue;
                   try {
                     const parsed = JSON.parse(payload);
                     const delta: string | undefined = parsed.choices?.[0]?.delta?.content;
@@ -5817,10 +8555,12 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
                     const safeEnd = toolIdx === -1 ? roundText.length : toolIdx;
                     if (safeEnd > emittedSafeLength) {
                       const out = roundText.slice(emittedSafeLength, safeEnd);
-                      if (out) emit({ type: 'delta', content: out });
+                      if (out) emit({ type: "delta", content: out });
                       emittedSafeLength = safeEnd;
                     }
-                  } catch { /* ignore malformed delta line */ }
+                  } catch {
+                    /* ignore malformed delta line */
+                  }
                 }
               }
 
@@ -5829,7 +8569,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               // every round. If we overwrote, the Telegram client — which
               // accumulated deltas across all rounds — would render something
               // different from the `reply` field in the final edit.
-              finalPromptText += (finalPromptText ? '\n\n' : '') + roundText;
+              finalPromptText += (finalPromptText ? "\n\n" : "") + roundText;
               totalStreamCompletionChars += roundText.length;
               const roundResults = await executeToolsServerSide(roundText, userId, supabaseAdmin, {
                 source: effectiveSource,
@@ -5842,33 +8582,48 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               });
               allExecResults.push(...roundResults);
               for (const r of roundResults) {
-                emit({ type: 'tool', ...r });
+                emit({ type: "tool", ...r });
               }
 
-              if (roundResults.length === 0) break;  // no tools → we're done
+              if (roundResults.length === 0) break; // no tools → we're done
 
               // Feed the round's output + results back for the next AI call.
-              conversationMsgs.push({ role: 'assistant', content: roundText });
-              const observation = roundResults.map((r, i) =>
-                `[${i + 1}] ${r.tool} → ${r.ok ? 'OK' : 'FAIL'}: ${r.message}`
-              ).join('\n');
+              conversationMsgs.push({ role: "assistant", content: roundText });
+              const observation = roundResults
+                .map((r, i) => `[${i + 1}] ${r.tool} → ${r.ok ? "OK" : "FAIL"}: ${r.message}`)
+                .join("\n");
               conversationMsgs.push({
-                role: 'system',
+                role: "system",
                 content: `Tool results from your last turn:\n${observation}\n\nIf the user's request is fully satisfied, reply with a brief natural-language confirmation and DO NOT emit more tools. If more steps are needed, emit the next tool(s).`,
               });
             }
 
             const cleanText = stripAllToolTags(finalPromptText).trim();
-            emit({ type: 'done', reply: cleanText, toolResults: allExecResults });
+            emit({ type: "done", reply: cleanText, toolResults: allExecResults });
             // Token accounting: include the full conversation we sent (system
             // prompt + messages) as the prompt cost, and the accumulated
             // completion text across every round as the completion cost.
             const promptTokens = Math.ceil(initialPromptChars / 4);
             const completionTokens = Math.ceil(totalStreamCompletionChars / 4);
-            await logAIUsage(supabaseAdmin, userId, 'chat-agent-stream', model,
-              promptTokens, completionTokens, promptTokens + completionTokens,
-              'success', { personality, streamFinalText: true, agentResultsCount: allExecResults.length });
-            logDoriTurn(supabaseAdmin, userId, currentChannel, 'assistant', cleanText, tgChannelRef);
+            await logAIUsage(
+              supabaseAdmin,
+              userId,
+              "chat-agent-stream",
+              model,
+              promptTokens,
+              completionTokens,
+              promptTokens + completionTokens,
+              "success",
+              { personality, streamFinalText: true, agentResultsCount: allExecResults.length },
+            );
+            logDoriTurn(
+              supabaseAdmin,
+              userId,
+              currentChannel,
+              "assistant",
+              cleanText,
+              tgChannelRef,
+            );
             // Save state + semantic memory for the next turn (best-effort).
             saveConversationState(supabaseAdmin, {
               userId,
@@ -5884,16 +8639,24 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               rememberSemantic(supabaseAdmin, {
                 userId,
                 workspaceId: activeWorkspace?.id ?? null,
-                source: 'chat_turn',
-                sourceRef: `chat:${currentChannel}:${tgChannelRef || 'global'}:${Date.now()}`,
+                source: "chat_turn",
+                sourceRef: `chat:${currentChannel}:${tgChannelRef || "global"}:${Date.now()}`,
                 content: `User: ${lastUserContent}\nAssistant: ${cleanText.slice(0, 800)}`,
-                metadata: { channel: currentChannel, channel_ref: tgChannelRef, specialist: route.effective },
-                importance: route.specialist === 'general' ? 0.3 : 0.55,
+                metadata: {
+                  channel: currentChannel,
+                  channel_ref: tgChannelRef,
+                  specialist: route.effective,
+                },
+                importance: route.specialist === "general" ? 0.3 : 0.55,
               }).catch(() => {});
             }
           } catch (e) {
-            console.error('SSE agent stream failed', e);
-            try { emit({ type: 'error', detail: (e as Error).message }); } catch { /* ignore */ }
+            console.error("SSE agent stream failed", e);
+            try {
+              emit({ type: "error", detail: (e as Error).message });
+            } catch {
+              /* ignore */
+            }
           } finally {
             controller.close();
           }
@@ -5901,7 +8664,11 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
       });
 
       return new Response(sse, {
-        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+        },
       });
     }
 
@@ -5912,7 +8679,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
       const MAX_AGENT_ROUNDS = 4;
       const conversationMsgs: { role: string; content: AiMessageContent }[] = [...allMessages];
       const allExecResults: ToolExecResult[] = [];
-      let finalText = '';
+      let finalText = "";
       let totalPromptTokens = 0;
       let totalCompletionTokens = 0;
 
@@ -5922,9 +8689,9 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
           const t = await fullResp.text();
           console.error(`Gemini (agent round ${round}) error:`, fullResp.status, t);
           if (round === 0) {
-            return new Response(JSON.stringify({ error: 'AI service error', detail: t }), {
+            return new Response(JSON.stringify({ error: "AI service error", detail: t }), {
               status: fullResp.status === 429 ? 429 : fullResp.status === 402 ? 402 : 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
           break;
@@ -5936,9 +8703,13 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
         totalCompletionTokens += aiData.usage?.completion_tokens || 0;
 
         // Default the action source from the channel if caller didn't specify one.
-        const effectiveSource = actionSource || (currentChannel === 'tg_family' || currentChannel === 'tg_workspace' ? currentChannel
-          : currentChannel === 'tg_private' ? 'tg_private'
-          : 'web');
+        const effectiveSource =
+          actionSource ||
+          (currentChannel === "tg_family" || currentChannel === "tg_workspace"
+            ? currentChannel
+            : currentChannel === "tg_private"
+              ? "tg_private"
+              : "web");
         const effectiveSourceRef = actionSourceRef ?? tgChannelRef ?? null;
         const roundResults = await executeToolsServerSide(roundText, userId, supabaseAdmin, {
           source: effectiveSource,
@@ -5953,25 +8724,39 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
         if (roundResults.length === 0) break;
 
-        conversationMsgs.push({ role: 'assistant', content: roundText });
-        const observation = roundResults.map((r, i) =>
-          `[${i + 1}] ${r.tool} → ${r.ok ? 'OK' : 'FAIL'}: ${r.message}`
-        ).join('\n');
+        conversationMsgs.push({ role: "assistant", content: roundText });
+        const observation = roundResults
+          .map((r, i) => `[${i + 1}] ${r.tool} → ${r.ok ? "OK" : "FAIL"}: ${r.message}`)
+          .join("\n");
         conversationMsgs.push({
-          role: 'system',
+          role: "system",
           content: `Tool results from your last turn:\n${observation}\n\nIf the user's request is fully satisfied, reply with a brief natural-language confirmation and DO NOT emit more tools. If more steps are needed, emit the next tool(s).`,
         });
       }
 
       const cleanText = stripAllToolTags(finalText);
 
-      await logAIUsage(supabaseAdmin, userId, 'chat-agent-loop', model,
+      await logAIUsage(
+        supabaseAdmin,
+        userId,
+        "chat-agent-loop",
+        model,
         totalPromptTokens || Math.ceil((fullSystemPrompt + JSON.stringify(messages)).length / 4),
         totalCompletionTokens || Math.ceil(finalText.length / 4),
-        (totalPromptTokens + totalCompletionTokens) || Math.ceil((fullSystemPrompt + finalText).length / 4),
-        'success', { personality, executeServerSide: true, agentResultsCount: allExecResults.length });
+        totalPromptTokens + totalCompletionTokens ||
+          Math.ceil((fullSystemPrompt + finalText).length / 4),
+        "success",
+        { personality, executeServerSide: true, agentResultsCount: allExecResults.length },
+      );
 
-      logDoriTurn(supabaseAdmin, userId, currentChannel, 'assistant', cleanText.trim(), tgChannelRef);
+      logDoriTurn(
+        supabaseAdmin,
+        userId,
+        currentChannel,
+        "assistant",
+        cleanText.trim(),
+        tgChannelRef,
+      );
 
       // Persist conversation-state for the next turn. Track the entities
       // the tools just touched (so "him" / "the meeting" resolves) and
@@ -5984,25 +8769,25 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
           const id = r.id || r.entityId;
           if (!id) continue;
           recentEntities.push({
-            kind: (r.entityKind || r.kind || 'task') as RecentEntity['kind'],
+            kind: (r.entityKind || r.kind || "task") as RecentEntity["kind"],
             id,
             label: r.label || r.title,
             ref_at: new Date().toISOString(),
           });
         }
-        const proposedPlan = allExecResults.find((r) => r.tool === 'propose_plan');
+        const proposedPlan = allExecResults.find((r) => r.tool === "propose_plan");
         await saveConversationState(supabaseAdmin, {
           userId,
           channel: currentChannel as Channel,
           channelRef: tgChannelRef,
           workspaceId: activeWorkspace?.id ?? null,
-          openIntent: proposedPlan ? 'awaiting_plan_approval' : null,
-          pendingPayload: proposedPlan ? proposedPlan.payload ?? {} : {},
+          openIntent: proposedPlan ? "awaiting_plan_approval" : null,
+          pendingPayload: proposedPlan ? (proposedPlan.payload ?? {}) : {},
           recentEntities,
           activeSpecialist: route.effective,
         });
       } catch (e) {
-        console.warn('[saveConversationState agent] failed', (e as Error).message);
+        console.warn("[saveConversationState agent] failed", (e as Error).message);
       }
       // Index the user's question + the final reply into semantic
       // memory so future turns can recall this exchange. Best-effort.
@@ -6010,18 +8795,25 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
         rememberSemantic(supabaseAdmin, {
           userId,
           workspaceId: activeWorkspace?.id ?? null,
-          source: 'chat_turn',
-          sourceRef: `chat:${currentChannel}:${tgChannelRef || 'global'}:${Date.now()}`,
+          source: "chat_turn",
+          sourceRef: `chat:${currentChannel}:${tgChannelRef || "global"}:${Date.now()}`,
           content: `User: ${lastUserContent}\nAssistant: ${cleanText.trim().slice(0, 800)}`,
-          metadata: { channel: currentChannel, channel_ref: tgChannelRef, specialist: route.effective },
-          importance: route.specialist === 'general' ? 0.3 : 0.55,
+          metadata: {
+            channel: currentChannel,
+            channel_ref: tgChannelRef,
+            specialist: route.effective,
+          },
+          importance: route.specialist === "general" ? 0.3 : 0.55,
         }).catch(() => {});
       }
 
-      return new Response(JSON.stringify({
-        reply: cleanText.trim(),
-        toolResults: allExecResults,
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({
+          reply: cleanText.trim(),
+          toolResults: allExecResults,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // ===== STREAMING BRANCH (web app default) =====
@@ -6030,37 +8822,54 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     if (!streamResponse.ok) {
       const errorText = await streamResponse.text();
       console.error("Gemini error:", streamResponse.status, errorText);
-      await logAIUsage(supabaseAdmin, userId, 'chat', model, 0, 0, 0, 'error', { error: errorText, personality });
-      
+      await logAIUsage(supabaseAdmin, userId, "chat", model, 0, 0, 0, "error", {
+        error: errorText,
+        personality,
+      });
+
       if (streamResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
       if (streamResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
+          {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
       return new Response(JSON.stringify({ error: "AI service error" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Log usage
-    const inputText = fullSystemPrompt + messages.map(m => m.content).join(' ');
+    const inputText = fullSystemPrompt + messages.map((m) => m.content).join(" ");
     const estimatedPromptTokens = Math.ceil(inputText.length / 4);
     await logAIUsage(
-      supabaseAdmin, userId, 'chat', model,
-      estimatedPromptTokens, 500, estimatedPromptTokens + 500,
-      'success', { personality, messageCount: messages.length, webSearchUsed: isWebSearchLikely }
+      supabaseAdmin,
+      userId,
+      "chat",
+      model,
+      estimatedPromptTokens,
+      500,
+      estimatedPromptTokens + 500,
+      "success",
+      { personality, messageCount: messages.length, webSearchUsed: isWebSearchLikely },
     );
-
 
     // Stream the response, collecting text for save_memory extraction
     const reader = streamResponse.body!.getReader();
-    let fullResponseText = '';
-    
+    let fullResponseText = "";
+
     const stream = new ReadableStream({
       async pull(controller) {
         const { done, value } = await reader.read();
@@ -6073,30 +8882,40 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
             for (const match of memMatches) {
               try {
                 const memData = JSON.parse(match[1]);
-                if (memData.key && memData.value && userId !== 'anonymous') {
-                  await supabaseAdmin.from('ai_memory').upsert({
-                    user_id: userId,
-                    memory_type: memData.type || 'fact',
-                    category: memData.category || null,
-                    key: memData.key,
-                    value: memData.value,
-                    source: 'chat',
-                    workspace_id: activeWorkspace?.id ?? null,
-                  }, { onConflict: 'user_id,key,workspace_scope' });
-                  console.log('Saved memory:', memData.key);
+                if (memData.key && memData.value && userId !== "anonymous") {
+                  await supabaseAdmin.from("ai_memory").upsert(
+                    {
+                      user_id: userId,
+                      memory_type: memData.type || "fact",
+                      category: memData.category || null,
+                      key: memData.key,
+                      value: memData.value,
+                      source: "chat",
+                      workspace_id: activeWorkspace?.id ?? null,
+                    },
+                    { onConflict: "user_id,key,workspace_scope" },
+                  );
+                  console.log("Saved memory:", memData.key);
                 }
               } catch (e) {
-                console.error('Failed to save memory:', e);
+                console.error("Failed to save memory:", e);
               }
             }
           } catch (e) {
-            console.error('Memory parsing error:', e);
+            console.error("Memory parsing error:", e);
           }
           // Persist assistant turn to unified cross-channel log
           try {
             const cleaned = stripAllToolTags(fullResponseText).trim();
             if (cleaned) {
-              await logDoriTurn(supabaseAdmin, userId, currentChannel, 'assistant', cleaned, tgChannelRef);
+              await logDoriTurn(
+                supabaseAdmin,
+                userId,
+                currentChannel,
+                "assistant",
+                cleaned,
+                tgChannelRef,
+              );
             }
             // Save the routing decision as the active specialist + index
             // this exchange into semantic memory. Both are fire-and-forget.
@@ -6114,31 +8933,37 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               rememberSemantic(supabaseAdmin, {
                 userId,
                 workspaceId: activeWorkspace?.id ?? null,
-                source: 'chat_turn',
-                sourceRef: `chat:${currentChannel}:${tgChannelRef || 'global'}:${Date.now()}`,
+                source: "chat_turn",
+                sourceRef: `chat:${currentChannel}:${tgChannelRef || "global"}:${Date.now()}`,
                 content: `User: ${lastUserContent}\nAssistant: ${cleaned.slice(0, 800)}`,
-                metadata: { channel: currentChannel, channel_ref: tgChannelRef, specialist: route.effective },
-                importance: route.specialist === 'general' ? 0.3 : 0.55,
+                metadata: {
+                  channel: currentChannel,
+                  channel_ref: tgChannelRef,
+                  specialist: route.effective,
+                },
+                importance: route.specialist === "general" ? 0.3 : 0.55,
               }).catch(() => {});
             }
           } catch (e) {
-            console.error('Failed to log assistant turn', e);
+            console.error("Failed to log assistant turn", e);
           }
           return;
         }
         // Collect text for memory extraction
         const text = new TextDecoder().decode(value);
-        for (const line of text.split('\n')) {
-          if (line.startsWith('data: ') && line.slice(6).trim() !== '[DONE]') {
+        for (const line of text.split("\n")) {
+          if (line.startsWith("data: ") && line.slice(6).trim() !== "[DONE]") {
             try {
               const parsed = JSON.parse(line.slice(6));
               const content = parsed.choices?.[0]?.delta?.content;
               if (content) fullResponseText += content;
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
           }
         }
         controller.enqueue(value);
-      }
+      },
     });
 
     return new Response(stream, {
@@ -6146,9 +8971,12 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     });
   } catch (error) {
     console.error("Chat function error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });

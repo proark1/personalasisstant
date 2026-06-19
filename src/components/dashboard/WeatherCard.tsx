@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { useWeather } from '@/hooks/useWeather';
-import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
-import { MapPin, CloudOff } from 'lucide-react';
+import { useState } from "react";
+import { useWeather } from "@/hooks/useWeather";
+import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
+import { MapPin, CloudOff } from "lucide-react";
 
 export function WeatherCard() {
   const { weather, loading, error } = useWeather();
@@ -18,10 +18,8 @@ export function WeatherCard() {
     );
   }
 
-  const temp = useFahrenheit
-    ? Math.round(weather.temperature * 9 / 5 + 32)
-    : weather.temperature;
-  const unit = useFahrenheit ? '°F' : '°C';
+  const temp = useFahrenheit ? Math.round((weather.temperature * 9) / 5 + 32) : weather.temperature;
+  const unit = useFahrenheit ? "°F" : "°C";
 
   return (
     <GlassCard pressable haptic="light">
@@ -30,12 +28,18 @@ export function WeatherCard() {
           <span className="text-2xl">{weather.icon}</span>
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-xl font-semibold">{temp}{unit}</span>
+              <span className="text-xl font-semibold">
+                {temp}
+                {unit}
+              </span>
               <button
-                onClick={(e) => { e.stopPropagation(); setUseFahrenheit(!useFahrenheit); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setUseFahrenheit(!useFahrenheit);
+                }}
                 className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
               >
-                {useFahrenheit ? '°C' : '°F'}
+                {useFahrenheit ? "°C" : "°F"}
               </button>
               <span className="text-xs text-muted-foreground">{weather.condition}</span>
             </div>

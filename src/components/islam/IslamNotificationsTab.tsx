@@ -1,20 +1,19 @@
-import { useState, useEffect } from 'react';
-import { GlassCard } from '@/components/ui/glass-card';
-import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Slider } from '@/components/ui/slider';
-import { Checkbox } from '@/components/ui/checkbox';
+import { useState, useEffect } from "react";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 
+import { motion } from "framer-motion";
+import { staggerItem, staggerContainer } from "@/components/ui/panel-shell";
+import { Moon, Calendar, BookOpen, Zap, Loader2 } from "lucide-react";
+import { useIslamicNotifications } from "@/hooks/useIslamicNotifications";
 
-import { motion } from 'framer-motion';
-import { staggerItem, staggerContainer } from '@/components/ui/panel-shell';
-import { Moon, Calendar, BookOpen, Zap, Loader2 } from 'lucide-react';
-import { useIslamicNotifications } from '@/hooks/useIslamicNotifications';
-
-const PRAYER_NAMES = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+const PRAYER_NAMES = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
 export function IslamNotificationsTab() {
   const {
@@ -31,8 +30,8 @@ export function IslamNotificationsTab() {
     updateEventReminderHours,
   } = useIslamicNotifications();
 
-  const [tempHadithTime, setTempHadithTime] = useState(settings?.daily_hadith_time || '07:00');
-  const [tempEventTime, setTempEventTime] = useState(settings?.events_send_time || '08:00');
+  const [tempHadithTime, setTempHadithTime] = useState(settings?.daily_hadith_time || "07:00");
+  const [tempEventTime, setTempEventTime] = useState(settings?.events_send_time || "08:00");
 
   // Sync temp states when settings load
   useEffect(() => {
@@ -49,11 +48,20 @@ export function IslamNotificationsTab() {
   }
 
   if (!settings) {
-    return <div className="p-6 text-center text-muted-foreground">Failed to load notification settings</div>;
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        Failed to load notification settings
+      </div>
+    );
   }
 
   return (
-    <motion.div className="p-3 md:p-4 space-y-4" variants={staggerContainer} initial="initial" animate="animate">
+    <motion.div
+      className="p-3 md:p-4 space-y-4"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
       {/* Islamic Event Reminders */}
       <motion.div variants={staggerItem}>
         <GlassCard className="p-5">
@@ -91,7 +99,9 @@ export function IslamNotificationsTab() {
                   disabled={isSaving}
                   className="mb-1"
                 />
-                <p className="text-xs text-foreground font-medium">{settings.events_hours_before} hours before</p>
+                <p className="text-xs text-foreground font-medium">
+                  {settings.events_hours_before} hours before
+                </p>
               </div>
 
               <div>
@@ -113,7 +123,7 @@ export function IslamNotificationsTab() {
                     onClick={() => updateEventReminderTime(tempEventTime)}
                     disabled={isSaving}
                   >
-                    {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+                    {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
                   </Button>
                 </div>
               </div>
@@ -165,7 +175,7 @@ export function IslamNotificationsTab() {
                     onClick={() => updateHadithTime(tempHadithTime)}
                     disabled={isSaving}
                   >
-                    {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+                    {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
                   </Button>
                 </div>
               </div>
@@ -214,7 +224,9 @@ export function IslamNotificationsTab() {
                   disabled={isSaving}
                   className="mb-1"
                 />
-                <p className="text-xs text-foreground font-medium">{settings.prayer_reminder_minutes_before} minutes before</p>
+                <p className="text-xs text-foreground font-medium">
+                  {settings.prayer_reminder_minutes_before} minutes before
+                </p>
               </div>
 
               <div>
@@ -253,8 +265,9 @@ export function IslamNotificationsTab() {
             <div>
               <p className="text-sm font-medium mb-1">All Sunni-Based</p>
               <p className="text-xs text-muted-foreground">
-                Hadiths from authentic Sunni collections: Sahih Bukhari, Sahih Muslim, Sunan at-Tirmidhi, and Sunan Abu Dawud.
-                Prayer times calculated using trusted Sunni methods.
+                Hadiths from authentic Sunni collections: Sahih Bukhari, Sahih Muslim, Sunan
+                at-Tirmidhi, and Sunan Abu Dawud. Prayer times calculated using trusted Sunni
+                methods.
               </p>
             </div>
           </div>

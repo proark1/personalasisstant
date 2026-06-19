@@ -1,18 +1,13 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Star, 
-  Clock, 
-  Calendar,
-  X
-} from 'lucide-react';
-import { useMessageFeatures } from '@/hooks/useMessageFeatures';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Star, Clock, Calendar, X } from "lucide-react";
+import { useMessageFeatures } from "@/hooks/useMessageFeatures";
+import { format } from "date-fns";
 
 interface SavedMessagesDialogProps {
   open: boolean;
@@ -25,13 +20,9 @@ export function SavedMessagesDialog({
   onOpenChange,
   onMessageSelect,
 }: SavedMessagesDialogProps) {
-  const [activeTab, setActiveTab] = useState<'starred' | 'scheduled'>('starred');
-  const { 
-    starredMessages, 
-    scheduledMessages,
-    unstarMessage,
-    cancelScheduledMessage 
-  } = useMessageFeatures();
+  const [activeTab, setActiveTab] = useState<"starred" | "scheduled">("starred");
+  const { starredMessages, scheduledMessages, unstarMessage, cancelScheduledMessage } =
+    useMessageFeatures();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,7 +31,7 @@ export function SavedMessagesDialog({
           <DialogTitle>Saved Messages</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'starred' | 'scheduled')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "starred" | "scheduled")}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="starred" className="gap-2">
               <Star className="w-4 h-4" />
@@ -66,15 +57,12 @@ export function SavedMessagesDialog({
                     <Card key={msg.id} className="cursor-pointer hover:bg-accent/50">
                       <CardContent className="p-3">
                         <div className="flex items-start justify-between">
-                          <div 
-                            className="flex-1"
-                            onClick={() => onMessageSelect?.(msg.messageId)}
-                          >
+                          <div className="flex-1" onClick={() => onMessageSelect?.(msg.messageId)}>
                             <Badge variant="secondary" className="mb-2">
                               {msg.messageType}
                             </Badge>
                             <p className="text-xs text-muted-foreground">
-                              {format(msg.createdAt, 'MMM d, yyyy h:mm a')}
+                              {format(msg.createdAt, "MMM d, yyyy h:mm a")}
                             </p>
                           </div>
                           <Button
@@ -112,7 +100,7 @@ export function SavedMessagesDialog({
                             <p className="text-sm line-clamp-2 mb-2">{msg.content}</p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <Calendar className="w-3 h-3" />
-                              {format(msg.scheduledFor, 'MMM d, yyyy h:mm a')}
+                              {format(msg.scheduledFor, "MMM d, yyyy h:mm a")}
                             </div>
                           </div>
                           <Button

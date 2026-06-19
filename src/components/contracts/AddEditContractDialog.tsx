@@ -1,30 +1,31 @@
-import { useState, useEffect, useRef } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
+import { useState, useEffect, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Contract, ContractInput, ContractCategory, CostFrequency, CONTRACT_CATEGORIES } from '@/hooks/useContracts';
-import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Upload, FileText, X, Loader2, ExternalLink, Info } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { describeEdgeError } from '@/lib/edgeError';
+} from "@/components/ui/select";
+import {
+  Contract,
+  ContractInput,
+  ContractCategory,
+  CostFrequency,
+  CONTRACT_CATEGORIES,
+} from "@/hooks/useContracts";
+import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Upload, FileText, X, Loader2, ExternalLink, Info } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { describeEdgeError } from "@/lib/edgeError";
 
 interface AddEditContractDialogProps {
   open: boolean;
@@ -45,19 +46,19 @@ export function AddEditContractDialog({
   const { toast } = useToast();
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<ContractCategory>('other');
-  const [provider, setProvider] = useState('');
-  const [costAmount, setCostAmount] = useState('');
-  const [costFrequency, setCostFrequency] = useState<CostFrequency>('monthly');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [renewalDate, setRenewalDate] = useState('');
-  const [cancellationNoticeDays, setCancellationNoticeDays] = useState('30');
+
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<ContractCategory>("other");
+  const [provider, setProvider] = useState("");
+  const [costAmount, setCostAmount] = useState("");
+  const [costFrequency, setCostFrequency] = useState<CostFrequency>("monthly");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [renewalDate, setRenewalDate] = useState("");
+  const [cancellationNoticeDays, setCancellationNoticeDays] = useState("30");
   const [autoRenews, setAutoRenews] = useState(true);
-  const [contractNumber, setContractNumber] = useState('');
-  const [notes, setNotes] = useState('');
+  const [contractNumber, setContractNumber] = useState("");
+  const [notes, setNotes] = useState("");
   const [documentUrls, setDocumentUrls] = useState<string[]>([]);
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
@@ -67,59 +68,66 @@ export function AddEditContractDialog({
     if (contract) {
       setName(contract.name);
       setCategory(contract.category);
-      setProvider(contract.provider || '');
-      setCostAmount(contract.costAmount?.toString() || '');
+      setProvider(contract.provider || "");
+      setCostAmount(contract.costAmount?.toString() || "");
       setCostFrequency(contract.costFrequency);
-      setStartDate(contract.startDate ? format(contract.startDate, 'yyyy-MM-dd') : '');
-      setEndDate(contract.endDate ? format(contract.endDate, 'yyyy-MM-dd') : '');
-      setRenewalDate(contract.renewalDate ? format(contract.renewalDate, 'yyyy-MM-dd') : '');
+      setStartDate(contract.startDate ? format(contract.startDate, "yyyy-MM-dd") : "");
+      setEndDate(contract.endDate ? format(contract.endDate, "yyyy-MM-dd") : "");
+      setRenewalDate(contract.renewalDate ? format(contract.renewalDate, "yyyy-MM-dd") : "");
       setCancellationNoticeDays(contract.cancellationNoticeDays.toString());
       setAutoRenews(contract.autoRenews);
-      setContractNumber(contract.contractNumber || '');
-      setNotes(contract.notes || '');
+      setContractNumber(contract.contractNumber || "");
+      setNotes(contract.notes || "");
       setIsActive(contract.isActive);
       if (contract.documentUrl) {
-        const urls = contract.documentUrl.split(',').map(u => u.trim()).filter(Boolean);
+        const urls = contract.documentUrl
+          .split(",")
+          .map((u) => u.trim())
+          .filter(Boolean);
         setDocumentUrls(urls);
-        setFileNames(urls.map(url => {
-          const parts = url.split('/');
-          return parts[parts.length - 1];
-        }));
+        setFileNames(
+          urls.map((url) => {
+            const parts = url.split("/");
+            return parts[parts.length - 1];
+          }),
+        );
       } else {
         setDocumentUrls([]);
         setFileNames([]);
       }
     } else if (prefill) {
       // Pre-fill from detected payment
-      setName(prefill.name || '');
-      setCategory(prefill.category || 'other');
-      setProvider(prefill.provider || '');
-      setCostAmount(prefill.costAmount?.toString() || '');
-      setCostFrequency(prefill.costFrequency || 'monthly');
-      setStartDate(prefill.startDate ? format(new Date(prefill.startDate), 'yyyy-MM-dd') : '');
-      setEndDate('');
-      setRenewalDate(prefill.renewalDate ? format(new Date(prefill.renewalDate), 'yyyy-MM-dd') : '');
-      setCancellationNoticeDays('30');
+      setName(prefill.name || "");
+      setCategory(prefill.category || "other");
+      setProvider(prefill.provider || "");
+      setCostAmount(prefill.costAmount?.toString() || "");
+      setCostFrequency(prefill.costFrequency || "monthly");
+      setStartDate(prefill.startDate ? format(new Date(prefill.startDate), "yyyy-MM-dd") : "");
+      setEndDate("");
+      setRenewalDate(
+        prefill.renewalDate ? format(new Date(prefill.renewalDate), "yyyy-MM-dd") : "",
+      );
+      setCancellationNoticeDays("30");
       setAutoRenews(prefill.autoRenews ?? true);
-      setContractNumber(prefill.contractNumber || '');
-      setNotes(prefill.notes || '');
+      setContractNumber(prefill.contractNumber || "");
+      setNotes(prefill.notes || "");
       setDocumentUrls([]);
       setFileNames([]);
       setIsActive(true);
     } else {
       // Reset form
-      setName('');
-      setCategory('other');
-      setProvider('');
-      setCostAmount('');
-      setCostFrequency('monthly');
-      setStartDate('');
-      setEndDate('');
-      setRenewalDate('');
-      setCancellationNoticeDays('30');
+      setName("");
+      setCategory("other");
+      setProvider("");
+      setCostAmount("");
+      setCostFrequency("monthly");
+      setStartDate("");
+      setEndDate("");
+      setRenewalDate("");
+      setCancellationNoticeDays("30");
       setAutoRenews(true);
-      setContractNumber('');
-      setNotes('');
+      setContractNumber("");
+      setNotes("");
       setDocumentUrls([]);
       setFileNames([]);
       setIsActive(true);
@@ -130,7 +138,7 @@ export function AddEditContractDialog({
     const files = e.target.files;
     if (!files || files.length === 0 || !user) return;
 
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    const validTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
     const filesToUpload: File[] = [];
 
     // Validate all files
@@ -138,17 +146,17 @@ export function AddEditContractDialog({
       const file = files[i];
       if (!validTypes.includes(file.type)) {
         toast({
-          variant: 'destructive',
-          title: t('contracts.toast.invalidFileType'),
-          description: t('contracts.toast.invalidFileTypeDesc').replace('{name}', () => file.name),
+          variant: "destructive",
+          title: t("contracts.toast.invalidFileType"),
+          description: t("contracts.toast.invalidFileTypeDesc").replace("{name}", () => file.name),
         });
         continue;
       }
       if (file.size > 10 * 1024 * 1024) {
         toast({
-          variant: 'destructive',
-          title: t('contracts.toast.fileTooLarge'),
-          description: t('contracts.toast.fileTooLargeDesc').replace('{name}', () => file.name),
+          variant: "destructive",
+          title: t("contracts.toast.fileTooLarge"),
+          description: t("contracts.toast.fileTooLargeDesc").replace("{name}", () => file.name),
         });
         continue;
       }
@@ -167,15 +175,18 @@ export function AddEditContractDialog({
         const filePath = `${user.id}/${timestamp}-${file.name}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('contract-documents')
+          .from("contract-documents")
           .upload(filePath, file);
 
         if (uploadError) {
-          console.error('Upload error for', file.name, uploadError);
+          console.error("Upload error for", file.name, uploadError);
           toast({
-            variant: 'destructive',
-            title: t('contracts.toast.uploadFailed'),
-            description: t('contracts.toast.uploadFileFailedDesc').replace('{name}', () => file.name),
+            variant: "destructive",
+            title: t("contracts.toast.uploadFailed"),
+            description: t("contracts.toast.uploadFileFailedDesc").replace(
+              "{name}",
+              () => file.name,
+            ),
           });
           continue;
         }
@@ -185,25 +196,28 @@ export function AddEditContractDialog({
       }
 
       if (newUrls.length > 0) {
-        setDocumentUrls(prev => [...prev, ...newUrls]);
-        setFileNames(prev => [...prev, ...newNames]);
-        
+        setDocumentUrls((prev) => [...prev, ...newUrls]);
+        setFileNames((prev) => [...prev, ...newNames]);
+
         toast({
-          title: t('contracts.toast.documentsUploaded'),
-          description: t('contracts.toast.documentsUploadedDesc').replace('{count}', String(newUrls.length)),
+          title: t("contracts.toast.documentsUploaded"),
+          description: t("contracts.toast.documentsUploadedDesc").replace(
+            "{count}",
+            String(newUrls.length),
+          ),
         });
       }
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
       toast({
-        variant: 'destructive',
-        title: t('contracts.toast.uploadFailed'),
-        description: t('contracts.toast.uploadDocsFailedDesc'),
+        variant: "destructive",
+        title: t("contracts.toast.uploadFailed"),
+        description: t("contracts.toast.uploadDocsFailedDesc"),
       });
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -214,27 +228,27 @@ export function AddEditContractDialog({
 
     try {
       // Only delete from storage if it's a storage path (not external URL)
-      if (!urlToRemove.startsWith('http')) {
+      if (!urlToRemove.startsWith("http")) {
         const { error: removeError } = await supabase.storage
-          .from('contract-documents')
+          .from("contract-documents")
           .remove([urlToRemove]);
         if (removeError) throw removeError;
       }
 
       // Only update local state once the storage removal has succeeded, so
       // a failed delete doesn't leave the UI out of sync with the bucket.
-      setDocumentUrls(prev => prev.filter((_, i) => i !== index));
-      setFileNames(prev => prev.filter((_, i) => i !== index));
+      setDocumentUrls((prev) => prev.filter((_, i) => i !== index));
+      setFileNames((prev) => prev.filter((_, i) => i !== index));
 
       toast({
-        title: t('contracts.toast.documentRemoved'),
+        title: t("contracts.toast.documentRemoved"),
       });
     } catch (error) {
-      console.error('Remove error:', error);
+      console.error("Remove error:", error);
       toast({
-        variant: 'destructive',
-        title: t('contracts.toast.removeFailed'),
-        description: await describeEdgeError(error, t('contracts.toast.removeFailedDesc')),
+        variant: "destructive",
+        title: t("contracts.toast.removeFailed"),
+        description: await describeEdgeError(error, t("contracts.toast.removeFailedDesc")),
       });
     }
   };
@@ -243,24 +257,24 @@ export function AddEditContractDialog({
     if (!url) return;
 
     // If it's an external URL, open directly
-    if (url.startsWith('http')) {
-      window.open(url, '_blank');
+    if (url.startsWith("http")) {
+      window.open(url, "_blank");
       return;
     }
 
     // Get signed URL for private bucket
     const { data } = await supabase.storage
-      .from('contract-documents')
+      .from("contract-documents")
       .createSignedUrl(url, 60 * 60); // 1 hour
 
     if (data?.signedUrl) {
-      window.open(data.signedUrl, '_blank');
+      window.open(data.signedUrl, "_blank");
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const data: ContractInput = {
       name,
       category,
@@ -274,7 +288,7 @@ export function AddEditContractDialog({
       autoRenews,
       contractNumber: contractNumber || undefined,
       notes: notes || undefined,
-      documentUrl: documentUrls.length > 0 ? documentUrls.join(',') : undefined,
+      documentUrl: documentUrls.length > 0 ? documentUrls.join(",") : undefined,
       isActive,
     };
 
@@ -286,7 +300,7 @@ export function AddEditContractDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{contract ? 'Edit Contract' : 'Add Contract'}</DialogTitle>
+          <DialogTitle>{contract ? "Edit Contract" : "Add Contract"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -294,7 +308,9 @@ export function AddEditContractDialog({
           {prefill && !contract && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm">
               <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <span className="text-muted-foreground">Pre-filled from email analysis. Please review and adjust before saving.</span>
+              <span className="text-muted-foreground">
+                Pre-filled from email analysis. Please review and adjust before saving.
+              </span>
             </div>
           )}
           {/* Name & Category */}
@@ -353,7 +369,10 @@ export function AddEditContractDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="costFrequency">Frequency</Label>
-              <Select value={costFrequency} onValueChange={(v) => setCostFrequency(v as CostFrequency)}>
+              <Select
+                value={costFrequency}
+                onValueChange={(v) => setCostFrequency(v as CostFrequency)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -392,12 +411,10 @@ export function AddEditContractDialog({
           {/* Auto-renew & Cancellation */}
           <div className="grid grid-cols-2 gap-3 items-end">
             <div className="flex items-center justify-between p-3 rounded-lg border">
-              <Label htmlFor="autoRenews" className="cursor-pointer">Auto-renews</Label>
-              <Switch
-                id="autoRenews"
-                checked={autoRenews}
-                onCheckedChange={setAutoRenews}
-              />
+              <Label htmlFor="autoRenews" className="cursor-pointer">
+                Auto-renews
+              </Label>
+              <Switch id="autoRenews" checked={autoRenews} onCheckedChange={setAutoRenews} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="cancellationNoticeDays">Cancel notice (days)</Label>
@@ -433,12 +450,15 @@ export function AddEditContractDialog({
               multiple
               className="hidden"
             />
-            
+
             {/* List of uploaded files */}
             {fileNames.length > 0 && (
               <div className="space-y-2">
                 {fileNames.map((name, index) => (
-                  <div key={index} className="flex items-center gap-2 p-3 rounded-lg border bg-muted/50">
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 p-3 rounded-lg border bg-muted/50"
+                  >
                     <FileText className="w-5 h-5 text-primary shrink-0" />
                     <span className="text-sm truncate flex-1">{name}</span>
                     <Button
@@ -463,7 +483,7 @@ export function AddEditContractDialog({
                 ))}
               </div>
             )}
-            
+
             {/* Upload button */}
             <Button
               type="button"
@@ -480,7 +500,7 @@ export function AddEditContractDialog({
               ) : (
                 <>
                   <Upload className="w-4 h-4 mr-2" />
-                  {fileNames.length > 0 ? 'Add More Documents' : 'Upload PDF or Image'}
+                  {fileNames.length > 0 ? "Add More Documents" : "Upload PDF or Image"}
                 </>
               )}
             </Button>
@@ -504,12 +524,10 @@ export function AddEditContractDialog({
           {/* Active Status */}
           {contract && (
             <div className="flex items-center justify-between p-3 rounded-lg border">
-              <Label htmlFor="isActive" className="cursor-pointer">Active</Label>
-              <Switch
-                id="isActive"
-                checked={isActive}
-                onCheckedChange={setIsActive}
-              />
+              <Label htmlFor="isActive" className="cursor-pointer">
+                Active
+              </Label>
+              <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} />
             </div>
           )}
 
@@ -518,9 +536,7 @@ export function AddEditContractDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">
-              {contract ? 'Save Changes' : 'Add Contract'}
-            </Button>
+            <Button type="submit">{contract ? "Save Changes" : "Add Contract"}</Button>
           </div>
         </form>
       </DialogContent>

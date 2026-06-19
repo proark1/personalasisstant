@@ -66,10 +66,10 @@ export function PanelShell({
           <div className="flex items-center gap-2.5 min-w-0">
             {Icon && <Icon className="w-5 h-5 text-primary shrink-0" />}
             <div className="min-w-0">
-              <h2 className="text-lg md:text-xl font-semibold tracking-tight text-foreground truncate">{title}</h2>
-              {subtitle && (
-                <p className="text-sm text-muted-foreground truncate">{subtitle}</p>
-              )}
+              <h2 className="text-lg md:text-xl font-semibold tracking-tight text-foreground truncate">
+                {title}
+              </h2>
+              {subtitle && <p className="text-sm text-muted-foreground truncate">{subtitle}</p>}
             </div>
           </div>
           {actions && <div className="flex items-center gap-1.5 shrink-0">{actions}</div>}
@@ -99,7 +99,7 @@ export function PanelShell({
           className={cn(
             "flex-1 overflow-y-auto scroll-fade",
             !noPadding && "p-4 md:p-6",
-            contentClassName
+            contentClassName,
           )}
         >
           {children}

@@ -1,23 +1,23 @@
-import { useState, useMemo } from 'react';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Task, TaskPriority } from '@/types/flux';
-import { SwipeableTaskItem } from './SwipeableTaskItem';
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  ArrowUpCircle, 
-  Minus, 
+import { useState, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Task, TaskPriority } from "@/types/flux";
+import { SwipeableTaskItem } from "./SwipeableTaskItem";
+import {
+  ChevronDown,
+  ChevronRight,
+  ArrowUpCircle,
+  Minus,
   ArrowDownCircle,
   CheckCircle2,
   Circle,
   AlertCircle,
   Calendar as CalendarIcon,
   Sparkles,
-} from 'lucide-react';
-import { format, isPast, isToday } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
+} from "lucide-react";
+import { format, isPast, isToday } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface PriorityBoardViewProps {
   tasks: Task[];
@@ -36,44 +36,53 @@ const prioritySections: {
   defaultOpen: boolean;
 }[] = [
   {
-    priority: 'high',
-    label: 'High Priority',
+    priority: "high",
+    label: "High Priority",
     icon: ArrowUpCircle,
-    accentColor: 'text-destructive',
-    bgColor: 'bg-destructive/5',
-    borderColor: 'border-destructive/20',
+    accentColor: "text-destructive",
+    bgColor: "bg-destructive/5",
+    borderColor: "border-destructive/20",
     defaultOpen: true,
   },
   {
-    priority: 'medium',
-    label: 'Medium Priority',
+    priority: "medium",
+    label: "Medium Priority",
     icon: Minus,
-    accentColor: 'text-warning',
-    bgColor: 'bg-warning/5',
-    borderColor: 'border-warning/20',
+    accentColor: "text-warning",
+    bgColor: "bg-warning/5",
+    borderColor: "border-warning/20",
     defaultOpen: true,
   },
   {
-    priority: 'low',
-    label: 'Low Priority',
+    priority: "low",
+    label: "Low Priority",
     icon: ArrowDownCircle,
-    accentColor: 'text-muted-foreground',
-    bgColor: 'bg-muted/30',
-    borderColor: 'border-border',
+    accentColor: "text-muted-foreground",
+    bgColor: "bg-muted/30",
+    borderColor: "border-border",
     defaultOpen: false,
   },
 ];
 
-function PriorityTaskRow({ task, onToggleComplete }: { task: Task; onToggleComplete: (id: string) => void }) {
-  const isOverdue = task.dueDate && !task.completed && isPast(task.dueDate) && !isToday(task.dueDate);
+function PriorityTaskRow({
+  task,
+  onToggleComplete,
+}: {
+  task: Task;
+  onToggleComplete: (id: string) => void;
+}) {
+  const isOverdue =
+    task.dueDate && !task.completed && isPast(task.dueDate) && !isToday(task.dueDate);
   const isDueToday = task.dueDate && isToday(task.dueDate);
 
   return (
-    <div className={cn(
-      "flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors",
-      task.completed && "opacity-50",
-      isOverdue && "border-l-2 border-l-destructive"
-    )}>
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors",
+        task.completed && "opacity-50",
+        isOverdue && "border-l-2 border-l-destructive",
+      )}
+    >
       <button onClick={() => onToggleComplete(task.id)} className="shrink-0">
         {task.completed ? (
           <CheckCircle2 className="w-4.5 h-4.5 text-primary" />
@@ -81,27 +90,31 @@ function PriorityTaskRow({ task, onToggleComplete }: { task: Task; onToggleCompl
           <Circle className="w-4.5 h-4.5 text-muted-foreground hover:text-primary transition-colors" />
         )}
       </button>
-      
-      <span className={cn(
-        "flex-1 text-sm font-medium truncate",
-        task.completed && "line-through text-muted-foreground"
-      )}>
+
+      <span
+        className={cn(
+          "flex-1 text-sm font-medium truncate",
+          task.completed && "line-through text-muted-foreground",
+        )}
+      >
         {task.title}
       </span>
 
       <div className="flex items-center gap-2 shrink-0">
-        {isOverdue && (
-          <AlertCircle className="w-3.5 h-3.5 text-destructive" />
-        )}
+        {isOverdue && <AlertCircle className="w-3.5 h-3.5 text-destructive" />}
         {task.dueDate && (
-          <span className={cn(
-            "text-xs",
-            isOverdue ? "text-destructive" :
-            isDueToday ? "text-warning" :
-            "text-muted-foreground"
-          )}>
+          <span
+            className={cn(
+              "text-xs",
+              isOverdue
+                ? "text-destructive"
+                : isDueToday
+                  ? "text-warning"
+                  : "text-muted-foreground",
+            )}
+          >
             <CalendarIcon className="w-3 h-3 inline mr-0.5" />
-            {format(task.dueDate, 'MMM d')}
+            {format(task.dueDate, "MMM d")}
           </span>
         )}
         <Badge variant="outline" className="text-[10px] h-5 capitalize">
@@ -118,19 +131,20 @@ export function PriorityBoardView({
   onDeleteTask,
   onUpdateTask: _onUpdateTask,
 }: PriorityBoardViewProps) {
-  const incompleteTasks = useMemo(() => tasks.filter(t => !t.completed && !t.trashed), [tasks]);
+  const incompleteTasks = useMemo(() => tasks.filter((t) => !t.completed && !t.trashed), [tasks]);
 
   const tasksByPriority = useMemo(() => {
     const grouped: Record<TaskPriority, Task[]> = { high: [], medium: [], low: [] };
-    incompleteTasks.forEach(task => {
+    incompleteTasks.forEach((task) => {
       grouped[task.priority].push(task);
     });
     // Sort each group: overdue first, then by due date
-    Object.keys(grouped).forEach(key => {
+    Object.keys(grouped).forEach((key) => {
       grouped[key as TaskPriority].sort((a, b) => {
         if (a.dueDate && !b.dueDate) return -1;
         if (!a.dueDate && b.dueDate) return 1;
-        if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        if (a.dueDate && b.dueDate)
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
         return 0;
       });
     });
@@ -167,13 +181,13 @@ export function PriorityBoardView({
   );
 }
 
-function PrioritySection({ 
-  section, 
-  tasks, 
-  onToggleComplete, 
-  onDeleteTask 
-}: { 
-  section: typeof prioritySections[0]; 
+function PrioritySection({
+  section,
+  tasks,
+  onToggleComplete,
+  onDeleteTask,
+}: {
+  section: (typeof prioritySections)[0];
   tasks: Task[];
   onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
@@ -184,21 +198,21 @@ function PrioritySection({
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
-        <button className={cn(
-          "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors",
-          section.bgColor,
-          section.borderColor,
-          "hover:bg-muted/50"
-        )}>
+        <button
+          className={cn(
+            "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors",
+            section.bgColor,
+            section.borderColor,
+            "hover:bg-muted/50",
+          )}
+        >
           {isOpen ? (
             <ChevronDown className="w-4 h-4 text-muted-foreground" />
           ) : (
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           )}
           <Icon className={cn("w-4 h-4", section.accentColor)} />
-          <span className={cn("font-medium text-sm", section.accentColor)}>
-            {section.label}
-          </span>
+          <span className={cn("font-medium text-sm", section.accentColor)}>{section.label}</span>
           <Badge variant="secondary" className="ml-auto text-xs">
             {tasks.length}
           </Badge>
@@ -212,7 +226,7 @@ function PrioritySection({
                 No {section.priority} priority tasks
               </p>
             ) : (
-              tasks.map(task => (
+              tasks.map((task) => (
                 <motion.div
                   key={task.id}
                   layout

@@ -1,21 +1,36 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  Bot, Plus, Loader2, Inbox, Video, Square, RefreshCcw, ChevronRight,
-  CheckCircle2, AlertCircle, Mic,
-} from 'lucide-react';
-import { useMeetingBots, type MeetingBotRow, type MeetingBotStatus } from '@/hooks/useMeetingBots';
-import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
+  Bot,
+  Plus,
+  Loader2,
+  Inbox,
+  Video,
+  Square,
+  RefreshCcw,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  Mic,
+} from "lucide-react";
+import { useMeetingBots, type MeetingBotRow, type MeetingBotStatus } from "@/hooks/useMeetingBots";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 // Sister panel to PlansPanel + AgentActionInbox: lists meeting copilots
 // (rows in `meeting_bots`). The schedule dialog is intentionally simple
@@ -36,7 +51,7 @@ export function MeetingBotsPanel() {
               variant="default"
               className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 text-[10px] flex items-center justify-center"
             >
-              {m.activeCount > 9 ? '9+' : m.activeCount}
+              {m.activeCount > 9 ? "9+" : m.activeCount}
             </Badge>
           )}
         </Button>
@@ -49,8 +64,8 @@ export function MeetingBotsPanel() {
             {m.activeCount > 0 && <Badge variant="secondary">{m.activeCount}</Badge>}
           </SheetTitle>
           <p className="text-xs text-muted-foreground text-left">
-            Send a notetaker into Zoom / Google Meet / Teams. Get the transcript,
-            summary, and action items back when the call ends.
+            Send a notetaker into Zoom / Google Meet / Teams. Get the transcript, summary, and
+            action items back when the call ends.
           </p>
         </SheetHeader>
 
@@ -103,15 +118,18 @@ function ScheduleDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [meetingUrl, setMeetingUrl] = useState('');
-  const [title, setTitle] = useState('');
-  const [botName, setBotName] = useState('Notetaker');
-  const [joinAt, setJoinAt] = useState('');
+  const [meetingUrl, setMeetingUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [botName, setBotName] = useState("Notetaker");
+  const [joinAt, setJoinAt] = useState("");
   const [recordVideo, setRecordVideo] = useState(false);
 
   const reset = () => {
-    setMeetingUrl(''); setTitle(''); setBotName('Notetaker');
-    setJoinAt(''); setRecordVideo(false);
+    setMeetingUrl("");
+    setTitle("");
+    setBotName("Notetaker");
+    setJoinAt("");
+    setRecordVideo(false);
   };
 
   const submit = async () => {
@@ -135,7 +153,13 @@ function ScheduleDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" className="w-full gap-2">
           <Plus className="w-4 h-4" /> Send a copilot to a meeting
@@ -145,8 +169,8 @@ function ScheduleDialog({
         <DialogHeader>
           <DialogTitle>Schedule meeting copilot</DialogTitle>
           <DialogDescription>
-            Paste the meeting URL — Zoom, Google Meet, or Teams. Leave the start
-            time blank to join immediately.
+            Paste the meeting URL — Zoom, Google Meet, or Teams. Leave the start time blank to join
+            immediately.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -171,11 +195,7 @@ function ScheduleDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mb-name">Bot display name</Label>
-            <Input
-              id="mb-name"
-              value={botName}
-              onChange={(e) => setBotName(e.target.value)}
-            />
+            <Input id="mb-name" value={botName} onChange={(e) => setBotName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mb-joinat">Join at (optional)</Label>
@@ -195,9 +215,11 @@ function ScheduleDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
+            Cancel
+          </Button>
           <Button onClick={submit} disabled={busy || !meetingUrl.trim()}>
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Schedule'}
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Schedule"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -215,7 +237,7 @@ interface BotCardProps {
 function BotCard({ bot, busy, onCancel, onRefresh }: BotCardProps) {
   const [showTranscript, setShowTranscript] = useState(false);
 
-  const isActive = ['pending', 'scheduled', 'joining', 'in_call'].includes(bot.status);
+  const isActive = ["pending", "scheduled", "joining", "in_call"].includes(bot.status);
   const hasTranscript = bot.transcript.length > 0;
 
   return (
@@ -230,16 +252,12 @@ function BotCard({ bot, busy, onCancel, onRefresh }: BotCardProps) {
             {bot.tasksCreatedCount > 0 && (
               <Badge variant="outline" className="text-[10px] gap-1">
                 <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                {bot.tasksCreatedCount} task{bot.tasksCreatedCount === 1 ? '' : 's'} added
+                {bot.tasksCreatedCount} task{bot.tasksCreatedCount === 1 ? "" : "s"} added
               </Badge>
             )}
           </div>
-          <p className="text-sm font-medium leading-snug mt-1">
-            {bot.title || bot.meetingUrl}
-          </p>
-          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
-            {bot.meetingUrl}
-          </p>
+          <p className="text-sm font-medium leading-snug mt-1">{bot.title || bot.meetingUrl}</p>
+          <p className="text-[10px] text-muted-foreground truncate mt-0.5">{bot.meetingUrl}</p>
           {bot.errorMessage && (
             <p className="text-xs text-destructive mt-1 line-clamp-2">
               <AlertCircle className="w-3 h-3 inline mr-1" />
@@ -267,9 +285,7 @@ function BotCard({ bot, busy, onCancel, onRefresh }: BotCardProps) {
                 <ChevronRight className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
                 <span>
                   {it.task}
-                  {it.assignee && (
-                    <span className="text-muted-foreground"> · {it.assignee}</span>
-                  )}
+                  {it.assignee && <span className="text-muted-foreground"> · {it.assignee}</span>}
                 </span>
               </li>
             ))}
@@ -285,10 +301,19 @@ function BotCard({ bot, busy, onCancel, onRefresh }: BotCardProps) {
       {hasTranscript && (
         <Collapsible open={showTranscript} onOpenChange={setShowTranscript}>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-6 w-full text-[10px] text-muted-foreground gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-full text-[10px] text-muted-foreground gap-1"
+            >
               <Mic className="w-3 h-3" />
-              {showTranscript ? 'Hide' : 'Show'} transcript ({bot.transcript.length} entries)
-              <ChevronRight className={cn('w-3 h-3 transition-transform ml-auto', showTranscript && 'rotate-90')} />
+              {showTranscript ? "Hide" : "Show"} transcript ({bot.transcript.length} entries)
+              <ChevronRight
+                className={cn(
+                  "w-3 h-3 transition-transform ml-auto",
+                  showTranscript && "rotate-90",
+                )}
+              />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-1 space-y-1 max-h-64 overflow-y-auto">
@@ -336,20 +361,25 @@ function BotCard({ bot, busy, onCancel, onRefresh }: BotCardProps) {
 
 function StatusBadge({ status }: { status: MeetingBotStatus }) {
   const meta: Record<MeetingBotStatus, { label: string; tone: string; Icon?: typeof Video }> = {
-    pending:           { label: 'Queued',     tone: 'bg-muted text-muted-foreground' },
-    scheduled:         { label: 'Scheduled',  tone: 'bg-primary/15 text-primary' },
-    joining:           { label: 'Joining',    tone: 'bg-amber-500/15 text-amber-600' },
-    in_call:           { label: 'Live',       tone: 'bg-emerald-500/15 text-emerald-600', Icon: Video },
-    call_ended:        { label: 'Ended',      tone: 'bg-muted text-muted-foreground' },
-    transcript_ready:  { label: 'Transcribing', tone: 'bg-amber-500/15 text-amber-600' },
-    analysis_ready:    { label: 'Analyzing',  tone: 'bg-amber-500/15 text-amber-600' },
-    done:              { label: 'Done',       tone: 'bg-emerald-500/15 text-emerald-600' },
-    error:             { label: 'Error',      tone: 'bg-destructive/15 text-destructive' },
-    cancelled:         { label: 'Cancelled',  tone: 'bg-muted text-muted-foreground' },
+    pending: { label: "Queued", tone: "bg-muted text-muted-foreground" },
+    scheduled: { label: "Scheduled", tone: "bg-primary/15 text-primary" },
+    joining: { label: "Joining", tone: "bg-amber-500/15 text-amber-600" },
+    in_call: { label: "Live", tone: "bg-emerald-500/15 text-emerald-600", Icon: Video },
+    call_ended: { label: "Ended", tone: "bg-muted text-muted-foreground" },
+    transcript_ready: { label: "Transcribing", tone: "bg-amber-500/15 text-amber-600" },
+    analysis_ready: { label: "Analyzing", tone: "bg-amber-500/15 text-amber-600" },
+    done: { label: "Done", tone: "bg-emerald-500/15 text-emerald-600" },
+    error: { label: "Error", tone: "bg-destructive/15 text-destructive" },
+    cancelled: { label: "Cancelled", tone: "bg-muted text-muted-foreground" },
   };
   const m = meta[status] ?? meta.pending;
   return (
-    <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1', m.tone)}>
+    <span
+      className={cn(
+        "text-[10px] font-medium px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1",
+        m.tone,
+      )}
+    >
       {m.Icon && <m.Icon className="w-3 h-3" />}
       {m.label}
     </span>

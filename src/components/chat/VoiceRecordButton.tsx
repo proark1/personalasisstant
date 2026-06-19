@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
-import { Mic, Square, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
+import { Mic, Square, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface VoiceRecordButtonProps {
   isRecording: boolean;
@@ -34,9 +34,7 @@ export function VoiceRecordButton({
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2 px-3 py-1 bg-destructive/10 rounded-full">
           <div className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
-          <span className="text-xs font-mono text-destructive">
-            {formatDuration(duration)}
-          </span>
+          <span className="text-xs font-mono text-destructive">{formatDuration(duration)}</span>
         </div>
         <Button
           type="button"
@@ -67,10 +65,7 @@ export function VoiceRecordButton({
       variant="ghost"
       size="icon"
       onClick={onStart}
-      className={cn(
-        'transition-colors',
-        'hover:bg-primary/10 hover:text-primary'
-      )}
+      className={cn("transition-colors", "hover:bg-primary/10 hover:text-primary")}
       aria-label="Record voice message"
     >
       <Mic className="w-4 h-4" />

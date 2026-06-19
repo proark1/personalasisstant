@@ -1,26 +1,38 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useHouseholdTasks } from '@/hooks/useHouseholdTasks';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useHouseholdTasks } from "@/hooks/useHouseholdTasks";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 
 const categories = [
-  { value: 'general', label: 'General' },
-  { value: 'cleaning', label: 'Cleaning' },
-  { value: 'cooking', label: 'Cooking' },
-  { value: 'shopping', label: 'Shopping' },
-  { value: 'childcare', label: 'Childcare' },
-  { value: 'maintenance', label: 'Maintenance' },
+  { value: "general", label: "General" },
+  { value: "cleaning", label: "Cleaning" },
+  { value: "cooking", label: "Cooking" },
+  { value: "shopping", label: "Shopping" },
+  { value: "childcare", label: "Childcare" },
+  { value: "maintenance", label: "Maintenance" },
 ];
 
 const priorities = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
 ];
 
 interface AddHouseholdTaskDialogProps {
@@ -32,33 +44,33 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
   const { addTask } = useHouseholdTasks();
   const { members } = useFamilyMembers();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: 'general',
-    assigned_to: '',
-    due_date: '',
-    due_time: '',
-    priority: 'medium',
+    title: "",
+    description: "",
+    category: "general",
+    assigned_to: "",
+    due_date: "",
+    due_time: "",
+    priority: "medium",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title) return;
-    
+
     setIsSubmitting(true);
-    
+
     let dueDateTime = null;
     if (formData.due_date) {
       const date = new Date(formData.due_date);
       if (formData.due_time) {
-        const [hours, minutes] = formData.due_time.split(':');
+        const [hours, minutes] = formData.due_time.split(":");
         date.setHours(parseInt(hours), parseInt(minutes));
       }
       dueDateTime = date.toISOString();
     }
-    
+
     const result = await addTask({
       title: formData.title,
       description: formData.description || null,
@@ -72,16 +84,16 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
     });
 
     setIsSubmitting(false);
-    
+
     if (result) {
       setFormData({
-        title: '',
-        description: '',
-        category: 'general',
-        assigned_to: '',
-        due_date: '',
-        due_time: '',
-        priority: 'medium',
+        title: "",
+        description: "",
+        category: "general",
+        assigned_to: "",
+        due_date: "",
+        due_time: "",
+        priority: "medium",
       });
       onOpenChange(false);
     }
@@ -100,7 +112,7 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
               placeholder="What needs to be done?"
               required
             />
@@ -111,7 +123,7 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
               <Label>Category</Label>
               <Select
                 value={formData.category}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -125,12 +137,12 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select
                 value={formData.priority}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, priority: value }))}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -150,7 +162,9 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
             <Label>Assign To</Label>
             <Select
               value={formData.assigned_to || "_none"}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value === "_none" ? "" : value }))}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, assigned_to: value === "_none" ? "" : value }))
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select family member (optional)" />
@@ -172,7 +186,7 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
               <Input
                 type="date"
                 value={formData.due_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, due_date: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
@@ -180,7 +194,7 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
               <Input
                 type="time"
                 value={formData.due_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, due_time: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, due_time: e.target.value }))}
                 disabled={!formData.due_date}
               />
             </div>
@@ -190,7 +204,7 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
             <Label>Description</Label>
             <Textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               placeholder="Any additional details..."
               rows={3}
             />
@@ -201,7 +215,7 @@ export function AddHouseholdTaskDialog({ open, onOpenChange }: AddHouseholdTaskD
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || !formData.title}>
-              {isSubmitting ? 'Adding...' : 'Add Task'}
+              {isSubmitting ? "Adding..." : "Add Task"}
             </Button>
           </DialogFooter>
         </form>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -8,11 +8,11 @@ import {
   CommandList,
   CommandSeparator,
   CommandShortcut,
-} from '@/components/ui/command';
-import { NAV_AREAS, SETTINGS_ITEM, type NavItem } from '@/config/navigation';
-import { prefetchPanel } from '@/lib/panelPrefetch';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Sparkles, Search, ArrowRight } from 'lucide-react';
+} from "@/components/ui/command";
+import { NAV_AREAS, SETTINGS_ITEM, type NavItem } from "@/config/navigation";
+import { prefetchPanel } from "@/lib/panelPrefetch";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Sparkles, Search, ArrowRight } from "lucide-react";
 
 export interface CommandPaletteAction {
   id: string;
@@ -53,17 +53,17 @@ export function CommandPalette({
   actions = [],
 }: CommandPaletteProps) {
   const { t } = useLanguage();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
 
   // Reset the query whenever the palette is dismissed so it always opens fresh.
   useEffect(() => {
-    if (!open) setQuery('');
+    if (!open) setQuery("");
   }, [open]);
 
   const navItems = useMemo<{ area: string; items: NavItem[] }[]>(
     () => [
       ...NAV_AREAS.map((a) => ({ area: a.label, items: a.items })),
-      { area: 'System', items: [SETTINGS_ITEM] },
+      { area: "System", items: [SETTINGS_ITEM] },
     ],
     [],
   );
@@ -91,10 +91,7 @@ export function CommandPalette({
           <>
             <CommandGroup heading="Dori">
               {/* value === query keeps this item visible regardless of fuzzy filtering */}
-              <CommandItem
-                value={trimmed}
-                onSelect={() => dismiss(() => onAskDori(trimmed))}
-              >
+              <CommandItem value={trimmed} onSelect={() => dismiss(() => onAskDori(trimmed))}>
                 <Sparkles className="text-primary" />
                 <span className="truncate">
                   Ask Dori: <span className="text-muted-foreground">“{trimmed}”</span>
@@ -114,7 +111,7 @@ export function CommandPalette({
                 return (
                   <CommandItem
                     key={action.id}
-                    value={`${action.label} ${action.keywords ?? ''}`}
+                    value={`${action.label} ${action.keywords ?? ""}`}
                     onSelect={() => dismiss(action.run)}
                   >
                     <Icon className="text-muted-foreground" />

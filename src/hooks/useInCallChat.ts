@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface InCallMessage {
   id: string;
@@ -21,7 +21,7 @@ export function useInCallChat(sessionId: string | null, userId: string) {
     channelRef.current = channel;
 
     channel
-      .on('broadcast', { event: 'chat-message' }, ({ payload }) => {
+      .on("broadcast", { event: "chat-message" }, ({ payload }) => {
         const newMessage: InCallMessage = {
           id: payload.id,
           senderId: payload.senderId,
@@ -29,7 +29,7 @@ export function useInCallChat(sessionId: string | null, userId: string) {
           content: payload.content,
           timestamp: new Date(payload.timestamp),
         };
-        setMessages(prev => [...prev, newMessage]);
+        setMessages((prev) => [...prev, newMessage]);
       })
       .subscribe();
 
@@ -40,30 +40,36 @@ export function useInCallChat(sessionId: string | null, userId: string) {
     };
   }, [sessionId, userId]);
 
-  const sendMessage = useCallback(async (content: string, senderName: string) => {
-    if (!channelRef.current || !sessionId || !content.trim()) return;
+  const sendMessage = useCallback(
+    async (content: string, senderName: string) => {
+      if (!channelRef.current || !sessionId || !content.trim()) return;
 
-    const message = {
-      id: crypto.randomUUID(),
-      senderId: userId,
-      senderName,
-      content: content.trim(),
-      timestamp: new Date().toISOString(),
-    };
+      const message = {
+        id: crypto.randomUUID(),
+        senderId: userId,
+        senderName,
+        content: content.trim(),
+        timestamp: new Date().toISOString(),
+      };
 
-    // Add to local state immediately
-    setMessages(prev => [...prev, {
-      ...message,
-      timestamp: new Date(message.timestamp),
-    }]);
+      // Add to local state immediately
+      setMessages((prev) => [
+        ...prev,
+        {
+          ...message,
+          timestamp: new Date(message.timestamp),
+        },
+      ]);
 
-    // Broadcast to other participants
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'chat-message',
-      payload: message,
-    });
-  }, [sessionId, userId]);
+      // Broadcast to other participants
+      channelRef.current.send({
+        type: "broadcast",
+        event: "chat-message",
+        payload: message,
+      });
+    },
+    [sessionId, userId],
+  );
 
   const clearMessages = useCallback(() => {
     setMessages([]);

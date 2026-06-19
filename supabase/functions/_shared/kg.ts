@@ -10,26 +10,26 @@
 // safely on error. Entity extraction is opportunistic; a missed
 // extraction must never block the underlying memory write.
 
-const EXTRACTION_MODEL = 'gemini-2.5-flash';
+const EXTRACTION_MODEL = "gemini-2.5-flash";
 
 export type EntityKind =
-  | 'person'
-  | 'project'
-  | 'place'
-  | 'organization'
-  | 'topic'
-  | 'product'
-  | 'event';
+  | "person"
+  | "project"
+  | "place"
+  | "organization"
+  | "topic"
+  | "product"
+  | "event";
 
 export type MentionSourceKind =
-  | 'semantic'
-  | 'episodic'
-  | 'ai_memory'
-  | 'task'
-  | 'event'
-  | 'note'
-  | 'contact'
-  | 'chat';
+  | "semantic"
+  | "episodic"
+  | "ai_memory"
+  | "task"
+  | "event"
+  | "note"
+  | "contact"
+  | "chat";
 
 export interface ExtractedEntity {
   kind: EntityKind;
@@ -45,65 +45,71 @@ export interface ExtractionResult {
 }
 
 const KIND_VALUES: EntityKind[] = [
-  'person', 'project', 'place', 'organization', 'topic', 'product', 'event',
+  "person",
+  "project",
+  "place",
+  "organization",
+  "topic",
+  "product",
+  "event",
 ];
 
 const EXTRACTION_SYSTEM = [
-  'You are an information-extraction worker for a personal-assistant',
-  'memory layer. Given a short note / chat turn / event row, identify',
-  'the named entities that this user would later want to retrieve by.',
-  '',
-  'Rules:',
+  "You are an information-extraction worker for a personal-assistant",
+  "memory layer. Given a short note / chat turn / event row, identify",
+  "the named entities that this user would later want to retrieve by.",
+  "",
+  "Rules:",
   '- Only extract concrete, named entities. Skip generic words ("work",',
   '  "the meeting", "tomorrow"). If the entity has no proper name, drop it.',
   '- Use the canonical form ("John Doe", "Acme Inc", "Project Atlas",',
   '  "Berlin"). Put nicknames or short forms in `aliases`.',
-  '- `kind` MUST be one of: person, project, place, organization, topic,',
-  '  product, event.',
-  '- `salience` is 0..1 — 1.0 means the entity is the primary subject,',
-  '  0.2 means it was mentioned in passing.',
-  '- Output AT MOST 8 entities. Quality over quantity.',
-  '- If the text contains no named entities, return an empty list.',
-].join('\n');
+  "- `kind` MUST be one of: person, project, place, organization, topic,",
+  "  product, event.",
+  "- `salience` is 0..1 — 1.0 means the entity is the primary subject,",
+  "  0.2 means it was mentioned in passing.",
+  "- Output AT MOST 8 entities. Quality over quantity.",
+  "- If the text contains no named entities, return an empty list.",
+].join("\n");
 
 // Tool schema for the gateway. Forced via tool_choice so the model
 // can't hallucinate a free-form answer.
 const EXTRACTION_TOOL = {
-  type: 'function',
+  type: "function",
   function: {
-    name: 'record_entities',
-    description: 'Record extracted named entities with their kind and salience.',
+    name: "record_entities",
+    description: "Record extracted named entities with their kind and salience.",
     parameters: {
-      type: 'object',
+      type: "object",
       properties: {
         entities: {
-          type: 'array',
+          type: "array",
           maxItems: 8,
           items: {
-            type: 'object',
+            type: "object",
             properties: {
-              kind: { type: 'string', enum: KIND_VALUES },
-              name: { type: 'string', description: 'Canonical display name.' },
+              kind: { type: "string", enum: KIND_VALUES },
+              name: { type: "string", description: "Canonical display name." },
               aliases: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Other forms the user might call this entity.',
+                type: "array",
+                items: { type: "string" },
+                description: "Other forms the user might call this entity.",
               },
               description: {
-                type: 'string',
-                description: 'One-line note about the entity if non-obvious.',
+                type: "string",
+                description: "One-line note about the entity if non-obvious.",
               },
               salience: {
-                type: 'number',
+                type: "number",
                 minimum: 0,
                 maximum: 1,
               },
             },
-            required: ['kind', 'name'],
+            required: ["kind", "name"],
           },
         },
       },
-      required: ['entities'],
+      required: ["entities"],
     },
   },
 };
@@ -112,10 +118,10 @@ export async function extractEntities(text: string): Promise<ExtractionResult> {
   // Slice first so the whitespace regex never scans more than ~8 KB,
   // even if the caller hands us a multi-megabyte buffer. Final slice
   // to 4000 trims again after the regex collapses runs of whitespace.
-  const cleaned = (text || '').slice(0, 8000).replace(/\s+/g, ' ').trim().slice(0, 4000);
+  const cleaned = (text || "").slice(0, 8000).replace(/\s+/g, " ").trim().slice(0, 4000);
   if (cleaned.length < 12) return { entities: [], model: null };
 
-  const geminiKey = Deno.env.get('GEMINI_API_KEY');
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
   if (!geminiKey) {
     // No provider configured — silently no-op. We don't fall back to
     // direct Gemini for tool-calls; the calling layer already handles
@@ -124,51 +130,57 @@ export async function extractEntities(text: string): Promise<ExtractionResult> {
   }
 
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${geminiKey}`,
-        'Content-Type': 'application/json',
+    const res = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${geminiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: EXTRACTION_MODEL,
+          messages: [
+            { role: "system", content: EXTRACTION_SYSTEM },
+            { role: "user", content: `Extract entities from:\n"""\n${cleaned}\n"""` },
+          ],
+          tools: [EXTRACTION_TOOL],
+          tool_choice: { type: "function", function: { name: "record_entities" } },
+          temperature: 0,
+        }),
       },
-      body: JSON.stringify({
-        model: EXTRACTION_MODEL,
-        messages: [
-          { role: 'system', content: EXTRACTION_SYSTEM },
-          { role: 'user', content: `Extract entities from:\n"""\n${cleaned}\n"""` },
-        ],
-        tools: [EXTRACTION_TOOL],
-        tool_choice: { type: 'function', function: { name: 'record_entities' } },
-        temperature: 0,
-      }),
-    });
+    );
     if (!res.ok) {
-      console.warn('[kg.extractEntities] gateway failed', res.status);
+      console.warn("[kg.extractEntities] gateway failed", res.status);
       return { entities: [], model: null };
     }
     const data = await res.json();
     const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    const parsed = typeof args === 'string' ? JSON.parse(args) : args;
+    const parsed = typeof args === "string" ? JSON.parse(args) : args;
     const raw = Array.isArray(parsed?.entities) ? parsed.entities : [];
     const entities: ExtractedEntity[] = [];
     for (const e of raw) {
-      if (!e || typeof e !== 'object') continue;
-      const kind = String(e.kind || '').toLowerCase() as EntityKind;
-      const name = String(e.name || '').trim();
+      if (!e || typeof e !== "object") continue;
+      const kind = String(e.kind || "").toLowerCase() as EntityKind;
+      const name = String(e.name || "").trim();
       if (!name || !KIND_VALUES.includes(kind)) continue;
       const aliases: string[] = Array.isArray(e.aliases)
-        ? e.aliases.map((a: unknown) => String(a).trim()).filter(Boolean).slice(0, 6)
+        ? e.aliases
+            .map((a: unknown) => String(a).trim())
+            .filter(Boolean)
+            .slice(0, 6)
         : [];
       entities.push({
         kind,
         name: name.slice(0, 200),
         aliases,
-        description: typeof e.description === 'string' ? e.description.slice(0, 400) : undefined,
-        salience: typeof e.salience === 'number' ? clamp01(e.salience) : 0.5,
+        description: typeof e.description === "string" ? e.description.slice(0, 400) : undefined,
+        salience: typeof e.salience === "number" ? clamp01(e.salience) : 0.5,
       });
     }
     return { entities, model: EXTRACTION_MODEL };
   } catch (err) {
-    console.warn('[kg.extractEntities] failed', (err as Error).message);
+    console.warn("[kg.extractEntities] failed", (err as Error).message);
     return { entities: [], model: null };
   }
 }
@@ -191,7 +203,13 @@ export interface LinkExtractionResult {
 // kg_link_mention. Best-effort: a single failure doesn't abort the
 // batch.
 // Minimal Supabase client surface needed by this module.
-type KgClient = { from(table: string): Record<string, (...args: unknown[]) => unknown>; rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> };
+type KgClient = {
+  from(table: string): Record<string, (...args: unknown[]) => unknown>;
+  rpc(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<{ data: unknown; error: { message: string } | null }>;
+};
 
 export async function linkExtraction(
   supabase: KgClient,
@@ -202,7 +220,7 @@ export async function linkExtraction(
   let linked = 0;
   for (const e of args.entities) {
     try {
-      const { data: entityId, error: upErr } = await supabase.rpc('kg_upsert_entity', {
+      const { data: entityId, error: upErr } = await supabase.rpc("kg_upsert_entity", {
         p_user_id: args.userId,
         p_kind: e.kind,
         p_name: e.name,
@@ -213,11 +231,11 @@ export async function linkExtraction(
         p_description: e.description ?? null,
       });
       if (upErr || !entityId) {
-        console.warn('[kg.linkExtraction] upsert failed', upErr?.message);
+        console.warn("[kg.linkExtraction] upsert failed", upErr?.message);
         continue;
       }
       ids.push(entityId);
-      const { error: linkErr } = await supabase.rpc('kg_link_mention', {
+      const { error: linkErr } = await supabase.rpc("kg_link_mention", {
         p_user_id: args.userId,
         p_entity_id: entityId,
         p_source_kind: args.sourceKind,
@@ -226,12 +244,12 @@ export async function linkExtraction(
         p_excerpt: args.excerpt ?? null,
       });
       if (linkErr) {
-        console.warn('[kg.linkExtraction] link failed', linkErr.message);
+        console.warn("[kg.linkExtraction] link failed", linkErr.message);
         continue;
       }
       linked += 1;
     } catch (err) {
-      console.warn('[kg.linkExtraction] iter failed', (err as Error).message);
+      console.warn("[kg.linkExtraction] iter failed", (err as Error).message);
     }
   }
   return { linked, entityIds: ids };
@@ -239,11 +257,11 @@ export async function linkExtraction(
 
 export interface RecordProvenanceArgs {
   userId: string;
-  targetKind: 'semantic' | 'episodic' | 'ai_memory' | 'kg_entity';
+  targetKind: "semantic" | "episodic" | "ai_memory" | "kg_entity";
   targetId: string;
   sourceKind: string;
   sourceId: string;
-  transformation: 'extracted' | 'summarized' | 'aggregated' | 'inferred' | 'manual' | 'imported';
+  transformation: "extracted" | "summarized" | "aggregated" | "inferred" | "manual" | "imported";
   model?: string | null;
   confidence?: number;
   notes?: string | null;
@@ -254,7 +272,7 @@ export async function recordProvenance(
   args: RecordProvenanceArgs,
 ): Promise<boolean> {
   try {
-    const { error } = await supabase.from('memory_provenance').insert({
+    const { error } = await supabase.from("memory_provenance").insert({
       user_id: args.userId,
       target_kind: args.targetKind,
       target_id: args.targetId,
@@ -266,12 +284,12 @@ export async function recordProvenance(
       notes: args.notes ?? null,
     });
     if (error) {
-      console.warn('[kg.recordProvenance] failed', error.message);
+      console.warn("[kg.recordProvenance] failed", error.message);
       return false;
     }
     return true;
   } catch (err) {
-    console.warn('[kg.recordProvenance] threw', (err as Error).message);
+    console.warn("[kg.recordProvenance] threw", (err as Error).message);
     return false;
   }
 }
@@ -291,7 +309,7 @@ export interface AutoKgArgs {
   rawProvenance?: {
     sourceKind: string;
     sourceId: string;
-    transformation: 'extracted' | 'summarized' | 'aggregated' | 'inferred' | 'manual' | 'imported';
+    transformation: "extracted" | "summarized" | "aggregated" | "inferred" | "manual" | "imported";
   };
 }
 
@@ -318,9 +336,12 @@ export async function autoKgIngest(
       if (/^[0-9a-f-]{36}$/i.test(args.sourceId)) {
         await recordProvenance(supabase, {
           userId: args.userId,
-          targetKind: args.sourceKind === 'episodic' ? 'episodic'
-            : args.sourceKind === 'ai_memory' ? 'ai_memory'
-            : 'semantic',
+          targetKind:
+            args.sourceKind === "episodic"
+              ? "episodic"
+              : args.sourceKind === "ai_memory"
+                ? "ai_memory"
+                : "semantic",
           targetId: args.sourceId,
           sourceKind: args.rawProvenance.sourceKind,
           sourceId: args.rawProvenance.sourceId,
@@ -332,7 +353,7 @@ export async function autoKgIngest(
     }
     return { entitiesLinked: linked, model };
   } catch (err) {
-    console.warn('[kg.autoKgIngest] failed', (err as Error).message);
+    console.warn("[kg.autoKgIngest] failed", (err as Error).message);
     return { entitiesLinked: 0, model: null };
   }
 }

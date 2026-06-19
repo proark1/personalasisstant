@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { useTextToSpeech } from './useTextToSpeech';
-import { useProactiveSettings } from './useProactiveSettings';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { useTextToSpeech } from "./useTextToSpeech";
+import { useProactiveSettings } from "./useProactiveSettings";
+import { toast } from "sonner";
 
 interface BriefingData {
   greeting: string;
@@ -30,18 +30,18 @@ export function useMorningBriefing() {
 
       try {
         const { data: profile } = await supabase
-          .from('profiles')
-          .select('last_session_at')
-          .eq('user_id', user.id)
+          .from("profiles")
+          .select("last_session_at")
+          .eq("user_id", user.id)
           .single();
 
         const now = new Date();
-        const today = now.toISOString().split('T')[0];
+        const today = now.toISOString().split("T")[0];
         const lastSession = profile?.last_session_at;
-        
+
         // Check if last session was before today
-        const isFirstOpenToday = !lastSession || 
-          new Date(lastSession).toISOString().split('T')[0] !== today;
+        const isFirstOpenToday =
+          !lastSession || new Date(lastSession).toISOString().split("T")[0] !== today;
 
         // Check if current time is within morning briefing hours (6am - 11am)
         const currentHour = now.getHours();
@@ -53,11 +53,11 @@ export function useMorningBriefing() {
 
         // Update last session
         await supabase
-          .from('profiles')
+          .from("profiles")
           .update({ last_session_at: now.toISOString() })
-          .eq('user_id', user.id);
+          .eq("user_id", user.id);
       } catch (err) {
-        console.error('Error checking first open:', err);
+        console.error("Error checking first open:", err);
       }
     };
 
@@ -71,17 +71,17 @@ export function useMorningBriefing() {
       setShouldAutoPlay(false);
       setHasPlayedToday(true);
     }
-  // fetchAndPlayBriefing intentionally excluded to avoid triggering re-subscriptions
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // fetchAndPlayBriefing intentionally excluded to avoid triggering re-subscriptions
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldAutoPlay, hasPlayedToday]);
 
   const fetchBriefing = useCallback(async () => {
     if (!user?.id) return null;
-    
+
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('morning-briefing', {
-        body: { user_id: user.id }
+      const { data, error } = await supabase.functions.invoke("morning-briefing", {
+        body: { user_id: user.id },
       });
 
       if (error) throw error;
@@ -98,7 +98,7 @@ export function useMorningBriefing() {
       setBriefing(briefingData);
       return briefingData;
     } catch (err) {
-      console.error('Error fetching morning briefing:', err);
+      console.error("Error fetching morning briefing:", err);
       return null;
     } finally {
       setLoading(false);
@@ -106,37 +106,37 @@ export function useMorningBriefing() {
   }, [user?.id]);
 
   const generateBriefingText = (data: BriefingData): string => {
-    let text = data.greeting + '. ';
+    let text = data.greeting + ". ";
 
     if (data.weather) {
-      text += data.weather + '. ';
+      text += data.weather + ". ";
     }
 
     if (data.topTasks.length > 0) {
-      text += `You have ${data.topTasks.length} important task${data.topTasks.length > 1 ? 's' : ''} today. `;
+      text += `You have ${data.topTasks.length} important task${data.topTasks.length > 1 ? "s" : ""} today. `;
       if (data.topTasks.length <= 3) {
-        text += data.topTasks.map(t => t.title).join(', ') + '. ';
+        text += data.topTasks.map((t) => t.title).join(", ") + ". ";
       } else {
         text += `Your top priority is: ${data.topTasks[0].title}. `;
       }
     }
 
     if (data.upcomingEvents.length > 0) {
-      text += `You have ${data.upcomingEvents.length} event${data.upcomingEvents.length > 1 ? 's' : ''} coming up. `;
+      text += `You have ${data.upcomingEvents.length} event${data.upcomingEvents.length > 1 ? "s" : ""} coming up. `;
       if (data.upcomingEvents.length === 1) {
         text += `${data.upcomingEvents[0].title} at ${data.upcomingEvents[0].time}. `;
       }
     }
 
     if (data.reminders.length > 0) {
-      text += `I have ${data.reminders.length} reminder${data.reminders.length > 1 ? 's' : ''} for you. `;
+      text += `I have ${data.reminders.length} reminder${data.reminders.length > 1 ? "s" : ""} for you. `;
     }
 
     if (data.insights) {
       text += data.insights;
     }
 
-    text += ' Have a great day!';
+    text += " Have a great day!";
     return text;
   };
 
@@ -144,15 +144,15 @@ export function useMorningBriefing() {
     const data = await fetchBriefing();
     if (data) {
       const text = generateBriefingText(data);
-      speak(text, 'supportive');
-      toast.success('Playing morning briefing');
+      speak(text, "supportive");
+      toast.success("Playing morning briefing");
     }
   }, [fetchBriefing, speak]);
 
   const playBriefing = useCallback(() => {
     if (briefing) {
       const text = generateBriefingText(briefing);
-      speak(text, 'supportive');
+      speak(text, "supportive");
     } else {
       fetchAndPlayBriefing();
     }
@@ -175,7 +175,7 @@ export function useMorningBriefing() {
 
 function getTimeBasedGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }

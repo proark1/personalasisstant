@@ -1,19 +1,32 @@
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Bell, Brain, Calendar, Clock, FileText, Heart, Moon, Users, Zap, Cake, Sparkles,
-  ShieldCheck, PlusCircle, Pencil, Trash2,
-} from 'lucide-react';
+  Bell,
+  Brain,
+  Calendar,
+  Clock,
+  FileText,
+  Heart,
+  Moon,
+  Users,
+  Zap,
+  Cake,
+  Sparkles,
+  ShieldCheck,
+  PlusCircle,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import {
   CONFIRMATION_ENTITIES,
   useProactiveSettings,
   type ConfirmationOverrides,
-} from '@/hooks/useProactiveSettings';
-import { useExpoPushNotifications } from '@/hooks/useExpoPushNotifications';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "@/hooks/useProactiveSettings";
+import { useExpoPushNotifications } from "@/hooks/useExpoPushNotifications";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function ProactiveSettingsPanel() {
   const { settings, loading, updateSettings, triggerProactiveCheck } = useProactiveSettings();
@@ -38,9 +51,7 @@ export function ProactiveSettingsPanel() {
             <Brain className="h-5 w-5 text-primary" />
             Proactive Assistant
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Let Dori remind you before you forget
-          </p>
+          <p className="text-sm text-muted-foreground">Let Dori remind you before you forget</p>
         </div>
         <Switch
           checked={settings.enabled}
@@ -51,7 +62,7 @@ export function ProactiveSettingsPanel() {
       {settings.enabled && (
         <>
           {/* Push Notification Permission */}
-          {isNative && permissionStatus !== 'granted' && (
+          {isNative && permissionStatus !== "granted" && (
             <Card className="border-primary/50 bg-primary/5">
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
@@ -59,7 +70,9 @@ export function ProactiveSettingsPanel() {
                     <Bell className="h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Enable Push Notifications</p>
-                      <p className="text-sm text-muted-foreground">Get reminders even when the app is closed</p>
+                      <p className="text-sm text-muted-foreground">
+                        Get reminders even when the app is closed
+                      </p>
                     </div>
                   </div>
                   <Button size="sm" onClick={requestPermission}>
@@ -185,7 +198,9 @@ export function ProactiveSettingsPanel() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label className="text-sm">Forgotten task threshold: {settings.forgotten_task_days} days</Label>
+                <Label className="text-sm">
+                  Forgotten task threshold: {settings.forgotten_task_days} days
+                </Label>
                 <Slider
                   value={[settings.forgotten_task_days]}
                   onValueChange={([v]) => updateSettings({ forgotten_task_days: v })}
@@ -196,7 +211,9 @@ export function ProactiveSettingsPanel() {
                 />
               </div>
               <div>
-                <Label className="text-sm">Contact check-in: {settings.contact_checkin_days} days</Label>
+                <Label className="text-sm">
+                  Contact check-in: {settings.contact_checkin_days} days
+                </Label>
                 <Slider
                   value={[settings.contact_checkin_days]}
                   onValueChange={([v]) => updateSettings({ contact_checkin_days: v })}
@@ -208,7 +225,9 @@ export function ProactiveSettingsPanel() {
               </div>
               {settings.prayer_reminders_enabled && (
                 <div>
-                  <Label className="text-sm">Prayer reminder: {settings.prayer_reminder_minutes ?? 10} min before</Label>
+                  <Label className="text-sm">
+                    Prayer reminder: {settings.prayer_reminder_minutes ?? 10} min before
+                  </Label>
                   <Slider
                     value={[settings.prayer_reminder_minutes ?? 10]}
                     onValueChange={([v]) => updateSettings({ prayer_reminder_minutes: v })}
@@ -260,8 +279,8 @@ export function ProactiveSettingsPanel() {
                     Action Confirmations
                   </CardTitle>
                   <CardDescription>
-                    Decide when Dori should ask before doing something for you
-                    — whether it's from the web app, the Telegram bot, or voice.
+                    Decide when Dori should ask before doing something for you — whether it's from
+                    the web app, the Telegram bot, or voice.
                   </CardDescription>
                 </div>
                 <Switch
@@ -273,8 +292,8 @@ export function ProactiveSettingsPanel() {
             {(settings.require_action_confirmation ?? true) && (
               <CardContent className="space-y-5">
                 <p className="text-xs text-muted-foreground">
-                  Turn off the master switch above to let Dori add, edit, and delete
-                  anything without asking. Leave it on to review actions first.
+                  Turn off the master switch above to let Dori add, edit, and delete anything
+                  without asking. Leave it on to review actions first.
                 </p>
                 <SettingRow
                   icon={<PlusCircle className="h-4 w-4" />}
@@ -301,9 +320,9 @@ export function ProactiveSettingsPanel() {
                 <div className="pt-2">
                   <Label className="text-sm font-medium">Per-module overrides</Label>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Need something different for a single module (e.g. auto-add
-                    shopping items but always confirm deletions)? Pick your own
-                    rules below — blank means "use the defaults above".
+                    Need something different for a single module (e.g. auto-add shopping items but
+                    always confirm deletions)? Pick your own rules below — blank means "use the
+                    defaults above".
                   </p>
                   <ConfirmationOverrideTable
                     overrides={settings.confirmation_overrides || {}}
@@ -343,11 +362,7 @@ export function ProactiveSettingsPanel() {
           </Card>
 
           {/* Test Button */}
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => triggerProactiveCheck()}
-          >
+          <Button variant="outline" className="w-full" onClick={() => triggerProactiveCheck()}>
             Test Proactive Check Now
           </Button>
         </>
@@ -361,7 +376,7 @@ function SettingRow({
   label,
   description,
   checked,
-  onChange
+  onChange,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -383,9 +398,9 @@ function SettingRow({
   );
 }
 
-type OpKind = 'create' | 'update' | 'delete';
-const OPS: OpKind[] = ['create', 'update', 'delete'];
-const OP_LABELS: Record<OpKind, string> = { create: 'Add', update: 'Edit', delete: 'Delete' };
+type OpKind = "create" | "update" | "delete";
+const OPS: OpKind[] = ["create", "update", "delete"];
+const OP_LABELS: Record<OpKind, string> = { create: "Add", update: "Edit", delete: "Delete" };
 
 function ConfirmationOverrideTable({
   overrides,
@@ -417,7 +432,9 @@ function ConfirmationOverrideTable({
       <div className="grid grid-cols-[1fr_repeat(3,minmax(0,1fr))] gap-0 text-xs font-medium bg-muted/50">
         <div className="px-3 py-2">Module</div>
         {OPS.map((op) => (
-          <div key={op} className="px-3 py-2 text-center">{OP_LABELS[op]}</div>
+          <div key={op} className="px-3 py-2 text-center">
+            {OP_LABELS[op]}
+          </div>
         ))}
       </div>
       {CONFIRMATION_ENTITIES.map(({ key, label }) => {
@@ -430,7 +447,7 @@ function ConfirmationOverrideTable({
             <div className="px-3 py-2 text-sm">{label}</div>
             {OPS.map((op) => {
               const override = current[op];
-              const effective = typeof override === 'boolean' ? override : fallback[op];
+              const effective = typeof override === "boolean" ? override : fallback[op];
               return (
                 <button
                   key={op}
@@ -441,26 +458,26 @@ function ConfirmationOverrideTable({
                     else setOverride(key, op, !override);
                   }}
                   className={
-                    'mx-auto my-1.5 flex h-7 items-center justify-center rounded-md border px-2 text-[11px] font-medium transition-colors ' +
+                    "mx-auto my-1.5 flex h-7 items-center justify-center rounded-md border px-2 text-[11px] font-medium transition-colors " +
                     (override === undefined
-                      ? 'border-dashed border-muted-foreground/40 text-muted-foreground hover:bg-muted'
+                      ? "border-dashed border-muted-foreground/40 text-muted-foreground hover:bg-muted"
                       : effective
-                        ? 'border-primary/40 bg-primary/10 text-primary'
-                        : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-600 dark:text-emerald-400')
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-emerald-400/40 bg-emerald-400/10 text-emerald-600 dark:text-emerald-400")
                   }
                   title={
                     override === undefined
-                      ? `Uses default (${effective ? 'ask' : 'auto'})`
+                      ? `Uses default (${effective ? "ask" : "auto"})`
                       : override
-                        ? 'Always ask'
-                        : 'Auto-apply'
+                        ? "Always ask"
+                        : "Auto-apply"
                   }
                 >
                   {override === undefined
-                    ? `default · ${effective ? 'ask' : 'auto'}`
+                    ? `default · ${effective ? "ask" : "auto"}`
                     : override
-                      ? 'always ask'
-                      : 'auto'}
+                      ? "always ask"
+                      : "auto"}
                 </button>
               );
             })}

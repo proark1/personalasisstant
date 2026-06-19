@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Brain, 
-  TrendingUp, 
-  TrendingDown, 
-  Minus, 
-  Sparkles, 
+import React, { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Brain,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Sparkles,
   Send,
   RefreshCw,
   Target,
@@ -18,10 +18,10 @@ import {
   Activity,
   Moon,
   Heart,
-  Footprints
-} from 'lucide-react';
-import { useHealthCoach, TrendData, Correlation } from '@/hooks/useHealthCoach';
-import { cn } from '@/lib/utils';
+  Footprints,
+} from "lucide-react";
+import { useHealthCoach, TrendData, Correlation } from "@/hooks/useHealthCoach";
+import { cn } from "@/lib/utils";
 
 const metricIcons: Record<string, React.ReactNode> = {
   steps: <Footprints className="h-4 w-4" />,
@@ -33,46 +33,47 @@ const metricIcons: Record<string, React.ReactNode> = {
 };
 
 const metricLabels: Record<string, string> = {
-  steps: 'Steps',
-  sleep_hours: 'Sleep',
-  heart_rate: 'Heart Rate',
-  resting_heart_rate: 'Resting HR',
-  hrv: 'HRV',
-  exercise_minutes: 'Exercise',
-  calories: 'Calories',
-  blood_oxygen: 'Blood Oxygen',
-  weight: 'Weight',
-  stress_level: 'Stress',
-  water_glasses: 'Hydration',
+  steps: "Steps",
+  sleep_hours: "Sleep",
+  heart_rate: "Heart Rate",
+  resting_heart_rate: "Resting HR",
+  hrv: "HRV",
+  exercise_minutes: "Exercise",
+  calories: "Calories",
+  blood_oxygen: "Blood Oxygen",
+  weight: "Weight",
+  stress_level: "Stress",
+  water_glasses: "Hydration",
 };
 
 function TrendCard({ trend }: { trend: TrendData }) {
-  const TrendIcon = trend.trend === 'improving' ? TrendingUp : 
-                   trend.trend === 'declining' ? TrendingDown : Minus;
-  
-  const trendColor = trend.trend === 'improving' ? 'text-green-500' : 
-                     trend.trend === 'declining' ? 'text-red-500' : 'text-muted-foreground';
+  const TrendIcon =
+    trend.trend === "improving" ? TrendingUp : trend.trend === "declining" ? TrendingDown : Minus;
+
+  const trendColor =
+    trend.trend === "improving"
+      ? "text-green-500"
+      : trend.trend === "declining"
+        ? "text-red-500"
+        : "text-muted-foreground";
 
   return (
     <Card className="p-3">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           {metricIcons[trend.metric] || <Activity className="h-4 w-4" />}
-          <span className="font-medium text-sm">
-            {metricLabels[trend.metric] || trend.metric}
-          </span>
+          <span className="font-medium text-sm">{metricLabels[trend.metric] || trend.metric}</span>
         </div>
         <TrendIcon className={cn("h-4 w-4", trendColor)} />
       </div>
       <div className="flex items-baseline gap-2">
         <span className="text-2xl font-bold">{trend.thisWeekAvg}</span>
         <span className={cn("text-sm", trendColor)}>
-          {trend.percentChange > 0 ? '+' : ''}{trend.percentChange}%
+          {trend.percentChange > 0 ? "+" : ""}
+          {trend.percentChange}%
         </span>
       </div>
-      <p className="text-xs text-muted-foreground mt-1">
-        vs {trend.lastWeekAvg} last week
-      </p>
+      <p className="text-xs text-muted-foreground mt-1">vs {trend.lastWeekAvg} last week</p>
     </Card>
   );
 }
@@ -87,7 +88,10 @@ function CorrelationCard({ correlation }: { correlation: Correlation }) {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <p className="font-medium text-sm">{correlation.finding}</p>
-            <Badge variant={correlation.confidence === 'high' ? 'default' : 'secondary'} className="text-xs">
+            <Badge
+              variant={correlation.confidence === "high" ? "default" : "secondary"}
+              className="text-xs"
+            >
               {correlation.confidence}
             </Badge>
           </div>
@@ -98,13 +102,19 @@ function CorrelationCard({ correlation }: { correlation: Correlation }) {
   );
 }
 
-function WeeklyScoreCard({ score, highlights, improvements }: { 
-  score: number; 
-  highlights: string[]; 
-  improvements: string[] 
+function WeeklyScoreCard({
+  score,
+  highlights,
+  improvements,
+}: {
+  score: number;
+  highlights: string[];
+  improvements: string[];
 }) {
-  const scoreColor = score >= 70 ? 'text-green-500' : score >= 50 ? 'text-yellow-500' : 'text-red-500';
-  const scoreBg = score >= 70 ? 'bg-green-500/10' : score >= 50 ? 'bg-yellow-500/10' : 'bg-red-500/10';
+  const scoreColor =
+    score >= 70 ? "text-green-500" : score >= 50 ? "text-yellow-500" : "text-red-500";
+  const scoreBg =
+    score >= 70 ? "bg-green-500/10" : score >= 50 ? "bg-yellow-500/10" : "bg-red-500/10";
 
   return (
     <Card className="p-4">
@@ -123,7 +133,9 @@ function WeeklyScoreCard({ score, highlights, improvements }: {
           <p className="text-xs font-medium text-green-600 mb-1">✓ Highlights</p>
           <ul className="space-y-1">
             {highlights.slice(0, 3).map((h, i) => (
-              <li key={i} className="text-sm text-muted-foreground">• {h}</li>
+              <li key={i} className="text-sm text-muted-foreground">
+                • {h}
+              </li>
             ))}
           </ul>
         </div>
@@ -134,7 +146,9 @@ function WeeklyScoreCard({ score, highlights, improvements }: {
           <p className="text-xs font-medium text-amber-600 mb-1">↑ Room to Improve</p>
           <ul className="space-y-1">
             {improvements.slice(0, 3).map((imp, i) => (
-              <li key={i} className="text-sm text-muted-foreground">• {imp}</li>
+              <li key={i} className="text-sm text-muted-foreground">
+                • {imp}
+              </li>
             ))}
           </ul>
         </div>
@@ -145,19 +159,19 @@ function WeeklyScoreCard({ score, highlights, improvements }: {
 
 export function HealthCoachPanel() {
   const { loading, response, error, getCoaching, askQuestion } = useHealthCoach();
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
 
   useEffect(() => {
     getCoaching();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAskQuestion = async () => {
     if (!question.trim()) return;
     setIsAsking(true);
     await askQuestion(question);
-    setQuestion('');
+    setQuestion("");
     setIsAsking(false);
   };
 
@@ -200,8 +214,8 @@ export function HealthCoachPanel() {
 
         {/* Weekly Score */}
         {response && (
-          <WeeklyScoreCard 
-            score={response.weeklyScore} 
+          <WeeklyScoreCard
+            score={response.weeklyScore}
             highlights={response.highlights}
             improvements={response.improvements}
           />
@@ -215,7 +229,7 @@ export function HealthCoachPanel() {
               <h3 className="font-semibold">Today's Coaching</h3>
             </div>
             <div className="prose prose-sm dark:prose-invert max-w-none">
-              {response.advice.split('\n').map((line, i) => (
+              {response.advice.split("\n").map((line, i) => (
                 <p key={i} className="text-sm text-muted-foreground mb-2 last:mb-0">
                   {line}
                 </p>
@@ -235,7 +249,7 @@ export function HealthCoachPanel() {
               placeholder="Why am I tired? How can I sleep better?"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAskQuestion()}
+              onKeyDown={(e) => e.key === "Enter" && handleAskQuestion()}
               disabled={isAsking}
             />
             <Button onClick={handleAskQuestion} disabled={isAsking || !question.trim()}>
@@ -243,19 +257,21 @@ export function HealthCoachPanel() {
             </Button>
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
-            {['Why am I tired?', 'How can I improve my sleep?', 'Am I exercising enough?'].map((q) => (
-              <Button 
-                key={q} 
-                variant="outline" 
-                size="sm" 
-                className="text-xs"
-                onClick={() => {
-                  setQuestion(q);
-                }}
-              >
-                {q}
-              </Button>
-            ))}
+            {["Why am I tired?", "How can I improve my sleep?", "Am I exercising enough?"].map(
+              (q) => (
+                <Button
+                  key={q}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    setQuestion(q);
+                  }}
+                >
+                  {q}
+                </Button>
+              ),
+            )}
           </div>
         </Card>
 

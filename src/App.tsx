@@ -50,7 +50,7 @@ function maybeToastError(err: unknown, queryKey?: readonly unknown[]) {
   const now = Date.now();
   if (now - lastErrorToastAt < 3000) return;
   lastErrorToastAt = now;
-  const message = err instanceof Error ? err.message : 'Something went wrong loading your data.';
+  const message = err instanceof Error ? err.message : "Something went wrong loading your data.";
   toast.error(message, {
     description: queryKey ? `If this persists, please refresh the page.` : undefined,
   });
@@ -114,11 +114,17 @@ function ProtectedRoute({
   return <>{children}</>;
 }
 
-function PublicRoute({ children }: { children: React.ReactNode }) {
+function PublicRoute({
+  children,
+  renderWhileLoading = false,
+}: {
+  children: React.ReactNode;
+  renderWhileLoading?: boolean;
+}) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <BrandedLoader />;
+    return renderWhileLoading ? <>{children}</> : <BrandedLoader />;
   }
 
   if (user) {
@@ -131,7 +137,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function AppContent() {
   useMorningAutoPlay();
   const location = useLocation();
-  
+
   return (
     <>
       <a
@@ -154,119 +160,116 @@ function AppContent() {
           role="main"
           tabIndex={-1}
         >
-      <Suspense fallback={<PageFallback />}>
-        <Routes location={location}>
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <LazyIndex />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <LazyDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/contacts"
-            element={
-              <ProtectedRoute>
-                <LazyContactsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/contracts"
-            element={
-              <ProtectedRoute>
-                <LazyContractsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/finance"
-            element={
-              <ProtectedRoute>
-                <LazyFinancePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/travel"
-            element={
-              <ProtectedRoute>
-                <LazyTravelPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/workspaces"
-            element={
-              <ProtectedRoute>
-                <LazyWorkspaces />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/activity"
-            element={
-              <ProtectedRoute>
-                <LazyActivity />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/landing"
-            element={
-              <PublicRoute>
-                <Landing />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/auth"
-            element={
-              <PublicRoute>
-                <LazyAuth />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/forgot-password"
-            element={
-              <PublicRoute>
-                <LazyForgotPassword />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/reset-password"
-            element={<LazyResetPassword />}
-          />
-          <Route
-            path="/auth/calendar-callback"
-            element={
-              <ProtectedRoute>
-                <CalendarCallback />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/onboarding"
-            element={
-              <ProtectedRoute requireOnboarding={false}>
-                <LazyOnboarding />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<LazyNotFound />} />
-        </Routes>
-      </Suspense>
+          <Suspense fallback={<PageFallback />}>
+            <Routes location={location}>
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <LazyIndex />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <LazyDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/contacts"
+                element={
+                  <ProtectedRoute>
+                    <LazyContactsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/contracts"
+                element={
+                  <ProtectedRoute>
+                    <LazyContractsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/finance"
+                element={
+                  <ProtectedRoute>
+                    <LazyFinancePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/travel"
+                element={
+                  <ProtectedRoute>
+                    <LazyTravelPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/workspaces"
+                element={
+                  <ProtectedRoute>
+                    <LazyWorkspaces />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/activity"
+                element={
+                  <ProtectedRoute>
+                    <LazyActivity />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/landing"
+                element={
+                  <PublicRoute renderWhileLoading>
+                    <Landing />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/auth"
+                element={
+                  <PublicRoute>
+                    <LazyAuth />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <PublicRoute>
+                    <LazyForgotPassword />
+                  </PublicRoute>
+                }
+              />
+              <Route path="/reset-password" element={<LazyResetPassword />} />
+              <Route
+                path="/auth/calendar-callback"
+                element={
+                  <ProtectedRoute>
+                    <CalendarCallback />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/onboarding"
+                element={
+                  <ProtectedRoute requireOnboarding={false}>
+                    <LazyOnboarding />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<LazyNotFound />} />
+            </Routes>
+          </Suspense>
         </motion.div>
       </AnimatePresence>
     </>

@@ -14,7 +14,7 @@
 // just shows up in the error list returned to the client.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 // Echo the caller's Origin so preview deploys on rotating subdomains
 // all pass the CORS preflight. Admin JWT check below still gates every action.
@@ -25,7 +25,7 @@ function buildCors(req: Request): Record<string, string> {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Max-Age": "86400",
-    "Vary": "Origin",
+    Vary: "Origin",
   };
 }
 

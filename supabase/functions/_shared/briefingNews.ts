@@ -68,7 +68,9 @@ function buildLocationContext(location?: NewsLocation | null): string {
 
 // Pull the model's text out of the candidate parts (there can be several).
 function extractText(data: Record<string, unknown>): string {
-  const parts = (data?.candidates as { content?: { parts?: { text?: unknown }[] } }[] | undefined)?.[0]?.content?.parts;
+  const parts = (
+    data?.candidates as { content?: { parts?: { text?: unknown }[] } }[] | undefined
+  )?.[0]?.content?.parts;
   if (!Array.isArray(parts)) return "";
   return parts
     .map((p) => (typeof p?.text === "string" ? p.text : ""))

@@ -1,12 +1,12 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { Contract } from './useContracts';
-import { Task } from '@/types/flux';
-import { differenceInDays, format } from 'date-fns';
+import { useEffect, useRef, useCallback } from "react";
+import { Contract } from "./useContracts";
+import { Task } from "@/types/flux";
+import { differenceInDays, format } from "date-fns";
 
 interface UseContractRemindersProps {
   contracts: Contract[];
   tasks: Task[];
-  onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+  onAddTask: (task: Omit<Task, "id" | "createdAt">) => void;
   onShowToast?: (title: string, description?: string) => void;
   enabled?: boolean;
 }
@@ -43,18 +43,19 @@ export function useContractReminders({
       // Create cancellation deadline reminder (if within 14 days and auto-renews)
       if (contract.autoRenews && daysUntilCancellation >= 0 && daysUntilCancellation <= 14) {
         const cancellationTaskTitle = `⚠️ Contract: ${contract.name} - Cancellation deadline`;
-        const existingCancellationTask = tasks.find(t =>
-          t.title.includes(contract.name) &&
-          t.title.includes('Cancellation deadline') &&
-          !t.completed
+        const existingCancellationTask = tasks.find(
+          (t) =>
+            t.title.includes(contract.name) &&
+            t.title.includes("Cancellation deadline") &&
+            !t.completed,
         );
 
         if (!existingCancellationTask) {
           onAddTask({
             title: cancellationTaskTitle,
-            description: `Cancel by this date if you don't want auto-renewal. Provider: ${contract.provider || 'N/A'}`,
-            category: 'personal',
-            priority: 'high',
+            description: `Cancel by this date if you don't want auto-renewal. Provider: ${contract.provider || "N/A"}`,
+            category: "personal",
+            priority: "high",
             completed: false,
             dueDate: cancellationDate,
           });
@@ -64,27 +65,28 @@ export function useContractReminders({
 
       // Create task for contracts ending within 3 months (90 days)
       if (daysUntilRenewal >= 0 && daysUntilRenewal <= 90) {
-        const renewalTaskTitle = `📋 Contract: ${contract.name} - Ends ${format(contract.renewalDate, 'MMM d')}`;
-        const existingRenewalTask = tasks.find(t =>
-          t.title.includes(contract.name) &&
-          (t.title.includes('Ends') || t.title.includes('Renewal')) &&
-          !t.completed
+        const renewalTaskTitle = `📋 Contract: ${contract.name} - Ends ${format(contract.renewalDate, "MMM d")}`;
+        const existingRenewalTask = tasks.find(
+          (t) =>
+            t.title.includes(contract.name) &&
+            (t.title.includes("Ends") || t.title.includes("Renewal")) &&
+            !t.completed,
         );
 
         if (!existingRenewalTask) {
-          const costInfo = contract.costAmount 
+          const costInfo = contract.costAmount
             ? ` Cost: €${contract.costAmount} (${contract.costFrequency})`
-            : '';
-          
+            : "";
+
           // Set priority based on urgency
-          let priority: 'low' | 'medium' | 'high' = 'low';
-          if (daysUntilRenewal <= 7) priority = 'high';
-          else if (daysUntilRenewal <= 30) priority = 'medium';
-          
+          let priority: "low" | "medium" | "high" = "low";
+          if (daysUntilRenewal <= 7) priority = "high";
+          else if (daysUntilRenewal <= 30) priority = "medium";
+
           onAddTask({
             title: renewalTaskTitle,
-            description: `Contract ends/renews on this date.${costInfo} Provider: ${contract.provider || 'N/A'}`,
-            category: 'personal',
+            description: `Contract ends/renews on this date.${costInfo} Provider: ${contract.provider || "N/A"}`,
+            category: "personal",
             priority,
             completed: false,
             dueDate: contract.renewalDate,
@@ -96,12 +98,9 @@ export function useContractReminders({
 
     // Show toast if reminders were created
     if (createdReminders.length > 0 && onShowToast) {
-      const names = createdReminders.slice(0, 3).join(', ');
-      const extra = createdReminders.length > 3 ? ` and ${createdReminders.length - 3} more` : '';
-      onShowToast(
-        'Contract Reminders Created',
-        `Upcoming: ${names}${extra}`
-      );
+      const names = createdReminders.slice(0, 3).join(", ");
+      const extra = createdReminders.length > 3 ? ` and ${createdReminders.length - 3} more` : "";
+      onShowToast("Contract Reminders Created", `Upcoming: ${names}${extra}`);
     }
 
     return createdReminders;

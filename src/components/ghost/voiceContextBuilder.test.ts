@@ -96,10 +96,46 @@ describe("buildVoiceContextData", () => {
     const inThreeDays = new Date(NOW.getTime() + 3 * 24 * 60 * 60 * 1000);
     const inTwoWeeks = new Date(NOW.getTime() + 14 * 24 * 60 * 60 * 1000);
     inputs.tasks = [
-      { id: "o", title: "Overdue",  completed: false, trashed: false, dueDate: yesterday,   category: "personal", priority: "high",   createdAt: new Date() } as Task,
-      { id: "t", title: "Today",    completed: false, trashed: false, dueDate: today,       category: "personal", priority: "medium", createdAt: new Date() } as Task,
-      { id: "u", title: "Upcoming", completed: false, trashed: false, dueDate: inThreeDays, category: "personal", priority: "low",    createdAt: new Date() } as Task,
-      { id: "f", title: "Far off",  completed: false, trashed: false, dueDate: inTwoWeeks,  category: "personal", priority: "low",    createdAt: new Date() } as Task,
+      {
+        id: "o",
+        title: "Overdue",
+        completed: false,
+        trashed: false,
+        dueDate: yesterday,
+        category: "personal",
+        priority: "high",
+        createdAt: new Date(),
+      } as Task,
+      {
+        id: "t",
+        title: "Today",
+        completed: false,
+        trashed: false,
+        dueDate: today,
+        category: "personal",
+        priority: "medium",
+        createdAt: new Date(),
+      } as Task,
+      {
+        id: "u",
+        title: "Upcoming",
+        completed: false,
+        trashed: false,
+        dueDate: inThreeDays,
+        category: "personal",
+        priority: "low",
+        createdAt: new Date(),
+      } as Task,
+      {
+        id: "f",
+        title: "Far off",
+        completed: false,
+        trashed: false,
+        dueDate: inTwoWeeks,
+        category: "personal",
+        priority: "low",
+        createdAt: new Date(),
+      } as Task,
     ];
     const ctx = buildVoiceContextData(inputs);
     expect(ctx.totalOverdue).toBe(1);
@@ -110,7 +146,7 @@ describe("buildVoiceContextData", () => {
   it("excludes inactive contracts from totals and listings", () => {
     const inputs = emptyInputs();
     inputs.contracts = [
-      { id: "a", name: "Active",   isActive: true,  category: "subscription" } as Contract,
+      { id: "a", name: "Active", isActive: true, category: "subscription" } as Contract,
       { id: "b", name: "Inactive", isActive: false, category: "subscription" } as Contract,
     ];
     const ctx = buildVoiceContextData(inputs);
@@ -120,20 +156,22 @@ describe("buildVoiceContextData", () => {
 
   it("only includes unread emails, capped at 10", () => {
     const inputs = emptyInputs();
-    inputs.emailList = Array.from({ length: 15 }, (_, i) =>
-      ({
-        id: String(i),
-        subject: `s${i}`,
-        from_email: "x@y",
-        from_name: null,
-        snippet: "",
-        is_read: i >= 12,
-        category: null,
-        priority_score: 0,
-        received_at: NOW.toISOString(),
-        gmail_message_id: null,
-        thread_id: null,
-      }) as unknown as Parameters<typeof buildVoiceContextData>[0]["emailList"][number],
+    inputs.emailList = Array.from(
+      { length: 15 },
+      (_, i) =>
+        ({
+          id: String(i),
+          subject: `s${i}`,
+          from_email: "x@y",
+          from_name: null,
+          snippet: "",
+          is_read: i >= 12,
+          category: null,
+          priority_score: 0,
+          received_at: NOW.toISOString(),
+          gmail_message_id: null,
+          thread_id: null,
+        }) as unknown as Parameters<typeof buildVoiceContextData>[0]["emailList"][number],
     );
     const ctx = buildVoiceContextData(inputs);
     // 12 unread, capped at 10

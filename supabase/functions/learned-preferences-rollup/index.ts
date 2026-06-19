@@ -18,14 +18,14 @@
 //
 // Service-role auth required.
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'X-Content-Type-Options': 'nosniff',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "X-Content-Type-Options": "nosniff",
 };
 
 interface CompletedTask {
@@ -36,17 +36,18 @@ interface CompletedTask {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const auth = req.headers.get('Authorization') || '';
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const auth = req.headers.get("Authorization") || "";
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   if (auth !== `Bearer ${serviceKey}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey);
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
   const body = await req.json().catch(() => ({}));
 
   // Pagination knobs — same shape as embed-memories-backfill so callers
@@ -64,7 +65,7 @@ serve(async (req) => {
       preferencesWritten += written;
       processed++;
     } catch (e) {
-      console.error('[learned-preferences-rollup]', userId, (e as Error).message);
+      console.error("[learned-preferences-rollup]", userId, (e as Error).message);
     }
   };
 
@@ -74,12 +75,12 @@ serve(async (req) => {
     let offset = cursorOffset;
     while (processed < maxUsers) {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('user_id')
-        .order('user_id')
+        .from("profiles")
+        .select("user_id")
+        .order("user_id")
         .range(offset, offset + userPageSize - 1);
       if (error) {
-        console.error('[learned-preferences-rollup] page fetch failed', error.message);
+        console.error("[learned-preferences-rollup] page fetch failed", error.message);
         break;
       }
       const page = (data ?? []) as Array<{ user_id: string }>;
@@ -101,11 +102,14 @@ serve(async (req) => {
       nextCursorOffset: cursorOffset + processed,
       truncated: processed >= maxUsers,
     }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
 
-async function rollupForUser(supabase: SupabaseClient, userId: string): Promise<{ written: number }> {
+async function rollupForUser(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ written: number }> {
   const since = new Date(Date.now() - 180 * 24 * 3600_000).toISOString();
 
   // Pull the user's timezone so "preferred hour" reflects local clock,
@@ -114,20 +118,22 @@ async function rollupForUser(supabase: SupabaseClient, userId: string): Promise<
   let userTz: string | undefined;
   try {
     const { data: p } = await supabase
-      .from('profiles')
-      .select('timezone')
-      .eq('user_id', userId)
+      .from("profiles")
+      .select("timezone")
+      .eq("user_id", userId)
       .maybeSingle();
     userTz = p?.timezone || undefined;
-  } catch { /* best-effort */ }
+  } catch {
+    /* best-effort */
+  }
 
   const { data: rows, error } = await supabase
-    .from('tasks')
-    .select('category, created_at, completed_at, due_date')
-    .eq('user_id', userId)
-    .eq('completed', true)
-    .not('completed_at', 'is', null)
-    .gte('completed_at', since);
+    .from("tasks")
+    .select("category, created_at, completed_at, due_date")
+    .eq("user_id", userId)
+    .eq("completed", true)
+    .not("completed_at", "is", null)
+    .gte("completed_at", since);
 
   if (error) throw error;
   const completed = (rows ?? []) as CompletedTask[];
@@ -135,31 +141,35 @@ async function rollupForUser(supabase: SupabaseClient, userId: string): Promise<
 
   const byCat: Record<string, CompletedTask[]> = {};
   for (const t of completed) {
-    const cat = t.category || 'uncategorised';
+    const cat = t.category || "uncategorised";
     (byCat[cat] ??= []).push(t);
   }
 
   // Tear down previous stats for this user, then re-write. Single
   // transaction-ish — last write wins.
-  await supabase.from('dori_task_stats').delete().eq('user_id', userId);
+  await supabase.from("dori_task_stats").delete().eq("user_id", userId);
 
   const statsRows: Array<Record<string, unknown>> = [];
   const narratives: { key: string; value: string; confidence: number }[] = [];
 
   for (const [category, tasks] of Object.entries(byCat)) {
-    const leadHours = tasks.map((t) =>
-      (new Date(t.completed_at).getTime() - new Date(t.created_at).getTime()) / 3600_000,
-    ).filter((h) => h >= 0 && h < 24 * 365);
+    const leadHours = tasks
+      .map(
+        (t) => (new Date(t.completed_at).getTime() - new Date(t.created_at).getTime()) / 3600_000,
+      )
+      .filter((h) => h >= 0 && h < 24 * 365);
 
     const datedTasks = tasks.filter((t) => t.due_date);
-    const onTimeCount = datedTasks.filter((t) =>
-      new Date(t.completed_at) <= new Date(t.due_date!),
+    const onTimeCount = datedTasks.filter(
+      (t) => new Date(t.completed_at) <= new Date(t.due_date!),
     ).length;
     const onTimeRate = datedTasks.length > 0 ? onTimeCount / datedTasks.length : null;
 
     const slipHours = datedTasks
       .filter((t) => new Date(t.completed_at) > new Date(t.due_date!))
-      .map((t) => (new Date(t.completed_at).getTime() - new Date(t.due_date!).getTime()) / 3600_000);
+      .map(
+        (t) => (new Date(t.completed_at).getTime() - new Date(t.due_date!).getTime()) / 3600_000,
+      );
 
     const medianLead = median(leadHours);
     const medianSlip = median(slipHours);
@@ -209,11 +219,12 @@ async function rollupForUser(supabase: SupabaseClient, userId: string): Promise<
     }
     if (datedTasks.length >= 10 && onTimeRate != null) {
       const conf = datedTasks.length >= 30 ? 0.85 : 0.6;
-      const verdict = onTimeRate >= 0.8
-        ? 'almost always on time'
-        : onTimeRate >= 0.5
-          ? `on time roughly ${Math.round(onTimeRate * 100)}% of the time`
-          : `frequently slips deadlines (only ${Math.round(onTimeRate * 100)}% on time)`;
+      const verdict =
+        onTimeRate >= 0.8
+          ? "almost always on time"
+          : onTimeRate >= 0.5
+            ? `on time roughly ${Math.round(onTimeRate * 100)}% of the time`
+            : `frequently slips deadlines (only ${Math.round(onTimeRate * 100)}% on time)`;
       narratives.push({
         key: `slip_pattern_${category}`,
         value: `User is ${verdict} for ${category} tasks (n=${datedTasks.length}). Pad due dates if confidence is low.`,
@@ -225,7 +236,7 @@ async function rollupForUser(supabase: SupabaseClient, userId: string): Promise<
       if (tasks.length >= 10) {
         narratives.push({
           key: `preferred_hour_${category}`,
-          value: `User completes most ${category} tasks around ${topHour.toString().padStart(2, '0')}:00 local time.`,
+          value: `User completes most ${category} tasks around ${topHour.toString().padStart(2, "0")}:00 local time.`,
           confidence: tasks.length >= 30 ? 0.8 : 0.55,
         });
       }
@@ -233,27 +244,25 @@ async function rollupForUser(supabase: SupabaseClient, userId: string): Promise<
   }
 
   if (statsRows.length > 0) {
-    const { error: insertErr } = await supabase.from('dori_task_stats').insert(statsRows);
-    if (insertErr) console.warn('[rollup] insert stats failed', insertErr.message);
+    const { error: insertErr } = await supabase.from("dori_task_stats").insert(statsRows);
+    if (insertErr) console.warn("[rollup] insert stats failed", insertErr.message);
   }
 
   let written = 0;
   for (const n of narratives) {
-    const { error } = await supabase
-      .from('dori_learned_preferences')
-      .upsert(
-        {
-          user_id: userId,
-          key: n.key,
-          value: n.value,
-          confidence: n.confidence,
-          times_seen: 1,
-          source: 'task_history_rollup',
-          last_seen_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,key' },
-      );
+    const { error } = await supabase.from("dori_learned_preferences").upsert(
+      {
+        user_id: userId,
+        key: n.key,
+        value: n.value,
+        confidence: n.confidence,
+        times_seen: 1,
+        source: "task_history_rollup",
+        last_seen_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,key" },
+    );
     if (!error) written++;
   }
   return { written };
@@ -263,9 +272,7 @@ function median(values: number[]): number | null {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 // Hour-of-day in a target timezone. Intl.DateTimeFormat is the only
@@ -274,9 +281,9 @@ function median(values: number[]): number | null {
 // completion. Falls back to UTC if the tz string is bad.
 function hourInTz(iso: string, tz?: string): number {
   try {
-    const fmt = new Intl.DateTimeFormat('en-GB', {
-      timeZone: tz || 'UTC',
-      hour: '2-digit',
+    const fmt = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz || "UTC",
+      hour: "2-digit",
       hour12: false,
     });
     const h = parseInt(fmt.format(new Date(iso)), 10);

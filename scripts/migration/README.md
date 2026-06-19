@@ -33,14 +33,14 @@ to override:
 
 You get five files plus a manifest:
 
-| File              | What it is                                                                 |
-| ----------------- | -------------------------------------------------------------------------- |
-| `public.dump`     | `pg_dump -Fc` of the `public` schema — the primary restore artifact.       |
-| `public.sql.gz`   | Same data as plain SQL, gzipped. Grep-able, diff-able.                     |
-| `auth_users.sql`  | `auth.users` + `auth.identities` rows + DDL. Input for Phase 2 (Lucia).    |
-| `storage_meta.sql`| `storage` schema metadata. The actual file bytes are NOT included.         |
-| `row_counts.txt`  | Per-table row counts. Used by `verify-backup.sh` and the Phase 1 restore.  |
-| `manifest.txt`    | Project ref, pg_dump version, file sizes, total row count.                 |
+| File               | What it is                                                                |
+| ------------------ | ------------------------------------------------------------------------- |
+| `public.dump`      | `pg_dump -Fc` of the `public` schema — the primary restore artifact.      |
+| `public.sql.gz`    | Same data as plain SQL, gzipped. Grep-able, diff-able.                    |
+| `auth_users.sql`   | `auth.users` + `auth.identities` rows + DDL. Input for Phase 2 (Lucia).   |
+| `storage_meta.sql` | `storage` schema metadata. The actual file bytes are NOT included.        |
+| `row_counts.txt`   | Per-table row counts. Used by `verify-backup.sh` and the Phase 1 restore. |
+| `manifest.txt`     | Project ref, pg_dump version, file sizes, total row count.                |
 
 > **Storage file bytes are not in this dump.** Supabase stores them in
 > object storage, not Postgres. Download bucket contents separately via

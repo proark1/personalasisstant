@@ -1,19 +1,16 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  Footprints,
-  Flame,
-  Droplets,
-  Moon,
-  Heart,
-  Scale,
-  Activity,
-  Loader2,
-} from 'lucide-react';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Footprints, Flame, Droplets, Moon, Heart, Scale, Activity, Loader2 } from "lucide-react";
 
 interface AddHealthMetricDialogProps {
   open: boolean;
@@ -22,21 +19,21 @@ interface AddHealthMetricDialogProps {
 }
 
 const metricTypes = [
-  { id: 'steps', label: 'Steps', unit: 'steps', icon: Footprints },
-  { id: 'calories', label: 'Calories Burned', unit: 'kcal', icon: Flame },
-  { id: 'water_intake', label: 'Water Intake', unit: 'glasses', icon: Droplets },
-  { id: 'sleep_hours', label: 'Sleep', unit: 'hours', icon: Moon },
-  { id: 'heart_rate', label: 'Heart Rate', unit: 'bpm', icon: Heart },
-  { id: 'weight', label: 'Weight', unit: 'kg', icon: Scale },
-  { id: 'active_minutes', label: 'Active Minutes', unit: 'min', icon: Activity },
+  { id: "steps", label: "Steps", unit: "steps", icon: Footprints },
+  { id: "calories", label: "Calories Burned", unit: "kcal", icon: Flame },
+  { id: "water_intake", label: "Water Intake", unit: "glasses", icon: Droplets },
+  { id: "sleep_hours", label: "Sleep", unit: "hours", icon: Moon },
+  { id: "heart_rate", label: "Heart Rate", unit: "bpm", icon: Heart },
+  { id: "weight", label: "Weight", unit: "kg", icon: Scale },
+  { id: "active_minutes", label: "Active Minutes", unit: "min", icon: Activity },
 ];
 
 export function AddHealthMetricDialog({ open, onOpenChange, onAdd }: AddHealthMetricDialogProps) {
-  const [selectedType, setSelectedType] = useState('steps');
-  const [value, setValue] = useState('');
+  const [selectedType, setSelectedType] = useState("steps");
+  const [value, setValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const selectedMetric = metricTypes.find(m => m.id === selectedType);
+  const selectedMetric = metricTypes.find((m) => m.id === selectedType);
   const Icon = selectedMetric?.icon || Activity;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,7 +43,7 @@ export function AddHealthMetricDialog({ open, onOpenChange, onAdd }: AddHealthMe
     setIsLoading(true);
     try {
       await onAdd(selectedType, parseFloat(value), selectedMetric.unit);
-      setValue('');
+      setValue("");
       onOpenChange(false);
     } finally {
       setIsLoading(false);
@@ -68,7 +65,7 @@ export function AddHealthMetricDialog({ open, onOpenChange, onAdd }: AddHealthMe
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {metricTypes.map(metric => {
+                {metricTypes.map((metric) => {
                   const MetricIcon = metric.icon;
                   return (
                     <SelectItem key={metric.id} value={metric.id}>

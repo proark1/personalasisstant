@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface ActivityItem {
   id: string;
   userId: string;
   actorId: string;
-  action: 'created' | 'updated' | 'deleted' | 'completed' | 'assigned' | 'shared' | 'commented';
-  itemType: 'task' | 'event';
+  action: "created" | "updated" | "deleted" | "completed" | "assigned" | "shared" | "commented";
+  itemType: "task" | "event";
   itemId: string;
   itemTitle?: string;
   details?: Record<string, unknown>;
@@ -40,17 +40,17 @@ export function useActivityFeed(userId: string | undefined) {
     }
 
     setLoading(true);
-    
+
     // Get activities
     const { data: activityData, error } = await supabase
-      .from('activity_feed')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+      .from("activity_feed")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
       .limit(50);
 
     if (error) {
-      console.error('Error fetching activities:', error);
+      console.error("Error fetching activities:", error);
       setLoading(false);
       return;
     }
@@ -58,15 +58,15 @@ export function useActivityFeed(userId: string | undefined) {
     if (activityData && activityData.length > 0) {
       // Get unique actor IDs
       const actorIds = [...new Set(activityData.map((a: DbActivityItem) => a.actor_id))];
-      
+
       // Fetch profiles for actors
       const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name, avatar_url')
-        .in('user_id', actorIds);
+        .from("profiles")
+        .select("user_id, display_name, avatar_url")
+        .in("user_id", actorIds);
 
       const profileMap = new Map(
-        profiles?.map(p => [p.user_id, { name: p.display_name, avatar: p.avatar_url }]) || []
+        profiles?.map((p) => [p.user_id, { name: p.display_name, avatar: p.avatar_url }]) || [],
       );
 
       const mappedActivities: ActivityItem[] = activityData.map((item: DbActivityItem) => {
@@ -75,13 +75,13 @@ export function useActivityFeed(userId: string | undefined) {
           id: item.id,
           userId: item.user_id,
           actorId: item.actor_id,
-          action: item.action as ActivityItem['action'],
-          itemType: item.item_type as 'task' | 'event',
+          action: item.action as ActivityItem["action"],
+          itemType: item.item_type as "task" | "event",
           itemId: item.item_id,
           itemTitle: item.item_title || undefined,
           details: (item.details as Record<string, unknown> | null) || undefined,
           createdAt: new Date(item.created_at),
-          actorName: profile?.name || 'Unknown',
+          actorName: profile?.name || "Unknown",
           actorAvatar: profile?.avatar || undefined,
         };
       });
@@ -90,25 +90,24 @@ export function useActivityFeed(userId: string | undefined) {
     } else {
       setActivities([]);
     }
-    
+
     setLoading(false);
   }, [userId]);
 
-  const logActivity = useCallback(async (
-    action: ActivityItem['action'],
-    itemType: 'task' | 'event',
-    itemId: string,
-    itemTitle?: string,
-    targetUserId?: string,
-    details?: Record<string, unknown>
-  ) => {
-    if (!userId) return;
+  const logActivity = useCallback(
+    async (
+      action: ActivityItem["action"],
+      itemType: "task" | "event",
+      itemId: string,
+      itemTitle?: string,
+      targetUserId?: string,
+      details?: Record<string, unknown>,
+    ) => {
+      if (!userId) return;
 
-    const activityUserId = targetUserId || userId;
+      const activityUserId = targetUserId || userId;
 
-    const { error } = await supabase
-      .from('activity_feed')
-      .insert({
+      const { error } = await supabase.from("activity_feed").insert({
         user_id: activityUserId,
         actor_id: userId,
         action,
@@ -118,10 +117,12 @@ export function useActivityFeed(userId: string | undefined) {
         details: (details || {}) as Json,
       });
 
-    if (error) {
-      console.error('Error logging activity:', error);
-    }
-  }, [userId]);
+      if (error) {
+        console.error("Error logging activity:", error);
+      }
+    },
+    [userId],
+  );
 
   // Set up realtime subscription
   useEffect(() => {
@@ -130,18 +131,18 @@ export function useActivityFeed(userId: string | undefined) {
     fetchActivities();
 
     const channel = supabase
-      .channel('activity-feed-changes')
+      .channel("activity-feed-changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'activity_feed',
+          event: "INSERT",
+          schema: "public",
+          table: "activity_feed",
         },
         (_payload) => {
           // Refresh activities when new one is added
           fetchActivities();
-        }
+        },
       )
       .subscribe();
 

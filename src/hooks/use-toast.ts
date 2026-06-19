@@ -22,7 +22,11 @@ function toast({ title, description, variant }: Toast) {
       : sonnerToast((title ?? "") as React.ReactNode, { description });
 
   const dismiss = () => sonnerToast.dismiss(id);
-  const update = ({ title: nextTitle, description: nextDescription, variant: nextVariant }: Partial<ToasterToast>) => {
+  const update = ({
+    title: nextTitle,
+    description: nextDescription,
+    variant: nextVariant,
+  }: Partial<ToasterToast>) => {
     if (nextVariant === "destructive") {
       sonnerToast.error((nextTitle ?? "") as React.ReactNode, { id, description: nextDescription });
     } else {

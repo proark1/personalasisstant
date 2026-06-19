@@ -46,7 +46,9 @@ export function MorningThreadCard() {
         {items.map((i) => (
           <div key={i.id} className="p-2.5 rounded-md bg-muted/40">
             <p className="text-sm font-medium">{i.title}</p>
-            {i.body && <p className="text-xs text-muted-foreground whitespace-pre-line mt-1">{i.body}</p>}
+            {i.body && (
+              <p className="text-xs text-muted-foreground whitespace-pre-line mt-1">{i.body}</p>
+            )}
           </div>
         ))}
       </div>

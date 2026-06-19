@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 export interface NextUpItem {
   id: string;
-  type: 'event' | 'task';
+  type: "event" | "task";
   title: string;
   startTime: string;
   location?: string | null;
@@ -26,37 +26,37 @@ export function useNextUp(limit = 2) {
 
       const [{ data: events }, { data: tasks }] = await Promise.all([
         supabase
-          .from('events')
-          .select('id, title, start_time, location')
-          .eq('user_id', user.id)
-          .gte('start_time', now.toISOString())
-          .lte('start_time', horizon.toISOString())
-          .order('start_time', { ascending: true })
+          .from("events")
+          .select("id, title, start_time, location")
+          .eq("user_id", user.id)
+          .gte("start_time", now.toISOString())
+          .lte("start_time", horizon.toISOString())
+          .order("start_time", { ascending: true })
           .limit(limit),
         supabase
-          .from('tasks')
-          .select('id, title, due_date')
-          .eq('user_id', user.id)
-          .eq('completed', false)
-          .not('due_date', 'is', null)
-          .gte('due_date', now.toISOString())
-          .lte('due_date', horizon.toISOString())
-          .order('due_date', { ascending: true })
+          .from("tasks")
+          .select("id, title, due_date")
+          .eq("user_id", user.id)
+          .eq("completed", false)
+          .not("due_date", "is", null)
+          .gte("due_date", now.toISOString())
+          .lte("due_date", horizon.toISOString())
+          .order("due_date", { ascending: true })
           .limit(limit),
       ]);
 
       const merged: NextUpItem[] = [
-        ...(events || []).map(e => ({
+        ...(events || []).map((e) => ({
           id: e.id,
-          type: 'event' as const,
+          type: "event" as const,
           title: e.title,
           startTime: e.start_time,
           location: e.location,
           minutesUntil: Math.round((new Date(e.start_time).getTime() - Date.now()) / 60000),
         })),
-        ...(tasks || []).map(t => ({
+        ...(tasks || []).map((t) => ({
           id: t.id,
-          type: 'task' as const,
+          type: "task" as const,
           title: t.title,
           startTime: t.due_date as string,
           minutesUntil: Math.round((new Date(t.due_date as string).getTime() - Date.now()) / 60000),

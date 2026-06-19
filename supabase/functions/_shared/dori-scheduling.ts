@@ -6,37 +6,42 @@
 // timezone heroics for v1 — we operate in the caller's local time
 // and assume the workspace shares a rough window.
 
-interface BusyInterval { start: number; end: number; } // unix ms
+interface BusyInterval {
+  start: number;
+  end: number;
+} // unix ms
 
 export interface ProposedSlot {
-  start: string;   // ISO
-  end: string;     // ISO
+  start: string; // ISO
+  end: string; // ISO
   weekday: string; // "Mon", "Tue"…
-  local: string;   // "Tue 24 Apr, 14:00–14:30"
+  local: string; // "Tue 24 Apr, 14:00–14:30"
 }
 
 export interface FindTimeInput {
   workspaceId: string;
-  participants: string[];       // user_ids
+  participants: string[]; // user_ids
   durationMinutes: number;
-  withinDays?: number;          // default 7
-  workStartHour?: number;       // hour in `timezone`, default 9
-  workEndHour?: number;         // hour in `timezone`, default 18
-  stepMinutes?: number;         // granularity, default 30
-  timezone?: string;            // IANA tz; edge runtime is UTC so without
-                                // this we'd propose 09:00 UTC as "morning"
-                                // which is wrong for anyone east of London.
+  withinDays?: number; // default 7
+  workStartHour?: number; // hour in `timezone`, default 9
+  workEndHour?: number; // hour in `timezone`, default 18
+  stepMinutes?: number; // granularity, default 30
+  timezone?: string; // IANA tz; edge runtime is UTC so without
+  // this we'd propose 09:00 UTC as "morning"
+  // which is wrong for anyone east of London.
 }
 
 // The hour-of-day (0-23) for `ms` as seen in `tz`.
 function hourIn(ms: number, tz?: string): number {
   if (!tz) return new Date(ms).getHours();
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, hour: '2-digit', hour12: false,
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "2-digit",
+    hour12: false,
   }).formatToParts(new Date(ms));
-  const h = parts.find((p) => p.type === 'hour')?.value;
+  const h = parts.find((p) => p.type === "hour")?.value;
   // "24" can leak out in some locales for midnight — treat as 0.
-  return h ? (Number(h) % 24) : 0;
+  return h ? Number(h) % 24 : 0;
 }
 
 // Minimal Supabase client surface needed by this module.
@@ -66,16 +71,16 @@ export async function findTimeSlots(
   // events in both the workspace and their personal calendars so Dori doesn't
   // propose a slot that collides with someone's private dentist appointment.
   const { data: rows } = await supabase
-    .from('events')
-    .select('start_time, end_time, user_id, assignee_id, workspace_id')
-    .in('user_id', participants)
-    .gte('end_time', windowStart.toISOString())
-    .lte('start_time', windowEnd.toISOString());
+    .from("events")
+    .select("start_time, end_time, user_id, assignee_id, workspace_id")
+    .in("user_id", participants)
+    .gte("end_time", windowStart.toISOString())
+    .lte("start_time", windowEnd.toISOString());
 
   // Build a busy list per user.
   const busy = new Map<string, BusyInterval[]>();
   for (const p of participants) busy.set(p, []);
-  for (const ev of (rows || [])) {
+  for (const ev of rows || []) {
     const starter = ev.user_id as string;
     const assignee = (ev.assignee_id as string) || null;
     // Event owner is busy. If it has an assignee who's different, they're busy too.
@@ -96,7 +101,11 @@ export async function findTimeSlots(
   const out: ProposedSlot[] = [];
   const now = Date.now();
 
-  for (let cursor = windowStart.getTime(); cursor + durationMs <= windowEnd.getTime(); cursor += stepMs) {
+  for (
+    let cursor = windowStart.getTime();
+    cursor + durationMs <= windowEnd.getTime();
+    cursor += stepMs
+  ) {
     if (cursor < now) continue;
     const slotHour = hourIn(cursor, timezone);
     if (slotHour < workStartHour || slotHour >= workEndHour) continue;
@@ -116,13 +125,22 @@ export async function findTimeSlots(
     if (allFree) {
       const s = new Date(slotStart);
       const e = new Date(slotEnd);
-      const dateFmt: Intl.DateTimeFormatOptions = { timeZone: timezone, weekday: 'short', day: '2-digit', month: 'short' };
-      const timeFmt: Intl.DateTimeFormatOptions = { timeZone: timezone, hour: '2-digit', minute: '2-digit' };
+      const dateFmt: Intl.DateTimeFormatOptions = {
+        timeZone: timezone,
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+      };
+      const timeFmt: Intl.DateTimeFormatOptions = {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+      };
       out.push({
         start: s.toISOString(),
         end: e.toISOString(),
-        weekday: s.toLocaleDateString('en-GB', { timeZone: timezone, weekday: 'short' }),
-        local: `${s.toLocaleDateString('en-GB', dateFmt)}, ${s.toLocaleTimeString('en-GB', timeFmt)}–${e.toLocaleTimeString('en-GB', timeFmt)}`,
+        weekday: s.toLocaleDateString("en-GB", { timeZone: timezone, weekday: "short" }),
+        local: `${s.toLocaleDateString("en-GB", dateFmt)}, ${s.toLocaleTimeString("en-GB", timeFmt)}–${e.toLocaleTimeString("en-GB", timeFmt)}`,
       });
       // Skip overlapping neighbours and cap to ~2 per day by jumping past
       // the chosen slot's end.
@@ -140,8 +158,10 @@ export function rankProposedSlots(slots: ProposedSlot[]): ProposedSlot[] {
   return [...slots].sort((a, b) => {
     const aDate = new Date(a.start);
     const bDate = new Date(b.start);
-    const aScore = (aDate.getHours() >= 9 && aDate.getHours() < 12 ? -2 : 0) + aDate.getTime() / 1e10;
-    const bScore = (bDate.getHours() >= 9 && bDate.getHours() < 12 ? -2 : 0) + bDate.getTime() / 1e10;
+    const aScore =
+      (aDate.getHours() >= 9 && aDate.getHours() < 12 ? -2 : 0) + aDate.getTime() / 1e10;
+    const bScore =
+      (bDate.getHours() >= 9 && bDate.getHours() < 12 ? -2 : 0) + bDate.getTime() / 1e10;
     return aScore - bScore;
   });
 }

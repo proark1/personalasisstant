@@ -1,12 +1,23 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { Clock, Users, ChefHat, List, BookOpen, Play, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useMealPlanning, Recipe, RecipeIngredient } from '@/hooks/useMealPlanning';
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import {
+  Clock,
+  Users,
+  ChefHat,
+  List,
+  BookOpen,
+  Play,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Check,
+} from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useMealPlanning, Recipe, RecipeIngredient } from "@/hooks/useMealPlanning";
 
 interface RecipeDetailDialogProps {
   open: boolean;
@@ -36,19 +47,23 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
       setCurrentStep(0);
       setCheckedIngredients(new Set());
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, recipeId]);
 
-  const groupedIngredients = recipe?.ingredients?.reduce((acc, ing) => {
-    const category = ing.category || t('recipe.other');
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(ing);
-    return acc;
-  }, {} as Record<string, RecipeIngredient[]>) || {};
+  const groupedIngredients =
+    recipe?.ingredients?.reduce(
+      (acc, ing) => {
+        const category = ing.category || t("recipe.other");
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(ing);
+        return acc;
+      },
+      {} as Record<string, RecipeIngredient[]>,
+    ) || {};
 
   const formatInstructions = (instructions: string | null) => {
     if (!instructions) return [];
-    return instructions.split('\n').filter(line => line.trim());
+    return instructions.split("\n").filter((line) => line.trim());
   };
 
   const instructions = formatInstructions(recipe?.instructions || null);
@@ -79,7 +94,8 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
               <div>
                 <h2 className="font-semibold text-lg">{recipe.name}</h2>
                 <p className="text-sm text-muted-foreground">
-                  {t('recipe.cookingMode')} • {t('recipe.step')} {currentStep + 1} {t('recipe.of')} {totalSteps}
+                  {t("recipe.cookingMode")} • {t("recipe.step")} {currentStep + 1} {t("recipe.of")}{" "}
+                  {totalSteps}
                 </p>
               </div>
             </div>
@@ -90,7 +106,7 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
 
           {/* Progress Bar */}
           <div className="h-2 bg-muted">
-            <div 
+            <div
               className="h-full bg-primary transition-all duration-300"
               style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
             />
@@ -116,7 +132,7 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
               className="flex-1 max-w-[200px]"
             >
               <ChevronLeft className="h-5 w-5 mr-2" />
-              {t('recipe.previous')}
+              {t("recipe.previous")}
             </Button>
 
             <div className="flex gap-1">
@@ -125,28 +141,20 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
                   key={idx}
                   onClick={() => setCurrentStep(idx)}
                   className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                    idx === currentStep ? 'bg-primary' : 'bg-muted-foreground/30'
+                    idx === currentStep ? "bg-primary" : "bg-muted-foreground/30"
                   }`}
                 />
               ))}
             </div>
 
             {currentStep === totalSteps - 1 ? (
-              <Button
-                size="lg"
-                onClick={exitCookingMode}
-                className="flex-1 max-w-[200px]"
-              >
+              <Button size="lg" onClick={exitCookingMode} className="flex-1 max-w-[200px]">
                 <Check className="h-5 w-5 mr-2" />
-                {t('recipe.done')}
+                {t("recipe.done")}
               </Button>
             ) : (
-              <Button
-                size="lg"
-                onClick={handleNextStep}
-                className="flex-1 max-w-[200px]"
-              >
-                {t('recipe.next')}
+              <Button size="lg" onClick={handleNextStep} className="flex-1 max-w-[200px]">
+                {t("recipe.next")}
                 <ChevronRight className="h-5 w-5 ml-2" />
               </Button>
             )}
@@ -180,25 +188,23 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
 
                 {/* Quick Info */}
                 <div className="flex flex-wrap gap-3 mt-4">
-                  {recipe.category && (
-                    <Badge variant="secondary">{recipe.category}</Badge>
-                  )}
+                  {recipe.category && <Badge variant="secondary">{recipe.category}</Badge>}
                   {recipe.servings && (
                     <Badge variant="outline" className="flex items-center gap-1">
                       <Users className="h-3 w-3" />
-                      {recipe.servings} {t('meals.servings')}
+                      {recipe.servings} {t("meals.servings")}
                     </Badge>
                   )}
                   {recipe.prep_time_minutes && (
                     <Badge variant="outline" className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {t('meals.prepTime')}: {recipe.prep_time_minutes} {t('meals.minutes')}
+                      {t("meals.prepTime")}: {recipe.prep_time_minutes} {t("meals.minutes")}
                     </Badge>
                   )}
                   {recipe.cook_time_minutes && (
                     <Badge variant="outline" className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {t('meals.cookTime')}: {recipe.cook_time_minutes} {t('meals.minutes')}
+                      {t("meals.cookTime")}: {recipe.cook_time_minutes} {t("meals.minutes")}
                     </Badge>
                   )}
                 </div>
@@ -215,13 +221,9 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
 
                 {/* Start Cooking Mode Button */}
                 {instructions.length > 0 && (
-                  <Button 
-                    onClick={() => setCookingMode(true)} 
-                    className="w-full mt-4"
-                    size="lg"
-                  >
+                  <Button onClick={() => setCookingMode(true)} className="w-full mt-4" size="lg">
                     <Play className="h-5 w-5 mr-2" />
-                    {t('recipe.startCooking')}
+                    {t("recipe.startCooking")}
                   </Button>
                 )}
 
@@ -232,7 +234,7 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
                   <div className="mb-6">
                     <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
                       <List className="h-5 w-5 text-primary" />
-                      {t('recipe.ingredients')}
+                      {t("recipe.ingredients")}
                     </h3>
                     <div className="space-y-4">
                       {Object.entries(groupedIngredients).map(([category, ings]) => (
@@ -248,7 +250,7 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
                                   key={ing.id}
                                   className="flex items-center gap-2.5 text-sm cursor-pointer select-none active:scale-[0.98] transition-transform"
                                   onClick={() => {
-                                    setCheckedIngredients(prev => {
+                                    setCheckedIngredients((prev) => {
                                       const next = new Set(prev);
                                       if (next.has(ing.id)) next.delete(ing.id);
                                       else next.add(ing.id);
@@ -256,12 +258,24 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
                                     });
                                   }}
                                 >
-                                  <span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isChecked ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
-                                    {isChecked && <Check className="h-3 w-3 text-primary-foreground" />}
+                                  <span
+                                    className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isChecked ? "bg-primary border-primary" : "border-muted-foreground/40"}`}
+                                  >
+                                    {isChecked && (
+                                      <Check className="h-3 w-3 text-primary-foreground" />
+                                    )}
                                   </span>
-                                  <span className={isChecked ? 'line-through text-muted-foreground' : ''}>
-                                    {ing.quantity && <span className="font-medium">{ing.quantity}</span>}
-                                    {ing.unit && <span className="text-muted-foreground"> {ing.unit}</span>}
+                                  <span
+                                    className={
+                                      isChecked ? "line-through text-muted-foreground" : ""
+                                    }
+                                  >
+                                    {ing.quantity && (
+                                      <span className="font-medium">{ing.quantity}</span>
+                                    )}
+                                    {ing.unit && (
+                                      <span className="text-muted-foreground"> {ing.unit}</span>
+                                    )}
                                     <span> {ing.name}</span>
                                   </span>
                                 </li>
@@ -279,7 +293,7 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
                   <div>
                     <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
                       <BookOpen className="h-5 w-5 text-primary" />
-                      {t('recipe.instructions')}
+                      {t("recipe.instructions")}
                     </h3>
                     <ol className="space-y-3">
                       {instructions.map((step, index) => (
@@ -294,16 +308,15 @@ export function RecipeDetailDialog({ open, onOpenChange, recipeId }: RecipeDetai
                   </div>
                 )}
 
-                {!recipe.instructions && (!recipe.ingredients || recipe.ingredients.length === 0) && (
-                  <p className="text-muted-foreground text-center py-8">
-                    {t('recipe.noDetails')}
-                  </p>
-                )}
+                {!recipe.instructions &&
+                  (!recipe.ingredients || recipe.ingredients.length === 0) && (
+                    <p className="text-muted-foreground text-center py-8">
+                      {t("recipe.noDetails")}
+                    </p>
+                  )}
               </>
             ) : (
-              <p className="text-muted-foreground text-center py-8">
-                {t('recipe.notFound')}
-              </p>
+              <p className="text-muted-foreground text-center py-8">{t("recipe.notFound")}</p>
             )}
           </div>
         </ScrollArea>

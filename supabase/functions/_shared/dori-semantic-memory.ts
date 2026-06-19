@@ -9,8 +9,8 @@
 // false). Semantic recall is a best-effort uplift — it must not block
 // a chat turn if the embedding provider is down.
 
-import { embedText, toPgVectorLiteral } from './dori-embeddings.ts';
-import { autoKgIngest } from './kg.ts';
+import { embedText, toPgVectorLiteral } from "./dori-embeddings.ts";
+import { autoKgIngest } from "./kg.ts";
 
 export interface SemanticHit {
   id: string;
@@ -26,7 +26,15 @@ export interface SemanticHit {
 export interface RememberArgs {
   userId: string;
   workspaceId?: string | null;
-  source: 'note' | 'episodic' | 'task_completed' | 'event_past' | 'chat_turn' | 'memory' | 'contact' | 'manual';
+  source:
+    | "note"
+    | "episodic"
+    | "task_completed"
+    | "event_past"
+    | "chat_turn"
+    | "memory"
+    | "contact"
+    | "manual";
   sourceRef?: string | null;
   content: string;
   metadata?: Record<string, unknown>;
@@ -34,10 +42,19 @@ export interface RememberArgs {
 }
 
 // Minimal Supabase client surface needed by this module.
-type SemanticClient = { from(table: string): Record<string, (...args: unknown[]) => unknown>; rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> };
+type SemanticClient = {
+  from(table: string): Record<string, (...args: unknown[]) => unknown>;
+  rpc(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<{ data: unknown; error: { message: string } | null }>;
+};
 
-export async function rememberSemantic(supabase: SemanticClient, args: RememberArgs): Promise<boolean> {
-  const content = (args.content || '').trim();
+export async function rememberSemantic(
+  supabase: SemanticClient,
+  args: RememberArgs,
+): Promise<boolean> {
+  const content = (args.content || "").trim();
   if (!content || content.length < 10) return false; // not worth indexing
   try {
     const { vector } = await embedText(content);
@@ -55,12 +72,12 @@ export async function rememberSemantic(supabase: SemanticClient, args: RememberA
     // migration. NULL source_ref upserts collapse, so callers pass a
     // synthetic ref ("chat_turn:<uuid>") for those.
     const { data: upserted, error } = await supabase
-      .from('dori_semantic_memories')
-      .upsert(row, { onConflict: 'user_id,source,source_ref' })
-      .select('id')
+      .from("dori_semantic_memories")
+      .upsert(row, { onConflict: "user_id,source,source_ref" })
+      .select("id")
       .single();
     if (error) {
-      console.warn('[rememberSemantic] upsert failed', error.message);
+      console.warn("[rememberSemantic] upsert failed", error.message);
       return false;
     }
     // Knowledge graph ingest is fire-and-forget: a failed extraction
@@ -69,14 +86,14 @@ export async function rememberSemantic(supabase: SemanticClient, args: RememberA
       autoKgIngest(supabase, {
         userId: args.userId,
         workspaceId: args.workspaceId ?? null,
-        sourceKind: 'semantic',
+        sourceKind: "semantic",
         sourceId: upserted.id,
         text: content,
-      }).catch((e) => console.warn('[rememberSemantic] kg ingest failed', (e as Error).message));
+      }).catch((e) => console.warn("[rememberSemantic] kg ingest failed", (e as Error).message));
     }
     return true;
   } catch (e) {
-    console.warn('[rememberSemantic] failed', (e as Error).message);
+    console.warn("[rememberSemantic] failed", (e as Error).message);
     return false;
   }
 }
@@ -89,12 +106,15 @@ export interface RetrieveArgs {
   minSimilarity?: number;
 }
 
-export async function retrieveRelevantMemories(supabase: SemanticClient, args: RetrieveArgs): Promise<SemanticHit[]> {
-  const q = (args.query || '').trim();
+export async function retrieveRelevantMemories(
+  supabase: SemanticClient,
+  args: RetrieveArgs,
+): Promise<SemanticHit[]> {
+  const q = (args.query || "").trim();
   if (q.length < 4) return [];
   try {
     const { vector } = await embedText(q);
-    const { data, error } = await supabase.rpc('match_semantic_memories', {
+    const { data, error } = await supabase.rpc("match_semantic_memories", {
       p_user_id: args.userId,
       p_query_embedding: toPgVectorLiteral(vector),
       p_workspace_id: args.workspaceId ?? null,
@@ -102,12 +122,12 @@ export async function retrieveRelevantMemories(supabase: SemanticClient, args: R
       p_min_similarity: args.minSimilarity ?? 0.65,
     });
     if (error) {
-      console.warn('[retrieveRelevantMemories] rpc failed', error.message);
+      console.warn("[retrieveRelevantMemories] rpc failed", error.message);
       return [];
     }
     return (data ?? []) as SemanticHit[];
   } catch (e) {
-    console.warn('[retrieveRelevantMemories] failed', (e as Error).message);
+    console.warn("[retrieveRelevantMemories] failed", (e as Error).message);
     return [];
   }
 }
@@ -117,7 +137,7 @@ export async function retrieveRelevantMemories(supabase: SemanticClient, args: R
 // nudge — a high-importance milestone outranks a slightly closer chat
 // turn.
 export function formatMemoriesForPrompt(hits: SemanticHit[]): string {
-  if (hits.length === 0) return '';
+  if (hits.length === 0) return "";
   const ranked = [...hits].sort((a, b) => {
     const sa = a.similarity + a.importance * 0.05;
     const sb = b.similarity + b.importance * 0.05;
@@ -125,16 +145,16 @@ export function formatMemoriesForPrompt(hits: SemanticHit[]): string {
   });
   const lines = ranked.map((h) => {
     const sim = (h.similarity * 100).toFixed(0);
-    const tag = `${h.source}${h.source_ref ? `#${h.source_ref.slice(0, 24)}` : ''}`;
-    const snippet = h.content.replace(/\s+/g, ' ').slice(0, 220);
+    const tag = `${h.source}${h.source_ref ? `#${h.source_ref.slice(0, 24)}` : ""}`;
+    const snippet = h.content.replace(/\s+/g, " ").slice(0, 220);
     return `- [${tag} · ${sim}%] ${snippet}`;
   });
   return [
-    '## SEMANTIC MEMORY (top matches for this question)',
-    'Past notes / events / chats / milestones that look relevant. Reference them naturally.',
-    'These are RECALL hits — they may or may not actually apply, so use judgement.',
+    "## SEMANTIC MEMORY (top matches for this question)",
+    "Past notes / events / chats / milestones that look relevant. Reference them naturally.",
+    "These are RECALL hits — they may or may not actually apply, so use judgement.",
     ...lines,
-  ].join('\n');
+  ].join("\n");
 }
 
 function clamp01(n: number): number {

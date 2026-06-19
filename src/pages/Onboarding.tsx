@@ -1,27 +1,27 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
-import { 
-  Sparkles, 
-  CheckSquare, 
-  Calendar, 
-  Heart, 
-  Home, 
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import {
+  Sparkles,
+  CheckSquare,
+  Calendar,
+  Heart,
+  Home,
   Briefcase,
   Bell,
   Mic,
   ChevronRight,
   ChevronLeft,
-  Rocket
-} from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import confetti from 'canvas-confetti';
-import doriImage from '@/assets/dori-fish.png';
+  Rocket,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import confetti from "canvas-confetti";
+import doriImage from "@/assets/dori-fish.png";
 
 interface UseCase {
   id: string;
@@ -31,11 +31,31 @@ interface UseCase {
 }
 
 const USE_CASES: UseCase[] = [
-  { id: 'work', label: 'Work & Productivity', description: 'Tasks, projects, deadlines', icon: Briefcase },
-  { id: 'personal', label: 'Personal Life', description: 'Habits, goals, self-care', icon: CheckSquare },
-  { id: 'family', label: 'Family Management', description: 'Kids, household, meals', icon: Home },
-  { id: 'health', label: 'Health & Wellness', description: 'Fitness, sleep, nutrition', icon: Heart },
-  { id: 'calendar', label: 'Calendar & Events', description: 'Appointments, meetings', icon: Calendar },
+  {
+    id: "work",
+    label: "Work & Productivity",
+    description: "Tasks, projects, deadlines",
+    icon: Briefcase,
+  },
+  {
+    id: "personal",
+    label: "Personal Life",
+    description: "Habits, goals, self-care",
+    icon: CheckSquare,
+  },
+  { id: "family", label: "Family Management", description: "Kids, household, meals", icon: Home },
+  {
+    id: "health",
+    label: "Health & Wellness",
+    description: "Fitness, sleep, nutrition",
+    icon: Heart,
+  },
+  {
+    id: "calendar",
+    label: "Calendar & Events",
+    description: "Appointments, meetings",
+    icon: Calendar,
+  },
 ];
 
 export default function Onboarding() {
@@ -53,12 +73,33 @@ export default function Onboarding() {
   // First-value seeding: based on the use-cases a new user picks, drop a few
   // real, actionable starter tasks into their plan so the dashboard isn't empty
   // when they arrive. Best-effort — failures never block onboarding.
-  const STARTER_TASKS: Record<string, { title: string; category: 'business' | 'personal' | 'family'; priority: 'high' | 'medium' | 'low' }[]> = {
-    work: [{ title: 'Plan my top 3 priorities for this week', category: 'business', priority: 'high' }],
-    personal: [{ title: 'Set one personal goal for this month', category: 'personal', priority: 'medium' }],
-    family: [{ title: 'Add an upcoming family event to the calendar', category: 'family', priority: 'medium' }],
-    health: [{ title: 'Schedule a 20-minute walk today', category: 'personal', priority: 'medium' }],
-    calendar: [{ title: 'Connect Google Calendar from Settings', category: 'personal', priority: 'medium' }],
+  const STARTER_TASKS: Record<
+    string,
+    {
+      title: string;
+      category: "business" | "personal" | "family";
+      priority: "high" | "medium" | "low";
+    }[]
+  > = {
+    work: [
+      { title: "Plan my top 3 priorities for this week", category: "business", priority: "high" },
+    ],
+    personal: [
+      { title: "Set one personal goal for this month", category: "personal", priority: "medium" },
+    ],
+    family: [
+      {
+        title: "Add an upcoming family event to the calendar",
+        category: "family",
+        priority: "medium",
+      },
+    ],
+    health: [
+      { title: "Schedule a 20-minute walk today", category: "personal", priority: "medium" },
+    ],
+    calendar: [
+      { title: "Connect Google Calendar from Settings", category: "personal", priority: "medium" },
+    ],
   };
 
   const seedStarterTasks = async () => {
@@ -66,48 +107,64 @@ export default function Onboarding() {
     // Don't clutter the plan of anyone who already has tasks (e.g. existing
     // users passing back through onboarding) — only seed for a truly empty plan.
     const { count } = await supabase
-      .from('tasks')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
     if (count && count > 0) return;
 
     const seen = new Set<string>();
     const rows = [
       // A universal first task that teaches the core interaction.
-      { user_id: user.id, title: 'Tap the circle to mark this task done ✅', category: 'personal', priority: 'low', completed: false, status: 'backlog', sort_order: 0 },
+      {
+        user_id: user.id,
+        title: "Tap the circle to mark this task done ✅",
+        category: "personal",
+        priority: "low",
+        completed: false,
+        status: "backlog",
+        sort_order: 0,
+      },
     ];
     let order = 1;
     for (const useCase of selectedUseCases) {
       for (const t of STARTER_TASKS[useCase] ?? []) {
         if (seen.has(t.title)) continue;
         seen.add(t.title);
-        rows.push({ user_id: user.id, title: t.title, category: t.category, priority: t.priority, completed: false, status: 'backlog', sort_order: order++ });
+        rows.push({
+          user_id: user.id,
+          title: t.title,
+          category: t.category,
+          priority: t.priority,
+          completed: false,
+          status: "backlog",
+          sort_order: order++,
+        });
       }
     }
     try {
-      await supabase.from('tasks').insert(rows as never);
+      await supabase.from("tasks").insert(rows as never);
     } catch (err) {
-      console.error('Failed to seed starter tasks:', err);
+      console.error("Failed to seed starter tasks:", err);
     }
   };
 
   const toggleUseCase = (id: string) => {
-    setSelectedUseCases(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    setSelectedUseCases((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
   const handleComplete = async () => {
     if (!user) return;
-    
+
     setIsCompleting(true);
-    
+
     try {
       // Match on user_id — that's how the rest of the app (AuthContext) reads
       // the profile row. Using `id` here previously updated the wrong row, so
       // onboarding_completed never persisted and the wizard could re-trigger.
       const { error } = await supabase
-        .from('profiles')
+        .from("profiles")
         .update({
           onboarding_completed: true,
           onboarding_preferences: {
@@ -117,7 +174,7 @@ export default function Onboarding() {
             completedAt: new Date().toISOString(),
           },
         })
-        .eq('user_id', user.id);
+        .eq("user_id", user.id);
 
       if (error) throw error;
 
@@ -128,7 +185,7 @@ export default function Onboarding() {
       // and lets the user into the app instead of bouncing back here.
       await refreshProfile();
 
-      if (enableNotifications && 'Notification' in window) {
+      if (enableNotifications && "Notification" in window) {
         await Notification.requestPermission();
       }
 
@@ -138,15 +195,15 @@ export default function Onboarding() {
         origin: { y: 0.6 },
       });
 
-      toast({ title: 'Welcome to DarAI!', description: "You're all set up." });
+      toast({ title: "Welcome to DarAI!", description: "You're all set up." });
 
-      setTimeout(() => navigate('/'), 1500);
+      setTimeout(() => navigate("/"), 1500);
     } catch (error) {
-      console.error('Failed to complete onboarding:', error);
-      toast({ 
-        title: 'Error', 
-        description: 'Failed to save preferences. Please try again.',
-        variant: 'destructive',
+      console.error("Failed to complete onboarding:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save preferences. Please try again.",
+        variant: "destructive",
       });
       setIsCompleting(false);
     }
@@ -165,24 +222,25 @@ export default function Onboarding() {
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ type: 'spring', duration: 0.6 }}
+              transition={{ type: "spring", duration: 0.6 }}
               className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center"
             >
               <Sparkles className="w-12 h-12 text-primary" />
             </motion.div>
-            
+
             <div className="space-y-2">
               <h1 className="text-3xl font-bold text-foreground">Welcome to DarAI</h1>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Your AI-powered personal assistant for life management. Let's set things up in just a few steps.
+                Your AI-powered personal assistant for life management. Let's set things up in just
+                a few steps.
               </p>
             </div>
 
             <div className="grid grid-cols-3 gap-4 pt-4">
               {[
-                { icon: CheckSquare, label: 'Tasks' },
-                { icon: Calendar, label: 'Calendar' },
-                { icon: Heart, label: 'Health' },
+                { icon: CheckSquare, label: "Tasks" },
+                { icon: Calendar, label: "Calendar" },
+                { icon: Heart, label: "Health" },
               ].map((item, i) => (
                 <motion.div
                   key={item.label}
@@ -204,7 +262,9 @@ export default function Onboarding() {
           <div className="space-y-6">
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-bold text-foreground">What will you use DarAI for?</h2>
-              <p className="text-muted-foreground">Select all that apply. This helps personalize your experience.</p>
+              <p className="text-muted-foreground">
+                Select all that apply. This helps personalize your experience.
+              </p>
             </div>
 
             <div className="space-y-3">
@@ -216,26 +276,28 @@ export default function Onboarding() {
                   transition={{ delay: i * 0.05 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <div 
+                  <div
                     className={`cursor-pointer transition-all rounded-xl glass-card p-4 flex items-center gap-4 ${
-                      selectedUseCases.includes(useCase.id) 
-                        ? 'border-primary bg-primary/5 shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]' 
-                        : 'hover:bg-muted/50'
+                      selectedUseCases.includes(useCase.id)
+                        ? "border-primary bg-primary/5 shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]"
+                        : "hover:bg-muted/50"
                     }`}
                     onClick={() => toggleUseCase(useCase.id)}
                   >
-                    <div className={`p-2 rounded-lg ${
-                      selectedUseCases.includes(useCase.id) 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-muted'
-                    }`}>
+                    <div
+                      className={`p-2 rounded-lg ${
+                        selectedUseCases.includes(useCase.id)
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      }`}
+                    >
                       <useCase.icon className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-foreground">{useCase.label}</p>
                       <p className="text-sm text-muted-foreground">{useCase.description}</p>
                     </div>
-                    <Checkbox 
+                    <Checkbox
                       checked={selectedUseCases.includes(useCase.id)}
                       onCheckedChange={() => toggleUseCase(useCase.id)}
                     />
@@ -262,13 +324,12 @@ export default function Onboarding() {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">Push Notifications</p>
-                    <p className="text-sm text-muted-foreground">Get reminders for tasks and events</p>
+                    <p className="text-sm text-muted-foreground">
+                      Get reminders for tasks and events
+                    </p>
                   </div>
                 </div>
-                <Switch 
-                  checked={enableNotifications} 
-                  onCheckedChange={setEnableNotifications}
-                />
+                <Switch checked={enableNotifications} onCheckedChange={setEnableNotifications} />
               </div>
 
               <div className="glass-card rounded-xl p-4 flex items-center justify-between">
@@ -278,11 +339,13 @@ export default function Onboarding() {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">Morning Briefing</p>
-                    <p className="text-sm text-muted-foreground">Daily AI summary of your schedule</p>
+                    <p className="text-sm text-muted-foreground">
+                      Daily AI summary of your schedule
+                    </p>
                   </div>
                 </div>
-                <Switch 
-                  checked={enableMorningBriefing} 
+                <Switch
+                  checked={enableMorningBriefing}
                   onCheckedChange={setEnableMorningBriefing}
                 />
               </div>
@@ -298,15 +361,15 @@ export default function Onboarding() {
               <p className="text-muted-foreground">Your AI assistant is ready to help.</p>
             </div>
 
-            <motion.div 
+            <motion.div
               className="flex justify-center"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring' }}
+              transition={{ type: "spring" }}
             >
-              <img 
-                src={doriImage} 
-                alt="Dori AI Assistant" 
+              <img
+                src={doriImage}
+                alt="Dori AI Assistant"
                 className="w-32 h-32 rounded-full object-cover shadow-xl"
               />
             </motion.div>
@@ -316,9 +379,7 @@ export default function Onboarding() {
                 <Mic className="w-5 h-5 text-primary" />
                 <p className="font-medium text-foreground">Voice Commands</p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Say things like:
-              </p>
+              <p className="text-sm text-muted-foreground">Say things like:</p>
               <ul className="text-sm space-y-1 text-muted-foreground">
                 <li>"Add task: buy groceries tomorrow"</li>
                 <li>"What's on my calendar today?"</li>
@@ -328,7 +389,8 @@ export default function Onboarding() {
 
             <div className="text-center pt-4">
               <p className="text-sm text-muted-foreground">
-                Tap the <span className="text-primary font-medium">Dori</span> icon anytime to chat or use voice commands.
+                Tap the <span className="text-primary font-medium">Dori</span> icon anytime to chat
+                or use voice commands.
               </p>
             </div>
           </div>
@@ -343,12 +405,15 @@ export default function Onboarding() {
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       {/* Floating orbs */}
       <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
-      <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-primary/8 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
+      <div
+        className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-primary/8 rounded-full blur-3xl animate-pulse pointer-events-none"
+        style={{ animationDelay: "1s" }}
+      />
 
       {/* Progress indicator */}
       <div className="fixed top-0 left-0 right-0 z-50">
         <div className="h-1 bg-muted">
-          <motion.div 
+          <motion.div
             className="h-full bg-primary"
             initial={{ width: 0 }}
             animate={{ width: `${((step + 1) / totalSteps) * 100}%` }}
@@ -383,7 +448,7 @@ export default function Onboarding() {
         <div className="max-w-md mx-auto flex items-center justify-between">
           <Button
             variant="ghost"
-            onClick={() => setStep(s => s - 1)}
+            onClick={() => setStep((s) => s - 1)}
             disabled={step === 0}
             className="gap-2"
           >
@@ -396,17 +461,17 @@ export default function Onboarding() {
               <motion.div
                 key={i}
                 className={`w-2 h-2 rounded-full transition-colors ${
-                  i === step ? 'bg-primary' : 'bg-muted'
+                  i === step ? "bg-primary" : "bg-muted"
                 }`}
                 animate={{ scale: i === step ? 1.2 : 1 }}
-                transition={{ type: 'spring', stiffness: 500 }}
+                transition={{ type: "spring", stiffness: 500 }}
               />
             ))}
           </div>
 
           {step < totalSteps - 1 ? (
             <Button
-              onClick={() => setStep(s => s + 1)}
+              onClick={() => setStep((s) => s + 1)}
               disabled={!canProceed()}
               className="gap-2"
             >
@@ -414,12 +479,8 @@ export default function Onboarding() {
               <ChevronRight className="w-4 h-4" />
             </Button>
           ) : (
-            <Button
-              onClick={handleComplete}
-              disabled={isCompleting}
-              className="gap-2"
-            >
-              {isCompleting ? 'Setting up...' : "Let's Go!"}
+            <Button onClick={handleComplete} disabled={isCompleting} className="gap-2">
+              {isCompleting ? "Setting up..." : "Let's Go!"}
               <Rocket className="w-4 h-4" />
             </Button>
           )}

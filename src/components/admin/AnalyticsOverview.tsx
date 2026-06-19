@@ -1,6 +1,18 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 interface OverviewStats {
   totalUsers: number;
@@ -20,16 +32,16 @@ interface AnalyticsOverviewProps {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  navigation: 'hsl(var(--chart-1))',
-  task: 'hsl(var(--chart-2))',
-  event: 'hsl(var(--chart-3))',
-  habit: 'hsl(var(--chart-4))',
-  ai: 'hsl(var(--chart-5))',
-  contact: 'hsl(210, 70%, 50%)',
-  contract: 'hsl(280, 70%, 50%)',
-  call: 'hsl(340, 70%, 50%)',
-  chat: 'hsl(160, 70%, 50%)',
-  search: 'hsl(40, 70%, 50%)',
+  navigation: "hsl(var(--chart-1))",
+  task: "hsl(var(--chart-2))",
+  event: "hsl(var(--chart-3))",
+  habit: "hsl(var(--chart-4))",
+  ai: "hsl(var(--chart-5))",
+  contact: "hsl(210, 70%, 50%)",
+  contract: "hsl(280, 70%, 50%)",
+  call: "hsl(340, 70%, 50%)",
+  chat: "hsl(160, 70%, 50%)",
+  search: "hsl(40, 70%, 50%)",
 };
 
 export function AnalyticsOverview({ overview }: AnalyticsOverviewProps) {
@@ -55,27 +67,23 @@ export function AnalyticsOverview({ overview }: AnalyticsOverviewProps) {
               <AreaChart data={overview.eventsOverTime}>
                 <defs>
                   <linearGradient id="eventGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 10 }}
-                  tickFormatter={(v) => v.slice(5)}
-                />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
                 <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
                   }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="hsl(var(--primary))" 
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke="hsl(var(--primary))"
                   fill="url(#eventGradient)"
                   strokeWidth={2}
                 />
@@ -97,31 +105,27 @@ export function AnalyticsOverview({ overview }: AnalyticsOverviewProps) {
               <AreaChart data={overview.aiUsageOverTime}>
                 <defs>
                   <linearGradient id="aiGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--chart-5))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--chart-5))" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="hsl(var(--chart-5))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--chart-5))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 10 }}
-                  tickFormatter={(v) => v.slice(5)}
-                />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
                 <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
                   }}
                   formatter={(value: number, name: string) => [
-                    name === 'tokens' ? value.toLocaleString() : `$${value.toFixed(4)}`,
-                    name === 'tokens' ? 'Tokens' : 'Cost'
+                    name === "tokens" ? value.toLocaleString() : `$${value.toFixed(4)}`,
+                    name === "tokens" ? "Tokens" : "Cost",
                   ]}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="tokens" 
-                  stroke="hsl(var(--chart-5))" 
+                <Area
+                  type="monotone"
+                  dataKey="tokens"
+                  stroke="hsl(var(--chart-5))"
                   fill="url(#aiGradient)"
                   strokeWidth={2}
                 />
@@ -142,24 +146,15 @@ export function AnalyticsOverview({ overview }: AnalyticsOverviewProps) {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={overview.topEvents.slice(0, 8)} layout="vertical">
                 <XAxis type="number" tick={{ fontSize: 10 }} />
-                <YAxis 
-                  type="category" 
-                  dataKey="event_type" 
-                  tick={{ fontSize: 10 }}
-                  width={100}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                <YAxis type="category" dataKey="event_type" tick={{ fontSize: 10 }} width={100} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
                   }}
                 />
-                <Bar 
-                  dataKey="count" 
-                  fill="hsl(var(--primary))"
-                  radius={[0, 4, 4, 0]}
-                />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -183,23 +178,23 @@ export function AnalyticsOverview({ overview }: AnalyticsOverviewProps) {
                   cx="50%"
                   cy="50%"
                   outerRadius={70}
-                  label={({ event_category, percent }) => 
+                  label={({ event_category, percent }) =>
                     `${event_category} ${(percent * 100).toFixed(0)}%`
                   }
                   labelLine={false}
                 >
                   {overview.topCategories.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
+                    <Cell
+                      key={`cell-${index}`}
                       fill={CATEGORY_COLORS[entry.event_category] || `hsl(${index * 40}, 70%, 50%)`}
                     />
                   ))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
                   }}
                 />
               </PieChart>
@@ -216,14 +211,14 @@ export function AnalyticsOverview({ overview }: AnalyticsOverviewProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {overview.topCategories.map(cat => (
-              <Badge 
+            {overview.topCategories.map((cat) => (
+              <Badge
                 key={cat.event_category}
                 variant="outline"
                 className="text-sm py-1 px-3"
-                style={{ 
-                  borderColor: CATEGORY_COLORS[cat.event_category] || 'hsl(var(--border))',
-                  color: CATEGORY_COLORS[cat.event_category] || 'hsl(var(--foreground))'
+                style={{
+                  borderColor: CATEGORY_COLORS[cat.event_category] || "hsl(var(--border))",
+                  color: CATEGORY_COLORS[cat.event_category] || "hsl(var(--foreground))",
                 }}
               >
                 {cat.event_category}: {cat.count.toLocaleString()}

@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils';
-import { Eye, EyeOff } from 'lucide-react';
+import { cn } from "@/lib/utils";
+import { Eye, EyeOff } from "lucide-react";
 
 interface CustomizableCardProps {
   id: string;
@@ -32,8 +32,10 @@ export function CustomizableCard({
   if (!customizing) return <div className={className}>{children}</div>;
 
   return (
-    <div className={cn('relative', className)}>
-      <div className={cn('transition-opacity', hidden && 'opacity-40 pointer-events-none select-none')}>
+    <div className={cn("relative", className)}>
+      <div
+        className={cn("transition-opacity", hidden && "opacity-40 pointer-events-none select-none")}
+      >
         {children}
       </div>
       <button
@@ -44,7 +46,7 @@ export function CustomizableCard({
         className="absolute top-2 right-2 z-10 inline-flex items-center gap-1.5 rounded-full border border-border bg-background/90 backdrop-blur px-2.5 py-1 text-xs font-medium text-muted-foreground shadow-sm hover:text-foreground hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-        {hidden ? 'Show' : 'Hide'}
+        {hidden ? "Show" : "Hide"}
       </button>
     </div>
   );

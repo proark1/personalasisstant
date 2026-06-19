@@ -1,7 +1,7 @@
-import { Wifi, WifiOff, Signal, SignalLow, SignalMedium, SignalHigh } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { CallQualityStats } from '@/hooks/useCallQuality';
-import { cn } from '@/lib/utils';
+import { Wifi, WifiOff, Signal, SignalLow, SignalMedium, SignalHigh } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { CallQualityStats } from "@/hooks/useCallQuality";
+import { cn } from "@/lib/utils";
 
 interface CallQualityIndicatorProps {
   stats: CallQualityStats;
@@ -11,13 +11,13 @@ interface CallQualityIndicatorProps {
 export function CallQualityIndicator({ stats, className }: CallQualityIndicatorProps) {
   const getSignalIcon = () => {
     switch (stats.signalStrength) {
-      case 'excellent':
+      case "excellent":
         return <SignalHigh className="w-5 h-5 text-success" />;
-      case 'good':
+      case "good":
         return <SignalMedium className="w-5 h-5 text-success" />;
-      case 'fair':
+      case "fair":
         return <SignalLow className="w-5 h-5 text-warning" />;
-      case 'poor':
+      case "poor":
         return <Signal className="w-5 h-5 text-destructive" />;
       default:
         return <Signal className="w-5 h-5 text-muted-foreground" />;
@@ -25,13 +25,13 @@ export function CallQualityIndicator({ stats, className }: CallQualityIndicatorP
   };
 
   const getConnectionIcon = () => {
-    if (stats.connectionState === 'connected' && stats.iceConnectionState === 'connected') {
+    if (stats.connectionState === "connected" && stats.iceConnectionState === "connected") {
       return <Wifi className="w-4 h-4 text-success" />;
     }
-    if (stats.connectionState === 'connecting' || stats.iceConnectionState === 'checking') {
+    if (stats.connectionState === "connecting" || stats.iceConnectionState === "checking") {
       return <Wifi className="w-4 h-4 text-warning animate-pulse" />;
     }
-    if (stats.connectionState === 'failed' || stats.connectionState === 'disconnected') {
+    if (stats.connectionState === "failed" || stats.connectionState === "disconnected") {
       return <WifiOff className="w-4 h-4 text-destructive" />;
     }
     return <Wifi className="w-4 h-4 text-muted-foreground" />;
@@ -39,31 +39,31 @@ export function CallQualityIndicator({ stats, className }: CallQualityIndicatorP
 
   const getQualityLabel = () => {
     switch (stats.signalStrength) {
-      case 'excellent':
-        return 'Excellent';
-      case 'good':
-        return 'Good';
-      case 'fair':
-        return 'Fair';
-      case 'poor':
-        return 'Poor';
+      case "excellent":
+        return "Excellent";
+      case "good":
+        return "Good";
+      case "fair":
+        return "Fair";
+      case "poor":
+        return "Poor";
       default:
-        return 'Checking...';
+        return "Checking...";
     }
   };
 
   const getQualityColor = () => {
     switch (stats.signalStrength) {
-      case 'excellent':
-        return 'bg-success/20 text-success border-success/30';
-      case 'good':
-        return 'bg-success/15 text-success border-success/25';
-      case 'fair':
-        return 'bg-warning/20 text-warning border-warning/30';
-      case 'poor':
-        return 'bg-destructive/20 text-destructive border-destructive/30';
+      case "excellent":
+        return "bg-success/20 text-success border-success/30";
+      case "good":
+        return "bg-success/15 text-success border-success/25";
+      case "fair":
+        return "bg-warning/20 text-warning border-warning/30";
+      case "poor":
+        return "bg-destructive/20 text-destructive border-destructive/30";
       default:
-        return 'bg-muted text-muted-foreground border-border';
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
@@ -72,9 +72,9 @@ export function CallQualityIndicator({ stats, className }: CallQualityIndicatorP
       <TooltipTrigger asChild>
         <div
           className={cn(
-            'flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-sm cursor-default',
+            "flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-sm cursor-default",
             getQualityColor(),
-            className
+            className,
           )}
         >
           {getConnectionIcon()}
@@ -88,42 +88,44 @@ export function CallQualityIndicator({ stats, className }: CallQualityIndicatorP
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="text-muted-foreground">Connection:</div>
             <div className="capitalize">{stats.connectionState}</div>
-            
+
             {stats.latency !== null && (
               <>
                 <div className="text-muted-foreground">Latency:</div>
                 <div>{stats.latency} ms</div>
               </>
             )}
-            
+
             {stats.packetLoss !== null && (
               <>
                 <div className="text-muted-foreground">Packet Loss:</div>
                 <div>{stats.packetLoss}%</div>
               </>
             )}
-            
+
             {stats.jitter !== null && (
               <>
                 <div className="text-muted-foreground">Jitter:</div>
                 <div>{stats.jitter} ms</div>
               </>
             )}
-            
+
             {stats.bitrate !== null && (
               <>
                 <div className="text-muted-foreground">Bitrate:</div>
                 <div>{stats.bitrate} kbps</div>
               </>
             )}
-            
+
             {stats.resolution && (
               <>
                 <div className="text-muted-foreground">Resolution:</div>
-                <div>{stats.resolution.width}x{stats.resolution.height}</div>
+                <div>
+                  {stats.resolution.width}x{stats.resolution.height}
+                </div>
               </>
             )}
-            
+
             {stats.frameRate !== null && (
               <>
                 <div className="text-muted-foreground">Frame Rate:</div>

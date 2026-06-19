@@ -18,27 +18,27 @@ Without this service no recurring **briefings/background syncs** fire.
 Each job mirrors the cron expression of the former `cron.schedule(...)`
 migration, evaluated in **UTC**:
 
-| Function | Schedule | Purpose |
-|---|---|---|
-| `briefing-dispatch-cron` | `*/15 * * * *` | Custom daily briefings (timezone-aware) |
-| `content-ideas-cron` | `*/15 * * * *` | Content Studio daily idea dispatcher (timezone-aware) |
-| `telegram-weekly-briefing` | `0 * * * *` | Weekly calendar briefing (Mon 08:00 local) |
-| `telegram-family-morning-digest` | `0 * * * *` | Family group morning digest |
-| `workspace-recap-cron` | `5 * * * *` | Friday team recap |
-| `email-autopilot` | `5 * * * *` | Email handling / auto-replies |
-| `plaid-sync-cron` | `15 * * * *` | Financial account sync |
-| `meeting-bot-reconciler-cron` | `*/30 * * * *` | Meeting bot reconciliation |
-| `trip-prep-cron` | `0 9 * * *` | Trip preparation |
-| `calendar-sync-all` | `*/15 * * * *` | Two-way Google/Apple calendar sync |
-| `dori-proactive` | `*/30 * * * *` | Proactive Telegram nudges (timezone-aware, deduped) |
-| `meeting-preflight` | `*/10 * * * *` | Pre-meeting brief ~15 min before each meeting |
-| `morning-thread` | `0 6 * * *` | Consolidated daily morning thread → Telegram |
-| `gmail-sync-cron` | `0 5 * * *` | Daily background Gmail sync |
-| `conflict-detector` | `*/30 * * * *` | Schedule-conflict detection |
-| `travel-intelligence` | `0 7 * * *` | Detect upcoming trips from calendar |
-| `routine-learner` | `0 3 * * *` | Learn recurring routines |
-| `episodic-memory-builder` | `0 4 * * *` | Build long-term episodic memories |
-| `life-score-commentary` | `0 22 * * *` | Daily life-score commentary (deduped per day) |
+| Function                         | Schedule       | Purpose                                               |
+| -------------------------------- | -------------- | ----------------------------------------------------- |
+| `briefing-dispatch-cron`         | `*/15 * * * *` | Custom daily briefings (timezone-aware)               |
+| `content-ideas-cron`             | `*/15 * * * *` | Content Studio daily idea dispatcher (timezone-aware) |
+| `telegram-weekly-briefing`       | `0 * * * *`    | Weekly calendar briefing (Mon 08:00 local)            |
+| `telegram-family-morning-digest` | `0 * * * *`    | Family group morning digest                           |
+| `workspace-recap-cron`           | `5 * * * *`    | Friday team recap                                     |
+| `email-autopilot`                | `5 * * * *`    | Email handling / auto-replies                         |
+| `plaid-sync-cron`                | `15 * * * *`   | Financial account sync                                |
+| `meeting-bot-reconciler-cron`    | `*/30 * * * *` | Meeting bot reconciliation                            |
+| `trip-prep-cron`                 | `0 9 * * *`    | Trip preparation                                      |
+| `calendar-sync-all`              | `*/15 * * * *` | Two-way Google/Apple calendar sync                    |
+| `dori-proactive`                 | `*/30 * * * *` | Proactive Telegram nudges (timezone-aware, deduped)   |
+| `meeting-preflight`              | `*/10 * * * *` | Pre-meeting brief ~15 min before each meeting         |
+| `morning-thread`                 | `0 6 * * *`    | Consolidated daily morning thread → Telegram          |
+| `gmail-sync-cron`                | `0 5 * * *`    | Daily background Gmail sync                           |
+| `conflict-detector`              | `*/30 * * * *` | Schedule-conflict detection                           |
+| `travel-intelligence`            | `0 7 * * *`    | Detect upcoming trips from calendar                   |
+| `routine-learner`                | `0 3 * * *`    | Learn recurring routines                              |
+| `episodic-memory-builder`        | `0 4 * * *`    | Build long-term episodic memories                     |
+| `life-score-commentary`          | `0 22 * * *`   | Daily life-score commentary (deduped per day)         |
 
 The hourly/15-min functions are themselves timezone-aware and dedupe per local
 day, so pinging them every hour/15 min is correct — they decide when to actually
@@ -54,7 +54,7 @@ Symptom (Railway → cron → Cron Runs): every execution is red, lasts ~1s, and
 **Current Deployment** image is `curlimages/curl:latest`.
 
 That means the service is **not running this scheduler at all**. It's deploying a
-bare `curl` image on Railway's native *Cron Schedule*, which runs a one-shot
+bare `curl` image on Railway's native _Cron Schedule_, which runs a one-shot
 container each tick — and `curl` with no valid command exits non-zero
 immediately, so every run fails. A single hourly tick also can't reproduce the
 `*/15`, `*/30`, and `0 9 * * *` schedules below.
@@ -69,7 +69,7 @@ scheduler instead of the curl image:
    the build context must be the repo root, not `cron/`).
 4. **Config-as-code → Railway Config File** = `cron/railway.json`. That file pins
    the Dockerfile build, the `/health` check, and an `ON_FAILURE` restart policy.
-5. **Settings → Cron Schedule → clear it.** This is a long-running worker, *not* a
+5. **Settings → Cron Schedule → clear it.** This is a long-running worker, _not_ a
    scheduled job — the schedules live inside `scheduler.mjs`. (A `railway.json`
    can't unset an existing dashboard cron schedule, so you must remove it here.)
 6. Set the [env vars](#env-vars) below, **enable Private Networking**, and redeploy.
@@ -89,12 +89,12 @@ scheduler instead of the curl image:
 
 ## Env vars
 
-| Var | Value | Notes |
-|---|---|---|
-| `EDGE_FUNCTIONS_URL` | `http://edge-runtime.railway.internal:9000` | Base URL of the edge-runtime service (same value the gateway uses). Override if your edge service has a different internal name. |
-| `SUPABASE_SERVICE_ROLE_KEY` | The service-role JWT | **Required.** The dispatcher functions gate on exactly this token. Must match the value set on the `edge-runtime` service. |
-| `PORT` | (Railway sets this) | Health server port. Defaults to 8080. |
-| `CRON_DISABLED` | `1` to pause all jobs | Health server still runs; useful for temporarily disabling without deleting the service. |
+| Var                         | Value                                       | Notes                                                                                                                            |
+| --------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `EDGE_FUNCTIONS_URL`        | `http://edge-runtime.railway.internal:9000` | Base URL of the edge-runtime service (same value the gateway uses). Override if your edge service has a different internal name. |
+| `SUPABASE_SERVICE_ROLE_KEY` | The service-role JWT                        | **Required.** The dispatcher functions gate on exactly this token. Must match the value set on the `edge-runtime` service.       |
+| `PORT`                      | (Railway sets this)                         | Health server port. Defaults to 8080.                                                                                            |
+| `CRON_DISABLED`             | `1` to pause all jobs                       | Health server still runs; useful for temporarily disabling without deleting the service.                                         |
 
 > Why call the internal edge-runtime URL instead of the public gateway?
 > It stays on the private network (faster, no egress) and skips the gateway's

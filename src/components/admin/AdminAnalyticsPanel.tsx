@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useAdminAnalytics } from '@/hooks/useAdminAnalytics';
-import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useState } from "react";
+import { useAdminAnalytics } from "@/hooks/useAdminAnalytics";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BarChart3,
   Users,
@@ -16,14 +16,14 @@ import {
   Bot,
   RefreshCw,
   ShieldAlert,
-  Database
-} from 'lucide-react';
-import { format } from 'date-fns';
-import { AnalyticsOverview } from './AnalyticsOverview';
-import { UserAnalyticsTable } from './UserAnalyticsTable';
-import { EventsLog } from './EventsLog';
-import { AIUsagePanel } from './AIUsagePanel';
-import { AdminDataExportImport } from './AdminDataExportImport';
+  Database,
+} from "lucide-react";
+import { format } from "date-fns";
+import { AnalyticsOverview } from "./AnalyticsOverview";
+import { UserAnalyticsTable } from "./UserAnalyticsTable";
+import { EventsLog } from "./EventsLog";
+import { AIUsagePanel } from "./AIUsagePanel";
+import { AdminDataExportImport } from "./AdminDataExportImport";
 
 interface AdminAnalyticsPanelProps {
   userId: string;
@@ -86,25 +86,22 @@ export function AdminAnalyticsPanel({ userId: _userId }: AdminAnalyticsPanelProp
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <Input
               type="date"
-              value={format(dateRange.start, 'yyyy-MM-dd')}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: new Date(e.target.value) }))}
+              value={format(dateRange.start, "yyyy-MM-dd")}
+              onChange={(e) =>
+                setDateRange((prev) => ({ ...prev, start: new Date(e.target.value) }))
+              }
               className="w-36 h-8"
             />
             <span className="text-muted-foreground">to</span>
             <Input
               type="date"
-              value={format(dateRange.end, 'yyyy-MM-dd')}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: new Date(e.target.value) }))}
+              value={format(dateRange.end, "yyyy-MM-dd")}
+              onChange={(e) => setDateRange((prev) => ({ ...prev, end: new Date(e.target.value) }))}
               className="w-36 h-8"
             />
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
         </div>

@@ -25,7 +25,11 @@ function runSwKillswitchOnce(): boolean {
   const hasSw = "serviceWorker" in navigator;
   const hasCaches = "caches" in window;
   if (!hasSw && !hasCaches) {
-    try { window.localStorage.setItem(KILLSWITCH_FLAG, "1"); } catch { /* ignore */ }
+    try {
+      window.localStorage.setItem(KILLSWITCH_FLAG, "1");
+    } catch {
+      /* ignore */
+    }
     return false;
   }
   // Persist the flag *and confirm it stuck* before we trigger the
@@ -125,7 +129,8 @@ window.addEventListener("error", (e) => {
 });
 window.addEventListener("unhandledrejection", (e: PromiseRejectionEvent) => {
   if (reactMounted) return;
-  const reason = e.reason instanceof Error ? `${e.reason.name}: ${e.reason.message}` : String(e.reason);
+  const reason =
+    e.reason instanceof Error ? `${e.reason.name}: ${e.reason.message}` : String(e.reason);
   mountFatalOverlay("DarAI couldn’t start", reason);
 });
 

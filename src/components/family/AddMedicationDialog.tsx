@@ -1,12 +1,24 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useHealthTracking } from '@/hooks/useHealthTracking';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useHealthTracking } from "@/hooks/useHealthTracking";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 
 interface AddMedicationDialogProps {
   open: boolean;
@@ -16,14 +28,14 @@ interface AddMedicationDialogProps {
 export function AddMedicationDialog({ open, onOpenChange }: AddMedicationDialogProps) {
   const { addMedication } = useHealthTracking();
   const { members } = useFamilyMembers();
-  const [name, setName] = useState('');
-  const [dosage, setDosage] = useState('');
-  const [frequency, setFrequency] = useState('');
-  const [memberId, setMemberId] = useState<string>('');
-  const [prescribingDoctor, setPrescribingDoctor] = useState('');
-  const [pharmacy, setPharmacy] = useState('');
-  const [refillDate, setRefillDate] = useState('');
-  const [notes, setNotes] = useState('');
+  const [name, setName] = useState("");
+  const [dosage, setDosage] = useState("");
+  const [frequency, setFrequency] = useState("");
+  const [memberId, setMemberId] = useState<string>("");
+  const [prescribingDoctor, setPrescribingDoctor] = useState("");
+  const [pharmacy, setPharmacy] = useState("");
+  const [refillDate, setRefillDate] = useState("");
+  const [notes, setNotes] = useState("");
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -47,14 +59,14 @@ export function AddMedicationDialog({ open, onOpenChange }: AddMedicationDialogP
   };
 
   const resetForm = () => {
-    setName('');
-    setDosage('');
-    setFrequency('');
-    setMemberId('');
-    setPrescribingDoctor('');
-    setPharmacy('');
-    setRefillDate('');
-    setNotes('');
+    setName("");
+    setDosage("");
+    setFrequency("");
+    setMemberId("");
+    setPrescribingDoctor("");
+    setPharmacy("");
+    setRefillDate("");
+    setNotes("");
   };
 
   return (
@@ -77,14 +89,19 @@ export function AddMedicationDialog({ open, onOpenChange }: AddMedicationDialogP
             </div>
             <div className="space-y-2">
               <Label htmlFor="member">For</Label>
-              <Select value={memberId || "_me"} onValueChange={(v) => setMemberId(v === "_me" ? "" : v)}>
+              <Select
+                value={memberId || "_me"}
+                onValueChange={(v) => setMemberId(v === "_me" ? "" : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select person" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_me">Me</SelectItem>
                   {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -156,8 +173,12 @@ export function AddMedicationDialog({ open, onOpenChange }: AddMedicationDialogP
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!name.trim()}>Add Medication</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={!name.trim()}>
+            Add Medication
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

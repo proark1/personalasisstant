@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { TablesUpdate } from '@/integrations/supabase/types';
-import { UserProfile } from './useSmartContext';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
+import { UserProfile } from "./useSmartContext";
 
 export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -11,21 +11,23 @@ export function useUserProfile() {
   const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         setProfile(null);
         return;
       }
 
       const { data, error: fetchError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
         .single();
 
       if (fetchError) {
-        console.error('Error fetching profile:', fetchError);
+        console.error("Error fetching profile:", fetchError);
         setError(fetchError.message);
         return;
       }
@@ -36,15 +38,17 @@ export function useUserProfile() {
         // the browser's and persist it — otherwise Dori resolves "today"/
         // "tonight" in UTC and schedules on the wrong day near midnight.
         const browserTz =
-          typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
+          typeof Intl !== "undefined"
+            ? Intl.DateTimeFormat().resolvedOptions().timeZone
+            : undefined;
         const effectiveTz = data.timezone || browserTz || undefined;
         if (!data.timezone && browserTz) {
           void supabase
-            .from('profiles')
+            .from("profiles")
             .update({ timezone: browserTz })
-            .eq('user_id', user.id)
+            .eq("user_id", user.id)
             .then(({ error: tzErr }) => {
-              if (tzErr) console.warn('Failed to persist timezone:', tzErr.message);
+              if (tzErr) console.warn("Failed to persist timezone:", tzErr.message);
             });
         }
 
@@ -67,8 +71,8 @@ export function useUserProfile() {
         });
       }
     } catch (err) {
-      console.error('Error in fetchProfile:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error("Error in fetchProfile:", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsLoading(false);
     }
@@ -80,8 +84,10 @@ export function useUserProfile() {
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
       // Map camelCase to snake_case for database
       const dbUpdates: Record<string, unknown> = {};
@@ -94,25 +100,27 @@ export function useUserProfile() {
       if (updates.skills !== undefined) dbUpdates.skills = updates.skills;
       if (updates.goals !== undefined) dbUpdates.goals = updates.goals;
       if (updates.locationCity !== undefined) dbUpdates.location_city = updates.locationCity;
-      if (updates.locationCountry !== undefined) dbUpdates.location_country = updates.locationCountry;
-      if (updates.preferredWorkHours !== undefined) dbUpdates.preferred_work_hours = updates.preferredWorkHours;
+      if (updates.locationCountry !== undefined)
+        dbUpdates.location_country = updates.locationCountry;
+      if (updates.preferredWorkHours !== undefined)
+        dbUpdates.preferred_work_hours = updates.preferredWorkHours;
       if (updates.timezone !== undefined) dbUpdates.timezone = updates.timezone;
       if (updates.locale !== undefined) dbUpdates.locale = updates.locale || null;
 
       const { error: updateError } = await supabase
-        .from('profiles')
-        .update(dbUpdates as TablesUpdate<'profiles'>)
-        .eq('user_id', user.id);
+        .from("profiles")
+        .update(dbUpdates as TablesUpdate<"profiles">)
+        .eq("user_id", user.id);
 
       if (updateError) throw updateError;
 
       // Update local state
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
-      
+      setProfile((prev) => (prev ? { ...prev, ...updates } : null));
+
       return { success: true };
     } catch (err) {
-      console.error('Error updating profile:', err);
-      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+      console.error("Error updating profile:", err);
+      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
     }
   }, []);
 

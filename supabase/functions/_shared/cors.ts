@@ -9,28 +9,25 @@
 // turning a silent misconfiguration into a loud one.
 
 const DEV_HOSTS = new Set([
-  'http://localhost:8080',
-  'http://localhost:5173',
-  'http://127.0.0.1:8080',
-  'http://127.0.0.1:5173',
+  "http://localhost:8080",
+  "http://localhost:5173",
+  "http://127.0.0.1:8080",
+  "http://127.0.0.1:5173",
 ]);
 
 function readAllowedOrigins(): string[] {
   // APP_URL is the canonical production origin. APP_URLS (plural,
   // comma-separated) lets staging/preview environments add extras
   // without re-deploying. Empty values are filtered out.
-  const single = Deno.env.get('APP_URL');
-  const multi = Deno.env.get('APP_URLS');
-  const list = [
-    ...(single ? [single] : []),
-    ...(multi ? multi.split(',') : []),
-  ]
+  const single = Deno.env.get("APP_URL");
+  const multi = Deno.env.get("APP_URLS");
+  const list = [...(single ? [single] : []), ...(multi ? multi.split(",") : [])]
     .map((s) => s.trim())
     .filter(Boolean);
   if (list.length === 0) {
     throw new Error(
-      'CORS misconfigured: set APP_URL (and optionally APP_URLS) on this function. ' +
-      'Refusing to fall back to "*".',
+      "CORS misconfigured: set APP_URL (and optionally APP_URLS) on this function. " +
+        'Refusing to fall back to "*".',
     );
   }
   return list;
@@ -39,7 +36,7 @@ function readAllowedOrigins(): string[] {
 function pickOrigin(reqOrigin: string | null): string {
   const allowed = readAllowedOrigins();
   // If APP_ENV=development, also accept local dev hosts.
-  const inDev = Deno.env.get('APP_ENV') === 'development';
+  const inDev = Deno.env.get("APP_ENV") === "development";
   const candidates = inDev ? [...allowed, ...DEV_HOSTS] : allowed;
   if (reqOrigin && candidates.includes(reqOrigin)) return reqOrigin;
   // No match — echo the canonical origin so the browser blocks the
@@ -57,14 +54,14 @@ export function strictAppOrigin(): string {
 }
 
 export function buildCorsHeaders(req: Request): Record<string, string> {
-  const origin = pickOrigin(req.headers.get('origin'));
+  const origin = pickOrigin(req.headers.get("origin"));
   return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers':
-      'authorization, x-client-info, apikey, content-type, x-telegram-user-id',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Vary': 'Origin',
-    'X-Content-Type-Options': 'nosniff',
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-telegram-user-id, x-internal-token",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    Vary: "Origin",
+    "X-Content-Type-Options": "nosniff",
   };
 }
 
@@ -75,16 +72,12 @@ export function preflight(req: Request): Response {
 }
 
 // Convenience JSON response with CORS attached.
-export function jsonResponse(
-  req: Request,
-  body: unknown,
-  init: ResponseInit = {},
-): Response {
+export function jsonResponse(req: Request, body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
     ...init,
     headers: {
       ...buildCorsHeaders(req),
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(init.headers || {}),
     },
   });

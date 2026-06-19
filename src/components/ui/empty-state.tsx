@@ -17,7 +17,10 @@ export function EmptyState({ icon: Icon, title, description, action, className }
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-      className={cn("flex flex-col items-center justify-center text-center py-16 px-6 max-w-sm mx-auto", className)}
+      className={cn(
+        "flex flex-col items-center justify-center text-center py-16 px-6 max-w-sm mx-auto",
+        className,
+      )}
     >
       {Icon && (
         <motion.div
@@ -34,11 +37,7 @@ export function EmptyState({ icon: Icon, title, description, action, className }
         <p className="text-sm text-muted-foreground leading-relaxed mb-5">{description}</p>
       )}
       {action && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
           {action}
         </motion.div>
       )}

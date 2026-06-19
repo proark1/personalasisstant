@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { toast } from 'sonner';
-import { Json, TablesUpdate } from '@/integrations/supabase/types';
-import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
+import { Json, TablesUpdate } from "@/integrations/supabase/types";
+import { fetchWithRetry, TimeoutError } from "@/lib/fetchWithTimeout";
 
 export interface FamilyMember {
   id: string;
@@ -58,15 +58,18 @@ export function useFamilyMembers() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const parseJsonArray = <T,>(data: Json | null, defaultValue: T[]): T[] => {
+  const parseJsonArray = <T>(data: Json | null, defaultValue: T[]): T[] => {
     if (!data) return defaultValue;
     if (Array.isArray(data)) return data as unknown as T[];
     return defaultValue;
   };
 
-  const parseJsonObject = <T extends Record<string, unknown>>(data: Json | null, defaultValue: T): T => {
+  const parseJsonObject = <T extends Record<string, unknown>>(
+    data: Json | null,
+    defaultValue: T,
+  ): T => {
     if (!data) return defaultValue;
-    if (typeof data === 'object' && !Array.isArray(data)) return data as unknown as T;
+    if (typeof data === "object" && !Array.isArray(data)) return data as unknown as T;
     return defaultValue;
   };
 
@@ -75,40 +78,43 @@ export function useFamilyMembers() {
       setIsLoading(false);
       return;
     }
-    
+
     setFetchError(null);
-    
+
     try {
       const { data, error } = await fetchWithRetry(
-        async () => supabase
-          .from('family_members')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-          .order('name'),
-        { maxRetries: 2, timeoutMs: 12000 }
+        async () =>
+          supabase
+            .from("family_members")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("is_active", true)
+            .order("name"),
+        { maxRetries: 2, timeoutMs: 12000 },
       );
 
       if (error) {
-        console.error('Error fetching family members:', error);
-        setFetchError('Failed to load family members.');
+        console.error("Error fetching family members:", error);
+        setFetchError("Failed to load family members.");
         setIsLoading(false);
         return;
       }
-      
-      setMembers((data || []).map(m => ({
-        ...m,
-        clothing_sizes: parseJsonObject(m.clothing_sizes, {}),
-        activities: parseJsonArray<Activity>(m.activities, []),
-        milestones: parseJsonArray<Milestone>(m.milestones, []),
-        preferences: parseJsonObject(m.preferences, {}),
-      })));
+
+      setMembers(
+        (data || []).map((m) => ({
+          ...m,
+          clothing_sizes: parseJsonObject(m.clothing_sizes, {}),
+          activities: parseJsonArray<Activity>(m.activities, []),
+          milestones: parseJsonArray<Milestone>(m.milestones, []),
+          preferences: parseJsonObject(m.preferences, {}),
+        })),
+      );
     } catch (error) {
-      console.error('Error fetching family members:', error);
+      console.error("Error fetching family members:", error);
       if (error instanceof TimeoutError) {
-        setFetchError('Loading took too long. Tap to retry.');
+        setFetchError("Loading took too long. Tap to retry.");
       } else {
-        setFetchError('Failed to load family members.');
+        setFetchError("Failed to load family members.");
       }
     } finally {
       setIsLoading(false);
@@ -120,12 +126,14 @@ export function useFamilyMembers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]); // intentionally excludes fetchMembers — plain function recreated each render
 
-  const addMember = async (member: Omit<FamilyMember, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
+  const addMember = async (
+    member: Omit<FamilyMember, "id" | "created_at" | "updated_at" | "user_id">,
+  ) => {
     if (!user) return null;
 
     try {
       const { data, error } = await supabase
-        .from('family_members')
+        .from("family_members")
         .insert({
           ...member,
           user_id: user.id,
@@ -139,7 +147,7 @@ export function useFamilyMembers() {
         .single();
 
       if (error) throw error;
-      
+
       const newMember: FamilyMember = {
         ...data,
         clothing_sizes: parseJsonObject(data.clothing_sizes, {}),
@@ -147,34 +155,38 @@ export function useFamilyMembers() {
         milestones: parseJsonArray<Milestone>(data.milestones, []),
         preferences: parseJsonObject(data.preferences, {}),
       };
-      
-      setMembers(prev => [...prev, newMember]);
-      toast.success(t('family.toast.memberAdded'));
+
+      setMembers((prev) => [...prev, newMember]);
+      toast.success(t("family.toast.memberAdded"));
       return newMember;
     } catch (error) {
-      console.error('Error adding family member:', error);
-      toast.error(t('family.toast.memberAddFailed'));
+      console.error("Error adding family member:", error);
+      toast.error(t("family.toast.memberAddFailed"));
       return null;
     }
   };
 
-  const updateMember = async (id: string, updates: Partial<Omit<FamilyMember, 'id' | 'created_at' | 'updated_at' | 'user_id'>>) => {
+  const updateMember = async (
+    id: string,
+    updates: Partial<Omit<FamilyMember, "id" | "created_at" | "updated_at" | "user_id">>,
+  ) => {
     try {
       const dbUpdates: Record<string, unknown> = { ...updates };
       if (updates.activities) dbUpdates.activities = updates.activities as unknown as Json;
       if (updates.milestones) dbUpdates.milestones = updates.milestones as unknown as Json;
-      if (updates.clothing_sizes) dbUpdates.clothing_sizes = updates.clothing_sizes as unknown as Json;
+      if (updates.clothing_sizes)
+        dbUpdates.clothing_sizes = updates.clothing_sizes as unknown as Json;
       if (updates.preferences) dbUpdates.preferences = updates.preferences as unknown as Json;
 
       const { data, error } = await supabase
-        .from('family_members')
-        .update(dbUpdates as TablesUpdate<'family_members'>)
-        .eq('id', id)
+        .from("family_members")
+        .update(dbUpdates as TablesUpdate<"family_members">)
+        .eq("id", id)
         .select()
         .single();
 
       if (error) throw error;
-      
+
       const updatedMember: FamilyMember = {
         ...data,
         clothing_sizes: parseJsonObject(data.clothing_sizes, {}),
@@ -182,13 +194,13 @@ export function useFamilyMembers() {
         milestones: parseJsonArray<Milestone>(data.milestones, []),
         preferences: parseJsonObject(data.preferences, {}),
       };
-      
-      setMembers(prev => prev.map(m => m.id === id ? updatedMember : m));
-      toast.success(t('family.toast.memberUpdated'));
+
+      setMembers((prev) => prev.map((m) => (m.id === id ? updatedMember : m)));
+      toast.success(t("family.toast.memberUpdated"));
       return updatedMember;
     } catch (error) {
-      console.error('Error updating family member:', error);
-      toast.error(t('family.toast.memberUpdateFailed'));
+      console.error("Error updating family member:", error);
+      toast.error(t("family.toast.memberUpdateFailed"));
       return null;
     }
   };
@@ -196,45 +208,56 @@ export function useFamilyMembers() {
   const deleteMember = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('family_members')
+        .from("family_members")
         .update({ is_active: false })
-        .eq('id', id);
+        .eq("id", id);
 
       if (error) throw error;
-      
-      setMembers(prev => prev.filter(m => m.id !== id));
-      toast.success(t('family.toast.memberRemoved'));
+
+      setMembers((prev) => prev.filter((m) => m.id !== id));
+      toast.success(t("family.toast.memberRemoved"));
       return true;
     } catch (error) {
-      console.error('Error deleting family member:', error);
-      toast.error(t('family.toast.memberRemoveFailed'));
+      console.error("Error deleting family member:", error);
+      toast.error(t("family.toast.memberRemoveFailed"));
       return false;
     }
   };
 
-  const getChildren = () => members.filter(m => m.relationship === 'child');
-  const getSpouse = () => members.find(m => m.relationship === 'spouse');
-  const getParents = () => members.filter(m => m.relationship === 'parent');
-  const getSiblings = () => members.filter(m => m.relationship === 'sibling');
-  const getGrandparents = () => members.filter(m => m.relationship === 'grandparent');
+  const getChildren = () => members.filter((m) => m.relationship === "child");
+  const getSpouse = () => members.find((m) => m.relationship === "spouse");
+  const getParents = () => members.filter((m) => m.relationship === "parent");
+  const getSiblings = () => members.filter((m) => m.relationship === "sibling");
+  const getGrandparents = () => members.filter((m) => m.relationship === "grandparent");
 
   const getUpcomingBirthdays = (days: number = 30) => {
     const today = new Date();
     const endDate = new Date(today.getTime() + days * 24 * 60 * 60 * 1000);
-    
-    return members.filter(m => {
-      if (!m.birth_date) return false;
-      const birthDate = new Date(m.birth_date);
-      const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
-      if (thisYearBirthday < today) thisYearBirthday.setFullYear(today.getFullYear() + 1);
-      return thisYearBirthday >= today && thisYearBirthday <= endDate;
-    }).map(m => {
-      const birthDate = new Date(m.birth_date!);
-      const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
-      if (thisYearBirthday < today) thisYearBirthday.setFullYear(today.getFullYear() + 1);
-      const age = thisYearBirthday.getFullYear() - birthDate.getFullYear();
-      return { ...m, upcomingAge: age, birthdayDate: thisYearBirthday };
-    }).sort((a, b) => a.birthdayDate.getTime() - b.birthdayDate.getTime());
+
+    return members
+      .filter((m) => {
+        if (!m.birth_date) return false;
+        const birthDate = new Date(m.birth_date);
+        const thisYearBirthday = new Date(
+          today.getFullYear(),
+          birthDate.getMonth(),
+          birthDate.getDate(),
+        );
+        if (thisYearBirthday < today) thisYearBirthday.setFullYear(today.getFullYear() + 1);
+        return thisYearBirthday >= today && thisYearBirthday <= endDate;
+      })
+      .map((m) => {
+        const birthDate = new Date(m.birth_date!);
+        const thisYearBirthday = new Date(
+          today.getFullYear(),
+          birthDate.getMonth(),
+          birthDate.getDate(),
+        );
+        if (thisYearBirthday < today) thisYearBirthday.setFullYear(today.getFullYear() + 1);
+        const age = thisYearBirthday.getFullYear() - birthDate.getFullYear();
+        return { ...m, upcomingAge: age, birthdayDate: thisYearBirthday };
+      })
+      .sort((a, b) => a.birthdayDate.getTime() - b.birthdayDate.getTime());
   };
 
   return {

@@ -1,5 +1,14 @@
-import { parseRRuleString } from './recurrence';
-import { addDays, addWeeks, addMonths, addYears, startOfDay, isBefore, isAfter, getDay } from 'date-fns';
+import { parseRRuleString } from "./recurrence";
+import {
+  addDays,
+  addWeeks,
+  addMonths,
+  addYears,
+  startOfDay,
+  isBefore,
+  isAfter,
+  getDay,
+} from "date-fns";
 
 interface RecurrenceInstance {
   date: Date;
@@ -16,7 +25,7 @@ export function expandRecurrence(
   rangeStart: Date,
   rangeEnd: Date,
   endDate?: Date,
-  originalId: string = '',
+  originalId: string = "",
   exceptions?: ReadonlySet<string>,
 ): RecurrenceInstance[] {
   const rule = parseRRuleString(rrule);
@@ -32,7 +41,7 @@ export function expandRecurrence(
   // Cheap YYYY-MM-DD key for the exception set lookup. Format must match
   // what the manage_exception tool stores (date column → toISOString slice).
   const ymd = (d: Date): string =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   // If the start date is after range end, no instances to return
   if (isAfter(currentDate, effectiveEnd)) {
@@ -43,12 +52,13 @@ export function expandRecurrence(
     iterations++;
 
     // Check if this date is within our range (use >= and <= for inclusive)
-    const isInRange = !isBefore(currentDate, startOfDay(rangeStart)) && !isAfter(currentDate, effectiveEnd);
+    const isInRange =
+      !isBefore(currentDate, startOfDay(rangeStart)) && !isAfter(currentDate, effectiveEnd);
     const isException = exceptions?.has(ymd(currentDate)) ?? false;
 
     if (isInRange && !isException) {
       // For weekly recurrence with specific days, check if the day matches
-      if (rule.frequency === 'weekly' && rule.daysOfWeek?.length) {
+      if (rule.frequency === "weekly" && rule.daysOfWeek?.length) {
         const dayOfWeek = getDay(currentDate);
         if (rule.daysOfWeek.includes(dayOfWeek)) {
           instances.push({
@@ -68,10 +78,10 @@ export function expandRecurrence(
 
     // Calculate next date based on frequency
     switch (rule.frequency) {
-      case 'daily':
+      case "daily":
         currentDate = addDays(currentDate, rule.interval);
         break;
-      case 'weekly':
+      case "weekly":
         if (rule.daysOfWeek?.length) {
           // For weekly with specific days, move one day at a time
           currentDate = addDays(currentDate, 1);
@@ -79,10 +89,10 @@ export function expandRecurrence(
           currentDate = addWeeks(currentDate, rule.interval);
         }
         break;
-      case 'monthly':
+      case "monthly":
         currentDate = addMonths(currentDate, rule.interval);
         break;
-      case 'yearly':
+      case "yearly":
         currentDate = addYears(currentDate, rule.interval);
         break;
     }
@@ -111,13 +121,15 @@ function withTimeOfDay(day: Date, timeSource: Date): Date {
 /**
  * Expand recurring items (tasks or events) into all instances within a range
  */
-export function expandRecurringItems<T extends {
-  id: string;
-  dueDate?: Date;
-  startTime?: Date;
-  recurrenceRule?: string;
-  recurrenceEnd?: Date;
-}>(
+export function expandRecurringItems<
+  T extends {
+    id: string;
+    dueDate?: Date;
+    startTime?: Date;
+    recurrenceRule?: string;
+    recurrenceEnd?: Date;
+  },
+>(
   items: T[],
   rangeStart: Date,
   rangeEnd: Date,
@@ -128,7 +140,7 @@ export function expandRecurringItems<T extends {
 ): (T & { instanceDate?: Date; isRecurrenceInstance?: boolean })[] {
   const result: (T & { instanceDate?: Date; isRecurrenceInstance?: boolean })[] = [];
 
-  items.forEach(item => {
+  items.forEach((item) => {
     const itemDate = item.dueDate || item.startTime;
 
     if (!item.recurrenceRule || !itemDate) {

@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 /**
  * Read-only hook backing the user-facing "What Dori did" activity/audit log.
@@ -14,7 +14,7 @@ import { useAuth } from './useAuth';
  */
 
 /** Categories surfaced in the Dori activity log. */
-export type DoriActivityKind = 'proactive' | 'ai';
+export type DoriActivityKind = "proactive" | "ai";
 
 export interface DoriActivityEntry {
   id: string;
@@ -36,24 +36,28 @@ interface AnalyticsRow {
   created_at: string;
 }
 
-const ACTIVITY_CATEGORIES: DoriActivityKind[] = ['proactive', 'ai'];
+const ACTIVITY_CATEGORIES: DoriActivityKind[] = ["proactive", "ai"];
 
 // A list of recent rows is plenty for an audit surface; cap it.
 const ROW_LIMIT = 100;
 
 /** Turn a snake/camel surface key into a readable phrase, e.g. `agent_action_inbox` → "agent action inbox". */
 function humanizeSurface(surface: string): string {
-  return surface.replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim().toLowerCase();
+  return surface
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .trim()
+    .toLowerCase();
 }
 
 /** Turn an event_type into a readable label as a fallback, e.g. `email_drafted` → "Email drafted". */
 function humanizeType(type: string): string {
-  const words = type.replace(/[_-]+/g, ' ').trim();
+  const words = type.replace(/[_-]+/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
 
 /**
@@ -61,9 +65,9 @@ function asRecord(value: unknown): Record<string, unknown> {
  * Exported for testability; kept free of React/Supabase concerns.
  */
 export function mapRowToEntry(row: AnalyticsRow): DoriActivityEntry {
-  const kind: DoriActivityKind = row.event_category === 'proactive' ? 'proactive' : 'ai';
+  const kind: DoriActivityKind = row.event_category === "proactive" ? "proactive" : "ai";
   const data = asRecord(row.event_data);
-  const surface = typeof data.surface === 'string' ? data.surface : undefined;
+  const surface = typeof data.surface === "string" ? data.surface : undefined;
 
   return {
     id: row.id,
@@ -82,20 +86,20 @@ function summarize(
   surface: string | undefined,
   data: Record<string, unknown>,
 ): string {
-  const from = surface ? ` from Dori (${humanizeSurface(surface)})` : ' from Dori';
+  const from = surface ? ` from Dori (${humanizeSurface(surface)})` : " from Dori";
 
-  if (kind === 'proactive') {
+  if (kind === "proactive") {
     switch (type) {
-      case 'proactive_action_accepted':
+      case "proactive_action_accepted":
         return `You accepted a suggestion${from}`;
-      case 'proactive_action_dismissed':
+      case "proactive_action_dismissed":
         return `You dismissed a suggestion${from}`;
-      case 'proactive_action_muted':
-        return `You muted suggestions${surface ? ` from ${humanizeSurface(surface)}` : ''}`;
-      case 'proactive_action_shown':
+      case "proactive_action_muted":
+        return `You muted suggestions${surface ? ` from ${humanizeSurface(surface)}` : ""}`;
+      case "proactive_action_shown":
         return surface
           ? `Dori suggested something (${humanizeSurface(surface)})`
-          : 'Dori suggested something';
+          : "Dori suggested something";
       default:
         return `Dori suggestion: ${humanizeType(type)}`;
     }
@@ -103,10 +107,10 @@ function summarize(
 
   // kind === 'ai': prefer an explicit label/summary recorded in event_data.
   const label =
-    (typeof data.summary === 'string' && data.summary) ||
-    (typeof data.label === 'string' && data.label) ||
-    (typeof data.action === 'string' && humanizeType(data.action)) ||
-    (typeof data.description === 'string' && data.description);
+    (typeof data.summary === "string" && data.summary) ||
+    (typeof data.label === "string" && data.label) ||
+    (typeof data.action === "string" && humanizeType(data.action)) ||
+    (typeof data.description === "string" && data.description);
 
   if (label) return `Dori ${String(label).charAt(0).toLowerCase()}${String(label).slice(1)}`;
 
@@ -118,17 +122,17 @@ export function useDoriActivityLog() {
   const userId = user?.id;
 
   const query = useQuery({
-    queryKey: ['dori-activity-log', userId],
+    queryKey: ["dori-activity-log", userId],
     enabled: !!userId,
     // Audit data changes slowly relative to a panel open; avoid refetch churn.
     staleTime: 60_000,
     queryFn: async (): Promise<DoriActivityEntry[]> => {
       const { data, error } = await supabase
-        .from('analytics_events')
-        .select('id, event_type, event_category, event_data, created_at')
-        .eq('user_id', userId!)
-        .in('event_category', ACTIVITY_CATEGORIES)
-        .order('created_at', { ascending: false })
+        .from("analytics_events")
+        .select("id, event_type, event_category, event_data, created_at")
+        .eq("user_id", userId!)
+        .in("event_category", ACTIVITY_CATEGORIES)
+        .order("created_at", { ascending: false })
         .limit(ROW_LIMIT);
 
       if (error) throw error;

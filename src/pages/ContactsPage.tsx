@@ -1,50 +1,111 @@
-import { useState, useEffect, useCallback, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { useContacts, Contact, ContactType, ContactInput, PersonalTier, BusinessLevel, DEFAULT_FREQUENCIES } from '@/hooks/useContacts';
-import { useContactInteractions } from '@/hooks/useContactInteractions';
-import { useSmartContactReminders } from '@/hooks/useSmartContactReminders';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ContactProfileCard } from '@/components/contacts/ContactProfileCard';
-import { ContactNetworkHealth } from '@/components/contacts/ContactNetworkHealth';
-import { ContactTimeline } from '@/components/contacts/ContactTimeline';
-import { ContactImportExport } from '@/components/contacts/ContactImportExport';
-import { EmailTemplateDialog } from '@/components/contacts/EmailTemplateDialog';
-import { 
-  ArrowLeft, UserPlus, Trash2, Search, Users, Briefcase, Heart, 
-  Phone, Mail, Building, Clock, Bell, MessageSquare, Check, Pencil,
-  AlertCircle, Linkedin, Twitter, Globe, MapPin, LayoutGrid, List,
-  TrendingUp, Calendar
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { formatDistanceToNow, isPast } from 'date-fns';
+import { useState, useEffect, useCallback, memo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  useContacts,
+  Contact,
+  ContactType,
+  ContactInput,
+  PersonalTier,
+  BusinessLevel,
+  DEFAULT_FREQUENCIES,
+} from "@/hooks/useContacts";
+import { useContactInteractions } from "@/hooks/useContactInteractions";
+import { useSmartContactReminders } from "@/hooks/useSmartContactReminders";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ContactProfileCard } from "@/components/contacts/ContactProfileCard";
+import { ContactNetworkHealth } from "@/components/contacts/ContactNetworkHealth";
+import { ContactTimeline } from "@/components/contacts/ContactTimeline";
+import { ContactImportExport } from "@/components/contacts/ContactImportExport";
+import { EmailTemplateDialog } from "@/components/contacts/EmailTemplateDialog";
+import {
+  ArrowLeft,
+  UserPlus,
+  Trash2,
+  Search,
+  Users,
+  Briefcase,
+  Heart,
+  Phone,
+  Mail,
+  Building,
+  Clock,
+  Bell,
+  MessageSquare,
+  Check,
+  Pencil,
+  AlertCircle,
+  Linkedin,
+  Twitter,
+  Globe,
+  MapPin,
+  LayoutGrid,
+  List,
+  TrendingUp,
+  Calendar,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow, isPast } from "date-fns";
 
 const PERSONAL_TIERS: { value: PersonalTier; label: string; color: string }[] = [
-  { value: 'family', label: 'Family', color: 'bg-red-500' },
-  { value: 'close_friend', label: 'Close Friend', color: 'bg-orange-500' },
-  { value: 'friend', label: 'Friend', color: 'bg-yellow-500' },
-  { value: 'acquaintance', label: 'Acquaintance', color: 'bg-gray-500' },
+  { value: "family", label: "Family", color: "bg-red-500" },
+  { value: "close_friend", label: "Close Friend", color: "bg-orange-500" },
+  { value: "friend", label: "Friend", color: "bg-yellow-500" },
+  { value: "acquaintance", label: "Acquaintance", color: "bg-gray-500" },
 ];
 
 const BUSINESS_LEVELS: { value: BusinessLevel; label: string; color: string }[] = [
-  { value: 'very_well', label: 'Know Very Well', color: 'bg-green-500' },
-  { value: 'well', label: 'Know Well', color: 'bg-blue-500' },
-  { value: 'barely', label: 'Barely Know', color: 'bg-purple-500' },
-  { value: 'not_contacted', label: 'Not Contacted Yet', color: 'bg-gray-500' },
+  { value: "very_well", label: "Know Very Well", color: "bg-green-500" },
+  { value: "well", label: "Know Well", color: "bg-blue-500" },
+  { value: "barely", label: "Barely Know", color: "bg-purple-500" },
+  { value: "not_contacted", label: "Not Contacted Yet", color: "bg-gray-500" },
 ];
 
 interface ContactFormData {
@@ -56,8 +117,8 @@ interface ContactFormData {
   country: string;
   city: string;
   contactType: ContactType;
-  personalTier: PersonalTier | '';
-  businessLevel: BusinessLevel | '';
+  personalTier: PersonalTier | "";
+  businessLevel: BusinessLevel | "";
   contactFrequencyDays: number;
   notes: string;
   tags: string;
@@ -67,36 +128,45 @@ interface ContactFormData {
 }
 
 const defaultFormData: ContactFormData = {
-  name: '',
-  email: '',
-  phone: '',
-  company: '',
-  role: '',
-  country: '',
-  city: '',
-  contactType: 'personal',
-  personalTier: '',
-  businessLevel: '',
+  name: "",
+  email: "",
+  phone: "",
+  company: "",
+  role: "",
+  country: "",
+  city: "",
+  contactType: "personal",
+  personalTier: "",
+  businessLevel: "",
   contactFrequencyDays: 30,
-  notes: '',
-  tags: '',
-  linkedinUrl: '',
-  twitterUrl: '',
-  websiteUrl: '',
+  notes: "",
+  tags: "",
+  linkedinUrl: "",
+  twitterUrl: "",
+  websiteUrl: "",
 };
 
 function getInitials(name: string) {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 function getTierBadge(contact: Contact) {
-  if (contact.contactType === 'personal' && contact.personalTier) {
-    const tier = PERSONAL_TIERS.find(t => t.value === contact.personalTier);
-    return tier ? <Badge className={`${tier.color} text-white whitespace-nowrap text-xs`}>{tier.label}</Badge> : null;
+  if (contact.contactType === "personal" && contact.personalTier) {
+    const tier = PERSONAL_TIERS.find((t) => t.value === contact.personalTier);
+    return tier ? (
+      <Badge className={`${tier.color} text-white whitespace-nowrap text-xs`}>{tier.label}</Badge>
+    ) : null;
   }
-  if (contact.contactType === 'business' && contact.businessLevel) {
-    const level = BUSINESS_LEVELS.find(l => l.value === contact.businessLevel);
-    return level ? <Badge className={`${level.color} text-white whitespace-nowrap text-xs`}>{level.label}</Badge> : null;
+  if (contact.contactType === "business" && contact.businessLevel) {
+    const level = BUSINESS_LEVELS.find((l) => l.value === contact.businessLevel);
+    return level ? (
+      <Badge className={`${level.color} text-white whitespace-nowrap text-xs`}>{level.label}</Badge>
+    ) : null;
   }
   return null;
 }
@@ -110,14 +180,21 @@ interface ContactCardProps {
   onDelete: (contact: Contact) => void;
 }
 
-const ContactCard = memo(function ContactCard({ contact, onSelect, onMarkContacted, onEmailTemplate, onEdit, onDelete }: ContactCardProps) {
+const ContactCard = memo(function ContactCard({
+  contact,
+  onSelect,
+  onMarkContacted,
+  onEmailTemplate,
+  onEdit,
+  onDelete,
+}: ContactCardProps) {
   const isDue = contact.nextContactDue && isPast(contact.nextContactDue);
 
   return (
     <GlassCard
       pressable
       haptic="light"
-      className={`transition-colors ${isDue ? 'border-destructive/50' : ''}`}
+      className={`transition-colors ${isDue ? "border-destructive/50" : ""}`}
       onClick={() => onSelect(contact)}
     >
       <GlassCardContent className="p-4">
@@ -156,13 +233,14 @@ const ContactCard = memo(function ContactCard({ contact, onSelect, onMarkContact
                 {contact.company && (
                   <p className="flex items-center gap-1 truncate">
                     <Building className="w-3 h-3 shrink-0" />
-                    {contact.company}{contact.role && ` • ${contact.role}`}
+                    {contact.company}
+                    {contact.role && ` • ${contact.role}`}
                   </p>
                 )}
                 {(contact.city || contact.country) && (
                   <p className="flex items-center gap-1 truncate">
                     <MapPin className="w-3 h-3 shrink-0" />
-                    {[contact.city, contact.country].filter(Boolean).join(', ')}
+                    {[contact.city, contact.country].filter(Boolean).join(", ")}
                   </p>
                 )}
               </div>
@@ -171,23 +249,35 @@ const ContactCard = memo(function ContactCard({ contact, onSelect, onMarkContact
               {(contact.linkedinUrl || contact.twitterUrl || contact.websiteUrl) && (
                 <div className="flex items-center gap-2 mt-2">
                   {contact.linkedinUrl && (
-                    <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                       className="text-muted-foreground hover:text-primary transition-colors"
-                       onClick={(e) => e.stopPropagation()}>
+                    <a
+                      href={contact.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Linkedin className="w-4 h-4" />
                     </a>
                   )}
                   {contact.twitterUrl && (
-                    <a href={contact.twitterUrl} target="_blank" rel="noopener noreferrer"
-                       className="text-muted-foreground hover:text-primary transition-colors"
-                       onClick={(e) => e.stopPropagation()}>
+                    <a
+                      href={contact.twitterUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Twitter className="w-4 h-4" />
                     </a>
                   )}
                   {contact.websiteUrl && (
-                    <a href={contact.websiteUrl} target="_blank" rel="noopener noreferrer"
-                       className="text-muted-foreground hover:text-primary transition-colors"
-                       onClick={(e) => e.stopPropagation()}>
+                    <a
+                      href={contact.websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Globe className="w-4 h-4" />
                     </a>
                   )}
@@ -229,7 +319,10 @@ const ContactCard = memo(function ContactCard({ contact, onSelect, onMarkContact
             <Button
               variant="ghost"
               size="icon"
-              onClick={(e) => { e.stopPropagation(); onMarkContacted(contact); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkContacted(contact);
+              }}
               className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
               title="Mark as contacted"
             >
@@ -238,7 +331,10 @@ const ContactCard = memo(function ContactCard({ contact, onSelect, onMarkContact
             <Button
               variant="ghost"
               size="icon"
-              onClick={(e) => { e.stopPropagation(); onEmailTemplate(contact); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEmailTemplate(contact);
+              }}
               className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
               title="Email template"
             >
@@ -247,7 +343,10 @@ const ContactCard = memo(function ContactCard({ contact, onSelect, onMarkContact
             <Button
               variant="ghost"
               size="icon"
-              onClick={(e) => { e.stopPropagation(); onEdit(contact); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(contact);
+              }}
               title="Edit"
             >
               <Pencil className="w-4 h-4" />
@@ -255,7 +354,10 @@ const ContactCard = memo(function ContactCard({ contact, onSelect, onMarkContact
             <Button
               variant="ghost"
               size="icon"
-              onClick={(e) => { e.stopPropagation(); onDelete(contact); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(contact);
+              }}
               className="text-destructive hover:text-destructive"
               title="Delete"
             >
@@ -275,10 +377,19 @@ interface ContactTableProps {
   onDelete: (contact: Contact) => void;
 }
 
-const ContactTable = memo(function ContactTable({ contacts, onSelect, onMarkContacted, onDelete }: ContactTableProps) {
+const ContactTable = memo(function ContactTable({
+  contacts,
+  onSelect,
+  onMarkContacted,
+  onDelete,
+}: ContactTableProps) {
   if (contacts.length === 0) {
     return (
-      <EmptyState icon={Users} title="No contacts found" description="Try a different search term" />
+      <EmptyState
+        icon={Users}
+        title="No contacts found"
+        description="Try a different search term"
+      />
     );
   }
 
@@ -316,9 +427,7 @@ const ContactTable = memo(function ContactTable({ contacts, onSelect, onMarkCont
                     <p className="font-medium">{contact.name}</p>
                   </div>
                 </TableCell>
-                <TableCell>
-                  {getTierBadge(contact)}
-                </TableCell>
+                <TableCell>{getTierBadge(contact)}</TableCell>
                 <TableCell>
                   <div className="text-sm">
                     {contact.company && <p>{contact.company}</p>}
@@ -327,11 +436,11 @@ const ContactTable = memo(function ContactTable({ contacts, onSelect, onMarkCont
                 </TableCell>
                 <TableCell>
                   <span className="text-sm text-muted-foreground">
-                    {[contact.city, contact.country].filter(Boolean).join(', ') || '-'}
+                    {[contact.city, contact.country].filter(Boolean).join(", ") || "-"}
                   </span>
                 </TableCell>
                 <TableCell>
-                  <span className="text-sm">{contact.email || '-'}</span>
+                  <span className="text-sm">{contact.email || "-"}</span>
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
@@ -367,7 +476,10 @@ const ContactTable = memo(function ContactTable({ contacts, onSelect, onMarkCont
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-green-500 hover:text-green-600"
-                      onClick={(e) => { e.stopPropagation(); onMarkContacted(contact); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkContacted(contact);
+                      }}
                       title="Mark as contacted"
                     >
                       <Check className="w-4 h-4" />
@@ -376,7 +488,10 @@ const ContactTable = memo(function ContactTable({ contacts, onSelect, onMarkCont
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={(e) => { e.stopPropagation(); onDelete(contact); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(contact);
+                      }}
                       title="Delete"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -411,12 +526,14 @@ export default function Contacts() {
   const { getRecentContacts } = useContactInteractions(user?.id);
   const { syncToCalendar } = useSmartContactReminders({ contacts, userId: user?.id });
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [formData, setFormData] = useState<ContactFormData>(defaultFormData);
-  const [activeTab, setActiveTab] = useState<'personal' | 'business' | 'due' | 'insights' | 'timeline'>('personal');
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [activeTab, setActiveTab] = useState<
+    "personal" | "business" | "due" | "insights" | "timeline"
+  >("personal");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -442,21 +559,21 @@ export default function Contacts() {
     setEditingContact(contact);
     setFormData({
       name: contact.name,
-      email: contact.email || '',
-      phone: contact.phone || '',
-      company: contact.company || '',
-      role: contact.role || '',
-      country: contact.country || '',
-      city: contact.city || '',
+      email: contact.email || "",
+      phone: contact.phone || "",
+      company: contact.company || "",
+      role: contact.role || "",
+      country: contact.country || "",
+      city: contact.city || "",
       contactType: contact.contactType,
-      personalTier: contact.personalTier || '',
-      businessLevel: contact.businessLevel || '',
+      personalTier: contact.personalTier || "",
+      businessLevel: contact.businessLevel || "",
       contactFrequencyDays: contact.contactFrequencyDays,
-      notes: contact.notes || '',
-      tags: contact.tags.join(', '),
-      linkedinUrl: contact.linkedinUrl || '',
-      twitterUrl: contact.twitterUrl || '',
-      websiteUrl: contact.websiteUrl || '',
+      notes: contact.notes || "",
+      tags: contact.tags.join(", "),
+      linkedinUrl: contact.linkedinUrl || "",
+      twitterUrl: contact.twitterUrl || "",
+      websiteUrl: contact.websiteUrl || "",
     });
     setShowAddDialog(true);
   }, []);
@@ -465,13 +582,16 @@ export default function Contacts() {
     if (saving) return;
 
     if (!formData.name.trim()) {
-      toast({ title: 'Name is required', variant: 'destructive' });
+      toast({ title: "Name is required", variant: "destructive" });
       return;
     }
 
     setSaving(true);
     try {
-      const tags = formData.tags.split(',').map((t) => t.trim()).filter(Boolean);
+      const tags = formData.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
 
       if (editingContact) {
         const success = await updateContact(editingContact.id, {
@@ -494,14 +614,14 @@ export default function Contacts() {
         });
 
         if (success) {
-          toast({ title: 'Contact updated' });
+          toast({ title: "Contact updated" });
           setShowAddDialog(false);
           resetForm();
         } else {
           toast({
-            title: 'Update failed',
-            description: 'Please try again in a moment.',
-            variant: 'destructive',
+            title: "Update failed",
+            description: "Please try again in a moment.",
+            variant: "destructive",
           });
         }
       } else {
@@ -525,14 +645,14 @@ export default function Contacts() {
         });
 
         if (result) {
-          toast({ title: 'Contact added' });
+          toast({ title: "Contact added" });
           setShowAddDialog(false);
           resetForm();
         } else {
           toast({
-            title: 'Add failed',
-            description: 'Please try again in a moment.',
-            variant: 'destructive',
+            title: "Add failed",
+            description: "Please try again in a moment.",
+            variant: "destructive",
           });
         }
       }
@@ -545,17 +665,20 @@ export default function Contacts() {
     if (!contactToDelete) return;
     const success = await deleteContact(contactToDelete.id);
     if (success) {
-      toast({ title: 'Contact deleted' });
+      toast({ title: "Contact deleted" });
     }
     setContactToDelete(null);
   };
 
-  const handleMarkContacted = useCallback(async (contact: Contact) => {
-    const success = await markContacted(contact.id);
-    if (success) {
-      toast({ title: `Marked ${contact.name} as contacted` });
-    }
-  }, [markContacted, toast]);
+  const handleMarkContacted = useCallback(
+    async (contact: Contact) => {
+      const success = await markContacted(contact.id);
+      if (success) {
+        toast({ title: `Marked ${contact.name} as contacted` });
+      }
+    },
+    [markContacted, toast],
+  );
 
   const handleImportContacts = async (contactsToImport: ContactInput[]) => {
     let imported = 0;
@@ -571,19 +694,20 @@ export default function Contacts() {
     setShowEmailTemplate(true);
   }, []);
 
-  const recentContacts = contacts.filter(c => recentContactIds.includes(c.id));
+  const recentContacts = contacts.filter((c) => recentContactIds.includes(c.id));
 
   const filterContacts = (contactList: Contact[]) => {
     if (!searchQuery) return contactList;
     const query = searchQuery.toLowerCase();
-    return contactList.filter(c =>
-      c.name.toLowerCase().includes(query) ||
-      c.email?.toLowerCase().includes(query) ||
-      c.company?.toLowerCase().includes(query) ||
-      c.country?.toLowerCase().includes(query) ||
-      c.city?.toLowerCase().includes(query) ||
-      c.notes?.toLowerCase().includes(query) ||
-      c.tags.some(t => t.toLowerCase().includes(query))
+    return contactList.filter(
+      (c) =>
+        c.name.toLowerCase().includes(query) ||
+        c.email?.toLowerCase().includes(query) ||
+        c.company?.toLowerCase().includes(query) ||
+        c.country?.toLowerCase().includes(query) ||
+        c.city?.toLowerCase().includes(query) ||
+        c.notes?.toLowerCase().includes(query) ||
+        c.tags.some((t) => t.toLowerCase().includes(query)),
     );
   };
 
@@ -591,15 +715,15 @@ export default function Contacts() {
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
-          <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
+          <Button variant="ghost" onClick={() => navigate("/")} className="gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back
           </Button>
-          
+
           <div className="flex items-center gap-2">
             <ContactImportExport contacts={contacts} onImport={handleImportContacts} />
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={syncToCalendar}
               title="Sync upcoming contacts to calendar"
@@ -607,255 +731,273 @@ export default function Contacts() {
               <Calendar className="w-4 h-4 mr-2" />
               Sync Calendar
             </Button>
-            <Dialog open={showAddDialog} onOpenChange={(open) => {
-              setShowAddDialog(open);
-              if (!open) resetForm();
-            }}>
+            <Dialog
+              open={showAddDialog}
+              onOpenChange={(open) => {
+                setShowAddDialog(open);
+                if (!open) resetForm();
+              }}
+            >
               <DialogTrigger asChild>
                 <Button className="gap-2">
                   <UserPlus className="w-4 h-4" />
                   Add Contact
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingContact ? 'Edit Contact' : 'Add New Contact'}
-                </DialogTitle>
-              </DialogHeader>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2 space-y-2">
-                    <Label>Name *</Label>
-                    <Input
-                      value={formData.name}
-                      onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
-                      placeholder="John Doe"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Email</Label>
-                    <Input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
-                      placeholder="john@example.com"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Phone</Label>
-                    <Input
-                      value={formData.phone}
-                      onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))}
-                      placeholder="+1 234 567 890"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Company</Label>
-                    <Input
-                      value={formData.company}
-                      onChange={(e) => setFormData(p => ({ ...p, company: e.target.value }))}
-                      placeholder="Acme Inc."
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Role</Label>
-                    <Input
-                      value={formData.role}
-                      onChange={(e) => setFormData(p => ({ ...p, role: e.target.value }))}
-                      placeholder="CEO, Investor, etc."
-                    />
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editingContact ? "Edit Contact" : "Add New Contact"}</DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2 space-y-2">
+                      <Label>Name *</Label>
+                      <Input
+                        value={formData.name}
+                        onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                        placeholder="John Doe"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
+                        placeholder="john@example.com"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Phone</Label>
+                      <Input
+                        value={formData.phone}
+                        onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+                        placeholder="+1 234 567 890"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Company</Label>
+                      <Input
+                        value={formData.company}
+                        onChange={(e) => setFormData((p) => ({ ...p, company: e.target.value }))}
+                        placeholder="Acme Inc."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Role</Label>
+                      <Input
+                        value={formData.role}
+                        onChange={(e) => setFormData((p) => ({ ...p, role: e.target.value }))}
+                        placeholder="CEO, Investor, etc."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>City</Label>
+                      <Input
+                        value={formData.city}
+                        onChange={(e) => setFormData((p) => ({ ...p, city: e.target.value }))}
+                        placeholder="Munich, Berlin, etc."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Country</Label>
+                      <Input
+                        value={formData.country}
+                        onChange={(e) => setFormData((p) => ({ ...p, country: e.target.value }))}
+                        placeholder="Germany, USA, etc."
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>City</Label>
-                    <Input
-                      value={formData.city}
-                      onChange={(e) => setFormData(p => ({ ...p, city: e.target.value }))}
-                      placeholder="Munich, Berlin, etc."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Country</Label>
-                    <Input
-                      value={formData.country}
-                      onChange={(e) => setFormData(p => ({ ...p, country: e.target.value }))}
-                      placeholder="Germany, USA, etc."
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Contact Type</Label>
-                  <Select
-                    value={formData.contactType}
-                    onValueChange={(v: ContactType) => setFormData(p => ({ 
-                      ...p, 
-                      contactType: v,
-                      personalTier: '',
-                      businessLevel: '',
-                    }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="personal">
-                        <div className="flex items-center gap-2">
-                          <Heart className="w-4 h-4" />
-                          Personal
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="business">
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="w-4 h-4" />
-                          Business / Network
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {formData.contactType === 'personal' && (
-                  <div className="space-y-2">
-                    <Label>Relationship</Label>
+                    <Label>Contact Type</Label>
                     <Select
-                      value={formData.personalTier}
-                      onValueChange={(v: PersonalTier) => setFormData(p => ({ 
-                        ...p, 
-                        personalTier: v,
-                        contactFrequencyDays: DEFAULT_FREQUENCIES[v],
-                      }))}
+                      value={formData.contactType}
+                      onValueChange={(v: ContactType) =>
+                        setFormData((p) => ({
+                          ...p,
+                          contactType: v,
+                          personalTier: "",
+                          businessLevel: "",
+                        }))
+                      }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select relationship..." />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {PERSONAL_TIERS.map(tier => (
-                          <SelectItem key={tier.value} value={tier.value}>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${tier.color}`} />
-                              {tier.label}
-                              <span className="text-muted-foreground text-xs">
-                                (~{DEFAULT_FREQUENCIES[tier.value]}d)
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="personal">
+                          <div className="flex items-center gap-2">
+                            <Heart className="w-4 h-4" />
+                            Personal
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="business">
+                          <div className="flex items-center gap-2">
+                            <Briefcase className="w-4 h-4" />
+                            Business / Network
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                )}
 
-                {formData.contactType === 'business' && (
+                  {formData.contactType === "personal" && (
+                    <div className="space-y-2">
+                      <Label>Relationship</Label>
+                      <Select
+                        value={formData.personalTier}
+                        onValueChange={(v: PersonalTier) =>
+                          setFormData((p) => ({
+                            ...p,
+                            personalTier: v,
+                            contactFrequencyDays: DEFAULT_FREQUENCIES[v],
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select relationship..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PERSONAL_TIERS.map((tier) => (
+                            <SelectItem key={tier.value} value={tier.value}>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${tier.color}`} />
+                                {tier.label}
+                                <span className="text-muted-foreground text-xs">
+                                  (~{DEFAULT_FREQUENCIES[tier.value]}d)
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {formData.contactType === "business" && (
+                    <div className="space-y-2">
+                      <Label>How well do you know them?</Label>
+                      <Select
+                        value={formData.businessLevel}
+                        onValueChange={(v: BusinessLevel) =>
+                          setFormData((p) => ({
+                            ...p,
+                            businessLevel: v,
+                            contactFrequencyDays: DEFAULT_FREQUENCIES[v],
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select level..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BUSINESS_LEVELS.map((level) => (
+                            <SelectItem key={level.value} value={level.value}>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${level.color}`} />
+                                {level.label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
-                    <Label>How well do you know them?</Label>
-                    <Select
-                      value={formData.businessLevel}
-                      onValueChange={(v: BusinessLevel) => setFormData(p => ({ 
-                        ...p, 
-                        businessLevel: v,
-                        contactFrequencyDays: DEFAULT_FREQUENCIES[v],
-                      }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select level..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BUSINESS_LEVELS.map(level => (
-                          <SelectItem key={level.value} value={level.value}>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${level.color}`} />
-                              {level.label}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Contact Frequency (days)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={formData.contactFrequencyDays}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          contactFrequencyDays: parseInt(e.target.value) || 30,
+                        }))
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      How often should you reach out to this person?
+                    </p>
                   </div>
-                )}
 
-                <div className="space-y-2">
-                  <Label>Contact Frequency (days)</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={formData.contactFrequencyDays}
-                    onChange={(e) => setFormData(p => ({ ...p, contactFrequencyDays: parseInt(e.target.value) || 30 }))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    How often should you reach out to this person?
-                  </p>
-                </div>
+                  <div className="space-y-2">
+                    <Label>Tags (comma separated)</Label>
+                    <Input
+                      value={formData.tags}
+                      onChange={(e) => setFormData((p) => ({ ...p, tags: e.target.value }))}
+                      placeholder="investor, tech, mentor, etc."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Add tags to help AI find relevant contacts (e.g., "investor", "developer")
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>Tags (comma separated)</Label>
-                  <Input
-                    value={formData.tags}
-                    onChange={(e) => setFormData(p => ({ ...p, tags: e.target.value }))}
-                    placeholder="investor, tech, mentor, etc."
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Add tags to help AI find relevant contacts (e.g., "investor", "developer")
-                  </p>
-                </div>
+                  <div className="space-y-2">
+                    <Label>Notes</Label>
+                    <Textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
+                      placeholder="Any important details, connections, expertise..."
+                      rows={3}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      AI will use these notes to suggest this contact when relevant
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData(p => ({ ...p, notes: e.target.value }))}
-                    placeholder="Any important details, connections, expertise..."
-                    rows={3}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    AI will use these notes to suggest this contact when relevant
-                  </p>
-                </div>
-
-                {/* Social Links Section */}
-                <div className="space-y-3 p-3 rounded-lg bg-muted/50">
-                  <Label className="text-sm font-medium">Social Links</Label>
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="flex items-center gap-2">
-                      <Linkedin className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <Input
-                        value={formData.linkedinUrl}
-                        onChange={(e) => setFormData(p => ({ ...p, linkedinUrl: e.target.value }))}
-                        placeholder="https://linkedin.com/in/..."
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Twitter className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <Input
-                        value={formData.twitterUrl}
-                        onChange={(e) => setFormData(p => ({ ...p, twitterUrl: e.target.value }))}
-                        placeholder="https://twitter.com/..."
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <Input
-                        value={formData.websiteUrl}
-                        onChange={(e) => setFormData(p => ({ ...p, websiteUrl: e.target.value }))}
-                        placeholder="https://..."
-                      />
+                  {/* Social Links Section */}
+                  <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+                    <Label className="text-sm font-medium">Social Links</Label>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex items-center gap-2">
+                        <Linkedin className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <Input
+                          value={formData.linkedinUrl}
+                          onChange={(e) =>
+                            setFormData((p) => ({ ...p, linkedinUrl: e.target.value }))
+                          }
+                          placeholder="https://linkedin.com/in/..."
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Twitter className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <Input
+                          value={formData.twitterUrl}
+                          onChange={(e) =>
+                            setFormData((p) => ({ ...p, twitterUrl: e.target.value }))
+                          }
+                          placeholder="https://twitter.com/..."
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <Input
+                          value={formData.websiteUrl}
+                          onChange={(e) =>
+                            setFormData((p) => ({ ...p, websiteUrl: e.target.value }))
+                          }
+                          placeholder="https://..."
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <Button onClick={handleSubmit} className="w-full" disabled={saving}>
-                  {saving ? 'Saving…' : editingContact ? 'Update Contact' : 'Add Contact'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+                  <Button onClick={handleSubmit} className="w-full" disabled={saving}>
+                    {saving ? "Saving…" : editingContact ? "Update Contact" : "Add Contact"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
         <GlassCard className="mb-6">
@@ -881,7 +1023,12 @@ export default function Contacts() {
           </GlassCardContent>
         </GlassCard>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'personal' | 'business' | 'due' | 'insights' | 'timeline')}>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) =>
+            setActiveTab(v as "personal" | "business" | "due" | "insights" | "timeline")
+          }
+        >
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <TabsList className="grid grid-cols-5">
               <TabsTrigger value="personal" className="gap-1 text-xs sm:text-sm">
@@ -906,7 +1053,11 @@ export default function Contacts() {
               </TabsTrigger>
             </TabsList>
 
-            <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'cards' | 'table')}>
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(v) => v && setViewMode(v as "cards" | "table")}
+            >
               <ToggleGroupItem value="cards" aria-label="Card view">
                 <LayoutGrid className="w-4 h-4" />
               </ToggleGroupItem>
@@ -917,21 +1068,23 @@ export default function Contacts() {
           </div>
 
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading contacts...
-            </div>
+            <div className="text-center py-8 text-muted-foreground">Loading contacts...</div>
           ) : (
             <>
               <TabsContent value="personal">
-                {viewMode === 'cards' ? (
+                {viewMode === "cards" ? (
                   <ScrollArea className="h-[calc(100vh-400px)]">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-4">
                       {filterContacts(personalContacts).length === 0 ? (
                         <div className="col-span-full">
-                          <EmptyState icon={Heart} title="No personal contacts" description="Add family, friends, or acquaintances" />
+                          <EmptyState
+                            icon={Heart}
+                            title="No personal contacts"
+                            description="Add family, friends, or acquaintances"
+                          />
                         </div>
                       ) : (
-                        filterContacts(personalContacts).map(contact => (
+                        filterContacts(personalContacts).map((contact) => (
                           <ContactCard
                             key={contact.id}
                             contact={contact}
@@ -956,15 +1109,19 @@ export default function Contacts() {
               </TabsContent>
 
               <TabsContent value="business">
-                {viewMode === 'cards' ? (
+                {viewMode === "cards" ? (
                   <ScrollArea className="h-[calc(100vh-400px)]">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-4">
                       {filterContacts(businessContacts).length === 0 ? (
                         <div className="col-span-full">
-                          <EmptyState icon={Briefcase} title="No business contacts" description="Build your professional network" />
+                          <EmptyState
+                            icon={Briefcase}
+                            title="No business contacts"
+                            description="Build your professional network"
+                          />
                         </div>
                       ) : (
-                        filterContacts(businessContacts).map(contact => (
+                        filterContacts(businessContacts).map((contact) => (
                           <ContactCard
                             key={contact.id}
                             contact={contact}
@@ -989,15 +1146,19 @@ export default function Contacts() {
               </TabsContent>
 
               <TabsContent value="due">
-                {viewMode === 'cards' ? (
+                {viewMode === "cards" ? (
                   <ScrollArea className="h-[calc(100vh-400px)]">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-4">
                       {contactsDue.length === 0 ? (
                         <div className="col-span-full">
-                          <EmptyState icon={Bell} title="All caught up! 🎉" description="No contacts due for follow-up" />
+                          <EmptyState
+                            icon={Bell}
+                            title="All caught up! 🎉"
+                            description="No contacts due for follow-up"
+                          />
                         </div>
                       ) : (
-                        contactsDue.map(contact => (
+                        contactsDue.map((contact) => (
                           <ContactCard
                             key={contact.id}
                             contact={contact}
@@ -1024,7 +1185,7 @@ export default function Contacts() {
               <TabsContent value="insights">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <ContactNetworkHealth contacts={contacts} />
-                  
+
                   {/* Recent Contacts */}
                   {recentContacts.length > 0 && (
                     <GlassCard>
@@ -1036,8 +1197,8 @@ export default function Contacts() {
                       </GlassCardHeader>
                       <GlassCardContent>
                         <div className="space-y-2">
-                          {recentContacts.map(contact => (
-                            <div 
+                          {recentContacts.map((contact) => (
+                            <div
                               key={contact.id}
                               className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer"
                               onClick={() => setSelectedContact(contact)}
@@ -1050,7 +1211,9 @@ export default function Contacts() {
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-sm truncate">{contact.name}</p>
                                 {contact.company && (
-                                  <p className="text-xs text-muted-foreground truncate">{contact.company}</p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {contact.company}
+                                  </p>
                                 )}
                               </div>
                             </div>
@@ -1094,17 +1257,24 @@ export default function Contacts() {
         )}
 
         {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!contactToDelete} onOpenChange={(open) => !open && setContactToDelete(null)}>
+        <AlertDialog
+          open={!!contactToDelete}
+          onOpenChange={(open) => !open && setContactToDelete(null)}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Contact</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete {contactToDelete?.name}? This action cannot be undone.
+                Are you sure you want to delete {contactToDelete?.name}? This action cannot be
+                undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                className="bg-destructive hover:bg-destructive/90"
+              >
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>

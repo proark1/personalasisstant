@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  computeContractCosts,
-  formatContractCostSummary,
-} from "./contractCosts";
+import { computeContractCosts, formatContractCostSummary } from "./contractCosts";
 
 describe("computeContractCosts", () => {
   it("returns zeros for an empty list", () => {
@@ -23,15 +20,17 @@ describe("computeContractCosts", () => {
   });
 
   it("treats missing isActive as active (undefined !== false)", () => {
-    expect(
-      computeContractCosts([{ costAmount: 50, costFrequency: "monthly" }]),
-    ).toMatchObject({ monthlyTotal: 50, yearlyTotal: 600, activeCount: 1 });
+    expect(computeContractCosts([{ costAmount: 50, costFrequency: "monthly" }])).toMatchObject({
+      monthlyTotal: 50,
+      yearlyTotal: 600,
+      activeCount: 1,
+    });
   });
 
   it("handles each cost frequency correctly", () => {
     const r = computeContractCosts([
-      { costAmount: 10, costFrequency: "monthly" },   // 10/mo, 120/yr
-      { costAmount: 120, costFrequency: "yearly" },   // 10/mo, 120/yr
+      { costAmount: 10, costFrequency: "monthly" }, // 10/mo, 120/yr
+      { costAmount: 120, costFrequency: "yearly" }, // 10/mo, 120/yr
       { costAmount: 30, costFrequency: "quarterly" }, // 10/mo, 120/yr
       { costAmount: 50, costFrequency: "one_time" }, //  0/mo,  50/yr
     ]);
@@ -41,9 +40,10 @@ describe("computeContractCosts", () => {
   });
 
   it("treats unknown frequencies as monthly", () => {
-    expect(
-      computeContractCosts([{ costAmount: 7, costFrequency: "weekly" }]),
-    ).toMatchObject({ monthlyTotal: 7, yearlyTotal: 84 });
+    expect(computeContractCosts([{ costAmount: 7, costFrequency: "weekly" }])).toMatchObject({
+      monthlyTotal: 7,
+      yearlyTotal: 84,
+    });
   });
 
   it("skips contracts without a costAmount", () => {
@@ -59,7 +59,7 @@ describe("computeContractCosts", () => {
 describe("formatContractCostSummary", () => {
   it("renders totals + sorted top-10 line items", () => {
     const out = formatContractCostSummary([
-      { name: "A", costAmount: 5,  costFrequency: "monthly" },
+      { name: "A", costAmount: 5, costFrequency: "monthly" },
       { name: "B", provider: "Acme", costAmount: 50, costFrequency: "monthly" },
       { name: "C", costAmount: 10, costFrequency: "monthly", isActive: false },
     ]);

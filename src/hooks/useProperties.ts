@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export interface Property {
   id: string;
@@ -67,125 +67,134 @@ export function useProperties() {
   // Fetch all properties
   const fetchProperties = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("properties")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setProperties((data || []) as Property[]);
     } catch (error) {
-      console.error('Error fetching properties:', error);
+      console.error("Error fetching properties:", error);
     }
   }, [user?.id]);
 
   // Fetch documents for a property
-  const fetchDocuments = useCallback(async (propertyId?: string) => {
-    if (!user?.id) return;
-    
-    try {
-      let query = supabase
-        .from('property_documents')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (propertyId) {
-        query = query.eq('property_id', propertyId);
-      }
+  const fetchDocuments = useCallback(
+    async (propertyId?: string) => {
+      if (!user?.id) return;
 
-      const { data, error } = await query;
-      if (error) throw error;
-      setDocuments((data || []) as PropertyDocument[]);
-    } catch (error) {
-      console.error('Error fetching documents:', error);
-    }
-  }, [user?.id]);
+      try {
+        let query = supabase
+          .from("property_documents")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (propertyId) {
+          query = query.eq("property_id", propertyId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        setDocuments((data || []) as PropertyDocument[]);
+      } catch (error) {
+        console.error("Error fetching documents:", error);
+      }
+    },
+    [user?.id],
+  );
 
   // Fetch maintenance for a property
-  const fetchMaintenance = useCallback(async (propertyId?: string) => {
-    if (!user?.id) return;
-    
-    try {
-      let query = supabase
-        .from('property_maintenance')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('scheduled_date', { ascending: true });
-      
-      if (propertyId) {
-        query = query.eq('property_id', propertyId);
-      }
+  const fetchMaintenance = useCallback(
+    async (propertyId?: string) => {
+      if (!user?.id) return;
 
-      const { data, error } = await query;
-      if (error) throw error;
-      setMaintenance((data || []) as PropertyMaintenance[]);
-    } catch (error) {
-      console.error('Error fetching maintenance:', error);
-    }
-  }, [user?.id]);
+      try {
+        let query = supabase
+          .from("property_maintenance")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("scheduled_date", { ascending: true });
+
+        if (propertyId) {
+          query = query.eq("property_id", propertyId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        setMaintenance((data || []) as PropertyMaintenance[]);
+      } catch (error) {
+        console.error("Error fetching maintenance:", error);
+      }
+    },
+    [user?.id],
+  );
 
   // Fetch checklists for a property
-  const fetchChecklists = useCallback(async (propertyId?: string) => {
-    if (!user?.id) return;
-    
-    try {
-      let query = supabase
-        .from('property_checklists')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (propertyId) {
-        query = query.eq('property_id', propertyId);
-      }
+  const fetchChecklists = useCallback(
+    async (propertyId?: string) => {
+      if (!user?.id) return;
 
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      const parsed = (data || []).map(c => {
-        let parsedItems: { id: string; text: string; completed: boolean }[] = [];
-        if (Array.isArray(c.items)) {
-          parsedItems = c.items as { id: string; text: string; completed: boolean }[];
-        } else if (typeof c.items === 'string') {
-          parsedItems = JSON.parse(c.items);
+      try {
+        let query = supabase
+          .from("property_checklists")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (propertyId) {
+          query = query.eq("property_id", propertyId);
         }
-        return {
-          id: c.id,
-          property_id: c.property_id,
-          name: c.name,
-          checklist_type: c.checklist_type || undefined,
-          items: parsedItems,
-          created_at: c.created_at,
-        };
-      });
-      setChecklists(parsed);
-    } catch (error) {
-      console.error('Error fetching checklists:', error);
-    }
-  }, [user?.id]);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const parsed = (data || []).map((c) => {
+          let parsedItems: { id: string; text: string; completed: boolean }[] = [];
+          if (Array.isArray(c.items)) {
+            parsedItems = c.items as { id: string; text: string; completed: boolean }[];
+          } else if (typeof c.items === "string") {
+            parsedItems = JSON.parse(c.items);
+          }
+          return {
+            id: c.id,
+            property_id: c.property_id,
+            name: c.name,
+            checklist_type: c.checklist_type || undefined,
+            items: parsedItems,
+            created_at: c.created_at,
+          };
+        });
+        setChecklists(parsed);
+      } catch (error) {
+        console.error("Error fetching checklists:", error);
+      }
+    },
+    [user?.id],
+  );
 
   // Add property
-  const addProperty = async (property: Omit<Property, 'id' | 'created_at' | 'is_active'>) => {
+  const addProperty = async (property: Omit<Property, "id" | "created_at" | "is_active">) => {
     if (!user?.id) return null;
-    
+
     try {
       const { data, error } = await supabase
-        .from('properties')
+        .from("properties")
         .insert({ ...property, user_id: user.id, is_active: true })
         .select()
         .single();
 
       if (error) throw error;
       await fetchProperties();
-      toast.success('Property added');
+      toast.success("Property added");
       return data as Property;
     } catch (error) {
-      console.error('Error adding property:', error);
-      toast.error('Failed to add property');
+      console.error("Error adding property:", error);
+      toast.error("Failed to add property");
       return null;
     }
   };
@@ -193,55 +202,51 @@ export function useProperties() {
   // Update property
   const updateProperty = async (id: string, updates: Partial<Property>) => {
     try {
-      const { error } = await supabase
-        .from('properties')
-        .update(updates)
-        .eq('id', id);
+      const { error } = await supabase.from("properties").update(updates).eq("id", id);
 
       if (error) throw error;
       await fetchProperties();
-      toast.success('Property updated');
+      toast.success("Property updated");
     } catch (error) {
-      console.error('Error updating property:', error);
-      toast.error('Failed to update property');
+      console.error("Error updating property:", error);
+      toast.error("Failed to update property");
     }
   };
 
   // Delete property
   const deleteProperty = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('properties')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from("properties").delete().eq("id", id);
 
       if (error) throw error;
       await fetchProperties();
-      toast.success('Property deleted');
+      toast.success("Property deleted");
     } catch (error) {
-      console.error('Error deleting property:', error);
-      toast.error('Failed to delete property');
+      console.error("Error deleting property:", error);
+      toast.error("Failed to delete property");
     }
   };
 
   // Add maintenance task
-  const addMaintenance = async (task: Omit<PropertyMaintenance, 'id' | 'created_at' | 'status'>) => {
+  const addMaintenance = async (
+    task: Omit<PropertyMaintenance, "id" | "created_at" | "status">,
+  ) => {
     if (!user?.id) return null;
-    
+
     try {
       const { data, error } = await supabase
-        .from('property_maintenance')
-        .insert({ ...task, user_id: user.id, status: 'pending' })
+        .from("property_maintenance")
+        .insert({ ...task, user_id: user.id, status: "pending" })
         .select()
         .single();
 
       if (error) throw error;
       await fetchMaintenance();
-      toast.success('Maintenance task added');
+      toast.success("Maintenance task added");
       return data as PropertyMaintenance;
     } catch (error) {
-      console.error('Error adding maintenance:', error);
-      toast.error('Failed to add maintenance task');
+      console.error("Error adding maintenance:", error);
+      toast.error("Failed to add maintenance task");
       return null;
     }
   };
@@ -249,37 +254,34 @@ export function useProperties() {
   // Update maintenance task
   const updateMaintenance = async (id: string, updates: Partial<PropertyMaintenance>) => {
     try {
-      const { error } = await supabase
-        .from('property_maintenance')
-        .update(updates)
-        .eq('id', id);
+      const { error } = await supabase.from("property_maintenance").update(updates).eq("id", id);
 
       if (error) throw error;
       await fetchMaintenance();
     } catch (error) {
-      console.error('Error updating maintenance:', error);
-      toast.error('Failed to update maintenance task');
+      console.error("Error updating maintenance:", error);
+      toast.error("Failed to update maintenance task");
     }
   };
 
   // Add checklist
-  const addChecklist = async (checklist: Omit<PropertyChecklist, 'id' | 'created_at'>) => {
+  const addChecklist = async (checklist: Omit<PropertyChecklist, "id" | "created_at">) => {
     if (!user?.id) return null;
-    
+
     try {
       const { data, error } = await supabase
-        .from('property_checklists')
+        .from("property_checklists")
         .insert({ ...checklist, user_id: user.id, items: JSON.stringify(checklist.items) })
         .select()
         .single();
 
       if (error) throw error;
       await fetchChecklists();
-      toast.success('Checklist added');
+      toast.success("Checklist added");
       return { ...data, items: checklist.items } as PropertyChecklist;
     } catch (error) {
-      console.error('Error adding checklist:', error);
-      toast.error('Failed to add checklist');
+      console.error("Error adding checklist:", error);
+      toast.error("Failed to add checklist");
       return null;
     }
   };
@@ -291,29 +293,26 @@ export function useProperties() {
       if (updates.items) {
         (updateData as Record<string, unknown>).items = JSON.stringify(updates.items);
       }
-      
-      const { error } = await supabase
-        .from('property_checklists')
-        .update(updateData)
-        .eq('id', id);
+
+      const { error } = await supabase.from("property_checklists").update(updateData).eq("id", id);
 
       if (error) throw error;
       await fetchChecklists();
     } catch (error) {
-      console.error('Error updating checklist:', error);
-      toast.error('Failed to update checklist');
+      console.error("Error updating checklist:", error);
+      toast.error("Failed to update checklist");
     }
   };
 
   // Toggle checklist item
   const toggleChecklistItem = async (checklistId: string, itemId: string) => {
-    const checklist = checklists.find(c => c.id === checklistId);
+    const checklist = checklists.find((c) => c.id === checklistId);
     if (!checklist) return;
-    
-    const updatedItems = checklist.items.map(item => 
-      item.id === itemId ? { ...item, completed: !item.completed } : item
+
+    const updatedItems = checklist.items.map((item) =>
+      item.id === itemId ? { ...item, completed: !item.completed } : item,
     );
-    
+
     await updateChecklist(checklistId, { items: updatedItems });
   };
 

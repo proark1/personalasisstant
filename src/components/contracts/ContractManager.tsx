@@ -1,22 +1,39 @@
-import { useState } from 'react';
-import { Contract, ContractCategory, CONTRACT_CATEGORIES, ContractInput } from '@/hooks/useContracts';
-import { ContractCard } from './ContractCard';
-import { AddEditContractDialog } from './AddEditContractDialog';
-import { CancellationEmailDialog } from './CancellationEmailDialog';
-import { DocumentPreviewDialog } from './DocumentPreviewDialog';
-import { ContractTimeline } from './ContractTimeline';
-import { SnoozeReminderDialog } from './SnoozeReminderDialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { EmptyState } from '@/components/ui/empty-state';
-import { motion } from 'framer-motion';
-import { staggerContainer } from '@/components/ui/panel-shell';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Checkbox } from '@/components/ui/checkbox';
+import { useState } from "react";
+import {
+  Contract,
+  ContractCategory,
+  CONTRACT_CATEGORIES,
+  ContractInput,
+} from "@/hooks/useContracts";
+import { ContractCard } from "./ContractCard";
+import { AddEditContractDialog } from "./AddEditContractDialog";
+import { CancellationEmailDialog } from "./CancellationEmailDialog";
+import { DocumentPreviewDialog } from "./DocumentPreviewDialog";
+import { ContractTimeline } from "./ContractTimeline";
+import { SnoozeReminderDialog } from "./SnoozeReminderDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { motion } from "framer-motion";
+import { staggerContainer } from "@/components/ui/panel-shell";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,29 +43,29 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { 
-  Plus, 
-  Search, 
-  DollarSign, 
-  AlertTriangle, 
-  LayoutGrid, 
-  List, 
-  Pencil, 
-  Trash2, 
+} from "@/components/ui/alert-dialog";
+import {
+  Plus,
+  Search,
+  DollarSign,
+  AlertTriangle,
+  LayoutGrid,
+  List,
+  Pencil,
+  Trash2,
   FileText,
   CalendarPlus,
   Clock,
-  Loader2
-} from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
-import { de, enUS } from 'date-fns/locale';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useSmartContractReminders } from '@/hooks/useSmartContractReminders';
-import { useContractAI } from '@/hooks/useContractAI';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { ContractHealthBadge } from './ContractHealthScore';
+  Loader2,
+} from "lucide-react";
+import { format, differenceInDays } from "date-fns";
+import { de, enUS } from "date-fns/locale";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useSmartContractReminders } from "@/hooks/useSmartContractReminders";
+import { useContractAI } from "@/hooks/useContractAI";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { ContractHealthBadge } from "./ContractHealthScore";
 
 interface ContractManagerProps {
   contracts: Contract[];
@@ -82,18 +99,20 @@ export function ContractManager({
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
-  const dateLocale = language === 'de' ? de : enUS;
-  
-  const [search, setSearch] = useState('');
+  const dateLocale = language === "de" ? de : enUS;
+
+  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [deleteContract, setDeleteContract] = useState<Contract | null>(null);
-  const [activeCategory, setActiveCategory] = useState<'all' | ContractCategory>('all');
-  const [viewMode, setViewMode] = useState<'cards' | 'table' | 'timeline'>('cards');
-  
+  const [activeCategory, setActiveCategory] = useState<"all" | ContractCategory>("all");
+  const [viewMode, setViewMode] = useState<"cards" | "table" | "timeline">("cards");
+
   // New states for enhanced features
   const [emailDialogContract, setEmailDialogContract] = useState<Contract | null>(null);
-  const [previewDocument, setPreviewDocument] = useState<{ path: string; name: string } | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<{ path: string; name: string } | null>(
+    null,
+  );
   const [selectedContracts, setSelectedContracts] = useState<Set<string>>(new Set());
   const [showBulkSelect, setShowBulkSelect] = useState(false);
   const [syncingToCalendar, setSyncingToCalendar] = useState(false);
@@ -102,18 +121,19 @@ export function ContractManager({
   // Hooks
   const { syncToCalendar, syncAllToCalendar } = useSmartContractReminders({
     contracts,
-    userId: user?.id
+    userId: user?.id,
   });
   const { scanDocument } = useContractAI();
 
   const expiringContracts = getExpiringContracts(30);
   const cancellationDeadlines = getCancellationDeadlines(14);
 
-  const filteredContracts = contracts.filter(c => {
-    const matchesSearch = !search || 
+  const filteredContracts = contracts.filter((c) => {
+    const matchesSearch =
+      !search ||
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.provider?.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = activeCategory === 'all' || c.category === activeCategory;
+    const matchesCategory = activeCategory === "all" || c.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -142,14 +162,14 @@ export function ContractManager({
     const success = await syncToCalendar(contract);
     if (success) {
       toast({
-        title: t('contracts.toast.addedCalendar'),
-        description: t('contracts.toast.addedCalendarDesc').replace('{name}', () => contract.name)
+        title: t("contracts.toast.addedCalendar"),
+        description: t("contracts.toast.addedCalendarDesc").replace("{name}", () => contract.name),
       });
     } else {
       toast({
-        variant: 'destructive',
-        title: t('contracts.toast.syncFailed'),
-        description: t('contracts.toast.addEventsFailed')
+        variant: "destructive",
+        title: t("contracts.toast.syncFailed"),
+        description: t("contracts.toast.addEventsFailed"),
       });
     }
   };
@@ -159,14 +179,18 @@ export function ContractManager({
     try {
       const count = await syncAllToCalendar();
       toast({
-        title: t('contracts.toast.calendarSynced'),
-        description: t(count === 1 ? 'contracts.toast.calendarSyncedDesc.one' : 'contracts.toast.calendarSyncedDesc.other').replace('{count}', String(count))
+        title: t("contracts.toast.calendarSynced"),
+        description: t(
+          count === 1
+            ? "contracts.toast.calendarSyncedDesc.one"
+            : "contracts.toast.calendarSyncedDesc.other",
+        ).replace("{count}", String(count)),
       });
     } catch {
       toast({
-        variant: 'destructive',
-        title: t('contracts.toast.syncFailed'),
-        description: t('contracts.toast.syncContractsFailed')
+        variant: "destructive",
+        title: t("contracts.toast.syncFailed"),
+        description: t("contracts.toast.syncContractsFailed"),
       });
     } finally {
       setSyncingToCalendar(false);
@@ -175,10 +199,10 @@ export function ContractManager({
 
   const handleScanDocument = async (contract: Contract) => {
     if (!contract.documentUrl) return;
-    
-    const documentPath = contract.documentUrl.split(',')[0]; // Take first document
+
+    const documentPath = contract.documentUrl.split(",")[0]; // Take first document
     const result = await scanDocument(documentPath);
-    
+
     if (result) {
       // Pre-fill the edit dialog with scanned data
       setEditingContract({
@@ -195,7 +219,7 @@ export function ContractManager({
 
   const handlePreviewDocument = (contract: Contract) => {
     if (!contract.documentUrl) return;
-    const firstDoc = contract.documentUrl.split(',')[0];
+    const firstDoc = contract.documentUrl.split(",")[0];
     setPreviewDocument({ path: firstDoc, name: contract.name });
   };
 
@@ -204,16 +228,18 @@ export function ContractManager({
     const success = await onSnooze(snoozeContract.id, months);
     if (success) {
       toast({
-        title: t('contracts.toast.remindersSnoozed'),
-        description: t(months === 1 ? 'contracts.toast.snoozedDesc.one' : 'contracts.toast.snoozedDesc.other')
-          .replace('{months}', String(months))
-          .replace('{name}', () => snoozeContract.name)
+        title: t("contracts.toast.remindersSnoozed"),
+        description: t(
+          months === 1 ? "contracts.toast.snoozedDesc.one" : "contracts.toast.snoozedDesc.other",
+        )
+          .replace("{months}", String(months))
+          .replace("{name}", () => snoozeContract.name),
       });
     } else {
       toast({
-        variant: 'destructive',
-        title: t('contracts.toast.snoozeFailed'),
-        description: t('contracts.toast.snoozeFailedDesc')
+        variant: "destructive",
+        title: t("contracts.toast.snoozeFailed"),
+        description: t("contracts.toast.snoozeFailedDesc"),
       });
     }
     setSnoozeContract(null);
@@ -221,15 +247,19 @@ export function ContractManager({
 
   const handleBulkDelete = async () => {
     if (selectedContracts.size === 0) return;
-    
+
     for (const id of selectedContracts) {
       await onDelete(id);
     }
     setSelectedContracts(new Set());
     setShowBulkSelect(false);
     toast({
-      title: t('contracts.toast.contractsDeleted'),
-      description: t(selectedContracts.size === 1 ? 'contracts.toast.contractsDeletedDesc.one' : 'contracts.toast.contractsDeletedDesc.other').replace('{count}', String(selectedContracts.size))
+      title: t("contracts.toast.contractsDeleted"),
+      description: t(
+        selectedContracts.size === 1
+          ? "contracts.toast.contractsDeletedDesc.one"
+          : "contracts.toast.contractsDeletedDesc.other",
+      ).replace("{count}", String(selectedContracts.size)),
     });
   };
 
@@ -237,7 +267,7 @@ export function ContractManager({
     if (selectedContracts.size === filteredContracts.length) {
       setSelectedContracts(new Set());
     } else {
-      setSelectedContracts(new Set(filteredContracts.map(c => c.id)));
+      setSelectedContracts(new Set(filteredContracts.map((c) => c.id)));
     }
   };
 
@@ -245,10 +275,10 @@ export function ContractManager({
     if (!contract.costAmount) return null;
     const amount = contract.costAmount.toFixed(2);
     const freq = {
-      monthly: '/mo',
-      quarterly: '/qtr',
-      yearly: '/yr',
-      one_time: ' one-time',
+      monthly: "/mo",
+      quarterly: "/qtr",
+      yearly: "/yr",
+      one_time: " one-time",
     }[contract.costFrequency];
     return `€${amount}${freq}`;
   };
@@ -259,7 +289,9 @@ export function ContractManager({
         <EmptyState
           icon={FileText}
           title={search ? "No contracts found" : "No contracts yet"}
-          description={search ? "Try a different search term" : "Add your first contract to get started"}
+          description={
+            search ? "Try a different search term" : "Add your first contract to get started"
+          }
         />
       );
     }
@@ -271,35 +303,36 @@ export function ContractManager({
             <TableRow>
               {showBulkSelect && (
                 <TableHead className="w-[40px]">
-                  <Checkbox 
+                  <Checkbox
                     checked={selectedContracts.size === filteredContracts.length}
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
               )}
-              <TableHead>{t('contracts.contract')}</TableHead>
-              <TableHead>{t('contracts.provider')}</TableHead>
-              <TableHead>{t('contracts.category')}</TableHead>
-              <TableHead>{t('contracts.cost')}</TableHead>
-              <TableHead>{t('contracts.renewal')}</TableHead>
+              <TableHead>{t("contracts.contract")}</TableHead>
+              <TableHead>{t("contracts.provider")}</TableHead>
+              <TableHead>{t("contracts.category")}</TableHead>
+              <TableHead>{t("contracts.cost")}</TableHead>
+              <TableHead>{t("contracts.renewal")}</TableHead>
               <TableHead>Health</TableHead>
-              <TableHead>{t('contracts.status')}</TableHead>
-              <TableHead className="w-[100px]">{t('contracts.actions')}</TableHead>
+              <TableHead>{t("contracts.status")}</TableHead>
+              <TableHead className="w-[100px]">{t("contracts.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredContracts.map((contract) => {
-              const categoryInfo = CONTRACT_CATEGORIES.find(c => c.value === contract.category);
-              const daysUntilRenewal = contract.renewalDate 
-                ? differenceInDays(contract.renewalDate, new Date()) 
+              const categoryInfo = CONTRACT_CATEGORIES.find((c) => c.value === contract.category);
+              const daysUntilRenewal = contract.renewalDate
+                ? differenceInDays(contract.renewalDate, new Date())
                 : null;
-              const isRenewalSoon = daysUntilRenewal !== null && daysUntilRenewal >= 0 && daysUntilRenewal <= 30;
-              
+              const isRenewalSoon =
+                daysUntilRenewal !== null && daysUntilRenewal >= 0 && daysUntilRenewal <= 30;
+
               return (
                 <TableRow key={contract.id}>
                   {showBulkSelect && (
                     <TableCell>
-                      <Checkbox 
+                      <Checkbox
                         checked={selectedContracts.has(contract.id)}
                         onCheckedChange={(checked) => {
                           const newSet = new Set(selectedContracts);
@@ -315,21 +348,23 @@ export function ContractManager({
                   )}
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <span className="text-lg">{categoryInfo?.icon || '📄'}</span>
+                      <span className="text-lg">{categoryInfo?.icon || "📄"}</span>
                       <span className="font-medium">{contract.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{contract.provider || '-'}</TableCell>
+                  <TableCell>{contract.provider || "-"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{categoryInfo?.label || contract.category}</Badge>
                   </TableCell>
-                  <TableCell>{formatCost(contract) || '-'}</TableCell>
+                  <TableCell>{formatCost(contract) || "-"}</TableCell>
                   <TableCell>
                     {contract.renewalDate ? (
-                      <span className={isRenewalSoon ? 'text-primary font-medium' : ''}>
-                        {format(contract.renewalDate, 'PPP', { locale: dateLocale })}
+                      <span className={isRenewalSoon ? "text-primary font-medium" : ""}>
+                        {format(contract.renewalDate, "PPP", { locale: dateLocale })}
                       </span>
-                    ) : '-'}
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
                   <TableCell>
                     <ContractHealthBadge contract={contract} />
@@ -337,12 +372,14 @@ export function ContractManager({
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {contract.isActive ? (
-                        <Badge variant="secondary">{t('contracts.active')}</Badge>
+                        <Badge variant="secondary">{t("contracts.active")}</Badge>
                       ) : (
-                        <Badge variant="outline">{t('contracts.inactive')}</Badge>
+                        <Badge variant="outline">{t("contracts.inactive")}</Badge>
                       )}
                       {contract.autoRenews && (
-                        <Badge variant="outline" className="text-xs">{t('contracts.auto')}</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {t("contracts.auto")}
+                        </Badge>
                       )}
                     </div>
                   </TableCell>
@@ -389,8 +426,8 @@ export function ContractManager({
     <div className="space-y-6">
       {/* Actions bar */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
           onClick={handleSyncAllToCalendar}
           disabled={syncingToCalendar}
@@ -402,9 +439,15 @@ export function ContractManager({
           )}
           Sync to Calendar
         </Button>
-        <Button size="sm" onClick={() => { setEditingContract(null); setDialogOpen(true); }}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditingContract(null);
+            setDialogOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4 mr-2" />
-          {t('contracts.addContract')}
+          {t("contracts.addContract")}
         </Button>
       </div>
 
@@ -414,17 +457,17 @@ export function ContractManager({
           <GlassCardHeader className="pb-2">
             <GlassCardTitle className="text-sm font-medium flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-4 w-4" />
-              {t('contracts.cancellationDeadlines')}
+              {t("contracts.cancellationDeadlines")}
             </GlassCardTitle>
           </GlassCardHeader>
           <GlassCardContent>
             <div className="space-y-1">
-              {cancellationDeadlines.map(c => (
+              {cancellationDeadlines.map((c) => (
                 <div key={c.id} className="flex items-center justify-between text-sm">
                   <span>{c.name}</span>
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       className="h-7 text-xs"
                       onClick={() => setEmailDialogContract(c)}
@@ -432,7 +475,8 @@ export function ContractManager({
                       Generate Cancellation
                     </Button>
                     <Badge variant="destructive">
-                      {t('contracts.cancelBy')} {format(c.cancellationDeadline, 'MMM d', { locale: dateLocale })}
+                      {t("contracts.cancelBy")}{" "}
+                      {format(c.cancellationDeadline, "MMM d", { locale: dateLocale })}
                     </Badge>
                   </div>
                 </div>
@@ -448,7 +492,7 @@ export function ContractManager({
           <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <DollarSign className="h-4 w-4" />
-              {t('contracts.monthlyCost')}
+              {t("contracts.monthlyCost")}
             </div>
             <p className="text-2xl font-bold">€{monthlyCost.toFixed(2)}</p>
           </GlassCardContent>
@@ -457,7 +501,7 @@ export function ContractManager({
           <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <DollarSign className="h-4 w-4" />
-              {t('contracts.yearlyCost')}
+              {t("contracts.yearlyCost")}
             </div>
             <p className="text-2xl font-bold">€{yearlyCost.toFixed(2)}</p>
           </GlassCardContent>
@@ -465,7 +509,7 @@ export function ContractManager({
         <GlassCard pressable haptic="light">
           <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              {t('contracts.activeContracts')}
+              {t("contracts.activeContracts")}
             </div>
             <p className="text-2xl font-bold">{activeContracts.length}</p>
           </GlassCardContent>
@@ -474,7 +518,7 @@ export function ContractManager({
           <GlassCardContent className="pt-4 p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <AlertTriangle className="h-4 w-4" />
-              {t('contracts.expiringSoon')}
+              {t("contracts.expiringSoon")}
             </div>
             <p className="text-2xl font-bold">{expiringContracts.length}</p>
           </GlassCardContent>
@@ -486,16 +530,16 @@ export function ContractManager({
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={t('contracts.searchContracts')}
+            placeholder={t("contracts.searchContracts")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <ToggleGroup 
-          type="single" 
-          value={viewMode} 
-          onValueChange={(v) => v && setViewMode(v as 'cards' | 'table' | 'timeline')}
+        <ToggleGroup
+          type="single"
+          value={viewMode}
+          onValueChange={(v) => v && setViewMode(v as "cards" | "table" | "timeline")}
         >
           <ToggleGroupItem value="cards" aria-label="Card view">
             <LayoutGrid className="w-4 h-4" />
@@ -515,14 +559,10 @@ export function ContractManager({
             if (showBulkSelect) setSelectedContracts(new Set());
           }}
         >
-          {showBulkSelect ? 'Cancel Selection' : 'Bulk Select'}
+          {showBulkSelect ? "Cancel Selection" : "Bulk Select"}
         </Button>
         {showBulkSelect && selectedContracts.size > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleBulkDelete}
-          >
+          <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
             <Trash2 className="w-4 h-4 mr-2" />
             Delete ({selectedContracts.size})
           </Button>
@@ -530,19 +570,20 @@ export function ContractManager({
       </div>
 
       {/* Timeline View */}
-      {viewMode === 'timeline' && (
-        <ContractTimeline contracts={contracts} />
-      )}
+      {viewMode === "timeline" && <ContractTimeline contracts={contracts} />}
 
       {/* Category Tabs */}
-      {viewMode !== 'timeline' && (
-        <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as typeof activeCategory)}>
+      {viewMode !== "timeline" && (
+        <Tabs
+          value={activeCategory}
+          onValueChange={(v) => setActiveCategory(v as typeof activeCategory)}
+        >
           <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
             <TabsList className="inline-flex min-w-max h-auto gap-1">
               <TabsTrigger value="all" className="whitespace-nowrap">
-                {t('contracts.all')} ({contracts.length})
+                {t("contracts.all")} ({contracts.length})
               </TabsTrigger>
-              {CONTRACT_CATEGORIES.map(cat => {
+              {CONTRACT_CATEGORIES.map((cat) => {
                 const count = contractsByCategory[cat.value].length;
                 if (count === 0) return null;
                 return (
@@ -555,21 +596,25 @@ export function ContractManager({
           </div>
 
           <TabsContent value={activeCategory} className="mt-4">
-            {viewMode === 'cards' ? (
+            {viewMode === "cards" ? (
               filteredContracts.length === 0 ? (
                 <EmptyState
                   icon={FileText}
                   title={search ? "No contracts found" : "No contracts yet"}
-                  description={search ? "Try a different search term" : "Add your first contract to get started"}
+                  description={
+                    search
+                      ? "Try a different search term"
+                      : "Add your first contract to get started"
+                  }
                 />
               ) : (
-                <motion.div 
+                <motion.div
                   className="grid gap-3 md:grid-cols-2"
                   variants={staggerContainer}
                   initial="hidden"
                   animate="show"
                 >
-                  {filteredContracts.map(contract => (
+                  {filteredContracts.map((contract) => (
                     <ContractCard
                       key={contract.id}
                       contract={contract}
@@ -630,7 +675,7 @@ export function ContractManager({
       <SnoozeReminderDialog
         open={!!snoozeContract}
         onOpenChange={(open) => !open && setSnoozeContract(null)}
-        contractName={snoozeContract?.name || ''}
+        contractName={snoozeContract?.name || ""}
         onSnooze={handleSnooze}
       />
 
@@ -638,15 +683,21 @@ export function ContractManager({
       <AlertDialog open={!!deleteContract} onOpenChange={() => setDeleteContract(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('contracts.confirmDeleteTitle')}</AlertDialogTitle>
+            <AlertDialogTitle>{t("contracts.confirmDeleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('contracts.confirmDeleteDesc').replace('this contract', `"${deleteContract?.name}"`)}
+              {t("contracts.confirmDeleteDesc").replace(
+                "this contract",
+                `"${deleteContract?.name}"`,
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground">
-              {t('common.delete')}
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground"
+            >
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

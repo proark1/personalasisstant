@@ -1,28 +1,33 @@
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Task, CalendarEvent } from '@/types/flux';
-import { Widget } from '@/hooks/useWidgetLayout';
-import { useWeather } from '@/hooks/useWeather';
-import { useGamification } from '@/hooks/useGamification';
-import { useSmartTaskSuggestions } from '@/hooks/useSmartTaskSuggestions';
-import { 
-  Cloud, 
-  Sun, 
-  CloudRain, 
-  Flame, 
-  Target, 
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Task, CalendarEvent } from "@/types/flux";
+import { Widget } from "@/hooks/useWidgetLayout";
+import { useWeather } from "@/hooks/useWeather";
+import { useGamification } from "@/hooks/useGamification";
+import { useSmartTaskSuggestions } from "@/hooks/useSmartTaskSuggestions";
+import {
+  Cloud,
+  Sun,
+  CloudRain,
+  Flame,
+  Target,
   Plus,
   Calendar,
   Clock,
   RefreshCw,
   Loader2,
   CheckCircle2,
-  Sparkles
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format, isToday } from 'date-fns';
+  Sparkles,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format, isToday } from "date-fns";
 
 interface WidgetGridProps {
   widgets: Widget[];
@@ -35,30 +40,41 @@ interface WidgetGridProps {
 export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: WidgetGridProps) {
   const { weather } = useWeather();
   const { userXP } = useGamification();
-  const { suggestion, loading: suggestionLoading, refresh: refreshSuggestion } = useSmartTaskSuggestions(tasks, events);
+  const {
+    suggestion,
+    loading: suggestionLoading,
+    refresh: refreshSuggestion,
+  } = useSmartTaskSuggestions(tasks, events);
 
-  const todayTasks = tasks.filter(t => {
+  const todayTasks = tasks.filter((t) => {
     if (t.completed) return false;
     if (!t.dueDate) return false;
     return isToday(new Date(t.dueDate));
   });
 
-  const upcomingEvents = events.filter(e => {
-    const start = new Date(e.startTime);
-    return start > new Date() && start < new Date(Date.now() + 24 * 60 * 60 * 1000);
-  }).slice(0, 3);
+  const upcomingEvents = events
+    .filter((e) => {
+      const start = new Date(e.startTime);
+      return start > new Date() && start < new Date(Date.now() + 24 * 60 * 60 * 1000);
+    })
+    .slice(0, 3);
 
   const renderWidget = (widget: Widget) => {
     const sizeClasses = {
-      small: 'col-span-1',
-      medium: 'col-span-2',
-      large: 'col-span-2 md:col-span-3',
+      small: "col-span-1",
+      medium: "col-span-2",
+      large: "col-span-2 md:col-span-3",
     };
 
     switch (widget.type) {
-      case 'streak':
+      case "streak":
         return (
-          <GlassCard className={cn(sizeClasses[widget.size], 'bg-gradient-to-br from-warning/20 to-warning/5')}>
+          <GlassCard
+            className={cn(
+              sizeClasses[widget.size],
+              "bg-gradient-to-br from-warning/20 to-warning/5",
+            )}
+          >
             <GlassCardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-warning/20 rounded-full">
                 <Flame className="w-6 h-6 text-warning" />
@@ -71,14 +87,16 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
           </GlassCard>
         );
 
-      case 'tasks_today':
+      case "tasks_today":
         return (
           <GlassCard className={cn(sizeClasses[widget.size])}>
             <GlassCardHeader className="pb-2">
               <GlassCardTitle className="text-sm flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-primary" />
                 Today's Tasks
-                <Badge variant="secondary" className="ml-auto">{todayTasks.length}</Badge>
+                <Badge variant="secondary" className="ml-auto">
+                  {todayTasks.length}
+                </Badge>
               </GlassCardTitle>
             </GlassCardHeader>
             <GlassCardContent className="space-y-2">
@@ -87,17 +105,22 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
                   No tasks due today! 🎉
                 </p>
               ) : (
-                todayTasks.slice(0, 3).map(task => (
-                  <div 
-                    key={task.id} 
+                todayTasks.slice(0, 3).map((task) => (
+                  <div
+                    key={task.id}
                     className="flex items-center gap-2 p-2 rounded-md bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
                     onClick={() => onSelectTask?.(task.id)}
                   >
-                    <div className={cn(
-                      'w-2 h-2 rounded-full',
-                      task.priority === 'high' ? 'bg-destructive' : 
-                      task.priority === 'medium' ? 'bg-warning' : 'bg-muted-foreground'
-                    )} />
+                    <div
+                      className={cn(
+                        "w-2 h-2 rounded-full",
+                        task.priority === "high"
+                          ? "bg-destructive"
+                          : task.priority === "medium"
+                            ? "bg-warning"
+                            : "bg-muted-foreground",
+                      )}
+                    />
                     <span className="text-sm truncate flex-1">{task.title}</span>
                   </div>
                 ))
@@ -111,16 +134,21 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
           </GlassCard>
         );
 
-      case 'ai_suggestion':
+      case "ai_suggestion":
         return (
-          <GlassCard className={cn(sizeClasses[widget.size], 'bg-gradient-to-br from-primary/10 to-accent/5')}>
+          <GlassCard
+            className={cn(
+              sizeClasses[widget.size],
+              "bg-gradient-to-br from-primary/10 to-accent/5",
+            )}
+          >
             <GlassCardHeader className="pb-2">
               <GlassCardTitle className="text-sm flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary" />
                 AI Suggestion
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="h-6 w-6 ml-auto"
                   onClick={refreshSuggestion}
                   disabled={suggestionLoading}
@@ -142,7 +170,9 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
               ) : suggestion ? (
                 <div className="space-y-2">
                   <p className="font-medium text-sm">{suggestion.recommendation.title}</p>
-                  <p className="text-xs text-muted-foreground">{suggestion.recommendation.reason}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {suggestion.recommendation.reason}
+                  </p>
                   <div className="flex items-center gap-2 text-xs">
                     <Badge variant="outline" className="text-xs">
                       ~{suggestion.recommendation.estimatedMinutes} min
@@ -161,24 +191,30 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
           </GlassCard>
         );
 
-      case 'weather':
+      case "weather":
         return (
           <GlassCard className={cn(sizeClasses[widget.size])}>
             <GlassCardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-muted rounded-full">
-                {weather?.condition === 'rainy' ? <CloudRain className="w-6 h-6 text-accent" /> :
-                 weather?.condition === 'cloudy' ? <Cloud className="w-6 h-6 text-accent" /> :
-                 <Sun className="w-6 h-6 text-warning" />}
+                {weather?.condition === "rainy" ? (
+                  <CloudRain className="w-6 h-6 text-accent" />
+                ) : weather?.condition === "cloudy" ? (
+                  <Cloud className="w-6 h-6 text-accent" />
+                ) : (
+                  <Sun className="w-6 h-6 text-warning" />
+                )}
               </div>
               <div>
-                <p className="text-2xl font-bold">{weather?.temperature || '--'}°</p>
-                <p className="text-xs text-muted-foreground capitalize">{weather?.condition || 'Loading...'}</p>
+                <p className="text-2xl font-bold">{weather?.temperature || "--"}°</p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {weather?.condition || "Loading..."}
+                </p>
               </div>
             </GlassCardContent>
           </GlassCard>
         );
 
-      case 'upcoming_events':
+      case "upcoming_events":
         return (
           <GlassCard className={cn(sizeClasses[widget.size])}>
             <GlassCardHeader className="pb-2">
@@ -189,17 +225,18 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
             </GlassCardHeader>
             <GlassCardContent className="space-y-2">
               {upcomingEvents.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-2">
-                  No upcoming events
-                </p>
+                <p className="text-sm text-muted-foreground text-center py-2">No upcoming events</p>
               ) : (
-                upcomingEvents.map(event => (
-                  <div key={event.id} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                upcomingEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
+                  >
                     <Clock className="w-4 h-4 text-muted-foreground" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{event.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(event.startTime), 'h:mm a')}
+                        {format(new Date(event.startTime), "h:mm a")}
                       </p>
                     </div>
                   </div>
@@ -209,7 +246,7 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
           </GlassCard>
         );
 
-      case 'focus_stats': {
+      case "focus_stats": {
         const todayFocus = 0;
         const dailyGoal = 120;
         return (
@@ -231,9 +268,16 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
         );
       }
 
-      case 'quick_add':
+      case "quick_add":
         return (
-          <GlassCard className={cn(sizeClasses[widget.size], 'cursor-pointer hover:bg-muted/50 transition-colors')} onClick={onAddTask} pressable>
+          <GlassCard
+            className={cn(
+              sizeClasses[widget.size],
+              "cursor-pointer hover:bg-muted/50 transition-colors",
+            )}
+            onClick={onAddTask}
+            pressable
+          >
             <GlassCardContent className="p-4 flex items-center justify-center gap-2">
               <Plus className="w-5 h-5 text-primary" />
               <span className="font-medium">Quick Add</span>
@@ -248,10 +292,8 @@ export function WidgetGrid({ widgets, tasks, events, onAddTask, onSelectTask }: 
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {widgets.map(widget => (
-        <div key={widget.id}>
-          {renderWidget(widget)}
-        </div>
+      {widgets.map((widget) => (
+        <div key={widget.id}>{renderWidget(widget)}</div>
       ))}
     </div>
   );

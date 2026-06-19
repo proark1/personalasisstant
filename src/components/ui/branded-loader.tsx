@@ -13,7 +13,10 @@ interface BrandedLoaderProps {
  * prefers-reduced-motion via the `animate-*` utilities (Tailwind disables
  * them when the user opts out through the global stylesheet).
  */
-export function BrandedLoader({ message = "Getting things ready…", className }: BrandedLoaderProps) {
+export function BrandedLoader({
+  message = "Getting things ready…",
+  className,
+}: BrandedLoaderProps) {
   return (
     <div
       role="status"
@@ -25,7 +28,10 @@ export function BrandedLoader({ message = "Getting things ready…", className }
     >
       <div className="relative">
         {/* Soft pulsing halo */}
-        <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl animate-pulse" aria-hidden="true" />
+        <div
+          className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl animate-pulse"
+          aria-hidden="true"
+        />
         <div className="relative w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
           <Sparkles className="w-7 h-7 text-primary-foreground animate-pulse" aria-hidden="true" />
         </div>

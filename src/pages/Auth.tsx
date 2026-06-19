@@ -1,25 +1,25 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Sparkles, Mail, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
-import { useMemo } from 'react';
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Sparkles, Mail, Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { useMemo } from "react";
 
 export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { signIn, signUp } = useAuth();
   const { t } = useLanguage();
-  
+
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const passwordStrength = useMemo(() => {
@@ -29,11 +29,18 @@ export default function Auth() {
     if (/[A-Z]/.test(password)) score++;
     if (/[0-9!@#$%^&*(),.?":{}|<>]/.test(password)) score++;
     if (password.length >= 12) score++;
-    const labels = ['Weak', 'Fair', 'Good', 'Strong'] as const;
-    const colors = ['bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'] as const;
-    const textColors = ['text-red-500', 'text-yellow-500', 'text-blue-500', 'text-green-500'] as const;
+    const labels = ["Weak", "Fair", "Good", "Strong"] as const;
+    const colors = ["bg-red-500", "bg-yellow-500", "bg-blue-500", "bg-green-500"] as const;
+    const textColors = [
+      "text-red-500",
+      "text-yellow-500",
+      "text-blue-500",
+      "text-green-500",
+    ] as const;
     const idx = Math.min(score, 4) - 1;
-    return idx >= 0 ? { score, label: labels[idx], color: colors[idx], textColor: textColors[idx] } : null;
+    return idx >= 0
+      ? { score, label: labels[idx], color: colors[idx], textColor: textColors[idx] }
+      : null;
   }, [password, isLogin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,40 +53,40 @@ export default function Auth() {
         if (error) {
           const msg = error instanceof Error ? error.message : String(error);
           toast({
-            variant: 'destructive',
-            title: t('auth.loginFailed'),
+            variant: "destructive",
+            title: t("auth.loginFailed"),
             description: msg,
           });
         } else {
           toast({
-            title: t('auth.welcomeBack'),
-            description: t('auth.successLogin'),
+            title: t("auth.welcomeBack"),
+            description: t("auth.successLogin"),
           });
-          navigate('/');
+          navigate("/");
         }
       } else {
         const { error } = await signUp(email, password, displayName);
         if (error) {
           const msg = error instanceof Error ? error.message : String(error);
-          if (msg.includes('already registered')) {
+          if (msg.includes("already registered")) {
             toast({
-              variant: 'destructive',
-              title: t('auth.accountExists'),
-              description: t('auth.emailAlreadyRegistered'),
+              variant: "destructive",
+              title: t("auth.accountExists"),
+              description: t("auth.emailAlreadyRegistered"),
             });
           } else {
             toast({
-              variant: 'destructive',
-              title: t('auth.signUpFailed'),
+              variant: "destructive",
+              title: t("auth.signUpFailed"),
               description: msg,
             });
           }
         } else {
           toast({
-            title: t('auth.accountCreated'),
-            description: t('auth.startUsingApp'),
+            title: t("auth.accountCreated"),
+            description: t("auth.startUsingApp"),
           });
-          navigate('/');
+          navigate("/");
         }
       }
     } finally {
@@ -93,17 +100,17 @@ export default function Auth() {
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <motion.div
           className="absolute w-72 h-72 rounded-full opacity-20 blur-3xl"
-          style={{ background: 'radial-gradient(circle, hsl(var(--primary)), transparent)' }}
+          style={{ background: "radial-gradient(circle, hsl(var(--primary)), transparent)" }}
           animate={{ x: [0, 30, -20, 0], y: [0, -40, 20, 0] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-          initial={{ top: '10%', left: '15%' }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+          initial={{ top: "10%", left: "15%" }}
         />
         <motion.div
           className="absolute w-64 h-64 rounded-full opacity-15 blur-3xl"
-          style={{ background: 'radial-gradient(circle, hsl(var(--accent)), transparent)' }}
+          style={{ background: "radial-gradient(circle, hsl(var(--accent)), transparent)" }}
           animate={{ x: [0, -25, 35, 0], y: [0, 30, -25, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-          initial={{ bottom: '15%', right: '10%' }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          initial={{ bottom: "15%", right: "10%" }}
         />
       </div>
 
@@ -112,7 +119,7 @@ export default function Auth() {
         className="w-full max-w-md relative z-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
       >
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
@@ -120,7 +127,7 @@ export default function Auth() {
             className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent shadow-glow"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.4, type: 'spring' }}
+            transition={{ delay: 0.1, duration: 0.4, type: "spring" }}
           >
             <Sparkles className="w-8 h-8 text-primary-foreground" />
           </motion.div>
@@ -144,14 +151,16 @@ export default function Auth() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">{t('auth.displayName')}</label>
+                <label className="text-sm font-medium text-foreground">
+                  {t("auth.displayName")}
+                </label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder={t('auth.yourName')}
+                    placeholder={t("auth.yourName")}
                     className="pl-12 h-12 text-base"
                     autoComplete="name"
                   />
@@ -160,7 +169,7 @@ export default function Auth() {
             )}
 
             <div className="space-y-3">
-              <label className="text-sm font-medium text-foreground">{t('auth.email')}</label>
+              <label className="text-sm font-medium text-foreground">{t("auth.email")}</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -177,20 +186,17 @@ export default function Auth() {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-foreground">{t('auth.password')}</label>
+                <label className="text-sm font-medium text-foreground">{t("auth.password")}</label>
                 {isLogin && (
-                  <Link 
-                    to="/forgot-password" 
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {t('auth.forgotPassword') || 'Forgot password?'}
+                  <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+                    {t("auth.forgotPassword") || "Forgot password?"}
                   </Link>
                 )}
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -215,7 +221,7 @@ export default function Auth() {
                       <div
                         key={i}
                         className={`flex-1 rounded-full transition-colors duration-300 ${
-                          i <= passwordStrength.score ? passwordStrength.color : 'bg-muted'
+                          i <= passwordStrength.score ? passwordStrength.color : "bg-muted"
                         }`}
                       />
                     ))}
@@ -228,7 +234,7 @@ export default function Auth() {
             </div>
 
             <Button type="submit" className="w-full gap-2 h-12 text-base mt-2" loading={loading}>
-              {isLogin ? t('auth.signIn') : t('auth.createAccount')}
+              {isLogin ? t("auth.signIn") : t("auth.createAccount")}
               <ArrowRight className="w-5 h-5" />
             </Button>
           </form>
@@ -239,7 +245,7 @@ export default function Auth() {
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
-              {isLogin ? t('auth.dontHaveAccount') : t('auth.alreadyHaveAccount')}
+              {isLogin ? t("auth.dontHaveAccount") : t("auth.alreadyHaveAccount")}
             </button>
           </div>
         </motion.div>

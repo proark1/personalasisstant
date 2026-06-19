@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Play, Pause, RotateCcw, X, Type } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Play, Pause, RotateCcw, X, Type } from "lucide-react";
 
 // Full-screen scrolling teleprompter for recording a script from your phone.
 // Pure frontend — auto-scrolls the text at an adjustable speed, no backend.
 export function Teleprompter({
-  open, onOpenChange, title, text,
+  open,
+  onOpenChange,
+  title,
+  text,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,7 +65,12 @@ export function Teleprompter({
     <div className="fixed inset-0 z-[60] bg-black text-white flex flex-col pointer-events-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
         <span className="text-sm text-white/60 truncate pr-2">{title}</span>
-        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 shrink-0" onClick={() => onOpenChange(false)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-white hover:bg-white/10 shrink-0"
+          onClick={() => onOpenChange(false)}
+        >
           <X className="h-5 w-5" />
         </Button>
       </div>
@@ -70,10 +78,13 @@ export function Teleprompter({
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-6 text-center"
-        style={{ paddingTop: '45vh', paddingBottom: '45vh' }}
+        style={{ paddingTop: "45vh", paddingBottom: "45vh" }}
       >
-        <p className="whitespace-pre-wrap font-semibold max-w-3xl mx-auto" style={{ fontSize, lineHeight: 1.5 }}>
-          {text || t('content.nothingToRead')}
+        <p
+          className="whitespace-pre-wrap font-semibold max-w-3xl mx-auto"
+          style={{ fontSize, lineHeight: 1.5 }}
+        >
+          {text || t("content.nothingToRead")}
         </p>
       </div>
 
@@ -82,23 +93,38 @@ export function Teleprompter({
           <Button
             variant="secondary"
             size="icon"
-            onClick={() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; setPlaying(false); }}
-            title={t('content.restart')}
+            onClick={() => {
+              if (scrollRef.current) scrollRef.current.scrollTop = 0;
+              setPlaying(false);
+            }}
+            title={t("content.restart")}
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
           <Button size="lg" className="gap-2 w-32" onClick={() => setPlaying((p) => !p)}>
             {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-            {playing ? t('content.pause') : t('content.play')}
+            {playing ? t("content.pause") : t("content.play")}
           </Button>
         </div>
         <div className="flex items-center gap-3 max-w-md mx-auto">
-          <span className="text-xs text-white/60 w-12 shrink-0">{t('content.speed')}</span>
-          <Slider value={[speed]} min={15} max={120} step={5} onValueChange={([v]) => setSpeed(v)} />
+          <span className="text-xs text-white/60 w-12 shrink-0">{t("content.speed")}</span>
+          <Slider
+            value={[speed]}
+            min={15}
+            max={120}
+            step={5}
+            onValueChange={([v]) => setSpeed(v)}
+          />
         </div>
         <div className="flex items-center gap-3 max-w-md mx-auto">
           <Type className="h-4 w-4 text-white/60 shrink-0" />
-          <Slider value={[fontSize]} min={20} max={56} step={2} onValueChange={([v]) => setFontSize(v)} />
+          <Slider
+            value={[fontSize]}
+            min={20}
+            max={56}
+            step={2}
+            onValueChange={([v]) => setFontSize(v)}
+          />
         </div>
       </div>
     </div>

@@ -9,15 +9,27 @@
  * UI cards) can ask "is module X healthy?" and fall back gracefully.
  */
 
-import { moduleBus } from './moduleEventBus';
+import { moduleBus } from "./moduleEventBus";
 
 export type ModuleId =
-  | 'tasks' | 'events' | 'contacts' | 'contracts' | 'emails'
-  | 'notes' | 'habits' | 'health' | 'apple-health' | 'family'
-  | 'shopping' | 'calendar-sync' | 'gmail-sync' | 'ai-memory'
-  | 'realtime' | 'workspace';
+  | "tasks"
+  | "events"
+  | "contacts"
+  | "contracts"
+  | "emails"
+  | "notes"
+  | "habits"
+  | "health"
+  | "apple-health"
+  | "family"
+  | "shopping"
+  | "calendar-sync"
+  | "gmail-sync"
+  | "ai-memory"
+  | "realtime"
+  | "workspace";
 
-export type ModuleStatus = 'ok' | 'degraded' | 'failed' | 'disabled' | 'unknown';
+export type ModuleStatus = "ok" | "degraded" | "failed" | "disabled" | "unknown";
 
 export interface ModuleHealth {
   status: ModuleStatus;
@@ -37,7 +49,13 @@ class ModuleHealthRegistry {
   private get(id: ModuleId): ModuleHealth {
     let h = this.state.get(id);
     if (!h) {
-      h = { status: 'unknown', lastSuccessAt: null, lastErrorAt: null, lastError: null, failureCount: 0 };
+      h = {
+        status: "unknown",
+        lastSuccessAt: null,
+        lastErrorAt: null,
+        lastError: null,
+        failureCount: 0,
+      };
       this.state.set(id, h);
     }
     return h;
@@ -45,14 +63,14 @@ class ModuleHealthRegistry {
 
   reportSuccess(id: ModuleId): void {
     const h = this.get(id);
-    const wasFailing = h.status === 'failed' || h.status === 'degraded';
-    h.status = 'ok';
+    const wasFailing = h.status === "failed" || h.status === "degraded";
+    h.status = "ok";
     h.lastSuccessAt = Date.now();
     h.lastError = null;
     h.failureCount = 0;
     this.notify(id, h);
     if (wasFailing) {
-      moduleBus.emit('module:recovered', { module: id }, id);
+      moduleBus.emit("module:recovered", { module: id }, id);
     }
   }
 
@@ -61,29 +79,29 @@ class ModuleHealthRegistry {
     h.lastErrorAt = Date.now();
     h.lastError = error instanceof Error ? error.message : String(error);
     h.failureCount += 1;
-    h.status = h.failureCount >= FAIL_THRESHOLD ? 'failed' : 'degraded';
+    h.status = h.failureCount >= FAIL_THRESHOLD ? "failed" : "degraded";
     this.notify(id, h);
-    moduleBus.emit('module:error', { module: id, error: h.lastError }, id);
+    moduleBus.emit("module:error", { module: id, error: h.lastError }, id);
   }
 
   setDisabled(id: ModuleId): void {
     const h = this.get(id);
-    h.status = 'disabled';
+    h.status = "disabled";
     this.notify(id, h);
   }
 
   status(id: ModuleId): ModuleStatus {
     const h = this.state.get(id);
-    if (!h) return 'unknown';
-    if (h.status === 'ok' && h.lastSuccessAt && Date.now() - h.lastSuccessAt > STALE_AFTER_MS) {
-      return 'degraded';
+    if (!h) return "unknown";
+    if (h.status === "ok" && h.lastSuccessAt && Date.now() - h.lastSuccessAt > STALE_AFTER_MS) {
+      return "degraded";
     }
     return h.status;
   }
 
   isHealthy(id: ModuleId): boolean {
     const s = this.status(id);
-    return s === 'ok' || s === 'unknown';
+    return s === "ok" || s === "unknown";
   }
 
   /** Returns full health snapshot for diagnostics / UI. */
@@ -107,7 +125,7 @@ class ModuleHealthRegistry {
       try {
         fn(id, { ...h });
       } catch (err) {
-        console.error('[ModuleHealth] listener threw:', err);
+        console.error("[ModuleHealth] listener threw:", err);
       }
     });
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,11 +6,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { Check, ChevronDown, Plus, Settings, User } from 'lucide-react';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { Link } from 'react-router-dom';
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Check, ChevronDown, Plus, Settings, User } from "lucide-react";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { Link } from "react-router-dom";
 
 // Compact workspace picker for the header. Shows the active context (either
 // "Personal" or a workspace name) and lets the user switch, create, or jump
@@ -20,8 +20,8 @@ export function WorkspaceSwitcher() {
   const [open, setOpen] = useState(false);
 
   const label = activeWorkspace
-    ? `${activeWorkspace.icon ? `${activeWorkspace.icon} ` : ''}${activeWorkspace.name}`
-    : 'Personal';
+    ? `${activeWorkspace.icon ? `${activeWorkspace.icon} ` : ""}${activeWorkspace.name}`
+    : "Personal";
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -40,10 +40,7 @@ export function WorkspaceSwitcher() {
         <DropdownMenuLabel className="text-[11px] text-muted-foreground uppercase tracking-wide">
           Current context
         </DropdownMenuLabel>
-        <DropdownMenuItem
-          onClick={() => setActiveWorkspaceId(null)}
-          className="gap-2"
-        >
+        <DropdownMenuItem onClick={() => setActiveWorkspaceId(null)} className="gap-2">
           <User className="w-4 h-4 opacity-70" />
           <span className="flex-1">Personal</span>
           {activeWorkspaceId === null && <Check className="w-4 h-4" />}
@@ -60,7 +57,7 @@ export function WorkspaceSwitcher() {
                 onClick={() => setActiveWorkspaceId(ws.id)}
                 className="gap-2"
               >
-                <span className="w-4 shrink-0 text-center">{ws.icon || '📁'}</span>
+                <span className="w-4 shrink-0 text-center">{ws.icon || "📁"}</span>
                 <span className="flex-1 truncate">{ws.name}</span>
                 {activeWorkspaceId === ws.id && <Check className="w-4 h-4" />}
               </DropdownMenuItem>

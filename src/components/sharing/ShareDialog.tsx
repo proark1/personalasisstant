@@ -1,10 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { X, Share2, UserPlus, Trash2, Loader2, User } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState, useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { X, Share2, UserPlus, Trash2, Loader2, User } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Contact {
   userId: string;
@@ -20,10 +26,10 @@ interface SharedWithEntry {
 }
 
 interface ShareDialogProps {
-  itemType: 'task' | 'event' | 'contract' | 'contact';
+  itemType: "task" | "event" | "contract" | "contact";
   itemId: string;
   itemTitle: string;
-  onShare: (email: string, permission: 'view' | 'edit') => Promise<{ error: string | null }>;
+  onShare: (email: string, permission: "view" | "edit") => Promise<{ error: string | null }>;
   onGetSharedWith: () => Promise<Record<string, unknown>[]>;
   onRemoveShare: (shareId: string) => Promise<{ error: string | null }>;
   onGetRecentContacts?: () => Promise<Contact[]>;
@@ -41,8 +47,8 @@ export function ShareDialog({
   onClose,
 }: ShareDialogProps) {
   const { toast } = useToast();
-  const [email, setEmail] = useState('');
-  const [permission, setPermission] = useState<'view' | 'edit'>('view');
+  const [email, setEmail] = useState("");
+  const [permission, setPermission] = useState<"view" | "edit">("view");
   const [sharedWith, setSharedWith] = useState<SharedWithEntry[]>([]);
   const [recentContacts, setRecentContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,18 +78,19 @@ export function ShareDialog({
   // Filter suggestions based on input and exclude already shared users
   const filteredSuggestions = useMemo(() => {
     if (!email.trim()) return recentContacts;
-    
+
     const searchTerm = email.toLowerCase();
-    return recentContacts.filter(contact => 
-      contact.email.toLowerCase().includes(searchTerm) ||
-      contact.displayName?.toLowerCase().includes(searchTerm)
+    return recentContacts.filter(
+      (contact) =>
+        contact.email.toLowerCase().includes(searchTerm) ||
+        contact.displayName?.toLowerCase().includes(searchTerm),
     );
   }, [email, recentContacts]);
 
   // Filter out contacts already shared with
   const availableSuggestions = useMemo(() => {
-    const sharedUserIds = new Set(sharedWith.map(s => s.shared_with_id));
-    return filteredSuggestions.filter(c => !sharedUserIds.has(c.userId));
+    const sharedUserIds = new Set(sharedWith.map((s) => s.shared_with_id));
+    return filteredSuggestions.filter((c) => !sharedUserIds.has(c.userId));
   }, [filteredSuggestions, sharedWith]);
 
   const handleShare = async (e: React.FormEvent) => {
@@ -97,16 +104,16 @@ export function ShareDialog({
 
     if (error) {
       toast({
-        variant: 'destructive',
-        title: 'Share Failed',
+        variant: "destructive",
+        title: "Share Failed",
         description: error,
       });
     } else {
       toast({
-        title: 'Shared!',
-        description: `${itemType === 'task' ? 'Task' : 'Event'} shared with ${email}`,
+        title: "Shared!",
+        description: `${itemType === "task" ? "Task" : "Event"} shared with ${email}`,
       });
-      setEmail('');
+      setEmail("");
       loadSharedWith();
     }
   };
@@ -120,7 +127,7 @@ export function ShareDialog({
     const { error } = await onRemoveShare(shareId);
     if (!error) {
       toast({
-        title: 'Access Removed',
+        title: "Access Removed",
         description: `Removed access for ${userEmail}`,
       });
       loadSharedWith();
@@ -134,7 +141,7 @@ export function ShareDialog({
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Share2 className="w-5 h-5 text-primary" />
-            <h2 className="font-semibold">Share {itemType === 'task' ? 'Task' : 'Event'}</h2>
+            <h2 className="font-semibold">Share {itemType === "task" ? "Task" : "Event"}</h2>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-5 h-5" />
@@ -160,7 +167,7 @@ export function ShareDialog({
                   placeholder="Enter email address"
                   autoComplete="off"
                 />
-                
+
                 {/* Autocomplete suggestions */}
                 {showSuggestions && availableSuggestions.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
@@ -170,7 +177,7 @@ export function ShareDialog({
                         type="button"
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors",
-                          "first:rounded-t-lg last:rounded-b-lg"
+                          "first:rounded-t-lg last:rounded-b-lg",
                         )}
                         onMouseDown={() => handleSelectContact(contact)}
                       >
@@ -181,10 +188,12 @@ export function ShareDialog({
                           {contact.displayName && (
                             <p className="text-sm font-medium truncate">{contact.displayName}</p>
                           )}
-                          <p className={cn(
-                            "text-xs truncate",
-                            contact.displayName ? "text-muted-foreground" : "text-sm"
-                          )}>
+                          <p
+                            className={cn(
+                              "text-xs truncate",
+                              contact.displayName ? "text-muted-foreground" : "text-sm",
+                            )}
+                          >
                             {contact.email}
                           </p>
                         </div>
@@ -193,7 +202,7 @@ export function ShareDialog({
                   </div>
                 )}
               </div>
-              <Select value={permission} onValueChange={(v: 'view' | 'edit') => setPermission(v)}>
+              <Select value={permission} onValueChange={(v: "view" | "edit") => setPermission(v)}>
                 <SelectTrigger className="w-24">
                   <SelectValue />
                 </SelectTrigger>
@@ -237,14 +246,12 @@ export function ShareDialog({
                       <p className="text-sm font-medium">
                         {share.shared_with?.display_name || share.shared_with?.email}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Can {share.permission}
-                      </p>
+                      <p className="text-xs text-muted-foreground">Can {share.permission}</p>
                     </div>
                     <Button
                       variant="ghost"
                       size="iconSm"
-                      onClick={() => handleRemove(share.id, share.shared_with?.email ?? '')}
+                      onClick={() => handleRemove(share.id, share.shared_with?.email ?? "")}
                     >
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>

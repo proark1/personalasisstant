@@ -1,12 +1,12 @@
-import { useMemo } from 'react';
-import { CalendarEvent, Task } from '@/types/flux';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Calendar, AlertTriangle, Moon } from 'lucide-react';
-import { format, addDays, startOfDay, endOfDay, isWithinInterval, getHours } from 'date-fns';
-import { de } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { useMemo } from "react";
+import { CalendarEvent, Task } from "@/types/flux";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Calendar, AlertTriangle, Moon } from "lucide-react";
+import { format, addDays, startOfDay, endOfDay, isWithinInterval, getHours } from "date-fns";
+import { de } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface WeekAtAGlanceProps {
   events: CalendarEvent[];
@@ -24,7 +24,7 @@ interface DaySummary {
 
 export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
   const { t, language } = useLanguage();
-  const dateLocale = language === 'de' ? de : undefined;
+  const dateLocale = language === "de" ? de : undefined;
 
   const weekDays = useMemo(() => {
     const today = startOfDay(new Date());
@@ -37,26 +37,32 @@ export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
       const dayEnd = endOfDay(date);
 
       // Get events for this day
-      const dayEvents = events.filter(e => 
-        isWithinInterval(e.startTime, { start: dayStart, end: dayEnd })
-      ).sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+      const dayEvents = events
+        .filter((e) => isWithinInterval(e.startTime, { start: dayStart, end: dayEnd }))
+        .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
       // Get tasks due this day
-      const dayTasks = tasks.filter(t => 
-        !t.completed && 
-        t.dueDate && 
-        isWithinInterval(t.dueDate, { start: dayStart, end: dayEnd })
+      const dayTasks = tasks.filter(
+        (t) =>
+          !t.completed &&
+          t.dueDate &&
+          isWithinInterval(t.dueDate, { start: dayStart, end: dayEnd }),
       );
 
       // Check for evening commitments (after 5pm / 17:00)
-      const hasEveningCommitment = dayEvents.some(e => getHours(e.startTime) >= 17);
+      const hasEveningCommitment = dayEvents.some((e) => getHours(e.startTime) >= 17);
 
-      const todayLabel = language === 'de' ? 'Heute' : 'Today';
-      const tomorrowLabel = language === 'de' ? 'Morgen' : 'Tomorrow';
+      const todayLabel = language === "de" ? "Heute" : "Today";
+      const tomorrowLabel = language === "de" ? "Morgen" : "Tomorrow";
 
       days.push({
         date,
-        dayName: i === 0 ? todayLabel : i === 1 ? tomorrowLabel : format(date, 'EEEE', { locale: dateLocale }),
+        dayName:
+          i === 0
+            ? todayLabel
+            : i === 1
+              ? tomorrowLabel
+              : format(date, "EEEE", { locale: dateLocale }),
         events: dayEvents,
         tasks: dayTasks,
         hasEveningCommitment,
@@ -67,7 +73,7 @@ export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
     return days;
   }, [events, tasks, language, dateLocale]);
 
-  const eveningWarnings = weekDays.filter(d => d.hasEveningCommitment && !d.isToday).length;
+  const eveningWarnings = weekDays.filter((d) => d.hasEveningCommitment && !d.isToday).length;
 
   return (
     <Card className="border-border/50">
@@ -75,12 +81,12 @@ export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-medium">{t('weekGlance.title')}</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("weekGlance.title")}</CardTitle>
           </div>
           {eveningWarnings > 0 && (
             <Badge variant="outline" className="text-xs gap-1 text-amber-500 border-amber-500/30">
               <Moon className="h-3 w-3" />
-              {eveningWarnings} {t('weekGlance.eveningBusy')}
+              {eveningWarnings} {t("weekGlance.eveningBusy")}
             </Badge>
           )}
         </div>
@@ -92,21 +98,20 @@ export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
             className={cn(
               "flex items-center gap-3 p-2 rounded-lg text-sm",
               day.isToday && "bg-primary/10 border border-primary/20",
-              !day.isToday && "hover:bg-muted/50"
+              !day.isToday && "hover:bg-muted/50",
             )}
           >
             {/* Day Label */}
-            <div className={cn(
-              "w-24 shrink-0 font-medium",
-              day.isToday && "text-primary"
-            )}>
+            <div className={cn("w-24 shrink-0 font-medium", day.isToday && "text-primary")}>
               {day.dayName}
             </div>
 
             {/* Content */}
             <div className="flex-1 min-w-0">
               {day.events.length === 0 && day.tasks.length === 0 ? (
-                <span className="text-muted-foreground text-xs">{t('weekGlance.noCommitments')}</span>
+                <span className="text-muted-foreground text-xs">
+                  {t("weekGlance.noCommitments")}
+                </span>
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {day.events.slice(0, 2).map((event) => (
@@ -115,20 +120,22 @@ export function WeekAtAGlance({ events, tasks }: WeekAtAGlanceProps) {
                       variant="secondary"
                       className={cn(
                         "text-xs truncate max-w-[120px]",
-                        getHours(event.startTime) >= 17 && "bg-amber-500/20 text-amber-600 border-amber-500/30"
+                        getHours(event.startTime) >= 17 &&
+                          "bg-amber-500/20 text-amber-600 border-amber-500/30",
                       )}
                     >
-                      {format(event.startTime, 'HH:mm')} {event.title}
+                      {format(event.startTime, "HH:mm")} {event.title}
                     </Badge>
                   ))}
                   {day.tasks.length > 0 && (
                     <Badge variant="outline" className="text-xs text-muted-foreground">
-                      {day.tasks.length} {day.tasks.length > 1 ? t('weekGlance.tasks') : t('weekGlance.task')}
+                      {day.tasks.length}{" "}
+                      {day.tasks.length > 1 ? t("weekGlance.tasks") : t("weekGlance.task")}
                     </Badge>
                   )}
                   {day.events.length > 2 && (
                     <Badge variant="outline" className="text-xs">
-                      +{day.events.length - 2} {t('weekGlance.more')}
+                      +{day.events.length - 2} {t("weekGlance.more")}
                     </Badge>
                   )}
                 </div>

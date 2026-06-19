@@ -1,12 +1,24 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useShoppingLists } from '@/hooks/useShoppingLists';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useShoppingLists } from "@/hooks/useShoppingLists";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 
 interface AddShoppingListDialogProps {
   open: boolean;
@@ -15,22 +27,26 @@ interface AddShoppingListDialogProps {
 }
 
 const categories = [
-  { value: 'grocery', label: 'Grocery' },
-  { value: 'household', label: 'Household' },
-  { value: 'pharmacy', label: 'Pharmacy' },
-  { value: 'clothing', label: 'Clothing' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'other', label: 'Other' },
+  { value: "grocery", label: "Grocery" },
+  { value: "household", label: "Household" },
+  { value: "pharmacy", label: "Pharmacy" },
+  { value: "clothing", label: "Clothing" },
+  { value: "electronics", label: "Electronics" },
+  { value: "other", label: "Other" },
 ];
 
-export function AddShoppingListDialog({ open, onOpenChange, isTemplate = false }: AddShoppingListDialogProps) {
+export function AddShoppingListDialog({
+  open,
+  onOpenChange,
+  isTemplate = false,
+}: AddShoppingListDialogProps) {
   const { addList } = useShoppingLists();
   const { members } = useFamilyMembers();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('grocery');
-  const [assignedTo, setAssignedTo] = useState<string>('');
-  const [dueDate, setDueDate] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("grocery");
+  const [assignedTo, setAssignedTo] = useState<string>("");
+  const [dueDate, setDueDate] = useState("");
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -45,11 +61,11 @@ export function AddShoppingListDialog({ open, onOpenChange, isTemplate = false }
       due_date: dueDate ? new Date(dueDate).toISOString() : null,
     });
 
-    setName('');
-    setDescription('');
-    setCategory('grocery');
-    setAssignedTo('');
-    setDueDate('');
+    setName("");
+    setDescription("");
+    setCategory("grocery");
+    setAssignedTo("");
+    setDueDate("");
     onOpenChange(false);
   };
 
@@ -57,9 +73,7 @@ export function AddShoppingListDialog({ open, onOpenChange, isTemplate = false }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {isTemplate ? 'Create Shopping Template' : 'New Shopping List'}
-          </DialogTitle>
+          <DialogTitle>{isTemplate ? "Create Shopping Template" : "New Shopping List"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -69,7 +83,7 @@ export function AddShoppingListDialog({ open, onOpenChange, isTemplate = false }
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={isTemplate ? 'e.g., Weekly Groceries' : 'e.g., Saturday Shopping'}
+              placeholder={isTemplate ? "e.g., Weekly Groceries" : "e.g., Saturday Shopping"}
             />
           </div>
 
@@ -104,7 +118,10 @@ export function AddShoppingListDialog({ open, onOpenChange, isTemplate = false }
             <>
               <div className="space-y-2">
                 <Label htmlFor="assignedTo">Assign to (optional)</Label>
-                <Select value={assignedTo || "_none"} onValueChange={(v) => setAssignedTo(v === "_none" ? "" : v)}>
+                <Select
+                  value={assignedTo || "_none"}
+                  onValueChange={(v) => setAssignedTo(v === "_none" ? "" : v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select family member" />
                   </SelectTrigger>
@@ -137,7 +154,7 @@ export function AddShoppingListDialog({ open, onOpenChange, isTemplate = false }
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!name.trim()}>
-            {isTemplate ? 'Create Template' : 'Create List'}
+            {isTemplate ? "Create Template" : "Create List"}
           </Button>
         </DialogFooter>
       </DialogContent>

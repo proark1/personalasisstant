@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, X, Check } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, X, Check } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Conflict {
   id: string;
@@ -24,11 +24,11 @@ export function ConflictAlertsCard() {
     if (!user?.id) return;
     const load = async () => {
       const { data } = await supabase
-        .from('detected_conflicts')
-        .select('id, conflict_type, severity, title, description, suggested_resolution')
-        .eq('user_id', user.id)
-        .eq('status', 'open')
-        .order('detected_at', { ascending: false })
+        .from("detected_conflicts")
+        .select("id, conflict_type, severity, title, description, suggested_resolution")
+        .eq("user_id", user.id)
+        .eq("status", "open")
+        .order("detected_at", { ascending: false })
         .limit(5);
       setConflicts((data ?? []) as Conflict[]);
     };
@@ -37,16 +37,30 @@ export function ConflictAlertsCard() {
 
   const dismiss = async (id: string) => {
     if (!user?.id) return;
-    const { error } = await supabase.from('detected_conflicts').update({ status: 'dismissed' }).eq('id', id).eq('user_id', user.id);
-    if (error) { toast.error('Could not dismiss'); return; }
-    setConflicts(prev => prev.filter(c => c.id !== id));
+    const { error } = await supabase
+      .from("detected_conflicts")
+      .update({ status: "dismissed" })
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) {
+      toast.error("Could not dismiss");
+      return;
+    }
+    setConflicts((prev) => prev.filter((c) => c.id !== id));
   };
   const ack = async (id: string) => {
     if (!user?.id) return;
-    const { error } = await supabase.from('detected_conflicts').update({ status: 'acknowledged', resolved_at: new Date().toISOString() }).eq('id', id).eq('user_id', user.id);
-    if (error) { toast.error('Could not update'); return; }
-    setConflicts(prev => prev.filter(c => c.id !== id));
-    toast.success('Marked as handled');
+    const { error } = await supabase
+      .from("detected_conflicts")
+      .update({ status: "acknowledged", resolved_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) {
+      toast.error("Could not update");
+      return;
+    }
+    setConflicts((prev) => prev.filter((c) => c.id !== id));
+    toast.success("Marked as handled");
   };
 
   if (!conflicts.length) return null;
@@ -58,12 +72,15 @@ export function ConflictAlertsCard() {
         <h3 className="font-semibold text-sm">Schedule conflicts ({conflicts.length})</h3>
       </div>
       <div className="space-y-2">
-        {conflicts.map(c => (
+        {conflicts.map((c) => (
           <div key={c.id} className="flex items-start gap-2 p-2 rounded-md bg-muted/40">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <Badge variant={c.severity === 'high' ? 'destructive' : 'secondary'} className="text-[10px]">
-                  {c.conflict_type.replace('_', ' ')}
+                <Badge
+                  variant={c.severity === "high" ? "destructive" : "secondary"}
+                  className="text-[10px]"
+                >
+                  {c.conflict_type.replace("_", " ")}
                 </Badge>
                 <p className="text-xs font-medium truncate">{c.title}</p>
               </div>

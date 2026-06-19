@@ -1,8 +1,8 @@
 // Notification sound utilities
 
-import { Capacitor } from '@capacitor/core';
+import { Capacitor } from "@capacitor/core";
 
-type SoundType = 'message' | 'call' | 'notification';
+type SoundType = "message" | "call" | "notification";
 
 const soundFrequencies: Record<SoundType, { freq: number; duration: number; pattern: number[] }> = {
   message: { freq: 880, duration: 0.15, pattern: [1] },
@@ -15,10 +15,12 @@ let audioContext: AudioContext | null = null;
 function getAudioContext(): AudioContext | null {
   if (!audioContext) {
     try {
-      const AudioCtx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       audioContext = new AudioCtx!();
     } catch {
-      console.warn('Audio context not supported');
+      console.warn("Audio context not supported");
       return null;
     }
   }
@@ -42,7 +44,7 @@ export function playSound(type: SoundType): void {
       gainNode.connect(ctx.destination);
 
       oscillator.frequency.value = freq * multiplier;
-      oscillator.type = 'sine';
+      oscillator.type = "sine";
 
       const startTime = ctx.currentTime + timeOffset;
       gainNode.gain.setValueAtTime(0.3, startTime);
@@ -60,15 +62,15 @@ export function playSound(type: SoundType): void {
 }
 
 export function playMessageSound(): void {
-  playSound('message');
+  playSound("message");
 }
 
 export function playCallSound(): void {
-  playSound('call');
+  playSound("call");
 }
 
 export function playNotificationSound(): void {
-  playSound('notification');
+  playSound("notification");
 }
 
 // Ringtone for incoming calls - plays repeatedly
@@ -89,25 +91,28 @@ export function stopRingtone(): void {
   }
 }
 
-// Service Worker registration for push notifications (web only)
+// Dedicated notification Service Worker registration (web only). The app PWA
+// cache is handled separately by vite-plugin-pwa at /sw.js.
 let serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   // Avoid SW caching issues in native (WKWebView supports SW and can cache stale bundles).
   if (Capacitor.isNativePlatform()) return null;
 
-  if (!('serviceWorker' in navigator)) {
-    console.warn('Service workers not supported');
+  if (!("serviceWorker" in navigator)) {
+    console.warn("Service workers not supported");
     return null;
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
+    const registration = await navigator.serviceWorker.register("/notifications-sw.js", {
+      scope: "/notifications/",
+    });
     serviceWorkerRegistration = registration;
-    console.log('Service Worker registered:', registration);
+    console.log("Service Worker registered:", registration);
     return registration;
   } catch (error) {
-    console.error('Service Worker registration failed:', error);
+    console.error("Service Worker registration failed:", error);
     return null;
   }
 }
@@ -115,28 +120,28 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 // Listen for messages from service worker
 export function setupServiceWorkerListener(
   onAnswer: () => void,
-  onDecline: () => void
+  onDecline: () => void,
 ): () => void {
   if (Capacitor.isNativePlatform()) return () => {};
 
-  if (!('serviceWorker' in navigator)) {
+  if (!("serviceWorker" in navigator)) {
     return () => {};
   }
 
   const handleMessage = (event: MessageEvent) => {
-    if (event.data.type === 'NOTIFICATION_CLICK') {
-      if (event.data.action === 'answer') {
+    if (event.data.type === "NOTIFICATION_CLICK") {
+      if (event.data.action === "answer") {
         onAnswer();
-      } else if (event.data.action === 'decline') {
+      } else if (event.data.action === "decline") {
         onDecline();
       }
     }
   };
 
-  navigator.serviceWorker.addEventListener('message', handleMessage);
+  navigator.serviceWorker.addEventListener("message", handleMessage);
 
   return () => {
-    navigator.serviceWorker.removeEventListener('message', handleMessage);
+    navigator.serviceWorker.removeEventListener("message", handleMessage);
   };
 }
 
@@ -148,26 +153,30 @@ export async function requestNotificationPermission(): Promise<boolean> {
     permission: NotificationPermission;
     requestPermission?: () => Promise<NotificationPermission>;
   };
-  const BrowserNotification = (typeof window !== 'undefined'
-    ? (window as Window & { Notification?: BrowserNotificationConstructor }).Notification
-    : undefined);
+  const BrowserNotification =
+    typeof window !== "undefined"
+      ? (window as Window & { Notification?: BrowserNotificationConstructor }).Notification
+      : undefined;
 
   if (!BrowserNotification) {
     return false;
   }
 
-  if (BrowserNotification.permission === 'granted') {
+  if (BrowserNotification.permission === "granted") {
     // Also register service worker for push notifications
     await registerServiceWorker();
     return true;
   }
 
-  if (BrowserNotification.permission !== 'denied' && typeof BrowserNotification.requestPermission === 'function') {
+  if (
+    BrowserNotification.permission !== "denied" &&
+    typeof BrowserNotification.requestPermission === "function"
+  ) {
     const permission = await BrowserNotification.requestPermission();
-    if (permission === 'granted') {
+    if (permission === "granted") {
       await registerServiceWorker();
     }
-    return permission === 'granted';
+    return permission === "granted";
   }
 
   return false;
@@ -175,21 +184,22 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 export function showDesktopNotification(
   title: string,
-  options?: NotificationOptions
+  options?: NotificationOptions,
 ): Notification | null {
   type BrowserNotificationConstructor = typeof Notification & {
     permission: NotificationPermission;
   };
-  const BrowserNotification = (typeof window !== 'undefined'
-    ? (window as Window & { Notification?: BrowserNotificationConstructor }).Notification
-    : undefined);
+  const BrowserNotification =
+    typeof window !== "undefined"
+      ? (window as Window & { Notification?: BrowserNotificationConstructor }).Notification
+      : undefined;
 
-  if (!BrowserNotification || BrowserNotification.permission !== 'granted') {
+  if (!BrowserNotification || BrowserNotification.permission !== "granted") {
     return null;
   }
 
   return new BrowserNotification(title, {
-    icon: '/pwa-192x192.svg',
+    icon: "/pwa-192x192.svg",
     ...options,
   });
 }
@@ -197,31 +207,31 @@ export function showDesktopNotification(
 export function showMessageNotification(senderName: string, message: string): void {
   playMessageSound();
   showDesktopNotification(`New message from ${senderName}`, {
-    body: message.length > 100 ? message.slice(0, 100) + '...' : message,
-    tag: 'chat-message',
+    body: message.length > 100 ? message.slice(0, 100) + "..." : message,
+    tag: "chat-message",
   });
 }
 
 export function showCallNotification(
-  callerName: string, 
-  callType: 'video' | 'audio',
-  sessionId?: string
+  callerName: string,
+  callType: "video" | "audio",
+  sessionId?: string,
 ): void {
   startRingtone();
-  
+
   // Try to use service worker for background notifications
   if (serviceWorkerRegistration?.active) {
     serviceWorkerRegistration.active.postMessage({
-      type: 'SHOW_CALL_NOTIFICATION',
+      type: "SHOW_CALL_NOTIFICATION",
       callerName,
       callType,
-      sessionId
+      sessionId,
     });
   } else {
     // Fallback to regular notification
     showDesktopNotification(`Incoming ${callType} call`, {
       body: `${callerName} is calling you`,
-      tag: 'incoming-call',
+      tag: "incoming-call",
       requireInteraction: true,
     });
   }

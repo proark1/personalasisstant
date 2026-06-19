@@ -1,25 +1,18 @@
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Input } from '@/components/ui/input';
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { 
-  Target, 
-  Flame, 
-  BookOpen, 
-  TrendingUp, 
-  Settings, 
-  CheckCircle2
-} from 'lucide-react';
-import { useQuranReadingProgress } from '@/hooks/useQuranReadingProgress';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/dialog";
+import { Target, Flame, BookOpen, TrendingUp, Settings, CheckCircle2 } from "lucide-react";
+import { useQuranReadingProgress } from "@/hooks/useQuranReadingProgress";
+import { cn } from "@/lib/utils";
 
 export function QuranProgressPanel() {
   const {
@@ -55,12 +48,14 @@ export function QuranProgressPanel() {
   return (
     <div className="p-4 space-y-4">
       {/* Today's Progress Card */}
-      <Card className={cn(
-        "p-4 bg-gradient-to-br",
-        goalCompleted 
-          ? "from-emerald-500/20 via-green-500/10 to-background border-emerald-500/30" 
-          : "from-primary/20 via-primary/10 to-background border-primary/30"
-      )}>
+      <Card
+        className={cn(
+          "p-4 bg-gradient-to-br",
+          goalCompleted
+            ? "from-emerald-500/20 via-green-500/10 to-background border-emerald-500/30"
+            : "from-primary/20 via-primary/10 to-background border-primary/30",
+        )}
+      >
         <div className="flex items-start justify-between mb-3">
           <div>
             <p className="text-sm text-muted-foreground">Today's Progress</p>
@@ -71,9 +66,7 @@ export function QuranProgressPanel() {
                   /{goal?.daily_ayahs_goal || 10}
                 </span>
               </h3>
-              {goalCompleted && (
-                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-              )}
+              {goalCompleted && <CheckCircle2 className="w-6 h-6 text-emerald-500" />}
             </div>
             <p className="text-xs text-muted-foreground">ayahs read</p>
           </div>
@@ -98,7 +91,8 @@ export function QuranProgressPanel() {
                     max={500}
                   />
                   <p className="text-xs text-muted-foreground">
-                    At this pace, you'll complete the Quran in approximately {Math.ceil(6236 / (newGoal || 1))} days
+                    At this pace, you'll complete the Quran in approximately{" "}
+                    {Math.ceil(6236 / (newGoal || 1))} days
                   </p>
                 </div>
                 <Button onClick={handleSaveGoal} className="w-full">
@@ -108,12 +102,9 @@ export function QuranProgressPanel() {
             </DialogContent>
           </Dialog>
         </div>
-        <Progress 
-          value={Math.min(todayGoalProgress, 100)} 
-          className={cn(
-            "h-3",
-            goalCompleted && "[&>div]:bg-emerald-500"
-          )}
+        <Progress
+          value={Math.min(todayGoalProgress, 100)}
+          className={cn("h-3", goalCompleted && "[&>div]:bg-emerald-500")}
         />
         {goalCompleted ? (
           <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
@@ -121,7 +112,8 @@ export function QuranProgressPanel() {
           </p>
         ) : (
           <p className="text-xs text-muted-foreground mt-2">
-            {goal ? goal.daily_ayahs_goal - todayAyahsRead : 10 - todayAyahsRead} more ayahs to reach your goal
+            {goal ? goal.daily_ayahs_goal - todayAyahsRead : 10 - todayAyahsRead} more ayahs to
+            reach your goal
           </p>
         )}
       </Card>
@@ -153,30 +145,31 @@ export function QuranProgressPanel() {
         </div>
         <div className="flex items-end justify-between gap-1 h-24">
           {weeklyStats.map((day, i) => {
-            const maxAyahs = Math.max(...weeklyStats.map(d => d.ayahsRead), goal?.daily_ayahs_goal || 10);
+            const maxAyahs = Math.max(
+              ...weeklyStats.map((d) => d.ayahsRead),
+              goal?.daily_ayahs_goal || 10,
+            );
             const height = maxAyahs > 0 ? (day.ayahsRead / maxAyahs) * 100 : 0;
             const isToday = i === weeklyStats.length - 1;
             const reachedGoal = goal && day.ayahsRead >= goal.daily_ayahs_goal;
-            
+
             return (
               <div key={day.date} className="flex flex-col items-center flex-1">
                 <div className="relative w-full flex justify-center mb-1">
                   <div
                     className={cn(
                       "w-full max-w-8 rounded-t transition-all",
-                      reachedGoal 
-                        ? "bg-emerald-500" 
-                        : isToday 
-                          ? "bg-primary" 
-                          : "bg-primary/40"
+                      reachedGoal ? "bg-emerald-500" : isToday ? "bg-primary" : "bg-primary/40",
                     )}
-                    style={{ height: `${Math.max(height, 4)}%`, minHeight: '4px' }}
+                    style={{ height: `${Math.max(height, 4)}%`, minHeight: "4px" }}
                   />
                 </div>
-                <span className={cn(
-                  "text-xs",
-                  isToday ? "font-medium text-primary" : "text-muted-foreground"
-                )}>
+                <span
+                  className={cn(
+                    "text-xs",
+                    isToday ? "font-medium text-primary" : "text-muted-foreground",
+                  )}
+                >
                   {day.date}
                 </span>
               </div>
@@ -186,7 +179,9 @@ export function QuranProgressPanel() {
         {goal && (
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
             <div className="w-3 h-3 rounded bg-emerald-500" />
-            <span className="text-xs text-muted-foreground">Goal reached ({goal.daily_ayahs_goal} ayahs)</span>
+            <span className="text-xs text-muted-foreground">
+              Goal reached ({goal.daily_ayahs_goal} ayahs)
+            </span>
           </div>
         )}
       </Card>

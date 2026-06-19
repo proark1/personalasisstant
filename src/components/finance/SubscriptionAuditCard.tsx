@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ShieldCheck, AlertTriangle, ChevronRight, Mail, Loader2 } from 'lucide-react';
-import type { SubscriptionAuditRow } from '@/hooks/useFinanceSummary';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ShieldCheck, AlertTriangle, ChevronRight, Mail, Loader2 } from "lucide-react";
+import type { SubscriptionAuditRow } from "@/hooks/useFinanceSummary";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { toast } from "sonner";
 
 // Closes the loop on detect-recurring-payments: now we cross-reference
 // every active contract with the actual transaction history and flag:
@@ -30,7 +30,7 @@ export function SubscriptionAuditCard({ rows }: { rows: SubscriptionAuditRow[] }
     return (b.total_charged_90d ?? 0) - (a.total_charged_90d ?? 0);
   });
 
-  const ghostCount = sorted.filter((r) => flagFor(r) === 'ghost').length;
+  const ghostCount = sorted.filter((r) => flagFor(r) === "ghost").length;
 
   return (
     <Card className="p-4 space-y-3">
@@ -47,10 +47,11 @@ export function SubscriptionAuditCard({ rows }: { rows: SubscriptionAuditRow[] }
             )}
           </h2>
           <p className="text-xs text-muted-foreground">
-            Each active contract cross-checked against bank transactions to find ghost subscriptions and runaway charges.
+            Each active contract cross-checked against bank transactions to find ghost subscriptions
+            and runaway charges.
           </p>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => navigate('/contracts')}>
+        <Button size="sm" variant="ghost" onClick={() => navigate("/contracts")}>
           Manage contracts
         </Button>
       </div>
@@ -70,36 +71,36 @@ export function SubscriptionAuditCard({ rows }: { rows: SubscriptionAuditRow[] }
   );
 }
 
-type AuditFlag = 'ghost' | 'charged' | 'unmatched';
+type AuditFlag = "ghost" | "charged" | "unmatched";
 
 function flagFor(r: SubscriptionAuditRow): AuditFlag {
-  if (!r.last_transaction_id) return 'unmatched';
-  if ((r.days_since_last_charge ?? 0) > 90) return 'ghost';
-  return 'charged';
+  if (!r.last_transaction_id) return "unmatched";
+  if ((r.days_since_last_charge ?? 0) > 90) return "ghost";
+  return "charged";
 }
 
 function AuditRow({ row }: { row: SubscriptionAuditRow }) {
   const [busy, setBusy] = useState(false);
   const flag = flagFor(row);
   const flagMeta: Record<AuditFlag, { label: string; tone: string }> = {
-    ghost:    { label: 'GHOST',    tone: 'bg-destructive/15 text-destructive' },
-    charged:  { label: 'CHARGED',  tone: 'bg-emerald-500/15 text-emerald-600' },
-    unmatched:{ label: 'NO MATCH', tone: 'bg-muted text-muted-foreground' },
+    ghost: { label: "GHOST", tone: "bg-destructive/15 text-destructive" },
+    charged: { label: "CHARGED", tone: "bg-emerald-500/15 text-emerald-600" },
+    unmatched: { label: "NO MATCH", tone: "bg-muted text-muted-foreground" },
   };
   const m = flagMeta[flag];
   const onCancelDraft = async () => {
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke('cancel-subscription', {
-        body: { contract_id: row.contract_id, tone: 'formal', language: 'en' },
+      const { data, error } = await supabase.functions.invoke("cancel-subscription", {
+        body: { contract_id: row.contract_id, tone: "formal", language: "en" },
       });
       if (error) throw error;
       const d = data as { error?: string; drafts_count?: number } | null;
       if (d?.error) throw new Error(d.error);
       const n = d?.drafts_count ?? 0;
-      toast.success(`Drafted ${n} version${n === 1 ? '' : 's'} · follow-up task added`);
+      toast.success(`Drafted ${n} version${n === 1 ? "" : "s"} · follow-up task added`);
     } catch (e) {
-      toast.error(await describeEdgeError(e, 'Failed'));
+      toast.error(await describeEdgeError(e, "Failed"));
     } finally {
       setBusy(false);
     }
@@ -121,13 +122,22 @@ function AuditRow({ row }: { row: SubscriptionAuditRow }) {
           <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
             {row.expected_amount != null && (
               <span>
-                Expected: <span className="font-medium text-foreground">{Number(row.expected_amount).toFixed(2)}</span>
-                {row.expected_frequency && <span className="text-muted-foreground"> /{row.expected_frequency}</span>}
+                Expected:{" "}
+                <span className="font-medium text-foreground">
+                  {Number(row.expected_amount).toFixed(2)}
+                </span>
+                {row.expected_frequency && (
+                  <span className="text-muted-foreground"> /{row.expected_frequency}</span>
+                )}
               </span>
             )}
             {row.last_transaction_date && (
               <span>
-                Last: <span className="font-medium text-foreground">{Number(row.last_transaction_amount ?? 0).toFixed(2)}</span> on {row.last_transaction_date}
+                Last:{" "}
+                <span className="font-medium text-foreground">
+                  {Number(row.last_transaction_amount ?? 0).toFixed(2)}
+                </span>{" "}
+                on {row.last_transaction_date}
               </span>
             )}
             {row.charge_count_90d != null && row.charge_count_90d > 0 && (

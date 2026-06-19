@@ -1,14 +1,9 @@
-import { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { ExternalLink, Loader2, FileText, Image as ImageIcon } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { ExternalLink, Loader2, FileText, Image as ImageIcon } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface DocumentPreviewDialogProps {
   open: boolean;
@@ -21,7 +16,7 @@ export function DocumentPreviewDialog({
   open,
   onOpenChange,
   documentPath,
-  contractName
+  contractName,
 }: DocumentPreviewDialogProps) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,7 +30,7 @@ export function DocumentPreviewDialog({
       }
 
       // If it's already a full URL, use it directly
-      if (documentPath.startsWith('http')) {
+      if (documentPath.startsWith("http")) {
         setSignedUrl(documentPath);
         return;
       }
@@ -45,18 +40,18 @@ export function DocumentPreviewDialog({
 
       try {
         const { data, error: signedUrlError } = await supabase.storage
-          .from('contract-documents')
+          .from("contract-documents")
           .createSignedUrl(documentPath, 60 * 60); // 1 hour
 
         if (signedUrlError) {
-          setError('Could not load document');
-          console.error('Signed URL error:', signedUrlError);
+          setError("Could not load document");
+          console.error("Signed URL error:", signedUrlError);
         } else if (data?.signedUrl) {
           setSignedUrl(data.signedUrl);
         }
       } catch (err) {
-        setError('Could not load document');
-        console.error('Document preview error:', err);
+        setError("Could not load document");
+        console.error("Document preview error:", err);
       } finally {
         setLoading(false);
       }
@@ -65,18 +60,18 @@ export function DocumentPreviewDialog({
     getSignedUrl();
   }, [documentPath, open]);
 
-  const isImage = documentPath && (
-    documentPath.endsWith('.jpg') || 
-    documentPath.endsWith('.jpeg') || 
-    documentPath.endsWith('.png') || 
-    documentPath.endsWith('.webp')
-  );
+  const isImage =
+    documentPath &&
+    (documentPath.endsWith(".jpg") ||
+      documentPath.endsWith(".jpeg") ||
+      documentPath.endsWith(".png") ||
+      documentPath.endsWith(".webp"));
 
-  const isPdf = documentPath && documentPath.endsWith('.pdf');
+  const isPdf = documentPath && documentPath.endsWith(".pdf");
 
   const openInNewTab = () => {
     if (signedUrl) {
-      window.open(signedUrl, '_blank');
+      window.open(signedUrl, "_blank");
     }
   };
 
@@ -87,7 +82,7 @@ export function DocumentPreviewDialog({
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
               {isImage ? <ImageIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
-              {contractName || 'Document Preview'}
+              {contractName || "Document Preview"}
             </DialogTitle>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={openInNewTab}>
@@ -122,7 +117,7 @@ export function DocumentPreviewDialog({
                   <div className="p-4 flex items-center justify-center">
                     <img
                       src={signedUrl}
-                      alt={contractName || 'Contract document'}
+                      alt={contractName || "Contract document"}
                       className="max-w-full h-auto rounded-lg shadow-lg"
                     />
                   </div>
@@ -131,7 +126,7 @@ export function DocumentPreviewDialog({
                 <iframe
                   src={signedUrl}
                   className="w-full h-[600px] border-0"
-                  title={contractName || 'Contract document'}
+                  title={contractName || "Contract document"}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-[500px] text-muted-foreground">

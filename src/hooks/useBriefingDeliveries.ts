@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 export interface BriefingNewsItem {
   headline: string;
@@ -32,13 +32,13 @@ export function useBriefingDeliveries(limit = 10) {
     if (!user?.id) return;
     try {
       const { data, error } = await db
-        .from('briefing_deliveries')
-        .select('id, briefing_id, generated_at, content, channels_sent, status, briefings(name)')
-        .eq('user_id', user.id)
-        .order('generated_at', { ascending: false })
+        .from("briefing_deliveries")
+        .select("id, briefing_id, generated_at, content, channels_sent, status, briefings(name)")
+        .eq("user_id", user.id)
+        .order("generated_at", { ascending: false })
         .limit(limit);
       if (error) {
-        console.error('Error fetching briefing deliveries:', error);
+        console.error("Error fetching briefing deliveries:", error);
       } else {
         interface DeliveryRow {
           id: string;
@@ -62,13 +62,15 @@ export function useBriefingDeliveries(limit = 10) {
         );
       }
     } catch (err) {
-      console.error('Failed to fetch briefing deliveries:', err);
+      console.error("Failed to fetch briefing deliveries:", err);
     } finally {
       setLoading(false);
     }
   }, [user?.id, limit]);
 
-  useEffect(() => { fetchDeliveries(); }, [fetchDeliveries]);
+  useEffect(() => {
+    fetchDeliveries();
+  }, [fetchDeliveries]);
 
   return { deliveries, loading, refetch: fetchDeliveries };
 }

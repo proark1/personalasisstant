@@ -7,13 +7,12 @@ describe("cleanAssistantContent", () => {
   });
 
   it("strips a task tool block", () => {
-    const input = 'Sure thing. <tool>manage_task<action>add</action></task> Done!';
+    const input = "Sure thing. <tool>manage_task<action>add</action></task> Done!";
     expect(cleanAssistantContent(input)).toBe("Sure thing.  Done!");
   });
 
   it("strips multiple consecutive tool blocks", () => {
-    const input =
-      'Working on it. <tool>foo</task><tool>bar</event> All set.';
+    const input = "Working on it. <tool>foo</task><tool>bar</event> All set.";
     expect(cleanAssistantContent(input)).toBe("Working on it.  All set.");
   });
 

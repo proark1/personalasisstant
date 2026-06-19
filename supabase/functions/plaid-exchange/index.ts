@@ -15,63 +15,71 @@
 //   4. Return { connection_id, accounts_count } so the UI can
 //      navigate to the new connection's detail card.
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   exchangePublicToken,
   getAccounts,
   getInstitution,
   loadConfig,
   normaliseAccountType,
-} from '../_shared/plaid.ts';
-import { encryptToken } from '../_shared/encryption.ts';
-import { strictAppOrigin } from '../_shared/cors.ts';
+} from "../_shared/plaid.ts";
+import { encryptToken } from "../_shared/encryption.ts";
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ error: 'Missing auth' }, 401);
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return json({ error: "Missing auth" }, 401);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const userClient = createClient(
       supabaseUrl,
-      Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!,
+      Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
-    const { data: { user }, error: uErr } = await userClient.auth.getUser();
-    if (uErr || !user) return json({ error: 'Unauthorized' }, 401);
+    const {
+      data: { user },
+      error: uErr,
+    } = await userClient.auth.getUser();
+    if (uErr || !user) return json({ error: "Unauthorized" }, 401);
 
-    const admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const body = await req.json().catch(() => ({}));
-    const publicToken = String(body.public_token || '').trim();
-    if (!publicToken) return json({ error: 'public_token is required' }, 400);
+    const publicToken = String(body.public_token || "").trim();
+    if (!publicToken) return json({ error: "public_token is required" }, 400);
 
-    const institutionInput = body.institution && typeof body.institution === 'object'
-      ? body.institution
-      : null;
+    const institutionInput =
+      body.institution && typeof body.institution === "object" ? body.institution : null;
     const institutionId: string | null = institutionInput?.id ? String(institutionInput.id) : null;
-    const institutionNameHint: string | null = institutionInput?.name ? String(institutionInput.name) : null;
+    const institutionNameHint: string | null = institutionInput?.name
+      ? String(institutionInput.name)
+      : null;
     const countryCodes: string[] = Array.isArray(institutionInput?.country_codes)
       ? institutionInput.country_codes.map((c: unknown) => String(c).toUpperCase()).slice(0, 5)
-      : ['US'];
+      : ["US"];
 
     let cfg;
-    try { cfg = loadConfig(); }
-    catch (e) { return json({ error: 'Plaid not configured', details: (e as Error).message }, 503); }
+    try {
+      cfg = loadConfig();
+    } catch (e) {
+      return json({ error: "Plaid not configured", details: (e as Error).message }, 503);
+    }
 
     // 1. Exchange.
     let exchanged;
-    try { exchanged = await exchangePublicToken(cfg, publicToken); }
-    catch (e) {
-      console.error('[plaid-exchange] exchange failed', (e as Error).message);
+    try {
+      exchanged = await exchangePublicToken(cfg, publicToken);
+    } catch (e) {
+      console.error("[plaid-exchange] exchange failed", (e as Error).message);
       return json({ error: (e as Error).message }, 502);
     }
 
@@ -82,7 +90,7 @@ serve(async (req) => {
         const inst = await getInstitution(cfg, institutionId, countryCodes);
         institutionName = inst.institution.name;
       } catch (e) {
-        console.warn('[plaid-exchange] institution lookup failed', (e as Error).message);
+        console.warn("[plaid-exchange] institution lookup failed", (e as Error).message);
       }
     }
 
@@ -92,27 +100,30 @@ serve(async (req) => {
     try {
       cipher = await encryptToken(exchanged.access_token);
     } catch (e) {
-      console.error('[plaid-exchange] encrypt failed', (e as Error).message);
+      console.error("[plaid-exchange] encrypt failed", (e as Error).message);
       return json({ error: `BANK_TOKEN_SECRET misconfigured: ${(e as Error).message}` }, 503);
     }
     const { data: conn, error: connErr } = await admin
-      .from('bank_connections')
-      .upsert({
-        user_id: user.id,
-        provider: 'plaid',
-        external_item_id: exchanged.item_id,
-        access_token_ciphertext: cipher,
-        institution_id: institutionId,
-        institution_name: institutionName,
-        status: 'good',
-        sync_cursor: '',
-        metadata: { country_codes: countryCodes },
-      }, { onConflict: 'user_id,provider,external_item_id' })
-      .select('id')
+      .from("bank_connections")
+      .upsert(
+        {
+          user_id: user.id,
+          provider: "plaid",
+          external_item_id: exchanged.item_id,
+          access_token_ciphertext: cipher,
+          institution_id: institutionId,
+          institution_name: institutionName,
+          status: "good",
+          sync_cursor: "",
+          metadata: { country_codes: countryCodes },
+        },
+        { onConflict: "user_id,provider,external_item_id" },
+      )
+      .select("id")
       .single();
     if (connErr || !conn) {
-      console.error('[plaid-exchange] connection upsert failed', connErr?.message);
-      return json({ error: connErr?.message || 'connection upsert failed' }, 500);
+      console.error("[plaid-exchange] connection upsert failed", connErr?.message);
+      return json({ error: connErr?.message || "connection upsert failed" }, 500);
     }
 
     // 4. Pull accounts and upsert.
@@ -124,35 +135,36 @@ serve(async (req) => {
       const rows = accounts.accounts.map((a) => ({
         user_id: user.id,
         bank_connection_id: conn.id,
-        source: 'plaid',
+        source: "plaid",
         external_id: a.account_id,
         name: a.official_name || a.name,
         account_type: normaliseAccountType(a.type, a.subtype),
         subtype: a.subtype || null,
         mask: a.mask || null,
-        currency: a.balances.iso_currency_code || 'USD',
+        currency: a.balances.iso_currency_code || "USD",
         current_balance: a.balances.current ?? a.balances.available ?? 0,
         institution: institutionName,
         is_active: true,
       }));
       if (rows.length) {
-        const { error: accErr, count } = await admin
-          .from('financial_accounts')
-          .upsert(rows, {
-            onConflict: 'user_id,source,external_id',
-            count: 'exact',
-          });
+        const { error: accErr, count } = await admin.from("financial_accounts").upsert(rows, {
+          onConflict: "user_id,source,external_id",
+          count: "exact",
+        });
         if (accErr) {
-          console.error('[plaid-exchange] account upsert failed', accErr.message);
-          return json({
-            error: accErr.message,
-            connection_id: conn.id,
-          }, 500);
+          console.error("[plaid-exchange] account upsert failed", accErr.message);
+          return json(
+            {
+              error: accErr.message,
+              connection_id: conn.id,
+            },
+            500,
+          );
         }
         accountsCount = count ?? rows.length;
       }
     } catch (e) {
-      console.error('[plaid-exchange] accounts fetch failed', (e as Error).message);
+      console.error("[plaid-exchange] accounts fetch failed", (e as Error).message);
       // Mark the connection healthy anyway — accounts can be re-pulled
       // by /plaid-sync. We just report what happened.
       return json({
@@ -168,7 +180,7 @@ serve(async (req) => {
       institution_name: institutionName,
     });
   } catch (err) {
-    console.error('[plaid-exchange] failed', (err as Error).message);
+    console.error("[plaid-exchange] failed", (err as Error).message);
     return json({ error: (err as Error).message }, 500);
   }
 });
@@ -178,8 +190,8 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: {
       ...corsHeaders,
-      'Content-Type': 'application/json',
-      'X-Content-Type-Options': 'nosniff',
+      "Content-Type": "application/json",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

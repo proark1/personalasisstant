@@ -1,13 +1,13 @@
-import { useState, type FormEvent } from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import { MessageSquare, Send, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/hooks/useAuth';
-import { useTaskComments } from '@/hooks/useTaskComments';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { toast } from 'sonner';
+import { useState, type FormEvent } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { MessageSquare, Send, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
+import { useTaskComments } from "@/hooks/useTaskComments";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
 
 interface TaskCommentsProps {
   taskId: string;
@@ -21,7 +21,7 @@ export function TaskComments({ taskId, className }: TaskCommentsProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { comments, loading, error, post, remove } = useTaskComments(taskId);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
@@ -30,10 +30,10 @@ export function TaskComments({ taskId, className }: TaskCommentsProps) {
     setPosting(true);
     try {
       await post(draft);
-      setDraft('');
+      setDraft("");
     } catch (err) {
-      console.error('post comment failed', err);
-      toast.error(t('comments.toast.saveFailed'));
+      console.error("post comment failed", err);
+      toast.error(t("comments.toast.saveFailed"));
     } finally {
       setPosting(false);
     }
@@ -43,8 +43,8 @@ export function TaskComments({ taskId, className }: TaskCommentsProps) {
     try {
       await remove(id);
     } catch (err) {
-      console.error('delete comment failed', err);
-      toast.error(t('comments.toast.deleteFailed'));
+      console.error("delete comment failed", err);
+      toast.error(t("comments.toast.deleteFailed"));
     }
   }
 
@@ -52,7 +52,7 @@ export function TaskComments({ taskId, className }: TaskCommentsProps) {
     <div className={className}>
       <div className="flex items-center gap-2 mb-2 text-sm font-medium text-muted-foreground">
         <MessageSquare className="w-4 h-4" />
-        <span>Comments {comments.length > 0 ? `(${comments.length})` : ''}</span>
+        <span>Comments {comments.length > 0 ? `(${comments.length})` : ""}</span>
       </div>
 
       {loading ? (
@@ -63,7 +63,9 @@ export function TaskComments({ taskId, className }: TaskCommentsProps) {
       ) : error ? (
         <p className="text-xs text-destructive">{error}</p>
       ) : comments.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">No comments yet — start the conversation.</p>
+        <p className="text-xs text-muted-foreground italic">
+          No comments yet — start the conversation.
+        </p>
       ) : (
         <ul className="space-y-2">
           {comments.map((c) => {
@@ -73,15 +75,15 @@ export function TaskComments({ taskId, className }: TaskCommentsProps) {
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                   <span className="font-medium text-foreground">
                     {mine
-                      ? 'You'
-                      : (c.authorName || (c.author_id ? c.author_id.slice(0, 8) : 'Removed user'))}
+                      ? "You"
+                      : c.authorName || (c.author_id ? c.author_id.slice(0, 8) : "Removed user")}
                   </span>
                   <span>·</span>
                   <span>{formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
-                  {c.source && c.source !== 'web' && (
+                  {c.source && c.source !== "web" && (
                     <>
                       <span>·</span>
-                      <span className="lowercase">{c.source.replace(/_/g, ' ')}</span>
+                      <span className="lowercase">{c.source.replace(/_/g, " ")}</span>
                     </>
                   )}
                   {mine && (
@@ -113,7 +115,7 @@ export function TaskComments({ taskId, className }: TaskCommentsProps) {
           className="resize-none text-sm"
           onKeyDown={(e) => {
             // Cmd/Ctrl-Enter submits — matches the rest of the app.
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
               e.preventDefault();
               if (draft.trim() && !posting) handleSubmit(e as unknown as FormEvent);
             }

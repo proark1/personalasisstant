@@ -1,46 +1,49 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Task, CalendarEvent } from '@/types/flux';
-import { useAIAssistant } from '@/hooks/useAIAssistant';
-import { 
-  Sparkles, 
-  CalendarClock, 
-  Loader2, 
-  Clock, 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Task, CalendarEvent } from "@/types/flux";
+import { useAIAssistant } from "@/hooks/useAIAssistant";
+import {
+  Sparkles,
+  CalendarClock,
+  Loader2,
+  Clock,
   CheckCircle2,
   Coffee,
   Target,
-  Lightbulb
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format, parse } from 'date-fns';
+  Lightbulb,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format, parse } from "date-fns";
 
 interface AICommandPanelProps {
   tasks: Task[];
   events: CalendarEvent[];
-  onAddSubtasks?: (parentId: string, subtasks: { title: string; priority: 'high' | 'medium' | 'low' }[]) => void;
+  onAddSubtasks?: (
+    parentId: string,
+    subtasks: { title: string; priority: "high" | "medium" | "low" }[],
+  ) => void;
   onRescheduleTask?: (taskId: string, newDate: Date) => void;
 }
 
-export function AICommandPanel({ 
-  tasks, 
+export function AICommandPanel({
+  tasks,
   events,
   onAddSubtasks: _onAddSubtasks,
   onRescheduleTask,
 }: AICommandPanelProps) {
   const [showDayPlan, setShowDayPlan] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
-  
-  const { 
-    isLoading, 
-    dayPlanResult, 
-    rescheduleResult,
-    suggestReschedule,
-    planMyDay,
-    clearResults,
-  } = useAIAssistant();
+
+  const { isLoading, dayPlanResult, rescheduleResult, suggestReschedule, planMyDay, clearResults } =
+    useAIAssistant();
 
   const handlePlanDay = async () => {
     setShowDayPlan(true);
@@ -54,15 +57,15 @@ export function AICommandPanel({
 
   const applyReschedule = (taskId: string, dateStr: string, timeStr: string) => {
     if (!onRescheduleTask) return;
-    
-    const dateTime = parse(`${dateStr} ${timeStr}`, 'yyyy-MM-dd HH:mm', new Date());
+
+    const dateTime = parse(`${dateStr} ${timeStr}`, "yyyy-MM-dd HH:mm", new Date());
     onRescheduleTask(taskId, dateTime);
     setShowReschedule(false);
     clearResults();
   };
 
-  const overdueTasks = tasks.filter(t => 
-    !t.completed && t.dueDate && new Date(t.dueDate) < new Date()
+  const overdueTasks = tasks.filter(
+    (t) => !t.completed && t.dueDate && new Date(t.dueDate) < new Date(),
   );
 
   const typeIcons = {
@@ -108,10 +111,13 @@ export function AICommandPanel({
       </div>
 
       {/* Day Plan Dialog */}
-      <Dialog open={showDayPlan} onOpenChange={(open) => {
-        setShowDayPlan(open);
-        if (!open) clearResults();
-      }}>
+      <Dialog
+        open={showDayPlan}
+        onOpenChange={(open) => {
+          setShowDayPlan(open);
+          if (!open) clearResults();
+        }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -139,13 +145,13 @@ export function AICommandPanel({
                 {/* Schedule */}
                 <div className="space-y-2">
                   {dayPlanResult.schedule.map((item, i) => (
-                    <div 
+                    <div
                       key={i}
                       className={cn(
                         "flex items-center gap-3 p-3 rounded-lg border",
-                        item.type === 'break' && "bg-warning/5 border-warning/20",
-                        item.type === 'focus' && "bg-accent/5 border-accent/20",
-                        item.type === 'task' && "bg-card border-border"
+                        item.type === "break" && "bg-warning/5 border-warning/20",
+                        item.type === "focus" && "bg-accent/5 border-accent/20",
+                        item.type === "task" && "bg-card border-border",
                       )}
                     >
                       <div className="text-sm font-mono text-muted-foreground w-12">
@@ -168,7 +174,9 @@ export function AICommandPanel({
                       Tips
                     </h4>
                     {dayPlanResult.tips.map((tip, i) => (
-                      <p key={i} className="text-xs text-muted-foreground pl-6">• {tip}</p>
+                      <p key={i} className="text-xs text-muted-foreground pl-6">
+                        • {tip}
+                      </p>
                     ))}
                   </div>
                 )}
@@ -179,19 +187,20 @@ export function AICommandPanel({
       </Dialog>
 
       {/* Reschedule Dialog */}
-      <Dialog open={showReschedule} onOpenChange={(open) => {
-        setShowReschedule(open);
-        if (!open) clearResults();
-      }}>
+      <Dialog
+        open={showReschedule}
+        onOpenChange={(open) => {
+          setShowReschedule(open);
+          if (!open) clearResults();
+        }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarClock className="w-5 h-5 text-warning" />
               Smart Reschedule
             </DialogTitle>
-            <DialogDescription>
-              AI suggestions for your overdue tasks
-            </DialogDescription>
+            <DialogDescription>AI suggestions for your overdue tasks</DialogDescription>
           </DialogHeader>
 
           {isLoading ? (
@@ -209,16 +218,19 @@ export function AICommandPanel({
                         <p className="text-sm font-medium truncate">{suggestion.taskTitle}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                           <Clock className="w-3 h-3" />
-                          {format(new Date(suggestion.suggestedDate), 'MMM d')} at {suggestion.suggestedTime}
+                          {format(new Date(suggestion.suggestedDate), "MMM d")} at{" "}
+                          {suggestion.suggestedTime}
                         </p>
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => applyReschedule(
-                          suggestion.taskId, 
-                          suggestion.suggestedDate, 
-                          suggestion.suggestedTime
-                        )}
+                        onClick={() =>
+                          applyReschedule(
+                            suggestion.taskId,
+                            suggestion.suggestedDate,
+                            suggestion.suggestedTime,
+                          )
+                        }
                       >
                         Apply
                       </Button>

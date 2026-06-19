@@ -1,7 +1,7 @@
 // Detects schedule conflicts: overlapping events, tight transitions, kid-pickup clashes.
 // Run via cron every 30 min OR on-demand.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -41,7 +41,9 @@ interface EventRow {
 
 function detectConflicts(events: EventRow[]): Conflict[] {
   const conflicts: Conflict[] = [];
-  const sorted = [...events].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+  const sorted = [...events].sort(
+    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+  );
 
   for (let i = 0; i < sorted.length; i++) {
     const a = sorted[i];
@@ -97,10 +99,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   // Internal/cron-only: require service role key
-  const auth = req.headers.get('Authorization');
+  const auth = req.headers.get("Authorization");
   if (auth !== `Bearer ${SERVICE_KEY}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -120,7 +123,7 @@ Deno.serve(async (req) => {
         .select("user_id")
         .gte("start_time", now.toISOString())
         .lte("start_time", future.toISOString());
-      userIds = [...new Set((data ?? []).map(e => e.user_id))];
+      userIds = [...new Set((data ?? []).map((e) => e.user_id))];
     }
 
     let totalDetected = 0;
@@ -140,7 +143,7 @@ Deno.serve(async (req) => {
       const conflicts = detectConflicts(events);
       if (!conflicts.length) continue;
 
-      const rows = conflicts.map(c => ({ ...c, user_id: uid }));
+      const rows = conflicts.map((c) => ({ ...c, user_id: uid }));
       const { error } = await supabase
         .from("detected_conflicts")
         .upsert(rows, { onConflict: "user_id,fingerprint", ignoreDuplicates: true });
@@ -153,6 +156,9 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("conflict-detector error", e);
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
 });

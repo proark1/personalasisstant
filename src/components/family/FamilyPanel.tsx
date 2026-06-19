@@ -1,36 +1,45 @@
-import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, ListTodo, ShoppingCart, Utensils, Heart, FolderOpen, Wallet, Sparkles, BookOpen, Baby, GraduationCap, Sun, Home } from 'lucide-react';
-import { HouseholdTasksList } from './HouseholdTasksList';
-import { ShoppingListsPanel } from './ShoppingListsPanel';
-import { MealPlanningPanel } from './MealPlanningPanel';
-import { HealthTrackingPanel } from './HealthTrackingPanel';
-import { DocumentStoragePanel } from './DocumentStoragePanel';
-import { BudgetTrackingPanel } from './BudgetTrackingPanel';
-import { FamilyActivityFinder } from './FamilyActivityFinder';
-import { HomeworkHelper } from './HomeworkHelper';
-import { ParentingCoach } from './ParentingCoach';
-import { FamilySchoolLogisticsCard } from './FamilySchoolLogisticsCard';
-import { FamilyDailyLifeCard } from './FamilyDailyLifeCard';
-import { FamilyMemoryHomeCard } from './FamilyMemoryHomeCard';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { PanelShell } from '@/components/ui/panel-shell';
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Users,
+  ListTodo,
+  ShoppingCart,
+  Utensils,
+  Heart,
+  FolderOpen,
+  Wallet,
+  Sparkles,
+  BookOpen,
+  Baby,
+  GraduationCap,
+  Sun,
+  Home,
+} from "lucide-react";
+import { HouseholdTasksList } from "./HouseholdTasksList";
+import { ShoppingListsPanel } from "./ShoppingListsPanel";
+import { MealPlanningPanel } from "./MealPlanningPanel";
+import { HealthTrackingPanel } from "./HealthTrackingPanel";
+import { DocumentStoragePanel } from "./DocumentStoragePanel";
+import { BudgetTrackingPanel } from "./BudgetTrackingPanel";
+import { FamilyActivityFinder } from "./FamilyActivityFinder";
+import { HomeworkHelper } from "./HomeworkHelper";
+import { ParentingCoach } from "./ParentingCoach";
+import { FamilySchoolLogisticsCard } from "./FamilySchoolLogisticsCard";
+import { FamilyDailyLifeCard } from "./FamilyDailyLifeCard";
+import { FamilyMemoryHomeCard } from "./FamilyMemoryHomeCard";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { PanelShell } from "@/components/ui/panel-shell";
 
 interface FamilyPanelProps {
   defaultTab?: string;
 }
 
-export function FamilyPanel({ defaultTab = 'tasks' }: FamilyPanelProps = {}) {
+export function FamilyPanel({ defaultTab = "tasks" }: FamilyPanelProps = {}) {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   return (
-    <PanelShell
-      icon={Users}
-      title={t('family.title')}
-      subtitle={t('family.subtitle')}
-      noPadding
-    >
+    <PanelShell icon={Users} title={t("family.title")} subtitle={t("family.subtitle")} noPadding>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
         <div className="mx-4 mt-4 overflow-x-auto scrollbar-hide flex-shrink-0">
           <TabsList className="inline-flex min-w-max gap-1">
@@ -73,9 +82,9 @@ export function FamilyPanel({ defaultTab = 'tasks' }: FamilyPanelProps = {}) {
           </TabsList>
         </div>
 
-        <div 
+        <div
           className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          style={{ WebkitOverflowScrolling: "touch" }}
         >
           <div className="p-4 pb-8">
             <TabsContent value="tasks" className="mt-0">

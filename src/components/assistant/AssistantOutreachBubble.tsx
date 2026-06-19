@@ -1,16 +1,16 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Volume2, VolumeX, Bell } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useProactiveReminders } from '@/hooks/useProactiveReminders';
-import { useTextToSpeech } from '@/hooks/useTextToSpeech';
-import { useProactiveSettings } from '@/hooks/useProactiveSettings';
-import { trackProactiveOutcome } from '@/lib/telemetry';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MessageCircle, X, Volume2, VolumeX, Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useProactiveReminders } from "@/hooks/useProactiveReminders";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { useProactiveSettings } from "@/hooks/useProactiveSettings";
+import { trackProactiveOutcome } from "@/lib/telemetry";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 export function AssistantOutreachBubble() {
   const { reminders, unreadCount, markAsRead, dismissReminder } = useProactiveReminders();
@@ -26,7 +26,7 @@ export function AssistantOutreachBubble() {
 
   // Get unread reminders only. Memoized so the effects below can depend on the
   // array itself (not just its length) without re-running on every render.
-  const unreadReminders = useMemo(() => reminders.filter(r => !r.read_at), [reminders]);
+  const unreadReminders = useMemo(() => reminders.filter((r) => !r.read_at), [reminders]);
 
   // Impression: record once per reminder that's actually displayed in the
   // expanded panel (the panel renders reminders.slice(0, 5)). Dedupe by id.
@@ -36,7 +36,7 @@ export function AssistantOutreachBubble() {
     for (const reminder of reminders.slice(0, 5)) {
       if (shownReminderIds.current.has(reminder.id)) continue;
       shownReminderIds.current.add(reminder.id);
-      trackProactiveOutcome('outreach_bubble', 'shown', {
+      trackProactiveOutcome("outreach_bubble", "shown", {
         reminderId: reminder.id,
         reminderType: reminder.reminder_type,
         priority: reminder.priority,
@@ -53,8 +53,8 @@ export function AssistantOutreachBubble() {
     const currentMinutes = now.getMinutes();
     const currentTime = currentHour * 60 + currentMinutes;
 
-    const [startHour, startMin] = (settings.quiet_hours_start || '22:00').split(':').map(Number);
-    const [endHour, endMin] = (settings.quiet_hours_end || '07:00').split(':').map(Number);
+    const [startHour, startMin] = (settings.quiet_hours_start || "22:00").split(":").map(Number);
+    const [endHour, endMin] = (settings.quiet_hours_end || "07:00").split(":").map(Number);
     const startTime = startHour * 60 + startMin;
     const endTime = endHour * 60 + endMin;
 
@@ -69,15 +69,15 @@ export function AssistantOutreachBubble() {
   // Auto-speak urgent reminders when voice alerts enabled
   useEffect(() => {
     if (!settings?.voice_alerts_enabled || isInQuietHours()) return;
-    
+
     const urgentUnread = unreadReminders.filter(
-      r => r.priority === 'urgent' && !spokenUrgentIds.current.has(r.id)
+      (r) => r.priority === "urgent" && !spokenUrgentIds.current.has(r.id),
     );
 
     if (urgentUnread.length > 0 && !isSpeaking) {
       const urgent = urgentUnread[0];
       spokenUrgentIds.current.add(urgent.id);
-      speak(`Urgent: ${urgent.title}. ${urgent.message}`, 'supportive');
+      speak(`Urgent: ${urgent.title}. ${urgent.message}`, "supportive");
     }
   }, [unreadReminders, settings?.voice_alerts_enabled, isSpeaking, isInQuietHours, speak]);
 
@@ -95,28 +95,28 @@ export function AssistantOutreachBubble() {
     if (!newest || isSpeaking) return;
     if (lastSpokenNewestId.current === newest.id) return;
     lastSpokenNewestId.current = newest.id;
-    speak(`${newest.title}. ${newest.message}`, 'supportive');
+    speak(`${newest.title}. ${newest.message}`, "supportive");
   }, [unreadReminders, voiceEnabled, settings?.voice_proactive_enabled, isSpeaking, speak]);
 
   const handleExpand = () => {
     setIsExpanded(!isExpanded);
     if (!isExpanded && unreadReminders.length > 0) {
       // Mark first few as read when expanding
-      unreadReminders.slice(0, 3).forEach(r => markAsRead(r.id));
+      unreadReminders.slice(0, 3).forEach((r) => markAsRead(r.id));
     }
   };
 
-  const handleSpeakReminder = (reminder: typeof reminders[0]) => {
+  const handleSpeakReminder = (reminder: (typeof reminders)[0]) => {
     if (isSpeaking) {
       stop();
     } else {
-      speak(`${reminder.title}. ${reminder.message}`, 'supportive');
+      speak(`${reminder.title}. ${reminder.message}`, "supportive");
     }
   };
 
   const handleDismiss = (e: React.MouseEvent, reminderId: string) => {
     e.stopPropagation();
-    trackProactiveOutcome('outreach_bubble', 'dismissed', { reminderId });
+    trackProactiveOutcome("outreach_bubble", "dismissed", { reminderId });
     dismissReminder(reminderId);
   };
 
@@ -172,14 +172,14 @@ export function AssistantOutreachBubble() {
                       animate={{ opacity: 1, x: 0 }}
                       className={cn(
                         "p-3 rounded-lg transition-colors",
-                        reminder.read_at ? "bg-muted/30" : "bg-primary/10 border border-primary/20"
+                        reminder.read_at ? "bg-muted/30" : "bg-primary/10 border border-primary/20",
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium text-sm truncate">{reminder.title}</span>
-                            {reminder.priority === 'urgent' && (
+                            {reminder.priority === "urgent" && (
                               <Badge variant="destructive" className="text-xs px-1.5 py-0">
                                 Urgent
                               </Badge>
@@ -189,7 +189,7 @@ export function AssistantOutreachBubble() {
                             {reminder.message}
                           </p>
                           <p className="text-xs text-muted-foreground/60 mt-1">
-                            {format(new Date(reminder.scheduled_for), 'h:mm a')}
+                            {format(new Date(reminder.scheduled_for), "h:mm a")}
                           </p>
                           <div className="flex items-center gap-2 mt-2">
                             {reminder.action_type && (
@@ -199,36 +199,47 @@ export function AssistantOutreachBubble() {
                                 className="h-7 text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  trackProactiveOutcome('outreach_bubble', 'accepted', {
+                                  trackProactiveOutcome("outreach_bubble", "accepted", {
                                     reminderId: reminder.id,
                                     reminderType: reminder.reminder_type,
                                     actionType: reminder.action_type,
                                   });
                                   // Navigate based on action type
                                   const metadata = reminder.metadata || {};
-                                  if (reminder.action_type === 'task' && metadata.task_id) {
+                                  if (reminder.action_type === "task" && metadata.task_id) {
                                     window.location.href = `/?tab=tasks&task=${metadata.task_id}`;
-                                  } else if (reminder.action_type === 'contact' && metadata.contact_id) {
+                                  } else if (
+                                    reminder.action_type === "contact" &&
+                                    metadata.contact_id
+                                  ) {
                                     window.location.href = `/?tab=contacts&contact=${metadata.contact_id}`;
-                                  } else if (reminder.action_type === 'habit') {
+                                  } else if (reminder.action_type === "habit") {
                                     window.location.href = `/?tab=habits`;
-                                  } else if (reminder.action_type === 'event') {
+                                  } else if (reminder.action_type === "event") {
                                     window.location.href = `/?tab=calendar`;
-                                  } else if (reminder.trigger_entity_type === 'task') {
+                                  } else if (reminder.trigger_entity_type === "task") {
                                     window.location.href = `/?tab=tasks`;
-                                  } else if (reminder.trigger_entity_type === 'contact') {
+                                  } else if (reminder.trigger_entity_type === "contact") {
                                     window.location.href = `/?tab=contacts`;
-                                  } else if (reminder.trigger_entity_type === 'habit') {
+                                  } else if (reminder.trigger_entity_type === "habit") {
                                     window.location.href = `/?tab=habits`;
                                   }
                                   dismissReminder(reminder.id);
                                   setIsExpanded(false);
                                 }}
                               >
-                                {reminder.action_type === 'task' || reminder.trigger_entity_type === 'task' ? 'View Task' : 
-                                 reminder.action_type === 'contact' || reminder.trigger_entity_type === 'contact' ? 'View Contact' :
-                                 reminder.action_type === 'habit' || reminder.trigger_entity_type === 'habit' ? 'Track Habit' :
-                                 reminder.action_type === 'event' ? 'View Event' : 'Take Action'}
+                                {reminder.action_type === "task" ||
+                                reminder.trigger_entity_type === "task"
+                                  ? "View Task"
+                                  : reminder.action_type === "contact" ||
+                                      reminder.trigger_entity_type === "contact"
+                                    ? "View Contact"
+                                    : reminder.action_type === "habit" ||
+                                        reminder.trigger_entity_type === "habit"
+                                      ? "Track Habit"
+                                      : reminder.action_type === "event"
+                                        ? "View Event"
+                                        : "Take Action"}
                               </Button>
                             )}
                             {!reminder.action_type && reminder.trigger_entity_type && (
@@ -238,25 +249,29 @@ export function AssistantOutreachBubble() {
                                 className="h-7 text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  trackProactiveOutcome('outreach_bubble', 'accepted', {
+                                  trackProactiveOutcome("outreach_bubble", "accepted", {
                                     reminderId: reminder.id,
                                     reminderType: reminder.reminder_type,
                                     triggerEntityType: reminder.trigger_entity_type,
                                   });
-                                  if (reminder.trigger_entity_type === 'task') {
+                                  if (reminder.trigger_entity_type === "task") {
                                     window.location.href = `/?tab=tasks`;
-                                  } else if (reminder.trigger_entity_type === 'contact') {
+                                  } else if (reminder.trigger_entity_type === "contact") {
                                     window.location.href = `/?tab=contacts`;
-                                  } else if (reminder.trigger_entity_type === 'habit') {
+                                  } else if (reminder.trigger_entity_type === "habit") {
                                     window.location.href = `/?tab=habits`;
                                   }
                                   dismissReminder(reminder.id);
                                   setIsExpanded(false);
                                 }}
                               >
-                                {reminder.trigger_entity_type === 'task' ? 'View Tasks' : 
-                                 reminder.trigger_entity_type === 'contact' ? 'View Contacts' :
-                                 reminder.trigger_entity_type === 'habit' ? 'View Habits' : 'Open'}
+                                {reminder.trigger_entity_type === "task"
+                                  ? "View Tasks"
+                                  : reminder.trigger_entity_type === "contact"
+                                    ? "View Contacts"
+                                    : reminder.trigger_entity_type === "habit"
+                                      ? "View Habits"
+                                      : "Open"}
                               </Button>
                             )}
                             <Button
@@ -302,13 +317,17 @@ export function AssistantOutreachBubble() {
         className={cn(
           "relative flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all",
           "bg-primary text-primary-foreground hover:bg-primary/90",
-          isExpanded && "bg-primary/80"
+          isExpanded && "bg-primary/80",
         )}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        animate={unreadCount > 0 && !isExpanded ? {
-          scale: [1, 1.1, 1],
-        } : {}}
+        animate={
+          unreadCount > 0 && !isExpanded
+            ? {
+                scale: [1, 1.1, 1],
+              }
+            : {}
+        }
         transition={{
           repeat: unreadCount > 0 && !isExpanded ? Infinity : 0,
           duration: 2,
@@ -316,7 +335,7 @@ export function AssistantOutreachBubble() {
         }}
       >
         <MessageCircle className="w-6 h-6" />
-        
+
         {/* Unread badge */}
         {unreadCount > 0 && !isExpanded && (
           <motion.div
@@ -324,10 +343,10 @@ export function AssistantOutreachBubble() {
             animate={{ scale: 1 }}
             className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold"
           >
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </motion.div>
         )}
-        
+
         {/* Pulse ring for attention */}
         {unreadCount > 0 && !isExpanded && (
           <motion.div

@@ -1,6 +1,14 @@
-import { createContext, useContext, useState, useRef, useCallback, useMemo, ReactNode } from 'react';
-import type { ChatMessage } from '@/types/flux';
-import type { ActionCardData } from '@/components/assistant/ActionCard';
+import {
+  createContext,
+  useContext,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from "react";
+import type { ChatMessage } from "@/types/flux";
+import type { ActionCardData } from "@/components/assistant/ActionCard";
 
 /** The slice of Dori's conversation that surfaces (e.g. the Dori bar) render. */
 export interface DoriSnapshot {
@@ -23,7 +31,12 @@ interface DoriConversationValue extends DoriSnapshot {
   registerSend: (fn: (text: string) => void) => void;
 }
 
-const EMPTY: DoriSnapshot = { messages: [], isProcessing: false, thinkingStatus: undefined, actionCards: [] };
+const EMPTY: DoriSnapshot = {
+  messages: [],
+  isProcessing: false,
+  thinkingStatus: undefined,
+  actionCards: [],
+};
 
 const DoriConversationContext = createContext<DoriConversationValue | null>(null);
 
@@ -45,7 +58,7 @@ export function DoriConversationProvider({ children }: { children: ReactNode }) 
   // on no-op publishes. messages/actionCards are compared by reference because
   // Index produces new arrays only when their contents change.
   const publish = useCallback((s: DoriSnapshot) => {
-    setSnapshot(prev =>
+    setSnapshot((prev) =>
       prev.messages === s.messages &&
       prev.actionCards === s.actionCards &&
       prev.isProcessing === s.isProcessing &&
@@ -54,7 +67,9 @@ export function DoriConversationProvider({ children }: { children: ReactNode }) 
         : s,
     );
   }, []);
-  const registerSend = useCallback((fn: (text: string) => void) => { sendRef.current = fn; }, []);
+  const registerSend = useCallback((fn: (text: string) => void) => {
+    sendRef.current = fn;
+  }, []);
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
 
@@ -70,12 +85,14 @@ export function DoriConversationProvider({ children }: { children: ReactNode }) 
     [snapshot, isOpen, open, close, send, publish, registerSend],
   );
 
-  return <DoriConversationContext.Provider value={value}>{children}</DoriConversationContext.Provider>;
+  return (
+    <DoriConversationContext.Provider value={value}>{children}</DoriConversationContext.Provider>
+  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useDoriConversation(): DoriConversationValue {
   const ctx = useContext(DoriConversationContext);
-  if (!ctx) throw new Error('useDoriConversation must be used within DoriConversationProvider');
+  if (!ctx) throw new Error("useDoriConversation must be used within DoriConversationProvider");
   return ctx;
 }

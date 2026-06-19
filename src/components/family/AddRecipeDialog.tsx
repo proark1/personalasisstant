@@ -1,19 +1,31 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMealPlanning } from '@/hooks/useMealPlanning';
-import { Plus, X, Sparkles, Loader2, ChefHat, Search, Lightbulb } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useMealPlanning } from "@/hooks/useMealPlanning";
+import { Plus, X, Sparkles, Loader2, ChefHat, Search, Lightbulb } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AddRecipeDialogProps {
   open: boolean;
@@ -30,60 +42,67 @@ interface RecipeSuggestion {
 }
 
 const categories = [
-  { value: 'breakfast', label: 'Breakfast' },
-  { value: 'main', label: 'Main Course' },
-  { value: 'side', label: 'Side Dish' },
-  { value: 'soup', label: 'Soup' },
-  { value: 'salad', label: 'Salad' },
-  { value: 'dessert', label: 'Dessert' },
-  { value: 'snack', label: 'Snack' },
-  { value: 'drink', label: 'Drink' },
+  { value: "breakfast", label: "Breakfast" },
+  { value: "main", label: "Main Course" },
+  { value: "side", label: "Side Dish" },
+  { value: "soup", label: "Soup" },
+  { value: "salad", label: "Salad" },
+  { value: "dessert", label: "Dessert" },
+  { value: "snack", label: "Snack" },
+  { value: "drink", label: "Drink" },
 ];
 
 const ingredientCategories = [
-  { value: 'produce', label: 'Produce' },
-  { value: 'dairy', label: 'Dairy' },
-  { value: 'meat', label: 'Meat' },
-  { value: 'pantry', label: 'Pantry' },
-  { value: 'frozen', label: 'Frozen' },
-  { value: 'other', label: 'Other' },
+  { value: "produce", label: "Produce" },
+  { value: "dairy", label: "Dairy" },
+  { value: "meat", label: "Meat" },
+  { value: "pantry", label: "Pantry" },
+  { value: "frozen", label: "Frozen" },
+  { value: "other", label: "Other" },
 ];
 
 const dietTypes = [
-  { value: 'any', label: 'Any Diet' },
-  { value: 'vegan', label: 'Vegan' },
-  { value: 'vegetarian', label: 'Vegetarian' },
-  { value: 'pescetarian', label: 'Pescetarian' },
+  { value: "any", label: "Any Diet" },
+  { value: "vegan", label: "Vegan" },
+  { value: "vegetarian", label: "Vegetarian" },
+  { value: "pescetarian", label: "Pescetarian" },
 ];
 
 const mealCategories = [
-  { value: 'any', label: 'Any Category' },
-  { value: 'breakfast', label: 'Breakfast' },
-  { value: 'lunch', label: 'Lunch' },
-  { value: 'dinner', label: 'Dinner' },
-  { value: 'dessert', label: 'Dessert' },
+  { value: "any", label: "Any Category" },
+  { value: "breakfast", label: "Breakfast" },
+  { value: "lunch", label: "Lunch" },
+  { value: "dinner", label: "Dinner" },
+  { value: "dessert", label: "Dessert" },
 ];
 
 export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
   const { toast } = useToast();
   const { addRecipe, addIngredient } = useMealPlanning();
-  const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('ai');
-  
+  const [activeTab, setActiveTab] = useState<"manual" | "ai">("ai");
+
   // Form state
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('main');
-  const [servings, setServings] = useState('4');
-  const [prepTime, setPrepTime] = useState('');
-  const [cookTime, setCookTime] = useState('');
-  const [instructions, setInstructions] = useState('');
-  const [ingredients, setIngredients] = useState<{ name: string; quantity: string; unit: string; category: string }[]>([]);
-  const [newIngredient, setNewIngredient] = useState({ name: '', quantity: '', unit: '', category: 'other' });
-  
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("main");
+  const [servings, setServings] = useState("4");
+  const [prepTime, setPrepTime] = useState("");
+  const [cookTime, setCookTime] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [ingredients, setIngredients] = useState<
+    { name: string; quantity: string; unit: string; category: string }[]
+  >([]);
+  const [newIngredient, setNewIngredient] = useState({
+    name: "",
+    quantity: "",
+    unit: "",
+    category: "other",
+  });
+
   // AI state
-  const [aiQuery, setAiQuery] = useState('');
-  const [selectedDiet, setSelectedDiet] = useState('any');
-  const [selectedMealCategory, setSelectedMealCategory] = useState('any');
+  const [aiQuery, setAiQuery] = useState("");
+  const [selectedDiet, setSelectedDiet] = useState("any");
+  const [selectedMealCategory, setSelectedMealCategory] = useState("any");
   const [suggestions, setSuggestions] = useState<RecipeSuggestion[]>([]);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [isFillingRecipe, setIsFillingRecipe] = useState(false);
@@ -91,7 +110,7 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
   const handleAddIngredient = () => {
     if (!newIngredient.name.trim()) return;
     setIngredients([...ingredients, newIngredient]);
-    setNewIngredient({ name: '', quantity: '', unit: '', category: 'other' });
+    setNewIngredient({ name: "", quantity: "", unit: "", category: "other" });
   };
 
   const handleRemoveIngredient = (index: number) => {
@@ -103,29 +122,29 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
     try {
       // Build filter string for AI
       const filters: string[] = [];
-      if (selectedDiet !== 'any') filters.push(selectedDiet);
-      if (selectedMealCategory !== 'any') filters.push(selectedMealCategory);
-      const filterQuery = filters.length > 0 ? filters.join(' ') + ' recipes' : '';
-      
-      const { data, error } = await supabase.functions.invoke('recipe-assistant', {
-        body: { 
-          type: 'explore', 
+      if (selectedDiet !== "any") filters.push(selectedDiet);
+      if (selectedMealCategory !== "any") filters.push(selectedMealCategory);
+      const filterQuery = filters.length > 0 ? filters.join(" ") + " recipes" : "";
+
+      const { data, error } = await supabase.functions.invoke("recipe-assistant", {
+        body: {
+          type: "explore",
           query: filterQuery,
-          diet: selectedDiet !== 'any' ? selectedDiet : undefined,
-          mealCategory: selectedMealCategory !== 'any' ? selectedMealCategory : undefined
-        }
+          diet: selectedDiet !== "any" ? selectedDiet : undefined,
+          mealCategory: selectedMealCategory !== "any" ? selectedMealCategory : undefined,
+        },
       });
-      
+
       if (error) throw error;
       if (data.error) throw new Error(data.error);
-      
+
       setSuggestions(data.suggestions || []);
     } catch (error) {
-      console.error('AI explore error:', error);
+      console.error("AI explore error:", error);
       toast({
         title: "AI Error",
         description: await describeEdgeError(error, "Failed to get suggestions"),
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsLoadingAI(false);
@@ -136,20 +155,20 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
     if (!aiQuery.trim()) return;
     setIsLoadingAI(true);
     try {
-      const { data, error } = await supabase.functions.invoke('recipe-assistant', {
-        body: { type: 'suggest', query: aiQuery }
+      const { data, error } = await supabase.functions.invoke("recipe-assistant", {
+        body: { type: "suggest", query: aiQuery },
       });
-      
+
       if (error) throw error;
       if (data.error) throw new Error(data.error);
-      
+
       setSuggestions(data.suggestions || []);
     } catch (error) {
-      console.error('AI search error:', error);
+      console.error("AI search error:", error);
       toast({
         title: "AI Error",
         description: await describeEdgeError(error, "Failed to search recipes"),
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsLoadingAI(false);
@@ -159,42 +178,49 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
   const handleSelectSuggestion = async (suggestion: RecipeSuggestion) => {
     setIsFillingRecipe(true);
     try {
-      const { data, error } = await supabase.functions.invoke('recipe-assistant', {
-        body: { type: 'fill', recipeName: suggestion.name }
+      const { data, error } = await supabase.functions.invoke("recipe-assistant", {
+        body: { type: "fill", recipeName: suggestion.name },
       });
-      
+
       if (error) throw error;
       if (data.error) throw new Error(data.error);
-      
+
       const recipe = data.recipe;
       if (recipe) {
         setName(recipe.name || suggestion.name);
         setDescription(recipe.description || suggestion.description);
-        setCategory(recipe.category || suggestion.category || 'main');
+        setCategory(recipe.category || suggestion.category || "main");
         setServings(String(recipe.servings || 4));
-        setPrepTime(String(recipe.prepTime || suggestion.prepTime || ''));
-        setCookTime(String(recipe.cookTime || suggestion.cookTime || ''));
-        setInstructions(recipe.instructions || '');
+        setPrepTime(String(recipe.prepTime || suggestion.prepTime || ""));
+        setCookTime(String(recipe.cookTime || suggestion.cookTime || ""));
+        setInstructions(recipe.instructions || "");
         setIngredients(
-          (recipe.ingredients || []).map((ing: { name: string; quantity?: number | string; unit?: string; category?: string }) => ({
-            name: ing.name,
-            quantity: String(ing.quantity || ''),
-            unit: ing.unit || '',
-            category: ing.category || 'other'
-          }))
+          (recipe.ingredients || []).map(
+            (ing: {
+              name: string;
+              quantity?: number | string;
+              unit?: string;
+              category?: string;
+            }) => ({
+              name: ing.name,
+              quantity: String(ing.quantity || ""),
+              unit: ing.unit || "",
+              category: ing.category || "other",
+            }),
+          ),
         );
-        setActiveTab('manual');
+        setActiveTab("manual");
         toast({
           title: "Recipe Loaded",
           description: "AI has filled in the recipe details. Review and save!",
         });
       }
     } catch (error) {
-      console.error('AI fill error:', error);
+      console.error("AI fill error:", error);
       toast({
         title: "AI Error",
         description: await describeEdgeError(error, "Failed to fill recipe"),
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsFillingRecipe(false);
@@ -208,28 +234,35 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
     }
     setIsFillingRecipe(true);
     try {
-      const { data, error } = await supabase.functions.invoke('recipe-assistant', {
-        body: { type: 'fill', recipeName: name }
+      const { data, error } = await supabase.functions.invoke("recipe-assistant", {
+        body: { type: "fill", recipeName: name },
       });
-      
+
       if (error) throw error;
       if (data.error) throw new Error(data.error);
-      
+
       const recipe = data.recipe;
       if (recipe) {
-        setDescription(recipe.description || '');
-        setCategory(recipe.category || 'main');
+        setDescription(recipe.description || "");
+        setCategory(recipe.category || "main");
         setServings(String(recipe.servings || 4));
-        setPrepTime(String(recipe.prepTime || ''));
-        setCookTime(String(recipe.cookTime || ''));
-        setInstructions(recipe.instructions || '');
+        setPrepTime(String(recipe.prepTime || ""));
+        setCookTime(String(recipe.cookTime || ""));
+        setInstructions(recipe.instructions || "");
         setIngredients(
-          (recipe.ingredients || []).map((ing: { name: string; quantity?: number | string; unit?: string; category?: string }) => ({
-            name: ing.name,
-            quantity: String(ing.quantity || ''),
-            unit: ing.unit || '',
-            category: ing.category || 'other'
-          }))
+          (recipe.ingredients || []).map(
+            (ing: {
+              name: string;
+              quantity?: number | string;
+              unit?: string;
+              category?: string;
+            }) => ({
+              name: ing.name,
+              quantity: String(ing.quantity || ""),
+              unit: ing.unit || "",
+              category: ing.category || "other",
+            }),
+          ),
         );
         toast({
           title: "Recipe Filled",
@@ -237,11 +270,11 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
         });
       }
     } catch (error) {
-      console.error('AI fill error:', error);
+      console.error("AI fill error:", error);
       toast({
         title: "AI Error",
         description: await describeEdgeError(error, "Failed to fill recipe"),
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsFillingRecipe(false);
@@ -280,16 +313,16 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
   };
 
   const resetForm = () => {
-    setName('');
-    setDescription('');
-    setCategory('main');
-    setServings('4');
-    setPrepTime('');
-    setCookTime('');
-    setInstructions('');
+    setName("");
+    setDescription("");
+    setCategory("main");
+    setServings("4");
+    setPrepTime("");
+    setCookTime("");
+    setInstructions("");
     setIngredients([]);
     setSuggestions([]);
-    setAiQuery('');
+    setAiQuery("");
   };
 
   return (
@@ -302,7 +335,7 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'manual' | 'ai')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "manual" | "ai")}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="ai" className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
@@ -327,7 +360,7 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
                     ))}
                   </SelectContent>
                 </Select>
-                
+
                 <Select value={selectedMealCategory} onValueChange={setSelectedMealCategory}>
                   <SelectTrigger>
                     <SelectValue placeholder="Meal Category" />
@@ -341,10 +374,10 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
                   </SelectContent>
                 </Select>
               </div>
-              
-              <Button 
-                variant="outline" 
-                onClick={handleAIExplore} 
+
+              <Button
+                variant="outline"
+                onClick={handleAIExplore}
                 disabled={isLoadingAI}
                 className="w-full"
               >
@@ -355,7 +388,7 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
                 )}
                 Explore Recipe Ideas
               </Button>
-              
+
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t" />
@@ -364,17 +397,21 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
                   <span className="bg-background px-2 text-muted-foreground">or search</span>
                 </div>
               </div>
-              
+
               <div className="flex gap-2">
                 <Input
                   placeholder="Search for recipes... (e.g., 'quick weeknight pasta')"
                   value={aiQuery}
                   onChange={(e) => setAiQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAISearch()}
+                  onKeyDown={(e) => e.key === "Enter" && handleAISearch()}
                   className="flex-1"
                 />
                 <Button onClick={handleAISearch} disabled={isLoadingAI || !aiQuery.trim()}>
-                  {isLoadingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {isLoadingAI ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -390,8 +427,8 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
               <ScrollArea className="h-[300px]">
                 <div className="space-y-2">
                   {suggestions.map((suggestion, index) => (
-                    <Card 
-                      key={index} 
+                    <Card
+                      key={index}
                       className="cursor-pointer hover:bg-accent/50 transition-colors"
                       onClick={() => handleSelectSuggestion(suggestion)}
                     >
@@ -445,9 +482,9 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
                     placeholder="e.g., Chicken Stir Fry"
                     className="flex-1"
                   />
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={handleAIFillFromName}
                     disabled={isFillingRecipe || !name.trim()}
                     title="AI Auto-fill"
@@ -530,14 +567,24 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
                   <ScrollArea className="h-[120px]">
                     <div className="space-y-1">
                       {ingredients.map((ing, index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-accent/50 rounded text-sm">
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 p-2 bg-accent/50 rounded text-sm"
+                        >
                           <span className="flex-1">
                             {ing.quantity && `${ing.quantity} `}
                             {ing.unit && `${ing.unit} `}
                             {ing.name}
                           </span>
-                          <Badge variant="outline" className="text-xs">{ing.category}</Badge>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveIngredient(index)}>
+                          <Badge variant="outline" className="text-xs">
+                            {ing.category}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => handleRemoveIngredient(index)}
+                          >
                             <X className="h-3 w-3" />
                           </Button>
                         </div>
@@ -545,12 +592,14 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
                     </div>
                   </ScrollArea>
                 )}
-                
+
                 <div className="flex gap-2">
                   <Input
                     placeholder="Qty"
                     value={newIngredient.quantity}
-                    onChange={(e) => setNewIngredient({ ...newIngredient, quantity: e.target.value })}
+                    onChange={(e) =>
+                      setNewIngredient({ ...newIngredient, quantity: e.target.value })
+                    }
                     className="w-16"
                   />
                   <Input
@@ -564,7 +613,7 @@ export function AddRecipeDialog({ open, onOpenChange }: AddRecipeDialogProps) {
                     value={newIngredient.name}
                     onChange={(e) => setNewIngredient({ ...newIngredient, name: e.target.value })}
                     className="flex-1"
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddIngredient()}
                   />
                   <Select
                     value={newIngredient.category}

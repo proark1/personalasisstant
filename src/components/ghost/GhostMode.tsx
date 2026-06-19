@@ -1,30 +1,34 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { AudioVisualizer } from './AudioVisualizer';
-import { useOpenAIRealtime, type RealtimeUserProfile, type RealtimeContextData } from '@/hooks/useOpenAIRealtime';
-import { useUserProfile } from '@/hooks/useUserProfile';
-import { useDatabase } from '@/hooks/useDatabase';
-import { useContacts } from '@/hooks/useContacts';
-import { useContracts } from '@/hooks/useContracts';
-import { useProjects } from '@/hooks/useProjects';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { useAppleHealth } from '@/hooks/useAppleHealth';
-import { useHabits } from '@/hooks/useHabits';
-import { useNotes } from '@/hooks/useNotes';
-import { useDirectMessages } from '@/hooks/useDirectMessages';
-import { useAssistantConversations } from '@/hooks/useAssistantConversations';
-import { useStartupIdeas } from '@/hooks/useStartupIdeas';
-import { useEmails } from '@/hooks/useEmails';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
-import { useFamilyEvents } from '@/hooks/useFamilyEvents';
-import { useShoppingLists } from '@/hooks/useShoppingLists';
-import { useFamilyContext } from '@/hooks/useFamilyContext';
-import { useMealPlanning } from '@/hooks/useMealPlanning';
-import type { AssistantPersonality } from '@/types/flux';
-import { getRandomGreeting } from './greetings';
-import { buildVoiceContextData } from './voiceContextBuilder';
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { AudioVisualizer } from "./AudioVisualizer";
+import {
+  useOpenAIRealtime,
+  type RealtimeUserProfile,
+  type RealtimeContextData,
+} from "@/hooks/useOpenAIRealtime";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useDatabase } from "@/hooks/useDatabase";
+import { useContacts } from "@/hooks/useContacts";
+import { useContracts } from "@/hooks/useContracts";
+import { useProjects } from "@/hooks/useProjects";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useAppleHealth } from "@/hooks/useAppleHealth";
+import { useHabits } from "@/hooks/useHabits";
+import { useNotes } from "@/hooks/useNotes";
+import { useDirectMessages } from "@/hooks/useDirectMessages";
+import { useAssistantConversations } from "@/hooks/useAssistantConversations";
+import { useStartupIdeas } from "@/hooks/useStartupIdeas";
+import { useEmails } from "@/hooks/useEmails";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
+import { useFamilyEvents } from "@/hooks/useFamilyEvents";
+import { useShoppingLists } from "@/hooks/useShoppingLists";
+import { useFamilyContext } from "@/hooks/useFamilyContext";
+import { useMealPlanning } from "@/hooks/useMealPlanning";
+import type { AssistantPersonality } from "@/types/flux";
+import { getRandomGreeting } from "./greetings";
+import { buildVoiceContextData } from "./voiceContextBuilder";
 import {
   Mic,
   MicOff,
@@ -44,9 +48,9 @@ import {
   Zap,
   Flame,
   Hexagon,
-} from 'lucide-react';
+} from "lucide-react";
 
-type BackgroundStyle = 'orbs' | 'matrix' | 'nebula' | 'aurora' | 'particles' | 'circuit';
+type BackgroundStyle = "orbs" | "matrix" | "nebula" | "aurora" | "particles" | "circuit";
 
 interface GhostModeProps {
   onClose: () => void;
@@ -54,52 +58,64 @@ interface GhostModeProps {
   personality?: AssistantPersonality;
 }
 
-type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'processing' | 'speaking' | 'error';
+type ConnectionStatus =
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "processing"
+  | "speaking"
+  | "error";
 
 // Helper component for debug timing rows
-function DebugTimingRow({ 
-  label, 
-  start, 
-  end, 
-  baseTime 
-}: { 
-  label: string; 
-  start?: number; 
-  end?: number; 
-  baseTime?: number; 
+function DebugTimingRow({
+  label,
+  start,
+  end,
+  baseTime,
+}: {
+  label: string;
+  start?: number;
+  end?: number;
+  baseTime?: number;
 }) {
   const formatTime = (time?: number) => {
-    if (!time || !baseTime) return '—';
+    if (!time || !baseTime) return "—";
     return `+${((time - baseTime) / 1000).toFixed(2)}s`;
   };
-  
-  const duration = start && end ? `(${((end - start) / 1000).toFixed(2)}s)` : '';
-  
+
+  const duration = start && end ? `(${((end - start) / 1000).toFixed(2)}s)` : "";
+
   return (
     <div className="flex justify-between items-center text-muted-foreground">
       <span>{label}</span>
-      <span className={start ? 'text-foreground' : ''}>
+      <span className={start ? "text-foreground" : ""}>
         {formatTime(end || start)} {duration}
       </span>
     </div>
   );
 }
 
-export function GhostMode({ onClose, onCommand, personality: _personality = 'balanced' }: GhostModeProps) {
+export function GhostMode({
+  onClose,
+  onCommand,
+  personality: _personality = "balanced",
+}: GhostModeProps) {
   const { toast } = useToast();
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
-  const [displayTranscript, setDisplayTranscript] = useState('');
-  const [aiResponse, setAiResponse] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
+  const [displayTranscript, setDisplayTranscript] = useState("");
+  const [aiResponse, setAiResponse] = useState("");
   const [showDebugPanel] = useState(false);
   const [buttonCooldown, setButtonCooldown] = useState(false);
   const [buttonPulse, setButtonPulse] = useState(false);
   const [textMode, setTextMode] = useState(false);
-  const [textInput, setTextInput] = useState('');
-  const [transcriptHistory, setTranscriptHistory] = useState<Array<{ role: 'user' | 'assistant'; text: string; timestamp: Date }>>([]);
-  const [backgroundStyle, setBackgroundStyle] = useState<BackgroundStyle>('orbs');
-  const aiResponseRef = useRef('');
+  const [textInput, setTextInput] = useState("");
+  const [transcriptHistory, setTranscriptHistory] = useState<
+    Array<{ role: "user" | "assistant"; text: string; timestamp: Date }>
+  >([]);
+  const [backgroundStyle, setBackgroundStyle] = useState<BackgroundStyle>("orbs");
+  const aiResponseRef = useRef("");
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const isConnectingRef = useRef(false);
   const disconnectRef = useRef<() => void>(() => {});
@@ -110,46 +126,124 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
 
   // Fetch user profile for personalized AI responses
   const { profile } = useUserProfile();
-  
+
   // Fetch real data from the platform
-  const { tasks, events, addTask, updateTask, trashTask, toggleTaskComplete, addEvent, updateEvent, deleteEvent, refetch } = useDatabase(userId);
-  const { contacts, addContact, updateContact, deleteContact, markContacted, refetch: refetchContacts } = useContacts(userId);
-  const { contracts, addContract, updateContract, deleteContract, refetch: refetchContracts } = useContracts(userId);
-  const { projects, addProject, updateProject, deleteProject, refetch: refetchProjects } = useProjects(userId);
-  const { healthMetrics, todaySummary, weeklyData, isConnected: healthConnected } = useAppleHealth();
-  const { habits, logs: habitLogs, createHabit, logHabit, deleteHabit, refetch: refetchHabits } = useHabits(userId);
+  const {
+    tasks,
+    events,
+    addTask,
+    updateTask,
+    trashTask,
+    toggleTaskComplete,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    refetch,
+  } = useDatabase(userId);
+  const {
+    contacts,
+    addContact,
+    updateContact,
+    deleteContact,
+    markContacted,
+    refetch: refetchContacts,
+  } = useContacts(userId);
+  const {
+    contracts,
+    addContract,
+    updateContract,
+    deleteContract,
+    refetch: refetchContracts,
+  } = useContracts(userId);
+  const {
+    projects,
+    addProject,
+    updateProject,
+    deleteProject,
+    refetch: refetchProjects,
+  } = useProjects(userId);
+  const {
+    healthMetrics,
+    todaySummary,
+    weeklyData,
+    isConnected: healthConnected,
+  } = useAppleHealth();
+  const {
+    habits,
+    logs: habitLogs,
+    createHabit,
+    logHabit,
+    deleteHabit,
+    refetch: refetchHabits,
+  } = useHabits(userId);
   const { notes, createNote, updateNote, deleteNote, refetch: refetchNotes } = useNotes(userId);
-  const { sendMessage: sendDirectMessage, conversations, refetch: refetchMessages } = useDirectMessages(userId || null);
-  
+  const {
+    sendMessage: sendDirectMessage,
+    conversations,
+    refetch: refetchMessages,
+  } = useDirectMessages(userId || null);
+
   // Conversation history tracking
-  const { 
-    startConversation, 
-    bufferMessage, 
-    saveBufferedMessages, 
+  const {
+    startConversation,
+    bufferMessage,
+    saveBufferedMessages,
     endConversation,
     linkToStartupIdea,
     updateConversationTitle,
   } = useAssistantConversations();
-  
+
   // Startup ideas for brainstorming
-  const { createIdea, updateIdea, ideas: startupIdeas, fetchIdeas: refetchStartupIdeas } = useStartupIdeas();
-  
+  const {
+    createIdea,
+    updateIdea,
+    ideas: startupIdeas,
+    fetchIdeas: refetchStartupIdeas,
+  } = useStartupIdeas();
+
   // Email data for voice context
   const { allEmails: emailList, unreadCount: totalUnreadEmails } = useEmails();
-  
+
   // Family data for voice context
   const { members: familyMembers } = useFamilyMembers();
   const { events: familyEvents } = useFamilyEvents();
   const { lists: shoppingLists } = useShoppingLists();
   const { mealPlans } = useMealPlanning();
-  const familyContext = useFamilyContext({ members: familyMembers, events: familyEvents, mealPlans, shoppingLists });
-  
+  const familyContext = useFamilyContext({
+    members: familyMembers,
+    events: familyEvents,
+    mealPlans,
+    shoppingLists,
+  });
+
   const currentConversationIdRef = useRef<string | null>(null);
   const isStartupBrainstormRef = useRef(false);
   const pendingStartupIdeaRef = useRef<{ name: string; description?: string } | null>(null);
 
   const contextData = useMemo(
-    () => buildVoiceContextData({
+    () =>
+      buildVoiceContextData({
+        tasks,
+        events,
+        contacts,
+        contracts,
+        projects,
+        healthMetrics,
+        todaySummary,
+        weeklyData,
+        healthConnected,
+        habits,
+        habitLogs,
+        notes,
+        conversations,
+        startupIdeas,
+        emailList,
+        totalUnreadEmails,
+        familyMembers,
+        familyContext,
+        shoppingLists,
+      }),
+    [
       tasks,
       events,
       contacts,
@@ -169,8 +263,7 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
       familyMembers,
       familyContext,
       shoppingLists,
-    }),
-    [tasks, events, contacts, contracts, projects, healthMetrics, todaySummary, weeklyData, healthConnected, habits, habitLogs, notes, conversations, startupIdeas, emailList, totalUnreadEmails, familyMembers, familyContext, shoppingLists],
+    ],
   );
 
   // OpenAI Realtime hook
@@ -193,46 +286,82 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
       // Check for voice commands to end session
       if (isFinal) {
         const lower = text.toLowerCase();
-        
+
         // Expanded exit phrases for natural conversation endings
         const exitPhrases = [
-          'goodbye', 'bye', 'bye bye', 'bye-bye',
-          'quit', 'let\'s quit', 'lets quit',
-          'end session', 'end this', 'end call', 'end the call',
-          'stop listening', 'stop now', 'stop this',
-          'that\'s all', 'that is all', 'thats all',
-          'i\'m done', 'im done', 'we\'re done', 'all done',
-          'close this', 'close dori',
-          'hang up', 'disconnect',
-          'talk to you later', 'see you later', 'catch you later',
-          'thanks that\'s it', 'thank you that\'s all', 'thanks bye',
-          'gotta go', 'got to go', 'i have to go',
-          'later', 'peace out', 'take care'
+          "goodbye",
+          "bye",
+          "bye bye",
+          "bye-bye",
+          "quit",
+          "let's quit",
+          "lets quit",
+          "end session",
+          "end this",
+          "end call",
+          "end the call",
+          "stop listening",
+          "stop now",
+          "stop this",
+          "that's all",
+          "that is all",
+          "thats all",
+          "i'm done",
+          "im done",
+          "we're done",
+          "all done",
+          "close this",
+          "close dori",
+          "hang up",
+          "disconnect",
+          "talk to you later",
+          "see you later",
+          "catch you later",
+          "thanks that's it",
+          "thank you that's all",
+          "thanks bye",
+          "gotta go",
+          "got to go",
+          "i have to go",
+          "later",
+          "peace out",
+          "take care",
         ];
-        
-        const shouldExit = exitPhrases.some(phrase => lower.includes(phrase));
-        
+
+        const shouldExit = exitPhrases.some((phrase) => lower.includes(phrase));
+
         if (shouldExit) {
           handleEndSession();
           onClose();
           return;
         }
-        
+
         // Detect startup brainstorming keywords
-        const startupKeywords = ['startup', 'business idea', 'new idea', 'startup idea', 'venture', 'company idea', 'brainstorm'];
-        if (startupKeywords.some(kw => lower.includes(kw))) {
+        const startupKeywords = [
+          "startup",
+          "business idea",
+          "new idea",
+          "startup idea",
+          "venture",
+          "company idea",
+          "brainstorm",
+        ];
+        if (startupKeywords.some((kw) => lower.includes(kw))) {
           isStartupBrainstormRef.current = true;
           if (currentConversationIdRef.current) {
-            updateConversationTitle(currentConversationIdRef.current, 'Startup Brainstorm');
+            updateConversationTitle(currentConversationIdRef.current, "Startup Brainstorm");
           }
         }
-        
+
         // Add user transcript to history and buffer for saving
         if (text.trim()) {
-          setTranscriptHistory(prev => [...prev, { role: 'user', text: text.trim(), timestamp: new Date() }]);
-          bufferMessage('user', text.trim());
+          setTranscriptHistory((prev) => [
+            ...prev,
+            { role: "user", text: text.trim(), timestamp: new Date() },
+          ]);
+          bufferMessage("user", text.trim());
         }
-        setTimeout(() => setDisplayTranscript(''), 3000);
+        setTimeout(() => setDisplayTranscript(""), 3000);
       }
     },
     onResponse: (text) => {
@@ -240,49 +369,57 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
       setAiResponse(aiResponseRef.current);
     },
     onError: (error) => {
-      console.error('Voice error:', error);
+      console.error("Voice error:", error);
       toast({
-        variant: 'destructive',
-        title: 'Voice Error',
+        variant: "destructive",
+        title: "Voice Error",
         description: error,
         duration: 8000, // Show error longer so user can read it
       });
-      setConnectionStatus('error');
+      setConnectionStatus("error");
       isConnectingRef.current = false;
-      setTimeout(() => setConnectionStatus('disconnected'), 4000);
+      setTimeout(() => setConnectionStatus("disconnected"), 4000);
     },
     onConnectionChange: (status) => {
-      console.log('Connection status changed:', status);
+      console.log("Connection status changed:", status);
       setConnectionStatus(status);
-      if (status === 'connected') {
+      if (status === "connected") {
         isConnectingRef.current = false;
-        aiResponseRef.current = '';
-        setDisplayTranscript('');
+        aiResponseRef.current = "";
+        setDisplayTranscript("");
         // Use varied greeting
         setAiResponse(getRandomGreeting());
-      } else if (status === 'disconnected') {
+      } else if (status === "disconnected") {
         isConnectingRef.current = false;
-      } else if (status === 'error') {
+      } else if (status === "error") {
         isConnectingRef.current = false;
       }
     },
     onSpeakingChange: (speaking) => {
       if (speaking) {
-        setConnectionStatus('speaking');
+        setConnectionStatus("speaking");
       } else if (isConnected) {
-        setConnectionStatus('connected');
+        setConnectionStatus("connected");
         // Add AI response to history and buffer when done speaking
         if (aiResponseRef.current.trim()) {
-          setTranscriptHistory(prev => [...prev, { role: 'assistant', text: aiResponseRef.current.trim(), timestamp: new Date() }]);
-          bufferMessage('assistant', aiResponseRef.current.trim());
-          
+          setTranscriptHistory((prev) => [
+            ...prev,
+            { role: "assistant", text: aiResponseRef.current.trim(), timestamp: new Date() },
+          ]);
+          bufferMessage("assistant", aiResponseRef.current.trim());
+
           // Check if AI mentioned creating a startup idea
           const responseText = aiResponseRef.current.toLowerCase();
-          if (isStartupBrainstormRef.current && (responseText.includes('startup') || responseText.includes('idea'))) {
+          if (
+            isStartupBrainstormRef.current &&
+            (responseText.includes("startup") || responseText.includes("idea"))
+          ) {
             // Try to extract a name from the conversation
-            const ideaMatch = responseText.match(/(?:called|named|called it|name it)\s+["']?([^"'\n.]+)["']?/i);
+            const ideaMatch = responseText.match(
+              /(?:called|named|called it|name it)\s+["']?([^"'\n.]+)["']?/i,
+            );
             if (ideaMatch) {
-              pendingStartupIdeaRef.current = { 
+              pendingStartupIdeaRef.current = {
                 name: ideaMatch[1].trim(),
                 description: aiResponseRef.current.substring(0, 500),
               };
@@ -290,8 +427,8 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
           }
         }
         setTimeout(() => {
-          aiResponseRef.current = '';
-          setAiResponse('');
+          aiResponseRef.current = "";
+          setAiResponse("");
         }, 2000);
       }
     },
@@ -344,16 +481,16 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
   // Update connection status based on state
   useEffect(() => {
     if (isSpeaking) {
-      setConnectionStatus('speaking');
+      setConnectionStatus("speaking");
     } else if (isListening && isConnected) {
-      setConnectionStatus('connected');
+      setConnectionStatus("connected");
     }
   }, [isListening, isSpeaking, isConnected]);
 
   const handleStartSession = useCallback(async () => {
     // Prevent multiple simultaneous connection attempts + cooldown
     if (isConnectingRef.current || isConnected || buttonCooldown) {
-      console.log('Already connecting, connected, or in cooldown, skipping...');
+      console.log("Already connecting, connected, or in cooldown, skipping...");
       return;
     }
 
@@ -362,31 +499,31 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
     setButtonPulse(true);
     setTimeout(() => setButtonPulse(false), 200);
     setTimeout(() => setButtonCooldown(false), 2500);
-    
+
     isConnectingRef.current = true;
-    setConnectionStatus('connecting');
-    aiResponseRef.current = '';
-    setAiResponse('');
-    setDisplayTranscript('');
-    
+    setConnectionStatus("connecting");
+    aiResponseRef.current = "";
+    setAiResponse("");
+    setDisplayTranscript("");
+
     // Start a new conversation record
-    const conversationId = await startConversation(false, 'Voice Chat');
+    const conversationId = await startConversation(false, "Voice Chat");
     currentConversationIdRef.current = conversationId;
     isStartupBrainstormRef.current = false;
-    
+
     try {
       await connect();
     } catch (err) {
-      console.error('Failed to start session:', err);
+      console.error("Failed to start session:", err);
       isConnectingRef.current = false;
-      setConnectionStatus('error');
+      setConnectionStatus("error");
       toast({
-        variant: 'destructive',
-        title: 'Connection Failed',
-        description: err instanceof Error ? err.message : 'Failed to connect to voice service',
+        variant: "destructive",
+        title: "Connection Failed",
+        description: err instanceof Error ? err.message : "Failed to connect to voice service",
         duration: 8000,
       });
-      setTimeout(() => setConnectionStatus('disconnected'), 4000);
+      setTimeout(() => setConnectionStatus("disconnected"), 4000);
     }
   }, [connect, isConnected, buttonCooldown, toast, startConversation]);
 
@@ -394,49 +531,60 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
     isConnectingRef.current = false;
     setButtonCooldown(false);
     disconnect();
-    setConnectionStatus('disconnected');
-    
+    setConnectionStatus("disconnected");
+
     // Save conversation history
     if (currentConversationIdRef.current) {
       // Save all buffered messages
       await saveBufferedMessages(currentConversationIdRef.current);
-      
+
       // Generate a summary from the transcript history
-      const summary = transcriptHistory.length > 0 
-        ? transcriptHistory.slice(0, 3).map(t => t.text.substring(0, 50)).join(' | ')
-        : undefined;
-      
+      const summary =
+        transcriptHistory.length > 0
+          ? transcriptHistory
+              .slice(0, 3)
+              .map((t) => t.text.substring(0, 50))
+              .join(" | ")
+          : undefined;
+
       await endConversation(currentConversationIdRef.current, summary);
-      
+
       // If we detected a startup brainstorm and have pending idea data, create the idea
       if (isStartupBrainstormRef.current && pendingStartupIdeaRef.current) {
         const idea = await createIdea({
           name: pendingStartupIdeaRef.current.name,
           description: pendingStartupIdeaRef.current.description,
-          status: 'brainstorming',
-          notes: transcriptHistory.map(t => `${t.role}: ${t.text}`).join('\n'),
+          status: "brainstorming",
+          notes: transcriptHistory.map((t) => `${t.role}: ${t.text}`).join("\n"),
         });
-        
+
         if (idea && currentConversationIdRef.current) {
           await linkToStartupIdea(currentConversationIdRef.current, idea.id);
         }
         pendingStartupIdeaRef.current = null;
       }
-      
+
       currentConversationIdRef.current = null;
     }
-  }, [disconnect, saveBufferedMessages, endConversation, transcriptHistory, createIdea, linkToStartupIdea]);
+  }, [
+    disconnect,
+    saveBufferedMessages,
+    endConversation,
+    transcriptHistory,
+    createIdea,
+    linkToStartupIdea,
+  ]);
 
   // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         handleEndSession();
         onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, handleEndSession]);
 
   // Do not auto-start: user initiates the call explicitly via the call button.
@@ -454,12 +602,17 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
   }, []);
 
   const statusConfig = {
-    connecting: { color: 'text-warning', icon: Loader2, label: 'Connecting...', animate: true },
-    connected: { color: 'text-success', icon: Wifi, label: 'Listening', animate: false },
-    processing: { color: 'text-ghost-primary', icon: Loader2, label: 'Thinking...', animate: true },
-    speaking: { color: 'text-purple-400', icon: Volume2, label: 'Speaking', animate: true },
-    disconnected: { color: 'text-muted-foreground', icon: WifiOff, label: 'Disconnected', animate: false },
-    error: { color: 'text-destructive', icon: AlertCircle, label: 'Error', animate: false },
+    connecting: { color: "text-warning", icon: Loader2, label: "Connecting...", animate: true },
+    connected: { color: "text-success", icon: Wifi, label: "Listening", animate: false },
+    processing: { color: "text-ghost-primary", icon: Loader2, label: "Thinking...", animate: true },
+    speaking: { color: "text-purple-400", icon: Volume2, label: "Speaking", animate: true },
+    disconnected: {
+      color: "text-muted-foreground",
+      icon: WifiOff,
+      label: "Disconnected",
+      animate: false,
+    },
+    error: { color: "text-destructive", icon: AlertCircle, label: "Error", animate: false },
   };
 
   const currentStatus = statusConfig[connectionStatus];
@@ -467,7 +620,7 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
 
   // Determine mic button state
   const _isMicActive = isListening && !isSpeaking && !micMuted;
-  const isSessionActive = isConnected || connectionStatus === 'connecting';
+  const isSessionActive = isConnected || connectionStatus === "connecting";
 
   useEffect(() => {
     setSpeakerMutedInEngine?.(speakerMuted);
@@ -479,22 +632,27 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
 
   // Auto-scroll transcript history
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcriptHistory]);
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 z-50 flex flex-col animate-fade-in safe-area-all">
       {/* Header with background switcher and close button */}
-      <div className="absolute z-20 flex items-center justify-between" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)', left: '1rem', right: '1rem' }}>
+      <div
+        className="absolute z-20 flex items-center justify-between"
+        style={{ top: "calc(env(safe-area-inset-top, 0px) + 1rem)", left: "1rem", right: "1rem" }}
+      >
         {/* Background style switcher */}
         <div className="flex items-center gap-1 bg-background/50 backdrop-blur-sm rounded-full p-1">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setBackgroundStyle('orbs')}
+            onClick={() => setBackgroundStyle("orbs")}
             className={cn(
               "rounded-full w-7 h-7",
-              backgroundStyle === 'orbs' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+              backgroundStyle === "orbs"
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground",
             )}
             title="Orbs"
           >
@@ -503,10 +661,12 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setBackgroundStyle('matrix')}
+            onClick={() => setBackgroundStyle("matrix")}
             className={cn(
               "rounded-full w-7 h-7",
-              backgroundStyle === 'matrix' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+              backgroundStyle === "matrix"
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground",
             )}
             title="Matrix"
           >
@@ -515,10 +675,12 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setBackgroundStyle('nebula')}
+            onClick={() => setBackgroundStyle("nebula")}
             className={cn(
               "rounded-full w-7 h-7",
-              backgroundStyle === 'nebula' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+              backgroundStyle === "nebula"
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground",
             )}
             title="Nebula"
           >
@@ -527,10 +689,12 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setBackgroundStyle('aurora')}
+            onClick={() => setBackgroundStyle("aurora")}
             className={cn(
               "rounded-full w-7 h-7",
-              backgroundStyle === 'aurora' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+              backgroundStyle === "aurora"
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground",
             )}
             title="Aurora"
           >
@@ -539,10 +703,12 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setBackgroundStyle('particles')}
+            onClick={() => setBackgroundStyle("particles")}
             className={cn(
               "rounded-full w-7 h-7",
-              backgroundStyle === 'particles' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+              backgroundStyle === "particles"
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground",
             )}
             title="Particles"
           >
@@ -551,10 +717,12 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setBackgroundStyle('circuit')}
+            onClick={() => setBackgroundStyle("circuit")}
             className={cn(
               "rounded-full w-7 h-7",
-              backgroundStyle === 'circuit' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+              backgroundStyle === "circuit"
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground",
             )}
             title="Circuit"
           >
@@ -570,7 +738,7 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
             onClick={() => setTextMode(!textMode)}
             className={cn(
               "rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/70",
-              textMode ? "text-primary" : "text-foreground/70 hover:text-foreground"
+              textMode ? "text-primary" : "text-foreground/70 hover:text-foreground",
             )}
             title={textMode ? "Switch to voice mode" : "Switch to text mode"}
           >
@@ -594,39 +762,39 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
       {showDebugPanel && (
         <div className="absolute top-20 right-6 w-72 glass-panel rounded-lg p-4 text-xs font-mono space-y-2">
           <div className="text-ghost-primary font-semibold mb-2">Voice Debug Timings</div>
-          <DebugTimingRow 
-            label="Token Fetch" 
-            start={debugTimings.tokenFetchStart} 
-            end={debugTimings.tokenFetchEnd} 
-            baseTime={debugTimings.connectStart} 
+          <DebugTimingRow
+            label="Token Fetch"
+            start={debugTimings.tokenFetchStart}
+            end={debugTimings.tokenFetchEnd}
+            baseTime={debugTimings.connectStart}
           />
-          <DebugTimingRow 
-            label="Mic Permission" 
-            start={debugTimings.micPermissionStart} 
-            end={debugTimings.micPermissionEnd} 
-            baseTime={debugTimings.connectStart} 
+          <DebugTimingRow
+            label="Mic Permission"
+            start={debugTimings.micPermissionStart}
+            end={debugTimings.micPermissionEnd}
+            baseTime={debugTimings.connectStart}
           />
-          <DebugTimingRow 
-            label="Data Channel Open" 
-            start={debugTimings.dataChannelOpen} 
-            baseTime={debugTimings.connectStart} 
+          <DebugTimingRow
+            label="Data Channel Open"
+            start={debugTimings.dataChannelOpen}
+            baseTime={debugTimings.connectStart}
           />
-          <DebugTimingRow 
-            label="Remote SDP Set" 
-            start={debugTimings.remoteSdpSet} 
-            baseTime={debugTimings.connectStart} 
+          <DebugTimingRow
+            label="Remote SDP Set"
+            start={debugTimings.remoteSdpSet}
+            baseTime={debugTimings.connectStart}
           />
-          <DebugTimingRow 
-            label="First Audio Received" 
-            start={debugTimings.firstAudioReceived} 
-            baseTime={debugTimings.connectStart} 
+          <DebugTimingRow
+            label="First Audio Received"
+            start={debugTimings.firstAudioReceived}
+            baseTime={debugTimings.connectStart}
           />
           {debugTimings.connectStart && (
             <div className="pt-2 border-t border-border/50 text-muted-foreground">
-              Total elapsed: {debugTimings.remoteSdpSet 
+              Total elapsed:{" "}
+              {debugTimings.remoteSdpSet
                 ? `${((debugTimings.remoteSdpSet - debugTimings.connectStart) / 1000).toFixed(2)}s`
-                : '...'
-              }
+                : "..."}
             </div>
           )}
         </div>
@@ -636,8 +804,8 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
       <main className="flex-1 flex flex-col items-center justify-center px-8 pt-20 pb-48 relative overflow-hidden">
         {/* Full-screen ambient visualizer background */}
         <div className="absolute inset-0 pointer-events-none">
-          <AudioVisualizer 
-            isActive={isConnected || connectionStatus === 'connecting'}
+          <AudioVisualizer
+            isActive={isConnected || connectionStatus === "connecting"}
             isSpeaking={isSpeaking}
             isListening={isListening && !isSpeaking}
             style={backgroundStyle}
@@ -646,90 +814,80 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
 
         {/* Content overlay */}
         <div className="relative z-10 flex flex-col items-center justify-center w-full">
-
-        {/* Current Transcript / Response */}
-        <div className="h-20 flex flex-col items-center justify-center gap-2 max-w-2xl mb-4">
-          {displayTranscript && !isSpeaking ? (
-            <p className="text-xl md:text-2xl font-light text-center text-foreground/90 animate-fade-in">
-              "{displayTranscript}"
-            </p>
-          ) : aiResponse && isSpeaking ? (
-            <p className="text-lg md:text-xl font-light text-center text-purple-300 animate-fade-in">
-              {aiResponse}
-            </p>
-          ) : connectionStatus === 'connecting' ? (
-            <div className="flex items-center gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-ghost-primary" />
-              <p className="text-lg text-ghost-primary">
-                Calling Dori...
+          {/* Current Transcript / Response */}
+          <div className="h-20 flex flex-col items-center justify-center gap-2 max-w-2xl mb-4">
+            {displayTranscript && !isSpeaking ? (
+              <p className="text-xl md:text-2xl font-light text-center text-foreground/90 animate-fade-in">
+                "{displayTranscript}"
               </p>
-            </div>
-          ) : connectionStatus === 'error' ? (
-            <p className="text-lg text-destructive">
-              Connection failed. Tap mic to retry.
-            </p>
-          ) : isListening && !isSpeaking ? (
-            <p className="text-lg text-muted-foreground">
-              Listening... speak now
-            </p>
-          ) : isSpeaking ? (
-            <p className="text-lg text-purple-300">
-              AI is speaking...
-            </p>
-          ) : connectionStatus === 'disconnected' ? (
-            <p className="text-lg text-muted-foreground">
-              Tap the call button to start
-            </p>
-          ) : (
-            <p className="text-lg text-muted-foreground">
-              Ready to assist
-            </p>
-          )}
-        </div>
+            ) : aiResponse && isSpeaking ? (
+              <p className="text-lg md:text-xl font-light text-center text-purple-300 animate-fade-in">
+                {aiResponse}
+              </p>
+            ) : connectionStatus === "connecting" ? (
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-6 h-6 animate-spin text-ghost-primary" />
+                <p className="text-lg text-ghost-primary">Calling Dori...</p>
+              </div>
+            ) : connectionStatus === "error" ? (
+              <p className="text-lg text-destructive">Connection failed. Tap mic to retry.</p>
+            ) : isListening && !isSpeaking ? (
+              <p className="text-lg text-muted-foreground">Listening... speak now</p>
+            ) : isSpeaking ? (
+              <p className="text-lg text-purple-300">AI is speaking...</p>
+            ) : connectionStatus === "disconnected" ? (
+              <p className="text-lg text-muted-foreground">Tap the call button to start</p>
+            ) : (
+              <p className="text-lg text-muted-foreground">Ready to assist</p>
+            )}
+          </div>
 
-        {/* Persistent Transcript History */}
-        {transcriptHistory.length > 0 && (
-          <div className="w-full max-w-xl p-4 max-h-48 overflow-y-auto">
-            <div className="space-y-3">
-              {transcriptHistory.map((item, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "flex gap-3 animate-fade-in",
-                    item.role === 'user' ? 'justify-end' : 'justify-start'
-                  )}
-                >
-                  {item.role === 'assistant' && (
-                    <div className="w-6 h-6 rounded-full bg-purple-500/30 backdrop-blur-sm flex items-center justify-center shrink-0">
-                      <Volume2 className="w-3 h-3 text-purple-500" />
-                    </div>
-                  )}
+          {/* Persistent Transcript History */}
+          {transcriptHistory.length > 0 && (
+            <div className="w-full max-w-xl p-4 max-h-48 overflow-y-auto">
+              <div className="space-y-3">
+                {transcriptHistory.map((item, index) => (
                   <div
+                    key={index}
                     className={cn(
-                      "max-w-[80%] px-3 py-1.5 rounded-lg text-sm backdrop-blur-md",
-                      item.role === 'user'
-                        ? "bg-background/70 dark:bg-background/50 text-foreground"
-                        : "bg-purple-500/20 dark:bg-purple-500/30 text-purple-700 dark:text-purple-200"
+                      "flex gap-3 animate-fade-in",
+                      item.role === "user" ? "justify-end" : "justify-start",
                     )}
                   >
-                    <p className="whitespace-pre-wrap">{item.text}</p>
-                  </div>
-                  {item.role === 'user' && (
-                    <div className="w-6 h-6 rounded-full bg-primary/30 backdrop-blur-sm flex items-center justify-center shrink-0">
-                      <Mic className="w-3 h-3 text-primary" />
+                    {item.role === "assistant" && (
+                      <div className="w-6 h-6 rounded-full bg-purple-500/30 backdrop-blur-sm flex items-center justify-center shrink-0">
+                        <Volume2 className="w-3 h-3 text-purple-500" />
+                      </div>
+                    )}
+                    <div
+                      className={cn(
+                        "max-w-[80%] px-3 py-1.5 rounded-lg text-sm backdrop-blur-md",
+                        item.role === "user"
+                          ? "bg-background/70 dark:bg-background/50 text-foreground"
+                          : "bg-purple-500/20 dark:bg-purple-500/30 text-purple-700 dark:text-purple-200",
+                      )}
+                    >
+                      <p className="whitespace-pre-wrap">{item.text}</p>
                     </div>
-                  )}
-                </div>
-              ))}
-              <div ref={transcriptEndRef} />
+                    {item.role === "user" && (
+                      <div className="w-6 h-6 rounded-full bg-primary/30 backdrop-blur-sm flex items-center justify-center shrink-0">
+                        <Mic className="w-3 h-3 text-primary" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div ref={transcriptEndRef} />
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </main>
 
       {/* Footer Controls */}
-      <footer className="absolute left-0 right-0 p-6 flex flex-col items-center gap-4" style={{ bottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <footer
+        className="absolute left-0 right-0 p-6 flex flex-col items-center gap-4"
+        style={{ bottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
         {/* Text input when in text mode */}
         {textMode && isSessionActive && (
           <div className="w-full max-w-md flex gap-2 px-4">
@@ -738,9 +896,9 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && textInput.trim()) {
+                if (e.key === "Enter" && textInput.trim()) {
                   onCommand(textInput.trim());
-                  setTextInput('');
+                  setTextInput("");
                 }
               }}
               placeholder="Type your message..."
@@ -750,7 +908,7 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
               onClick={() => {
                 if (textInput.trim()) {
                   onCommand(textInput.trim());
-                  setTextInput('');
+                  setTextInput("");
                 }
               }}
               disabled={!textInput.trim()}
@@ -772,7 +930,7 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
               "rounded-full w-14 h-14 transition-all",
               speakerMuted
                 ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted",
             )}
             title={speakerMuted ? "Unmute speaker" : "Mute speaker"}
           >
@@ -782,20 +940,26 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
           {/* Center: Call / Hang up */}
           <Button
             onClick={isSessionActive ? handleEndSession : handleStartSession}
-            disabled={connectionStatus === 'connecting' || buttonCooldown}
+            disabled={connectionStatus === "connecting" || buttonCooldown}
             className={cn(
               "rounded-full w-24 h-24 transition-all shadow-lg",
-              connectionStatus === 'connecting' && "opacity-70 cursor-wait",
+              connectionStatus === "connecting" && "opacity-70 cursor-wait",
               buttonCooldown && !isSessionActive && "opacity-50 cursor-not-allowed",
               buttonPulse && "scale-95",
-              isSessionActive ? "bg-ghost-primary hover:bg-ghost-primary/80" : "bg-muted hover:bg-muted/80"
+              isSessionActive
+                ? "bg-ghost-primary hover:bg-ghost-primary/80"
+                : "bg-muted hover:bg-muted/80",
             )}
             style={{
-              transition: buttonPulse ? 'transform 100ms ease-out' : 'transform 200ms ease-out, opacity 200ms',
+              transition: buttonPulse
+                ? "transform 100ms ease-out"
+                : "transform 200ms ease-out, opacity 200ms",
             }}
-            title={isSessionActive ? "End call" : buttonCooldown ? "Please wait..." : "Call assistant"}
+            title={
+              isSessionActive ? "End call" : buttonCooldown ? "Please wait..." : "Call assistant"
+            }
           >
-            {connectionStatus === 'connecting' ? (
+            {connectionStatus === "connecting" ? (
               <Loader2 className="w-12 h-12 animate-spin text-white" />
             ) : isSessionActive ? (
               <PhoneOff className="w-12 h-12 text-white" />
@@ -816,7 +980,7 @@ export function GhostMode({ onClose, onCommand, personality: _personality = 'bal
                 (!isSessionActive || textMode) && "opacity-40",
                 micMuted
                   ? "bg-muted/50 text-muted-foreground hover:bg-muted"
-                  : "bg-success/20 text-success hover:bg-success/30"
+                  : "bg-success/20 text-success hover:bg-success/30",
               )}
               title={micMuted ? "Unmute microphone" : "Mute microphone"}
             >

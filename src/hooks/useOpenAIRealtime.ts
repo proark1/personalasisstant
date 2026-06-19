@@ -1,16 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { AudioRecorder, AudioQueue, parseNaturalDate, fuzzyMatchTask } from '@/utils/RealtimeAudio';
+import { useState, useCallback, useRef, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { AudioRecorder, AudioQueue, parseNaturalDate, fuzzyMatchTask } from "@/utils/RealtimeAudio";
 import {
   fuzzyMatchByName,
   fuzzyMatchContact,
   resolveContactByQuery,
   parseEventDateTime,
-} from '@/hooks/realtimeToolHelpers';
-import type { Task, TaskCategory, TaskPriority, CalendarEvent } from '@/types/flux';
-import type { Contact, ContactInput } from '@/hooks/useContacts';
-import type { Contract, ContractInput } from '@/hooks/useContracts';
-import type { Project } from '@/types/flux';
+} from "@/hooks/realtimeToolHelpers";
+import type { Task, TaskCategory, TaskPriority, CalendarEvent } from "@/types/flux";
+import type { Contact, ContactInput } from "@/hooks/useContacts";
+import type { Contract, ContractInput } from "@/hooks/useContracts";
+import type { Project } from "@/types/flux";
 
 // User + context bags are assembled from a dozen hooks upstream
 // (tasks, contacts, contracts, projects, notes, habits, health, emails,
@@ -29,8 +29,17 @@ export interface RealtimeUserProfile {
 // (same looseness as the previous `unknown[]`), so spelling out the few
 // hot properties only removes errors — it never tightens anything that
 // wasn't already accessed.
-interface RealtimeTaskItem { id: string; title: string; completed: boolean; [k: string]: unknown; }
-interface RealtimeNamedItem { id: string; name: string; [k: string]: unknown; }
+interface RealtimeTaskItem {
+  id: string;
+  title: string;
+  completed: boolean;
+  [k: string]: unknown;
+}
+interface RealtimeNamedItem {
+  id: string;
+  name: string;
+  [k: string]: unknown;
+}
 interface RealtimeEmailItem {
   id: string;
   from_email?: string;
@@ -66,10 +75,10 @@ interface UseOpenAIRealtimeOptions {
   onTranscript?: (text: string, isFinal: boolean) => void;
   onResponse?: (text: string) => void;
   onError?: (error: string) => void;
-  onConnectionChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
+  onConnectionChange?: (status: "connecting" | "connected" | "disconnected" | "error") => void;
   onSpeakingChange?: (isSpeaking: boolean) => void;
   // Task operations
-  addTask?: (task: Omit<Task, 'id' | 'createdAt'>) => Promise<Task | null>;
+  addTask?: (task: Omit<Task, "id" | "createdAt">) => Promise<Task | null>;
   updateTask?: (id: string, updates: Partial<Task>) => Promise<void>;
   trashTask?: (id: string) => Promise<{ error: unknown }>;
   toggleTaskComplete?: (id: string) => Promise<void>;
@@ -79,7 +88,7 @@ interface UseOpenAIRealtimeOptions {
   deleteContact?: (id: string) => Promise<boolean>;
   markContacted?: (id: string) => Promise<boolean>;
   // Event operations
-  addEvent?: (event: Omit<CalendarEvent, 'id'>) => Promise<CalendarEvent | null>;
+  addEvent?: (event: Omit<CalendarEvent, "id">) => Promise<CalendarEvent | null>;
   updateEvent?: (id: string, updates: Partial<CalendarEvent>) => Promise<void>;
   deleteEvent?: (id: string) => Promise<void>;
   // Contract operations
@@ -87,7 +96,9 @@ interface UseOpenAIRealtimeOptions {
   updateContract?: (id: string, updates: Partial<ContractInput>) => Promise<boolean>;
   deleteContract?: (id: string) => Promise<boolean>;
   // Project operations
-  addProject?: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Project | null>;
+  addProject?: (
+    project: Omit<Project, "id" | "createdAt" | "updatedAt">,
+  ) => Promise<Project | null>;
   updateProject?: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject?: (id: string) => Promise<void>;
   // Refetch
@@ -100,13 +111,17 @@ interface UseOpenAIRealtimeOptions {
   updateNote?: (noteId: string, updates: Record<string, unknown>) => Promise<void>;
   deleteNote?: (noteId: string, permanent?: boolean) => Promise<void>;
   refetchNotes?: () => void;
-  // Habit operations  
+  // Habit operations
   createHabit?: (habit: Record<string, unknown>) => Promise<unknown>;
   logHabit?: (habitId: string, date?: Date, count?: number) => Promise<void>;
   deleteHabit?: (habitId: string) => Promise<void>;
   refetchHabits?: () => void;
   // Message operations
-  sendDirectMessage?: (recipientId: string, content: string, attachments?: unknown[]) => Promise<unknown>;
+  sendDirectMessage?: (
+    recipientId: string,
+    content: string,
+    attachments?: unknown[],
+  ) => Promise<unknown>;
   refetchMessages?: () => void;
   // Startup idea operations
   createStartupIdea?: (input: Record<string, unknown>) => Promise<unknown>;
@@ -172,7 +187,7 @@ export function useOpenAIRealtime({
     firstAudioReceived?: number;
     connectStart?: number;
   }>({});
-  
+
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -182,8 +197,10 @@ export function useOpenAIRealtime({
   const audioQueueRef = useRef<AudioQueue | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
 
-  const currentTranscriptRef = useRef<string>('');
-  const pendingFunctionCallRef = useRef<{ name: string; callId: string; args: string } | null>(null);
+  const currentTranscriptRef = useRef<string>("");
+  const pendingFunctionCallRef = useRef<{ name: string; callId: string; args: string } | null>(
+    null,
+  );
   const isConnectingRef = useRef(false);
   const dcIsOpenRef = useRef(false);
   const rtcReadyRef = useRef(false);
@@ -199,26 +216,74 @@ export function useOpenAIRealtime({
   // render and read them inside the (now dependency-free) callback, so a
   // tool invocation always sees the latest data without re-subscribing.
   const opsRef = useRef({
-    contextData, addTask, updateTask, trashTask, toggleTaskComplete,
-    addContact, updateContact, deleteContact, markContacted,
-    addEvent, updateEvent, deleteEvent,
-    addContract, updateContract, deleteContract,
-    addProject, updateProject, deleteProject,
-    refetch, refetchContacts, refetchContracts, refetchProjects,
-    createNote, deleteNote, refetchNotes,
-    createHabit, logHabit, deleteHabit, refetchHabits,
-    sendDirectMessage, createStartupIdea, updateStartupIdea, refetchStartupIdeas,
+    contextData,
+    addTask,
+    updateTask,
+    trashTask,
+    toggleTaskComplete,
+    addContact,
+    updateContact,
+    deleteContact,
+    markContacted,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    addContract,
+    updateContract,
+    deleteContract,
+    addProject,
+    updateProject,
+    deleteProject,
+    refetch,
+    refetchContacts,
+    refetchContracts,
+    refetchProjects,
+    createNote,
+    deleteNote,
+    refetchNotes,
+    createHabit,
+    logHabit,
+    deleteHabit,
+    refetchHabits,
+    sendDirectMessage,
+    createStartupIdea,
+    updateStartupIdea,
+    refetchStartupIdeas,
   });
   opsRef.current = {
-    contextData, addTask, updateTask, trashTask, toggleTaskComplete,
-    addContact, updateContact, deleteContact, markContacted,
-    addEvent, updateEvent, deleteEvent,
-    addContract, updateContract, deleteContract,
-    addProject, updateProject, deleteProject,
-    refetch, refetchContacts, refetchContracts, refetchProjects,
-    createNote, deleteNote, refetchNotes,
-    createHabit, logHabit, deleteHabit, refetchHabits,
-    sendDirectMessage, createStartupIdea, updateStartupIdea, refetchStartupIdeas,
+    contextData,
+    addTask,
+    updateTask,
+    trashTask,
+    toggleTaskComplete,
+    addContact,
+    updateContact,
+    deleteContact,
+    markContacted,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    addContract,
+    updateContract,
+    deleteContract,
+    addProject,
+    updateProject,
+    deleteProject,
+    refetch,
+    refetchContacts,
+    refetchContracts,
+    refetchProjects,
+    createNote,
+    deleteNote,
+    refetchNotes,
+    createHabit,
+    logHabit,
+    deleteHabit,
+    refetchHabits,
+    sendDirectMessage,
+    createStartupIdea,
+    updateStartupIdea,
+    refetchStartupIdeas,
   };
 
   // Handle function calls from OpenAI
@@ -230,38 +295,61 @@ export function useOpenAIRealtime({
     // Read the latest operations + context from the ref so this callback
     // stays referentially stable (empty dep array below).
     const {
-      contextData, addTask, updateTask, trashTask, toggleTaskComplete,
-      addContact, updateContact, deleteContact, markContacted,
-      addEvent, updateEvent, deleteEvent,
-      addContract, updateContract, deleteContract,
-      addProject, updateProject, deleteProject,
-      refetch, refetchContacts, refetchContracts, refetchProjects,
-      createNote, deleteNote, refetchNotes,
-      createHabit, logHabit, deleteHabit, refetchHabits,
-      sendDirectMessage, createStartupIdea, refetchStartupIdeas,
+      contextData,
+      addTask,
+      updateTask,
+      trashTask,
+      toggleTaskComplete,
+      addContact,
+      updateContact,
+      deleteContact,
+      markContacted,
+      addEvent,
+      updateEvent,
+      deleteEvent,
+      addContract,
+      updateContract,
+      deleteContract,
+      addProject,
+      updateProject,
+      deleteProject,
+      refetch,
+      refetchContacts,
+      refetchContracts,
+      refetchProjects,
+      createNote,
+      deleteNote,
+      refetchNotes,
+      createHabit,
+      logHabit,
+      deleteHabit,
+      refetchHabits,
+      sendDirectMessage,
+      createStartupIdea,
+      refetchStartupIdeas,
     } = opsRef.current;
-    console.log('Function call:', name, args);
+    console.log("Function call:", name, args);
     // `result` is a dynamic accumulator: each tool branch assigns a different
     // shape (success/message plus tool-specific payloads). Keeping it `any`
     // preserves the original behavior without inventing a union type.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let result: any = { success: false, message: 'Unknown function' };
-    
+    let result: any = { success: false, message: "Unknown function" };
+
     const tasks = contextData?.allTasks || [];
     const contacts = contextData?.allContacts || [];
     const events = contextData?.allEvents || [];
     const contracts = contextData?.allContracts || [];
     const projects = contextData?.allProjects || [];
-    
+
     try {
       switch (name) {
         // ==================== TASK HANDLERS ====================
-        case 'create_task': {
+        case "create_task": {
           if (addTask && args.title) {
             const newTask = await addTask({
               title: args.title,
-              priority: (args.priority || 'medium') as TaskPriority,
-              category: (args.category || 'personal') as TaskCategory,
+              priority: (args.priority || "medium") as TaskPriority,
+              category: (args.category || "personal") as TaskCategory,
               completed: false,
               dueDate: args.due_date ? new Date(args.due_date) : undefined,
               projectId: args.project_id,
@@ -270,16 +358,19 @@ export function useOpenAIRealtime({
               result = { success: true, message: `Created task "${args.title}"`, task: newTask };
               refetch?.();
             } else {
-              result = { success: false, message: 'Failed to create task' };
+              result = { success: false, message: "Failed to create task" };
             }
           }
           break;
         }
-        
-        case 'complete_task': {
+
+        case "complete_task": {
           const matches = fuzzyMatchTask(args.task_query, tasks);
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find task matching "${args.task_query}"` };
+            result = {
+              success: false,
+              message: `Could not find task matching "${args.task_query}"`,
+            };
           } else if (matches.length === 1) {
             if (toggleTaskComplete) {
               await toggleTaskComplete(matches[0].id);
@@ -287,16 +378,27 @@ export function useOpenAIRealtime({
               refetch?.();
             }
           } else {
-            const taskList = matches.slice(0, 3).map(t => t.title).join(', ');
-            result = { success: false, multiple_matches: true, matches: matches.slice(0, 3), message: `Found multiple tasks: ${taskList}. Please be more specific.` };
+            const taskList = matches
+              .slice(0, 3)
+              .map((t) => t.title)
+              .join(", ");
+            result = {
+              success: false,
+              multiple_matches: true,
+              matches: matches.slice(0, 3),
+              message: `Found multiple tasks: ${taskList}. Please be more specific.`,
+            };
           }
           break;
         }
-        
-        case 'trash_task': {
+
+        case "trash_task": {
           const matches = fuzzyMatchTask(args.task_query, tasks);
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find task matching "${args.task_query}"` };
+            result = {
+              success: false,
+              message: `Could not find task matching "${args.task_query}"`,
+            };
           } else if (matches.length === 1) {
             if (trashTask) {
               await trashTask(matches[0].id);
@@ -304,36 +406,59 @@ export function useOpenAIRealtime({
               refetch?.();
             }
           } else {
-            const taskList = matches.slice(0, 3).map(t => t.title).join(', ');
-            result = { success: false, multiple_matches: true, message: `Found multiple tasks: ${taskList}. Please be more specific.` };
+            const taskList = matches
+              .slice(0, 3)
+              .map((t) => t.title)
+              .join(", ");
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple tasks: ${taskList}. Please be more specific.`,
+            };
           }
           break;
         }
-        
-        case 'reschedule_task': {
+
+        case "reschedule_task": {
           const matches = fuzzyMatchTask(args.task_query, tasks);
           const newDate = parseNaturalDate(args.new_date);
-          
+
           if (!newDate) {
-            result = { success: false, message: `Could not understand the date "${args.new_date}"` };
+            result = {
+              success: false,
+              message: `Could not understand the date "${args.new_date}"`,
+            };
           } else if (matches.length === 0) {
-            result = { success: false, message: `Could not find task matching "${args.task_query}"` };
+            result = {
+              success: false,
+              message: `Could not find task matching "${args.task_query}"`,
+            };
           } else if (matches.length === 1) {
             if (updateTask) {
               await updateTask(matches[0].id, { dueDate: new Date(newDate) });
-              result = { success: true, message: `Rescheduled "${matches[0].title}" to ${newDate}` };
+              result = {
+                success: true,
+                message: `Rescheduled "${matches[0].title}" to ${newDate}`,
+              };
               refetch?.();
             }
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple tasks. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple tasks. Please be more specific.`,
+            };
           }
           break;
         }
-        
-        case 'edit_task': {
+
+        case "edit_task": {
           const matches = fuzzyMatchTask(args.task_query, tasks);
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find task matching "${args.task_query}"` };
+            result = {
+              success: false,
+              message: `Could not find task matching "${args.task_query}"`,
+            };
           } else if (matches.length === 1 && updateTask) {
             const updates: Partial<Task> = {};
             if (args.new_title) updates.title = args.new_title;
@@ -343,52 +468,73 @@ export function useOpenAIRealtime({
             result = { success: true, message: `Updated task "${matches[0].title}"` };
             refetch?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple tasks. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple tasks. Please be more specific.`,
+            };
           }
           break;
         }
-        
-        case 'search_tasks': {
+
+        case "search_tasks": {
           const matches = fuzzyMatchTask(args.query, tasks);
-          result = { success: true, message: matches.length > 0 ? `Found ${matches.length} task(s)` : 'No tasks found', tasks: matches.slice(0, 5) };
+          result = {
+            success: true,
+            message: matches.length > 0 ? `Found ${matches.length} task(s)` : "No tasks found",
+            tasks: matches.slice(0, 5),
+          };
           break;
         }
-        
-        case 'get_task_summary': {
+
+        case "get_task_summary": {
           const now = new Date();
-          const todayStr = now.toISOString().split('T')[0];
+          const todayStr = now.toISOString().split("T")[0];
           let relevantTasks: RealtimeTaskItem[] = [];
-          let summary = '';
+          let summary = "";
 
           // `t.dueDate` is a `Date`, not a string. Normalize both sides to
           // `YYYY-MM-DD` strings before comparing so date-only equality and
           // ordering work correctly (the previous string casts crashed /
           // compared wrong).
           const dueDateStr = (t: RealtimeTaskItem) =>
-            t.dueDate ? new Date(t.dueDate as string | Date).toISOString().split('T')[0] : undefined;
+            t.dueDate
+              ? new Date(t.dueDate as string | Date).toISOString().split("T")[0]
+              : undefined;
           switch (args.type) {
-            case 'today':
-              relevantTasks = tasks.filter(t => !t.completed && dueDateStr(t) === todayStr);
-              summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} task(s) due today` : 'No tasks due today';
+            case "today":
+              relevantTasks = tasks.filter((t) => !t.completed && dueDateStr(t) === todayStr);
+              summary =
+                relevantTasks.length > 0
+                  ? `You have ${relevantTasks.length} task(s) due today`
+                  : "No tasks due today";
               break;
-            case 'overdue':
-              relevantTasks = tasks.filter(t => {
+            case "overdue":
+              relevantTasks = tasks.filter((t) => {
                 const d = dueDateStr(t);
                 return !t.completed && d !== undefined && d < todayStr;
               });
-              summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} overdue task(s)` : 'No overdue tasks';
+              summary =
+                relevantTasks.length > 0
+                  ? `You have ${relevantTasks.length} overdue task(s)`
+                  : "No overdue tasks";
               break;
-            case 'upcoming': {
-              const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-              relevantTasks = tasks.filter(t => {
+            case "upcoming": {
+              const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+                .toISOString()
+                .split("T")[0];
+              relevantTasks = tasks.filter((t) => {
                 const d = dueDateStr(t);
                 return !t.completed && d !== undefined && d >= todayStr && d <= nextWeek;
               });
-              summary = relevantTasks.length > 0 ? `You have ${relevantTasks.length} task(s) coming up` : 'No upcoming tasks';
+              summary =
+                relevantTasks.length > 0
+                  ? `You have ${relevantTasks.length} task(s) coming up`
+                  : "No upcoming tasks";
               break;
             }
             default:
-              relevantTasks = tasks.filter(t => !t.completed);
+              relevantTasks = tasks.filter((t) => !t.completed);
               summary = `You have ${relevantTasks.length} pending task(s)`;
           }
           result = { success: true, message: summary, tasks: relevantTasks.slice(0, 5) };
@@ -396,32 +542,52 @@ export function useOpenAIRealtime({
         }
 
         // ==================== CONTACT HANDLERS ====================
-        case 'search_contacts': {
-          const query = (args.query || '').toLowerCase();
-          const location = (args.location || '').toLowerCase();
-          const typeFilter = args.type || 'all';
-          
-          const matches = contacts.filter(c => {
-            const searchFields = [c.name, (c.company as string|undefined), (c.role as string|undefined), (c.city as string|undefined), (c.country as string|undefined), (c.notes as string|undefined), ...((c.tags as string[]|undefined) || [])].filter(Boolean).join(' ').toLowerCase();
+        case "search_contacts": {
+          const query = (args.query || "").toLowerCase();
+          const location = (args.location || "").toLowerCase();
+          const typeFilter = args.type || "all";
+
+          const matches = contacts.filter((c) => {
+            const searchFields = [
+              c.name,
+              c.company as string | undefined,
+              c.role as string | undefined,
+              c.city as string | undefined,
+              c.country as string | undefined,
+              c.notes as string | undefined,
+              ...((c.tags as string[] | undefined) || []),
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
             const matchesQuery = !query || searchFields.includes(String(query));
-            const matchesLocation = !location || (c.city as string|undefined)?.toLowerCase().includes(String(location)) || (c.country as string|undefined)?.toLowerCase().includes(String(location));
-            const matchesType = typeFilter === 'all' || c.contactType === typeFilter;
+            const matchesLocation =
+              !location ||
+              (c.city as string | undefined)?.toLowerCase().includes(String(location)) ||
+              (c.country as string | undefined)?.toLowerCase().includes(String(location));
+            const matchesType = typeFilter === "all" || c.contactType === typeFilter;
             return matchesQuery && matchesLocation && matchesType;
           });
 
           result = {
             success: true,
-            message: matches.length > 0 ? `Found ${matches.length} contact(s)` : `No contacts found`,
-            contacts: matches.slice(0, 10).map(c => ({
-              name: c.name, company: c.company, role: c.role,
-              location: [(c.city as string|undefined), (c.country as string|undefined)].filter(Boolean).join(', '),
-              phone: c.phone, email: c.email
-            }))
+            message:
+              matches.length > 0 ? `Found ${matches.length} contact(s)` : `No contacts found`,
+            contacts: matches.slice(0, 10).map((c) => ({
+              name: c.name,
+              company: c.company,
+              role: c.role,
+              location: [c.city as string | undefined, c.country as string | undefined]
+                .filter(Boolean)
+                .join(", "),
+              phone: c.phone,
+              email: c.email,
+            })),
           };
           break;
         }
-        
-        case 'create_contact': {
+
+        case "create_contact": {
           if (addContact && args.name) {
             const newContact = await addContact({
               name: args.name,
@@ -431,23 +597,26 @@ export function useOpenAIRealtime({
               phone: args.phone,
               city: args.city,
               country: args.country,
-              contactType: args.contact_type || 'business',
+              contactType: args.contact_type || "business",
               notes: args.notes,
             });
             if (newContact) {
               result = { success: true, message: `Added contact "${args.name}"` };
               refetchContacts?.();
             } else {
-              result = { success: false, message: 'Failed to create contact' };
+              result = { success: false, message: "Failed to create contact" };
             }
           }
           break;
         }
-        
-        case 'update_contact': {
+
+        case "update_contact": {
           const matches = fuzzyMatchContact(args.contact_query, contacts);
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find contact matching "${args.contact_query}"` };
+            result = {
+              success: false,
+              message: `Could not find contact matching "${args.contact_query}"`,
+            };
           } else if (matches.length === 1 && updateContact) {
             const updates: Partial<ContactInput> = {};
             if (args.company) updates.company = args.company;
@@ -461,59 +630,90 @@ export function useOpenAIRealtime({
             result = { success: true, message: `Updated contact "${matches[0].name}"` };
             refetchContacts?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple contacts: ${matches.slice(0, 3).map(c => c.name).join(', ')}` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple contacts: ${matches
+                .slice(0, 3)
+                .map((c) => c.name)
+                .join(", ")}`,
+            };
           }
           break;
         }
 
-        case 'mark_contact_contacted': {
+        case "mark_contact_contacted": {
           const matches = fuzzyMatchContact(args.contact_query, contacts);
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find contact matching "${args.contact_query}"` };
+            result = {
+              success: false,
+              message: `Could not find contact matching "${args.contact_query}"`,
+            };
           } else if (matches.length === 1 && markContacted) {
             await markContacted(matches[0].id);
             result = { success: true, message: `Marked "${matches[0].name}" as contacted` };
             refetchContacts?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple contacts. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple contacts. Please be more specific.`,
+            };
           }
           break;
         }
-        
-        case 'delete_contact': {
+
+        case "delete_contact": {
           const matches = fuzzyMatchContact(args.contact_query, contacts);
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find contact matching "${args.contact_query}"` };
+            result = {
+              success: false,
+              message: `Could not find contact matching "${args.contact_query}"`,
+            };
           } else if (matches.length === 1 && deleteContact) {
             await deleteContact(matches[0].id);
             result = { success: true, message: `Deleted contact "${matches[0].name}"` };
             refetchContacts?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple contacts. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple contacts. Please be more specific.`,
+            };
           }
           break;
         }
-        
-        case 'get_contacts_due': {
+
+        case "get_contacts_due": {
           const now = new Date();
-          const due = contacts.filter(c => c.nextContactDue && new Date(c.nextContactDue as string) <= now);
+          const due = contacts.filter(
+            (c) => c.nextContactDue && new Date(c.nextContactDue as string) <= now,
+          );
           result = {
             success: true,
-            message: due.length > 0 ? `You have ${due.length} contact(s) due for follow-up` : 'No contacts due for follow-up',
-            contacts: due.slice(0, 10).map(c => ({ name: c.name, company: c.company, lastContacted: c.lastContactedAt }))
+            message:
+              due.length > 0
+                ? `You have ${due.length} contact(s) due for follow-up`
+                : "No contacts due for follow-up",
+            contacts: due
+              .slice(0, 10)
+              .map((c) => ({ name: c.name, company: c.company, lastContacted: c.lastContactedAt })),
           };
           break;
         }
 
         // ==================== EVENT HANDLERS ====================
-        case 'create_event': {
+        case "create_event": {
           if (addEvent && args.title && args.start_time) {
             const startTime = parseEventDateTime(args.start_time);
             if (!startTime) {
-              result = { success: false, message: `Could not understand the time "${args.start_time}"` };
+              result = {
+                success: false,
+                message: `Could not understand the time "${args.start_time}"`,
+              };
               break;
             }
-            
+
             let endTime: Date;
             if (args.end_time) {
               const parsedEnd = parseEventDateTime(args.end_time);
@@ -526,7 +726,7 @@ export function useOpenAIRealtime({
                   const amount = parseInt(durationMatch[1]);
                   const unit = durationMatch[2].toLowerCase();
                   endTime = new Date(startTime);
-                  if (unit.startsWith('hour') || unit === 'hr') {
+                  if (unit.startsWith("hour") || unit === "hr") {
                     endTime.setHours(endTime.getHours() + amount);
                   } else {
                     endTime.setMinutes(endTime.getMinutes() + amount);
@@ -538,7 +738,7 @@ export function useOpenAIRealtime({
             } else {
               endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Default 1 hour
             }
-            
+
             const newEvent = await addEvent({
               title: args.title,
               startTime,
@@ -546,71 +746,90 @@ export function useOpenAIRealtime({
               location: args.location,
               description: args.description,
             });
-            
+
             if (newEvent) {
               const dateStr = startTime.toLocaleDateString();
-              const timeStr = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-              result = { success: true, message: `Created event "${args.title}" on ${dateStr} at ${timeStr}` };
+              const timeStr = startTime.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              result = {
+                success: true,
+                message: `Created event "${args.title}" on ${dateStr} at ${timeStr}`,
+              };
               refetch?.();
             } else {
-              result = { success: false, message: 'Failed to create event' };
+              result = { success: false, message: "Failed to create event" };
             }
           }
           break;
         }
-        
-        case 'search_events': {
+
+        case "search_events": {
           const now = new Date();
           let startRange = now;
           let endRange = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
-          
+
           switch (args.date_range) {
-            case 'today':
-              endRange = new Date(now); endRange.setHours(23, 59, 59);
+            case "today":
+              endRange = new Date(now);
+              endRange.setHours(23, 59, 59);
               break;
-            case 'tomorrow':
-              startRange = new Date(now); startRange.setDate(startRange.getDate() + 1); startRange.setHours(0, 0, 0);
-              endRange = new Date(startRange); endRange.setHours(23, 59, 59);
+            case "tomorrow":
+              startRange = new Date(now);
+              startRange.setDate(startRange.getDate() + 1);
+              startRange.setHours(0, 0, 0);
+              endRange = new Date(startRange);
+              endRange.setHours(23, 59, 59);
               break;
-            case 'this_week':
-              endRange = new Date(now); endRange.setDate(endRange.getDate() + (7 - endRange.getDay()));
+            case "this_week":
+              endRange = new Date(now);
+              endRange.setDate(endRange.getDate() + (7 - endRange.getDay()));
               break;
-            case 'next_week':
-              startRange = new Date(now); startRange.setDate(startRange.getDate() + (8 - startRange.getDay()));
-              endRange = new Date(startRange); endRange.setDate(endRange.getDate() + 6);
+            case "next_week":
+              startRange = new Date(now);
+              startRange.setDate(startRange.getDate() + (8 - startRange.getDay()));
+              endRange = new Date(startRange);
+              endRange.setDate(endRange.getDate() + 6);
               break;
-            case 'this_month':
+            case "this_month":
               endRange = new Date(now.getFullYear(), now.getMonth() + 1, 0);
               break;
           }
-          
-          const query = String(args.query || '').toLowerCase();
-          const matches = events.filter(e => {
+
+          const query = String(args.query || "").toLowerCase();
+          const matches = events.filter((e) => {
             const eventStart = new Date(e.startTime as string);
             const inRange = eventStart >= startRange && eventStart <= endRange;
-            const matchesQuery = !query || (e.title || '').toLowerCase().includes(query);
+            const matchesQuery = !query || (e.title || "").toLowerCase().includes(query);
             return inRange && matchesQuery;
           });
 
           result = {
             success: true,
-            message: matches.length > 0 ? `Found ${matches.length} event(s)` : 'No events found',
-            events: matches.slice(0, 10).map(e => ({
+            message: matches.length > 0 ? `Found ${matches.length} event(s)` : "No events found",
+            events: matches.slice(0, 10).map((e) => ({
               title: e.title,
               date: new Date(e.startTime as string).toLocaleDateString(),
-              time: new Date(e.startTime as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              location: e.location
-            }))
+              time: new Date(e.startTime as string).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              location: e.location,
+            })),
           };
           break;
         }
-        
-        case 'update_event': {
-          const query = String(args.event_query || '').toLowerCase();
-          const matches = events.filter(e => (e.title || '').toLowerCase().includes(query));
-          
+
+        case "update_event": {
+          const query = String(args.event_query || "").toLowerCase();
+          const matches = events.filter((e) => (e.title || "").toLowerCase().includes(query));
+
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find event matching "${args.event_query}"` };
+            result = {
+              success: false,
+              message: `Could not find event matching "${args.event_query}"`,
+            };
           } else if (matches.length === 1 && updateEvent) {
             const updates: Partial<CalendarEvent> = {};
             if (args.new_title) updates.title = args.new_title;
@@ -627,36 +846,47 @@ export function useOpenAIRealtime({
             result = { success: true, message: `Updated event "${matches[0].title}"` };
             refetch?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple events. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple events. Please be more specific.`,
+            };
           }
           break;
         }
-        
-        case 'delete_event': {
-          const query = String(args.event_query || '').toLowerCase();
-          const matches = events.filter(e => (e.title || '').toLowerCase().includes(query));
-          
+
+        case "delete_event": {
+          const query = String(args.event_query || "").toLowerCase();
+          const matches = events.filter((e) => (e.title || "").toLowerCase().includes(query));
+
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find event matching "${args.event_query}"` };
+            result = {
+              success: false,
+              message: `Could not find event matching "${args.event_query}"`,
+            };
           } else if (matches.length === 1 && deleteEvent) {
             await deleteEvent(matches[0].id);
             result = { success: true, message: `Deleted event "${matches[0].title}"` };
             refetch?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple events. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple events. Please be more specific.`,
+            };
           }
           break;
         }
 
         // ==================== CONTRACT HANDLERS ====================
-        case 'create_contract': {
+        case "create_contract": {
           if (addContract && args.name) {
             const newContract = await addContract({
               name: args.name,
               provider: args.provider,
-              category: args.category || 'subscription',
+              category: args.category || "subscription",
               costAmount: args.cost_amount,
-              costFrequency: args.cost_frequency || 'monthly',
+              costFrequency: args.cost_frequency || "monthly",
               renewalDate: args.renewal_date ? new Date(args.renewal_date) : undefined,
               autoRenews: args.auto_renews,
               notes: args.notes,
@@ -666,39 +896,54 @@ export function useOpenAIRealtime({
               result = { success: true, message: `Added contract "${args.name}"` };
               refetchContracts?.();
             } else {
-              result = { success: false, message: 'Failed to create contract' };
+              result = { success: false, message: "Failed to create contract" };
             }
           }
           break;
         }
-        
-        case 'search_contracts': {
-          const query = (args.query || '').toLowerCase();
-          const category = (args.category || '').toLowerCase();
-          
-          const matches = contracts.filter(c => {
-            const searchable = [c.name, (c.provider as string|undefined), (c.category as string|undefined), (c.notes as string|undefined)].filter(Boolean).join(' ').toLowerCase();
+
+        case "search_contracts": {
+          const query = (args.query || "").toLowerCase();
+          const category = (args.category || "").toLowerCase();
+
+          const matches = contracts.filter((c) => {
+            const searchable = [
+              c.name,
+              c.provider as string | undefined,
+              c.category as string | undefined,
+              c.notes as string | undefined,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
             const matchesQuery = !query || searchable.includes(String(query));
-            const matchesCategory = !category || (c.category as string|undefined)?.toLowerCase() === category;
+            const matchesCategory =
+              !category || (c.category as string | undefined)?.toLowerCase() === category;
             return matchesQuery && matchesCategory;
           });
 
           result = {
             success: true,
-            message: matches.length > 0 ? `Found ${matches.length} contract(s)` : 'No contracts found',
-            contracts: matches.slice(0, 10).map(c => ({
-              name: c.name, provider: c.provider, category: c.category,
+            message:
+              matches.length > 0 ? `Found ${matches.length} contract(s)` : "No contracts found",
+            contracts: matches.slice(0, 10).map((c) => ({
+              name: c.name,
+              provider: c.provider,
+              category: c.category,
               cost: c.costAmount ? `$${c.costAmount}/${c.costFrequency}` : null,
-              renewalDate: c.renewalDate
-            }))
+              renewalDate: c.renewalDate,
+            })),
           };
           break;
         }
-        
-        case 'update_contract': {
+
+        case "update_contract": {
           const matches = fuzzyMatchByName(args.contract_query, contracts);
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find contract matching "${args.contract_query}"` };
+            result = {
+              success: false,
+              message: `Could not find contract matching "${args.contract_query}"`,
+            };
           } else if (matches.length === 1 && updateContract) {
             const updates: Partial<ContractInput> = {};
             if (args.cost_amount !== undefined) updates.costAmount = args.cost_amount;
@@ -710,57 +955,79 @@ export function useOpenAIRealtime({
             result = { success: true, message: `Updated contract "${matches[0].name}"` };
             refetchContracts?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple contracts. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple contracts. Please be more specific.`,
+            };
           }
           break;
         }
-        
-        case 'delete_contract': {
+
+        case "delete_contract": {
           const matches = fuzzyMatchByName(args.contract_query, contracts);
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find contract matching "${args.contract_query}"` };
+            result = {
+              success: false,
+              message: `Could not find contract matching "${args.contract_query}"`,
+            };
           } else if (matches.length === 1 && deleteContract) {
             await deleteContract(matches[0].id);
             result = { success: true, message: `Deleted contract "${matches[0].name}"` };
             refetchContracts?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple contracts. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple contracts. Please be more specific.`,
+            };
           }
           break;
         }
-        
-        case 'get_contract_costs': {
-          const active = contracts.filter(c => c.isActive);
+
+        case "get_contract_costs": {
+          const active = contracts.filter((c) => c.isActive);
           let monthlyTotal = 0;
           let yearlyTotal = 0;
 
-          active.forEach(c => {
+          active.forEach((c) => {
             const cost = Number(c.costAmount);
             if (!cost) return;
             switch (c.costFrequency) {
-              case 'monthly': monthlyTotal += cost; yearlyTotal += cost * 12; break;
-              case 'quarterly': monthlyTotal += cost / 3; yearlyTotal += cost * 4; break;
-              case 'yearly': monthlyTotal += cost / 12; yearlyTotal += cost; break;
-              case 'one-time': yearlyTotal += cost; break;
+              case "monthly":
+                monthlyTotal += cost;
+                yearlyTotal += cost * 12;
+                break;
+              case "quarterly":
+                monthlyTotal += cost / 3;
+                yearlyTotal += cost * 4;
+                break;
+              case "yearly":
+                monthlyTotal += cost / 12;
+                yearlyTotal += cost;
+                break;
+              case "one-time":
+                yearlyTotal += cost;
+                break;
             }
           });
-          
+
           result = {
             success: true,
             message: `Your subscriptions cost $${monthlyTotal.toFixed(0)} per month ($${yearlyTotal.toFixed(0)} per year)`,
             monthlyCost: monthlyTotal,
             yearlyCost: yearlyTotal,
-            contractCount: active.length
+            contractCount: active.length,
           };
           break;
         }
-        
-        case 'get_expiring_contracts': {
+
+        case "get_expiring_contracts": {
           const days = args.days || 30;
           const now = new Date();
           const futureDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-          
-          const expiring = contracts.filter(c => {
+
+          const expiring = contracts.filter((c) => {
             if (!c.isActive || !c.renewalDate) return false;
             const renewal = new Date(c.renewalDate as string);
             return renewal >= now && renewal <= futureDate;
@@ -768,21 +1035,34 @@ export function useOpenAIRealtime({
 
           result = {
             success: true,
-            message: expiring.length > 0 ? `You have ${expiring.length} contract(s) expiring in the next ${days} days` : `No contracts expiring in the next ${days} days`,
-            contracts: expiring.map(c => ({ name: c.name, renewalDate: c.renewalDate, autoRenews: c.autoRenews }))
+            message:
+              expiring.length > 0
+                ? `You have ${expiring.length} contract(s) expiring in the next ${days} days`
+                : `No contracts expiring in the next ${days} days`,
+            contracts: expiring.map((c) => ({
+              name: c.name,
+              renewalDate: c.renewalDate,
+              autoRenews: c.autoRenews,
+            })),
           };
           break;
         }
 
         // ==================== PROJECT HANDLERS ====================
-        case 'create_project': {
+        case "create_project": {
           if (addProject && args.name) {
             const colorMap: Record<string, string> = {
-              'red': '#ef4444', 'blue': '#3b82f6', 'green': '#22c55e', 'yellow': '#eab308',
-              'purple': '#a855f7', 'pink': '#ec4899', 'orange': '#f97316', 'cyan': '#06b6d4'
+              red: "#ef4444",
+              blue: "#3b82f6",
+              green: "#22c55e",
+              yellow: "#eab308",
+              purple: "#a855f7",
+              pink: "#ec4899",
+              orange: "#f97316",
+              cyan: "#06b6d4",
             };
-            const color = colorMap[args.color?.toLowerCase()] || args.color || '#3b82f6';
-            
+            const color = colorMap[args.color?.toLowerCase()] || args.color || "#3b82f6";
+
             const newProject = await addProject({
               name: args.name,
               description: args.description,
@@ -793,85 +1073,121 @@ export function useOpenAIRealtime({
               result = { success: true, message: `Created project "${args.name}"` };
               refetchProjects?.();
             } else {
-              result = { success: false, message: 'Failed to create project' };
+              result = { success: false, message: "Failed to create project" };
             }
           }
           break;
         }
-        
-        case 'list_projects': {
+
+        case "list_projects": {
           if (projects.length === 0) {
-            result = { success: true, message: 'You have no projects yet', projects: [] };
+            result = { success: true, message: "You have no projects yet", projects: [] };
           } else {
-            const projectStats = projects.map(p => {
-              const projectTasks = tasks.filter(t => t.projectId === p.id);
-              const completed = projectTasks.filter(t => t.completed).length;
+            const projectStats = projects.map((p) => {
+              const projectTasks = tasks.filter((t) => t.projectId === p.id);
+              const completed = projectTasks.filter((t) => t.completed).length;
               const total = projectTasks.length;
               return {
                 name: p.name,
                 description: p.description,
                 taskCount: total,
                 completedTasks: completed,
-                progress: total > 0 ? Math.round((completed / total) * 100) : 0
+                progress: total > 0 ? Math.round((completed / total) * 100) : 0,
               };
             });
-            result = { success: true, message: `You have ${projects.length} project(s)`, projects: projectStats };
-          }
-          break;
-        }
-        
-        case 'get_project_status': {
-          const matches = fuzzyMatchByName(args.project_query, projects);
-          if (matches.length === 0) {
-            result = { success: false, message: `Could not find project matching "${args.project_query}"` };
-          } else {
-            const project = matches[0];
-            const projectTasks = tasks.filter(t => t.projectId === project.id);
-            const completed = projectTasks.filter(t => t.completed).length;
-            const pending = projectTasks.filter(t => !t.completed);
-            const progress = projectTasks.length > 0 ? Math.round((completed / projectTasks.length) * 100) : 0;
-            
             result = {
               success: true,
-              message: `Project "${project.name}" is ${progress}% complete (${completed}/${projectTasks.length} tasks done)`,
-              project: { name: project.name, progress, totalTasks: projectTasks.length, completedTasks: completed },
-              pendingTasks: pending.slice(0, 5).map(t => ({ title: t.title, priority: t.priority }))
+              message: `You have ${projects.length} project(s)`,
+              projects: projectStats,
             };
           }
           break;
         }
-        
-        case 'add_task_to_project': {
-          const taskMatches = fuzzyMatchTask(args.task_query, tasks);
-          const projectMatches = fuzzyMatchByName(args.project_query, projects);
-          
-          if (taskMatches.length === 0) {
-            result = { success: false, message: `Could not find task matching "${args.task_query}"` };
-          } else if (projectMatches.length === 0) {
-            result = { success: false, message: `Could not find project matching "${args.project_query}"` };
-          } else if (taskMatches.length === 1 && projectMatches.length === 1 && updateTask) {
-            await updateTask(taskMatches[0].id, { projectId: projectMatches[0].id });
-            result = { success: true, message: `Added "${taskMatches[0].title}" to project "${projectMatches[0].name}"` };
-            refetch?.();
-            refetchProjects?.();
+
+        case "get_project_status": {
+          const matches = fuzzyMatchByName(args.project_query, projects);
+          if (matches.length === 0) {
+            result = {
+              success: false,
+              message: `Could not find project matching "${args.project_query}"`,
+            };
           } else {
-            result = { success: false, message: 'Multiple matches found. Please be more specific.' };
+            const project = matches[0];
+            const projectTasks = tasks.filter((t) => t.projectId === project.id);
+            const completed = projectTasks.filter((t) => t.completed).length;
+            const pending = projectTasks.filter((t) => !t.completed);
+            const progress =
+              projectTasks.length > 0 ? Math.round((completed / projectTasks.length) * 100) : 0;
+
+            result = {
+              success: true,
+              message: `Project "${project.name}" is ${progress}% complete (${completed}/${projectTasks.length} tasks done)`,
+              project: {
+                name: project.name,
+                progress,
+                totalTasks: projectTasks.length,
+                completedTasks: completed,
+              },
+              pendingTasks: pending
+                .slice(0, 5)
+                .map((t) => ({ title: t.title, priority: t.priority })),
+            };
           }
           break;
         }
-        
-        case 'update_project': {
+
+        case "add_task_to_project": {
+          const taskMatches = fuzzyMatchTask(args.task_query, tasks);
+          const projectMatches = fuzzyMatchByName(args.project_query, projects);
+
+          if (taskMatches.length === 0) {
+            result = {
+              success: false,
+              message: `Could not find task matching "${args.task_query}"`,
+            };
+          } else if (projectMatches.length === 0) {
+            result = {
+              success: false,
+              message: `Could not find project matching "${args.project_query}"`,
+            };
+          } else if (taskMatches.length === 1 && projectMatches.length === 1 && updateTask) {
+            await updateTask(taskMatches[0].id, { projectId: projectMatches[0].id });
+            result = {
+              success: true,
+              message: `Added "${taskMatches[0].title}" to project "${projectMatches[0].name}"`,
+            };
+            refetch?.();
+            refetchProjects?.();
+          } else {
+            result = {
+              success: false,
+              message: "Multiple matches found. Please be more specific.",
+            };
+          }
+          break;
+        }
+
+        case "update_project": {
           const matches = fuzzyMatchByName(args.project_query, projects);
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find project matching "${args.project_query}"` };
+            result = {
+              success: false,
+              message: `Could not find project matching "${args.project_query}"`,
+            };
           } else if (matches.length === 1 && updateProject) {
             const updates: Partial<Project> = {};
             if (args.new_name) updates.name = args.new_name;
             if (args.new_description) updates.description = args.new_description;
             if (args.new_color) {
               const colorMap: Record<string, string> = {
-                'red': '#ef4444', 'blue': '#3b82f6', 'green': '#22c55e', 'yellow': '#eab308',
-                'purple': '#a855f7', 'pink': '#ec4899', 'orange': '#f97316', 'cyan': '#06b6d4'
+                red: "#ef4444",
+                blue: "#3b82f6",
+                green: "#22c55e",
+                yellow: "#eab308",
+                purple: "#a855f7",
+                pink: "#ec4899",
+                orange: "#f97316",
+                cyan: "#06b6d4",
               };
               updates.color = colorMap[args.new_color.toLowerCase()] || args.new_color;
             }
@@ -879,70 +1195,89 @@ export function useOpenAIRealtime({
             result = { success: true, message: `Updated project "${matches[0].name}"` };
             refetchProjects?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple projects. Please be more specific.` };
-          }
-          break;
-        }
-        
-        case 'delete_project': {
-          const matches = fuzzyMatchByName(args.project_query, projects);
-          if (matches.length === 0) {
-            result = { success: false, message: `Could not find project matching "${args.project_query}"` };
-          } else if (matches.length === 1 && deleteProject) {
-            await deleteProject(matches[0].id);
-            result = { success: true, message: `Archived project "${matches[0].name}"` };
-            refetchProjects?.();
-          } else {
-          result = { success: false, multiple_matches: true, message: `Found multiple projects. Please be more specific.` };
-          }
-          break;
-        }
-
-        // ==================== HEALTH HANDLERS ====================
-        case 'get_health_summary': {
-          const healthData = contextData?.healthData;
-          if (!healthData?.isConnected) {
-            result = { success: false, message: 'Apple Health is not connected. Please connect it in the Health Hub.' };
-          } else {
-            const period = args.period || 'today';
-            let summary = '';
-            
-            if (period === 'today' && healthData.todaySummary) {
-              const h = healthData.todaySummary;
-              summary = `Today's health: ${h.steps?.toLocaleString() || 0} steps, ${h.calories?.toLocaleString() || 0} calories burned`;
-              if (h.sleepHours > 0) summary += `, ${h.sleepHours.toFixed(1)} hours sleep`;
-              if (h.heartRateAvg > 0) summary += `, avg heart rate ${h.heartRateAvg} bpm`;
-              if (h.activeMinutes > 0) summary += `, ${h.activeMinutes} active minutes`;
-            } else if (period === 'week' && healthData.weeklyData?.length > 0) {
-              const week = healthData.weeklyData;
-              const totalSteps = week.reduce((s: number, d) => s + ((d.steps as number) || 0), 0);
-              const avgSteps = Math.round(totalSteps / week.length);
-              const avgSleep = week.reduce((s: number, d) => s + ((d.sleepHours as number) || 0), 0) / week.length;
-              summary = `This week (${week.length} days): average ${avgSteps.toLocaleString()} steps/day`;
-              if (avgSleep > 0) summary += `, average ${avgSleep.toFixed(1)} hours sleep`;
-            } else {
-              summary = 'No health data available for this period';
-            }
-            
-            result = { 
-              success: true, 
-              message: summary,
-              data: period === 'today' ? healthData.todaySummary : healthData.weeklyData
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple projects. Please be more specific.`,
             };
           }
           break;
         }
 
-        case 'get_steps': {
+        case "delete_project": {
+          const matches = fuzzyMatchByName(args.project_query, projects);
+          if (matches.length === 0) {
+            result = {
+              success: false,
+              message: `Could not find project matching "${args.project_query}"`,
+            };
+          } else if (matches.length === 1 && deleteProject) {
+            await deleteProject(matches[0].id);
+            result = { success: true, message: `Archived project "${matches[0].name}"` };
+            refetchProjects?.();
+          } else {
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple projects. Please be more specific.`,
+            };
+          }
+          break;
+        }
+
+        // ==================== HEALTH HANDLERS ====================
+        case "get_health_summary": {
           const healthData = contextData?.healthData;
           if (!healthData?.isConnected) {
-            result = { success: false, message: 'Apple Health is not connected.' };
+            result = {
+              success: false,
+              message: "Apple Health is not connected. Please connect it in the Health Hub.",
+            };
           } else {
-            const period = args.period || 'today';
-            if (period === 'today' && healthData.todaySummary) {
+            const period = args.period || "today";
+            let summary = "";
+
+            if (period === "today" && healthData.todaySummary) {
+              const h = healthData.todaySummary;
+              summary = `Today's health: ${h.steps?.toLocaleString() || 0} steps, ${h.calories?.toLocaleString() || 0} calories burned`;
+              if (h.sleepHours > 0) summary += `, ${h.sleepHours.toFixed(1)} hours sleep`;
+              if (h.heartRateAvg > 0) summary += `, avg heart rate ${h.heartRateAvg} bpm`;
+              if (h.activeMinutes > 0) summary += `, ${h.activeMinutes} active minutes`;
+            } else if (period === "week" && healthData.weeklyData?.length > 0) {
+              const week = healthData.weeklyData;
+              const totalSteps = week.reduce((s: number, d) => s + ((d.steps as number) || 0), 0);
+              const avgSteps = Math.round(totalSteps / week.length);
+              const avgSleep =
+                week.reduce((s: number, d) => s + ((d.sleepHours as number) || 0), 0) / week.length;
+              summary = `This week (${week.length} days): average ${avgSteps.toLocaleString()} steps/day`;
+              if (avgSleep > 0) summary += `, average ${avgSleep.toFixed(1)} hours sleep`;
+            } else {
+              summary = "No health data available for this period";
+            }
+
+            result = {
+              success: true,
+              message: summary,
+              data: period === "today" ? healthData.todaySummary : healthData.weeklyData,
+            };
+          }
+          break;
+        }
+
+        case "get_steps": {
+          const healthData = contextData?.healthData;
+          if (!healthData?.isConnected) {
+            result = { success: false, message: "Apple Health is not connected." };
+          } else {
+            const period = args.period || "today";
+            if (period === "today" && healthData.todaySummary) {
               const steps = healthData.todaySummary.steps || 0;
-              result = { success: true, message: `You've taken ${steps.toLocaleString()} steps today.`, steps };
-            } else if (period === 'week' && healthData.weeklyData?.length > 0) {
+              result = {
+                success: true,
+                message: `You've taken ${steps.toLocaleString()} steps today.`,
+                steps,
+              };
+            } else if (period === "week" && healthData.weeklyData?.length > 0) {
               const week = healthData.weeklyData;
               const totalSteps = week.reduce((s: number, d) => s + ((d.steps as number) || 0), 0);
               const avgSteps = Math.round(totalSteps / week.length);
@@ -951,112 +1286,147 @@ export function useOpenAIRealtime({
                 message: `This week you've averaged ${avgSteps.toLocaleString()} steps per day, with a total of ${totalSteps.toLocaleString()} steps.`,
                 avgSteps,
                 totalSteps,
-                dailyData: week.map(d => ({ date: d.date, steps: d.steps }))
+                dailyData: week.map((d) => ({ date: d.date, steps: d.steps })),
               };
             } else {
-              result = { success: true, message: 'No step data available for this period.', steps: 0 };
+              result = {
+                success: true,
+                message: "No step data available for this period.",
+                steps: 0,
+              };
             }
           }
           break;
         }
 
-        case 'get_sleep_data': {
+        case "get_sleep_data": {
           const healthData = contextData?.healthData;
           if (!healthData?.isConnected) {
-            result = { success: false, message: 'Apple Health is not connected.' };
+            result = { success: false, message: "Apple Health is not connected." };
           } else {
-            const period = args.period || 'last_night';
-            if ((period === 'last_night' || period === 'today') && healthData.todaySummary) {
+            const period = args.period || "last_night";
+            if ((period === "last_night" || period === "today") && healthData.todaySummary) {
               const sleep = healthData.todaySummary.sleepHours || 0;
               if (sleep > 0) {
-                result = { success: true, message: `You slept ${sleep.toFixed(1)} hours last night.`, sleepHours: sleep };
+                result = {
+                  success: true,
+                  message: `You slept ${sleep.toFixed(1)} hours last night.`,
+                  sleepHours: sleep,
+                };
               } else {
-                result = { success: true, message: 'No sleep data recorded for last night.', sleepHours: 0 };
+                result = {
+                  success: true,
+                  message: "No sleep data recorded for last night.",
+                  sleepHours: 0,
+                };
               }
-            } else if (period === 'week' && healthData.weeklyData?.length > 0) {
-              const week = healthData.weeklyData.filter(d => (d.sleepHours as number) > 0);
+            } else if (period === "week" && healthData.weeklyData?.length > 0) {
+              const week = healthData.weeklyData.filter((d) => (d.sleepHours as number) > 0);
               if (week.length > 0) {
-                const avgSleep = week.reduce((s: number, d) => s + (d.sleepHours as number), 0) / week.length;
+                const avgSleep =
+                  week.reduce((s: number, d) => s + (d.sleepHours as number), 0) / week.length;
                 result = {
                   success: true,
                   message: `This week you've averaged ${avgSleep.toFixed(1)} hours of sleep per night.`,
                   avgSleepHours: avgSleep,
-                  dailyData: week.map(d => ({ date: d.date, sleepHours: d.sleepHours }))
+                  dailyData: week.map((d) => ({ date: d.date, sleepHours: d.sleepHours })),
                 };
               } else {
-                result = { success: true, message: 'No sleep data available for this week.', avgSleepHours: 0 };
+                result = {
+                  success: true,
+                  message: "No sleep data available for this week.",
+                  avgSleepHours: 0,
+                };
               }
             } else {
-              result = { success: true, message: 'No sleep data available.', sleepHours: 0 };
+              result = { success: true, message: "No sleep data available.", sleepHours: 0 };
             }
           }
           break;
         }
 
-        case 'get_calories': {
+        case "get_calories": {
           const healthData = contextData?.healthData;
           if (!healthData?.isConnected) {
-            result = { success: false, message: 'Apple Health is not connected.' };
+            result = { success: false, message: "Apple Health is not connected." };
           } else {
-            const period = args.period || 'today';
-            if (period === 'today' && healthData.todaySummary) {
+            const period = args.period || "today";
+            if (period === "today" && healthData.todaySummary) {
               const calories = healthData.todaySummary.calories || 0;
-              result = { success: true, message: `You've burned ${calories.toLocaleString()} calories today.`, calories };
-            } else if (period === 'week' && healthData.weeklyData?.length > 0) {
+              result = {
+                success: true,
+                message: `You've burned ${calories.toLocaleString()} calories today.`,
+                calories,
+              };
+            } else if (period === "week" && healthData.weeklyData?.length > 0) {
               const week = healthData.weeklyData;
               const totalCals = week.reduce((s: number, d) => s + ((d.calories as number) || 0), 0);
               const avgCals = Math.round(totalCals / week.length);
-              result = { 
-                success: true, 
+              result = {
+                success: true,
                 message: `This week you've averaged ${avgCals.toLocaleString()} calories burned per day.`,
                 avgCalories: avgCals,
-                totalCalories: totalCals
+                totalCalories: totalCals,
               };
             } else {
-              result = { success: true, message: 'No calorie data available.', calories: 0 };
+              result = { success: true, message: "No calorie data available.", calories: 0 };
             }
           }
           break;
         }
 
-        case 'get_heart_rate': {
+        case "get_heart_rate": {
           const healthData = contextData?.healthData;
           if (!healthData?.isConnected) {
-            result = { success: false, message: 'Apple Health is not connected.' };
+            result = { success: false, message: "Apple Health is not connected." };
           } else {
             if (healthData.todaySummary?.heartRateAvg > 0) {
-              result = { 
-                success: true, 
+              result = {
+                success: true,
                 message: `Your average heart rate today is ${healthData.todaySummary.heartRateAvg} beats per minute.`,
-                heartRate: healthData.todaySummary.heartRateAvg
+                heartRate: healthData.todaySummary.heartRateAvg,
               };
             } else {
-              result = { success: true, message: 'No heart rate data available today.', heartRate: 0 };
+              result = {
+                success: true,
+                message: "No heart rate data available today.",
+                heartRate: 0,
+              };
             }
           }
           break;
         }
 
-        case 'get_habit_summary': {
+        case "get_habit_summary": {
           const habitData = contextData?.habitData;
           if (!habitData?.habits?.length) {
-            result = { success: false, message: 'You have no habits set up yet. You can create habits in the Habits section.' };
+            result = {
+              success: false,
+              message:
+                "You have no habits set up yet. You can create habits in the Habits section.",
+            };
           } else {
-            const query = (args.habit_query || '').toLowerCase();
+            const query = (args.habit_query || "").toLowerCase();
             let habits = habitData.habits;
-            
+
             if (query) {
-              habits = habits.filter(h => h.name.toLowerCase().includes(String(query)));
+              habits = habits.filter((h) => h.name.toLowerCase().includes(String(query)));
             }
 
             if (habits.length === 0) {
-              result = { success: false, message: `No habits found matching "${args.habit_query}".` };
+              result = {
+                success: false,
+                message: `No habits found matching "${args.habit_query}".`,
+              };
             } else {
-              const habitList = habits.slice(0, 5).map(h => `${h.icon as string} ${h.name}`).join(', ');
-              result = { 
-                success: true, 
+              const habitList = habits
+                .slice(0, 5)
+                .map((h) => `${h.icon as string} ${h.name}`)
+                .join(", ");
+              result = {
+                success: true,
                 message: `You have ${habitData.habits.length} active habits: ${habitList}`,
-                habits: habits.slice(0, 10)
+                habits: habits.slice(0, 10),
               };
             }
           }
@@ -1064,66 +1434,76 @@ export function useOpenAIRealtime({
         }
 
         // ==================== NOTE HANDLERS ====================
-        case 'create_note': {
+        case "create_note": {
           if (createNote) {
-            const title = args.title || 'Untitled';
-            const content = args.content || '';
+            const title = args.title || "Untitled";
+            const content = args.content || "";
             const tags = args.tags || [];
             const newNote = await createNote(title, content, tags);
             if (newNote) {
               result = { success: true, message: `Created note "${title}"` };
               refetchNotes?.();
             } else {
-              result = { success: false, message: 'Failed to create note' };
+              result = { success: false, message: "Failed to create note" };
             }
           } else {
-            result = { success: false, message: 'Note creation is not available' };
+            result = { success: false, message: "Note creation is not available" };
           }
           break;
         }
 
-        case 'search_notes': {
+        case "search_notes": {
           const notesData = contextData?.notesData || [];
-          const query = (args.query || '').toLowerCase();
-          const matches = notesData.filter(n =>
-            n.title.toLowerCase().includes(String(query)) ||
-            (n.contentPreview as string | undefined)?.toLowerCase().includes(String(query)) ||
-            (n.tags as string[] | undefined)?.some(t => t.toLowerCase().includes(String(query)))
+          const query = (args.query || "").toLowerCase();
+          const matches = notesData.filter(
+            (n) =>
+              n.title.toLowerCase().includes(String(query)) ||
+              (n.contentPreview as string | undefined)?.toLowerCase().includes(String(query)) ||
+              (n.tags as string[] | undefined)?.some((t) =>
+                t.toLowerCase().includes(String(query)),
+              ),
           );
           result = {
             success: true,
-            message: matches.length > 0 ? `Found ${matches.length} note(s)` : 'No notes found',
-            notes: matches.slice(0, 10)
+            message: matches.length > 0 ? `Found ${matches.length} note(s)` : "No notes found",
+            notes: matches.slice(0, 10),
           };
           break;
         }
 
-        case 'delete_note': {
+        case "delete_note": {
           const notesData = contextData?.notesData || [];
-          const query = (args.note_query || '').toLowerCase();
-          const matches = notesData.filter(n => n.title.toLowerCase().includes(String(query)));
-          
+          const query = (args.note_query || "").toLowerCase();
+          const matches = notesData.filter((n) => n.title.toLowerCase().includes(String(query)));
+
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find note matching "${args.note_query}"` };
+            result = {
+              success: false,
+              message: `Could not find note matching "${args.note_query}"`,
+            };
           } else if (matches.length === 1 && deleteNote) {
             await deleteNote(matches[0].id);
             result = { success: true, message: `Moved note "${matches[0].title}" to trash` };
             refetchNotes?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple notes. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple notes. Please be more specific.`,
+            };
           }
           break;
         }
 
         // ==================== HABIT CREATION/LOG HANDLERS ====================
-        case 'create_habit': {
+        case "create_habit": {
           if (createHabit && args.name) {
             const newHabit = await createHabit({
               name: args.name,
               description: args.description || null,
-              icon: args.icon || '✨',
-              color: args.color || '#3b82f6',
-              frequency: args.frequency || 'daily',
+              icon: args.icon || "✨",
+              color: args.color || "#3b82f6",
+              frequency: args.frequency || "daily",
               targetCount: args.target_count || 1,
               daysOfWeek: args.days_of_week || [0, 1, 2, 3, 4, 5, 6],
               reminderTime: null,
@@ -1133,149 +1513,182 @@ export function useOpenAIRealtime({
               result = { success: true, message: `Created habit "${args.name}"` };
               refetchHabits?.();
             } else {
-              result = { success: false, message: 'Failed to create habit' };
+              result = { success: false, message: "Failed to create habit" };
             }
           } else {
-            result = { success: false, message: 'Please provide a habit name' };
+            result = { success: false, message: "Please provide a habit name" };
           }
           break;
         }
 
-        case 'log_habit': {
+        case "log_habit": {
           const habitData = contextData?.habitData;
           if (!habitData?.habits?.length) {
-            result = { success: false, message: 'You have no habits set up yet.' };
+            result = { success: false, message: "You have no habits set up yet." };
             break;
           }
-          
-          const query = (args.habit_query || '').toLowerCase();
-          const matches = habitData.habits.filter(h => h.name.toLowerCase().includes(String(query)));
+
+          const query = (args.habit_query || "").toLowerCase();
+          const matches = habitData.habits.filter((h) =>
+            h.name.toLowerCase().includes(String(query)),
+          );
 
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find habit matching "${args.habit_query}"` };
+            result = {
+              success: false,
+              message: `Could not find habit matching "${args.habit_query}"`,
+            };
           } else if (matches.length === 1 && logHabit) {
             await logHabit(matches[0].id);
             result = { success: true, message: `Logged "${matches[0].name}" as done!` };
             refetchHabits?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple habits: ${matches.slice(0, 3).map(h => h.name).join(', ')}` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple habits: ${matches
+                .slice(0, 3)
+                .map((h) => h.name)
+                .join(", ")}`,
+            };
           }
           break;
         }
 
-        case 'delete_habit': {
+        case "delete_habit": {
           const habitData = contextData?.habitData;
           if (!habitData?.habits?.length) {
-            result = { success: false, message: 'You have no habits set up yet.' };
+            result = { success: false, message: "You have no habits set up yet." };
             break;
           }
-          
-          const query = (args.habit_query || '').toLowerCase();
-          const matches = habitData.habits.filter(h => h.name.toLowerCase().includes(String(query)));
+
+          const query = (args.habit_query || "").toLowerCase();
+          const matches = habitData.habits.filter((h) =>
+            h.name.toLowerCase().includes(String(query)),
+          );
 
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find habit matching "${args.habit_query}"` };
+            result = {
+              success: false,
+              message: `Could not find habit matching "${args.habit_query}"`,
+            };
           } else if (matches.length === 1 && deleteHabit) {
             await deleteHabit(matches[0].id);
             result = { success: true, message: `Removed habit "${matches[0].name}"` };
             refetchHabits?.();
           } else {
-            result = { success: false, multiple_matches: true, message: `Found multiple habits. Please be more specific.` };
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple habits. Please be more specific.`,
+            };
           }
           break;
         }
 
         // ==================== CHAT/MESSAGE HANDLERS ====================
-        case 'send_chat_message': {
+        case "send_chat_message": {
           if (!sendDirectMessage) {
-            result = { success: false, message: 'Messaging is not available' };
+            result = { success: false, message: "Messaging is not available" };
             break;
           }
-          
-          const recipientQuery = args.recipient_query || '';
-          const message = args.message || '';
-          
+
+          const recipientQuery = args.recipient_query || "";
+          const message = args.message || "";
+
           if (!message.trim()) {
-            result = { success: false, message: 'Please provide a message to send' };
+            result = { success: false, message: "Please provide a message to send" };
             break;
           }
-          
+
           // Resolve recipient by name or family relationship
           const matches = resolveContactByQuery(recipientQuery, contacts);
-          
+
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find contact matching "${recipientQuery}"` };
+            result = {
+              success: false,
+              message: `Could not find contact matching "${recipientQuery}"`,
+            };
           } else if (matches.length === 1) {
             const recipient = matches[0];
             // Note: sendDirectMessage requires a user ID, not a contact ID
             // For now, we'll indicate the message would be sent - actual implementation
             // would require mapping contact to user accounts
-            result = { 
-              success: true, 
+            result = {
+              success: true,
               message: `Message "${message}" would be sent to ${recipient.name}. Note: This contact needs to have an account linked.`,
-              recipient: { name: recipient.name, email: recipient.email }
+              recipient: { name: recipient.name, email: recipient.email },
             };
           } else {
-            result = { 
-              success: false, 
-              multiple_matches: true, 
-              message: `Found multiple contacts: ${matches.slice(0, 3).map(c => c.name).join(', ')}. Please be more specific.`
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple contacts: ${matches
+                .slice(0, 3)
+                .map((c) => c.name)
+                .join(", ")}. Please be more specific.`,
             };
           }
           break;
         }
 
-        case 'initiate_call': {
-          const contactQuery = args.contact_query || '';
-          const callType = args.call_type || 'voice';
-          
+        case "initiate_call": {
+          const contactQuery = args.contact_query || "";
+          const callType = args.call_type || "voice";
+
           // Resolve contact by name or family relationship
           const matches = resolveContactByQuery(contactQuery, contacts);
-          
+
           if (matches.length === 0) {
-            result = { success: false, message: `Could not find contact matching "${contactQuery}"` };
+            result = {
+              success: false,
+              message: `Could not find contact matching "${contactQuery}"`,
+            };
           } else if (matches.length === 1) {
             const contact = matches[0];
             if (contact.phone) {
-              result = { 
-                success: true, 
+              result = {
+                success: true,
                 message: `Ready to call ${contact.name} at ${contact.phone}`,
                 contact: { name: contact.name, phone: contact.phone },
-                callType
+                callType,
               };
             } else {
-              result = { 
-                success: false, 
-                message: `${contact.name} doesn't have a phone number saved` 
+              result = {
+                success: false,
+                message: `${contact.name} doesn't have a phone number saved`,
               };
             }
           } else {
-            result = { 
-              success: false, 
-              multiple_matches: true, 
-              message: `Found multiple contacts: ${matches.slice(0, 3).map(c => c.name).join(', ')}. Please be more specific.`
+            result = {
+              success: false,
+              multiple_matches: true,
+              message: `Found multiple contacts: ${matches
+                .slice(0, 3)
+                .map((c) => c.name)
+                .join(", ")}. Please be more specific.`,
             };
           }
           break;
         }
 
         // ==================== STARTUP BRAINSTORMING HANDLERS ====================
-        case 'brainstorm_startup': {
+        case "brainstorm_startup": {
           // This is a conversational trigger - acknowledge and continue discussion
-          result = { 
-            success: true, 
+          result = {
+            success: true,
             message: `Starting brainstorm for "${args.idea_name}". I'll help you develop this idea.`,
             idea: {
               name: args.idea_name,
               problem_statement: args.problem_statement,
               target_audience: args.target_audience,
-              initial_thoughts: args.initial_thoughts
-            }
+              initial_thoughts: args.initial_thoughts,
+            },
           };
           break;
         }
 
-        case 'save_startup_idea': {
+        case "save_startup_idea": {
           if (createStartupIdea && args.name) {
             const newIdea = await createStartupIdea({
               name: args.name,
@@ -1286,143 +1699,170 @@ export function useOpenAIRealtime({
               key_features: args.key_features || [],
               business_model: args.business_model,
               competitive_advantage: args.competitive_advantage,
-              status: 'brainstorming',
+              status: "brainstorming",
               notes: args.next_steps,
               tags: [],
               ai_insights: {},
             });
             if (newIdea) {
-              result = { 
-                success: true, 
+              result = {
+                success: true,
                 message: `Saved startup idea "${args.name}". You can view and continue working on it in the Startup Workspace.`,
-                idea: newIdea
+                idea: newIdea,
               };
               refetchStartupIdeas?.();
             } else {
-              result = { success: false, message: 'Failed to save startup idea' };
+              result = { success: false, message: "Failed to save startup idea" };
             }
           } else {
-            result = { success: false, message: 'Please provide at least a name for the startup idea' };
+            result = {
+              success: false,
+              message: "Please provide at least a name for the startup idea",
+            };
           }
           break;
         }
 
-        case 'list_startup_ideas': {
+        case "list_startup_ideas": {
           const startupIdeas = contextData?.startupIdeas || [];
-          const statusFilter = args.status || 'all';
-          
+          const statusFilter = args.status || "all";
+
           let filtered = startupIdeas;
-          if (statusFilter !== 'all') {
-            filtered = startupIdeas.filter(idea => idea.status === statusFilter);
+          if (statusFilter !== "all") {
+            filtered = startupIdeas.filter((idea) => idea.status === statusFilter);
           }
 
           if (filtered.length === 0) {
             result = {
               success: true,
-              message: statusFilter === 'all'
-                ? 'You have no saved startup ideas yet. Would you like to brainstorm a new one?'
-                : `No startup ideas with status "${statusFilter}".`,
-              ideas: []
+              message:
+                statusFilter === "all"
+                  ? "You have no saved startup ideas yet. Would you like to brainstorm a new one?"
+                  : `No startup ideas with status "${statusFilter}".`,
+              ideas: [],
             };
           } else {
-            const ideaList = filtered.slice(0, 5).map(i => i.name).join(', ');
+            const ideaList = filtered
+              .slice(0, 5)
+              .map((i) => i.name)
+              .join(", ");
             result = {
               success: true,
               message: `You have ${filtered.length} startup idea(s): ${ideaList}`,
-              ideas: filtered.slice(0, 10).map(i => ({
+              ideas: filtered.slice(0, 10).map((i) => ({
                 name: i.name,
                 description: i.description,
                 status: i.status,
-                createdAt: i.created_at
-              }))
+                createdAt: i.created_at,
+              })),
             };
           }
           break;
         }
 
         // ==================== EMAIL TOOLS ====================
-        case 'get_email_summary': {
+        case "get_email_summary": {
           const unread = contextData?.unreadEmails || [];
           const total = contextData?.totalUnreadEmails || 0;
           if (total === 0) {
-            result = { success: true, message: 'Your inbox is clear — no unread emails!' };
+            result = { success: true, message: "Your inbox is clear — no unread emails!" };
           } else {
-            const topEmails = unread.slice(0, 5).map(e =>
-              `• From ${e.from}: "${e.subject || '(no subject)'}"`
-            ).join('\n');
-            result = { 
-              success: true, 
+            const topEmails = unread
+              .slice(0, 5)
+              .map((e) => `• From ${e.from}: "${e.subject || "(no subject)"}"`)
+              .join("\n");
+            result = {
+              success: true,
               message: `You have ${total} unread email(s). Here are the most recent:\n${topEmails}`,
               unreadCount: total,
-              emails: unread.slice(0, 5)
+              emails: unread.slice(0, 5),
             };
           }
           break;
         }
 
-        case 'search_emails': {
-          const query = (args.query || '').toLowerCase();
+        case "search_emails": {
+          const query = (args.query || "").toLowerCase();
           const allUnread = contextData?.unreadEmails || [];
-          const matches = allUnread.filter(e =>
-            (e.subject?.toLowerCase().includes(String(query))) ||
-            (e.from?.toLowerCase().includes(String(query))) ||
-            ((e.snippet as string | undefined)?.toLowerCase().includes(String(query)))
+          const matches = allUnread.filter(
+            (e) =>
+              e.subject?.toLowerCase().includes(String(query)) ||
+              e.from?.toLowerCase().includes(String(query)) ||
+              (e.snippet as string | undefined)?.toLowerCase().includes(String(query)),
           );
           if (matches.length === 0) {
             result = { success: true, message: `No emails found matching "${args.query}".` };
           } else {
-            const emailList = matches.slice(0, 5).map(e =>
-              `• From ${e.from}: "${e.subject || '(no subject)'}"`
-            ).join('\n');
-            result = { 
-              success: true, 
+            const emailList = matches
+              .slice(0, 5)
+              .map((e) => `• From ${e.from}: "${e.subject || "(no subject)"}"`)
+              .join("\n");
+            result = {
+              success: true,
               message: `Found ${matches.length} email(s) matching "${args.query}":\n${emailList}`,
-              emails: matches.slice(0, 5)
+              emails: matches.slice(0, 5),
             };
           }
           break;
         }
 
-        case 'reply_to_email': {
-          const emailQuery = (args.email_query || '').toLowerCase();
-          const replyBody = args.reply_body || '';
+        case "reply_to_email": {
+          const emailQuery = (args.email_query || "").toLowerCase();
+          const replyBody = args.reply_body || "";
           const allUnread = contextData?.unreadEmails || [];
-          
-          const matched = allUnread.find(e =>
-            (e.from?.toLowerCase().includes(emailQuery)) ||
-            (e.subject?.toLowerCase().includes(emailQuery)) ||
-            (e.from_email?.toLowerCase().includes(emailQuery)) ||
-            ((e.snippet as string | undefined)?.toLowerCase().includes(emailQuery))
+
+          const matched = allUnread.find(
+            (e) =>
+              e.from?.toLowerCase().includes(emailQuery) ||
+              e.subject?.toLowerCase().includes(emailQuery) ||
+              e.from_email?.toLowerCase().includes(emailQuery) ||
+              (e.snippet as string | undefined)?.toLowerCase().includes(emailQuery),
           );
-          
+
           if (!matched) {
-            result = { success: false, message: `Could not find an email matching "${args.email_query}". Try being more specific.` };
+            result = {
+              success: false,
+              message: `Could not find an email matching "${args.email_query}". Try being more specific.`,
+            };
           } else if (!matched.from_email) {
-            result = { success: false, message: `Found the email from ${matched.from} but no reply address is available.` };
+            result = {
+              success: false,
+              message: `Found the email from ${matched.from} but no reply address is available.`,
+            };
           } else {
-            window.dispatchEvent(new CustomEvent('compose-email', {
-              detail: {
-                to: matched.from_email,
-                subject: `Re: ${(matched.subject || '').replace(/^Re:\s*/i, '')}`,
-                body: replyBody,
-                threadId: matched.thread_id || null,
-                gmailMessageId: matched.gmail_message_id || null,
-              }
-            }));
-            result = { success: true, message: `I've prepared a draft reply to ${matched.from}. Please review and click Send.` };
+            window.dispatchEvent(
+              new CustomEvent("compose-email", {
+                detail: {
+                  to: matched.from_email,
+                  subject: `Re: ${(matched.subject || "").replace(/^Re:\s*/i, "")}`,
+                  body: replyBody,
+                  threadId: matched.thread_id || null,
+                  gmailMessageId: matched.gmail_message_id || null,
+                },
+              }),
+            );
+            result = {
+              success: true,
+              message: `I've prepared a draft reply to ${matched.from}. Please review and click Send.`,
+            };
           }
           break;
         }
 
-        case 'compose_new_email': {
+        case "compose_new_email": {
           const { to, subject, body } = args;
           if (!to || !body) {
-            result = { success: false, message: 'Recipient email and body are required.' };
+            result = { success: false, message: "Recipient email and body are required." };
           } else {
-            window.dispatchEvent(new CustomEvent('compose-email', {
-              detail: { to, subject: subject || '', body, threadId: null, gmailMessageId: null }
-            }));
-            result = { success: true, message: `I've prepared a draft email to ${to}. Please review and click Send.` };
+            window.dispatchEvent(
+              new CustomEvent("compose-email", {
+                detail: { to, subject: subject || "", body, threadId: null, gmailMessageId: null },
+              }),
+            );
+            result = {
+              success: true,
+              message: `I've prepared a draft email to ${to}. Please review and click Send.`,
+            };
           }
           break;
         }
@@ -1436,45 +1876,61 @@ export function useOpenAIRealtime({
         // executors. This gives voice full parity without duplicating handlers.
         default: {
           try {
-            const argsStr = (() => { try { return JSON.stringify(args); } catch { return String(args); } })();
-            const { data, error } = await supabase.functions.invoke('chat', {
+            const argsStr = (() => {
+              try {
+                return JSON.stringify(args);
+              } catch {
+                return String(args);
+              }
+            })();
+            const { data, error } = await supabase.functions.invoke("chat", {
               body: {
                 messages: [
-                  { role: 'user', content: `[voice tool ${name}] arguments: ${argsStr}. Execute this and reply concisely.` }
+                  {
+                    role: "user",
+                    content: `[voice tool ${name}] arguments: ${argsStr}. Execute this and reply concisely.`,
+                  },
                 ],
-                surface: 'voice',
-              }
+                surface: "voice",
+              },
             });
             if (error) throw error;
-            const reply = (data?.text || data?.message || data?.reply || '').toString().slice(0, 500) || 'Done.';
+            const reply =
+              (data?.text || data?.message || data?.reply || "").toString().slice(0, 500) ||
+              "Done.";
             result = { success: true, message: reply };
           } catch (proxyErr) {
-            console.error('[voice fallback] proxy to chat failed for', name, proxyErr);
-            result = { success: false, message: `Tool "${name}" is not supported in voice mode yet.` };
+            console.error("[voice fallback] proxy to chat failed for", name, proxyErr);
+            result = {
+              success: false,
+              message: `Tool "${name}" is not supported in voice mode yet.`,
+            };
           }
           break;
         }
       }
     } catch (err) {
-      console.error('Function call error:', err);
-      result = { success: false, message: 'An error occurred while processing' };
+      console.error("Function call error:", err);
+      result = { success: false, message: "An error occurred while processing" };
     }
-    
+
     // Send function result back to OpenAI
-    if (dcRef.current?.readyState === 'open') {
-      dcRef.current.send(JSON.stringify({
-        type: 'conversation.item.create',
-        item: {
-          type: 'function_call_output',
-          call_id: callId,
-          output: JSON.stringify(result)
-        }
-      }));
-      
+    if (dcRef.current?.readyState === "open") {
+      dcRef.current.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: callId,
+            output: JSON.stringify(result),
+          },
+        }),
+      );
+
       // Trigger response generation
-      dcRef.current.send(JSON.stringify({ type: 'response.create' }));
+      dcRef.current.send(JSON.stringify({ type: "response.create" }));
     }
-    
+
     return result;
     // Dependency-free: all operations are read from opsRef.current above,
     // which is refreshed every render. This keeps handleFunctionCall (and
@@ -1494,11 +1950,11 @@ export function useOpenAIRealtime({
   const connect = useCallback(async () => {
     // Prevent multiple simultaneous connections - bulletproof lock
     if (isConnectingRef.current) {
-      console.log('Already connecting, skipping...');
+      console.log("Already connecting, skipping...");
       return;
     }
     if (isConnected) {
-      console.log('Already connected, skipping...');
+      console.log("Already connected, skipping...");
       return;
     }
 
@@ -1508,7 +1964,7 @@ export function useOpenAIRealtime({
     const assertStillActive = (stage: string) => {
       if (connectAttemptRef.current !== attemptId) {
         console.log(`Connect attempt cancelled at: ${stage}`);
-        throw new Error('Connection cancelled');
+        throw new Error("Connection cancelled");
       }
     };
 
@@ -1521,10 +1977,10 @@ export function useOpenAIRealtime({
 
     const maybeSetConnected = () => {
       if (dcIsOpenRef.current && rtcReadyRef.current) {
-        console.log('WebRTC ready + data channel open → connected');
+        console.log("WebRTC ready + data channel open → connected");
         setIsConnected(true);
         setIsListening(true);
-        onConnectionChange?.('connected');
+        onConnectionChange?.("connected");
       }
     };
 
@@ -1546,53 +2002,62 @@ export function useOpenAIRealtime({
     localAudioTrackRef.current = null;
 
     try {
-      onConnectionChange?.('connecting');
+      onConnectionChange?.("connecting");
       const connectStart = performance.now();
       setDebugTimings({ connectStart });
-      console.log('Getting ephemeral token...');
+      console.log("Getting ephemeral token...");
 
-      assertStillActive('before token fetch');
+      assertStillActive("before token fetch");
       const tokenFetchStart = performance.now();
-      setDebugTimings(prev => ({ ...prev, tokenFetchStart }));
+      setDebugTimings((prev) => ({ ...prev, tokenFetchStart }));
 
       // Add timeout for edge function call (30 seconds for mobile networks)
-      const edgeFunctionPromise = supabase.functions.invoke('openai-realtime-session', {
+      const edgeFunctionPromise = supabase.functions.invoke("openai-realtime-session", {
         body: { userProfile: userProfileRef.current, contextData: contextDataRef.current },
       });
-      
+
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Connection timeout - please check your internet connection and try again')), 30000);
+        setTimeout(
+          () =>
+            reject(
+              new Error("Connection timeout - please check your internet connection and try again"),
+            ),
+          30000,
+        );
       });
 
       // The edge function response is a dynamic Supabase payload whose shape
       // (client_secret.value, etc.) isn't typed upstream; `any` is the
       // correct, behavior-preserving choice for reading nested fields off it.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await Promise.race([edgeFunctionPromise, timeoutPromise]) as { data: any; error: { message?: string } | null };
+      const { data, error } = (await Promise.race([edgeFunctionPromise, timeoutPromise])) as {
+        data: any;
+        error: { message?: string } | null;
+      };
 
-      assertStillActive('after token fetch');
+      assertStillActive("after token fetch");
       const tokenFetchEnd = performance.now();
-      setDebugTimings(prev => ({ ...prev, tokenFetchEnd }));
+      setDebugTimings((prev) => ({ ...prev, tokenFetchEnd }));
       console.log(`Token fetch took ${(tokenFetchEnd - tokenFetchStart).toFixed(0)}ms`);
 
       if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(`Failed to get session: ${error.message || 'Network error'}`);
+        console.error("Edge function error:", error);
+        throw new Error(`Failed to get session: ${error.message || "Network error"}`);
       }
-      
+
       if (!data?.client_secret?.value) {
-        console.error('Invalid response data:', data);
-        throw new Error('Invalid session response - please try again');
+        console.error("Invalid response data:", data);
+        throw new Error("Invalid session response - please try again");
       }
 
       const EPHEMERAL_KEY = data.client_secret.value;
-      console.log('Got ephemeral token, establishing WebRTC...');
+      console.log("Got ephemeral token, establishing WebRTC...");
 
-      assertStillActive('before pc init');
+      assertStillActive("before pc init");
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
 
-      const audioEl = document.createElement('audio');
+      const audioEl = document.createElement("audio");
       audioEl.autoplay = true;
       audioEl.muted = speakerMutedRef.current;
       audioElRef.current = audioEl;
@@ -1611,102 +2076,108 @@ export function useOpenAIRealtime({
       });
 
       pc.ontrack = (e) => {
-        console.log('Received audio track');
+        console.log("Received audio track");
         audioEl.srcObject = e.streams[0];
       };
 
-      assertStillActive('before mic permission');
+      assertStillActive("before mic permission");
       const micPermissionStart = performance.now();
-      setDebugTimings(prev => ({ ...prev, micPermissionStart }));
+      setDebugTimings((prev) => ({ ...prev, micPermissionStart }));
 
       // Check if mediaDevices API is available (may not be in some mobile contexts)
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error('navigator.mediaDevices is not available');
-        throw new Error('Microphone access not available. Please ensure you have granted microphone permissions in your device settings.');
+        console.error("navigator.mediaDevices is not available");
+        throw new Error(
+          "Microphone access not available. Please ensure you have granted microphone permissions in your device settings.",
+        );
       }
 
       let ms: MediaStream;
       try {
         ms = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (mediaError) {
-        console.error('getUserMedia error:', mediaError);
+        console.error("getUserMedia error:", mediaError);
         const me = mediaError as { name?: string; message?: string };
-        if (me.name === 'NotAllowedError' || me.name === 'PermissionDeniedError') {
-          throw new Error('Microphone permission denied. Please allow microphone access in your device settings.');
-        } else if (me.name === 'NotFoundError') {
-          throw new Error('No microphone found. Please connect a microphone and try again.');
+        if (me.name === "NotAllowedError" || me.name === "PermissionDeniedError") {
+          throw new Error(
+            "Microphone permission denied. Please allow microphone access in your device settings.",
+          );
+        } else if (me.name === "NotFoundError") {
+          throw new Error("No microphone found. Please connect a microphone and try again.");
         } else {
-          throw new Error(`Microphone error: ${me.message || 'Unable to access microphone'}`);
+          throw new Error(`Microphone error: ${me.message || "Unable to access microphone"}`);
         }
       }
       localStreamRef.current = ms;
 
-      assertStillActive('after mic permission');
+      assertStillActive("after mic permission");
       const micPermissionEnd = performance.now();
-      setDebugTimings(prev => ({ ...prev, micPermissionEnd }));
+      setDebugTimings((prev) => ({ ...prev, micPermissionEnd }));
 
       const track = ms.getTracks()[0];
       localAudioTrackRef.current = track;
       track.enabled = !micMutedRef.current;
 
       // If we were cancelled while the browser prompt was open, the pc may be closed already
-      if (pc.signalingState === 'closed') {
-        throw new Error('Peer connection closed before track could be added');
+      if (pc.signalingState === "closed") {
+        throw new Error("Peer connection closed before track could be added");
       }
 
       pc.addTrack(track);
 
-      const dc = pc.createDataChannel('oai-events');
+      const dc = pc.createDataChannel("oai-events");
       dcRef.current = dc;
 
-      dc.addEventListener('open', () => {
-        console.log('Data channel opened');
+      dc.addEventListener("open", () => {
+        console.log("Data channel opened");
         dcIsOpenRef.current = true;
-        setDebugTimings(prev => ({ ...prev, dataChannelOpen: performance.now() }));
+        setDebugTimings((prev) => ({ ...prev, dataChannelOpen: performance.now() }));
         maybeSetConnected();
-        
+
         // Trigger AI to greet the user first after connection is stable
         setTimeout(() => {
-          if (dc.readyState === 'open') {
-            console.log('Triggering AI greeting...');
-            dc.send(JSON.stringify({
-              type: 'conversation.item.create',
-              item: {
-                type: 'message',
-                role: 'user',
-                content: [{ type: 'input_text', text: '[SESSION_START]' }]
-              }
-            }));
-            dc.send(JSON.stringify({ type: 'response.create' }));
+          if (dc.readyState === "open") {
+            console.log("Triggering AI greeting...");
+            dc.send(
+              JSON.stringify({
+                type: "conversation.item.create",
+                item: {
+                  type: "message",
+                  role: "user",
+                  content: [{ type: "input_text", text: "[SESSION_START]" }],
+                },
+              }),
+            );
+            dc.send(JSON.stringify({ type: "response.create" }));
           }
         }, 500);
       });
 
-      dc.addEventListener('message', async (e) => {
+      dc.addEventListener("message", async (e) => {
         const event = JSON.parse(e.data);
-        console.log('Received event:', event.type);
+        console.log("Received event:", event.type);
 
         switch (event.type) {
-          case 'input_audio_buffer.speech_started':
-            currentTranscriptRef.current = '';
+          case "input_audio_buffer.speech_started":
+            currentTranscriptRef.current = "";
             break;
 
-          case 'conversation.item.input_audio_transcription.completed': {
-            const userText = event.transcript || '';
+          case "conversation.item.input_audio_transcription.completed": {
+            const userText = event.transcript || "";
             currentTranscriptRef.current = userText;
             onTranscript?.(userText, true);
             break;
           }
 
-          case 'response.audio_transcript.delta':
-            onResponse?.(event.delta || '');
+          case "response.audio_transcript.delta":
+            onResponse?.(event.delta || "");
             break;
 
-          case 'response.audio.delta':
+          case "response.audio.delta":
             if (event.delta) {
               if (speakerMutedRef.current) break;
               // Record first audio received timing
-              setDebugTimings(prev => {
+              setDebugTimings((prev) => {
                 if (!prev.firstAudioReceived) {
                   return { ...prev, firstAudioReceived: performance.now() };
                 }
@@ -1723,61 +2194,61 @@ export function useOpenAIRealtime({
             }
             break;
 
-          case 'response.audio.done':
+          case "response.audio.done":
             setTimeout(() => {
               setIsSpeaking(false);
               onSpeakingChange?.(false);
             }, 500);
             break;
 
-          case 'response.function_call_arguments.delta':
+          case "response.function_call_arguments.delta":
             if (!pendingFunctionCallRef.current) {
               pendingFunctionCallRef.current = {
-                name: event.name || '',
-                callId: event.call_id || '',
-                args: '',
+                name: event.name || "",
+                callId: event.call_id || "",
+                args: "",
               };
             }
-            pendingFunctionCallRef.current.args += event.delta || '';
+            pendingFunctionCallRef.current.args += event.delta || "";
             break;
 
-          case 'response.function_call_arguments.done':
+          case "response.function_call_arguments.done":
             if (pendingFunctionCallRef.current || event.arguments) {
               const fnName = pendingFunctionCallRef.current?.name || event.name;
-              const fnArgs = event.arguments || pendingFunctionCallRef.current?.args || '{}';
+              const fnArgs = event.arguments || pendingFunctionCallRef.current?.args || "{}";
               const callId = event.call_id || pendingFunctionCallRef.current?.callId;
 
               try {
                 const parsedArgs = JSON.parse(fnArgs);
                 await handleFunctionCall(fnName, parsedArgs, callId);
               } catch (err) {
-                console.error('Error parsing function args:', err);
+                console.error("Error parsing function args:", err);
               }
               pendingFunctionCallRef.current = null;
             }
             break;
 
-          case 'error':
-            console.error('OpenAI error:', event.error);
-            onError?.(event.error?.message || 'Unknown error');
+          case "error":
+            console.error("OpenAI error:", event.error);
+            onError?.(event.error?.message || "Unknown error");
             break;
         }
       });
 
-      dc.addEventListener('close', () => {
-        console.log('Data channel closed');
+      dc.addEventListener("close", () => {
+        console.log("Data channel closed");
         dcIsOpenRef.current = false;
         rtcReadyRef.current = false;
         setIsConnected(false);
         setIsListening(false);
-        onConnectionChange?.('disconnected');
+        onConnectionChange?.("disconnected");
       });
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      const baseUrl = 'https://api.openai.com/v1/realtime';
-      const model = 'gpt-4o-realtime-preview-2024-12-17';
+      const baseUrl = "https://api.openai.com/v1/realtime";
+      const model = "gpt-4o-realtime-preview-2024-12-17";
 
       // Add timeout for OpenAI SDP request (20 seconds)
       const controller = new AbortController();
@@ -1786,44 +2257,44 @@ export function useOpenAIRealtime({
       let sdpResponse: Response;
       try {
         sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
-          method: 'POST',
+          method: "POST",
           body: offer.sdp,
           headers: {
             Authorization: `Bearer ${EPHEMERAL_KEY}`,
-            'Content-Type': 'application/sdp',
+            "Content-Type": "application/sdp",
           },
           signal: controller.signal,
         });
       } catch (fetchErr) {
         clearTimeout(sdpTimeout);
         const fe = fetchErr as { name?: string; message?: string };
-        if (fe.name === 'AbortError') {
-          throw new Error('OpenAI connection timeout - please try again');
+        if (fe.name === "AbortError") {
+          throw new Error("OpenAI connection timeout - please try again");
         }
         throw new Error(`Network error connecting to OpenAI: ${fe.message || String(fetchErr)}`);
       }
       clearTimeout(sdpTimeout);
 
       if (!sdpResponse.ok) {
-        const errorText = await sdpResponse.text().catch(() => '');
-        console.error('OpenAI SDP error:', sdpResponse.status, errorText);
+        const errorText = await sdpResponse.text().catch(() => "");
+        console.error("OpenAI SDP error:", sdpResponse.status, errorText);
         throw new Error(`Failed to connect to OpenAI (${sdpResponse.status})`);
       }
 
       const answer = {
-        type: 'answer' as RTCSdpType,
+        type: "answer" as RTCSdpType,
         sdp: await sdpResponse.text(),
       };
 
       await pc.setRemoteDescription(answer);
-      assertStillActive('after remote SDP');
-      console.log('WebRTC connection established');
-      setDebugTimings(prev => ({ ...prev, remoteSdpSet: performance.now() }));
+      assertStillActive("after remote SDP");
+      console.log("WebRTC connection established");
+      setDebugTimings((prev) => ({ ...prev, remoteSdpSet: performance.now() }));
       rtcReadyRef.current = true;
       maybeSetConnected();
       isConnectingRef.current = false;
     } catch (err) {
-      console.error('Connection error:', err);
+      console.error("Connection error:", err);
 
       // Important: fully cleanup partially-initialized WebRTC so a retry can't overlap
       isConnectingRef.current = false;
@@ -1865,59 +2336,70 @@ export function useOpenAIRealtime({
       setIsListening(false);
       setIsSpeaking(false);
 
-      onConnectionChange?.('error');
-      onError?.(err instanceof Error ? err.message : 'Connection failed');
+      onConnectionChange?.("error");
+      onError?.(err instanceof Error ? err.message : "Connection failed");
     }
-  }, [handleFunctionCall, isConnected, onConnectionChange, onError, onResponse, onSpeakingChange, onTranscript]);
+  }, [
+    handleFunctionCall,
+    isConnected,
+    onConnectionChange,
+    onError,
+    onResponse,
+    onSpeakingChange,
+    onTranscript,
+  ]);
 
-  const cleanupConnection = useCallback((opts?: { emitDisconnected?: boolean }) => {
-    const emitDisconnected = opts?.emitDisconnected ?? true;
+  const cleanupConnection = useCallback(
+    (opts?: { emitDisconnected?: boolean }) => {
+      const emitDisconnected = opts?.emitDisconnected ?? true;
 
-    console.log('Cleaning up connection...');
-    // Increment connectAttemptRef to cancel any in-flight connection attempts
-    connectAttemptRef.current++;
-    isConnectingRef.current = false;
-    dcIsOpenRef.current = false;
-    rtcReadyRef.current = false;
+      console.log("Cleaning up connection...");
+      // Increment connectAttemptRef to cancel any in-flight connection attempts
+      connectAttemptRef.current++;
+      isConnectingRef.current = false;
+      dcIsOpenRef.current = false;
+      rtcReadyRef.current = false;
 
-    // Stop local media
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => t.stop());
-      localStreamRef.current = null;
-    }
-    localAudioTrackRef.current = null;
+      // Stop local media
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+      }
+      localAudioTrackRef.current = null;
 
-    audioRecorderRef.current?.stop();
-    audioRecorderRef.current = null;
+      audioRecorderRef.current?.stop();
+      audioRecorderRef.current = null;
 
-    audioQueueRef.current?.clear();
+      audioQueueRef.current?.clear();
 
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
 
-    if (dcRef.current) {
-      dcRef.current.close();
-      dcRef.current = null;
-    }
+      if (dcRef.current) {
+        dcRef.current.close();
+        dcRef.current = null;
+      }
 
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
 
-    if (audioElRef.current) {
-      audioElRef.current.srcObject = null;
-      audioElRef.current = null;
-    }
+      if (audioElRef.current) {
+        audioElRef.current.srcObject = null;
+        audioElRef.current = null;
+      }
 
-    setIsConnected(false);
-    setIsListening(false);
-    setIsSpeaking(false);
+      setIsConnected(false);
+      setIsListening(false);
+      setIsSpeaking(false);
 
-    if (emitDisconnected) onConnectionChange?.('disconnected');
-  }, [onConnectionChange]);
+      if (emitDisconnected) onConnectionChange?.("disconnected");
+    },
+    [onConnectionChange],
+  );
 
   const disconnect = useCallback(() => {
     const hasAnythingToClose =
@@ -1930,38 +2412,43 @@ export function useOpenAIRealtime({
 
     if (!hasAnythingToClose) return;
 
-    console.log('Disconnecting...');
+    console.log("Disconnecting...");
     cleanupConnection({ emitDisconnected: true });
     setDebugTimings({});
   }, [cleanupConnection, isConnected]);
 
   const sendTextMessage = useCallback((text: string) => {
-    if (!dcRef.current || dcRef.current.readyState !== 'open') {
-      console.warn('Data channel not ready');
+    if (!dcRef.current || dcRef.current.readyState !== "open") {
+      console.warn("Data channel not ready");
       return;
     }
 
-    dcRef.current.send(JSON.stringify({
-      type: 'conversation.item.create',
-      item: {
-        type: 'message',
-        role: 'user',
-        content: [{ type: 'input_text', text }]
-      }
-    }));
+    dcRef.current.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text }],
+        },
+      }),
+    );
 
-    dcRef.current.send(JSON.stringify({ type: 'response.create' }));
+    dcRef.current.send(JSON.stringify({ type: "response.create" }));
   }, []);
 
-  const setSpeakerMuted = useCallback((muted: boolean) => {
-    speakerMutedRef.current = muted;
-    if (audioElRef.current) audioElRef.current.muted = muted;
-    if (muted) {
-      audioQueueRef.current?.clear();
-      setIsSpeaking(false);
-      onSpeakingChange?.(false);
-    }
-  }, [onSpeakingChange]);
+  const setSpeakerMuted = useCallback(
+    (muted: boolean) => {
+      speakerMutedRef.current = muted;
+      if (audioElRef.current) audioElRef.current.muted = muted;
+      if (muted) {
+        audioQueueRef.current?.clear();
+        setIsSpeaking(false);
+        onSpeakingChange?.(false);
+      }
+    },
+    [onSpeakingChange],
+  );
 
   const setMicMuted = useCallback((muted: boolean) => {
     micMutedRef.current = muted;

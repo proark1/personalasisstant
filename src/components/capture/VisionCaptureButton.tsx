@@ -1,26 +1,31 @@
-import { useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Camera, Loader2, Trash2, CheckCircle2 } from 'lucide-react';
-import { useVisionCapture, type VisionKind } from '@/hooks/useVisionCapture';
-import { useNativeCamera } from '@/hooks/useNativeCamera';
-import { cn } from '@/lib/utils';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Camera, Loader2, Trash2, CheckCircle2 } from "lucide-react";
+import { useVisionCapture, type VisionKind } from "@/hooks/useVisionCapture";
+import { useNativeCamera } from "@/hooks/useNativeCamera";
+import { cn } from "@/lib/utils";
 
 const KIND_LABELS: Record<VisionKind, string> = {
-  receipt: 'Receipt',
-  business_card: 'Business card',
-  medication: 'Medication',
-  whiteboard: 'Whiteboard / notes',
-  label: 'Label / sign',
-  document: 'Document',
-  contract: 'Contract',
-  inventory: 'Inventory item',
-  unknown: 'Unknown',
+  receipt: "Receipt",
+  business_card: "Business card",
+  medication: "Medication",
+  whiteboard: "Whiteboard / notes",
+  label: "Label / sign",
+  document: "Document",
+  contract: "Contract",
+  inventory: "Inventory item",
+  unknown: "Unknown",
 };
 
 // "Capture" button mounted in the header. Opens a dialog with a file
@@ -43,7 +48,7 @@ export function VisionCaptureButton() {
       setChosenKind(r.detected_kind);
       const seed: Record<string, string> = {};
       for (const [k, v] of Object.entries(r.extracted ?? {})) {
-        if (typeof v === 'string' || typeof v === 'number') seed[k] = String(v);
+        if (typeof v === "string" || typeof v === "number") seed[k] = String(v);
       }
       setEditedFields(seed);
     }
@@ -52,7 +57,7 @@ export function VisionCaptureButton() {
   const onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    e.target.value = ''; // allow re-upload of same file
+    e.target.value = ""; // allow re-upload of same file
     await handleFile(file);
   };
 
@@ -76,7 +81,7 @@ export function VisionCaptureButton() {
     // schema accepts them.
     const payload: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(editedFields)) {
-      if (v === '') continue;
+      if (v === "") continue;
       const n = Number(v);
       // Trim before the regex test: Number(" 100 ") parses fine, but
       // the strict regex would reject the surrounding whitespace and
@@ -87,7 +92,7 @@ export function VisionCaptureButton() {
     // unchanged (e.g. line_items arrays).
     if (vision.result?.extracted) {
       for (const [k, v] of Object.entries(vision.result.extracted)) {
-        if (!(k in payload) && (typeof v === 'object' || Array.isArray(v))) payload[k] = v;
+        if (!(k in payload) && (typeof v === "object" || Array.isArray(v))) payload[k] = v;
       }
     }
     const r = await vision.commit({ kind: chosenKind ?? undefined, payload });
@@ -110,7 +115,13 @@ export function VisionCaptureButton() {
         <Camera className="w-4.5 h-4.5" />
       </Button>
 
-      <Dialog open={open} onOpenChange={(o) => { if (!o) close(); else setOpen(true); }}>
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          if (!o) close();
+          else setOpen(true);
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -118,9 +129,8 @@ export function VisionCaptureButton() {
               Capture with camera
             </DialogTitle>
             <DialogDescription>
-              Snap a receipt, business card, medication label, whiteboard,
-              or any text. The assistant classifies it and offers to save
-              it as the right thing.
+              Snap a receipt, business card, medication label, whiteboard, or any text. The
+              assistant classifies it and offers to save it as the right thing.
             </DialogDescription>
           </DialogHeader>
 
@@ -144,9 +154,17 @@ export function VisionCaptureButton() {
                   }}
                   disabled={vision.busy}
                 >
-                  {vision.busy
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> {vision.phase?.label ?? 'Analysing…'}</>
-                    : <><Camera className="w-4 h-4" /> {nativeCam.available ? 'Take a photo' : 'Take or choose a photo'}</>}
+                  {vision.busy ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                      {vision.phase?.label ?? "Analysing…"}
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-4 h-4" />{" "}
+                      {nativeCam.available ? "Take a photo" : "Take or choose a photo"}
+                    </>
+                  )}
                 </Button>
                 {nativeCam.available && (
                   <Button
@@ -160,7 +178,8 @@ export function VisionCaptureButton() {
                 )}
                 {vision.busy && vision.phase ? (
                   <p className="text-[10px] text-muted-foreground text-center tabular-nums">
-                    {Math.floor(vision.phase.elapsed_ms / 1000)}s elapsed · phase: {vision.phase.key}
+                    {Math.floor(vision.phase.elapsed_ms / 1000)}s elapsed · phase:{" "}
+                    {vision.phase.key}
                   </p>
                 ) : (
                   <p className="text-[10px] text-muted-foreground text-center">
@@ -195,7 +214,9 @@ export function VisionCaptureButton() {
                     onChange={(e) => setChosenKind(e.target.value as VisionKind)}
                   >
                     {(Object.keys(KIND_LABELS) as VisionKind[]).map((k) => (
-                      <option key={k} value={k}>{KIND_LABELS[k]}</option>
+                      <option key={k} value={k}>
+                        {KIND_LABELS[k]}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -209,13 +230,18 @@ export function VisionCaptureButton() {
                   ) : (
                     Object.entries(editedFields).map(([k, v]) => (
                       <div key={k} className="space-y-1">
-                        <Label htmlFor={`f-${k}`} className="text-[10px] uppercase tracking-wide capitalize">
-                          {k.replace(/_/g, ' ')}
+                        <Label
+                          htmlFor={`f-${k}`}
+                          className="text-[10px] uppercase tracking-wide capitalize"
+                        >
+                          {k.replace(/_/g, " ")}
                         </Label>
                         <Input
                           id={`f-${k}`}
                           value={v}
-                          onChange={(e) => setEditedFields({ ...editedFields, [k]: e.target.value })}
+                          onChange={(e) =>
+                            setEditedFields({ ...editedFields, [k]: e.target.value })
+                          }
                           className="h-8 text-sm"
                         />
                       </div>
@@ -229,15 +255,17 @@ export function VisionCaptureButton() {
                     <summary className="cursor-pointer text-muted-foreground">
                       View raw text ({vision.result.ocr_text.length} chars)
                     </summary>
-                    <pre className={cn(
-                      'mt-1 p-2 rounded bg-muted text-[11px] whitespace-pre-wrap max-h-32 overflow-y-auto',
-                    )}>
+                    <pre
+                      className={cn(
+                        "mt-1 p-2 rounded bg-muted text-[11px] whitespace-pre-wrap max-h-32 overflow-y-auto",
+                      )}
+                    >
                       {vision.result.ocr_text}
                     </pre>
                   </details>
                 )}
 
-                {chosenKind === 'label' && vision.result.extracted?.translation && (
+                {chosenKind === "label" && vision.result.extracted?.translation && (
                   <div className="rounded-md bg-emerald-500/10 p-2 text-xs">
                     <p className="font-medium text-emerald-600">Translation</p>
                     <p className="mt-0.5">{String(vision.result.extracted.translation)}</p>
@@ -255,13 +283,19 @@ export function VisionCaptureButton() {
             )}
             {vision.result && (
               <Button onClick={onSave} disabled={vision.busy} className="gap-1.5">
-                {vision.busy
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <><CheckCircle2 className="w-4 h-4" /> Save</>}
+                {vision.busy ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" /> Save
+                  </>
+                )}
               </Button>
             )}
             {!vision.result && (
-              <Button variant="ghost" onClick={close} disabled={vision.busy}>Cancel</Button>
+              <Button variant="ghost" onClick={close} disabled={vision.busy}>
+                Cancel
+              </Button>
             )}
           </DialogFooter>
         </DialogContent>

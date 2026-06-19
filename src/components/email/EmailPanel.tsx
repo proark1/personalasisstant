@@ -1,29 +1,51 @@
-import { memo, useState, useRef, useCallback, useEffect } from 'react';
-import { useEmails, EmailView, Email, EmailThread } from '@/hooks/useEmails';
-import { useGmailConnection } from '@/hooks/useGmailConnection';
-import { EmailCard } from './EmailCard';
-import { EmailDetailSheet } from './EmailDetailSheet';
-import { ComposeEmailSheet } from './ComposeEmailSheet';
-import { RecurringPaymentDetector, DetectedPayment } from './RecurringPaymentDetector';
-import { reconstructSender } from '@/lib/emailSender';
-import { AddEditContractDialog } from '@/components/contracts/AddEditContractDialog';
-import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
-import { useContracts, ContractInput, ContractCategory } from '@/hooks/useContracts';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { PanelShell, staggerItem } from '@/components/ui/panel-shell';
-import { EmptyState } from '@/components/ui/empty-state';
-import { GlassCard } from '@/components/ui/glass-card';
-import { RefreshCw, Mail, Inbox, ShieldAlert, Loader2, PlugZap, ChevronDown, ChevronRight, Sparkles, Clock, Search, X, CheckSquare, Archive, Eye, Flag, Plus, PartyPopper, Zap, CheckCheck, Receipt } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
-import { AnimatedCounter } from '@/components/ui/animated-counter';
-import { useToast } from '@/hooks/use-toast';
-import { EmailActionPipelineCard } from '@/components/dashboard/EmailActionPipelineCard';
-import { useEmailActionsCount } from '@/hooks/useEmailActionsCount';
+import { memo, useState, useRef, useCallback, useEffect } from "react";
+import { useEmails, EmailView, Email, EmailThread } from "@/hooks/useEmails";
+import { useGmailConnection } from "@/hooks/useGmailConnection";
+import { EmailCard } from "./EmailCard";
+import { EmailDetailSheet } from "./EmailDetailSheet";
+import { ComposeEmailSheet } from "./ComposeEmailSheet";
+import { RecurringPaymentDetector, DetectedPayment } from "./RecurringPaymentDetector";
+import { reconstructSender } from "@/lib/emailSender";
+import { AddEditContractDialog } from "@/components/contracts/AddEditContractDialog";
+import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useContracts, ContractInput, ContractCategory } from "@/hooks/useContracts";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { PanelShell, staggerItem } from "@/components/ui/panel-shell";
+import { EmptyState } from "@/components/ui/empty-state";
+import { GlassCard } from "@/components/ui/glass-card";
+import {
+  RefreshCw,
+  Mail,
+  Inbox,
+  ShieldAlert,
+  Loader2,
+  PlugZap,
+  ChevronDown,
+  ChevronRight,
+  Sparkles,
+  Clock,
+  Search,
+  X,
+  CheckSquare,
+  Archive,
+  Eye,
+  Flag,
+  Plus,
+  PartyPopper,
+  Zap,
+  CheckCheck,
+  Receipt,
+} from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { motion, useMotionValue, useTransform } from "framer-motion";
+import { AnimatedCounter } from "@/components/ui/animated-counter";
+import { useToast } from "@/hooks/use-toast";
+import { EmailActionPipelineCard } from "@/components/dashboard/EmailActionPipelineCard";
+import { useEmailActionsCount } from "@/hooks/useEmailActionsCount";
 
 // Memoized wrapper around EmailCard (which lives in another file) so a thread
 // row only re-renders when its own props change — not when a sibling row or
@@ -31,7 +53,19 @@ import { useEmailActionsCount } from '@/hooks/useEmailActionsCount';
 // so identity-stable Set lookups don't force every row to re-render.
 const MemoEmailCard = memo(EmailCard);
 
-function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onArchive, onToggleImportant, icon: Icon, selectMode, selectedIds, onToggleSelect }: {
+function EmailSection({
+  title,
+  count,
+  threads,
+  defaultOpen = true,
+  onSelect,
+  onArchive,
+  onToggleImportant,
+  icon: Icon,
+  selectMode,
+  selectedIds,
+  onToggleSelect,
+}: {
   title: string;
   count: number;
   threads: EmailThread[];
@@ -48,7 +82,10 @@ function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onA
   if (count === 0) return null;
 
   return (
-    <motion.div variants={staggerItem} className="w-full min-w-0 max-w-full space-y-1 overflow-hidden">
+    <motion.div
+      variants={staggerItem}
+      className="w-full min-w-0 max-w-full space-y-1 overflow-hidden"
+    >
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
@@ -56,11 +93,13 @@ function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onA
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         {Icon && <Icon className="w-3 h-3" />}
         {title}
-        <span className="ml-auto text-[10px] font-medium bg-muted rounded-full px-1.5 py-0.5 normal-case">{count}</span>
+        <span className="ml-auto text-[10px] font-medium bg-muted rounded-full px-1.5 py-0.5 normal-case">
+          {count}
+        </span>
       </button>
       {open && (
         <div className="w-full min-w-0 max-w-full space-y-1.5 overflow-hidden">
-          {threads.map(thread => (
+          {threads.map((thread) => (
             <MemoEmailCard
               key={thread.latestEmail.id}
               thread={thread}
@@ -78,7 +117,15 @@ function EmailSection({ title, count, threads, defaultOpen = true, onSelect, onA
   );
 }
 
-function StatsBanner({ unread, priority, handled }: { unread: number; priority: number; handled: number }) {
+function StatsBanner({
+  unread,
+  priority,
+  handled,
+}: {
+  unread: number;
+  priority: number;
+  handled: number;
+}) {
   return (
     <GlassCard className="grid w-full min-w-0 grid-cols-3 gap-2 px-3 py-2.5 text-xs overflow-hidden">
       <div className="flex min-w-0 items-center gap-1.5">
@@ -116,7 +163,8 @@ function InboxZeroState() {
       </motion.div>
       <h3 className="text-lg font-semibold text-foreground">All caught up! 🎉</h3>
       <p className="text-sm text-muted-foreground max-w-xs">
-        You've handled everything. Enjoy your free time — we'll notify you when something important comes in.
+        You've handled everything. Enjoy your free time — we'll notify you when something important
+        comes in.
       </p>
     </motion.div>
   );
@@ -127,28 +175,59 @@ export function EmailPanel() {
   const { toast } = useToast();
   const { isConnected, loading: connectionLoading, connectGmail } = useGmailConnection();
   const {
-    emails, grouped, loading, syncing, view, setView,
-    syncEmails, archiveEmail, markImportant, markAsRead, reportSpam, snoozeEmail, createSenderRule,
-    fetchEmailBody, sendReply, composeEmail, categorizeEmail,
-    searchQuery, setSearchQuery,
-    selectMode, setSelectMode, selectedIds, toggleSelect, clearSelection,
-    batchArchive, batchMarkRead, batchReportSpam,
-    unreadCount, priorityCount, flaggedCount, lastSyncTime, handledToday,
+    emails,
+    grouped,
+    loading,
+    syncing,
+    view,
+    setView,
+    syncEmails,
+    archiveEmail,
+    markImportant,
+    markAsRead,
+    reportSpam,
+    snoozeEmail,
+    createSenderRule,
+    fetchEmailBody,
+    sendReply,
+    composeEmail,
+    categorizeEmail,
+    searchQuery,
+    setSearchQuery,
+    selectMode,
+    setSelectMode,
+    selectedIds,
+    toggleSelect,
+    clearSelection,
+    batchArchive,
+    batchMarkRead,
+    batchReportSpam,
+    unreadCount,
+    priorityCount,
+    flaggedCount,
+    lastSyncTime,
+    handledToday,
   } = useEmails();
   const { addContract } = useContracts(user?.id);
   const actionsCount = useEmailActionsCount();
-  const [activeTab, setActiveTab] = useState<EmailView | 'actions'>('smart');
+  const [activeTab, setActiveTab] = useState<EmailView | "actions">("smart");
 
   // Keep email-filter view in sync with tab when not on actions
   const handleTabChange = (v: string) => {
-    setActiveTab(v as EmailView | 'actions');
-    if (v !== 'actions') setView(v as EmailView);
+    setActiveTab(v as EmailView | "actions");
+    if (v !== "actions") setView(v as EmailView);
   };
   const [selectedThread, setSelectedThread] = useState<EmailThread | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
-  const [composeDraft, setComposeDraft] = useState<{ to?: string; subject?: string; body?: string; threadId?: string | null; gmailMessageId?: string | null }>({});
+  const [composeDraft, setComposeDraft] = useState<{
+    to?: string;
+    subject?: string;
+    body?: string;
+    threadId?: string | null;
+    gmailMessageId?: string | null;
+  }>({});
   const [detectorOpen, setDetectorOpen] = useState(false);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [contractPrefill, setContractPrefill] = useState<Partial<ContractInput> | null>(null);
@@ -167,9 +246,9 @@ export function EmailPanel() {
   };
 
   const extractAmountFromText = (text: string): number | undefined => {
-    const match = text.match(/(\d+[.,]\d{2})\s*(?:EUR|USD|\$|€)/i)
-                || text.match(/[$€]\s*(\d+[.,]\d{2})/);
-    if (match) return parseFloat(match[1].replace(',', '.'));
+    const match =
+      text.match(/(\d+[.,]\d{2})\s*(?:EUR|USD|\$|€)/i) || text.match(/[$€]\s*(\d+[.,]\d{2})/);
+    if (match) return parseFloat(match[1].replace(",", "."));
     return undefined;
   };
 
@@ -188,34 +267,37 @@ export function EmailPanel() {
 
   const detectCategory = (text: string): string => {
     const lower = text.toLowerCase();
-    if (/insurance|versicherung/.test(lower)) return 'insurance';
-    if (/internet|broadband|fiber|glasfaser/.test(lower)) return 'internet';
-    if (/phone|mobile|telefon|handy/.test(lower)) return 'phone';
-    if (/netflix|spotify|disney|streaming|hulu|apple\s?tv/.test(lower)) return 'streaming';
-    if (/electricity|gas|water|energy|strom|stadtwerke/.test(lower)) return 'utilities';
-    if (/gym|fitness|sport/.test(lower)) return 'other';
-    return 'subscription';
+    if (/insurance|versicherung/.test(lower)) return "insurance";
+    if (/internet|broadband|fiber|glasfaser/.test(lower)) return "internet";
+    if (/phone|mobile|telefon|handy/.test(lower)) return "phone";
+    if (/netflix|spotify|disney|streaming|hulu|apple\s?tv/.test(lower)) return "streaming";
+    if (/electricity|gas|water|energy|strom|stadtwerke/.test(lower)) return "utilities";
+    if (/gym|fitness|sport/.test(lower)) return "other";
+    return "subscription";
   };
 
   const handleSaveEmailAsContract = async (email: Email, bodyHtml?: string) => {
-    const { name: senderName, email: senderEmail } = reconstructSender(email.from_name, email.from_email);
-    const searchText = `${email.subject || ''} ${email.snippet || ''} ${email.body_preview || ''}`;
-    const emailDate = email.received_at ? format(new Date(email.received_at), 'yyyy-MM-dd') : '';
+    const { name: senderName, email: senderEmail } = reconstructSender(
+      email.from_name,
+      email.from_email,
+    );
+    const searchText = `${email.subject || ""} ${email.snippet || ""} ${email.body_preview || ""}`;
+    const emailDate = email.received_at ? format(new Date(email.received_at), "yyyy-MM-dd") : "";
 
     const notesParts = [
-      '--- Created from Email ---',
+      "--- Created from Email ---",
       `From: ${senderName} <${senderEmail}>`,
-      `Date: ${email.received_at ? format(new Date(email.received_at), 'PPP p') : 'Unknown'}`,
-      `Subject: ${email.subject || '(No subject)'}`,
-      '',
-      '--- Email Content ---',
-      email.snippet || email.body_preview || '(No content)',
+      `Date: ${email.received_at ? format(new Date(email.received_at), "PPP p") : "Unknown"}`,
+      `Subject: ${email.subject || "(No subject)"}`,
+      "",
+      "--- Email Content ---",
+      email.snippet || email.body_preview || "(No content)",
     ];
-    const richNotes = notesParts.join('\n');
+    const richNotes = notesParts.join("\n");
 
     setContractExtracting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('extract-contract-from-email', {
+      const { data, error } = await supabase.functions.invoke("extract-contract-from-email", {
         body: {
           from_name: senderName,
           from_email: senderEmail,
@@ -233,10 +315,14 @@ export function EmailPanel() {
           name: ai.provider || senderName,
           provider: ai.provider || senderName,
           costAmount: ai.costAmount ?? undefined,
-          costFrequency: ai.costFrequency || 'monthly',
-          category: ai.category || 'subscription',
+          costFrequency: ai.costFrequency || "monthly",
+          category: ai.category || "subscription",
           autoRenews: ai.autoRenews ?? true,
-          startDate: ai.startDate ? new Date(ai.startDate) : (emailDate ? new Date(emailDate) : undefined),
+          startDate: ai.startDate
+            ? new Date(ai.startDate)
+            : emailDate
+              ? new Date(emailDate)
+              : undefined,
           renewalDate: ai.renewalDate ? new Date(ai.renewalDate) : undefined,
           endDate: ai.endDate ? new Date(ai.endDate) : undefined,
           contractNumber: ai.contractNumber || undefined,
@@ -249,7 +335,7 @@ export function EmailPanel() {
         return;
       }
     } catch (e) {
-      console.error('AI contract extraction failed, using fallback:', e);
+      console.error("AI contract extraction failed, using fallback:", e);
     }
     setContractExtracting(false);
 
@@ -261,7 +347,7 @@ export function EmailPanel() {
       name: senderName,
       provider: senderName,
       costAmount: amount,
-      costFrequency: 'monthly',
+      costFrequency: "monthly",
       category: category as ContractCategory,
       autoRenews: true,
       startDate: emailDate ? new Date(emailDate) : undefined,
@@ -276,7 +362,10 @@ export function EmailPanel() {
   const handleSaveContract = async (data: ContractInput) => {
     const result = await addContract(data);
     if (result) {
-      toast({ title: 'Contract created', description: `${data.name} has been added to your contracts.` });
+      toast({
+        title: "Contract created",
+        description: `${data.name} has been added to your contracts.`,
+      });
     }
     setContractPrefill(null);
   };
@@ -287,17 +376,17 @@ export function EmailPanel() {
       const detail = (e as CustomEvent).detail;
       if (detail) {
         setComposeDraft({
-          to: detail.to || '',
-          subject: detail.subject || '',
-          body: detail.body || '',
+          to: detail.to || "",
+          subject: detail.subject || "",
+          body: detail.body || "",
           threadId: detail.threadId || null,
           gmailMessageId: detail.gmailMessageId || null,
         });
         setComposeOpen(true);
       }
     };
-    window.addEventListener('compose-email', handler);
-    return () => window.removeEventListener('compose-email', handler);
+    window.addEventListener("compose-email", handler);
+    return () => window.removeEventListener("compose-email", handler);
   }, []);
 
   // Pull-to-refresh
@@ -316,23 +405,36 @@ export function EmailPanel() {
   }, [pullY, syncing, syncEmails]);
 
   const findThread = (email: Email): EmailThread | null => {
-    const allThreads = [...(grouped.attention || []), ...(grouped.fyi || []), ...(grouped.lowPriority || []), ...(grouped.flagged || []), ...(grouped.snoozed || [])];
-    return allThreads.find(t => t.latestEmail.id === email.id || t.allEmails.some(e => e.id === email.id)) || null;
+    const allThreads = [
+      ...(grouped.attention || []),
+      ...(grouped.fyi || []),
+      ...(grouped.lowPriority || []),
+      ...(grouped.flagged || []),
+      ...(grouped.snoozed || []),
+    ];
+    return (
+      allThreads.find(
+        (t) => t.latestEmail.id === email.id || t.allEmails.some((e) => e.id === email.id),
+      ) || null
+    );
   };
 
-  const handleSelect = useCallback((email: Email) => {
-    if (selectMode) {
-      toggleSelect(email.id);
-      return;
-    }
-    const thread = findThread(email);
-    setSelectedThread(thread);
-    setSelectedEmail(email);
-    setDetailOpen(true);
-    if (!email.is_read) markAsRead(email.id);
-    // findThread reads `grouped` via closure; include the deps that affect behavior.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectMode, toggleSelect, markAsRead, grouped]);
+  const handleSelect = useCallback(
+    (email: Email) => {
+      if (selectMode) {
+        toggleSelect(email.id);
+        return;
+      }
+      const thread = findThread(email);
+      setSelectedThread(thread);
+      setSelectedEmail(email);
+      setDetailOpen(true);
+      if (!email.is_read) markAsRead(email.id);
+      // findThread reads `grouped` via closure; include the deps that affect behavior.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [selectMode, toggleSelect, markAsRead, grouped],
+  );
 
   // Connect Gmail screen
   if (!connectionLoading && !isConnected) {
@@ -350,7 +452,9 @@ export function EmailPanel() {
               <PlugZap className="w-4 h-4" />
               Connect Google Account
             </Button>
-            <p className="text-xs text-muted-foreground">Read-only access · Your emails stay in Gmail</p>
+            <p className="text-xs text-muted-foreground">
+              Read-only access · Your emails stay in Gmail
+            </p>
           </div>
         }
       >
@@ -359,7 +463,8 @@ export function EmailPanel() {
     );
   }
 
-  const hasEmails = grouped.attention.length > 0 || grouped.fyi.length > 0 || grouped.lowPriority.length > 0;
+  const hasEmails =
+    grouped.attention.length > 0 || grouped.fyi.length > 0 || grouped.lowPriority.length > 0;
 
   // Build header actions
   const headerActions = selectMode ? (
@@ -368,26 +473,60 @@ export function EmailPanel() {
         <X className="w-3.5 h-3.5" />
         {selectedIds.size}
       </Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={batchArchive} disabled={selectedIds.size === 0}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={batchArchive}
+        disabled={selectedIds.size === 0}
+      >
         <Archive className="w-3.5 h-3.5" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={batchMarkRead} disabled={selectedIds.size === 0}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={batchMarkRead}
+        disabled={selectedIds.size === 0}
+      >
         <Eye className="w-3.5 h-3.5" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={batchReportSpam} disabled={selectedIds.size === 0}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 text-destructive hover:text-destructive"
+        onClick={batchReportSpam}
+        disabled={selectedIds.size === 0}
+      >
         <Flag className="w-3.5 h-3.5" />
       </Button>
     </div>
   ) : (
     <div className="flex items-center gap-0.5">
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDetectorOpen(true)} title="Find Recurring Payments">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={() => setDetectorOpen(true)}
+        title="Find Recurring Payments"
+      >
         <Receipt className="w-3.5 h-3.5" />
       </Button>
       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectMode(true)}>
         <CheckSquare className="w-3.5 h-3.5" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={syncEmails} disabled={syncing}>
-        {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={syncEmails}
+        disabled={syncing}
+      >
+        {syncing ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <RefreshCw className="w-3.5 h-3.5" />
+        )}
       </Button>
     </div>
   );
@@ -401,30 +540,56 @@ export function EmailPanel() {
         <Input
           placeholder="Search emails..."
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="h-full min-w-0 border-0 bg-transparent px-0 py-0 text-xs shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
         />
         {searchQuery && (
-          <button onClick={() => setSearchQuery('')} className="shrink-0">
+          <button onClick={() => setSearchQuery("")} className="shrink-0">
             <X className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
         )}
       </div>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid h-auto w-full min-w-0 grid-cols-4 gap-1 overflow-hidden">
-            <TabsTrigger value="smart" className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden"><Sparkles className="w-3 h-3 shrink-0" /><span className="truncate">Smart</span></TabsTrigger>
-            <TabsTrigger value="all" className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden"><Inbox className="w-3 h-3 shrink-0" /><span className="truncate">All</span></TabsTrigger>
-            <TabsTrigger value="flagged" className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden">
-              <ShieldAlert className="w-3 h-3 shrink-0" />
-              <span className="truncate">Flagged</span>
-              {flaggedCount > 0 && <span className="shrink-0 rounded-full bg-destructive/20 px-1 text-[10px] text-destructive">{flaggedCount}</span>}
-            </TabsTrigger>
-            <TabsTrigger value="actions" className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden">
-              <Zap className="w-3 h-3 shrink-0" />
-              <span className="truncate">Actions</span>
-              {actionsCount > 0 && <span className="shrink-0 rounded-full bg-primary/20 px-1 text-[10px] text-primary">{actionsCount}</span>}
-            </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList className="grid h-auto w-full min-w-0 grid-cols-4 gap-1 overflow-hidden">
+          <TabsTrigger
+            value="smart"
+            className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden"
+          >
+            <Sparkles className="w-3 h-3 shrink-0" />
+            <span className="truncate">Smart</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="all"
+            className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden"
+          >
+            <Inbox className="w-3 h-3 shrink-0" />
+            <span className="truncate">All</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="flagged"
+            className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden"
+          >
+            <ShieldAlert className="w-3 h-3 shrink-0" />
+            <span className="truncate">Flagged</span>
+            {flaggedCount > 0 && (
+              <span className="shrink-0 rounded-full bg-destructive/20 px-1 text-[10px] text-destructive">
+                {flaggedCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="actions"
+            className="min-w-0 gap-1 px-1.5 text-[11px] sm:px-2 sm:text-xs overflow-hidden"
+          >
+            <Zap className="w-3 h-3 shrink-0" />
+            <span className="truncate">Actions</span>
+            {actionsCount > 0 && (
+              <span className="shrink-0 rounded-full bg-primary/20 px-1 text-[10px] text-primary">
+                {actionsCount}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
     </div>
@@ -462,24 +627,81 @@ export function EmailPanel() {
           style={{ y: pullY }}
           onDragEnd={handlePullEnd}
         >
-          {activeTab === 'actions' ? (
+          {activeTab === "actions" ? (
             <div className="p-1 w-full min-w-0 max-w-full overflow-hidden">
               <EmailActionPipelineCard variant="list" hideWhenEmpty />
             </div>
-          ) : view === 'smart' ? (
+          ) : view === "smart" ? (
             <>
-              <EmailSection title="Needs Your Attention" count={grouped.attention.length} threads={grouped.attention} onSelect={handleSelect} onArchive={archiveEmail} onToggleImportant={markImportant} selectMode={selectMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
-              <EmailSection title="FYI" count={grouped.fyi.length} threads={grouped.fyi} onSelect={handleSelect} onArchive={archiveEmail} onToggleImportant={markImportant} selectMode={selectMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
-              <EmailSection title="Newsletters & Promotions" count={grouped.lowPriority.length} threads={grouped.lowPriority} defaultOpen={false} onSelect={handleSelect} onArchive={archiveEmail} onToggleImportant={markImportant} selectMode={selectMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
+              <EmailSection
+                title="Needs Your Attention"
+                count={grouped.attention.length}
+                threads={grouped.attention}
+                onSelect={handleSelect}
+                onArchive={archiveEmail}
+                onToggleImportant={markImportant}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+              />
+              <EmailSection
+                title="FYI"
+                count={grouped.fyi.length}
+                threads={grouped.fyi}
+                onSelect={handleSelect}
+                onArchive={archiveEmail}
+                onToggleImportant={markImportant}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+              />
+              <EmailSection
+                title="Newsletters & Promotions"
+                count={grouped.lowPriority.length}
+                threads={grouped.lowPriority}
+                defaultOpen={false}
+                onSelect={handleSelect}
+                onArchive={archiveEmail}
+                onToggleImportant={markImportant}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+              />
               {grouped.flagged.length > 0 && (
-                <EmailSection title="⚠️ Flagged" count={grouped.flagged.length} threads={grouped.flagged} onSelect={handleSelect} onArchive={archiveEmail} onToggleImportant={markImportant} icon={ShieldAlert} selectMode={selectMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
+                <EmailSection
+                  title="⚠️ Flagged"
+                  count={grouped.flagged.length}
+                  threads={grouped.flagged}
+                  onSelect={handleSelect}
+                  onArchive={archiveEmail}
+                  onToggleImportant={markImportant}
+                  icon={ShieldAlert}
+                  selectMode={selectMode}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                />
               )}
               {grouped.snoozed.length > 0 && (
-                <EmailSection title="Snoozed" count={grouped.snoozed.length} threads={grouped.snoozed} defaultOpen={false} onSelect={handleSelect} icon={Clock} selectMode={selectMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
+                <EmailSection
+                  title="Snoozed"
+                  count={grouped.snoozed.length}
+                  threads={grouped.snoozed}
+                  defaultOpen={false}
+                  onSelect={handleSelect}
+                  icon={Clock}
+                  selectMode={selectMode}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                />
               )}
-              {!hasEmails && grouped.flagged.length === 0 && (
-                searchQuery ? (
-                  <EmptyState icon={Search} title="No results" description="No emails match your search." />
+              {!hasEmails &&
+                grouped.flagged.length === 0 &&
+                (searchQuery ? (
+                  <EmptyState
+                    icon={Search}
+                    title="No results"
+                    description="No emails match your search."
+                  />
                 ) : !loading && unreadCount === 0 ? (
                   <InboxZeroState />
                 ) : (
@@ -488,14 +710,17 @@ export function EmailPanel() {
                       icon={Inbox}
                       title="No emails yet"
                       description="Pull down or tap Sync to fetch."
-                      action={<Button variant="outline" size="sm" onClick={syncEmails} disabled={syncing}>{syncing ? 'Syncing...' : 'Sync Now'}</Button>}
+                      action={
+                        <Button variant="outline" size="sm" onClick={syncEmails} disabled={syncing}>
+                          {syncing ? "Syncing..." : "Sync Now"}
+                        </Button>
+                      }
                     />
                   </div>
-                )
-              )}
+                ))}
             </>
           ) : emails && emails.length > 0 ? (
-            emails.map(thread => (
+            emails.map((thread) => (
               <MemoEmailCard
                 key={thread.latestEmail.id}
                 thread={thread}
@@ -510,8 +735,16 @@ export function EmailPanel() {
           ) : (
             <EmptyState
               icon={Inbox}
-              title={searchQuery ? 'No results' : view === 'flagged' ? 'All clear!' : 'No emails found'}
-              description={searchQuery ? 'No emails match your search.' : view === 'flagged' ? 'No flagged emails — all clear!' : 'No emails found.'}
+              title={
+                searchQuery ? "No results" : view === "flagged" ? "All clear!" : "No emails found"
+              }
+              description={
+                searchQuery
+                  ? "No emails match your search."
+                  : view === "flagged"
+                    ? "No flagged emails — all clear!"
+                    : "No emails found."
+              }
             />
           )}
         </motion.div>
@@ -522,7 +755,7 @@ export function EmailPanel() {
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.3 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.3 }}
           onClick={() => setComposeOpen(true)}
           className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-glow flex items-center justify-center hover:bg-primary/90 transition-colors active:scale-95"
         >

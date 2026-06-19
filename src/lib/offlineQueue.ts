@@ -17,9 +17,9 @@
 // `__setStoreForTests` lets a test inject one explicitly. All idb access is
 // lazy + guarded so importing this module never throws off the main thread.
 
-import type { DBSchema, IDBPDatabase } from 'idb';
+import type { DBSchema, IDBPDatabase } from "idb";
 
-export type OfflineOp = 'insert' | 'update' | 'delete';
+export type OfflineOp = "insert" | "update" | "delete";
 
 export interface OfflineQueueEntry {
   /** uuid */
@@ -90,9 +90,9 @@ interface OutboxDB extends DBSchema {
   };
 }
 
-const DB_NAME = 'darai-offline-outbox';
+const DB_NAME = "darai-offline-outbox";
 const DB_VERSION = 1;
-const STORE = 'outbox';
+const STORE = "outbox";
 
 /** idb-backed store. Used in real browsers. */
 class IdbQueueStore implements QueueStore {
@@ -102,11 +102,11 @@ class IdbQueueStore implements QueueStore {
     if (!this.dbPromise) {
       // Lazy import so this module never references idb at load time in a
       // context where it (or IndexedDB) is unavailable.
-      this.dbPromise = import('idb').then(({ openDB }) =>
+      this.dbPromise = import("idb").then(({ openDB }) =>
         openDB<OutboxDB>(DB_NAME, DB_VERSION, {
           upgrade(database) {
-            const store = database.createObjectStore(STORE, { keyPath: 'id' });
-            store.createIndex('byCreatedAt', 'createdAt');
+            const store = database.createObjectStore(STORE, { keyPath: "id" });
+            store.createIndex("byCreatedAt", "createdAt");
           },
         }),
       );
@@ -122,7 +122,7 @@ class IdbQueueStore implements QueueStore {
     const db = await this.db();
     // Read via the createdAt index so results come back in FIFO order, then
     // re-sort defensively (the index alone doesn't break createdAt ties).
-    const all = await db.getAllFromIndex(STORE, 'byCreatedAt');
+    const all = await db.getAllFromIndex(STORE, "byCreatedAt");
     return sortFifo(all);
   }
   async delete(id: string): Promise<void> {
@@ -136,7 +136,7 @@ class IdbQueueStore implements QueueStore {
 }
 
 function hasIndexedDB(): boolean {
-  return typeof indexedDB !== 'undefined' && indexedDB !== null;
+  return typeof indexedDB !== "undefined" && indexedDB !== null;
 }
 
 let store: QueueStore = hasIndexedDB() ? new IdbQueueStore() : new InMemoryQueueStore();
@@ -171,21 +171,21 @@ async function notify(): Promise<void> {
 // --- Public queue API -----------------------------------------------------
 
 function uuid(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
   // Fallback for environments without crypto.randomUUID.
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
 
 /** Append an entry. `id` and `createdAt` are filled in if omitted. */
 export async function enqueue(
-  entry: Omit<OfflineQueueEntry, 'id' | 'createdAt'> &
-    Partial<Pick<OfflineQueueEntry, 'id' | 'createdAt'>>,
+  entry: Omit<OfflineQueueEntry, "id" | "createdAt"> &
+    Partial<Pick<OfflineQueueEntry, "id" | "createdAt">>,
 ): Promise<OfflineQueueEntry> {
   const full: OfflineQueueEntry = {
     id: entry.id ?? uuid(),
@@ -244,8 +244,6 @@ export async function flush(runner: FlushRunner): Promise<FlushResult> {
 
   if (flushed > 0) await notify();
 
-  const remaining = stopped
-    ? entries.length - flushed
-    : await store.count();
+  const remaining = stopped ? entries.length - flushed : await store.count();
   return { flushed, remaining };
 }

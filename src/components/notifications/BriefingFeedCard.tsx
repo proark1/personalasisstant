@@ -1,10 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Newspaper, ExternalLink, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useBriefingDeliveries } from '@/hooks/useBriefingDeliveries';
-import { formatDistanceToNow } from 'date-fns';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Newspaper, ExternalLink, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useBriefingDeliveries } from "@/hooks/useBriefingDeliveries";
+import { formatDistanceToNow } from "date-fns";
 
 interface BriefingFeedCardProps {
   /** How many recent briefings to show. */
@@ -45,7 +45,12 @@ export function BriefingFeedCard({ limit = 5, hideWhenEmpty = false }: BriefingF
             <Newspaper className="h-4 w-4 text-primary" />
             Recent briefings
           </CardTitle>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => refetch()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground"
+            onClick={() => refetch()}
+          >
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -54,7 +59,7 @@ export function BriefingFeedCard({ limit = 5, hideWhenEmpty = false }: BriefingF
         {deliveries.map((d) => (
           <div key={d.id} className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">{d.briefing_name || 'Briefing'}</span>
+              <span className="text-sm font-medium">{d.briefing_name || "Briefing"}</span>
               <span className="text-xs text-muted-foreground">
                 {formatDistanceToNow(new Date(d.generated_at), { addSuffix: true })}
               </span>
@@ -84,7 +89,9 @@ export function BriefingFeedCard({ limit = 5, hideWhenEmpty = false }: BriefingF
             {d.channels_sent.length > 0 && (
               <div className="flex gap-1">
                 {d.channels_sent.map((c) => (
-                  <Badge key={c} variant="outline" className="text-[10px] capitalize">{c}</Badge>
+                  <Badge key={c} variant="outline" className="text-[10px] capitalize">
+                    {c}
+                  </Badge>
                 ))}
               </div>
             )}

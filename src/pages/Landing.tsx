@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   Sparkles,
   CheckSquare,
@@ -12,45 +12,45 @@ import {
   Zap,
   Brain,
   Shield,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const features = [
   {
     icon: CheckSquare,
-    title: 'Smart Tasks',
-    description: 'AI-prioritized tasks that adapt to your energy and schedule.',
-    gradient: 'from-primary to-primary/60',
+    title: "Smart Tasks",
+    description: "AI-prioritized tasks that adapt to your energy and schedule.",
+    gradient: "from-primary to-primary/60",
   },
   {
     icon: Calendar,
-    title: 'Calendar Hub',
-    description: 'Unified calendar with smart scheduling and conflict detection.',
-    gradient: 'from-accent to-accent/60',
+    title: "Calendar Hub",
+    description: "Unified calendar with smart scheduling and conflict detection.",
+    gradient: "from-accent to-accent/60",
   },
   {
     icon: Users,
-    title: 'Family Manager',
-    description: 'Meals, shopping, budgets, and health — all in one place.',
-    gradient: 'from-[hsl(var(--success))] to-[hsl(var(--success))]/60',
+    title: "Family Manager",
+    description: "Meals, shopping, budgets, and health — all in one place.",
+    gradient: "from-[hsl(var(--success))] to-[hsl(var(--success))]/60",
   },
   {
     icon: Heart,
-    title: 'Health Tracking',
-    description: 'Track mood, sleep, exercise, and get AI-powered insights.',
-    gradient: 'from-[hsl(var(--destructive))] to-[hsl(var(--destructive))]/60',
+    title: "Health Tracking",
+    description: "Track mood, sleep, exercise, and get AI-powered insights.",
+    gradient: "from-[hsl(var(--destructive))] to-[hsl(var(--destructive))]/60",
   },
   {
     icon: Bot,
-    title: 'Dori AI Assistant',
-    description: 'Your personal AI that learns your patterns and helps you act.',
-    gradient: 'from-primary to-accent',
+    title: "Dori AI Assistant",
+    description: "Your personal AI that learns your patterns and helps you act.",
+    gradient: "from-primary to-accent",
   },
   {
     icon: FileText,
-    title: 'Contract Manager',
-    description: 'Never miss a renewal or cancellation deadline again.',
-    gradient: 'from-[hsl(var(--warning))] to-[hsl(var(--warning))]/60',
+    title: "Contract Manager",
+    description: "Never miss a renewal or cancellation deadline again.",
+    gradient: "from-[hsl(var(--warning))] to-[hsl(var(--warning))]/60",
   },
 ];
 
@@ -61,7 +61,7 @@ const stagger = {
   },
   item: {
     hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
   },
 };
 
@@ -100,7 +100,7 @@ export default function Landing() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium mb-6 border border-primary/20">
               <Zap className="w-3 h-3" />
@@ -108,16 +108,16 @@ export default function Landing() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-[1.1] tracking-tight mb-5">
-              Your life,{' '}
+              Your life,{" "}
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 intelligently
-              </span>{' '}
+              </span>{" "}
               organized
             </h1>
 
             <p className="text-lg sm:text-xl text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed">
-              DarAI combines AI assistance, task management, calendar, health tracking,
-              and family tools into one beautifully simple app.
+              DarAI combines AI assistance, task management, calendar, health tracking, and family
+              tools into one beautifully simple app.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -195,9 +195,21 @@ export default function Landing() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8 text-left">
               {[
-                { icon: Zap, title: 'Low-friction capture', desc: 'Voice dumps, quick-add, brain dump inbox — capture thoughts before they vanish.' },
-                { icon: Brain, title: '"What now?" guidance', desc: 'AI picks your next best task based on energy, time, and priority.' },
-                { icon: Shield, title: 'Gentle accountability', desc: 'Streak tracking, nudges, and celebrations — not guilt.' },
+                {
+                  icon: Zap,
+                  title: "Low-friction capture",
+                  desc: "Voice dumps, quick-add, brain dump inbox — capture thoughts before they vanish.",
+                },
+                {
+                  icon: Brain,
+                  title: '"What now?" guidance',
+                  desc: "AI picks your next best task based on energy, time, and priority.",
+                },
+                {
+                  icon: Shield,
+                  title: "Gentle accountability",
+                  desc: "Streak tracking, nudges, and celebrations — not guilt.",
+                },
               ].map((item) => (
                 <div key={item.title} className="flex flex-col gap-2">
                   <item.icon className="w-5 h-5 text-primary" />

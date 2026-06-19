@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface PublicHoliday {
   id: string;
@@ -16,19 +16,16 @@ export function usePublicHolidays(countryCodes?: string[]) {
   const [loading, setLoading] = useState(true);
 
   // Stable key for the dep array — avoids a complex expression inside the array
-  const countryCodesKey = countryCodes?.join(',') ?? '';
+  const countryCodesKey = countryCodes?.join(",") ?? "";
 
   useEffect(() => {
     const fetchHolidays = async () => {
       setLoading(true);
       try {
-        let query = supabase
-          .from('public_holidays')
-          .select('*')
-          .order('date', { ascending: true });
+        let query = supabase.from("public_holidays").select("*").order("date", { ascending: true });
 
         if (countryCodes && countryCodes.length > 0) {
-          query = query.in('country_code', countryCodes);
+          query = query.in("country_code", countryCodes);
         }
 
         const { data, error } = await query;
@@ -36,7 +33,7 @@ export function usePublicHolidays(countryCodes?: string[]) {
         if (error) throw error;
         setHolidays(data || []);
       } catch (error) {
-        console.error('Error fetching public holidays:', error);
+        console.error("Error fetching public holidays:", error);
         setHolidays([]);
       } finally {
         setLoading(false);

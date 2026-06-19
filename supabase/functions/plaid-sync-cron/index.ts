@@ -8,13 +8,14 @@
 // Errors per-user are isolated — one bad token doesn't stop the rest.
 // Auth: requires service-role bearer (matches existing cron pattern).
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { strictAppOrigin } from "../_shared/cors.ts";
+import { mintInternalToken } from "../_shared/auth.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 // Cap how many users we sync per invocation — the sync edge fn is
@@ -23,24 +24,24 @@ const corsHeaders = {
 const USERS_PER_RUN = 50;
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const authHeader = req.headers.get('Authorization') || '';
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    if (!serviceKey || authHeader.replace(/^Bearer\s+/i, '') !== serviceKey) {
-      return json({ error: 'Unauthorized' }, 401);
+    const authHeader = req.headers.get("Authorization") || "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (!serviceKey || authHeader.replace(/^Bearer\s+/i, "") !== serviceKey) {
+      return json({ error: "Unauthorized" }, 401);
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(supabaseUrl, serviceKey);
 
     // Pull the distinct user_ids with at least one syncable connection.
     // Sort by last_synced_at ASC so the oldest get fresh data first.
     const { data: rows, error } = await admin
-      .from('bank_connections')
-      .select('user_id, last_synced_at')
-      .in('status', ['good', 'reauth_required'])
-      .order('last_synced_at', { ascending: true, nullsFirst: true })
+      .from("bank_connections")
+      .select("user_id, last_synced_at")
+      .in("status", ["good", "reauth_required"])
+      .order("last_synced_at", { ascending: true, nullsFirst: true })
       .limit(USERS_PER_RUN * 5); // overfetch then dedupe to N users
     if (error) return json({ error: error.message }, 500);
 
@@ -60,13 +61,14 @@ serve(async (req) => {
     for (const userId of userIds) {
       try {
         const r = await fetch(`${supabaseUrl}/functions/v1/plaid-sync`, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json',
-            'x-telegram-user-id': userId,
+            "Content-Type": "application/json",
+            "x-telegram-user-id": userId,
+            "x-internal-token": await mintInternalToken(userId),
           },
-          body: '{}',
+          body: "{}",
           signal: AbortSignal.timeout(55_000),
         });
         if (!r.ok) {
@@ -86,7 +88,7 @@ serve(async (req) => {
       errors: errors.slice(0, 10),
     });
   } catch (err) {
-    console.error('[plaid-sync-cron] failed', (err as Error).message);
+    console.error("[plaid-sync-cron] failed", (err as Error).message);
     return json({ error: (err as Error).message }, 500);
   }
 });
@@ -94,6 +96,10 @@ serve(async (req) => {
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Content-Type-Options': 'nosniff' },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }

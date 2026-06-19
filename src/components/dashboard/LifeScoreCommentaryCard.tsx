@@ -24,7 +24,9 @@ export function LifeScoreCommentaryCard() {
     if (!user?.id) return;
     supabase
       .from("life_score_commentary")
-      .select("id, headline, commentary, current_score, previous_score, trend, delta, observation_date")
+      .select(
+        "id, headline, commentary, current_score, previous_score, trend, delta, observation_date",
+      )
       .eq("user_id", user.id)
       .order("observation_date", { ascending: false })
       .limit(1)
@@ -39,7 +41,11 @@ export function LifeScoreCommentaryCard() {
 
   const Icon = item.trend === "up" ? TrendingUp : item.trend === "down" ? TrendingDown : Minus;
   const tone =
-    item.trend === "up" ? "text-green-600" : item.trend === "down" ? "text-amber-600" : "text-muted-foreground";
+    item.trend === "up"
+      ? "text-green-600"
+      : item.trend === "down"
+        ? "text-amber-600"
+        : "text-muted-foreground";
 
   return (
     <Card className="p-4 space-y-2">

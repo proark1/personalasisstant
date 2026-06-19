@@ -1,27 +1,31 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Battery, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Battery, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 export function EnergyCoachCard() {
-  const [suggestion, setSuggestion] = useState<string>('');
+  const [suggestion, setSuggestion] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('energy-coach');
+      const { data, error } = await supabase.functions.invoke("energy-coach");
       if (error) throw error;
-      setSuggestion(data?.suggestion ?? '');
+      setSuggestion(data?.suggestion ?? "");
     } catch (err) {
-      toast.error(await describeEdgeError(err, 'Could not load energy suggestion'));
-    } finally { setLoading(false); }
+      toast.error(await describeEdgeError(err, "Could not load energy suggestion"));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   if (!suggestion && !loading) return null;
 
@@ -33,11 +37,11 @@ export function EnergyCoachCard() {
           <h3 className="font-semibold text-sm">Energy coach</h3>
         </div>
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={load} disabled={loading}>
-          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
       <p className="text-xs text-muted-foreground whitespace-pre-wrap">
-        {loading ? 'Analyzing your week…' : suggestion}
+        {loading ? "Analyzing your week…" : suggestion}
       </p>
     </Card>
   );

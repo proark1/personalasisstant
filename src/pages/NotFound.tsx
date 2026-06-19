@@ -16,7 +16,10 @@ const NotFound = () => {
     <div className="flex min-h-screen items-center justify-center bg-background p-6 relative overflow-hidden">
       {/* Floating orbs */}
       <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-primary/8 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div
+        className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-primary/8 rounded-full blur-3xl animate-pulse"
+        style={{ animationDelay: "1s" }}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -36,12 +39,8 @@ const NotFound = () => {
           }}
         />
         <h1 className="mb-2 text-5xl font-bold text-foreground">404</h1>
-        <p className="mb-2 text-lg text-muted-foreground">
-          Oops! Dori couldn't find this page.
-        </p>
-        <p className="mb-6 text-xs text-muted-foreground/60 font-mono">
-          {location.pathname}
-        </p>
+        <p className="mb-2 text-lg text-muted-foreground">Oops! Dori couldn't find this page.</p>
+        <p className="mb-6 text-xs text-muted-foreground/60 font-mono">{location.pathname}</p>
 
         <Button asChild size="lg" className="gap-2 w-full mb-4">
           <Link to="/">

@@ -1,4 +1,4 @@
-import { CalendarEvent } from '@/types/flux';
+import { CalendarEvent } from "@/types/flux";
 
 interface ICSEvent {
   uid: string;
@@ -13,16 +13,16 @@ interface ICSEvent {
 export function parseICS(content: string): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   const lines = content.split(/\r?\n/);
-  
+
   let currentEvent: Partial<ICSEvent> | null = null;
-  let currentKey = '';
-  let currentValue = '';
+  let currentKey = "";
+  let currentValue = "";
 
   const parseDate = (dateStr: string): Date => {
     // Handle different ICS date formats
     // YYYYMMDDTHHMMSS or YYYYMMDDTHHMMSSZ or YYYYMMDD
-    const cleaned = dateStr.replace(/[^\dT]/g, '');
-    
+    const cleaned = dateStr.replace(/[^\dT]/g, "");
+
     if (cleaned.length === 8) {
       // YYYYMMDD - all day event
       const year = parseInt(cleaned.slice(0, 4));
@@ -37,13 +37,13 @@ export function parseICS(content: string): CalendarEvent[] {
       const hour = parseInt(cleaned.slice(9, 11));
       const minute = parseInt(cleaned.slice(11, 13));
       const second = parseInt(cleaned.slice(13, 15));
-      
-      if (dateStr.endsWith('Z')) {
+
+      if (dateStr.endsWith("Z")) {
         return new Date(Date.UTC(year, month, day, hour, minute, second));
       }
       return new Date(year, month, day, hour, minute, second);
     }
-    
+
     return new Date(dateStr);
   };
 
@@ -51,28 +51,28 @@ export function parseICS(content: string): CalendarEvent[] {
     if (!currentEvent) return;
 
     // Handle property parameters (e.g., DTSTART;VALUE=DATE:20231225)
-    const [propName] = key.split(';');
-    
+    const [propName] = key.split(";");
+
     switch (propName.toUpperCase()) {
-      case 'UID':
+      case "UID":
         currentEvent.uid = value;
         break;
-      case 'SUMMARY':
+      case "SUMMARY":
         currentEvent.summary = value;
         break;
-      case 'DESCRIPTION':
-        currentEvent.description = value.replace(/\\n/g, '\n').replace(/\\,/g, ',');
+      case "DESCRIPTION":
+        currentEvent.description = value.replace(/\\n/g, "\n").replace(/\\,/g, ",");
         break;
-      case 'DTSTART':
+      case "DTSTART":
         currentEvent.dtstart = parseDate(value);
         break;
-      case 'DTEND':
+      case "DTEND":
         currentEvent.dtend = parseDate(value);
         break;
-      case 'LOCATION':
+      case "LOCATION":
         currentEvent.location = value;
         break;
-      case 'ATTENDEE': {
+      case "ATTENDEE": {
         if (!currentEvent.attendees) currentEvent.attendees = [];
         // Extract name from CN= or use email
         const cnMatch = value.match(/CN=([^;:]+)/i);
@@ -85,7 +85,7 @@ export function parseICS(content: string): CalendarEvent[] {
 
   for (const line of lines) {
     // Handle line folding (lines starting with space or tab are continuations)
-    if (line.startsWith(' ') || line.startsWith('\t')) {
+    if (line.startsWith(" ") || line.startsWith("\t")) {
       currentValue += line.slice(1);
       continue;
     }
@@ -96,15 +96,15 @@ export function parseICS(content: string): CalendarEvent[] {
     }
 
     // Parse new line
-    const colonIndex = line.indexOf(':');
+    const colonIndex = line.indexOf(":");
     if (colonIndex === -1) continue;
 
     currentKey = line.slice(0, colonIndex);
     currentValue = line.slice(colonIndex + 1);
 
-    if (line === 'BEGIN:VEVENT') {
+    if (line === "BEGIN:VEVENT") {
       currentEvent = {};
-    } else if (line === 'END:VEVENT' && currentEvent) {
+    } else if (line === "END:VEVENT" && currentEvent) {
       // Process any remaining property
       if (currentKey && currentValue) {
         processLine(currentKey, currentValue);
@@ -112,8 +112,9 @@ export function parseICS(content: string): CalendarEvent[] {
 
       // Validate and add event
       if (currentEvent.summary && currentEvent.dtstart) {
-        const endTime = currentEvent.dtend || new Date(currentEvent.dtstart.getTime() + 60 * 60 * 1000);
-        
+        const endTime =
+          currentEvent.dtend || new Date(currentEvent.dtstart.getTime() + 60 * 60 * 1000);
+
         events.push({
           id: currentEvent.uid || Math.random().toString(36).substring(2, 15),
           title: currentEvent.summary,
@@ -125,8 +126,8 @@ export function parseICS(content: string): CalendarEvent[] {
         });
       }
       currentEvent = null;
-      currentKey = '';
-      currentValue = '';
+      currentKey = "";
+      currentValue = "";
     }
   }
 
@@ -135,5 +136,5 @@ export function parseICS(content: string): CalendarEvent[] {
 }
 
 export function validateICSFile(file: File): boolean {
-  return file.name.endsWith('.ics') || file.type === 'text/calendar';
+  return file.name.endsWith(".ics") || file.type === "text/calendar";
 }

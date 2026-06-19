@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 
 interface TypingIndicatorProps {
   typingUsers: { id: string; name: string }[];
@@ -19,7 +19,7 @@ export function TypingIndicator({ typingUsers, className }: TypingIndicatorProps
   };
 
   return (
-    <div className={cn('flex items-center gap-2 text-xs text-muted-foreground', className)}>
+    <div className={cn("flex items-center gap-2 text-xs text-muted-foreground", className)}>
       <div className="flex gap-0.5">
         <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]" />
         <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]" />

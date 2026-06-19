@@ -1,6 +1,6 @@
-import { useMemo, useRef } from 'react';
-import { useContacts, Contact } from './useContacts';
-import { useFamilyMembers, FamilyMember } from './useFamilyMembers';
+import { useMemo, useRef } from "react";
+import { useContacts, Contact } from "./useContacts";
+import { useFamilyMembers, FamilyMember } from "./useFamilyMembers";
 
 export interface FamilyContactWithDetails {
   contact: Contact;
@@ -21,9 +21,8 @@ export function useFamilyContacts(userId: string | undefined) {
 
   // Get contacts that are marked as family (either by tier or tag)
   const familyContacts = useMemo(() => {
-    const result = personalContacts.filter(c => 
-      c.personalTier === 'family' || 
-      c.tags.some(tag => tag.toLowerCase() === 'family')
+    const result = personalContacts.filter(
+      (c) => c.personalTier === "family" || c.tags.some((tag) => tag.toLowerCase() === "family"),
     );
     // Only update cache if we actually have data (prevents flickering to empty)
     if (result.length > 0 || personalContacts.length > 0) {
@@ -34,8 +33,8 @@ export function useFamilyContacts(userId: string | undefined) {
 
   // Map family contacts with their linked family member details
   const familyContactsWithDetails = useMemo((): FamilyContactWithDetails[] => {
-    const result = familyContacts.map(contact => {
-      const linkedMember = members.find(m => m.contact_id === contact.id);
+    const result = familyContacts.map((contact) => {
+      const linkedMember = members.find((m) => m.contact_id === contact.id);
       return {
         contact,
         familyMember: linkedMember,
@@ -50,7 +49,7 @@ export function useFamilyContacts(userId: string | undefined) {
 
   // Get family members that are linked to contacts
   const linkedMembers = useMemo(() => {
-    const result = members.filter(m => m.contact_id !== null);
+    const result = members.filter((m) => m.contact_id !== null);
     if (result.length > 0 || members.length > 0) {
       cachedLinkedMembers.current = result;
     }
@@ -59,7 +58,7 @@ export function useFamilyContacts(userId: string | undefined) {
 
   // Get family members without contact links
   const unlinkedMembers = useMemo(() => {
-    const result = members.filter(m => m.contact_id === null);
+    const result = members.filter((m) => m.contact_id === null);
     if (members.length > 0) {
       cachedUnlinkedMembers.current = result;
     }
@@ -68,12 +67,14 @@ export function useFamilyContacts(userId: string | undefined) {
 
   // Get family contacts without family member details
   const contactsWithoutDetails = useMemo(() => {
-    const linkedContactIds = new Set(members.map(m => m.contact_id).filter(Boolean));
-    const result = familyContacts.filter(c => !linkedContactIds.has(c.id));
+    const linkedContactIds = new Set(members.map((m) => m.contact_id).filter(Boolean));
+    const result = familyContacts.filter((c) => !linkedContactIds.has(c.id));
     if (familyContacts.length > 0 || members.length > 0) {
       cachedContactsWithoutDetails.current = result;
     }
-    return (familyContacts.length > 0 || members.length > 0) ? result : cachedContactsWithoutDetails.current;
+    return familyContacts.length > 0 || members.length > 0
+      ? result
+      : cachedContactsWithoutDetails.current;
   }, [familyContacts, members]);
 
   return {

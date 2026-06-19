@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  getRecurrenceDescription,
-  parseRRuleString,
-  toRRuleString,
-} from "./recurrence";
+import { getRecurrenceDescription, parseRRuleString, toRRuleString } from "./recurrence";
 import type { RecurrenceRule } from "@/types/flux";
 
 describe("toRRuleString", () => {
@@ -12,9 +8,7 @@ describe("toRRuleString", () => {
   });
 
   it("includes INTERVAL when > 1", () => {
-    expect(toRRuleString({ frequency: "weekly", interval: 2 })).toBe(
-      "FREQ=WEEKLY;INTERVAL=2",
-    );
+    expect(toRRuleString({ frequency: "weekly", interval: 2 })).toBe("FREQ=WEEKLY;INTERVAL=2");
   });
 
   it("encodes BYDAY for weekly rules with days", () => {

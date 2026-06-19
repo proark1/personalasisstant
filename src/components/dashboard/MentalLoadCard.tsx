@@ -40,7 +40,8 @@ export function MentalLoadCard() {
         .gte("occurred_at", since);
 
       const totals = new Map<string, number>();
-      for (const r of rows || []) totals.set(r.handled_by, (totals.get(r.handled_by) || 0) + (r.weight || 1));
+      for (const r of rows || [])
+        totals.set(r.handled_by, (totals.get(r.handled_by) || 0) + (r.weight || 1));
 
       const userIds = Array.from(totals.keys());
       const { data: profiles } = await supabase
@@ -51,7 +52,11 @@ export function MentalLoadCard() {
 
       setBreakdown(
         Array.from(totals.entries())
-          .map(([uid, total]) => ({ user_id: uid, total, display_name: nameMap.get(uid) || "Member" }))
+          .map(([uid, total]) => ({
+            user_id: uid,
+            total,
+            display_name: nameMap.get(uid) || "Member",
+          }))
           .sort((a, b) => b.total - a.total),
       );
       setLoading(false);
@@ -76,10 +81,7 @@ export function MentalLoadCard() {
               <span className="font-mono text-muted-foreground">{b.total}</span>
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary"
-                style={{ width: `${(b.total / max) * 100}%` }}
-              />
+              <div className="h-full bg-primary" style={{ width: `${(b.total / max) * 100}%` }} />
             </div>
           </div>
         ))}

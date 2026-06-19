@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export interface StartupWorkspace {
   id: string;
@@ -25,9 +25,9 @@ export interface StartupMetric {
 }
 
 const DEFAULT_WORKSPACES = [
-  { name: 'Gaming Startup', workspace_type: 'gaming', color: '#8b5cf6', icon: 'gamepad' },
-  { name: 'AI Startup', workspace_type: 'ai', color: '#06b6d4', icon: 'brain' },
-  { name: 'Growth Agency', workspace_type: 'agency', color: '#f59e0b', icon: 'trending-up' },
+  { name: "Gaming Startup", workspace_type: "gaming", color: "#8b5cf6", icon: "gamepad" },
+  { name: "AI Startup", workspace_type: "ai", color: "#06b6d4", icon: "brain" },
+  { name: "Growth Agency", workspace_type: "agency", color: "#f59e0b", icon: "trending-up" },
 ];
 
 export function useStartupWorkspaces() {
@@ -40,49 +40,46 @@ export function useStartupWorkspaces() {
   // Fetch workspaces
   const fetchWorkspaces = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       const { data, error } = await supabase
-        .from('startup_workspaces')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: true });
+        .from("startup_workspaces")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true });
 
       if (error) throw error;
-      
+
       // If no workspaces exist, create defaults
       if (!data || data.length === 0) {
         await createDefaultWorkspaces();
         return;
       }
-      
+
       setWorkspaces(data as StartupWorkspace[]);
       if (!activeWorkspace && data.length > 0) {
         setActiveWorkspace(data[0].id);
       }
     } catch (error) {
-      console.error('Error fetching workspaces:', error);
+      console.error("Error fetching workspaces:", error);
     }
-  // createDefaultWorkspaces is defined below; adding it would create circular deps
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // createDefaultWorkspaces is defined below; adding it would create circular deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, activeWorkspace]);
 
   // Create default workspaces
   const createDefaultWorkspaces = async () => {
     if (!user?.id) return;
-    
+
     try {
-      const insertData = DEFAULT_WORKSPACES.map(w => ({
+      const insertData = DEFAULT_WORKSPACES.map((w) => ({
         ...w,
         user_id: user.id,
         is_active: true,
       }));
-      
-      const { data, error } = await supabase
-        .from('startup_workspaces')
-        .insert(insertData)
-        .select();
+
+      const { data, error } = await supabase.from("startup_workspaces").insert(insertData).select();
 
       if (error) throw error;
       setWorkspaces((data || []) as StartupWorkspace[]);
@@ -90,52 +87,57 @@ export function useStartupWorkspaces() {
         setActiveWorkspace(data[0].id);
       }
     } catch (error) {
-      console.error('Error creating default workspaces:', error);
+      console.error("Error creating default workspaces:", error);
     }
   };
 
   // Fetch metrics
-  const fetchMetrics = useCallback(async (workspaceId?: string) => {
-    if (!user?.id) return;
-    
-    try {
-      let query = supabase
-        .from('startup_metrics')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('metric_date', { ascending: false })
-        .limit(100);
-      
-      if (workspaceId) {
-        query = query.eq('workspace_id', workspaceId);
-      }
+  const fetchMetrics = useCallback(
+    async (workspaceId?: string) => {
+      if (!user?.id) return;
 
-      const { data, error } = await query;
-      if (error) throw error;
-      setMetrics((data || []) as StartupMetric[]);
-    } catch (error) {
-      console.error('Error fetching metrics:', error);
-    }
-  }, [user?.id]);
+      try {
+        let query = supabase
+          .from("startup_metrics")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("metric_date", { ascending: false })
+          .limit(100);
+
+        if (workspaceId) {
+          query = query.eq("workspace_id", workspaceId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        setMetrics((data || []) as StartupMetric[]);
+      } catch (error) {
+        console.error("Error fetching metrics:", error);
+      }
+    },
+    [user?.id],
+  );
 
   // Add workspace
-  const addWorkspace = async (workspace: Omit<StartupWorkspace, 'id' | 'created_at' | 'is_active'>) => {
+  const addWorkspace = async (
+    workspace: Omit<StartupWorkspace, "id" | "created_at" | "is_active">,
+  ) => {
     if (!user?.id) return null;
-    
+
     try {
       const { data, error } = await supabase
-        .from('startup_workspaces')
+        .from("startup_workspaces")
         .insert({ ...workspace, user_id: user.id, is_active: true })
         .select()
         .single();
 
       if (error) throw error;
       await fetchWorkspaces();
-      toast.success('Workspace created');
+      toast.success("Workspace created");
       return data as StartupWorkspace;
     } catch (error) {
-      console.error('Error adding workspace:', error);
-      toast.error('Failed to create workspace');
+      console.error("Error adding workspace:", error);
+      toast.error("Failed to create workspace");
       return null;
     }
   };
@@ -143,17 +145,14 @@ export function useStartupWorkspaces() {
   // Update workspace
   const updateWorkspace = async (id: string, updates: Partial<StartupWorkspace>) => {
     try {
-      const { error } = await supabase
-        .from('startup_workspaces')
-        .update(updates)
-        .eq('id', id);
+      const { error } = await supabase.from("startup_workspaces").update(updates).eq("id", id);
 
       if (error) throw error;
       await fetchWorkspaces();
-      toast.success('Workspace updated');
+      toast.success("Workspace updated");
     } catch (error) {
-      console.error('Error updating workspace:', error);
-      toast.error('Failed to update workspace');
+      console.error("Error updating workspace:", error);
+      toast.error("Failed to update workspace");
     }
   };
 
@@ -161,50 +160,50 @@ export function useStartupWorkspaces() {
   const deleteWorkspace = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('startup_workspaces')
+        .from("startup_workspaces")
         .update({ is_active: false })
-        .eq('id', id);
+        .eq("id", id);
 
       if (error) throw error;
       await fetchWorkspaces();
-      toast.success('Workspace archived');
+      toast.success("Workspace archived");
     } catch (error) {
-      console.error('Error deleting workspace:', error);
-      toast.error('Failed to archive workspace');
+      console.error("Error deleting workspace:", error);
+      toast.error("Failed to archive workspace");
     }
   };
 
   // Add metric
-  const addMetric = async (metric: Omit<StartupMetric, 'id' | 'created_at'>) => {
+  const addMetric = async (metric: Omit<StartupMetric, "id" | "created_at">) => {
     if (!user?.id) return null;
-    
+
     try {
       const { data, error } = await supabase
-        .from('startup_metrics')
+        .from("startup_metrics")
         .insert({ ...metric, user_id: user.id })
         .select()
         .single();
 
       if (error) throw error;
       await fetchMetrics(metric.workspace_id);
-      toast.success('Metric added');
+      toast.success("Metric added");
       return data as StartupMetric;
     } catch (error) {
-      console.error('Error adding metric:', error);
-      toast.error('Failed to add metric');
+      console.error("Error adding metric:", error);
+      toast.error("Failed to add metric");
       return null;
     }
   };
 
   // Get metrics for a workspace
   const getWorkspaceMetrics = (workspaceId: string) => {
-    return metrics.filter(m => m.workspace_id === workspaceId);
+    return metrics.filter((m) => m.workspace_id === workspaceId);
   };
 
   // Get latest metric value
   const getLatestMetric = (workspaceId: string, metricName: string) => {
     const workspaceMetrics = metrics
-      .filter(m => m.workspace_id === workspaceId && m.metric_name === metricName)
+      .filter((m) => m.workspace_id === workspaceId && m.metric_name === metricName)
       .sort((a, b) => new Date(b.metric_date).getTime() - new Date(a.metric_date).getTime());
     return workspaceMetrics[0];
   };

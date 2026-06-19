@@ -1,66 +1,100 @@
-import { useState, useMemo } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Task, TaskPriority, TaskCategory, Project, ChecklistItem } from '@/types/flux';
-import { TaskComments } from './TaskComments';
-import type { Contact } from '@/hooks/useContacts';
-import { recurrencePresets, toRRuleString, getRecurrenceDescription, parseRRuleString } from '@/lib/recurrence';
-import { X, Calendar as CalendarIcon, Trash2, Repeat, Bell, Clock, User, Users, FolderOpen, Plus, Check, Sparkles } from 'lucide-react';
-import { format } from 'date-fns';
-import { RecurrenceFrequency } from '@/types/flux';
-import { Checkbox } from '@/components/ui/checkbox';
-import { TaskBreakdownDialog } from '@/components/ai/TaskBreakdownDialog';
-import { useToast } from '@/hooks/use-toast';
-import { useSpaceMembers } from '@/hooks/useSpaceMembers';
-import { useAuth } from '@/hooks/useAuth';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-
+import { useState, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Task, TaskPriority, TaskCategory, Project, ChecklistItem } from "@/types/flux";
+import { TaskComments } from "./TaskComments";
+import type { Contact } from "@/hooks/useContacts";
+import {
+  recurrencePresets,
+  toRRuleString,
+  getRecurrenceDescription,
+  parseRRuleString,
+} from "@/lib/recurrence";
+import {
+  X,
+  Calendar as CalendarIcon,
+  Trash2,
+  Repeat,
+  Bell,
+  Clock,
+  User,
+  Users,
+  FolderOpen,
+  Plus,
+  Check,
+  Sparkles,
+} from "lucide-react";
+import { format } from "date-fns";
+import { RecurrenceFrequency } from "@/types/flux";
+import { Checkbox } from "@/components/ui/checkbox";
+import { TaskBreakdownDialog } from "@/components/ai/TaskBreakdownDialog";
+import { useToast } from "@/hooks/use-toast";
+import { useSpaceMembers } from "@/hooks/useSpaceMembers";
+import { useAuth } from "@/hooks/useAuth";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 interface EditTaskModalProps {
   task: Task;
   onClose: () => void;
   onSave: (id: string, updates: Partial<Task>) => Promise<void> | void;
   onDelete: (id: string) => void;
-  onAddSubtasks?: (parentId: string, subtasks: { title: string; priority: 'high' | 'medium' | 'low' }[]) => void;
+  onAddSubtasks?: (
+    parentId: string,
+    subtasks: { title: string; priority: "high" | "medium" | "low" }[],
+  ) => void;
   projects?: Project[];
   contacts?: Contact[];
 }
 
 const REMINDER_OPTIONS = [
-  { value: 0, label: 'No reminder' },
-  { value: 15, label: '15 minutes before' },
-  { value: 30, label: '30 minutes before' },
-  { value: 60, label: '1 hour before' },
-  { value: 120, label: '2 hours before' },
-  { value: 1440, label: '1 day before' },
-  { value: 2880, label: '2 days before' },
-  { value: 10080, label: '1 week before' },
+  { value: 0, label: "No reminder" },
+  { value: 15, label: "15 minutes before" },
+  { value: 30, label: "30 minutes before" },
+  { value: 60, label: "1 hour before" },
+  { value: 120, label: "2 hours before" },
+  { value: 1440, label: "1 day before" },
+  { value: 2880, label: "2 days before" },
+  { value: 10080, label: "1 week before" },
 ];
 
 const WEEKDAYS = [
-  { value: 1, label: 'Mon' },
-  { value: 2, label: 'Tue' },
-  { value: 3, label: 'Wed' },
-  { value: 4, label: 'Thu' },
-  { value: 5, label: 'Fri' },
-  { value: 6, label: 'Sat' },
-  { value: 0, label: 'Sun' },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" },
 ];
 
-export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, projects = [], contacts: _contacts = [] }: EditTaskModalProps) {
+export function EditTaskModal({
+  task,
+  onClose,
+  onSave,
+  onDelete,
+  onAddSubtasks,
+  projects = [],
+  contacts: _contacts = [],
+}: EditTaskModalProps) {
   const { toast } = useToast();
   const { online } = useNetworkStatus();
   const { user, profile } = useAuth();
   const { members } = useSpaceMembers(user?.id);
-  
+
   const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description || '');
+  const [description, setDescription] = useState(task.description || "");
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [category, setCategory] = useState<TaskCategory>(task.category);
   const [dueDate, setDueDate] = useState<Date | undefined>(task.dueDate);
@@ -69,10 +103,14 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showRecurrenceEditor, setShowRecurrenceEditor] = useState(false);
   const [projectId, setProjectId] = useState<string | undefined>(task.projectId);
-  const [mainResponsibleId, setMainResponsibleId] = useState<string | undefined>(task.mainResponsibleId);
-  const [secondaryResponsibleId, setSecondaryResponsibleId] = useState<string | undefined>(task.secondaryResponsibleId);
+  const [mainResponsibleId, setMainResponsibleId] = useState<string | undefined>(
+    task.mainResponsibleId,
+  );
+  const [secondaryResponsibleId, setSecondaryResponsibleId] = useState<string | undefined>(
+    task.secondaryResponsibleId,
+  );
   const [checklist, setChecklist] = useState<ChecklistItem[]>(task.checklist || []);
-  const [newChecklistItem, setNewChecklistItem] = useState('');
+  const [newChecklistItem, setNewChecklistItem] = useState("");
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -80,25 +118,25 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   // Uses profile IDs since main_responsible_id references profiles.id
   const assignablePeople = useMemo(() => {
     const people: { id: string; name: string }[] = [];
-    
+
     // Add current user first (using profile.id, not user.id)
     if (profile?.id) {
       people.push({
         id: profile.id,
-        name: profile.display_name || profile.email || user?.email || 'Me',
+        name: profile.display_name || profile.email || user?.email || "Me",
       });
     }
-    
+
     // Add accepted space members (using their profile.id)
     members
-      .filter(m => m.status === 'accepted' && m.member_profile?.id)
-      .forEach(m => {
+      .filter((m) => m.status === "accepted" && m.member_profile?.id)
+      .forEach((m) => {
         people.push({
           id: m.member_profile!.id,
           name: m.member_profile?.display_name || m.member_profile?.email || m.member_email,
         });
       });
-    
+
     return people;
   }, [user, profile, members]);
 
@@ -106,7 +144,9 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   const existingRule = task.recurrenceRule ? parseRRuleString(task.recurrenceRule) : null;
 
   // Custom recurrence state - initialize from existing rule if present
-  const [customFrequency, setCustomFrequency] = useState<RecurrenceFrequency>(existingRule?.frequency || 'weekly');
+  const [customFrequency, setCustomFrequency] = useState<RecurrenceFrequency>(
+    existingRule?.frequency || "weekly",
+  );
   const [customInterval, setCustomInterval] = useState(existingRule?.interval || 1);
   const [customDays, setCustomDays] = useState<number[]>(existingRule?.daysOfWeek || []);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(existingRule?.endDate);
@@ -115,9 +155,9 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
 
     if (!online) {
       toast({
-        title: 'Offline',
-        description: 'Reconnect to the internet to save changes.',
-        variant: 'destructive',
+        title: "Offline",
+        description: "Reconnect to the internet to save changes.",
+        variant: "destructive",
       });
       return;
     }
@@ -138,21 +178,23 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
           mainResponsibleId,
           secondaryResponsibleId,
           checklist,
-        })
+        }),
       );
-      toast({ title: 'Saved' });
+      toast({ title: "Saved" });
       onClose();
     } catch (e) {
-      console.error('Failed to save task:', e);
+      console.error("Failed to save task:", e);
       const isNetworkError =
-        e instanceof TypeError && String(e.message).toLowerCase().includes('failed to fetch');
+        e instanceof TypeError && String(e.message).toLowerCase().includes("failed to fetch");
       const errMsg = e instanceof Error ? e.message : undefined;
       toast({
-        title: isNetworkError ? 'Network Error' : 'Save failed',
+        title: isNetworkError ? "Network Error" : "Save failed",
         description: isNetworkError
-          ? 'Please check your connection and try again'
-          : (errMsg ? String(errMsg) : 'Please try again'),
-        variant: 'destructive',
+          ? "Please check your connection and try again"
+          : errMsg
+            ? String(errMsg)
+            : "Please try again",
+        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
@@ -181,7 +223,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
     const rule = toRRuleString({
       frequency: customFrequency,
       interval: customInterval,
-      daysOfWeek: customFrequency === 'weekly' ? customDays : undefined,
+      daysOfWeek: customFrequency === "weekly" ? customDays : undefined,
       endDate: customEndDate,
     });
     setRecurrenceRule(rule);
@@ -189,35 +231,36 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
   };
 
   const toggleDay = (day: number) => {
-    setCustomDays(prev => 
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-    );
+    setCustomDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
   };
 
   const addChecklistItem = () => {
     if (!newChecklistItem.trim()) return;
-    setChecklist(prev => [...prev, {
-      id: crypto.randomUUID(),
-      text: newChecklistItem.trim(),
-      completed: false,
-    }]);
-    setNewChecklistItem('');
+    setChecklist((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        text: newChecklistItem.trim(),
+        completed: false,
+      },
+    ]);
+    setNewChecklistItem("");
   };
 
   const toggleChecklistItem = (id: string) => {
-    setChecklist(prev => prev.map(item =>
-      item.id === id ? { ...item, completed: !item.completed } : item
-    ));
+    setChecklist((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item)),
+    );
   };
 
   const removeChecklistItem = (id: string) => {
-    setChecklist(prev => prev.filter(item => item.id !== id));
+    setChecklist((prev) => prev.filter((item) => item.id !== id));
   };
 
   const getPersonDisplay = (personId: string | undefined) => {
-    if (!personId) return 'Not assigned';
-    const person = assignablePeople.find(p => p.id === personId);
-    return person?.name || 'Unknown';
+    if (!personId) return "Not assigned";
+    const person = assignablePeople.find((p) => p.id === personId);
+    return person?.name || "Unknown";
   };
 
   return (
@@ -261,7 +304,10 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
           {projects.length > 0 && (
             <div className="space-y-2">
               <Label>Project</Label>
-              <Select value={projectId || '_none'} onValueChange={(v) => setProjectId(v === '_none' ? undefined : v)}>
+              <Select
+                value={projectId || "_none"}
+                onValueChange={(v) => setProjectId(v === "_none" ? undefined : v)}
+              >
                 <SelectTrigger>
                   <div className="flex items-center gap-2">
                     <FolderOpen className="w-4 h-4" />
@@ -270,14 +316,19 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">No project</SelectItem>
-                  {projects.filter(p => !p.isArchived).map(project => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: project.color }} />
-                        {project.name}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {projects
+                    .filter((p) => !p.isArchived)
+                    .map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: project.color }}
+                          />
+                          {project.name}
+                        </div>
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -287,7 +338,10 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Main Responsible</Label>
-              <Select value={mainResponsibleId || '_none'} onValueChange={(v) => setMainResponsibleId(v === '_none' ? undefined : v)}>
+              <Select
+                value={mainResponsibleId || "_none"}
+                onValueChange={(v) => setMainResponsibleId(v === "_none" ? undefined : v)}
+              >
                 <SelectTrigger>
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4" />
@@ -296,7 +350,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Not assigned</SelectItem>
-                  {assignablePeople.map(person => (
+                  {assignablePeople.map((person) => (
                     <SelectItem key={person.id} value={person.id}>
                       {person.name}
                     </SelectItem>
@@ -306,7 +360,10 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
             </div>
             <div className="space-y-2">
               <Label>Secondary Responsible</Label>
-              <Select value={secondaryResponsibleId || '_none'} onValueChange={(v) => setSecondaryResponsibleId(v === '_none' ? undefined : v)}>
+              <Select
+                value={secondaryResponsibleId || "_none"}
+                onValueChange={(v) => setSecondaryResponsibleId(v === "_none" ? undefined : v)}
+              >
                 <SelectTrigger>
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
@@ -315,7 +372,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Not assigned</SelectItem>
-                  {assignablePeople.map(person => (
+                  {assignablePeople.map((person) => (
                     <SelectItem key={person.id} value={person.id}>
                       {person.name}
                     </SelectItem>
@@ -362,7 +419,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="flex-1 justify-start gap-2">
                     <CalendarIcon className="w-4 h-4" />
-                    {dueDate ? format(dueDate, 'PPP') : 'No due date'}
+                    {dueDate ? format(dueDate, "PPP") : "No due date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -403,10 +460,10 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                   <Clock className="w-4 h-4 text-muted-foreground" />
                   <Input
                     type="time"
-                    value={dueDate ? format(dueDate, 'HH:mm') : '09:00'}
+                    value={dueDate ? format(dueDate, "HH:mm") : "09:00"}
                     onChange={(e) => {
                       if (dueDate && e.target.value) {
-                        const [hours, minutes] = e.target.value.split(':').map(Number);
+                        const [hours, minutes] = e.target.value.split(":").map(Number);
                         const newDate = new Date(dueDate);
                         newDate.setHours(hours, minutes, 0, 0);
                         setDueDate(newDate);
@@ -426,7 +483,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-start gap-2">
                   <Repeat className={cn("w-4 h-4", recurrenceRule && "text-primary")} />
-                  {recurrenceRule ? getRecurrenceDescription(recurrenceRule) : 'No recurrence'}
+                  {recurrenceRule ? getRecurrenceDescription(recurrenceRule) : "No recurrence"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80 p-0" align="start">
@@ -448,7 +505,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                   {recurrencePresets.map((preset) => (
                     <Button
                       key={preset.value}
-                      variant={recurrenceRule === preset.value ? 'secondary' : 'ghost'}
+                      variant={recurrenceRule === preset.value ? "secondary" : "ghost"}
                       size="sm"
                       className="w-full justify-start"
                       onClick={() => handlePresetRecurrence(preset.value)}
@@ -461,17 +518,25 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                     <h4 className="font-medium text-sm">Custom Recurrence</h4>
                     <div className="flex items-center gap-2">
                       <span className="text-sm w-12">Every</span>
-                      <Select value={customInterval.toString()} onValueChange={(v) => setCustomInterval(parseInt(v))}>
+                      <Select
+                        value={customInterval.toString()}
+                        onValueChange={(v) => setCustomInterval(parseInt(v))}
+                      >
                         <SelectTrigger className="w-16">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {[1, 2, 3, 4, 5, 6].map(n => (
-                            <SelectItem key={n} value={n.toString()}>{n}</SelectItem>
+                          {[1, 2, 3, 4, 5, 6].map((n) => (
+                            <SelectItem key={n} value={n.toString()}>
+                              {n}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <Select value={customFrequency} onValueChange={(v) => setCustomFrequency(v as RecurrenceFrequency)}>
+                      <Select
+                        value={customFrequency}
+                        onValueChange={(v) => setCustomFrequency(v as RecurrenceFrequency)}
+                      >
                         <SelectTrigger className="flex-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -483,14 +548,14 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                         </SelectContent>
                       </Select>
                     </div>
-                    {customFrequency === 'weekly' && (
+                    {customFrequency === "weekly" && (
                       <div>
                         <Label className="text-xs mb-1.5 block">On days</Label>
                         <div className="flex gap-1">
-                          {WEEKDAYS.map(day => (
+                          {WEEKDAYS.map((day) => (
                             <Button
                               key={day.value}
-                              variant={customDays.includes(day.value) ? 'default' : 'outline'}
+                              variant={customDays.includes(day.value) ? "default" : "outline"}
                               size="sm"
                               className="w-8 h-8 p-0 text-xs"
                               onClick={() => toggleDay(day.value)}
@@ -514,16 +579,25 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
           <div className="space-y-2">
             <Label>Checklist</Label>
             <div className="space-y-2">
-              {checklist.map(item => (
+              {checklist.map((item) => (
                 <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
                   <Checkbox
                     checked={item.completed}
                     onCheckedChange={() => toggleChecklistItem(item.id)}
                   />
-                  <span className={cn("flex-1 text-sm", item.completed && "line-through text-muted-foreground")}>
+                  <span
+                    className={cn(
+                      "flex-1 text-sm",
+                      item.completed && "line-through text-muted-foreground",
+                    )}
+                  >
                     {item.text}
                   </span>
-                  <Button variant="ghost" size="iconSm" onClick={() => removeChecklistItem(item.id)}>
+                  <Button
+                    variant="ghost"
+                    size="iconSm"
+                    onClick={() => removeChecklistItem(item.id)}
+                  >
                     <X className="w-3 h-3" />
                   </Button>
                 </div>
@@ -533,7 +607,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                   value={newChecklistItem}
                   onChange={(e) => setNewChecklistItem(e.target.value)}
                   placeholder="Add checklist item..."
-                  onKeyDown={(e) => e.key === 'Enter' && addChecklistItem()}
+                  onKeyDown={(e) => e.key === "Enter" && addChecklistItem()}
                 />
                 <Button size="sm" onClick={addChecklistItem} disabled={!newChecklistItem.trim()}>
                   <Plus className="w-4 h-4" />
@@ -545,8 +619,8 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
           {/* Reminder */}
           <div className="space-y-2">
             <Label>Reminder</Label>
-            <Select 
-              value={reminderBefore.toString()} 
+            <Select
+              value={reminderBefore.toString()}
               onValueChange={(v) => setReminderBefore(parseInt(v))}
             >
               <SelectTrigger>
@@ -563,9 +637,7 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              Get notified before the task is due
-            </p>
+            <p className="text-xs text-muted-foreground">Get notified before the task is due</p>
           </div>
 
           {/* Comments thread (shared with workspace teammates + Telegram /comment) */}
@@ -584,7 +656,12 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
               <span className="hidden sm:inline">Delete</span>
             </Button>
             {onAddSubtasks && !task.parentId && (
-              <Button variant="outline" size="sm" onClick={() => setShowBreakdown(true)} className="px-2 sm:px-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowBreakdown(true)}
+                className="px-2 sm:px-3"
+              >
                 <Sparkles className="w-4 h-4 sm:mr-2 text-primary" />
                 <span className="hidden sm:inline">AI Breakdown</span>
               </Button>
@@ -608,7 +685,9 @@ export function EditTaskModal({ task, onClose, onSave, onDelete, onAddSubtasks, 
               aria-label="Save task"
             >
               <Check className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">{isSaving ? 'Saving...' : online ? 'Save Changes' : 'Offline'}</span>
+              <span className="hidden sm:inline">
+                {isSaving ? "Saving..." : online ? "Save Changes" : "Offline"}
+              </span>
             </Button>
           </div>
         </div>

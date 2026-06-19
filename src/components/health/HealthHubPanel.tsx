@@ -1,20 +1,20 @@
-import { useState, useMemo, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useAppleHealth, DailyHealthSummary } from '@/hooks/useAppleHealth';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useHealthTracking } from '@/hooks/useHealthTracking';
-import { AddHealthMetricDialog } from './AddHealthMetricDialog';
-import { HealthTrackingPanel } from '@/components/family/HealthTrackingPanel';
-import { AgeBasedCheckupsPanel } from './AgeBasedCheckupsPanel';
-import { HealthInsightsCard } from './HealthInsightsCard';
-import { HealthCoachPanel } from './HealthCoachPanel';
+import { useState, useMemo, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useAppleHealth, DailyHealthSummary } from "@/hooks/useAppleHealth";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useHealthTracking } from "@/hooks/useHealthTracking";
+import { AddHealthMetricDialog } from "./AddHealthMetricDialog";
+import { HealthTrackingPanel } from "@/components/family/HealthTrackingPanel";
+import { AgeBasedCheckupsPanel } from "./AgeBasedCheckupsPanel";
+import { HealthInsightsCard } from "./HealthInsightsCard";
+import { HealthCoachPanel } from "./HealthCoachPanel";
 import {
   Activity,
   Heart,
@@ -46,11 +46,11 @@ import {
   ChevronDown,
   Info,
   ExternalLink,
-} from 'lucide-react';
-import { format, parseISO, subDays, addDays, isSameDay } from 'date-fns';
+} from "lucide-react";
+import { format, parseISO, subDays, addDays, isSameDay } from "date-fns";
 
 export function HealthHubPanel() {
-  const [activeTab, setActiveTab] = useState('coach');
+  const [activeTab, setActiveTab] = useState("coach");
   const [showAddMetricDialog, setShowAddMetricDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -59,7 +59,7 @@ export function HealthHubPanel() {
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
   const [latestDataDate, setLatestDataDate] = useState<string | null>(null);
   const [initialDateSet, setInitialDateSet] = useState(false);
-  
+
   const {
     isAvailable,
     isConnected,
@@ -84,9 +84,9 @@ export function HealthHubPanel() {
       const latest = await fetchLatestHealthDate();
       if (latest) {
         setLatestDataDate(latest);
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toISOString().split("T")[0];
         if (latest !== today) {
-          setSelectedDate(new Date(latest + 'T12:00:00'));
+          setSelectedDate(new Date(latest + "T12:00:00"));
         }
       }
       setInitialDateSet(true);
@@ -97,11 +97,11 @@ export function HealthHubPanel() {
   // Re-fetch metrics when selected date changes (60-day window around it)
   useEffect(() => {
     if (!initialDateSet) return;
-    const startDate = format(subDays(selectedDate, 30), 'yyyy-MM-dd');
-    const endDate = format(addDays(selectedDate, 7), 'yyyy-MM-dd');
+    const startDate = format(subDays(selectedDate, 30), "yyyy-MM-dd");
+    const endDate = format(addDays(selectedDate, 7), "yyyy-MM-dd");
     refetch(startDate, endDate);
   }, [selectedDate, initialDateSet, refetch]);
-  
+
   const {
     isLoading: trackingLoading,
     getActiveMedications,
@@ -115,42 +115,41 @@ export function HealthHubPanel() {
 
   // Calculate summary for selected date
   const selectedDateSummary = useMemo((): DailyHealthSummary => {
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const dayMetrics = healthMetrics.filter(m => m.recorded_at.startsWith(dateStr));
-    
-    const sumMetric = (type: string) => 
-      dayMetrics.filter(m => m.metric_type === type).reduce((sum, m) => sum + m.value, 0);
-    const getLatest = (type: string) => 
-      dayMetrics.find(m => m.metric_type === type)?.value;
-    
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    const dayMetrics = healthMetrics.filter((m) => m.recorded_at.startsWith(dateStr));
+
+    const sumMetric = (type: string) =>
+      dayMetrics.filter((m) => m.metric_type === type).reduce((sum, m) => sum + m.value, 0);
+    const getLatest = (type: string) => dayMetrics.find((m) => m.metric_type === type)?.value;
+
     return {
       date: dateStr,
-      steps: sumMetric('steps'),
-      calories: sumMetric('calories'),
-      activeMinutes: sumMetric('active_minutes'),
-      sleepHours: getLatest('sleep_hours') || 0,
-      heartRateAvg: getLatest('heart_rate') || 0,
-      weight: getLatest('weight'),
-      waterIntake: sumMetric('water_intake'),
+      steps: sumMetric("steps"),
+      calories: sumMetric("calories"),
+      activeMinutes: sumMetric("active_minutes"),
+      sleepHours: getLatest("sleep_hours") || 0,
+      heartRateAvg: getLatest("heart_rate") || 0,
+      weight: getLatest("weight"),
+      waterIntake: sumMetric("water_intake"),
       // Enhanced metrics
-      restingHeartRate: getLatest('resting_heart_rate'),
-      hrv: getLatest('hrv'),
-      respiratoryRate: getLatest('respiratory_rate'),
-      bloodOxygen: getLatest('blood_oxygen'),
-      bloodPressureSystolic: getLatest('blood_pressure_systolic'),
-      bloodPressureDiastolic: getLatest('blood_pressure_diastolic'),
-      distance: sumMetric('distance'),
-      flightsClimbed: sumMetric('flights_climbed'),
-      bodyFat: getLatest('body_fat'),
-      mindfulnessMinutes: sumMetric('mindfulness_minutes'),
-      height: getLatest('height'),
+      restingHeartRate: getLatest("resting_heart_rate"),
+      hrv: getLatest("hrv"),
+      respiratoryRate: getLatest("respiratory_rate"),
+      bloodOxygen: getLatest("blood_oxygen"),
+      bloodPressureSystolic: getLatest("blood_pressure_systolic"),
+      bloodPressureDiastolic: getLatest("blood_pressure_diastolic"),
+      distance: sumMetric("distance"),
+      flightsClimbed: sumMetric("flights_climbed"),
+      bodyFat: getLatest("body_fat"),
+      mindfulnessMinutes: sumMetric("mindfulness_minutes"),
+      height: getLatest("height"),
       // Enhanced sleep data
-      sleepRemMinutes: getLatest('sleep_rem_minutes'),
-      sleepDeepMinutes: getLatest('sleep_deep_minutes'),
-      sleepCoreMinutes: getLatest('sleep_core_minutes'),
-      sleepAwakeMinutes: getLatest('sleep_awake_minutes'),
-      sleepInBedMinutes: getLatest('sleep_in_bed_minutes'),
-      sleepEfficiency: getLatest('sleep_efficiency'),
+      sleepRemMinutes: getLatest("sleep_rem_minutes"),
+      sleepDeepMinutes: getLatest("sleep_deep_minutes"),
+      sleepCoreMinutes: getLatest("sleep_core_minutes"),
+      sleepAwakeMinutes: getLatest("sleep_awake_minutes"),
+      sleepInBedMinutes: getLatest("sleep_in_bed_minutes"),
+      sleepEfficiency: getLatest("sleep_efficiency"),
     };
   }, [healthMetrics, selectedDate]);
 
@@ -165,34 +164,33 @@ export function HealthHubPanel() {
       awakeMinutes?: number;
       efficiency?: number;
     }> = [];
-    
+
     for (let i = 6; i >= 0; i--) {
       const date = subDays(new Date(), i);
-      const dateStr = format(date, 'yyyy-MM-dd');
-      const dayMetrics = healthMetrics.filter(m => m.recorded_at.startsWith(dateStr));
-      
-      const getLatest = (type: string) => 
-        dayMetrics.find(m => m.metric_type === type)?.value;
-      
+      const dateStr = format(date, "yyyy-MM-dd");
+      const dayMetrics = healthMetrics.filter((m) => m.recorded_at.startsWith(dateStr));
+
+      const getLatest = (type: string) => dayMetrics.find((m) => m.metric_type === type)?.value;
+
       data.push({
         date: dateStr,
-        sleepHours: getLatest('sleep_hours') || 0,
-        remMinutes: getLatest('sleep_rem_minutes'),
-        deepMinutes: getLatest('sleep_deep_minutes'),
-        coreMinutes: getLatest('sleep_core_minutes'),
-        awakeMinutes: getLatest('sleep_awake_minutes'),
-        efficiency: getLatest('sleep_efficiency'),
+        sleepHours: getLatest("sleep_hours") || 0,
+        remMinutes: getLatest("sleep_rem_minutes"),
+        deepMinutes: getLatest("sleep_deep_minutes"),
+        coreMinutes: getLatest("sleep_core_minutes"),
+        awakeMinutes: getLatest("sleep_awake_minutes"),
+        efficiency: getLatest("sleep_efficiency"),
       });
     }
-    
+
     return data;
   }, [healthMetrics]);
 
   const isToday = isSameDay(selectedDate, new Date());
 
-  const goToPreviousDay = () => setSelectedDate(prev => subDays(prev, 1));
+  const goToPreviousDay = () => setSelectedDate((prev) => subDays(prev, 1));
   const goToNextDay = () => {
-    if (!isToday) setSelectedDate(prev => addDays(prev, 1));
+    if (!isToday) setSelectedDate((prev) => addDays(prev, 1));
   };
   const goToToday = () => setSelectedDate(new Date());
 
@@ -204,8 +202,7 @@ export function HealthHubPanel() {
     waterIntake: 8,
   };
 
-  const getProgress = (current: number, goal: number) => 
-    Math.min((current / goal) * 100, 100);
+  const getProgress = (current: number, goal: number) => Math.min((current / goal) * 100, 100);
 
   const isLoading = healthLoading || trackingLoading;
 
@@ -221,9 +218,9 @@ export function HealthHubPanel() {
             </h1>
             <p className="text-sm text-muted-foreground">
               {latestDataDate && !isSameDay(selectedDate, new Date()) ? (
-                <>Showing data from {format(selectedDate, 'MMM d, yyyy')}</>
+                <>Showing data from {format(selectedDate, "MMM d, yyyy")}</>
               ) : (
-                'Track your health & wellness'
+                "Track your health & wellness"
               )}
             </p>
           </div>
@@ -243,25 +240,17 @@ export function HealthHubPanel() {
               </Button>
             )}
             {isConnected && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={syncAppleHealth}
-                disabled={isLoading}
-              >
+              <Button variant="ghost" size="icon" onClick={syncAppleHealth} disabled={isLoading}>
                 <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
               </Button>
             )}
-            <Button
-              size="sm"
-              onClick={() => setShowAddMetricDialog(true)}
-            >
+            <Button size="sm" onClick={() => setShowAddMetricDialog(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Data
             </Button>
           </div>
         </div>
-        
+
         {/* Apple Health Setup Guide */}
         {isAvailable && showSetupGuide && (
           <Collapsible open={showSetupGuide} onOpenChange={setShowSetupGuide} className="mt-3">
@@ -274,14 +263,25 @@ export function HealthHubPanel() {
                       How to Enable Apple Health Permissions
                     </p>
                     <ol className="text-xs text-blue-800 dark:text-blue-200 space-y-1.5 list-decimal list-inside">
-                      <li>Open the <strong>Health</strong> app on your iPhone</li>
-                      <li>Tap your profile icon (top right) → <strong>Apps</strong></li>
-                      <li>Find and tap <strong>DarAI</strong></li>
-                      <li>Toggle <strong>ON</strong> all data categories you want to share</li>
-                      <li>Return here and tap <strong>Sync</strong></li>
+                      <li>
+                        Open the <strong>Health</strong> app on your iPhone
+                      </li>
+                      <li>
+                        Tap your profile icon (top right) → <strong>Apps</strong>
+                      </li>
+                      <li>
+                        Find and tap <strong>DarAI</strong>
+                      </li>
+                      <li>
+                        Toggle <strong>ON</strong> all data categories you want to share
+                      </li>
+                      <li>
+                        Return here and tap <strong>Sync</strong>
+                      </li>
                     </ol>
                     <p className="text-xs text-blue-600 dark:text-blue-300 mt-2 italic">
-                      Note: Permissions are NOT in iOS Settings → DarAI. They're only in the Health app.
+                      Note: Permissions are NOT in iOS Settings → DarAI. They're only in the Health
+                      app.
                     </p>
                     <div className="flex gap-2 mt-3">
                       <Button
@@ -308,7 +308,7 @@ export function HealthHubPanel() {
             </Card>
           </Collapsible>
         )}
-        
+
         {/* Debug Info (collapsible) */}
         {isAvailable && (
           <Collapsible open={showDebugInfo} onOpenChange={setShowDebugInfo} className="mt-2">
@@ -316,7 +316,9 @@ export function HealthHubPanel() {
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-6 px-2">
                 <Settings className="w-3 h-3 mr-1" />
                 Debug Info
-                <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform", showDebugInfo && "rotate-180")} />
+                <ChevronDown
+                  className={cn("w-3 h-3 ml-1 transition-transform", showDebugInfo && "rotate-180")}
+                />
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -356,53 +358,69 @@ export function HealthHubPanel() {
                   </div>
                   <div className="flex justify-between">
                     <span>Native:</span>
-                    <span>{debugInfo.isNative ? '✅' : '❌'}</span>
+                    <span>{debugInfo.isNative ? "✅" : "❌"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Plugin Loaded:</span>
-                    <span>{debugInfo.pluginLoaded ? '✅' : '❌'}</span>
+                    <span>{debugInfo.pluginLoaded ? "✅" : "❌"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>HealthKit Available:</span>
-                    <span>{debugInfo.isHealthAvailable === null ? '❓' : debugInfo.isHealthAvailable ? '✅' : '❌'}</span>
+                    <span>
+                      {debugInfo.isHealthAvailable === null
+                        ? "❓"
+                        : debugInfo.isHealthAvailable
+                          ? "✅"
+                          : "❌"}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Last Sync:</span>
-                    <span className={cn(
-                      debugInfo.lastSyncResult === 'success' && 'text-green-600',
-                      debugInfo.lastSyncResult === 'no_data' && 'text-yellow-600',
-                      debugInfo.lastSyncResult === 'error' && 'text-red-600',
-                    )}>
-                      {debugInfo.lastSyncResult || 'Not synced'}
+                    <span
+                      className={cn(
+                        debugInfo.lastSyncResult === "success" && "text-green-600",
+                        debugInfo.lastSyncResult === "no_data" && "text-yellow-600",
+                        debugInfo.lastSyncResult === "error" && "text-red-600",
+                      )}
+                    >
+                      {debugInfo.lastSyncResult || "Not synced"}
                     </span>
                   </div>
-                  
+
                   {debugInfo.diagnosticsRan && (
                     <>
                       <div className="pt-1 border-t mt-1">
-                        <span className="text-muted-foreground font-semibold">Diagnostics Results:</span>
+                        <span className="text-muted-foreground font-semibold">
+                          Diagnostics Results:
+                        </span>
                       </div>
                       {debugInfo.diagnosticsTimestamp && (
                         <div className="flex justify-between">
                           <span>Ran at:</span>
-                          <span className="text-muted-foreground">{new Date(debugInfo.diagnosticsTimestamp).toLocaleTimeString()}</span>
+                          <span className="text-muted-foreground">
+                            {new Date(debugInfo.diagnosticsTimestamp).toLocaleTimeString()}
+                          </span>
                         </div>
                       )}
                       {debugInfo.permissionResult && (
                         <div>
                           <span className="text-muted-foreground">Permission Result: </span>
-                          <span className="break-all text-[10px]">{debugInfo.permissionResult}</span>
+                          <span className="break-all text-[10px]">
+                            {debugInfo.permissionResult}
+                          </span>
                         </div>
                       )}
                       {debugInfo.sampleQueryResult && (
                         <div>
                           <span className="text-muted-foreground">Sample Query: </span>
-                          <span className="break-all text-[10px]">{debugInfo.sampleQueryResult}</span>
+                          <span className="break-all text-[10px]">
+                            {debugInfo.sampleQueryResult}
+                          </span>
                         </div>
                       )}
                     </>
                   )}
-                  
+
                   {debugInfo.metricsCollected > 0 && (
                     <div className="flex justify-between">
                       <span>Metrics:</span>
@@ -412,7 +430,7 @@ export function HealthHubPanel() {
                   {debugInfo.dataTypes.length > 0 && (
                     <div className="pt-1 border-t">
                       <span className="text-muted-foreground">Types: </span>
-                      <span className="break-all">{debugInfo.dataTypes.join(', ')}</span>
+                      <span className="break-all">{debugInfo.dataTypes.join(", ")}</span>
                     </div>
                   )}
                   {debugInfo.lastError && (
@@ -432,27 +450,45 @@ export function HealthHubPanel() {
       <div className="border-b border-border shrink-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full h-12 p-1 bg-transparent grid grid-cols-6 gap-1">
-            <TabsTrigger value="coach" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+            <TabsTrigger
+              value="coach"
+              className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1"
+            >
               <Brain className="w-4 h-4" />
               <span className="hidden xs:inline">AI</span>
             </TabsTrigger>
-            <TabsTrigger value="overview" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+            <TabsTrigger
+              value="overview"
+              className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1"
+            >
               <Activity className="w-4 h-4" />
               <span className="hidden xs:inline">Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="sleep" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+            <TabsTrigger
+              value="sleep"
+              className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1"
+            >
               <Moon className="w-4 h-4" />
               <span className="hidden xs:inline">Sleep</span>
             </TabsTrigger>
-            <TabsTrigger value="vitals" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+            <TabsTrigger
+              value="vitals"
+              className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1"
+            >
               <Heart className="w-4 h-4" />
               <span className="hidden xs:inline">Vitals</span>
             </TabsTrigger>
-            <TabsTrigger value="medical" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+            <TabsTrigger
+              value="medical"
+              className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1"
+            >
               <Pill className="w-4 h-4" />
               <span className="hidden xs:inline">Medical</span>
             </TabsTrigger>
-            <TabsTrigger value="checkups" className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1">
+            <TabsTrigger
+              value="checkups"
+              className="flex flex-col items-center justify-center gap-0.5 text-xs data-[state=active]:bg-muted h-full px-1"
+            >
               <Calendar className="w-4 h-4" />
               <span className="hidden xs:inline">Checkups</span>
             </TabsTrigger>
@@ -461,14 +497,14 @@ export function HealthHubPanel() {
       </div>
 
       {/* AI Coach Tab - Full height without ScrollArea wrapper */}
-      {activeTab === 'coach' && (
+      {activeTab === "coach" && (
         <div className="flex-1 overflow-hidden">
           <HealthCoachPanel />
         </div>
       )}
 
       {/* Sleep Tab */}
-      {activeTab === 'sleep' && (
+      {activeTab === "sleep" && (
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4 pb-20">
             {/* Last Night's Sleep */}
@@ -492,21 +528,25 @@ export function HealthHubPanel() {
                   <div className="text-right">
                     {selectedDateSummary.sleepEfficiency && (
                       <div>
-                        <p className="text-lg font-semibold">{selectedDateSummary.sleepEfficiency.toFixed(0)}%</p>
+                        <p className="text-lg font-semibold">
+                          {selectedDateSummary.sleepEfficiency.toFixed(0)}%
+                        </p>
                         <p className="text-xs text-muted-foreground">Efficiency</p>
                       </div>
                     )}
                   </div>
                 </div>
-                <Progress 
-                  value={getProgress(selectedDateSummary.sleepHours, healthGoals.sleepHours)} 
+                <Progress
+                  value={getProgress(selectedDateSummary.sleepHours, healthGoals.sleepHours)}
                   className="h-2"
                 />
               </CardContent>
             </Card>
 
             {/* Sleep Stages */}
-            {(selectedDateSummary.sleepRemMinutes || selectedDateSummary.sleepDeepMinutes || selectedDateSummary.sleepCoreMinutes) && (
+            {(selectedDateSummary.sleepRemMinutes ||
+              selectedDateSummary.sleepDeepMinutes ||
+              selectedDateSummary.sleepCoreMinutes) && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Sleep Stages</CardTitle>
@@ -521,19 +561,29 @@ export function HealthHubPanel() {
                             REM
                           </span>
                           <span className="text-sm font-medium">
-                            {Math.floor(selectedDateSummary.sleepRemMinutes / 60)}h {selectedDateSummary.sleepRemMinutes % 60}m
+                            {Math.floor(selectedDateSummary.sleepRemMinutes / 60)}h{" "}
+                            {selectedDateSummary.sleepRemMinutes % 60}m
                           </span>
                         </div>
-                        <Progress 
-                          value={(selectedDateSummary.sleepRemMinutes / (selectedDateSummary.sleepHours * 60)) * 100} 
+                        <Progress
+                          value={
+                            (selectedDateSummary.sleepRemMinutes /
+                              (selectedDateSummary.sleepHours * 60)) *
+                            100
+                          }
                           className="h-2 bg-purple-100"
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          {((selectedDateSummary.sleepRemMinutes / (selectedDateSummary.sleepHours * 60)) * 100).toFixed(0)}% of sleep (optimal: 20-25%)
+                          {(
+                            (selectedDateSummary.sleepRemMinutes /
+                              (selectedDateSummary.sleepHours * 60)) *
+                            100
+                          ).toFixed(0)}
+                          % of sleep (optimal: 20-25%)
                         </p>
                       </div>
                     )}
-                    
+
                     {selectedDateSummary.sleepDeepMinutes && (
                       <div>
                         <div className="flex items-center justify-between mb-1">
@@ -542,15 +592,25 @@ export function HealthHubPanel() {
                             Deep
                           </span>
                           <span className="text-sm font-medium">
-                            {Math.floor(selectedDateSummary.sleepDeepMinutes / 60)}h {selectedDateSummary.sleepDeepMinutes % 60}m
+                            {Math.floor(selectedDateSummary.sleepDeepMinutes / 60)}h{" "}
+                            {selectedDateSummary.sleepDeepMinutes % 60}m
                           </span>
                         </div>
-                        <Progress 
-                          value={(selectedDateSummary.sleepDeepMinutes / (selectedDateSummary.sleepHours * 60)) * 100} 
+                        <Progress
+                          value={
+                            (selectedDateSummary.sleepDeepMinutes /
+                              (selectedDateSummary.sleepHours * 60)) *
+                            100
+                          }
                           className="h-2 bg-blue-100"
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          {((selectedDateSummary.sleepDeepMinutes / (selectedDateSummary.sleepHours * 60)) * 100).toFixed(0)}% of sleep (optimal: 15-20%)
+                          {(
+                            (selectedDateSummary.sleepDeepMinutes /
+                              (selectedDateSummary.sleepHours * 60)) *
+                            100
+                          ).toFixed(0)}
+                          % of sleep (optimal: 15-20%)
                         </p>
                       </div>
                     )}
@@ -563,33 +623,44 @@ export function HealthHubPanel() {
                             Core
                           </span>
                           <span className="text-sm font-medium">
-                            {Math.floor(selectedDateSummary.sleepCoreMinutes / 60)}h {selectedDateSummary.sleepCoreMinutes % 60}m
+                            {Math.floor(selectedDateSummary.sleepCoreMinutes / 60)}h{" "}
+                            {selectedDateSummary.sleepCoreMinutes % 60}m
                           </span>
                         </div>
-                        <Progress 
-                          value={(selectedDateSummary.sleepCoreMinutes / (selectedDateSummary.sleepHours * 60)) * 100} 
+                        <Progress
+                          value={
+                            (selectedDateSummary.sleepCoreMinutes /
+                              (selectedDateSummary.sleepHours * 60)) *
+                            100
+                          }
                           className="h-2 bg-cyan-100"
                         />
                       </div>
                     )}
 
-                    {selectedDateSummary.sleepAwakeMinutes && selectedDateSummary.sleepAwakeMinutes > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-orange-400" />
-                            Awake
-                          </span>
-                          <span className="text-sm font-medium">
-                            {selectedDateSummary.sleepAwakeMinutes}m
-                          </span>
+                    {selectedDateSummary.sleepAwakeMinutes &&
+                      selectedDateSummary.sleepAwakeMinutes > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-orange-400" />
+                              Awake
+                            </span>
+                            <span className="text-sm font-medium">
+                              {selectedDateSummary.sleepAwakeMinutes}m
+                            </span>
+                          </div>
+                          <Progress
+                            value={
+                              (selectedDateSummary.sleepAwakeMinutes /
+                                (selectedDateSummary.sleepInBedMinutes ||
+                                  selectedDateSummary.sleepHours * 60)) *
+                              100
+                            }
+                            className="h-2 bg-orange-100"
+                          />
                         </div>
-                        <Progress 
-                          value={(selectedDateSummary.sleepAwakeMinutes / (selectedDateSummary.sleepInBedMinutes || selectedDateSummary.sleepHours * 60)) * 100} 
-                          className="h-2 bg-orange-100"
-                        />
-                      </div>
-                    )}
+                      )}
                   </div>
                 </CardContent>
               </Card>
@@ -606,36 +677,52 @@ export function HealthHubPanel() {
               <CardContent>
                 <div className="space-y-2">
                   {weeklySleepData.map((day, i) => {
-                    const dayLabel = format(parseISO(day.date), 'EEE');
+                    const dayLabel = format(parseISO(day.date), "EEE");
                     const isCurrentDay = isSameDay(parseISO(day.date), new Date());
                     return (
-                      <div key={i} className={cn("flex items-center gap-2", isCurrentDay && "bg-muted/50 rounded-lg p-2 -mx-2")}>
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex items-center gap-2",
+                          isCurrentDay && "bg-muted/50 rounded-lg p-2 -mx-2",
+                        )}
+                      >
                         <span className="text-xs w-8 text-muted-foreground">{dayLabel}</span>
                         <div className="flex-1">
-                          <Progress 
-                            value={getProgress(day.sleepHours, healthGoals.sleepHours)} 
+                          <Progress
+                            value={getProgress(day.sleepHours, healthGoals.sleepHours)}
                             className="h-3"
                           />
                         </div>
-                        <span className={cn(
-                          "text-xs font-medium w-12 text-right",
-                          day.sleepHours >= healthGoals.sleepHours ? "text-green-600" : 
-                          day.sleepHours >= 6 ? "text-yellow-600" : "text-red-600"
-                        )}>
-                          {day.sleepHours > 0 ? `${day.sleepHours.toFixed(1)}h` : '--'}
+                        <span
+                          className={cn(
+                            "text-xs font-medium w-12 text-right",
+                            day.sleepHours >= healthGoals.sleepHours
+                              ? "text-green-600"
+                              : day.sleepHours >= 6
+                                ? "text-yellow-600"
+                                : "text-red-600",
+                          )}
+                        >
+                          {day.sleepHours > 0 ? `${day.sleepHours.toFixed(1)}h` : "--"}
                         </span>
                       </div>
                     );
                   })}
                 </div>
-                
+
                 {/* Weekly Average */}
                 <div className="mt-4 pt-4 border-t">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Weekly Average</span>
                     <span className="text-lg font-semibold">
-                      {(weeklySleepData.filter(d => d.sleepHours > 0).reduce((sum, d) => sum + d.sleepHours, 0) / 
-                        Math.max(1, weeklySleepData.filter(d => d.sleepHours > 0).length)).toFixed(1)}h
+                      {(
+                        weeklySleepData
+                          .filter((d) => d.sleepHours > 0)
+                          .reduce((sum, d) => sum + d.sleepHours, 0) /
+                        Math.max(1, weeklySleepData.filter((d) => d.sleepHours > 0).length)
+                      ).toFixed(1)}
+                      h
                     </span>
                   </div>
                 </div>
@@ -652,35 +739,33 @@ export function HealthHubPanel() {
                   <div className="text-center p-3 rounded-lg bg-muted/50">
                     <Clock className="w-5 h-5 mx-auto text-purple-500 mb-1" />
                     <p className="text-lg font-semibold">
-                      {selectedDateSummary.sleepInBedMinutes 
+                      {selectedDateSummary.sleepInBedMinutes
                         ? `${Math.floor(selectedDateSummary.sleepInBedMinutes / 60)}h ${selectedDateSummary.sleepInBedMinutes % 60}m`
-                        : '--'}
+                        : "--"}
                     </p>
                     <p className="text-xs text-muted-foreground">Time in Bed</p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted/50">
                     <Percent className="w-5 h-5 mx-auto text-green-500 mb-1" />
                     <p className="text-lg font-semibold">
-                      {selectedDateSummary.sleepEfficiency 
+                      {selectedDateSummary.sleepEfficiency
                         ? `${selectedDateSummary.sleepEfficiency.toFixed(0)}%`
-                        : '--'}
+                        : "--"}
                     </p>
                     <p className="text-xs text-muted-foreground">Efficiency</p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted/50">
                     <AlertCircle className="w-5 h-5 mx-auto text-orange-500 mb-1" />
                     <p className="text-lg font-semibold">
-                      {selectedDateSummary.sleepAwakeMinutes 
+                      {selectedDateSummary.sleepAwakeMinutes
                         ? `${selectedDateSummary.sleepAwakeMinutes}m`
-                        : '--'}
+                        : "--"}
                     </p>
                     <p className="text-xs text-muted-foreground">Awake Time</p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted/50">
                     <Gauge className="w-5 h-5 mx-auto text-blue-500 mb-1" />
-                    <p className="text-lg font-semibold">
-                      {selectedDateSummary.hrv || '--'}
-                    </p>
+                    <p className="text-lg font-semibold">{selectedDateSummary.hrv || "--"}</p>
                     <p className="text-xs text-muted-foreground">HRV (ms)</p>
                   </div>
                 </div>
@@ -729,25 +814,22 @@ export function HealthHubPanel() {
             </div>
           )}
 
-          {!isLoading && activeTab === 'overview' && (
+          {!isLoading && activeTab === "overview" && (
             <>
               {/* AI Health Insights */}
-              <HealthInsightsCard 
-                metrics={healthMetrics} 
-                goals={healthGoals} 
-              />
+              <HealthInsightsCard metrics={healthMetrics} goals={healthGoals} />
               <Card className="bg-muted/30">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <Button variant="ghost" size="icon" onClick={goToPreviousDay}>
                       <ChevronLeft className="w-5 h-5" />
                     </Button>
-                    
+
                     <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" className="font-medium">
                           <CalendarIcon className="w-4 h-4 mr-2" />
-                          {isToday ? 'Today' : format(selectedDate, 'EEE, MMM d')}
+                          {isToday ? "Today" : format(selectedDate, "EEE, MMM d")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="center">
@@ -766,20 +848,15 @@ export function HealthHubPanel() {
                         />
                       </PopoverContent>
                     </Popover>
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={goToNextDay}
-                      disabled={isToday}
-                    >
+
+                    <Button variant="ghost" size="icon" onClick={goToNextDay} disabled={isToday}>
                       <ChevronRight className="w-5 h-5" />
                     </Button>
                   </div>
                   {!isToday && (
-                    <Button 
-                      variant="link" 
-                      size="sm" 
+                    <Button
+                      variant="link"
+                      size="sm"
                       className="w-full mt-1 text-xs"
                       onClick={goToToday}
                     >
@@ -800,8 +877,8 @@ export function HealthHubPanel() {
                     <p className="text-2xl font-bold">
                       {selectedDateSummary.steps.toLocaleString()}
                     </p>
-                    <Progress 
-                      value={getProgress(selectedDateSummary.steps, healthGoals.steps)} 
+                    <Progress
+                      value={getProgress(selectedDateSummary.steps, healthGoals.steps)}
                       className="h-1 mt-2"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
@@ -816,11 +893,9 @@ export function HealthHubPanel() {
                       <Flame className="w-4 h-4" />
                       <span className="text-xs">Calories</span>
                     </div>
-                    <p className="text-2xl font-bold">
-                      {selectedDateSummary.calories}
-                    </p>
-                    <Progress 
-                      value={getProgress(selectedDateSummary.calories, healthGoals.calories)} 
+                    <p className="text-2xl font-bold">{selectedDateSummary.calories}</p>
+                    <Progress
+                      value={getProgress(selectedDateSummary.calories, healthGoals.calories)}
                       className="h-1 mt-2"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
@@ -835,11 +910,9 @@ export function HealthHubPanel() {
                       <Droplets className="w-4 h-4" />
                       <span className="text-xs">Water</span>
                     </div>
-                    <p className="text-2xl font-bold">
-                      {selectedDateSummary.waterIntake}
-                    </p>
-                    <Progress 
-                      value={getProgress(selectedDateSummary.waterIntake, healthGoals.waterIntake)} 
+                    <p className="text-2xl font-bold">{selectedDateSummary.waterIntake}</p>
+                    <Progress
+                      value={getProgress(selectedDateSummary.waterIntake, healthGoals.waterIntake)}
                       className="h-1 mt-2"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
@@ -857,8 +930,8 @@ export function HealthHubPanel() {
                     <p className="text-2xl font-bold">
                       {selectedDateSummary.sleepHours.toFixed(1)}h
                     </p>
-                    <Progress 
-                      value={getProgress(selectedDateSummary.sleepHours, healthGoals.sleepHours)} 
+                    <Progress
+                      value={getProgress(selectedDateSummary.sleepHours, healthGoals.sleepHours)}
                       className="h-1 mt-2"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
@@ -874,7 +947,7 @@ export function HealthHubPanel() {
                   <CardContent className="p-3 text-center">
                     <Heart className="w-5 h-5 mx-auto text-red-500 mb-1" />
                     <p className="text-lg font-semibold">
-                      {selectedDateSummary.heartRateAvg || '--'}
+                      {selectedDateSummary.heartRateAvg || "--"}
                     </p>
                     <p className="text-xs text-muted-foreground">BPM</p>
                   </CardContent>
@@ -882,9 +955,7 @@ export function HealthHubPanel() {
                 <Card>
                   <CardContent className="p-3 text-center">
                     <Activity className="w-5 h-5 mx-auto text-green-500 mb-1" />
-                    <p className="text-lg font-semibold">
-                      {selectedDateSummary.activeMinutes}
-                    </p>
+                    <p className="text-lg font-semibold">{selectedDateSummary.activeMinutes}</p>
                     <p className="text-xs text-muted-foreground">Active min</p>
                   </CardContent>
                 </Card>
@@ -892,7 +963,7 @@ export function HealthHubPanel() {
                   <CardContent className="p-3 text-center">
                     <Scale className="w-5 h-5 mx-auto text-blue-500 mb-1" />
                     <p className="text-lg font-semibold">
-                      {selectedDateSummary.weight?.toFixed(1) || '--'}
+                      {selectedDateSummary.weight?.toFixed(1) || "--"}
                     </p>
                     <p className="text-xs text-muted-foreground">kg</p>
                   </CardContent>
@@ -900,9 +971,12 @@ export function HealthHubPanel() {
               </div>
 
               {/* Enhanced Metrics from Apple Watch */}
-              {(selectedDateSummary.restingHeartRate || selectedDateSummary.hrv || 
-                selectedDateSummary.bloodOxygen || selectedDateSummary.distance ||
-                selectedDateSummary.flightsClimbed || selectedDateSummary.respiratoryRate) && (
+              {(selectedDateSummary.restingHeartRate ||
+                selectedDateSummary.hrv ||
+                selectedDateSummary.bloodOxygen ||
+                selectedDateSummary.distance ||
+                selectedDateSummary.flightsClimbed ||
+                selectedDateSummary.respiratoryRate) && (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
@@ -915,7 +989,9 @@ export function HealthHubPanel() {
                       {selectedDateSummary.restingHeartRate && (
                         <div className="text-center p-2 rounded-lg bg-muted/50">
                           <Heart className="w-4 h-4 mx-auto text-pink-500 mb-1" />
-                          <p className="text-sm font-semibold">{selectedDateSummary.restingHeartRate}</p>
+                          <p className="text-sm font-semibold">
+                            {selectedDateSummary.restingHeartRate}
+                          </p>
                           <p className="text-xs text-muted-foreground">Resting HR</p>
                         </div>
                       )}
@@ -929,50 +1005,64 @@ export function HealthHubPanel() {
                       {selectedDateSummary.bloodOxygen && (
                         <div className="text-center p-2 rounded-lg bg-muted/50">
                           <Wind className="w-4 h-4 mx-auto text-blue-500 mb-1" />
-                          <p className="text-sm font-semibold">{selectedDateSummary.bloodOxygen}%</p>
+                          <p className="text-sm font-semibold">
+                            {selectedDateSummary.bloodOxygen}%
+                          </p>
                           <p className="text-xs text-muted-foreground">SpO2</p>
                         </div>
                       )}
                       {selectedDateSummary.respiratoryRate && (
                         <div className="text-center p-2 rounded-lg bg-muted/50">
                           <Wind className="w-4 h-4 mx-auto text-teal-500 mb-1" />
-                          <p className="text-sm font-semibold">{selectedDateSummary.respiratoryRate}</p>
+                          <p className="text-sm font-semibold">
+                            {selectedDateSummary.respiratoryRate}
+                          </p>
                           <p className="text-xs text-muted-foreground">Breaths/min</p>
                         </div>
                       )}
                       {selectedDateSummary.distance && selectedDateSummary.distance > 0 && (
                         <div className="text-center p-2 rounded-lg bg-muted/50">
                           <ArrowUpDown className="w-4 h-4 mx-auto text-green-500 mb-1" />
-                          <p className="text-sm font-semibold">{selectedDateSummary.distance.toFixed(1)}</p>
+                          <p className="text-sm font-semibold">
+                            {selectedDateSummary.distance.toFixed(1)}
+                          </p>
                           <p className="text-xs text-muted-foreground">km</p>
                         </div>
                       )}
-                      {selectedDateSummary.flightsClimbed && selectedDateSummary.flightsClimbed > 0 && (
-                        <div className="text-center p-2 rounded-lg bg-muted/50">
-                          <Mountain className="w-4 h-4 mx-auto text-amber-500 mb-1" />
-                          <p className="text-sm font-semibold">{selectedDateSummary.flightsClimbed}</p>
-                          <p className="text-xs text-muted-foreground">Floors</p>
-                        </div>
-                      )}
-                      {selectedDateSummary.mindfulnessMinutes && selectedDateSummary.mindfulnessMinutes > 0 && (
-                        <div className="text-center p-2 rounded-lg bg-muted/50">
-                          <Brain className="w-4 h-4 mx-auto text-indigo-500 mb-1" />
-                          <p className="text-sm font-semibold">{selectedDateSummary.mindfulnessMinutes}</p>
-                          <p className="text-xs text-muted-foreground">Mindful min</p>
-                        </div>
-                      )}
+                      {selectedDateSummary.flightsClimbed &&
+                        selectedDateSummary.flightsClimbed > 0 && (
+                          <div className="text-center p-2 rounded-lg bg-muted/50">
+                            <Mountain className="w-4 h-4 mx-auto text-amber-500 mb-1" />
+                            <p className="text-sm font-semibold">
+                              {selectedDateSummary.flightsClimbed}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Floors</p>
+                          </div>
+                        )}
+                      {selectedDateSummary.mindfulnessMinutes &&
+                        selectedDateSummary.mindfulnessMinutes > 0 && (
+                          <div className="text-center p-2 rounded-lg bg-muted/50">
+                            <Brain className="w-4 h-4 mx-auto text-indigo-500 mb-1" />
+                            <p className="text-sm font-semibold">
+                              {selectedDateSummary.mindfulnessMinutes}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Mindful min</p>
+                          </div>
+                        )}
                     </div>
 
                     {/* Blood Pressure if available */}
-                    {selectedDateSummary.bloodPressureSystolic && selectedDateSummary.bloodPressureDiastolic && (
-                      <div className="mt-3 p-3 rounded-lg bg-muted/50 text-center">
-                        <p className="text-sm text-muted-foreground mb-1">Blood Pressure</p>
-                        <p className="text-xl font-semibold">
-                          {selectedDateSummary.bloodPressureSystolic}/{selectedDateSummary.bloodPressureDiastolic}
-                        </p>
-                        <p className="text-xs text-muted-foreground">mmHg</p>
-                      </div>
-                    )}
+                    {selectedDateSummary.bloodPressureSystolic &&
+                      selectedDateSummary.bloodPressureDiastolic && (
+                        <div className="mt-3 p-3 rounded-lg bg-muted/50 text-center">
+                          <p className="text-sm text-muted-foreground mb-1">Blood Pressure</p>
+                          <p className="text-xl font-semibold">
+                            {selectedDateSummary.bloodPressureSystolic}/
+                            {selectedDateSummary.bloodPressureDiastolic}
+                          </p>
+                          <p className="text-xs text-muted-foreground">mmHg</p>
+                        </div>
+                      )}
 
                     {/* Body Composition */}
                     {(selectedDateSummary.bodyFat || selectedDateSummary.height) && (
@@ -1007,16 +1097,18 @@ export function HealthHubPanel() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {refillNeeded.slice(0, 2).map(med => (
+                    {refillNeeded.slice(0, 2).map((med) => (
                       <div key={med.id} className="flex items-center gap-2 text-sm">
                         <Pill className="w-4 h-4 text-warning" />
                         <span>{med.name} needs refill</span>
                       </div>
                     ))}
-                    {upcomingAppointments.slice(0, 2).map(appt => (
+                    {upcomingAppointments.slice(0, 2).map((appt) => (
                       <div key={appt.id} className="flex items-center gap-2 text-sm">
                         <Calendar className="w-4 h-4 text-primary" />
-                        <span>{appt.title} - {format(parseISO(appt.appointment_date), 'MMM d')}</span>
+                        <span>
+                          {appt.title} - {format(parseISO(appt.appointment_date), "MMM d")}
+                        </span>
                       </div>
                     ))}
                   </CardContent>
@@ -1033,33 +1125,67 @@ export function HealthHubPanel() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {healthMetrics.slice(0, 10).map(metric => (
+                    {healthMetrics.slice(0, 10).map((metric) => (
                       <div key={metric.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          {metric.metric_type === 'steps' && <Footprints className="w-3 h-3 text-primary" />}
-                          {metric.metric_type === 'calories' && <Flame className="w-3 h-3 text-orange-500" />}
-                          {metric.metric_type === 'heart_rate' && <Heart className="w-3 h-3 text-red-500" />}
-                          {metric.metric_type === 'resting_heart_rate' && <Heart className="w-3 h-3 text-pink-500" />}
-                          {metric.metric_type === 'hrv' && <Gauge className="w-3 h-3 text-purple-500" />}
-                          {metric.metric_type === 'sleep_hours' && <Moon className="w-3 h-3 text-purple-500" />}
-                          {metric.metric_type === 'weight' && <Scale className="w-3 h-3 text-blue-500" />}
-                          {metric.metric_type === 'water_intake' && <Droplets className="w-3 h-3 text-blue-400" />}
-                          {metric.metric_type === 'blood_oxygen' && <Wind className="w-3 h-3 text-blue-500" />}
-                          {metric.metric_type === 'respiratory_rate' && <Wind className="w-3 h-3 text-teal-500" />}
-                          {metric.metric_type === 'distance' && <ArrowUpDown className="w-3 h-3 text-green-500" />}
-                          {metric.metric_type === 'flights_climbed' && <Mountain className="w-3 h-3 text-amber-500" />}
-                          {metric.metric_type === 'mindfulness_minutes' && <Brain className="w-3 h-3 text-indigo-500" />}
-                          {metric.metric_type === 'body_fat' && <Percent className="w-3 h-3 text-orange-500" />}
-                          {metric.metric_type === 'height' && <Ruler className="w-3 h-3 text-gray-500" />}
-                          {metric.metric_type.includes('blood_pressure') && <Activity className="w-3 h-3 text-red-400" />}
-                          <span className="capitalize">{metric.metric_type.replace(/_/g, ' ')}</span>
+                          {metric.metric_type === "steps" && (
+                            <Footprints className="w-3 h-3 text-primary" />
+                          )}
+                          {metric.metric_type === "calories" && (
+                            <Flame className="w-3 h-3 text-orange-500" />
+                          )}
+                          {metric.metric_type === "heart_rate" && (
+                            <Heart className="w-3 h-3 text-red-500" />
+                          )}
+                          {metric.metric_type === "resting_heart_rate" && (
+                            <Heart className="w-3 h-3 text-pink-500" />
+                          )}
+                          {metric.metric_type === "hrv" && (
+                            <Gauge className="w-3 h-3 text-purple-500" />
+                          )}
+                          {metric.metric_type === "sleep_hours" && (
+                            <Moon className="w-3 h-3 text-purple-500" />
+                          )}
+                          {metric.metric_type === "weight" && (
+                            <Scale className="w-3 h-3 text-blue-500" />
+                          )}
+                          {metric.metric_type === "water_intake" && (
+                            <Droplets className="w-3 h-3 text-blue-400" />
+                          )}
+                          {metric.metric_type === "blood_oxygen" && (
+                            <Wind className="w-3 h-3 text-blue-500" />
+                          )}
+                          {metric.metric_type === "respiratory_rate" && (
+                            <Wind className="w-3 h-3 text-teal-500" />
+                          )}
+                          {metric.metric_type === "distance" && (
+                            <ArrowUpDown className="w-3 h-3 text-green-500" />
+                          )}
+                          {metric.metric_type === "flights_climbed" && (
+                            <Mountain className="w-3 h-3 text-amber-500" />
+                          )}
+                          {metric.metric_type === "mindfulness_minutes" && (
+                            <Brain className="w-3 h-3 text-indigo-500" />
+                          )}
+                          {metric.metric_type === "body_fat" && (
+                            <Percent className="w-3 h-3 text-orange-500" />
+                          )}
+                          {metric.metric_type === "height" && (
+                            <Ruler className="w-3 h-3 text-gray-500" />
+                          )}
+                          {metric.metric_type.includes("blood_pressure") && (
+                            <Activity className="w-3 h-3 text-red-400" />
+                          )}
+                          <span className="capitalize">
+                            {metric.metric_type.replace(/_/g, " ")}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <span className="font-medium text-foreground">
                             {metric.value.toLocaleString()} {metric.unit}
                           </span>
                           <span className="text-xs">
-                            {format(parseISO(metric.recorded_at), 'MMM d')}
+                            {format(parseISO(metric.recorded_at), "MMM d")}
                           </span>
                         </div>
                       </div>
@@ -1087,7 +1213,7 @@ export function HealthHubPanel() {
             </>
           )}
 
-          {!isLoading && activeTab === 'vitals' && (
+          {!isLoading && activeTab === "vitals" && (
             <div className="space-y-4">
               <Card>
                 <CardHeader>
@@ -1098,20 +1224,20 @@ export function HealthHubPanel() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-4">
-                    <p className="text-4xl font-bold">{todaySummary?.heartRateAvg || '--'}</p>
+                    <p className="text-4xl font-bold">{todaySummary?.heartRateAvg || "--"}</p>
                     <p className="text-muted-foreground">BPM</p>
                   </div>
                   <div className="grid grid-cols-3 gap-4 text-center text-sm">
                     <div>
-                      <p className="font-medium">{todaySummary?.restingHeartRate || '--'}</p>
+                      <p className="font-medium">{todaySummary?.restingHeartRate || "--"}</p>
                       <p className="text-xs text-muted-foreground">Resting</p>
                     </div>
                     <div>
-                      <p className="font-medium">{todaySummary?.heartRateAvg || '--'}</p>
+                      <p className="font-medium">{todaySummary?.heartRateAvg || "--"}</p>
                       <p className="text-xs text-muted-foreground">Average</p>
                     </div>
                     <div>
-                      <p className="font-medium">{todaySummary?.hrv || '--'}</p>
+                      <p className="font-medium">{todaySummary?.hrv || "--"}</p>
                       <p className="text-xs text-muted-foreground">HRV (ms)</p>
                     </div>
                   </div>
@@ -1129,11 +1255,15 @@ export function HealthHubPanel() {
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center py-4">
-                      <p className="text-3xl font-bold">{todaySummary?.bloodOxygen?.toFixed(1) || '--'}</p>
+                      <p className="text-3xl font-bold">
+                        {todaySummary?.bloodOxygen?.toFixed(1) || "--"}
+                      </p>
                       <p className="text-muted-foreground text-sm">SpO2 %</p>
                     </div>
                     <div className="text-center py-4">
-                      <p className="text-3xl font-bold">{todaySummary?.respiratoryRate?.toFixed(1) || '--'}</p>
+                      <p className="text-3xl font-bold">
+                        {todaySummary?.respiratoryRate?.toFixed(1) || "--"}
+                      </p>
                       <p className="text-muted-foreground text-sm">Breaths/min</p>
                     </div>
                   </div>
@@ -1150,20 +1280,24 @@ export function HealthHubPanel() {
                 <CardContent>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div className="py-2">
-                      <p className="text-2xl font-bold">{todaySummary?.weight?.toFixed(1) || '--'}</p>
+                      <p className="text-2xl font-bold">
+                        {todaySummary?.weight?.toFixed(1) || "--"}
+                      </p>
                       <p className="text-xs text-muted-foreground">Weight (kg)</p>
                     </div>
                     <div className="py-2">
-                      <p className="text-2xl font-bold">{todaySummary?.height || '--'}</p>
+                      <p className="text-2xl font-bold">{todaySummary?.height || "--"}</p>
                       <p className="text-xs text-muted-foreground">Height (cm)</p>
                     </div>
                     <div className="py-2">
-                      <p className="text-2xl font-bold">{todaySummary?.bodyFat?.toFixed(1) || '--'}</p>
+                      <p className="text-2xl font-bold">
+                        {todaySummary?.bodyFat?.toFixed(1) || "--"}
+                      </p>
                       <p className="text-xs text-muted-foreground">Body Fat %</p>
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full mt-4"
                     onClick={() => setShowAddMetricDialog(true)}
                   >
@@ -1182,7 +1316,9 @@ export function HealthHubPanel() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-4">
-                    <p className="text-4xl font-bold">{todaySummary?.sleepHours?.toFixed(1) || '--'}</p>
+                    <p className="text-4xl font-bold">
+                      {todaySummary?.sleepHours?.toFixed(1) || "--"}
+                    </p>
                     <p className="text-muted-foreground">hours last night</p>
                   </div>
                 </CardContent>
@@ -1190,15 +1326,11 @@ export function HealthHubPanel() {
             </div>
           )}
 
-          {!isLoading && activeTab === 'medical' && (
-            <HealthTrackingPanel />
-          )}
+          {!isLoading && activeTab === "medical" && <HealthTrackingPanel />}
 
-          {!isLoading && activeTab === 'checkups' && (
-            <AgeBasedCheckupsPanel />
-          )}
+          {!isLoading && activeTab === "checkups" && <AgeBasedCheckupsPanel />}
 
-          {!isLoading && activeTab === 'trends' && (
+          {!isLoading && activeTab === "trends" && (
             <div className="space-y-4">
               <Card>
                 <CardHeader>
@@ -1210,17 +1342,17 @@ export function HealthHubPanel() {
                       const height = (day.steps / healthGoals.steps) * 100;
                       return (
                         <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
-                          <div 
+                          <div
                             className="w-full bg-primary/20 rounded-t relative overflow-hidden"
-                            style={{ height: '100%' }}
+                            style={{ height: "100%" }}
                           >
-                            <div 
+                            <div
                               className="absolute bottom-0 w-full bg-primary rounded-t transition-all"
                               style={{ height: `${Math.min(height, 100)}%` }}
                             />
                           </div>
                           <span className="text-xs text-muted-foreground">
-                            {format(parseISO(day.date), 'EEE').slice(0, 1)}
+                            {format(parseISO(day.date), "EEE").slice(0, 1)}
                           </span>
                         </div>
                       );
@@ -1235,21 +1367,26 @@ export function HealthHubPanel() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {weeklyData.slice(-5).reverse().map((day) => (
-                      <div key={day.date} className="flex items-center justify-between">
-                        <span className="text-sm">{format(parseISO(day.date), 'EEE, MMM d')}</span>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-muted-foreground">
-                            <Footprints className="w-3 h-3 inline mr-1" />
-                            {day.steps.toLocaleString()}
+                    {weeklyData
+                      .slice(-5)
+                      .reverse()
+                      .map((day) => (
+                        <div key={day.date} className="flex items-center justify-between">
+                          <span className="text-sm">
+                            {format(parseISO(day.date), "EEE, MMM d")}
                           </span>
-                          <span className="text-muted-foreground">
-                            <Flame className="w-3 h-3 inline mr-1" />
-                            {day.calories}
-                          </span>
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="text-muted-foreground">
+                              <Footprints className="w-3 h-3 inline mr-1" />
+                              {day.steps.toLocaleString()}
+                            </span>
+                            <span className="text-muted-foreground">
+                              <Flame className="w-3 h-3 inline mr-1" />
+                              {day.calories}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </CardContent>
               </Card>

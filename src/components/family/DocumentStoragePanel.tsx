@@ -1,16 +1,24 @@
-import React, { useState } from 'react';
-import { useFamilyDocuments, FamilyDocument } from '@/hooks/useFamilyDocuments';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { 
-  FileText, Upload, Trash2, AlertCircle, Search,
-  CreditCard, Shield, FileCheck, Folder, Eye
-} from 'lucide-react';
-import { format, isPast, isFuture } from 'date-fns';
-import { AddDocumentDialog } from './AddDocumentDialog';
+import React, { useState } from "react";
+import { useFamilyDocuments, FamilyDocument } from "@/hooks/useFamilyDocuments";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  FileText,
+  Upload,
+  Trash2,
+  AlertCircle,
+  Search,
+  CreditCard,
+  Shield,
+  FileCheck,
+  Folder,
+  Eye,
+} from "lucide-react";
+import { format, isPast, isFuture } from "date-fns";
+import { AddDocumentDialog } from "./AddDocumentDialog";
 
 const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   id: CreditCard,
@@ -22,42 +30,44 @@ const categoryIcons: Record<string, React.ComponentType<{ className?: string }>>
 };
 
 const categoryColors: Record<string, string> = {
-  id: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
-  insurance: 'bg-green-500/20 text-green-700 dark:text-green-400',
-  medical: 'bg-red-500/20 text-red-700 dark:text-red-400',
-  legal: 'bg-purple-500/20 text-purple-700 dark:text-purple-400',
-  education: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400',
-  other: 'bg-muted text-muted-foreground',
+  id: "bg-blue-500/20 text-blue-700 dark:text-blue-400",
+  insurance: "bg-green-500/20 text-green-700 dark:text-green-400",
+  medical: "bg-red-500/20 text-red-700 dark:text-red-400",
+  legal: "bg-purple-500/20 text-purple-700 dark:text-purple-400",
+  education: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400",
+  other: "bg-muted text-muted-foreground",
 };
 
 export function DocumentStoragePanel() {
-  const { documents, isLoading, deleteDocument, getSignedUrl, getExpiringDocuments } = useFamilyDocuments();
+  const { documents, isLoading, deleteDocument, getSignedUrl, getExpiringDocuments } =
+    useFamilyDocuments();
   const { members } = useFamilyMembers();
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const getMemberName = (id: string | null) => {
-    if (!id) return 'Family';
-    return members.find(m => m.id === id)?.name || 'Unknown';
+    if (!id) return "Family";
+    return members.find((m) => m.id === id)?.name || "Unknown";
   };
 
   const handleDownload = async (doc: FamilyDocument) => {
     const url = await getSignedUrl(doc.file_path);
     if (url) {
-      window.open(url, '_blank');
+      window.open(url, "_blank");
     }
   };
 
   const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return '';
+    if (!bytes) return "";
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = !searchQuery || 
+  const filteredDocuments = documents.filter((doc) => {
+    const matchesSearch =
+      !searchQuery ||
       doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       doc.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = !selectedCategory || doc.category === selectedCategory;
@@ -74,7 +84,7 @@ export function DocumentStoragePanel() {
     );
   }
 
-  const categories = ['id', 'insurance', 'medical', 'legal', 'education', 'other'];
+  const categories = ["id", "insurance", "medical", "legal", "education", "other"];
 
   return (
     <div className="space-y-4">
@@ -110,7 +120,7 @@ export function DocumentStoragePanel() {
       {/* Category Filters */}
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant={selectedCategory === null ? 'default' : 'outline'}
+          variant={selectedCategory === null ? "default" : "outline"}
           size="sm"
           onClick={() => setSelectedCategory(null)}
         >
@@ -121,7 +131,7 @@ export function DocumentStoragePanel() {
           return (
             <Button
               key={cat}
-              variant={selectedCategory === cat ? 'default' : 'outline'}
+              variant={selectedCategory === cat ? "default" : "outline"}
               size="sm"
               onClick={() => setSelectedCategory(cat)}
             >
@@ -149,7 +159,8 @@ export function DocumentStoragePanel() {
         <div className="grid gap-3 sm:grid-cols-2">
           {filteredDocuments.map((doc) => {
             const Icon = categoryIcons[doc.category] || Folder;
-            const isExpiringSoon = doc.expiry_date && 
+            const isExpiringSoon =
+              doc.expiry_date &&
               new Date(doc.expiry_date) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) &&
               isFuture(new Date(doc.expiry_date));
             const isExpired = doc.expiry_date && isPast(new Date(doc.expiry_date));
@@ -157,15 +168,15 @@ export function DocumentStoragePanel() {
             return (
               <Card key={doc.id} className="p-4">
                 <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg ${categoryColors[doc.category] || categoryColors.other}`}>
+                  <div
+                    className={`p-2 rounded-lg ${categoryColors[doc.category] || categoryColors.other}`}
+                  >
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium truncate">{doc.name}</h3>
-                      {doc.is_sensitive && (
-                        <Shield className="h-3 w-3 text-amber-500" />
-                      )}
+                      {doc.is_sensitive && <Shield className="h-3 w-3 text-amber-500" />}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="text-xs">
@@ -178,12 +189,17 @@ export function DocumentStoragePanel() {
                       )}
                     </div>
                     {doc.expiry_date && (
-                      <div className={`text-xs mt-2 ${
-                        isExpired ? 'text-destructive' : 
-                        isExpiringSoon ? 'text-amber-600' : 'text-muted-foreground'
-                      }`}>
-                        {isExpired ? 'Expired: ' : 'Expires: '}
-                        {format(new Date(doc.expiry_date), 'MMM d, yyyy')}
+                      <div
+                        className={`text-xs mt-2 ${
+                          isExpired
+                            ? "text-destructive"
+                            : isExpiringSoon
+                              ? "text-amber-600"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {isExpired ? "Expired: " : "Expires: "}
+                        {format(new Date(doc.expiry_date), "MMM d, yyyy")}
                       </div>
                     )}
                   </div>

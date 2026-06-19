@@ -67,12 +67,12 @@ const LONG_PLAYBOOK: string[] = [
 ];
 
 export function shortPlaybook(platforms: string[]): string {
-  const targets = platforms.filter((p): p is Platform =>
-    (KNOWN_PLATFORMS as string[]).includes(p),
-  );
+  const targets = platforms.filter((p): p is Platform => (KNOWN_PLATFORMS as string[]).includes(p));
   const list = targets.length ? targets : (["generic"] as Platform[]);
   return list
-    .map((p) => `${platformLabel(p)} short-form best practices:\n- ${SHORT_PLAYBOOK[p].join("\n- ")}`)
+    .map(
+      (p) => `${platformLabel(p)} short-form best practices:\n- ${SHORT_PLAYBOOK[p].join("\n- ")}`,
+    )
     .join("\n\n");
 }
 

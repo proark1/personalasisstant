@@ -1,21 +1,27 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Task } from '@/types/flux';
-import { useAIAssistant } from '@/hooks/useAIAssistant';
-import { Sparkles, Loader2, Plus, Clock } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Task } from "@/types/flux";
+import { useAIAssistant } from "@/hooks/useAIAssistant";
+import { Sparkles, Loader2, Plus, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TaskBreakdownDialogProps {
   task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddSubtasks: (subtasks: { title: string; priority: 'high' | 'medium' | 'low' }[]) => void;
+  onAddSubtasks: (subtasks: { title: string; priority: "high" | "medium" | "low" }[]) => void;
 }
 
-export function TaskBreakdownDialog({ 
-  task, 
-  open, 
+export function TaskBreakdownDialog({
+  task,
+  open,
   onOpenChange,
   onAddSubtasks,
 }: TaskBreakdownDialogProps) {
@@ -38,7 +44,7 @@ export function TaskBreakdownDialog({
   };
 
   const toggleSubtask = (index: number) => {
-    setSelectedSubtasks(prev => {
+    setSelectedSubtasks((prev) => {
       const next = new Set(prev);
       if (next.has(index)) {
         next.delete(index);
@@ -51,11 +57,11 @@ export function TaskBreakdownDialog({
 
   const handleAddSelected = () => {
     if (!breakdownResult) return;
-    
+
     const selected = breakdownResult
       .filter((_, i) => selectedSubtasks.has(i))
-      .map(s => ({ title: s.title, priority: s.priority }));
-    
+      .map((s) => ({ title: s.title, priority: s.priority }));
+
     onAddSubtasks(selected);
     onOpenChange(false);
     clearResults();
@@ -68,9 +74,9 @@ export function TaskBreakdownDialog({
   }
 
   const priorityColors = {
-    high: 'text-destructive bg-destructive/10',
-    medium: 'text-warning bg-warning/10',
-    low: 'text-muted-foreground bg-muted',
+    high: "text-destructive bg-destructive/10",
+    medium: "text-warning bg-warning/10",
+    low: "text-muted-foreground bg-muted",
   };
 
   return (
@@ -82,7 +88,7 @@ export function TaskBreakdownDialog({
             AI Task Breakdown
           </DialogTitle>
           <DialogDescription>
-            {task ? `Breaking down: "${task.title}"` : 'Select a task to break down'}
+            {task ? `Breaking down: "${task.title}"` : "Select a task to break down"}
           </DialogDescription>
         </DialogHeader>
 
@@ -100,31 +106,43 @@ export function TaskBreakdownDialog({
                   onClick={() => toggleSubtask(i)}
                   className={cn(
                     "w-full p-3 rounded-lg border text-left transition-all",
-                    selectedSubtasks.has(i) 
-                      ? "border-primary bg-primary/5" 
-                      : "border-border hover:border-muted-foreground/50"
+                    selectedSubtasks.has(i)
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/50",
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5",
-                      selectedSubtasks.has(i) 
-                        ? "border-primary bg-primary" 
-                        : "border-muted-foreground/30"
-                    )}>
+                    <div
+                      className={cn(
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5",
+                        selectedSubtasks.has(i)
+                          ? "border-primary bg-primary"
+                          : "border-muted-foreground/30",
+                      )}
+                    >
                       {selectedSubtasks.has(i) && (
-                        <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        <svg
+                          className="w-3 h-3 text-primary-foreground"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{subtask.title}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={cn(
-                          "px-1.5 py-0.5 rounded text-[10px] font-medium uppercase",
-                          priorityColors[subtask.priority]
-                        )}>
+                        <span
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px] font-medium uppercase",
+                            priorityColors[subtask.priority],
+                          )}
+                        >
                           {subtask.priority}
                         </span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -142,7 +160,7 @@ export function TaskBreakdownDialog({
               <p className="text-xs text-muted-foreground">
                 {selectedSubtasks.size} of {breakdownResult.length} selected
               </p>
-              <Button 
+              <Button
                 onClick={handleAddSelected}
                 disabled={selectedSubtasks.size === 0}
                 className="gap-2"

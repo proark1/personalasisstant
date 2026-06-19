@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { TablesUpdate } from '@/integrations/supabase/types';
-import { Project } from '@/types/flux';
-import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
+import { Project } from "@/types/flux";
+import { useActiveWorkspaceId } from "@/contexts/WorkspaceContext";
 
 interface DbProject {
   id: string;
@@ -40,10 +40,10 @@ export function useProjects(userId: string | undefined) {
     setLoading(true);
     // Active workspace → all projects in that workspace the user can see.
     // Personal (workspaceId === null) → only the user's own personal projects.
-    const query = supabase.from('projects').select('*').order('created_at', { ascending: false });
+    const query = supabase.from("projects").select("*").order("created_at", { ascending: false });
     const scoped = workspaceId
-      ? query.eq('workspace_id', workspaceId)
-      : query.eq('user_id', userId).is('workspace_id', null);
+      ? query.eq("workspace_id", workspaceId)
+      : query.eq("user_id", userId).is("workspace_id", null);
     const { data } = await scoped;
 
     if (data) {
@@ -56,29 +56,32 @@ export function useProjects(userId: string | undefined) {
     fetchProjects();
   }, [fetchProjects]);
 
-  const addProject = useCallback(async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project | null> => {
-    if (!userId) return null;
+  const addProject = useCallback(
+    async (project: Omit<Project, "id" | "createdAt" | "updatedAt">): Promise<Project | null> => {
+      if (!userId) return null;
 
-    const { data, error } = await supabase
-      .from('projects')
-      .insert({
-        user_id: userId,
-        workspace_id: workspaceId,
-        name: project.name,
-        description: project.description,
-        color: project.color,
-        is_archived: project.isArchived,
-      })
-      .select()
-      .single();
+      const { data, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: userId,
+          workspace_id: workspaceId,
+          name: project.name,
+          description: project.description,
+          color: project.color,
+          is_archived: project.isArchived,
+        })
+        .select()
+        .single();
 
-    if (data && !error) {
-      const newProject = dbProjectToProject(data);
-      setProjects(prev => [newProject, ...prev]);
-      return newProject;
-    }
-    return null;
-  }, [userId, workspaceId]);
+      if (data && !error) {
+        const newProject = dbProjectToProject(data);
+        setProjects((prev) => [newProject, ...prev]);
+        return newProject;
+      }
+      return null;
+    },
+    [userId, workspaceId],
+  );
 
   const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
     const dbUpdates: Record<string, unknown> = {};
@@ -88,32 +91,32 @@ export function useProjects(userId: string | undefined) {
     if (updates.isArchived !== undefined) dbUpdates.is_archived = updates.isArchived;
 
     const { error } = await supabase
-      .from('projects')
-      .update(dbUpdates as TablesUpdate<'projects'>)
-      .eq('id', id);
+      .from("projects")
+      .update(dbUpdates as TablesUpdate<"projects">)
+      .eq("id", id);
 
     if (!error) {
-      setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+      setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
     }
   }, []);
 
   const deleteProject = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from("projects").delete().eq("id", id);
 
     if (!error) {
-      setProjects(prev => prev.filter(p => p.id !== id));
+      setProjects((prev) => prev.filter((p) => p.id !== id));
     }
   }, []);
 
-  const getProjectProgress = useCallback((projectId: string, tasks: { projectId?: string; completed: boolean }[]) => {
-    const projectTasks = tasks.filter(t => t.projectId === projectId);
-    if (projectTasks.length === 0) return 0;
-    const completed = projectTasks.filter(t => t.completed).length;
-    return Math.round((completed / projectTasks.length) * 100);
-  }, []);
+  const getProjectProgress = useCallback(
+    (projectId: string, tasks: { projectId?: string; completed: boolean }[]) => {
+      const projectTasks = tasks.filter((t) => t.projectId === projectId);
+      if (projectTasks.length === 0) return 0;
+      const completed = projectTasks.filter((t) => t.completed).length;
+      return Math.round((completed / projectTasks.length) * 100);
+    },
+    [],
+  );
 
   return {
     projects,

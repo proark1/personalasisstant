@@ -1,16 +1,16 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Plus, Edit, Trash2, Phone, Mail, Cake, MapPin, Link2, Users } from 'lucide-react';
-import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
-import { useFamilyContacts } from '@/hooks/useFamilyContacts';
-import { useAuth } from '@/hooks/useAuth';
-import { Contact } from '@/hooks/useContacts';
-import { AddFamilyMemberDialog } from './AddFamilyMemberDialog';
-import { EditFamilyMemberDialog } from './EditFamilyMemberDialog';
-import { format, differenceInYears } from 'date-fns';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Plus, Edit, Trash2, Phone, Mail, Cake, MapPin, Link2, Users } from "lucide-react";
+import { useFamilyMembers, FamilyMember } from "@/hooks/useFamilyMembers";
+import { useFamilyContacts } from "@/hooks/useFamilyContacts";
+import { useAuth } from "@/hooks/useAuth";
+import { Contact } from "@/hooks/useContacts";
+import { AddFamilyMemberDialog } from "./AddFamilyMemberDialog";
+import { EditFamilyMemberDialog } from "./EditFamilyMemberDialog";
+import { format, differenceInYears } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,32 +20,36 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 
 const relationshipColors: Record<string, string> = {
-  spouse: 'bg-pink-500/10 text-pink-500 border-pink-500/20',
-  child: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  parent: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
-  sibling: 'bg-green-500/10 text-green-500 border-green-500/20',
-  grandparent: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-  grandchild: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20',
-  'aunt': 'bg-rose-500/10 text-rose-500 border-rose-500/20',
-  'uncle': 'bg-rose-500/10 text-rose-500 border-rose-500/20',
-  'cousin': 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
-  'in-law': 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  family: 'bg-violet-500/10 text-violet-500 border-violet-500/20',
-  other: 'bg-muted text-muted-foreground border-border',
+  spouse: "bg-pink-500/10 text-pink-500 border-pink-500/20",
+  child: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  parent: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+  sibling: "bg-green-500/10 text-green-500 border-green-500/20",
+  grandparent: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  grandchild: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
+  aunt: "bg-rose-500/10 text-rose-500 border-rose-500/20",
+  uncle: "bg-rose-500/10 text-rose-500 border-rose-500/20",
+  cousin: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+  "in-law": "bg-orange-500/10 text-orange-500 border-orange-500/20",
+  family: "bg-violet-500/10 text-violet-500 border-violet-500/20",
+  other: "bg-muted text-muted-foreground border-border",
 };
 
 // Unified type for displaying in the list
-type FamilyListItem = 
-  | { type: 'member'; data: FamilyMember; contact?: Contact }
-  | { type: 'contact'; data: Contact };
+type FamilyListItem =
+  | { type: "member"; data: FamilyMember; contact?: Contact }
+  | { type: "contact"; data: Contact };
 
 export function FamilyMembersList() {
   const { user } = useAuth();
   const { members, isLoading, deleteMember } = useFamilyMembers();
-  const { contactsWithoutDetails, familyContactsWithDetails, isLoading: contactsLoading } = useFamilyContacts(user?.id);
+  const {
+    contactsWithoutDetails,
+    familyContactsWithDetails,
+    isLoading: contactsLoading,
+  } = useFamilyContacts(user?.id);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
   const [deletingMember, setDeletingMember] = useState<FamilyMember | null>(null);
@@ -56,7 +60,12 @@ export function FamilyMembersList() {
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const handleDelete = async () => {
@@ -77,12 +86,14 @@ export function FamilyMembersList() {
   // Build unified list: members (with their linked contacts) + unlinked family contacts
   const unifiedList: FamilyListItem[] = [
     // Family members (may have linked contacts)
-    ...members.map(member => {
-      const linkedContact = familyContactsWithDetails.find(f => f.contact.id === member.contact_id);
-      return { type: 'member' as const, data: member, contact: linkedContact?.contact };
+    ...members.map((member) => {
+      const linkedContact = familyContactsWithDetails.find(
+        (f) => f.contact.id === member.contact_id,
+      );
+      return { type: "member" as const, data: member, contact: linkedContact?.contact };
     }),
     // Family contacts without family_member records
-    ...contactsWithoutDetails.map(contact => ({ type: 'contact' as const, data: contact })),
+    ...contactsWithoutDetails.map((contact) => ({ type: "contact" as const, data: contact })),
   ];
 
   const totalCount = unifiedList.length;
@@ -93,7 +104,9 @@ export function FamilyMembersList() {
         <div>
           <h3 className="text-lg font-medium">Family Members</h3>
           <p className="text-xs text-muted-foreground">
-            {members.length} member(s){contactsWithoutDetails.length > 0 && ` + ${contactsWithoutDetails.length} from contacts`}
+            {members.length} member(s)
+            {contactsWithoutDetails.length > 0 &&
+              ` + ${contactsWithoutDetails.length} from contacts`}
           </p>
         </div>
         <Button onClick={() => setShowAddDialog(true)} size="sm">
@@ -116,7 +129,7 @@ export function FamilyMembersList() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {unifiedList.map((item) => {
-            if (item.type === 'member') {
+            if (item.type === "member") {
               const member = item.data;
               return (
                 <Card key={`member-${member.id}`} className="overflow-hidden">
@@ -130,8 +143,8 @@ export function FamilyMembersList() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-medium truncate">{member.name}</h4>
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={`text-xs capitalize ${relationshipColors[member.relationship] || relationshipColors.other}`}
                           >
                             {member.relationship}
@@ -142,14 +155,15 @@ export function FamilyMembersList() {
                             </Badge>
                           )}
                         </div>
-                        
+
                         <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                           {member.birth_date && (
                             <div className="flex items-center gap-1">
                               <Cake className="h-3 w-3" />
                               <span>
-                                {format(new Date(member.birth_date), 'MMM d, yyyy')}
-                                {getAge(member.birth_date) !== null && ` (${getAge(member.birth_date)} yrs)`}
+                                {format(new Date(member.birth_date), "MMM d, yyyy")}
+                                {getAge(member.birth_date) !== null &&
+                                  ` (${getAge(member.birth_date)} yrs)`}
                               </span>
                             </div>
                           )}
@@ -176,17 +190,17 @@ export function FamilyMembersList() {
                     </div>
 
                     <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="flex-1"
                         onClick={() => setEditingMember(member)}
                       >
                         <Edit className="h-4 w-4 mr-1" />
                         Edit
                       </Button>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         className="text-destructive hover:text-destructive"
                         onClick={() => setDeletingMember(member)}
@@ -212,8 +226,8 @@ export function FamilyMembersList() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-medium truncate">{contact.name}</h4>
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={`text-xs ${relationshipColors.family}`}
                           >
                             Family
@@ -223,7 +237,7 @@ export function FamilyMembersList() {
                             Contact
                           </Badge>
                         </div>
-                        
+
                         <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                           {contact.phone && (
                             <div className="flex items-center gap-1">
@@ -241,7 +255,7 @@ export function FamilyMembersList() {
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
                               <span className="truncate">
-                                {[contact.city, contact.country].filter(Boolean).join(', ')}
+                                {[contact.city, contact.country].filter(Boolean).join(", ")}
                               </span>
                             </div>
                           )}
@@ -262,10 +276,7 @@ export function FamilyMembersList() {
         </div>
       )}
 
-      <AddFamilyMemberDialog 
-        open={showAddDialog} 
-        onOpenChange={setShowAddDialog} 
-      />
+      <AddFamilyMemberDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
 
       {editingMember && (
         <EditFamilyMemberDialog
@@ -275,17 +286,24 @@ export function FamilyMembersList() {
         />
       )}
 
-      <AlertDialog open={!!deletingMember} onOpenChange={(open) => !open && setDeletingMember(null)}>
+      <AlertDialog
+        open={!!deletingMember}
+        onOpenChange={(open) => !open && setDeletingMember(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Family Member?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove {deletingMember?.name} from your family list. This action can be undone.
+              This will remove {deletingMember?.name} from your family list. This action can be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground"
+            >
               Remove
             </AlertDialogAction>
           </AlertDialogFooter>

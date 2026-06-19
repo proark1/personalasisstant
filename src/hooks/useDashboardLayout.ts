@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from './useAuth';
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "./useAuth";
 
 /**
  * Per-user dashboard customization: which Insights cards the user has hidden.
@@ -8,7 +8,7 @@ import { useAuth } from './useAuth';
  * offline. Hiding is opt-in — every card is visible by default, so existing
  * users see no change until they actively declutter.
  */
-const keyFor = (userId: string | undefined) => `darai-dashboard-hidden-${userId ?? 'anon'}`;
+const keyFor = (userId: string | undefined) => `darai-dashboard-hidden-${userId ?? "anon"}`;
 
 export function useDashboardLayout() {
   const { user } = useAuth();

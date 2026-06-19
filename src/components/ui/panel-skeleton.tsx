@@ -17,7 +17,7 @@ function ListSkeleton({ count }: { count: number }) {
           key={i}
           className={cn(
             "flex items-center gap-3 p-3 rounded-xl border border-border bg-card",
-            "animate-fade-in"
+            "animate-fade-in",
           )}
           style={{ animationDelay: `${i * 80}ms`, animationFillMode: "backwards" }}
         >
@@ -39,10 +39,7 @@ function GridSkeleton({ count }: { count: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className={cn(
-            "p-4 rounded-xl border border-border bg-card space-y-3",
-            "animate-fade-in"
-          )}
+          className={cn("p-4 rounded-xl border border-border bg-card space-y-3", "animate-fade-in")}
           style={{ animationDelay: `${i * 80}ms`, animationFillMode: "backwards" }}
         >
           <Skeleton className="h-8 w-8 rounded-lg" />
@@ -60,10 +57,7 @@ function CardsSkeleton({ count }: { count: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className={cn(
-            "p-4 rounded-xl border border-border bg-card space-y-3",
-            "animate-fade-in"
-          )}
+          className={cn("p-4 rounded-xl border border-border bg-card space-y-3", "animate-fade-in")}
           style={{ animationDelay: `${i * 80}ms`, animationFillMode: "backwards" }}
         >
           <div className="flex items-center justify-between">

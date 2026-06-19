@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export interface ChatAttachment {
   name: string;
@@ -13,68 +13,75 @@ export function useChatAttachments(userId: string) {
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
 
-  const uploadFile = useCallback(async (file: File): Promise<ChatAttachment | null> => {
-    if (!userId) return null;
+  const uploadFile = useCallback(
+    async (file: File): Promise<ChatAttachment | null> => {
+      if (!userId) return null;
 
-    setUploading(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
+      setUploading(true);
+      try {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${userId}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('chat-attachments')
-        .upload(filePath, file);
+        const { error: uploadError } = await supabase.storage
+          .from("chat-attachments")
+          .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      // Bucket is private — generate a long-lived signed URL (7 days) for sharing in chat.
-      const { data: signed, error: signErr } = await supabase.storage
-        .from('chat-attachments')
-        .createSignedUrl(filePath, 60 * 60 * 24 * 7);
-      if (signErr || !signed?.signedUrl) throw signErr ?? new Error('Could not create signed URL');
+        // Bucket is private — generate a long-lived signed URL (7 days) for sharing in chat.
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("chat-attachments")
+          .createSignedUrl(filePath, 60 * 60 * 24 * 7);
+        if (signErr || !signed?.signedUrl)
+          throw signErr ?? new Error("Could not create signed URL");
 
-      return {
-        name: file.name,
-        url: signed.signedUrl,
-        type: file.type,
-        size: file.size,
-      };
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      toast({
-        title: 'Upload failed',
-        description: 'Could not upload the file. Please try again.',
-        variant: 'destructive',
-      });
-      return null;
-    } finally {
-      setUploading(false);
-    }
-  }, [userId, toast]);
-
-  const uploadMultipleFiles = useCallback(async (files: FileList): Promise<ChatAttachment[]> => {
-    const results: ChatAttachment[] = [];
-    
-    for (const file of Array.from(files)) {
-      // Limit file size to 10MB
-      if (file.size > 10 * 1024 * 1024) {
+        return {
+          name: file.name,
+          url: signed.signedUrl,
+          type: file.type,
+          size: file.size,
+        };
+      } catch (error) {
+        console.error("Error uploading file:", error);
         toast({
-          title: 'File too large',
-          description: `${file.name} is larger than 10MB`,
-          variant: 'destructive',
+          title: "Upload failed",
+          description: "Could not upload the file. Please try again.",
+          variant: "destructive",
         });
-        continue;
+        return null;
+      } finally {
+        setUploading(false);
       }
-      
-      const attachment = await uploadFile(file);
-      if (attachment) {
-        results.push(attachment);
+    },
+    [userId, toast],
+  );
+
+  const uploadMultipleFiles = useCallback(
+    async (files: FileList): Promise<ChatAttachment[]> => {
+      const results: ChatAttachment[] = [];
+
+      for (const file of Array.from(files)) {
+        // Limit file size to 10MB
+        if (file.size > 10 * 1024 * 1024) {
+          toast({
+            title: "File too large",
+            description: `${file.name} is larger than 10MB`,
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        const attachment = await uploadFile(file);
+        if (attachment) {
+          results.push(attachment);
+        }
       }
-    }
-    
-    return results;
-  }, [uploadFile, toast]);
+
+      return results;
+    },
+    [uploadFile, toast],
+  );
 
   return {
     uploading,

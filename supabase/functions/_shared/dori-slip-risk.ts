@@ -21,9 +21,9 @@ export interface AtRiskTask {
 
 export interface FetchOptions {
   userId: string;
-  minRisk?: number;       // default 0.55
-  withinHours?: number;   // only flag tasks due in next N hours; default 48
-  limit?: number;         // default 10
+  minRisk?: number; // default 0.55
+  withinHours?: number; // only flag tasks due in next N hours; default 48
+  limit?: number; // default 10
   workspaceId?: string | null;
   excludeOverdue?: boolean; // default true — we want predictive, not "already late"
 }
@@ -31,7 +31,10 @@ export interface FetchOptions {
 // Minimal Supabase client surface needed by this module.
 type SlipRiskClient = { from(table: string): Record<string, (...args: unknown[]) => unknown> };
 
-export async function fetchAtRiskTasks(supabase: SlipRiskClient, opts: FetchOptions): Promise<AtRiskTask[]> {
+export async function fetchAtRiskTasks(
+  supabase: SlipRiskClient,
+  opts: FetchOptions,
+): Promise<AtRiskTask[]> {
   const minRisk = opts.minRisk ?? 0.55;
   const withinHours = opts.withinHours ?? 48;
   const limit = opts.limit ?? 10;
@@ -41,26 +44,24 @@ export async function fetchAtRiskTasks(supabase: SlipRiskClient, opts: FetchOpti
   const now = new Date().toISOString();
 
   let q = supabase
-    .from('dori_slip_risk')
-    .select('*')
-    .eq('user_id', opts.userId)
-    .gte('slip_risk', minRisk)
-    .lte('due_date', horizon)
-    .order('slip_risk', { ascending: false })
+    .from("dori_slip_risk")
+    .select("*")
+    .eq("user_id", opts.userId)
+    .gte("slip_risk", minRisk)
+    .lte("due_date", horizon)
+    .order("slip_risk", { ascending: false })
     .limit(limit);
 
   if (excludeOverdue) {
-    q = q.gt('due_date', now);
+    q = q.gt("due_date", now);
   }
   if (opts.workspaceId !== undefined) {
-    q = opts.workspaceId
-      ? q.eq('workspace_id', opts.workspaceId)
-      : q.is('workspace_id', null);
+    q = opts.workspaceId ? q.eq("workspace_id", opts.workspaceId) : q.is("workspace_id", null);
   }
 
   const { data, error } = await q;
   if (error) {
-    console.warn('[fetchAtRiskTasks] failed', error.message);
+    console.warn("[fetchAtRiskTasks] failed", error.message);
     return [];
   }
   return (data ?? []) as AtRiskTask[];
@@ -72,8 +73,13 @@ export async function fetchAtRiskTasks(supabase: SlipRiskClient, opts: FetchOpti
 export function nudgeMessage(t: AtRiskTask, tz?: string): string {
   const due = t.due_date ? new Date(t.due_date) : null;
   const dueLabel = due
-    ? due.toLocaleString('en-GB', { timeZone: tz, weekday: 'short', hour: '2-digit', minute: '2-digit' })
-    : 'soon';
+    ? due.toLocaleString("en-GB", {
+        timeZone: tz,
+        weekday: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "soon";
   const riskPct = Math.round(t.slip_risk * 100);
   return `📍 "${t.title}" is due ${dueLabel} — ${riskPct}% slip risk based on your history. Want to reschedule or break it down?`;
 }

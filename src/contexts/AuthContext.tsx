@@ -1,6 +1,14 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Profile {
   id: string;
@@ -18,7 +26,11 @@ interface AuthContextType {
   loading: boolean;
   /** True until the profile row has been fetched at least once for the signed-in user. */
   profileLoading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ data: unknown; error: unknown }>;
+  signUp: (
+    email: string,
+    password: string,
+    displayName?: string,
+  ) => Promise<{ data: unknown; error: unknown }>;
   signIn: (email: string, password: string) => Promise<{ data: unknown; error: unknown }>;
   signOut: () => Promise<{ error: unknown }>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ data?: unknown; error: unknown }>;
@@ -38,9 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId)
         .single();
 
       if (data && !error) {
@@ -58,20 +70,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, fetchProfile]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
 
-        if (session?.user) {
-          setProfileLoading(true);
-          setTimeout(() => fetchProfile(session.user.id), 0);
-        } else {
-          setProfile(null);
-          setProfileLoading(false);
-        }
+      if (session?.user) {
+        setProfileLoading(true);
+        setTimeout(() => fetchProfile(session.user.id), 0);
+      } else {
+        setProfile(null);
+        setProfileLoading(false);
       }
-    );
+    });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -94,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: { display_name: displayName || email.split('@')[0] },
+        data: { display_name: displayName || email.split("@")[0] },
       },
     });
     return { data, error };
@@ -110,35 +122,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   }, []);
 
-  const updateProfile = useCallback(async (updates: Partial<Profile>) => {
-    if (!user) return { error: new Error('Not authenticated') };
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('user_id', user.id)
-      .select()
-      .single();
-    if (data && !error) {
-      setProfile(data as Profile);
-    }
-    return { data, error };
-  }, [user]);
+  const updateProfile = useCallback(
+    async (updates: Partial<Profile>) => {
+      if (!user) return { error: new Error("Not authenticated") };
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("user_id", user.id)
+        .select()
+        .single();
+      if (data && !error) {
+        setProfile(data as Profile);
+      }
+      return { data, error };
+    },
+    [user],
+  );
 
   const value = useMemo(
-    () => ({ user, session, profile, loading, profileLoading, signUp, signIn, signOut, updateProfile, refreshProfile }),
-    [user, session, profile, loading, profileLoading, signUp, signIn, signOut, updateProfile, refreshProfile],
+    () => ({
+      user,
+      session,
+      profile,
+      loading,
+      profileLoading,
+      signUp,
+      signIn,
+      signOut,
+      updateProfile,
+      refreshProfile,
+    }),
+    [
+      user,
+      session,
+      profile,
+      loading,
+      profileLoading,
+      signUp,
+      signIn,
+      signOut,
+      updateProfile,
+      refreshProfile,
+    ],
   );
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuthContext() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuthContext must be used within AuthProvider');
+  if (!ctx) throw new Error("useAuthContext must be used within AuthProvider");
   return ctx;
 }

@@ -1,21 +1,16 @@
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Contract } from '@/hooks/useContracts';
-import { useContractAI } from '@/hooks/useContractAI';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Copy, Mail, Loader2, Sparkles } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Contract } from "@/hooks/useContracts";
+import { useContractAI } from "@/hooks/useContractAI";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Copy, Mail, Loader2, Sparkles } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 interface CancellationEmailDialogProps {
   open: boolean;
@@ -26,14 +21,14 @@ interface CancellationEmailDialogProps {
 export function CancellationEmailDialog({
   open,
   onOpenChange,
-  contract
+  contract,
 }: CancellationEmailDialogProps) {
   const { language, t } = useLanguage();
   const { toast } = useToast();
   const { generateCancellationEmail, isGeneratingEmail } = useContractAI();
-  
-  const [userName, setUserName] = useState('');
-  const [userAddress, setUserAddress] = useState('');
+
+  const [userName, setUserName] = useState("");
+  const [userAddress, setUserAddress] = useState("");
   const [templates, setTemplates] = useState<{
     formalLetter: string;
     emailVersion: string;
@@ -47,10 +42,10 @@ export function CancellationEmailDialog({
       name: contract.name,
       provider: contract.provider,
       contractNumber: contract.contractNumber,
-      renewalDate: contract.renewalDate ? format(contract.renewalDate, 'yyyy-MM-dd') : undefined,
+      renewalDate: contract.renewalDate ? format(contract.renewalDate, "yyyy-MM-dd") : undefined,
       userName: userName || undefined,
       userAddress: userAddress || undefined,
-      language: language as 'en' | 'de'
+      language: language as "en" | "de",
     });
 
     if (result) {
@@ -62,20 +57,20 @@ export function CancellationEmailDialog({
     try {
       await navigator.clipboard.writeText(text);
       toast({
-        title: t('contracts.toast.copied'),
-        description: t('contracts.toast.copiedDesc')
+        title: t("contracts.toast.copied"),
+        description: t("contracts.toast.copiedDesc"),
       });
     } catch {
       toast({
-        variant: 'destructive',
-        title: t('contracts.toast.copyFailed'),
-        description: t('contracts.toast.copyFailedDesc')
+        variant: "destructive",
+        title: t("contracts.toast.copyFailed"),
+        description: t("contracts.toast.copyFailedDesc"),
       });
     }
   };
 
   const openInEmailClient = (emailText: string) => {
-    const subject = encodeURIComponent(`Contract Cancellation - ${contract?.name || ''}`);
+    const subject = encodeURIComponent(`Contract Cancellation - ${contract?.name || ""}`);
     const body = encodeURIComponent(emailText);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
@@ -125,11 +120,7 @@ export function CancellationEmailDialog({
           </div>
 
           {/* Generate Button */}
-          <Button 
-            onClick={handleGenerate} 
-            disabled={isGeneratingEmail}
-            className="w-full"
-          >
+          <Button onClick={handleGenerate} disabled={isGeneratingEmail} className="w-full">
             {isGeneratingEmail ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -159,16 +150,16 @@ export function CancellationEmailDialog({
                   className="min-h-[300px] font-mono text-sm"
                 />
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => copyToClipboard(templates.emailVersion)}
                   >
                     <Copy className="w-4 h-4 mr-2" />
                     Copy
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => openInEmailClient(templates.emailVersion)}
                   >
@@ -184,8 +175,8 @@ export function CancellationEmailDialog({
                   readOnly
                   className="min-h-[300px] font-mono text-sm"
                 />
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => copyToClipboard(templates.formalLetter)}
                 >
@@ -200,8 +191,8 @@ export function CancellationEmailDialog({
                   readOnly
                   className="min-h-[150px] font-mono text-sm"
                 />
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => copyToClipboard(templates.briefVersion)}
                 >

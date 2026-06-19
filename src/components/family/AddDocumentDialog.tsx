@@ -1,14 +1,26 @@
-import { useState, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { useFamilyDocuments } from '@/hooks/useFamilyDocuments';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
-import { Upload, File } from 'lucide-react';
+import { useState, useRef } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { useFamilyDocuments } from "@/hooks/useFamilyDocuments";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
+import { Upload, File } from "lucide-react";
 
 interface AddDocumentDialogProps {
   open: boolean;
@@ -16,25 +28,25 @@ interface AddDocumentDialogProps {
 }
 
 const categories = [
-  { value: 'id', label: 'ID & Passport' },
-  { value: 'insurance', label: 'Insurance' },
-  { value: 'medical', label: 'Medical Records' },
-  { value: 'legal', label: 'Legal Documents' },
-  { value: 'education', label: 'Education' },
-  { value: 'other', label: 'Other' },
+  { value: "id", label: "ID & Passport" },
+  { value: "insurance", label: "Insurance" },
+  { value: "medical", label: "Medical Records" },
+  { value: "legal", label: "Legal Documents" },
+  { value: "education", label: "Education" },
+  { value: "other", label: "Other" },
 ];
 
 export function AddDocumentDialog({ open, onOpenChange }: AddDocumentDialogProps) {
   const { uploadDocument } = useFamilyDocuments();
   const { members } = useFamilyMembers();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [file, setFile] = useState<File | null>(null);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('other');
-  const [memberId, setMemberId] = useState<string>('');
-  const [expiryDate, setExpiryDate] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("other");
+  const [memberId, setMemberId] = useState<string>("");
+  const [expiryDate, setExpiryDate] = useState("");
   const [isSensitive, setIsSensitive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -43,7 +55,7 @@ export function AddDocumentDialog({ open, onOpenChange }: AddDocumentDialogProps
     if (selectedFile) {
       setFile(selectedFile);
       if (!name) {
-        setName(selectedFile.name.replace(/\.[^/.]+$/, ''));
+        setName(selectedFile.name.replace(/\.[^/.]+$/, ""));
       }
     }
   };
@@ -68,14 +80,14 @@ export function AddDocumentDialog({ open, onOpenChange }: AddDocumentDialogProps
 
   const resetForm = () => {
     setFile(null);
-    setName('');
-    setDescription('');
-    setCategory('other');
-    setMemberId('');
-    setExpiryDate('');
+    setName("");
+    setDescription("");
+    setCategory("other");
+    setMemberId("");
+    setExpiryDate("");
     setIsSensitive(false);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -102,9 +114,7 @@ export function AddDocumentDialog({ open, onOpenChange }: AddDocumentDialogProps
               ) : (
                 <>
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Click to select a file
-                  </p>
+                  <p className="text-sm text-muted-foreground">Click to select a file</p>
                 </>
               )}
             </div>
@@ -154,7 +164,9 @@ export function AddDocumentDialog({ open, onOpenChange }: AddDocumentDialogProps
                 <SelectContent>
                   <SelectItem value="">Family (shared)</SelectItem>
                   {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -186,18 +198,16 @@ export function AddDocumentDialog({ open, onOpenChange }: AddDocumentDialogProps
               <Label htmlFor="sensitive">Sensitive Document</Label>
               <p className="text-xs text-muted-foreground">Mark as sensitive for extra caution</p>
             </div>
-            <Switch
-              id="sensitive"
-              checked={isSensitive}
-              onCheckedChange={setIsSensitive}
-            />
+            <Switch id="sensitive" checked={isSensitive} onCheckedChange={setIsSensitive} />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSubmit} disabled={!file || !name.trim() || isUploading}>
-            {isUploading ? 'Uploading...' : 'Upload'}
+            {isUploading ? "Uploading..." : "Upload"}
           </Button>
         </DialogFooter>
       </DialogContent>

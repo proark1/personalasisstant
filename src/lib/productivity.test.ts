@@ -18,21 +18,15 @@ const todayMidnight = startOfDay(NOW);
 describe("calculateProductivityStreak", () => {
   it("returns 0 when there are no completed tasks", () => {
     expect(calculateProductivityStreak([])).toBe(0);
-    expect(
-      calculateProductivityStreak([{ completed: false, dueDate: todayMidnight }]),
-    ).toBe(0);
+    expect(calculateProductivityStreak([{ completed: false, dueDate: todayMidnight }])).toBe(0);
   });
 
   it("ignores completed tasks with no dueDate", () => {
-    expect(
-      calculateProductivityStreak([{ completed: true, dueDate: null }]),
-    ).toBe(0);
+    expect(calculateProductivityStreak([{ completed: true, dueDate: null }])).toBe(0);
   });
 
   it("counts a single-day streak (today)", () => {
-    expect(
-      calculateProductivityStreak([{ completed: true, dueDate: todayMidnight }]),
-    ).toBe(1);
+    expect(calculateProductivityStreak([{ completed: true, dueDate: todayMidnight }])).toBe(1);
   });
 
   it("counts a three-day consecutive streak", () => {

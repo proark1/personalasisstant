@@ -1,10 +1,17 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface UserRow {
   user_id: string;
@@ -20,16 +27,16 @@ interface Props {
 }
 
 export function UserManagementDialog({ user, open, onOpenChange, onSaved }: Props) {
-  const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setDisplayName(user.display_name || '');
-      setEmail(user.email || '');
-      setPassword('');
+      setDisplayName(user.display_name || "");
+      setEmail(user.email || "");
+      setPassword("");
     }
   }, [user]);
 
@@ -39,33 +46,33 @@ export function UserManagementDialog({ user, open, onOpenChange, onSaved }: Prop
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {};
-      if (displayName !== (user.display_name || '')) payload.display_name = displayName;
-      if (email && email !== (user.email || '')) payload.email = email;
+      if (displayName !== (user.display_name || "")) payload.display_name = displayName;
+      if (email && email !== (user.email || "")) payload.email = email;
       if (password) payload.password = password;
 
       if (Object.keys(payload).length === 0) {
-        toast.info('No changes to save');
+        toast.info("No changes to save");
         setSaving(false);
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('admin-user-management', {
-        body: { action: 'update', target_user_id: user.user_id, payload },
+      const { data, error } = await supabase.functions.invoke("admin-user-management", {
+        body: { action: "update", target_user_id: user.user_id, payload },
       });
       // Edge function returns 400 with { error } for validation failures (e.g. weak password).
       // supabase-js surfaces that as a FunctionsHttpError; the real message lives in `data.error`.
       const returnedError = (data as { error?: string })?.error;
       if (returnedError) throw new Error(returnedError);
-      if (error) throw new Error(error.message || 'Request failed');
+      if (error) throw new Error(error.message || "Request failed");
 
-      toast.success('User updated');
+      toast.success("User updated");
       onSaved();
       onOpenChange(false);
     } catch (e) {
-      const msg = (e as Error).message || 'Unknown error';
+      const msg = (e as Error).message || "Unknown error";
       toast.error(msg, {
-        description: msg.toLowerCase().includes('password')
-          ? 'Try a longer, unique passphrase (e.g. 3-4 random words).'
+        description: msg.toLowerCase().includes("password")
+          ? "Try a longer, unique passphrase (e.g. 3-4 random words)."
           : undefined,
       });
     } finally {
@@ -91,13 +98,25 @@ export function UserManagementDialog({ user, open, onOpenChange, onSaved }: Prop
           </div>
           <div className="space-y-2">
             <Label htmlFor="pw">New Password (optional)</Label>
-            <Input id="pw" type="password" placeholder="Leave blank to keep current" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <p className="text-xs text-muted-foreground">Min 8 characters. User will need this to sign in next time.</p>
+            <Input
+              id="pw"
+              type="password"
+              placeholder="Leave blank to keep current"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Min 8 characters. User will need this to sign in next time.
+            </p>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

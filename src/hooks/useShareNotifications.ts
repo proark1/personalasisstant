@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface Notification {
   id: string;
@@ -46,20 +46,20 @@ export function useShareNotifications(userId: string | undefined) {
     if (!userId) return;
 
     const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+      .from("notifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
       .limit(50);
 
     if (error) {
-      console.error('Error fetching notifications:', error);
+      console.error("Error fetching notifications:", error);
       return;
     }
 
     const mapped = (data || []).map(mapDbToNotification);
     setNotifications(mapped);
-    setUnreadCount(mapped.filter(n => !n.isRead).length);
+    setUnreadCount(mapped.filter((n) => !n.isRead).length);
     setLoading(false);
   }, [userId]);
 
@@ -73,21 +73,21 @@ export function useShareNotifications(userId: string | undefined) {
     if (!userId) return;
 
     const channel = supabase
-      .channel('notifications-realtime')
+      .channel("notifications-realtime")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('[Notifications] New notification received:', payload.new);
+          console.log("[Notifications] New notification received:", payload.new);
           const newNotification = mapDbToNotification(payload.new as NotificationRow);
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-        }
+          setNotifications((prev) => [newNotification, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        },
       )
       .subscribe();
 
@@ -99,15 +99,15 @@ export function useShareNotifications(userId: string | undefined) {
 
   const markAsRead = useCallback(async (notificationId: string) => {
     const { error } = await supabase
-      .from('notifications')
+      .from("notifications")
       .update({ is_read: true })
-      .eq('id', notificationId);
+      .eq("id", notificationId);
 
     if (!error) {
-      setNotifications(prev =>
-        prev.map(n => (n.id === notificationId ? { ...n, isRead: true } : n))
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)),
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     }
   }, []);
 
@@ -115,30 +115,27 @@ export function useShareNotifications(userId: string | undefined) {
     if (!userId) return;
 
     const { error } = await supabase
-      .from('notifications')
+      .from("notifications")
       .update({ is_read: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
+      .eq("user_id", userId)
+      .eq("is_read", false);
 
     if (!error) {
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
     }
   }, [userId]);
 
   const deleteNotification = useCallback(async (notificationId: string) => {
-    const { error } = await supabase
-      .from('notifications')
-      .delete()
-      .eq('id', notificationId);
+    const { error } = await supabase.from("notifications").delete().eq("id", notificationId);
 
     if (!error) {
-      setNotifications(prev => {
-        const notification = prev.find(n => n.id === notificationId);
+      setNotifications((prev) => {
+        const notification = prev.find((n) => n.id === notificationId);
         if (notification && !notification.isRead) {
-          setUnreadCount(c => Math.max(0, c - 1));
+          setUnreadCount((c) => Math.max(0, c - 1));
         }
-        return prev.filter(n => n.id !== notificationId);
+        return prev.filter((n) => n.id !== notificationId);
       });
     }
   }, []);

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 interface AnalyticsEvent {
   id: string;
@@ -58,7 +58,7 @@ export function useAdminAnalytics() {
   const [aiUsage, setAIUsage] = useState<AIUsage[]>([]);
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
     start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    end: new Date()
+    end: new Date(),
   });
 
   // Check if current user is admin
@@ -70,12 +70,12 @@ export function useAdminAnalytics() {
         return;
       }
 
-      const { data, error } = await supabase.rpc('is_admin', {
+      const { data, error } = await supabase.rpc("is_admin", {
         check_user_id: user.id,
       });
 
       if (error) {
-        console.error('Error checking admin access:', error);
+        console.error("Error checking admin access:", error);
       }
 
       setIsAdmin(Boolean(data));
@@ -109,29 +109,27 @@ export function useAdminAnalytics() {
     // load time is bounded by the slowest, not their sum.
     const [eventsRes, aiRes, totalUsersRes] = await Promise.all([
       supabase
-        .from('analytics_events')
-        .select('*')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
-        .order('created_at', { ascending: false })
+        .from("analytics_events")
+        .select("*")
+        .gte("created_at", startDate)
+        .lte("created_at", endDate)
+        .order("created_at", { ascending: false })
         .limit(MAX_ROWS),
       supabase
-        .from('ai_usage')
-        .select('*')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
-        .order('created_at', { ascending: false })
+        .from("ai_usage")
+        .select("*")
+        .gte("created_at", startDate)
+        .lte("created_at", endDate)
+        .order("created_at", { ascending: false })
         .limit(MAX_ROWS),
-      supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true }),
+      supabase.from("profiles").select("*", { count: "exact", head: true }),
     ]);
 
     const { data: eventsData, error: eventsErr } = eventsRes;
     const { data: aiData, error: aiErr } = aiRes;
     const { count: totalUsers } = totalUsersRes;
-    if (eventsErr) console.warn('[useAdminAnalytics] analytics_events:', eventsErr.message);
-    if (aiErr) console.warn('[useAdminAnalytics] ai_usage:', aiErr.message);
+    if (eventsErr) console.warn("[useAdminAnalytics] analytics_events:", eventsErr.message);
+    if (aiErr) console.warn("[useAdminAnalytics] ai_usage:", aiErr.message);
 
     if (eventsData) {
       setEvents(eventsData as AnalyticsEvent[]);
@@ -139,24 +137,24 @@ export function useAdminAnalytics() {
       // Calculate stats
       const uniqueUsersToday = new Set(
         eventsData
-          .filter(e => new Date(e.created_at).toDateString() === new Date().toDateString())
-          .map(e => e.user_id)
+          .filter((e) => new Date(e.created_at).toDateString() === new Date().toDateString())
+          .map((e) => e.user_id),
       );
 
       const uniqueUsersWeek = new Set(
         eventsData
-          .filter(e => {
+          .filter((e) => {
             const eventDate = new Date(e.created_at);
             const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             return eventDate >= weekAgo;
           })
-          .map(e => e.user_id)
+          .map((e) => e.user_id),
       );
 
       // Top events
       const eventCounts: Record<string, number> = {};
       const categoryCounts: Record<string, number> = {};
-      eventsData.forEach(e => {
+      eventsData.forEach((e) => {
         eventCounts[e.event_type] = (eventCounts[e.event_type] || 0) + 1;
         categoryCounts[e.event_category] = (categoryCounts[e.event_category] || 0) + 1;
       });
@@ -173,8 +171,8 @@ export function useAdminAnalytics() {
 
       // Events over time
       const eventsByDate: Record<string, number> = {};
-      eventsData.forEach(e => {
-        const date = new Date(e.created_at).toISOString().split('T')[0];
+      eventsData.forEach((e) => {
+        const date = new Date(e.created_at).toISOString().split("T")[0];
         eventsByDate[date] = (eventsByDate[date] || 0) + 1;
       });
 
@@ -189,10 +187,10 @@ export function useAdminAnalytics() {
 
       if (aiData) {
         setAIUsage(aiData as AIUsage[]);
-        aiData.forEach(a => {
+        aiData.forEach((a) => {
           totalAITokens += a.total_tokens || 0;
           totalAICost += Number(a.cost_estimate) || 0;
-          const date = new Date(a.created_at).toISOString().split('T')[0];
+          const date = new Date(a.created_at).toISOString().split("T")[0];
           if (!aiByDate[date]) aiByDate[date] = { tokens: 0, cost: 0 };
           aiByDate[date].tokens += a.total_tokens || 0;
           aiByDate[date].cost += Number(a.cost_estimate) || 0;
@@ -227,8 +225,8 @@ export function useAdminAnalytics() {
 
     // Get all profiles
     const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, display_name, email');
+      .from("profiles")
+      .select("user_id, display_name, email");
 
     if (!profiles) return;
 
@@ -243,30 +241,30 @@ export function useAdminAnalytics() {
     // fetch above) — run them in parallel.
     const [eventsRes, aiRes] = await Promise.all([
       supabase
-        .from('analytics_events')
-        .select('user_id, created_at')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
-        .order('created_at', { ascending: false })
+        .from("analytics_events")
+        .select("user_id, created_at")
+        .gte("created_at", startDate)
+        .lte("created_at", endDate)
+        .order("created_at", { ascending: false })
         .limit(MAX_ROWS),
       supabase
-        .from('ai_usage')
-        .select('user_id, total_tokens')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
-        .order('created_at', { ascending: false })
+        .from("ai_usage")
+        .select("user_id, total_tokens")
+        .gte("created_at", startDate)
+        .lte("created_at", endDate)
+        .order("created_at", { ascending: false })
         .limit(MAX_ROWS),
     ]);
 
     const { data: eventsData, error: eventsErr } = eventsRes;
     const { data: aiData, error: aiErr } = aiRes;
-    if (eventsErr) console.warn('[useAdminAnalytics] analytics_events:', eventsErr.message);
-    if (aiErr) console.warn('[useAdminAnalytics] ai_usage:', aiErr.message);
+    if (eventsErr) console.warn("[useAdminAnalytics] analytics_events:", eventsErr.message);
+    if (aiErr) console.warn("[useAdminAnalytics] ai_usage:", aiErr.message);
 
     const userEventCounts: Record<string, { count: number; lastActive: string }> = {};
     const userAITokens: Record<string, number> = {};
 
-    eventsData?.forEach(e => {
+    eventsData?.forEach((e) => {
       if (!userEventCounts[e.user_id]) {
         userEventCounts[e.user_id] = { count: 0, lastActive: e.created_at };
       }
@@ -276,53 +274,59 @@ export function useAdminAnalytics() {
       }
     });
 
-    aiData?.forEach(a => {
+    aiData?.forEach((a) => {
       userAITokens[a.user_id] = (userAITokens[a.user_id] || 0) + (a.total_tokens || 0);
     });
 
-    const stats: UserStats[] = profiles.map(p => ({
+    const stats: UserStats[] = profiles.map((p) => ({
       user_id: p.user_id,
       display_name: p.display_name,
       email: p.email,
       total_events: userEventCounts[p.user_id]?.count || 0,
       total_ai_tokens: userAITokens[p.user_id] || 0,
-      last_active: userEventCounts[p.user_id]?.lastActive || '',
+      last_active: userEventCounts[p.user_id]?.lastActive || "",
     }));
 
     setUserStats(stats.sort((a, b) => b.total_events - a.total_events));
   }, [isAdmin, dateRange]);
 
   // Fetch user-specific events
-  const fetchUserEvents = useCallback(async (userId: string) => {
-    if (!isAdmin) return [];
+  const fetchUserEvents = useCallback(
+    async (userId: string) => {
+      if (!isAdmin) return [];
 
-    const { data } = await supabase
-      .from('analytics_events')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('created_at', dateRange.start.toISOString())
-      .lte('created_at', dateRange.end.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(100);
+      const { data } = await supabase
+        .from("analytics_events")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("created_at", dateRange.start.toISOString())
+        .lte("created_at", dateRange.end.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(100);
 
-    return (data || []) as AnalyticsEvent[];
-  }, [isAdmin, dateRange]);
+      return (data || []) as AnalyticsEvent[];
+    },
+    [isAdmin, dateRange],
+  );
 
   // Fetch user-specific AI usage
-  const fetchUserAIUsage = useCallback(async (userId: string) => {
-    if (!isAdmin) return [];
+  const fetchUserAIUsage = useCallback(
+    async (userId: string) => {
+      if (!isAdmin) return [];
 
-    const { data } = await supabase
-      .from('ai_usage')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('created_at', dateRange.start.toISOString())
-      .lte('created_at', dateRange.end.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(100);
+      const { data } = await supabase
+        .from("ai_usage")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("created_at", dateRange.start.toISOString())
+        .lte("created_at", dateRange.end.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(100);
 
-    return (data || []) as AIUsage[];
-  }, [isAdmin, dateRange]);
+      return (data || []) as AIUsage[];
+    },
+    [isAdmin, dateRange],
+  );
 
   // Initial fetch
   useEffect(() => {

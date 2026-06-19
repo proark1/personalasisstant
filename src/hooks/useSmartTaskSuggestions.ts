@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Task, CalendarEvent } from '@/types/flux';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useCallback, useEffect } from "react";
+import { Task, CalendarEvent } from "@/types/flux";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface TaskSuggestion {
   taskId: string | null;
@@ -9,7 +9,7 @@ export interface TaskSuggestion {
   reason: string;
   estimatedMinutes: number;
   startTip: string;
-  energy: 'low' | 'medium' | 'high';
+  energy: "low" | "medium" | "high";
 }
 
 export interface SmartSuggestion {
@@ -32,18 +32,18 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
       return;
     }
 
-    const incompleteTasks = tasks.filter(t => !t.completed);
+    const incompleteTasks = tasks.filter((t) => !t.completed);
     if (incompleteTasks.length === 0) {
       setSuggestion(null);
       return;
     }
 
     setLoading(true);
-    
+
     // Build a local fallback from highest-priority overdue task
     const buildLocalFallback = (): SmartSuggestion | null => {
       const overdue = incompleteTasks
-        .filter(t => t.dueDate && t.dueDate < new Date())
+        .filter((t) => t.dueDate && t.dueDate < new Date())
         .sort((a, b) => {
           const prio = { high: 0, medium: 1, low: 2 };
           return (prio[a.priority] ?? 1) - (prio[b.priority] ?? 1);
@@ -54,66 +54,83 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
         recommendation: {
           taskId: pick.id,
           title: pick.title,
-          reason: overdue.length > 0 ? 'This is your top overdue task' : 'Your highest priority task',
+          reason:
+            overdue.length > 0 ? "This is your top overdue task" : "Your highest priority task",
           estimatedMinutes: 15,
-          startTip: 'Just start with 2 minutes!',
-          energy: 'medium',
+          startTip: "Just start with 2 minutes!",
+          energy: "medium",
         },
         alternatives: [],
         encouragement: "You've got this!",
       };
     };
-    
+
     try {
       // Fetch today's checkin for context
-      const today = new Date().toISOString().split('T')[0];
-      
+      const today = new Date().toISOString().split("T")[0];
+
       // Race between AI call and 5s timeout. Wrap in .catch so a network error
       // resolves to a synthetic error response instead of leaving the race
       // with an unhandled rejection (which previously crashed the
       // `response.error` access below if the timeout had already won).
       const aiPromise = (async () => {
         const { data: checkinData } = await supabase
-          .from('daily_checkins')
-          .select('mood, energy_level, sleep_hours, main_focus')
-          .eq('user_id', user.id)
-          .eq('checkin_date', today)
+          .from("daily_checkins")
+          .select("mood, energy_level, sleep_hours, main_focus")
+          .eq("user_id", user.id)
+          .eq("checkin_date", today)
           .maybeSingle();
 
-        return supabase.functions.invoke('ai-assistant', {
+        return supabase.functions.invoke("ai-assistant", {
           body: {
-            type: 'what_now',
-            tasks: incompleteTasks.slice(0, 15).map(t => ({
-              id: t.id, title: t.title, category: t.category,
-              priority: t.priority, dueDate: t.dueDate, completed: t.completed,
+            type: "what_now",
+            tasks: incompleteTasks.slice(0, 15).map((t) => ({
+              id: t.id,
+              title: t.title,
+              category: t.category,
+              priority: t.priority,
+              dueDate: t.dueDate,
+              completed: t.completed,
             })),
-            events: events.slice(0, 10).map(e => ({
-              id: e.id, title: e.title, startTime: e.startTime, endTime: e.endTime,
+            events: events.slice(0, 10).map((e) => ({
+              id: e.id,
+              title: e.title,
+              startTime: e.startTime,
+              endTime: e.endTime,
             })),
             checkin: checkinData,
           },
         });
-      })().catch((err) => ({ data: null as unknown, error: err instanceof Error ? err : new Error(String(err)) }));
-      
-      const timeoutPromise = new Promise<'timeout'>((resolve) =>
-        setTimeout(() => resolve('timeout'), 5000)
+      })().catch((err) => ({
+        data: null as unknown,
+        error: err instanceof Error ? err : new Error(String(err)),
+      }));
+
+      const timeoutPromise = new Promise<"timeout">((resolve) =>
+        setTimeout(() => resolve("timeout"), 5000),
       );
-      
+
       const result = await Promise.race([aiPromise, timeoutPromise]);
-      
-      if (result === 'timeout') {
-        console.warn('Smart suggestion timed out, using local fallback');
+
+      if (result === "timeout") {
+        console.warn("Smart suggestion timed out, using local fallback");
         const fallback = buildLocalFallback();
-        if (fallback) { setSuggestion(fallback); setLastFetched(new Date()); }
+        if (fallback) {
+          setSuggestion(fallback);
+          setLastFetched(new Date());
+        }
         return;
       }
-      
+
       const response = result;
 
       if (response.error) {
-        console.error('Smart suggestion error:', response.error);
+        console.error("Smart suggestion error:", response.error);
         const fallback = buildLocalFallback();
-        if (fallback) { setSuggestion(fallback); setLastFetched(new Date()); }
+        if (fallback) {
+          setSuggestion(fallback);
+          setLastFetched(new Date());
+        }
         return;
       }
 
@@ -125,23 +142,23 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
             title: data.recommendation.title,
             reason: data.recommendation.reason,
             estimatedMinutes: data.recommendation.estimatedMinutes || 15,
-            startTip: data.recommendation.startTip || 'Just start with 2 minutes!',
-            energy: data.recommendation.energy || 'medium',
+            startTip: data.recommendation.startTip || "Just start with 2 minutes!",
+            energy: data.recommendation.energy || "medium",
           },
           alternatives: (data.alternatives || []).map((alt: Record<string, unknown>) => ({
             taskId: alt.taskId,
             title: alt.title,
             reason: alt.reason,
             estimatedMinutes: alt.estimatedMinutes || 15,
-            startTip: alt.startTip || '',
-            energy: alt.energy || 'medium',
+            startTip: alt.startTip || "",
+            energy: alt.energy || "medium",
           })),
-          encouragement: data.encouragement || 'You\'ve got this!',
+          encouragement: data.encouragement || "You've got this!",
         });
         setLastFetched(new Date());
       }
     } catch (error) {
-      console.error('Failed to fetch smart suggestion:', error);
+      console.error("Failed to fetch smart suggestion:", error);
     } finally {
       setLoading(false);
     }
@@ -150,7 +167,7 @@ export function useSmartTaskSuggestions(tasks: Task[], events: CalendarEvent[]) 
   // Auto-fetch on mount and when tasks count changes; other deps intentionally
   // excluded to avoid infinite fetch loops (fetchSuggestion itself reads tasks/loading/suggestion).
   useEffect(() => {
-    const incompleteTasks = tasks.filter(t => !t.completed);
+    const incompleteTasks = tasks.filter((t) => !t.completed);
     if (incompleteTasks.length > 0 && !suggestion && !loading) {
       fetchSuggestion();
     }

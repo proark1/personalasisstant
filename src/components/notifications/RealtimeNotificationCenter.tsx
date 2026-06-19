@@ -1,8 +1,8 @@
-import { formatDistanceToNow } from 'date-fns';
-import { 
-  Bell, 
-  Trash2, 
-  CheckCheck, 
+import { formatDistanceToNow } from "date-fns";
+import {
+  Bell,
+  Trash2,
+  CheckCheck,
   X,
   Calendar,
   CheckSquare,
@@ -11,11 +11,11 @@ import {
   Users,
   Share2,
   Clock,
-  Info
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+  Info,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -23,49 +23,59 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from '@/components/ui/sheet';
-import { useRealtimeNotifications, UserNotification } from '@/hooks/useRealtimeNotifications';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/sheet";
+import { useRealtimeNotifications, UserNotification } from "@/hooks/useRealtimeNotifications";
+import { cn } from "@/lib/utils";
 
 interface RealtimeNotificationCenterProps {
   userId: string | undefined;
 }
 
-const getNotificationIcon = (type: UserNotification['type']) => {
+const getNotificationIcon = (type: UserNotification["type"]) => {
   switch (type) {
-    case 'task': return CheckSquare;
-    case 'event': return Calendar;
-    case 'contract': return FileText;
-    case 'contact': return Contact;
-    case 'invitation': return Users;
-    case 'share': return Share2;
-    case 'reminder': return Clock;
-    default: return Info;
+    case "task":
+      return CheckSquare;
+    case "event":
+      return Calendar;
+    case "contract":
+      return FileText;
+    case "contact":
+      return Contact;
+    case "invitation":
+      return Users;
+    case "share":
+      return Share2;
+    case "reminder":
+      return Clock;
+    default:
+      return Info;
   }
 };
 
-const getNotificationColor = (type: UserNotification['type']) => {
+const getNotificationColor = (type: UserNotification["type"]) => {
   switch (type) {
-    case 'task': return 'text-primary';
-    case 'event': return 'text-accent';
-    case 'contract': return 'text-warning';
-    case 'contact': return 'text-info';
-    case 'invitation': return 'text-success';
-    case 'share': return 'text-primary';
-    case 'reminder': return 'text-warning';
-    default: return 'text-muted-foreground';
+    case "task":
+      return "text-primary";
+    case "event":
+      return "text-accent";
+    case "contract":
+      return "text-warning";
+    case "contact":
+      return "text-info";
+    case "invitation":
+      return "text-success";
+    case "share":
+      return "text-primary";
+    case "reminder":
+      return "text-warning";
+    default:
+      return "text-muted-foreground";
   }
 };
 
 export function RealtimeNotificationCenter({ userId }: RealtimeNotificationCenterProps) {
-  const {
-    notifications,
-    unreadCount,
-    markRead,
-    markAllRead,
-    deleteNotification,
-    clearAll,
-  } = useRealtimeNotifications(userId);
+  const { notifications, unreadCount, markRead, markAllRead, deleteNotification, clearAll } =
+    useRealtimeNotifications(userId);
 
   return (
     <Sheet>
@@ -73,11 +83,11 @@ export function RealtimeNotificationCenter({ userId }: RealtimeNotificationCente
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
+            <Badge
+              variant="destructive"
               className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs"
             >
-              {unreadCount > 99 ? '99+' : unreadCount}
+              {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>
           )}
         </Button>
@@ -88,26 +98,19 @@ export function RealtimeNotificationCenter({ userId }: RealtimeNotificationCente
             <SheetTitle className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-primary" />
               Notifications
-              {unreadCount > 0 && (
-                <Badge variant="secondary">{unreadCount} new</Badge>
-              )}
+              {unreadCount > 0 && <Badge variant="secondary">{unreadCount} new</Badge>}
             </SheetTitle>
             <div className="flex gap-1">
               {unreadCount > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={markAllRead}
-                  className="text-xs"
-                >
+                <Button variant="ghost" size="sm" onClick={markAllRead} className="text-xs">
                   <CheckCheck className="w-4 h-4 mr-1" />
                   Mark all read
                 </Button>
               )}
               {notifications.length > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={clearAll}
                   className="text-xs text-destructive hover:text-destructive"
                 >
@@ -117,9 +120,7 @@ export function RealtimeNotificationCenter({ userId }: RealtimeNotificationCente
               )}
             </div>
           </div>
-          <SheetDescription>
-            Stay updated with shared items and reminders
-          </SheetDescription>
+          <SheetDescription>Stay updated with shared items and reminders</SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-140px)] mt-4 -mx-6 px-6">
@@ -136,21 +137,19 @@ export function RealtimeNotificationCenter({ userId }: RealtimeNotificationCente
               {notifications.map((notification) => {
                 const Icon = getNotificationIcon(notification.type);
                 const iconColor = getNotificationColor(notification.type);
-                
+
                 return (
                   <div
                     key={notification.id}
                     className={cn(
                       "group relative p-4 rounded-lg border transition-colors",
-                      notification.read 
-                        ? "bg-background" 
-                        : "bg-primary/5 border-primary/20"
+                      notification.read ? "bg-background" : "bg-primary/5 border-primary/20",
                     )}
                     role="button"
                     tabIndex={0}
                     onClick={() => !notification.read && markRead(notification.id)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
+                      if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         if (!notification.read) markRead(notification.id);
                       }
@@ -162,10 +161,12 @@ export function RealtimeNotificationCenter({ userId }: RealtimeNotificationCente
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className={cn(
-                            "text-sm font-medium truncate",
-                            !notification.read && "text-primary"
-                          )}>
+                          <h4
+                            className={cn(
+                              "text-sm font-medium truncate",
+                              !notification.read && "text-primary",
+                            )}
+                          >
                             {notification.title}
                           </h4>
                           <div className="flex items-center gap-1 shrink-0">
@@ -189,7 +190,9 @@ export function RealtimeNotificationCenter({ userId }: RealtimeNotificationCente
                           {notification.message}
                         </p>
                         <p className="text-xs text-muted-foreground/70 mt-2">
-                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                          })}
                         </p>
                       </div>
                     </div>

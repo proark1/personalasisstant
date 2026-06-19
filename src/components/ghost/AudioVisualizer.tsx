@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
-type BackgroundStyle = 'orbs' | 'matrix' | 'nebula' | 'aurora' | 'particles' | 'circuit';
+type BackgroundStyle = "orbs" | "matrix" | "nebula" | "aurora" | "particles" | "circuit";
 
 interface AudioVisualizerProps {
   isActive: boolean;
@@ -39,21 +39,26 @@ interface CircuitNode {
   active: boolean;
 }
 
-export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'orbs' }: AudioVisualizerProps) {
+export function AudioVisualizer({
+  isActive,
+  isSpeaking,
+  isListening,
+  style = "orbs",
+}: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const orbsRef = useRef<Orb[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const circuitNodesRef = useRef<CircuitNode[]>([]);
-  const [isDarkMode, setIsDarkMode] = useState(() => 
-    document.documentElement.classList.contains('dark')
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    document.documentElement.classList.contains("dark"),
   );
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
-      setIsDarkMode(document.documentElement.classList.contains('dark'));
+      setIsDarkMode(document.documentElement.classList.contains("dark"));
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     return () => observer.disconnect();
   }, []);
 
@@ -61,7 +66,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const resizeCanvas = () => {
@@ -73,11 +78,12 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
 
     // Initialize orbs
     orbsRef.current = Array.from({ length: 5 }, (_, i) => ({
-      x: 0.5, y: 0.5,
+      x: 0.5,
+      y: 0.5,
       vx: (Math.random() - 0.5) * 0.002,
       vy: (Math.random() - 0.5) * 0.002,
       radius: 0.15 + Math.random() * 0.1,
@@ -102,15 +108,21 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
     circuitNodesRef.current.forEach((node, i) => {
       const nearNodes = circuitNodesRef.current
         .map((n, j) => ({ dist: Math.hypot(n.x - node.x, n.y - node.y), idx: j }))
-        .filter(n => n.idx !== i && n.dist < 0.3)
+        .filter((n) => n.idx !== i && n.dist < 0.3)
         .sort((a, b) => a.dist - b.dist)
         .slice(0, 3);
-      node.connections = nearNodes.map(n => n.idx);
+      node.connections = nearNodes.map((n) => n.idx);
     });
 
     let time = 0;
 
-    const animateOrbs = (width: number, height: number, centerX: number, centerY: number, minDim: number) => {
+    const animateOrbs = (
+      width: number,
+      height: number,
+      centerX: number,
+      centerY: number,
+      minDim: number,
+    ) => {
       const baseHue = isSpeaking ? 270 : isListening ? 187 : 220;
       const saturation = isDarkMode ? 70 : 80;
       const baseLightness = isDarkMode ? 50 : 40;
@@ -138,9 +150,15 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
           const layerOpacity = glowOpacity * (0.4 - layer * 0.1);
           const gradient = ctx.createRadialGradient(orbX, orbY, 0, orbX, orbY, layerRadius);
           const lightness = baseLightness + layer * 5;
-          gradient.addColorStop(0, `hsla(${orb.hue}, ${saturation}%, ${lightness + 20}%, ${layerOpacity})`);
-          gradient.addColorStop(0.3, `hsla(${orb.hue}, ${saturation}%, ${lightness + 10}%, ${layerOpacity * 0.7})`);
-          gradient.addColorStop(1, 'transparent');
+          gradient.addColorStop(
+            0,
+            `hsla(${orb.hue}, ${saturation}%, ${lightness + 20}%, ${layerOpacity})`,
+          );
+          gradient.addColorStop(
+            0.3,
+            `hsla(${orb.hue}, ${saturation}%, ${lightness + 10}%, ${layerOpacity * 0.7})`,
+          );
+          gradient.addColorStop(1, "transparent");
           ctx.fillStyle = gradient;
           ctx.beginPath();
           ctx.arc(orbX, orbY, layerRadius, 0, Math.PI * 2);
@@ -150,10 +168,17 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
 
       const coreBreath = 1 + Math.sin(time * 1.5) * 0.2;
       const coreRadius = minDim * 0.08 * coreBreath;
-      const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreRadius * 2);
+      const coreGradient = ctx.createRadialGradient(
+        centerX,
+        centerY,
+        0,
+        centerX,
+        centerY,
+        coreRadius * 2,
+      );
       coreGradient.addColorStop(0, `hsla(${baseHue}, 80%, 60%, 0.5)`);
       coreGradient.addColorStop(0.5, `hsla(${baseHue}, 70%, 50%, 0.2)`);
-      coreGradient.addColorStop(1, 'transparent');
+      coreGradient.addColorStop(1, "transparent");
       ctx.fillStyle = coreGradient;
       ctx.beginPath();
       ctx.arc(centerX, centerY, coreRadius * 2, 0, Math.PI * 2);
@@ -169,11 +194,11 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
         const x = (Math.sin(i * 17.3 + time * 0.1) * 0.5 + 0.5) * width;
         const yOffset = (time * 50 + i * 20) % (height + 100);
         const length = 30 + Math.sin(i) * 20;
-        
+
         const gradient = ctx.createLinearGradient(x, yOffset - length, x, yOffset);
-        gradient.addColorStop(0, 'transparent');
+        gradient.addColorStop(0, "transparent");
         gradient.addColorStop(1, `hsla(${baseHue}, 80%, 60%, ${0.4 * intensity})`);
-        
+
         ctx.strokeStyle = gradient;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -184,23 +209,36 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
 
       // Central pulse
       const pulseRadius = (Math.sin(time * 2) * 0.3 + 0.7) * Math.min(width, height) * 0.3;
-      const pulseGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, pulseRadius);
+      const pulseGradient = ctx.createRadialGradient(
+        centerX,
+        centerY,
+        0,
+        centerX,
+        centerY,
+        pulseRadius,
+      );
       pulseGradient.addColorStop(0, `hsla(${baseHue}, 70%, 50%, ${0.3 * intensity})`);
       pulseGradient.addColorStop(0.7, `hsla(${baseHue}, 60%, 40%, ${0.1 * intensity})`);
-      pulseGradient.addColorStop(1, 'transparent');
+      pulseGradient.addColorStop(1, "transparent");
       ctx.fillStyle = pulseGradient;
       ctx.beginPath();
       ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
       ctx.fill();
     };
 
-    const animateNebula = (width: number, height: number, centerX: number, centerY: number, minDim: number) => {
+    const animateNebula = (
+      width: number,
+      height: number,
+      centerX: number,
+      centerY: number,
+      minDim: number,
+    ) => {
       const baseHue = isSpeaking ? 300 : isListening ? 200 : 260;
       const intensity = isActive ? 1.2 : 0.7;
 
       // Swirling clouds
       for (let i = 0; i < 6; i++) {
-        const angle = time * 0.2 + (i * Math.PI * 2 / 6);
+        const angle = time * 0.2 + (i * Math.PI * 2) / 6;
         const dist = minDim * 0.2 * (1 + Math.sin(time + i) * 0.3);
         const cx = centerX + Math.cos(angle) * dist;
         const cy = centerY + Math.sin(angle) * dist;
@@ -209,7 +247,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
         const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
         gradient.addColorStop(0, `hsla(${baseHue + i * 30}, 70%, 60%, ${0.3 * intensity})`);
         gradient.addColorStop(0.5, `hsla(${baseHue + i * 30}, 60%, 50%, ${0.15 * intensity})`);
-        gradient.addColorStop(1, 'transparent');
+        gradient.addColorStop(1, "transparent");
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -236,21 +274,26 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
       for (let wave = 0; wave < 5; wave++) {
         ctx.beginPath();
         const waveY = height * 0.3 + wave * 30;
-        
+
         for (let x = 0; x <= width; x += 5) {
-          const y = waveY + Math.sin(x * 0.01 + time * 2 + wave) * 50 * intensity
-                   + Math.sin(x * 0.02 + time * 3) * 30;
+          const y =
+            waveY +
+            Math.sin(x * 0.01 + time * 2 + wave) * 50 * intensity +
+            Math.sin(x * 0.02 + time * 3) * 30;
           if (x === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
-        
+
         const gradient = ctx.createLinearGradient(0, waveY - 100, 0, waveY + 100);
-        gradient.addColorStop(0, 'transparent');
+        gradient.addColorStop(0, "transparent");
         gradient.addColorStop(0.3, `hsla(${baseHue + wave * 20}, 80%, 60%, ${0.15 * intensity})`);
-        gradient.addColorStop(0.5, `hsla(${baseHue + wave * 20 + 30}, 70%, 50%, ${0.25 * intensity})`);
+        gradient.addColorStop(
+          0.5,
+          `hsla(${baseHue + wave * 20 + 30}, 70%, 50%, ${0.25 * intensity})`,
+        );
         gradient.addColorStop(0.7, `hsla(${baseHue + wave * 20}, 80%, 60%, ${0.15 * intensity})`);
-        gradient.addColorStop(1, 'transparent');
-        
+        gradient.addColorStop(1, "transparent");
+
         ctx.lineTo(width, height);
         ctx.lineTo(0, height);
         ctx.closePath();
@@ -291,7 +334,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
       }
 
       // Update and draw particles
-      particlesRef.current = particlesRef.current.filter(p => {
+      particlesRef.current = particlesRef.current.filter((p) => {
         p.x += p.vx * intensity;
         p.y += p.vy * intensity;
         p.life++;
@@ -304,12 +347,16 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
         const size = p.size * (1 - progress * 0.5);
 
         const gradient = ctx.createRadialGradient(
-          p.x * width, p.y * height, 0,
-          p.x * width, p.y * height, size * 3
+          p.x * width,
+          p.y * height,
+          0,
+          p.x * width,
+          p.y * height,
+          size * 3,
         );
         gradient.addColorStop(0, `hsla(${p.hue}, 90%, 70%, ${alpha})`);
         gradient.addColorStop(0.5, `hsla(${p.hue + 20}, 80%, 50%, ${alpha * 0.5})`);
-        gradient.addColorStop(1, 'transparent');
+        gradient.addColorStop(1, "transparent");
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -323,7 +370,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
       const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 80);
       coreGradient.addColorStop(0, `hsla(${baseHue}, 90%, 60%, ${0.4 * intensity})`);
       coreGradient.addColorStop(0.5, `hsla(${baseHue + 30}, 80%, 50%, ${0.2 * intensity})`);
-      coreGradient.addColorStop(1, 'transparent');
+      coreGradient.addColorStop(1, "transparent");
       ctx.fillStyle = coreGradient;
       ctx.beginPath();
       ctx.arc(centerX, centerY, 80, 0, Math.PI * 2);
@@ -344,20 +391,23 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
       circuitNodesRef.current.forEach((node, i) => {
         const x1 = node.x * width;
         const y1 = node.y * height;
-        
-        node.connections.forEach(connIdx => {
+
+        node.connections.forEach((connIdx) => {
           const other = circuitNodesRef.current[connIdx];
           const x2 = other.x * width;
           const y2 = other.y * height;
-          
+
           const pulse = Math.sin(time * 3 + i * 0.5);
-          const alpha = (node.active || other.active) ? 0.4 + pulse * 0.2 : 0.1;
-          
+          const alpha = node.active || other.active ? 0.4 + pulse * 0.2 : 0.1;
+
           const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
           gradient.addColorStop(0, `hsla(${baseHue}, 70%, 50%, ${alpha * intensity})`);
-          gradient.addColorStop(0.5, `hsla(${baseHue + 30}, 80%, 60%, ${(alpha + 0.2) * intensity})`);
+          gradient.addColorStop(
+            0.5,
+            `hsla(${baseHue + 30}, 80%, 60%, ${(alpha + 0.2) * intensity})`,
+          );
           gradient.addColorStop(1, `hsla(${baseHue}, 70%, 50%, ${alpha * intensity})`);
-          
+
           ctx.strokeStyle = gradient;
           ctx.lineWidth = node.active ? 2 : 1;
           ctx.beginPath();
@@ -367,10 +417,10 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
 
           // Data packet animation
           if (node.active) {
-            const packetPos = (Math.sin(time * 4 + i) * 0.5 + 0.5);
+            const packetPos = Math.sin(time * 4 + i) * 0.5 + 0.5;
             const px = x1 + (x2 - x1) * packetPos;
             const py = y1 + (y2 - y1) * packetPos;
-            
+
             ctx.fillStyle = `hsla(${baseHue + 60}, 90%, 70%, ${0.8 * intensity})`;
             ctx.beginPath();
             ctx.arc(px, py, 4, 0, Math.PI * 2);
@@ -385,12 +435,12 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
         const y = node.y * height;
         const size = node.active ? 8 : 5;
         const pulse = Math.sin(node.pulse) * 0.3 + 0.7;
-        
+
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, size * 2);
         gradient.addColorStop(0, `hsla(${baseHue}, 80%, 70%, ${pulse * intensity})`);
         gradient.addColorStop(0.5, `hsla(${baseHue}, 70%, 50%, ${pulse * 0.5 * intensity})`);
-        gradient.addColorStop(1, 'transparent');
-        
+        gradient.addColorStop(1, "transparent");
+
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(x, y, size * 2, 0, Math.PI * 2);
@@ -402,7 +452,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
           ctx.lineWidth = 2;
           ctx.beginPath();
           for (let j = 0; j < 6; j++) {
-            const angle = (j * Math.PI / 3) + time * 0.5;
+            const angle = (j * Math.PI) / 3 + time * 0.5;
             const hx = x + Math.cos(angle) * size;
             const hy = y + Math.sin(angle) * size;
             if (j === 0) ctx.moveTo(hx, hy);
@@ -426,22 +476,22 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
       time += 0.016;
 
       switch (style) {
-        case 'matrix':
+        case "matrix":
           animateMatrix(width, height, centerX, centerY);
           break;
-        case 'nebula':
+        case "nebula":
           animateNebula(width, height, centerX, centerY, minDim);
           break;
-        case 'aurora':
+        case "aurora":
           animateAurora(width, height, centerX, centerY);
           break;
-        case 'particles':
+        case "particles":
           animateParticles(width, height, centerX, centerY);
           break;
-        case 'circuit':
+        case "circuit":
           animateCircuit(width, height, centerX, centerY);
           break;
-        case 'orbs':
+        case "orbs":
         default:
           animateOrbs(width, height, centerX, centerY, minDim);
           break;
@@ -453,7 +503,7 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
     animate();
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener("resize", resizeCanvas);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -461,10 +511,6 @@ export function AudioVisualizer({ isActive, isSpeaking, isListening, style = 'or
   }, [isActive, isSpeaking, isListening, isDarkMode, style]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="w-full h-full"
-      style={{ width: '100%', height: '100%' }}
-    />
+    <canvas ref={canvasRef} className="w-full h-full" style={{ width: "100%", height: "100%" }} />
   );
 }

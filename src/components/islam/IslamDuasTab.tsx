@@ -1,18 +1,16 @@
-import { useState, useMemo, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { GlassCard } from '@/components/ui/glass-card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { staggerItem, staggerContainer } from '@/components/ui/panel-shell';
-import {
-  Search, Volume2, VolumeX, Copy, Share2, Loader2, ChevronDown
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
+import { useState, useMemo, useRef } from "react";
+import { motion } from "framer-motion";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { staggerItem, staggerContainer } from "@/components/ui/panel-shell";
+import { Search, Volume2, VolumeX, Copy, Share2, Loader2, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
 
 interface Dua {
   id: string;
@@ -28,22 +26,23 @@ interface IslamDuasTabProps {
 }
 
 export function IslamDuasTab({ duas }: IslamDuasTabProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [expandedDua, setExpandedDua] = useState<string | null>(null);
   const [duaLoading, setDuaLoading] = useState<string | null>(null);
   const [playingDua, setPlayingDua] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const categories = useMemo(() =>
-    ['all', ...Array.from(new Set(duas.map(d => d.category)))],
-    [duas]
+  const categories = useMemo(
+    () => ["all", ...Array.from(new Set(duas.map((d) => d.category)))],
+    [duas],
   );
 
   const filtered = useMemo(() => {
-    return duas.filter(d => {
-      const matchesCat = selectedCategory === 'all' || d.category === selectedCategory;
-      const matchesSearch = searchQuery === '' ||
+    return duas.filter((d) => {
+      const matchesCat = selectedCategory === "all" || d.category === selectedCategory;
+      const matchesSearch =
+        searchQuery === "" ||
         d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         d.translation.toLowerCase().includes(searchQuery.toLowerCase()) ||
         d.arabic.includes(searchQuery) ||
@@ -60,8 +59,8 @@ export function IslamDuasTab({ duas }: IslamDuasTabProps) {
     }
     setDuaLoading(dua.id);
     try {
-      const { data, error } = await supabase.functions.invoke('text-to-speech', {
-        body: { text: dua.arabic, voice: 'onyx' }
+      const { data, error } = await supabase.functions.invoke("text-to-speech", {
+        body: { text: dua.arabic, voice: "onyx" },
       });
       if (error) throw error;
       const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
@@ -70,7 +69,7 @@ export function IslamDuasTab({ duas }: IslamDuasTabProps) {
       await audio.play();
       setPlayingDua(dua.id);
     } catch (e) {
-      toast.error(await describeEdgeError(e, 'Failed to play audio'));
+      toast.error(await describeEdgeError(e, "Failed to play audio"));
     } finally {
       setDuaLoading(null);
     }
@@ -78,7 +77,7 @@ export function IslamDuasTab({ duas }: IslamDuasTabProps) {
 
   const copyDua = (dua: Dua) => {
     navigator.clipboard.writeText(`${dua.arabic}\n\n${dua.transliteration}\n\n${dua.translation}`);
-    toast.success('Copied to clipboard');
+    toast.success("Copied to clipboard");
   };
 
   const shareDua = async (dua: Dua) => {
@@ -88,8 +87,12 @@ export function IslamDuasTab({ duas }: IslamDuasTabProps) {
           title: dua.title,
           text: `${dua.arabic}\n\n${dua.translation}`,
         });
-      } catch { copyDua(dua); }
-    } else { copyDua(dua); }
+      } catch {
+        copyDua(dua);
+      }
+    } else {
+      copyDua(dua);
+    }
   };
 
   return (
@@ -108,15 +111,15 @@ export function IslamDuasTab({ duas }: IslamDuasTabProps) {
         {/* Category chips */}
         <ScrollArea className="w-full">
           <div className="flex gap-2 pb-1">
-            {categories.map(cat => (
+            {categories.map((cat) => (
               <Button
                 key={cat}
-                variant={selectedCategory === cat ? 'default' : 'outline'}
+                variant={selectedCategory === cat ? "default" : "outline"}
                 size="sm"
                 className="whitespace-nowrap text-xs h-8"
                 onClick={() => setSelectedCategory(cat)}
               >
-                {cat === 'all' ? 'All' : cat}
+                {cat === "all" ? "All" : cat}
               </Button>
             ))}
           </div>
@@ -135,32 +138,39 @@ export function IslamDuasTab({ duas }: IslamDuasTabProps) {
               <p>No duas found</p>
             </div>
           ) : (
-            filtered.map(dua => {
+            filtered.map((dua) => {
               const isExpanded = expandedDua === dua.id;
               return (
                 <motion.div key={dua.id} variants={staggerItem}>
                   <GlassCard
                     className={cn(
                       "p-4 cursor-pointer transition-all",
-                      isExpanded && "ring-1 ring-primary/50"
+                      isExpanded && "ring-1 ring-primary/50",
                     )}
                     onClick={() => setExpandedDua(isExpanded ? null : dua.id)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <Badge variant="secondary" className="text-xs mb-1.5">{dua.category}</Badge>
+                        <Badge variant="secondary" className="text-xs mb-1.5">
+                          {dua.category}
+                        </Badge>
                         <p className="font-medium text-sm">{dua.title}</p>
                         {/* Arabic preview when collapsed */}
                         {!isExpanded && (
-                          <p className="font-arabic text-base text-right text-muted-foreground mt-1 line-clamp-1" dir="rtl">
+                          <p
+                            className="font-arabic text-base text-right text-muted-foreground mt-1 line-clamp-1"
+                            dir="rtl"
+                          >
                             {dua.arabic}
                           </p>
                         )}
                       </div>
-                      <ChevronDown className={cn(
-                        "w-4 h-4 text-muted-foreground shrink-0 transition-transform mt-1",
-                        isExpanded && "rotate-180"
-                      )} />
+                      <ChevronDown
+                        className={cn(
+                          "w-4 h-4 text-muted-foreground shrink-0 transition-transform mt-1",
+                          isExpanded && "rotate-180",
+                        )}
+                      />
                     </div>
 
                     {isExpanded && (
@@ -171,11 +181,15 @@ export function IslamDuasTab({ duas }: IslamDuasTabProps) {
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Transliteration</p>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">
+                            Transliteration
+                          </p>
                           <p className="text-sm italic">{dua.transliteration}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Translation</p>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">
+                            Translation
+                          </p>
                           <p className="text-sm">{dua.translation}</p>
                         </div>
                         <div className="flex gap-2">
@@ -184,19 +198,40 @@ export function IslamDuasTab({ duas }: IslamDuasTabProps) {
                             size="sm"
                             className="flex-1"
                             disabled={duaLoading === dua.id}
-                            onClick={(e) => { e.stopPropagation(); playAudio(dua); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playAudio(dua);
+                            }}
                           >
-                            {duaLoading === dua.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> :
-                              playingDua === dua.id ? <VolumeX className="w-4 h-4 mr-1" /> :
-                                <Volume2 className="w-4 h-4 mr-1" />}
-                            {playingDua === dua.id ? 'Stop' : 'Listen'}
+                            {duaLoading === dua.id ? (
+                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            ) : playingDua === dua.id ? (
+                              <VolumeX className="w-4 h-4 mr-1" />
+                            ) : (
+                              <Volume2 className="w-4 h-4 mr-1" />
+                            )}
+                            {playingDua === dua.id ? "Stop" : "Listen"}
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-9 w-9"
-                            onClick={(e) => { e.stopPropagation(); copyDua(dua); }}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyDua(dua);
+                            }}
+                          >
                             <Copy className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-9 w-9"
-                            onClick={(e) => { e.stopPropagation(); shareDua(dua); }}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              shareDua(dua);
+                            }}
+                          >
                             <Share2 className="w-4 h-4" />
                           </Button>
                         </div>

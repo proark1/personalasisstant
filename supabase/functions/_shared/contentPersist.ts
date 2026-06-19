@@ -49,7 +49,11 @@ export function dateKeyInTimezone(now: Date, timezone = "UTC"): string {
 
 // Headlines from the last `days` days, lowercased, so the generator can avoid
 // repeating itself across daily batches.
-export async function recentHeadlines(admin: ContentAdminClient, userId: string, days = 7): Promise<string[]> {
+export async function recentHeadlines(
+  admin: ContentAdminClient,
+  userId: string,
+  days = 7,
+): Promise<string[]> {
   const since = new Date(Date.now() - days * 86_400_000).toISOString().split("T")[0];
   const { data } = await (admin
     .from("content_ideas")

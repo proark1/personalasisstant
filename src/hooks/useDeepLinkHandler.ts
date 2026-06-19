@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface OpenEntityDetail {
   type: string;
@@ -33,44 +33,44 @@ export function useDeepLinkHandler(opts: DeepLinkOptions = {}) {
       // panel can auto-select the row. For dedicated routes (contracts /
       // contacts / workspaces) we react-router-navigate.
       switch (detail.type) {
-        case 'task':
-          opts.setActivePanel?.('tasks');
+        case "task":
+          opts.setActivePanel?.("tasks");
           // Most task lists key on a query-string param; emit a select
           // event for any panel that wants to scroll-to / open-modal.
-          window.dispatchEvent(new CustomEvent('dori:select-task', { detail: { id: detail.id } }));
+          window.dispatchEvent(new CustomEvent("dori:select-task", { detail: { id: detail.id } }));
           break;
-        case 'event':
-          opts.setActivePanel?.('calendar');
-          window.dispatchEvent(new CustomEvent('dori:select-event', { detail: { id: detail.id } }));
+        case "event":
+          opts.setActivePanel?.("calendar");
+          window.dispatchEvent(new CustomEvent("dori:select-event", { detail: { id: detail.id } }));
           break;
-        case 'note':
-          opts.setActivePanel?.('notes');
-          window.dispatchEvent(new CustomEvent('dori:select-note', { detail: { id: detail.id } }));
+        case "note":
+          opts.setActivePanel?.("notes");
+          window.dispatchEvent(new CustomEvent("dori:select-note", { detail: { id: detail.id } }));
           break;
-        case 'project':
-          opts.setActivePanel?.('projects');
+        case "project":
+          opts.setActivePanel?.("projects");
           opts.setSelectedProjectId?.(detail.id);
           break;
-        case 'contact':
-          navigate('/contacts');
+        case "contact":
+          navigate("/contacts");
           break;
-        case 'contract':
-          navigate('/contracts');
+        case "contract":
+          navigate("/contracts");
           break;
-        case 'workspace':
-          navigate('/workspaces');
+        case "workspace":
+          navigate("/workspaces");
           break;
-        case 'activity':
-          navigate('/activity');
+        case "activity":
+          navigate("/activity");
           break;
         default:
           // Unknown type: log and bail. The notification still got
           // surfaced, the user just lands on the dashboard.
-          console.warn('dori:open-entity unhandled type', detail.type);
+          console.warn("dori:open-entity unhandled type", detail.type);
       }
     };
-    window.addEventListener('dori:open-entity', handler as EventListener);
-    return () => window.removeEventListener('dori:open-entity', handler as EventListener);
+    window.addEventListener("dori:open-entity", handler as EventListener);
+    return () => window.removeEventListener("dori:open-entity", handler as EventListener);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, opts.setActivePanel, opts.setSelectedProjectId]); // opts object itself excluded — only the stable function refs matter
 }

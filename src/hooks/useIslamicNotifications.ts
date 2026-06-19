@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { useToast } from './use-toast';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { useToast } from "./use-toast";
 
 export interface IslamicNotificationSettings {
   id: string;
@@ -33,16 +33,16 @@ export interface IslamicNotificationSettings {
 const DEFAULT_SETTINGS: Partial<IslamicNotificationSettings> = {
   events_enabled: true,
   events_hours_before: 24,
-  events_send_time: '08:00',
+  events_send_time: "08:00",
   daily_hadith_enabled: true,
-  daily_hadith_time: '07:00',
-  hadith_source_preference: 'mixed',
+  daily_hadith_time: "07:00",
+  hadith_source_preference: "mixed",
   prayer_reminders_enabled: true,
   prayer_reminder_minutes_before: 5,
   prayer_reminders_for_all_five: true,
-  prayer_reminders_selected: ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'],
-  notification_language: 'en',
-  timezone: 'UTC',
+  prayer_reminders_selected: ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"],
+  notification_language: "en",
+  timezone: "UTC",
 };
 
 export function useIslamicNotifications() {
@@ -51,25 +51,29 @@ export function useIslamicNotifications() {
   const queryClient = useQueryClient();
 
   // Fetch settings
-  const { data: settings, isLoading, error } = useQuery({
-    queryKey: ['islamic-notifications', user?.id],
+  const {
+    data: settings,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["islamic-notifications", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
 
       const { data, error } = await supabase
-        .from('islamic_notification_settings')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("islamic_notification_settings")
+        .select("*")
+        .eq("user_id", user.id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error && error.code !== "PGRST116") {
         throw error;
       }
 
       // Create default settings if none exist
       if (!data && user?.id) {
         const { data: created, error: createError } = await supabase
-          .from('islamic_notification_settings')
+          .from("islamic_notification_settings")
           .insert([
             {
               user_id: user.id,
@@ -91,26 +95,29 @@ export function useIslamicNotifications() {
   // Update settings mutation
   const updateSettingsMutation = useMutation({
     mutationFn: async (updates: Partial<IslamicNotificationSettings>) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!user?.id) throw new Error("Not authenticated");
 
       const { error } = await supabase
-        .from('islamic_notification_settings')
+        .from("islamic_notification_settings")
         .update(updates)
-        .eq('user_id', user.id);
+        .eq("user_id", user.id);
 
       if (error) throw error;
 
       return updates;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['islamic-notifications', user?.id] });
-      toast({ title: 'Settings saved', description: 'Your Islamic notification preferences have been updated.' });
+      queryClient.invalidateQueries({ queryKey: ["islamic-notifications", user?.id] });
+      toast({
+        title: "Settings saved",
+        description: "Your Islamic notification preferences have been updated.",
+      });
     },
     onError: (error) => {
       toast({
-        title: 'Failed to save settings',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
+        title: "Failed to save settings",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
       });
     },
   });

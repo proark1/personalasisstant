@@ -46,7 +46,10 @@ export function EpisodicMemoriesCard() {
         {memories.map((m) => {
           const people = Array.isArray(m.people) ? m.people : [];
           const peopleCount = people.length;
-          const peopleNames = people.map((p) => p.name).filter(Boolean).join(", ");
+          const peopleNames = people
+            .map((p) => p.name)
+            .filter(Boolean)
+            .join(", ");
           return (
             <div key={m.id} className="p-2 rounded-md bg-muted/40 space-y-1">
               <div className="flex items-center justify-between gap-2">
@@ -55,7 +58,9 @@ export function EpisodicMemoriesCard() {
                   {format(new Date(m.occurred_on), "MMM d, yyyy")}
                 </span>
               </div>
-              {m.summary && <p className="text-xs text-muted-foreground line-clamp-2">{m.summary}</p>}
+              {m.summary && (
+                <p className="text-xs text-muted-foreground line-clamp-2">{m.summary}</p>
+              )}
               <div className="flex gap-3 text-[10px] text-muted-foreground">
                 {m.location && (
                   <span className="flex items-center gap-1">

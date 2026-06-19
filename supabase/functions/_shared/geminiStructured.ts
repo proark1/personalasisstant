@@ -68,7 +68,9 @@ export async function generateStructured(opts: StructuredOptions): Promise<unkno
     try {
       const errJson = JSON.parse(raw);
       detail = errJson?.error?.message || raw;
-    } catch { /* not JSON — use the raw text */ }
+    } catch {
+      /* not JSON — use the raw text */
+    }
     throw new Error(`AI gateway ${resp.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`);
   }
 
@@ -87,11 +89,18 @@ export async function generateStructured(opts: StructuredOptions): Promise<unkno
     return JSON.parse(text);
   } catch {
     // Tolerate stray fences/prose around the JSON object.
-    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const cleaned = text
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .trim();
     const m = cleaned.match(/[{[][\s\S]*[\]}]/); // object or array
 
     if (m) {
-      try { return JSON.parse(m[0]); } catch { /* fall through */ }
+      try {
+        return JSON.parse(m[0]);
+      } catch {
+        /* fall through */
+      }
     }
     throw new Error("AI returned invalid JSON");
   }

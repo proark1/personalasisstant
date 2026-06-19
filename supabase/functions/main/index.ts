@@ -102,7 +102,13 @@ Deno.serve(async (req: Request) => {
   // where it isn't used, so a large payload (e.g. base64 image) isn't pinned in
   // memory by the unread tee branch.
   const retryReq = req.clone();
-  const dropRetryBody = () => { try { retryReq.body?.cancel(); } catch { /* already consumed */ } };
+  const dropRetryBody = () => {
+    try {
+      retryReq.body?.cancel();
+    } catch {
+      /* already consumed */
+    }
+  };
   const startedAt = Date.now();
   try {
     try {
@@ -121,8 +127,8 @@ Deno.serve(async (req: Request) => {
       // work — double briefing sends, double tool actions, double charges.
       const elapsed = Date.now() - startedAt;
       const errMsg = staleErr instanceof Error ? staleErr.message : String(staleErr);
-      const ranAndFailed = elapsed > STALE_RETRY_MAX_MS
-        || /timed?\s*out|timeout|wall.?clock|memory|oom/i.test(errMsg);
+      const ranAndFailed =
+        elapsed > STALE_RETRY_MAX_MS || /timed?\s*out|timeout|wall.?clock|memory|oom/i.test(errMsg);
       if (ranAndFailed) {
         dropRetryBody();
         throw staleErr;

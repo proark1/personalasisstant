@@ -48,35 +48,35 @@ Set these on the `edge-runtime` service (not the gateway):
 
 ### Supabase (the runtime + supabase-js client inside functions)
 
-| Var | Value | Notes |
-|---|---|---|
-| `SUPABASE_URL` | `https://<your-gateway>.up.railway.app` | The functions' supabase-js client uses this for /rest/v1, /auth/v1. |
-| `SUPABASE_SERVICE_ROLE_KEY` | The JWT you minted in cutover Phase 2 | Server-side calls bypass RLS. |
-| `SUPABASE_ANON_KEY` _or_ `SUPABASE_PUBLISHABLE_KEY` | The anon JWT | Used by `resolveUserId()` to verify user JWTs. |
+| Var                                                 | Value                                   | Notes                                                               |
+| --------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------- |
+| `SUPABASE_URL`                                      | `https://<your-gateway>.up.railway.app` | The functions' supabase-js client uses this for /rest/v1, /auth/v1. |
+| `SUPABASE_SERVICE_ROLE_KEY`                         | The JWT you minted in cutover Phase 2   | Server-side calls bypass RLS.                                       |
+| `SUPABASE_ANON_KEY` _or_ `SUPABASE_PUBLISHABLE_KEY` | The anon JWT                            | Used by `resolveUserId()` to verify user JWTs.                      |
 
 ### Security (set after PR #28)
 
-| Var | Value | Notes |
-|---|---|---|
-| `APP_URL` | `https://<your-app>.up.railway.app` | Production frontend origin. CORS will throw at module load if unset. |
-| `APP_URLS` _(optional)_ | comma-separated extras | For staging/preview origins. |
-| `INTERNAL_AUTH_SECRET` | `openssl rand -hex 32` output | Enables the hardened service-role + x-telegram-user-id path. Without it, the legacy bypass remains with a warning log. |
-| `APP_ENV` _(local only)_ | `development` | Whitelists localhost origins. Do NOT set in production. |
+| Var                      | Value                               | Notes                                                                                                                  |
+| ------------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `APP_URL`                | `https://<your-app>.up.railway.app` | Production frontend origin. CORS will throw at module load if unset.                                                   |
+| `APP_URLS` _(optional)_  | comma-separated extras              | For staging/preview origins.                                                                                           |
+| `INTERNAL_AUTH_SECRET`   | `openssl rand -hex 32` output       | Enables the hardened service-role + x-telegram-user-id path. Without it, the legacy bypass remains with a warning log. |
+| `APP_ENV` _(local only)_ | `development`                       | Whitelists localhost origins. Do NOT set in production.                                                                |
 
 ### Third-party integrations (set whichever features you use)
 
-| Var | Used by |
-|---|---|
-| `GEMINI_API_KEY` | `chat`, `gemini-live`, embeddings, TTS, `morning-briefing` + `briefing-dispatch-cron` (news via Google Search grounding) |
-| `OPENAI_API_KEY` | `openai-realtime-session`, TTS, STT |
-| `TELEGRAM_API_KEY` | `telegram-*` family |
-| `TELEGRAM_WEBHOOK_SECRET` | Verifies inbound Telegram webhook calls — see [`telegram-poll/WEBHOOK.md`](../supabase/functions/telegram-poll/WEBHOOK.md) |
-| `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google Calendar/Gmail OAuth |
-| `MICROSOFT_CLIENT_ID` + `MICROSOFT_CLIENT_SECRET` | Outlook Calendar OAuth (`outlook-*`) |
-| `PERPLEXITY_API_KEY` | `web-search` |
-| `PLAID_CLIENT_ID` + `PLAID_SECRET` + `PLAID_ENV` | `plaid-*` |
-| `BANK_TOKEN_SECRET` | AES-GCM key for Plaid tokens at rest. `openssl rand -hex 32`. |
-| `MEETINGBOT_BASE_URL` + `MEETINGBOT_API_KEY` + `MEETINGBOT_WEBHOOK_SECRET` | Meeting copilot |
+| Var                                                                        | Used by                                                                                                                    |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `GEMINI_API_KEY`                                                           | `chat`, `gemini-live`, embeddings, TTS, `morning-briefing` + `briefing-dispatch-cron` (news via Google Search grounding)   |
+| `OPENAI_API_KEY`                                                           | `openai-realtime-session`, TTS, STT                                                                                        |
+| `TELEGRAM_API_KEY`                                                         | `telegram-*` family                                                                                                        |
+| `TELEGRAM_WEBHOOK_SECRET`                                                  | Verifies inbound Telegram webhook calls — see [`telegram-poll/WEBHOOK.md`](../supabase/functions/telegram-poll/WEBHOOK.md) |
+| `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`                                | Google Calendar/Gmail OAuth                                                                                                |
+| `MICROSOFT_CLIENT_ID` + `MICROSOFT_CLIENT_SECRET`                          | Outlook Calendar OAuth (`outlook-*`)                                                                                       |
+| `PERPLEXITY_API_KEY`                                                       | `web-search`                                                                                                               |
+| `PLAID_CLIENT_ID` + `PLAID_SECRET` + `PLAID_ENV`                           | `plaid-*`                                                                                                                  |
+| `BANK_TOKEN_SECRET`                                                        | AES-GCM key for Plaid tokens at rest. `openssl rand -hex 32`.                                                              |
+| `MEETINGBOT_BASE_URL` + `MEETINGBOT_API_KEY` + `MEETINGBOT_WEBHOOK_SECRET` | Meeting copilot                                                                                                            |
 
 Set whatever you actually use. A function that needs a missing key
 will fail at first request (or at module load if the var is read

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -25,7 +25,8 @@ serve(async (req) => {
   // so require the service-role bearer in code (matches the *-cron siblings).
   if (req.headers.get("Authorization") !== `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -145,7 +146,11 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, routinesProposed: totalRoutines, usersScanned: userIds.length }),
+      JSON.stringify({
+        success: true,
+        routinesProposed: totalRoutines,
+        usersScanned: userIds.length,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

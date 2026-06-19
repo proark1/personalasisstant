@@ -8,7 +8,7 @@
 // - drop consecutive duplicates (same role + same content)
 // - ensure the final message is the current user turn
 
-export type ChatRole = 'user' | 'assistant';
+export type ChatRole = "user" | "assistant";
 export interface ChatTurn {
   role: ChatRole;
   content: string;
@@ -33,13 +33,13 @@ export function buildConversationMessages({
   const prevContext: ChatTurn[] = [];
   if (previousConversationMessages.length > 0 && messages.length === 0) {
     prevContext.push({
-      role: 'user',
-      content: '[Previous conversation context — use for continuity]',
+      role: "user",
+      content: "[Previous conversation context — use for continuity]",
     });
     prevContext.push(...previousConversationMessages);
     prevContext.push({
-      role: 'assistant',
-      content: '[End of previous context — new conversation starts below]',
+      role: "assistant",
+      content: "[End of previous context — new conversation starts below]",
     });
   }
 
@@ -56,8 +56,8 @@ export function buildConversationMessages({
   }
 
   const last = deduped[deduped.length - 1];
-  if (!last || last.role !== 'user' || last.content !== userText) {
-    deduped.push({ role: 'user', content: userText });
+  if (!last || last.role !== "user" || last.content !== userText) {
+    deduped.push({ role: "user", content: userText });
   }
 
   return deduped;

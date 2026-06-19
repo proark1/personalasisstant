@@ -1,17 +1,23 @@
-import { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { UserSettings, ColorScheme, TaskCategory, TaskPriority } from '@/types/flux';
-import { 
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { UserSettings, ColorScheme, TaskCategory, TaskPriority } from "@/types/flux";
+import {
   Settings,
-  Send, 
-  Sun, 
+  Send,
+  Sun,
   Moon,
   Sparkles,
   Check,
@@ -37,234 +43,234 @@ import {
   Loader2,
   Keyboard,
   Fingerprint,
-  Newspaper
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SpaceMembersPanel } from './SpaceMembersPanel';
-import { NotificationSettingsPanel } from './NotificationSettingsPanel';
-import { ProactiveSettingsPanel } from './ProactiveSettingsPanel';
-import { BriefingsPanel } from './BriefingsPanel';
-import { KeyboardShortcutsPanel, useKeyboardShortcutsPanel } from './KeyboardShortcutsPanel';
-import { AutomationRulesPanel } from './AutomationRulesPanel';
-import { CalendarConnectionsPanel } from './CalendarConnectionsPanel';
-import { TelegramHubPanel } from './TelegramHubPanel';
-import { MemoryDashboard } from '@/components/memory/MemoryDashboard';
-import { useAuth } from '@/hooks/useAuth';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useUserProfile } from '@/hooks/useUserProfile';
-import { useStatusBar } from '@/hooks/useStatusBar';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useBiometricAuth } from '@/hooks/useBiometricAuth';
-import { usePrayerNotificationSettings } from '@/hooks/usePrayerNotificationSettings';
-import { useUserLocationSettings, MAJOR_CITIES } from '@/hooks/useUserLocationSettings';
+  Newspaper,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SpaceMembersPanel } from "./SpaceMembersPanel";
+import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
+import { ProactiveSettingsPanel } from "./ProactiveSettingsPanel";
+import { BriefingsPanel } from "./BriefingsPanel";
+import { KeyboardShortcutsPanel, useKeyboardShortcutsPanel } from "./KeyboardShortcutsPanel";
+import { AutomationRulesPanel } from "./AutomationRulesPanel";
+import { CalendarConnectionsPanel } from "./CalendarConnectionsPanel";
+import { TelegramHubPanel } from "./TelegramHubPanel";
+import { MemoryDashboard } from "@/components/memory/MemoryDashboard";
+import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useStatusBar } from "@/hooks/useStatusBar";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useBiometricAuth } from "@/hooks/useBiometricAuth";
+import { usePrayerNotificationSettings } from "@/hooks/usePrayerNotificationSettings";
+import { useUserLocationSettings, MAJOR_CITIES } from "@/hooks/useUserLocationSettings";
 
 interface SettingsPanelContentProps {
   settings: UserSettings;
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
-  onUpdateNotifications: (updates: Partial<UserSettings['notifications']>) => void;
+  onUpdateNotifications: (updates: Partial<UserSettings["notifications"]>) => void;
 }
 
 const colorSchemes: { value: ColorScheme; label: string; color: string }[] = [
-  { value: 'emerald', label: 'Emerald', color: 'bg-emerald-500' },
-  { value: 'cyan', label: 'Electric Cyan', color: 'bg-cyan-500' },
-  { value: 'purple', label: 'Violet', color: 'bg-purple-500' },
-  { value: 'green', label: 'Green', color: 'bg-green-500' },
-  { value: 'orange', label: 'Sunset', color: 'bg-orange-500' },
-  { value: 'pink', label: 'Rose', color: 'bg-pink-500' },
+  { value: "emerald", label: "Emerald", color: "bg-emerald-500" },
+  { value: "cyan", label: "Electric Cyan", color: "bg-cyan-500" },
+  { value: "purple", label: "Violet", color: "bg-purple-500" },
+  { value: "green", label: "Green", color: "bg-green-500" },
+  { value: "orange", label: "Sunset", color: "bg-orange-500" },
+  { value: "pink", label: "Rose", color: "bg-pink-500" },
 ];
 
 // App features for Info tab
 const APP_FEATURES = [
   {
-    category: 'Task Management',
+    category: "Task Management",
     icon: CheckSquare,
     features: [
-      'Create, edit, and organize tasks with priorities and categories',
-      'Kanban board view for visual task management',
-      'Project organization with progress tracking',
-      'Task templates for recurring workflows',
-      'Tag system for flexible categorization',
-      'Smart task parsing from natural language',
-      'Recurrence support for repeating tasks',
-    ]
+      "Create, edit, and organize tasks with priorities and categories",
+      "Kanban board view for visual task management",
+      "Project organization with progress tracking",
+      "Task templates for recurring workflows",
+      "Tag system for flexible categorization",
+      "Smart task parsing from natural language",
+      "Recurrence support for repeating tasks",
+    ],
   },
   {
-    category: 'Calendar & Events',
+    category: "Calendar & Events",
     icon: Calendar,
     features: [
-      'Full calendar with day, week, and month views',
-      'Event creation with location and attendees',
-      'External calendar import (ICS files)',
-      'Recurrence rules for repeating events',
-      'Event reminders and notifications',
-      'Public holiday integration by country',
-    ]
+      "Full calendar with day, week, and month views",
+      "Event creation with location and attendees",
+      "External calendar import (ICS files)",
+      "Recurrence rules for repeating events",
+      "Event reminders and notifications",
+      "Public holiday integration by country",
+    ],
   },
   {
-    category: 'Contacts & CRM',
+    category: "Contacts & CRM",
     icon: UserCircle,
     features: [
-      'Contact management with detailed profiles',
-      'Company and relationship tracking',
-      'Follow-up reminders and last contact dates',
-      'Contact suggestions based on patterns',
-      'Tags and notes for each contact',
-    ]
+      "Contact management with detailed profiles",
+      "Company and relationship tracking",
+      "Follow-up reminders and last contact dates",
+      "Contact suggestions based on patterns",
+      "Tags and notes for each contact",
+    ],
   },
   {
-    category: 'Contracts & Subscriptions',
+    category: "Contracts & Subscriptions",
     icon: FileText,
     features: [
-      'Track all contracts and subscriptions',
-      'Cost tracking (monthly/yearly)',
-      'Renewal date alerts and cancellation notices',
-      'Document upload and storage',
-      'Auto-renewal tracking',
-    ]
+      "Track all contracts and subscriptions",
+      "Cost tracking (monthly/yearly)",
+      "Renewal date alerts and cancellation notices",
+      "Document upload and storage",
+      "Auto-renewal tracking",
+    ],
   },
   {
-    category: 'Family Hub',
+    category: "Family Hub",
     icon: Home,
     features: [
-      'Family member profiles with health info',
-      'Household task management and assignments',
-      'Family calendar with shared events',
-      'Meal planning and recipe management',
-      'Shopping lists with smart suggestions',
-      'Budget tracking and expense categories',
-      'Document storage (IDs, medical records)',
-      'Medication and vaccination tracking',
-      'Child dashboard with school info',
-    ]
+      "Family member profiles with health info",
+      "Household task management and assignments",
+      "Family calendar with shared events",
+      "Meal planning and recipe management",
+      "Shopping lists with smart suggestions",
+      "Budget tracking and expense categories",
+      "Document storage (IDs, medical records)",
+      "Medication and vaccination tracking",
+      "Child dashboard with school info",
+    ],
   },
   {
-    category: 'Health & Wellness',
+    category: "Health & Wellness",
     icon: Heart,
     features: [
-      'Apple Health integration (steps, sleep, heart rate)',
-      'Manual health metric tracking',
-      'Age-based health checkup reminders',
-      'Daily check-ins (mood, energy, sleep)',
-      'Life correlations (sleep vs productivity)',
-      'Weekly wellness insights',
-    ]
+      "Apple Health integration (steps, sleep, heart rate)",
+      "Manual health metric tracking",
+      "Age-based health checkup reminders",
+      "Daily check-ins (mood, energy, sleep)",
+      "Life correlations (sleep vs productivity)",
+      "Weekly wellness insights",
+    ],
   },
   {
-    category: 'Habits & Goals',
+    category: "Habits & Goals",
     icon: Target,
     features: [
-      'Habit tracking with streaks',
-      'Goal setting with progress visualization',
-      'Daily/weekly habit reminders',
-      'Gamification with XP and celebrations',
-    ]
+      "Habit tracking with streaks",
+      "Goal setting with progress visualization",
+      "Daily/weekly habit reminders",
+      "Gamification with XP and celebrations",
+    ],
   },
   {
-    category: 'Communication',
+    category: "Communication",
     icon: MessageSquare,
     features: [
-      'Direct messaging with read receipts',
-      'Group chats with admin controls',
-      'Voice messages with playback',
-      'Message reactions and emoji picker',
-      'Typing indicators',
-      'End-to-end encryption support',
-    ]
+      "Direct messaging with read receipts",
+      "Group chats with admin controls",
+      "Voice messages with playback",
+      "Message reactions and emoji picker",
+      "Typing indicators",
+      "End-to-end encryption support",
+    ],
   },
   {
-    category: 'Voice & Video Calls',
+    category: "Voice & Video Calls",
     icon: Phone,
     features: [
-      'WebRTC-based audio/video calls',
-      'Call recording with cloud storage',
-      'Call history and duration tracking',
-      'In-call chat messaging',
-      'Online presence indicators',
-    ]
+      "WebRTC-based audio/video calls",
+      "Call recording with cloud storage",
+      "Call history and duration tracking",
+      "In-call chat messaging",
+      "Online presence indicators",
+    ],
   },
   {
-    category: 'AI Assistant (Dori)',
+    category: "AI Assistant (Dori)",
     icon: Sparkles,
     features: [
-      'Voice-activated commands via OpenAI Realtime',
-      'Gemini Live integration for conversations',
-      'Natural language task creation',
-      'Smart scheduling suggestions',
-      'Morning briefing with personalized news',
-      'Recipe assistant for meal planning',
-      'Text-to-speech for hands-free use',
-      'AI memory for personalized responses',
-    ]
+      "Voice-activated commands via OpenAI Realtime",
+      "Gemini Live integration for conversations",
+      "Natural language task creation",
+      "Smart scheduling suggestions",
+      "Morning briefing with personalized news",
+      "Recipe assistant for meal planning",
+      "Text-to-speech for hands-free use",
+      "AI memory for personalized responses",
+    ],
   },
   {
-    category: 'Proactive Features',
+    category: "Proactive Features",
     icon: Bell,
     features: [
-      'Forgotten task reminders',
-      'Contract renewal alerts',
-      'Contact check-in suggestions',
-      'Event preparation nudges',
-      'Habit streak protection',
-      'Daily review prompts',
-      'Smart nudges based on context',
-      'Quiet hours configuration',
-    ]
+      "Forgotten task reminders",
+      "Contract renewal alerts",
+      "Contact check-in suggestions",
+      "Event preparation nudges",
+      "Habit streak protection",
+      "Daily review prompts",
+      "Smart nudges based on context",
+      "Quiet hours configuration",
+    ],
   },
   {
-    category: 'Smart Insights',
+    category: "Smart Insights",
     icon: TrendingUp,
     features: [
-      'Day prediction scores',
-      'Weekly insights and patterns',
-      'Life correlations analysis',
-      'Weekly coach recommendations',
-      'Activity feed tracking',
-      'User pattern analysis',
-    ]
+      "Day prediction scores",
+      "Weekly insights and patterns",
+      "Life correlations analysis",
+      "Weekly coach recommendations",
+      "Activity feed tracking",
+      "User pattern analysis",
+    ],
   },
   {
-    category: 'Search & Organization',
+    category: "Search & Organization",
     icon: Search,
     features: [
-      'Global search across all data',
-      'Tag-based filtering',
-      'Project-based organization',
-      'Notes with markdown support',
-      'Brain dump inbox for quick capture',
-    ]
+      "Global search across all data",
+      "Tag-based filtering",
+      "Project-based organization",
+      "Notes with markdown support",
+      "Brain dump inbox for quick capture",
+    ],
   },
   {
-    category: 'Location Features',
+    category: "Location Features",
     icon: MapPin,
     features: [
-      'Location-based reminders',
-      'Geofence triggers (arrive/leave)',
-      'Weather integration for planning',
-      'Property management tracking',
-    ]
+      "Location-based reminders",
+      "Geofence triggers (arrive/leave)",
+      "Weather integration for planning",
+      "Property management tracking",
+    ],
   },
   {
-    category: 'Team & Sharing',
+    category: "Team & Sharing",
     icon: Users,
     features: [
-      'Space members for data sharing',
-      'Granular sharing controls by category',
-      'Shared tasks, events, and contacts',
-      'Real-time collaboration updates',
-      'Consent-based sharing with confirmations',
-    ]
+      "Space members for data sharing",
+      "Granular sharing controls by category",
+      "Shared tasks, events, and contacts",
+      "Real-time collaboration updates",
+      "Consent-based sharing with confirmations",
+    ],
   },
   {
-    category: 'Security & Privacy',
+    category: "Security & Privacy",
     icon: Shield,
     features: [
-      'Row-level security on all data',
-      'Encrypted document storage',
-      'Secure call recordings',
-      'Time-limited signed URLs for files',
-      'Consent tracking for data sharing',
-    ]
+      "Row-level security on all data",
+      "Encrypted document storage",
+      "Secure call recordings",
+      "Time-limited signed URLs for files",
+      "Consent tracking for data sharing",
+    ],
   },
 ];
 
@@ -327,9 +333,9 @@ const AI_SYSTEM_PROMPT = `You are a powerful, friendly personal assistant with F
 - Clear confirmations: "Done!", "Got it!", "Created!"
 - Proactive suggestions when relevant`;
 
-export function SettingsPanelContent({ 
-  settings, 
-  onUpdateSettings, 
+export function SettingsPanelContent({
+  settings,
+  onUpdateSettings,
   onUpdateNotifications,
 }: SettingsPanelContentProps) {
   const { user } = useAuth();
@@ -339,18 +345,20 @@ export function SettingsPanelContent({
   const biometricAuth = useBiometricAuth();
   const keyboardShortcuts = useKeyboardShortcutsPanel();
   const prayerNotifications = usePrayerNotificationSettings();
-  const [activeTab, setActiveTab] = useState<'general' | 'telegram' | 'briefings' | 'proactive' | 'team' | 'memory' | 'ai' | 'info'>('general');
-  
+  const [activeTab, setActiveTab] = useState<
+    "general" | "telegram" | "briefings" | "proactive" | "team" | "memory" | "ai" | "info"
+  >("general");
+
   // Sync status bar color with theme
   useStatusBar(settings.theme);
-  
+
   // Profile form state
-  const [displayName, setDisplayName] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [locale, setLocale] = useState('');
+  const [displayName, setDisplayName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [locale, setLocale] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Location settings
   const {
@@ -369,23 +377,32 @@ export function SettingsPanelContent({
   const handleDownloadExport = async () => {
     setIsExporting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) {
-        toast({ title: 'Sign in required', variant: 'destructive' });
+        toast({ title: "Sign in required", variant: "destructive" });
         return;
       }
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-data-export`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-data-export`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
+          },
+          body: "{}",
         },
-        body: '{}',
-      });
+      );
       if (!res.ok) {
-        toast({ title: 'Export failed', description: `Server returned ${res.status}`, variant: 'destructive' });
+        toast({
+          title: "Export failed",
+          description: `Server returned ${res.status}`,
+          variant: "destructive",
+        });
         return;
       }
       // res.blob() buffers the full response in memory before resolving.
@@ -395,20 +412,21 @@ export function SettingsPanelContent({
       // function caps each table at 5 000 rows + minifies the output to
       // keep the payload well within mobile browser limits.
       const blob = await res.blob();
-      const cd = res.headers.get('Content-Disposition') || '';
+      const cd = res.headers.get("Content-Disposition") || "";
       const fnameMatch = cd.match(/filename="([^"]+)"/);
-      const filename = fnameMatch?.[1] || `dori-export-${new Date().toISOString().slice(0, 10)}.json`;
+      const filename =
+        fnameMatch?.[1] || `dori-export-${new Date().toISOString().slice(0, 10)}.json`;
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast({ title: 'Export ready', description: `Downloaded as ${filename}` });
+      toast({ title: "Export ready", description: `Downloaded as ${filename}` });
     } catch (e) {
-      toast({ title: 'Export failed', description: (e as Error).message, variant: 'destructive' });
+      toast({ title: "Export failed", description: (e as Error).message, variant: "destructive" });
     } finally {
       setIsExporting(false);
     }
@@ -417,9 +435,9 @@ export function SettingsPanelContent({
   // Sync profile data to form
   useEffect(() => {
     if (profile) {
-      setDisplayName(profile.displayName || '');
-      setBirthDate(profile.birthDate || '');
-      setLocale(profile.locale || '');
+      setDisplayName(profile.displayName || "");
+      setBirthDate(profile.birthDate || "");
+      setLocale(profile.locale || "");
     }
   }, [profile]);
 
@@ -429,26 +447,30 @@ export function SettingsPanelContent({
       displayName: displayName.trim() || undefined,
       birthDate: birthDate || undefined,
       // Empty string clears the locale (back to auto-detect).
-      locale: locale.trim() === '' ? '' : locale.trim(),
+      locale: locale.trim() === "" ? "" : locale.trim(),
     });
     setIsSavingProfile(false);
-    
+
     if (result.success) {
-      toast({ title: 'Profile saved', description: 'Your profile has been updated.' });
+      toast({ title: "Profile saved", description: "Your profile has been updated." });
     } else {
-      toast({ variant: 'destructive', title: 'Error', description: result.error || 'Failed to save profile' });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: result.error || "Failed to save profile",
+      });
     }
   };
 
   const tabs = [
-    { id: 'general' as const, label: 'General', icon: Settings },
-    { id: 'telegram' as const, label: 'Telegram', icon: Send },
-    { id: 'briefings' as const, label: 'Briefings', icon: Newspaper },
-    { id: 'proactive' as const, label: 'Proactive & Advanced', icon: Brain },
-    { id: 'team' as const, label: t('settings.team'), icon: Users },
-    { id: 'memory' as const, label: 'Memory', icon: Brain },
-    { id: 'ai' as const, label: 'AI', icon: Bot },
-    { id: 'info' as const, label: 'Info', icon: Info },
+    { id: "general" as const, label: "General", icon: Settings },
+    { id: "telegram" as const, label: "Telegram", icon: Send },
+    { id: "briefings" as const, label: "Briefings", icon: Newspaper },
+    { id: "proactive" as const, label: "Proactive & Advanced", icon: Brain },
+    { id: "team" as const, label: t("settings.team"), icon: Users },
+    { id: "memory" as const, label: "Memory", icon: Brain },
+    { id: "ai" as const, label: "AI", icon: Bot },
+    { id: "info" as const, label: "Info", icon: Info },
   ];
 
   return (
@@ -456,7 +478,7 @@ export function SettingsPanelContent({
       {/* Header */}
       <div className="flex items-center gap-2 p-4 border-b border-border shrink-0">
         <Settings className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">{t('settings.title')}</h2>
+        <h2 className="text-lg font-semibold">{t("settings.title")}</h2>
       </div>
 
       {/* Tabs */}
@@ -467,9 +489,9 @@ export function SettingsPanelContent({
             onClick={() => setActiveTab(tab.id)}
             className={cn(
               "flex-1 flex items-center justify-center gap-2 py-3 text-sm transition-colors",
-              activeTab === tab.id 
-                ? "text-primary border-b-2 border-primary -mb-px" 
-                : "text-muted-foreground hover:text-foreground"
+              activeTab === tab.id
+                ? "text-primary border-b-2 border-primary -mb-px"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <tab.icon className="w-4 h-4" />
@@ -481,645 +503,687 @@ export function SettingsPanelContent({
       {/* Content */}
       <div className="flex-1 min-h-0 h-0 overflow-y-scroll overscroll-contain">
         <div className="p-6 space-y-6 pb-24">
-        {activeTab === 'general' && (
-          <>
-            {/* Profile Section */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Profile
-              </h3>
-              
-              {profileLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Display Name */}
-                  <div className="space-y-2">
-                    <Label htmlFor="displayName">Display Name</Label>
-                    <Input
-                      id="displayName"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="Enter your name"
-                    />
+          {activeTab === "general" && (
+            <>
+              {/* Profile Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Profile
+                </h3>
+
+                {profileLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                   </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Display Name */}
+                    <div className="space-y-2">
+                      <Label htmlFor="displayName">Display Name</Label>
+                      <Input
+                        id="displayName"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Enter your name"
+                      />
+                    </div>
 
-                  {/* Email (read-only) */}
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={profile?.email || user?.email || ''}
-                      disabled
-                      className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Email cannot be changed here
-                    </p>
-                  </div>
+                    {/* Email (read-only) */}
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        value={profile?.email || user?.email || ""}
+                        disabled
+                        className="bg-muted"
+                      />
+                      <p className="text-xs text-muted-foreground">Email cannot be changed here</p>
+                    </div>
 
-                  {/* Birth Date */}
-                  <div className="space-y-2">
-                    <Label htmlFor="birthDate">Birth Date</Label>
-                    <Input
-                      id="birthDate"
-                      type="date"
-                      value={birthDate}
-                      onChange={(e) => setBirthDate(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Used for age-based health recommendations
-                    </p>
-                  </div>
+                    {/* Birth Date */}
+                    <div className="space-y-2">
+                      <Label htmlFor="birthDate">Birth Date</Label>
+                      <Input
+                        id="birthDate"
+                        type="date"
+                        value={birthDate}
+                        onChange={(e) => setBirthDate(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Used for age-based health recommendations
+                      </p>
+                    </div>
 
-                  {/* Locale — empty value = auto-detect from messages. */}
-                  <div className="space-y-2">
-                    <Label htmlFor="locale">Language</Label>
-                    <Select value={locale || '__auto__'} onValueChange={(v) => setLocale(v === '__auto__' ? '' : v)}>
-                      <SelectTrigger id="locale">
-                        <SelectValue placeholder="Auto-detect" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__auto__">Auto-detect</SelectItem>
-                        <SelectItem value="en-US">English (US)</SelectItem>
-                        <SelectItem value="en-GB">English (UK)</SelectItem>
-                        <SelectItem value="de-DE">Deutsch</SelectItem>
-                        <SelectItem value="fr-FR">Français</SelectItem>
-                        <SelectItem value="es-ES">Español</SelectItem>
-                        <SelectItem value="it-IT">Italiano</SelectItem>
-                        <SelectItem value="pt-BR">Português (BR)</SelectItem>
-                        <SelectItem value="nl-NL">Nederlands</SelectItem>
-                        <SelectItem value="pl-PL">Polski</SelectItem>
-                        <SelectItem value="ja-JP">日本語</SelectItem>
-                        <SelectItem value="ko-KR">한국어</SelectItem>
-                        <SelectItem value="zh-CN">中文 (简体)</SelectItem>
-                        <SelectItem value="ar-SA">العربية</SelectItem>
-                        <SelectItem value="tr-TR">Türkçe</SelectItem>
-                        <SelectItem value="ru-RU">Русский</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Dori replies in this language by default. Auto-detect mirrors whichever language you write in.
-                    </p>
-                  </div>
+                    {/* Locale — empty value = auto-detect from messages. */}
+                    <div className="space-y-2">
+                      <Label htmlFor="locale">Language</Label>
+                      <Select
+                        value={locale || "__auto__"}
+                        onValueChange={(v) => setLocale(v === "__auto__" ? "" : v)}
+                      >
+                        <SelectTrigger id="locale">
+                          <SelectValue placeholder="Auto-detect" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__auto__">Auto-detect</SelectItem>
+                          <SelectItem value="en-US">English (US)</SelectItem>
+                          <SelectItem value="en-GB">English (UK)</SelectItem>
+                          <SelectItem value="de-DE">Deutsch</SelectItem>
+                          <SelectItem value="fr-FR">Français</SelectItem>
+                          <SelectItem value="es-ES">Español</SelectItem>
+                          <SelectItem value="it-IT">Italiano</SelectItem>
+                          <SelectItem value="pt-BR">Português (BR)</SelectItem>
+                          <SelectItem value="nl-NL">Nederlands</SelectItem>
+                          <SelectItem value="pl-PL">Polski</SelectItem>
+                          <SelectItem value="ja-JP">日本語</SelectItem>
+                          <SelectItem value="ko-KR">한국어</SelectItem>
+                          <SelectItem value="zh-CN">中文 (简体)</SelectItem>
+                          <SelectItem value="ar-SA">العربية</SelectItem>
+                          <SelectItem value="tr-TR">Türkçe</SelectItem>
+                          <SelectItem value="ru-RU">Русский</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Dori replies in this language by default. Auto-detect mirrors whichever
+                        language you write in.
+                      </p>
+                    </div>
 
-                  {/* Location & Time Settings */}
-                  {locationSettings && (
-                    <>
-                      <div className="pt-4 border-t border-border">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
-                          Location & Time
-                        </h3>
+                    {/* Location & Time Settings */}
+                    {locationSettings && (
+                      <>
+                        <div className="pt-4 border-t border-border">
+                          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+                            Location & Time
+                          </h3>
 
-                        {locationLoading ? (
-                          <div className="flex items-center justify-center py-4">
-                            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {/* Current Location Display */}
-                            <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                              <p className="text-xs text-muted-foreground mb-1">Home Location</p>
-                              <p className="font-semibold">
-                                {locationSettings.city}, {locationSettings.country}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Timezone: {locationSettings.timezone}
-                              </p>
+                          {locationLoading ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                             </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {/* Current Location Display */}
+                              <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                                <p className="text-xs text-muted-foreground mb-1">Home Location</p>
+                                <p className="font-semibold">
+                                  {locationSettings.city}, {locationSettings.country}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Timezone: {locationSettings.timezone}
+                                </p>
+                              </div>
 
-                            {/* Quick City Selection */}
-                            <div className="space-y-2">
-                              <Label htmlFor="citySearch">Quick Select City</Label>
-                              <Input
-                                id="citySearch"
-                                placeholder="Search cities..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="mb-2"
-                              />
-                              <ScrollArea className="h-32 border rounded-lg">
-                                <div className="p-2 space-y-1">
-                                  {MAJOR_CITIES.filter(
-                                    (c) =>
-                                      c.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                      c.country.toLowerCase().includes(searchQuery.toLowerCase())
-                                  ).map((city) => (
-                                    <Button
-                                      key={`${city.city}-${city.country}`}
-                                      variant={
-                                        locationSettings.city === city.city && locationSettings.country === city.country
-                                          ? 'default'
-                                          : 'ghost'
-                                      }
-                                      className="w-full justify-start text-xs h-8"
-                                      onClick={() => updateLocation(city.city, city.country, city.lat, city.lng, city.tz)}
-                                      disabled={locationSaving}
-                                    >
-                                      <MapPin className="w-3 h-3 mr-2" />
-                                      {city.city}, {city.country}
-                                    </Button>
-                                  ))}
+                              {/* Quick City Selection */}
+                              <div className="space-y-2">
+                                <Label htmlFor="citySearch">Quick Select City</Label>
+                                <Input
+                                  id="citySearch"
+                                  placeholder="Search cities..."
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  className="mb-2"
+                                />
+                                <ScrollArea className="h-32 border rounded-lg">
+                                  <div className="p-2 space-y-1">
+                                    {MAJOR_CITIES.filter(
+                                      (c) =>
+                                        c.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                        c.country.toLowerCase().includes(searchQuery.toLowerCase()),
+                                    ).map((city) => (
+                                      <Button
+                                        key={`${city.city}-${city.country}`}
+                                        variant={
+                                          locationSettings.city === city.city &&
+                                          locationSettings.country === city.country
+                                            ? "default"
+                                            : "ghost"
+                                        }
+                                        className="w-full justify-start text-xs h-8"
+                                        onClick={() =>
+                                          updateLocation(
+                                            city.city,
+                                            city.country,
+                                            city.lat,
+                                            city.lng,
+                                            city.tz,
+                                          )
+                                        }
+                                        disabled={locationSaving}
+                                      >
+                                        <MapPin className="w-3 h-3 mr-2" />
+                                        {city.city}, {city.country}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              </div>
+
+                              {/* Temperature Unit */}
+                              <div className="space-y-2">
+                                <Label>Temperature Display</Label>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant={
+                                      locationSettings.temperature_unit === "celsius"
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    className="flex-1 text-xs h-9"
+                                    onClick={() => updateTemperatureUnit("celsius")}
+                                    disabled={locationSaving}
+                                  >
+                                    °C Celsius
+                                  </Button>
+                                  <Button
+                                    variant={
+                                      locationSettings.temperature_unit === "fahrenheit"
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    className="flex-1 text-xs h-9"
+                                    onClick={() => updateTemperatureUnit("fahrenheit")}
+                                    disabled={locationSaving}
+                                  >
+                                    °F Fahrenheit
+                                  </Button>
                                 </div>
-                              </ScrollArea>
-                            </div>
+                              </div>
 
-                            {/* Temperature Unit */}
-                            <div className="space-y-2">
-                              <Label>Temperature Display</Label>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant={locationSettings.temperature_unit === 'celsius' ? 'default' : 'outline'}
-                                  className="flex-1 text-xs h-9"
-                                  onClick={() => updateTemperatureUnit('celsius')}
-                                  disabled={locationSaving}
+                              {/* Prayer Calculation Method */}
+                              <div className="space-y-2">
+                                <Label htmlFor="prayerMethod">Prayer Calculation Method</Label>
+                                <Select
+                                  value={locationSettings.prayer_calculation_method.toString()}
+                                  onValueChange={(value) =>
+                                    updatePrayerCalculationMethod(parseInt(value))
+                                  }
                                 >
-                                  °C Celsius
-                                </Button>
-                                <Button
-                                  variant={locationSettings.temperature_unit === 'fahrenheit' ? 'default' : 'outline'}
-                                  className="flex-1 text-xs h-9"
-                                  onClick={() => updateTemperatureUnit('fahrenheit')}
-                                  disabled={locationSaving}
-                                >
-                                  °F Fahrenheit
-                                </Button>
+                                  <SelectTrigger id="prayerMethod" className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="2">ISNA (North America)</SelectItem>
+                                    <SelectItem value="3">Muslim World League</SelectItem>
+                                    <SelectItem value="5">Egyptian General Authority</SelectItem>
+                                    <SelectItem value="4">Umm Al-Qura (Mecca)</SelectItem>
+                                    <SelectItem value="8">Dubai</SelectItem>
+                                    <SelectItem value="13">Turkey (Diyanet)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                  For accurate prayer times in your region
+                                </p>
                               </div>
                             </div>
-
-                            {/* Prayer Calculation Method */}
-                            <div className="space-y-2">
-                              <Label htmlFor="prayerMethod">Prayer Calculation Method</Label>
-                              <Select
-                                value={locationSettings.prayer_calculation_method.toString()}
-                                onValueChange={(value) => updatePrayerCalculationMethod(parseInt(value))}
-                              >
-                                <SelectTrigger id="prayerMethod" className="h-9">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="2">ISNA (North America)</SelectItem>
-                                  <SelectItem value="3">Muslim World League</SelectItem>
-                                  <SelectItem value="5">Egyptian General Authority</SelectItem>
-                                  <SelectItem value="4">Umm Al-Qura (Mecca)</SelectItem>
-                                  <SelectItem value="8">Dubai</SelectItem>
-                                  <SelectItem value="13">Turkey (Diyanet)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <p className="text-xs text-muted-foreground">
-                                For accurate prayer times in your region
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Save Button */}
-                  <Button
-                    onClick={handleSaveProfile}
-                    disabled={isSavingProfile}
-                    size="sm"
-                  >
-                    {isSavingProfile ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
+                          )}
+                        </div>
                       </>
-                    ) : (
-                      'Save Profile'
                     )}
-                  </Button>
-                </div>
-              )}
-            </div>
 
-            {/* Data export — single button that downloads the full bundle. */}
-            <div className="pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Your data
-              </h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                Download every record Dori keeps for you — tasks, events, notes,
-                contacts, contracts, memories, and the full activity log — as a
-                single JSON file. Workspace data stays with the workspace.
-              </p>
-              <Button size="sm" variant="outline" onClick={handleDownloadExport} disabled={isExporting}>
-                {isExporting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Preparing…
-                  </>
-                ) : (
-                  'Download my data (JSON)'
+                    {/* Save Button */}
+                    <Button onClick={handleSaveProfile} disabled={isSavingProfile} size="sm">
+                      {isSavingProfile ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Profile"
+                      )}
+                    </Button>
+                  </div>
                 )}
-              </Button>
-            </div>
+              </div>
 
-            {/* Calendar Connections Section */}
-            <div className="pt-4 border-t border-border">
-              <CalendarConnectionsPanel />
-            </div>
+              {/* Data export — single button that downloads the full bundle. */}
+              <div className="pt-4 border-t border-border">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Your data
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Download every record Dori keeps for you — tasks, events, notes, contacts,
+                  contracts, memories, and the full activity log — as a single JSON file. Workspace
+                  data stays with the workspace.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDownloadExport}
+                  disabled={isExporting}
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Preparing…
+                    </>
+                  ) : (
+                    "Download my data (JSON)"
+                  )}
+                </Button>
+              </div>
 
-            {/* Appearance Section */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                {t('settings.appearance')}
-              </h3>
-              
-              {/* Theme Toggle */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium">{t('settings.theme')}</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    variant={settings.theme === 'dark' ? 'secondary' : 'outline'}
-                    className="gap-2"
-                    onClick={() => onUpdateSettings({ theme: 'dark' })}
-                  >
-                    <Moon className="w-4 h-4" />
-                    {t('settings.dark')}
-                  </Button>
-                  <Button
-                    variant={settings.theme === 'light' ? 'secondary' : 'outline'}
-                    className="gap-2"
-                    onClick={() => onUpdateSettings({ theme: 'light' })}
-                  >
-                    <Sun className="w-4 h-4" />
-                    {t('settings.light')}
-                  </Button>
-                  <Button
-                    variant={settings.theme === 'colorful' ? 'secondary' : 'outline'}
-                    className="gap-2"
-                    onClick={() => onUpdateSettings({ theme: 'colorful' })}
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    Colorful
-                  </Button>
+              {/* Calendar Connections Section */}
+              <div className="pt-4 border-t border-border">
+                <CalendarConnectionsPanel />
+              </div>
+
+              {/* Appearance Section */}
+              <div className="space-y-4 pt-4 border-t border-border">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  {t("settings.appearance")}
+                </h3>
+
+                {/* Theme Toggle */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">{t("settings.theme")}</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      variant={settings.theme === "dark" ? "secondary" : "outline"}
+                      className="gap-2"
+                      onClick={() => onUpdateSettings({ theme: "dark" })}
+                    >
+                      <Moon className="w-4 h-4" />
+                      {t("settings.dark")}
+                    </Button>
+                    <Button
+                      variant={settings.theme === "light" ? "secondary" : "outline"}
+                      className="gap-2"
+                      onClick={() => onUpdateSettings({ theme: "light" })}
+                    >
+                      <Sun className="w-4 h-4" />
+                      {t("settings.light")}
+                    </Button>
+                    <Button
+                      variant={settings.theme === "colorful" ? "secondary" : "outline"}
+                      className="gap-2"
+                      onClick={() => onUpdateSettings({ theme: "colorful" })}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Colorful
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Color Scheme */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">{t("settings.accentColor")}</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {colorSchemes.map((scheme) => (
+                      <button
+                        key={scheme.value}
+                        onClick={() => onUpdateSettings({ colorScheme: scheme.value })}
+                        className={cn(
+                          "aspect-square rounded-lg flex items-center justify-center transition-transform hover:scale-110",
+                          scheme.color,
+                          settings.colorScheme === scheme.value &&
+                            "ring-2 ring-offset-2 ring-offset-background ring-foreground",
+                        )}
+                        title={scheme.label}
+                      >
+                        {settings.colorScheme === scheme.value && (
+                          <Check className="w-4 h-4 text-white" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Language */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Globe className="w-4 h-4" />
+                    {t("common.language")}
+                  </label>
+                  <div className="flex gap-3">
+                    <Button
+                      variant={language === "en" ? "secondary" : "outline"}
+                      className="flex-1 gap-2"
+                      onClick={() => setLanguage("en")}
+                    >
+                      🇬🇧 {t("common.english")}
+                    </Button>
+                    <Button
+                      variant={language === "de" ? "secondary" : "outline"}
+                      className="flex-1 gap-2"
+                      onClick={() => setLanguage("de")}
+                    >
+                      🇩🇪 {t("common.german")}
+                    </Button>
+                  </div>
                 </div>
               </div>
 
-              {/* Color Scheme */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium">{t('settings.accentColor')}</label>
-                <div className="grid grid-cols-5 gap-2">
-                  {colorSchemes.map((scheme) => (
-                    <button
-                      key={scheme.value}
-                      onClick={() => onUpdateSettings({ colorScheme: scheme.value })}
-                      className={cn(
-                        "aspect-square rounded-lg flex items-center justify-center transition-transform hover:scale-110",
-                        scheme.color,
-                        settings.colorScheme === scheme.value && "ring-2 ring-offset-2 ring-offset-background ring-foreground"
-                      )}
-                      title={scheme.label}
+              {/* Notifications Section */}
+              <div className="space-y-4 pt-4 border-t border-border">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  {t("settings.notifications")}
+                </h3>
+
+                {/* Task Reminders */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-sm">{t("settings.taskReminders")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("settings.taskRemindersDesc")}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.notifications.taskReminders}
+                    onCheckedChange={(checked) => onUpdateNotifications({ taskReminders: checked })}
+                  />
+                </div>
+
+                {/* Calendar Alerts */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-sm">{t("settings.calendarAlerts")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("settings.calendarAlertsDesc")}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.notifications.calendarAlerts}
+                    onCheckedChange={(checked) =>
+                      onUpdateNotifications({ calendarAlerts: checked })
+                    }
+                  />
+                </div>
+
+                {/* Reminder Time */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">{t("settings.reminderTime")}</label>
+                    <span className="text-sm text-muted-foreground">
+                      {settings.notifications.reminderMinutesBefore} {t("settings.minutesBefore")}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[settings.notifications.reminderMinutesBefore]}
+                    onValueChange={([value]) =>
+                      onUpdateNotifications({ reminderMinutesBefore: value })
+                    }
+                    min={5}
+                    max={60}
+                    step={5}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Islamic Settings Section */}
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Moon className="w-4 h-4" />
+                    Islamic
+                  </h3>
+
+                  {/* Prayer Time Notifications */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-500/10">
+                        <Bell className="w-5 h-5 text-amber-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Prayer Time Notifications</p>
+                        <p className="text-xs text-muted-foreground">
+                          Get notified before each salah
+                        </p>
+                      </div>
+                    </div>
+                    {prayerNotifications.notificationPermission !== "granted" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          const granted = await prayerNotifications.requestPermission();
+                          if (granted) {
+                            prayerNotifications.updateSettings({ enabled: true });
+                            toast({ title: "Prayer notifications enabled!" });
+                          }
+                        }}
+                      >
+                        Enable
+                      </Button>
+                    ) : (
+                      <Switch
+                        checked={prayerNotifications.settings.enabled}
+                        onCheckedChange={(checked) =>
+                          prayerNotifications.updateSettings({ enabled: checked })
+                        }
+                      />
+                    )}
+                  </div>
+
+                  {/* Adhan Audio */}
+                  {prayerNotifications.isEnabled && (
+                    <div className="flex items-center justify-between pl-11">
+                      <div>
+                        <p className="font-medium text-sm">Play Adhan</p>
+                        <p className="text-xs text-muted-foreground">
+                          Play call to prayer at salah time
+                        </p>
+                      </div>
+                      <Switch
+                        checked={prayerNotifications.settings.adhanEnabled}
+                        onCheckedChange={(checked) =>
+                          prayerNotifications.updateSettings({ adhanEnabled: checked })
+                        }
+                      />
+                    </div>
+                  )}
+
+                  <p className="text-xs text-muted-foreground pl-11">
+                    Configure detailed prayer settings in the Islamic tab
+                  </p>
+                </div>
+
+                {/* Security Section */}
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Security
+                  </h3>
+
+                  {/* Biometric Auth */}
+                  {biometricAuth.isAvailable && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Fingerprint className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{biometricAuth.getBiometryLabel()}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Require biometric to unlock app
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={biometricAuth.isEnabled}
+                        onCheckedChange={biometricAuth.setEnabled}
+                      />
+                    </div>
+                  )}
+
+                  {/* Keyboard Shortcuts */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Keyboard className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Keyboard Shortcuts</p>
+                        <p className="text-xs text-muted-foreground">
+                          Press ? to see all shortcuts
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => keyboardShortcuts.setOpen(true)}
                     >
-                      {settings.colorScheme === scheme.value && (
-                        <Check className="w-4 h-4 text-white" />
-                      )}
-                    </button>
+                      View
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Defaults Section */}
+              <div className="space-y-4 pt-4 border-t border-border">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  {t("settings.defaults")}
+                </h3>
+
+                {/* Default Task Category */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t("settings.defaultCategory")}</label>
+                  <Select
+                    value={settings.defaultTaskCategory}
+                    onValueChange={(value: TaskCategory) =>
+                      onUpdateSettings({ defaultTaskCategory: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="personal">{t("category.personal")}</SelectItem>
+                      <SelectItem value="business">{t("category.business")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Default Task Priority */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t("settings.defaultPriority")}</label>
+                  <Select
+                    value={settings.defaultTaskPriority}
+                    onValueChange={(value: TaskPriority) =>
+                      onUpdateSettings({ defaultTaskPriority: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">{t("priority.low")}</SelectItem>
+                      <SelectItem value="medium">{t("priority.medium")}</SelectItem>
+                      <SelectItem value="high">{t("priority.high")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === "telegram" && <TelegramHubPanel />}
+
+          {activeTab === "briefings" && <BriefingsPanel />}
+
+          {activeTab === "proactive" && (
+            <div className="space-y-6">
+              <ProactiveSettingsPanel />
+              <div className="border-t border-border pt-6">
+                <NotificationSettingsPanel />
+              </div>
+              <div className="border-t border-border pt-6">
+                <AutomationRulesPanel />
+              </div>
+            </div>
+          )}
+
+          {activeTab === "team" && user && <SpaceMembersPanel userId={user.id} />}
+
+          {activeTab === "memory" && user && <MemoryDashboard />}
+
+          {activeTab === "ai" && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <Bot className="w-4 h-4" />
+                  AI Assistant System Prompt
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  This is the instruction set that guides your AI assistant's behavior and
+                  capabilities.
+                </p>
+              </div>
+              <ScrollArea className="h-[400px] rounded-lg border border-border bg-muted/30 p-4">
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                  {AI_SYSTEM_PROMPT}
+                </pre>
+              </ScrollArea>
+            </div>
+          )}
+
+          {activeTab === "info" && (
+            <div className="space-y-6">
+              {/* App Introduction */}
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Welcome to Flux
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Flux is your all-in-one personal productivity platform designed to help you manage
+                  every aspect of your life. From tasks and calendar to family management, health
+                  tracking, and AI-powered assistance — everything you need in one secure, private
+                  space.
+                </p>
+              </div>
+
+              {/* Feature Categories */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Features & Capabilities
+                </h4>
+
+                <div className="grid gap-4">
+                  {APP_FEATURES.map((category) => (
+                    <Card key={category.category} className="bg-muted/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <category.icon className="w-4 h-4 text-primary" />
+                          {category.category}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <ul className="text-xs text-muted-foreground space-y-1">
+                          {category.features.map((feature, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <span className="text-primary mt-1">•</span>
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
 
-              {/* Language */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Globe className="w-4 h-4" />
-                  {t('common.language')}
-                </label>
-                <div className="flex gap-3">
-                  <Button
-                    variant={language === 'en' ? 'secondary' : 'outline'}
-                    className="flex-1 gap-2"
-                    onClick={() => setLanguage('en')}
-                  >
-                    🇬🇧 {t('common.english')}
-                  </Button>
-                  <Button
-                    variant={language === 'de' ? 'secondary' : 'outline'}
-                    className="flex-1 gap-2"
-                    onClick={() => setLanguage('de')}
-                  >
-                    🇩🇪 {t('common.german')}
-                  </Button>
-                </div>
+              {/* Version & Credits */}
+              <div className="pt-4 border-t border-border space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  <strong>Version:</strong> 1.0.0
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Built with React, Supabase, and AI-powered by OpenAI & Google Gemini.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Your data is encrypted and stored securely. We never share your personal
+                  information.
+                </p>
               </div>
             </div>
-
-            {/* Notifications Section */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                {t('settings.notifications')}
-              </h3>
-              
-              {/* Task Reminders */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-sm">{t('settings.taskReminders')}</p>
-                  <p className="text-xs text-muted-foreground">{t('settings.taskRemindersDesc')}</p>
-                </div>
-                <Switch
-                  checked={settings.notifications.taskReminders}
-                  onCheckedChange={(checked) => onUpdateNotifications({ taskReminders: checked })}
-                />
-              </div>
-
-              {/* Calendar Alerts */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-sm">{t('settings.calendarAlerts')}</p>
-                  <p className="text-xs text-muted-foreground">{t('settings.calendarAlertsDesc')}</p>
-                </div>
-                <Switch
-                  checked={settings.notifications.calendarAlerts}
-                  onCheckedChange={(checked) => onUpdateNotifications({ calendarAlerts: checked })}
-                />
-              </div>
-
-              {/* Reminder Time */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">{t('settings.reminderTime')}</label>
-                  <span className="text-sm text-muted-foreground">
-                    {settings.notifications.reminderMinutesBefore} {t('settings.minutesBefore')}
-                  </span>
-                </div>
-                <Slider
-                  value={[settings.notifications.reminderMinutesBefore]}
-                  onValueChange={([value]) => onUpdateNotifications({ reminderMinutesBefore: value })}
-                  min={5}
-                  max={60}
-                  step={5}
-                  className="w-full"
-                />
-            </div>
-
-            {/* Islamic Settings Section */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Moon className="w-4 h-4" />
-                Islamic
-              </h3>
-              
-              {/* Prayer Time Notifications */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-500/10">
-                    <Bell className="w-5 h-5 text-amber-500" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Prayer Time Notifications</p>
-                    <p className="text-xs text-muted-foreground">
-                      Get notified before each salah
-                    </p>
-                  </div>
-                </div>
-                {prayerNotifications.notificationPermission !== 'granted' ? (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={async () => {
-                      const granted = await prayerNotifications.requestPermission();
-                      if (granted) {
-                        prayerNotifications.updateSettings({ enabled: true });
-                        toast({ title: 'Prayer notifications enabled!' });
-                      }
-                    }}
-                  >
-                    Enable
-                  </Button>
-                ) : (
-                  <Switch
-                    checked={prayerNotifications.settings.enabled}
-                    onCheckedChange={(checked) => prayerNotifications.updateSettings({ enabled: checked })}
-                  />
-                )}
-              </div>
-
-              {/* Adhan Audio */}
-              {prayerNotifications.isEnabled && (
-                <div className="flex items-center justify-between pl-11">
-                  <div>
-                    <p className="font-medium text-sm">Play Adhan</p>
-                    <p className="text-xs text-muted-foreground">
-                      Play call to prayer at salah time
-                    </p>
-                  </div>
-                  <Switch
-                    checked={prayerNotifications.settings.adhanEnabled}
-                    onCheckedChange={(checked) => prayerNotifications.updateSettings({ adhanEnabled: checked })}
-                  />
-                </div>
-              )}
-
-              <p className="text-xs text-muted-foreground pl-11">
-                Configure detailed prayer settings in the Islamic tab
-              </p>
-            </div>
-
-            {/* Security Section */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Security
-              </h3>
-              
-              {/* Biometric Auth */}
-              {biometricAuth.isAvailable && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Fingerprint className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{biometricAuth.getBiometryLabel()}</p>
-                      <p className="text-xs text-muted-foreground">Require biometric to unlock app</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={biometricAuth.isEnabled}
-                    onCheckedChange={biometricAuth.setEnabled}
-                  />
-                </div>
-              )}
-
-              {/* Keyboard Shortcuts */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Keyboard className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Keyboard Shortcuts</p>
-                    <p className="text-xs text-muted-foreground">Press ? to see all shortcuts</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => keyboardShortcuts.setOpen(true)}>
-                  View
-                </Button>
-              </div>
-            </div>
-            </div>
-
-            {/* Defaults Section */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                {t('settings.defaults')}
-              </h3>
-              
-              {/* Default Task Category */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t('settings.defaultCategory')}</label>
-                <Select
-                  value={settings.defaultTaskCategory}
-                  onValueChange={(value: TaskCategory) => onUpdateSettings({ defaultTaskCategory: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="personal">{t('category.personal')}</SelectItem>
-                    <SelectItem value="business">{t('category.business')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Default Task Priority */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t('settings.defaultPriority')}</label>
-                <Select
-                  value={settings.defaultTaskPriority}
-                  onValueChange={(value: TaskPriority) => onUpdateSettings({ defaultTaskPriority: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">{t('priority.low')}</SelectItem>
-                    <SelectItem value="medium">{t('priority.medium')}</SelectItem>
-                    <SelectItem value="high">{t('priority.high')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'telegram' && (
-          <TelegramHubPanel />
-        )}
-
-        {activeTab === 'briefings' && (
-          <BriefingsPanel />
-        )}
-
-        {activeTab === 'proactive' && (
-          <div className="space-y-6">
-            <ProactiveSettingsPanel />
-            <div className="border-t border-border pt-6">
-              <NotificationSettingsPanel />
-            </div>
-            <div className="border-t border-border pt-6">
-              <AutomationRulesPanel />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'team' && user && (
-          <SpaceMembersPanel userId={user.id} />
-        )}
-
-        {activeTab === 'memory' && user && (
-          <MemoryDashboard />
-        )}
-
-        {activeTab === 'ai' && (
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                <Bot className="w-4 h-4" />
-                AI Assistant System Prompt
-              </h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                This is the instruction set that guides your AI assistant's behavior and capabilities.
-              </p>
-            </div>
-            <ScrollArea className="h-[400px] rounded-lg border border-border bg-muted/30 p-4">
-              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
-                {AI_SYSTEM_PROMPT}
-              </pre>
-            </ScrollArea>
-          </div>
-        )}
-
-        {activeTab === 'info' && (
-          <div className="space-y-6">
-            {/* App Introduction */}
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                Welcome to Flux
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Flux is your all-in-one personal productivity platform designed to help you manage every aspect of your life. 
-                From tasks and calendar to family management, health tracking, and AI-powered assistance — everything you need 
-                in one secure, private space.
-              </p>
-            </div>
-
-            {/* Feature Categories */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Features & Capabilities
-              </h4>
-              
-              <div className="grid gap-4">
-                {APP_FEATURES.map((category) => (
-                  <Card key={category.category} className="bg-muted/30">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <category.icon className="w-4 h-4 text-primary" />
-                        {category.category}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <ul className="text-xs text-muted-foreground space-y-1">
-                        {category.features.map((feature, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <span className="text-primary mt-1">•</span>
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Version & Credits */}
-            <div className="pt-4 border-t border-border space-y-2">
-              <p className="text-xs text-muted-foreground">
-                <strong>Version:</strong> 1.0.0
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Built with React, Supabase, and AI-powered by OpenAI & Google Gemini.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Your data is encrypted and stored securely. We never share your personal information.
-              </p>
-            </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
-      
+
       {/* Keyboard Shortcuts Dialog */}
-      <KeyboardShortcutsPanel 
-        open={keyboardShortcuts.open} 
-        onOpenChange={keyboardShortcuts.setOpen} 
+      <KeyboardShortcutsPanel
+        open={keyboardShortcuts.open}
+        onOpenChange={keyboardShortcuts.setOpen}
       />
     </div>
   );

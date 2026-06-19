@@ -1,13 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { strictAppOrigin } from '../_shared/cors.ts';
-import { generateStructured } from '../_shared/geminiStructured.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
+import { generateStructured } from "../_shared/geminiStructured.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  'X-Content-Type-Options': 'nosniff',
+  "X-Content-Type-Options": "nosniff",
 };
 
 serve(async (req) => {
@@ -30,7 +30,10 @@ serve(async (req) => {
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseAuth.auth.getUser();
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -41,7 +44,12 @@ serve(async (req) => {
     const { documentPath, documentType } = await req.json();
 
     // Validate documentPath to prevent path traversal
-    if (!documentPath || typeof documentPath !== "string" || documentPath.includes("..") || documentPath.startsWith("/")) {
+    if (
+      !documentPath ||
+      typeof documentPath !== "string" ||
+      documentPath.includes("..") ||
+      documentPath.startsWith("/")
+    ) {
       return new Response(JSON.stringify({ error: "Invalid document path" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -69,10 +77,11 @@ serve(async (req) => {
 
     // For PDFs, we'll use vision capabilities with the document
     // For images, we can directly analyze them
-    const isImage = documentType?.startsWith("image/") || 
-      documentPath.endsWith(".jpg") || 
-      documentPath.endsWith(".jpeg") || 
-      documentPath.endsWith(".png") || 
+    const isImage =
+      documentType?.startsWith("image/") ||
+      documentPath.endsWith(".jpg") ||
+      documentPath.endsWith(".jpeg") ||
+      documentPath.endsWith(".png") ||
       documentPath.endsWith(".webp");
 
     const isPdf = documentType === "application/pdf" || documentPath.endsWith(".pdf");
@@ -87,8 +96,13 @@ serve(async (req) => {
     if (!docResp.ok) {
       throw new Error("Failed to download document");
     }
-    const docMime = docResp.headers.get("content-type")
-      || (isPdf ? "application/pdf" : (documentType?.startsWith("image/") ? documentType : "image/jpeg"));
+    const docMime =
+      docResp.headers.get("content-type") ||
+      (isPdf
+        ? "application/pdf"
+        : documentType?.startsWith("image/")
+          ? documentType
+          : "image/jpeg");
     const docB64 = base64Encode(new Uint8Array(await docResp.arrayBuffer()));
 
     const promptText = `Analyze this contract document and extract the following information in JSON format:
@@ -114,7 +128,18 @@ Be thorough but only include information you can clearly extract from the docume
       properties: {
         name: { type: "string" },
         provider: { type: "string" },
-        category: { type: "string", enum: ["insurance", "utilities", "subscription", "phone", "internet", "streaming", "other"] },
+        category: {
+          type: "string",
+          enum: [
+            "insurance",
+            "utilities",
+            "subscription",
+            "phone",
+            "internet",
+            "streaming",
+            "other",
+          ],
+        },
         costAmount: { type: "number", nullable: true },
         costFrequency: { type: "string", enum: ["monthly", "quarterly", "yearly", "one_time"] },
         startDate: { type: "string", nullable: true },
@@ -131,11 +156,9 @@ Be thorough but only include information you can clearly extract from the docume
     let extractedData;
     try {
       extractedData = await generateStructured({
-        system: "You are a contract analysis expert. Extract key information from contracts accurately. Always respond with valid JSON only.",
-        parts: [
-          { text: promptText },
-          { inlineData: { mimeType: docMime, data: docB64 } },
-        ],
+        system:
+          "You are a contract analysis expert. Extract key information from contracts accurately. Always respond with valid JSON only.",
+        parts: [{ text: promptText }, { inlineData: { mimeType: docMime, data: docB64 } }],
         schema: contractSchema,
         model: "gemini-2.5-flash",
         maxOutputTokens: 2000,
@@ -148,27 +171,26 @@ Be thorough but only include information you can clearly extract from the docume
       if (message.includes("429")) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       if (message.includes("402")) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add funds." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       extractedData = { error: "Could not parse contract details" };
     }
 
-    return new Response(
-      JSON.stringify({ success: true, data: extractedData }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true, data: extractedData }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Scan contract error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

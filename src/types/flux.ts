@@ -1,21 +1,21 @@
-export type TaskCategory = 'business' | 'personal' | 'family';
-export type EventCategory = 'business' | 'personal' | 'family';
-export type TimeFilter = 'today' | 'week' | 'month' | 'noDate';
-export type TaskPriority = 'high' | 'medium' | 'low';
-export type TaskStatus = 'backlog' | 'in_progress' | 'done';
-export type ThemeMode = 'dark' | 'light' | 'colorful';
-export type ColorScheme = 'emerald' | 'cyan' | 'purple' | 'green' | 'orange' | 'pink';
-export type AssistantPersonality = 'balanced' | 'strict' | 'supportive' | 'creative';
+export type TaskCategory = "business" | "personal" | "family";
+export type EventCategory = "business" | "personal" | "family";
+export type TimeFilter = "today" | "week" | "month" | "noDate";
+export type TaskPriority = "high" | "medium" | "low";
+export type TaskStatus = "backlog" | "in_progress" | "done";
+export type ThemeMode = "dark" | "light" | "colorful";
+export type ColorScheme = "emerald" | "cyan" | "purple" | "green" | "orange" | "pink";
+export type AssistantPersonality = "balanced" | "strict" | "supportive" | "creative";
 
 export interface PersonalityConfig {
   id: AssistantPersonality;
   name: string;
   description: string;
-  voice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+  voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
   systemPromptAddition: string;
 }
 
-export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
 
 export interface RecurrenceRule {
   frequency: RecurrenceFrequency;
@@ -83,7 +83,8 @@ export interface Task {
   sortOrder?: number; // For drag-and-drop ordering
   reminderBefore?: number; // Minutes before due date to notify
   sharedBy?: { displayName?: string; email?: string }; // Who shared this item (direct share)
-  sharedByOwner?: { // Who shared this item (space sharing)
+  sharedByOwner?: {
+    // Who shared this item (space sharing)
     id: string;
     display_name: string | null;
     email: string | null;
@@ -101,7 +102,13 @@ export interface Task {
 
 // Voice command action types for task management
 export interface VoiceTaskAction {
-  type: 'create_task' | 'edit_task' | 'complete_task' | 'trash_task' | 'restore_task' | 'reschedule_task';
+  type:
+    | "create_task"
+    | "edit_task"
+    | "complete_task"
+    | "trash_task"
+    | "restore_task"
+    | "reschedule_task";
   taskTitle?: string;
   taskId?: string;
   updates?: Partial<Task>;
@@ -119,7 +126,8 @@ export interface CalendarEvent {
   recurrenceRule?: string; // RRULE format
   recurrenceEnd?: Date;
   sharedBy?: { displayName?: string; email?: string }; // Who shared this item (direct share)
-  sharedByOwner?: { // Who shared this item (space sharing)
+  sharedByOwner?: {
+    // Who shared this item (space sharing)
     id: string;
     display_name: string | null;
     email: string | null;
@@ -130,13 +138,13 @@ export interface CalendarEvent {
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
   sources?: string[];
 }
 
-export type AppMode = 'standard' | 'ghost';
+export type AppMode = "standard" | "ghost";
 
 export interface FluxState {
   mode: AppMode;
@@ -165,41 +173,45 @@ export interface UserSettings {
 
 export const personalityConfigs: PersonalityConfig[] = [
   {
-    id: 'balanced',
-    name: 'Balanced',
-    description: 'Friendly and helpful, adapts to your needs',
-    voice: 'alloy',
-    systemPromptAddition: 'Be friendly, balanced, and adaptable. Match the user\'s energy and provide helpful guidance.',
+    id: "balanced",
+    name: "Balanced",
+    description: "Friendly and helpful, adapts to your needs",
+    voice: "alloy",
+    systemPromptAddition:
+      "Be friendly, balanced, and adaptable. Match the user's energy and provide helpful guidance.",
   },
   {
-    id: 'strict',
-    name: 'Strict Coach',
-    description: 'Direct and focused, keeps you accountable',
-    voice: 'onyx',
-    systemPromptAddition: 'Be direct, no-nonsense, and focused on productivity. Push the user to take action immediately. Use short, commanding sentences. Hold them accountable. No excuses.',
+    id: "strict",
+    name: "Strict Coach",
+    description: "Direct and focused, keeps you accountable",
+    voice: "onyx",
+    systemPromptAddition:
+      "Be direct, no-nonsense, and focused on productivity. Push the user to take action immediately. Use short, commanding sentences. Hold them accountable. No excuses.",
   },
   {
-    id: 'supportive',
-    name: 'Supportive',
-    description: 'Understanding and encouraging, celebrates wins',
-    voice: 'nova',
-    systemPromptAddition: 'Be warm, encouraging, and empathetic. Celebrate every small win. Understand when things are hard. Offer gentle encouragement and break tasks into manageable steps.',
+    id: "supportive",
+    name: "Supportive",
+    description: "Understanding and encouraging, celebrates wins",
+    voice: "nova",
+    systemPromptAddition:
+      "Be warm, encouraging, and empathetic. Celebrate every small win. Understand when things are hard. Offer gentle encouragement and break tasks into manageable steps.",
   },
   {
-    id: 'creative',
-    name: 'Creative',
-    description: 'Imaginative and playful, makes work fun',
-    voice: 'fable',
-    systemPromptAddition: 'Be playful, creative, and imaginative. Use metaphors and storytelling. Make productivity feel like an adventure. Inject humor and fun into interactions.',
+    id: "creative",
+    name: "Creative",
+    description: "Imaginative and playful, makes work fun",
+    voice: "fable",
+    systemPromptAddition:
+      "Be playful, creative, and imaginative. Use metaphors and storytelling. Make productivity feel like an adventure. Inject humor and fun into interactions.",
   },
 ];
 
 export const defaultSettings: UserSettings = {
-  theme: 'dark',
-  colorScheme: 'emerald',
-  defaultTaskCategory: 'personal',
-  defaultTaskPriority: 'medium',
-  assistantPersonality: 'balanced',
+  theme: "dark",
+  colorScheme: "emerald",
+  defaultTaskCategory: "personal",
+  defaultTaskPriority: "medium",
+  assistantPersonality: "balanced",
   notifications: {
     taskReminders: true,
     calendarAlerts: true,

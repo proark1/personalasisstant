@@ -1,15 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-  'X-Content-Type-Options': 'nosniff',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "X-Content-Type-Options": "nosniff",
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -25,9 +26,12 @@ serve(async (req) => {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: authHeader } } },
     );
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -37,7 +41,7 @@ serve(async (req) => {
 
     const { contact, type } = await req.json();
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    
+
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured");
     }
@@ -45,35 +49,35 @@ serve(async (req) => {
     let systemPrompt = "";
     let userPrompt = "";
 
-    if (type === 'conversation_starters') {
+    if (type === "conversation_starters") {
       systemPrompt = `You are a helpful assistant that generates personalized conversation starters based on someone's profile. Generate 5 natural, engaging conversation starters that feel genuine and appropriate for the relationship type.`;
-      
+
       userPrompt = `Generate conversation starters for this contact:
 Name: ${contact.name}
 Type: ${contact.contactType}
-${contact.company ? `Company: ${contact.company}` : ''}
-${contact.role ? `Role: ${contact.role}` : ''}
-${contact.city ? `City: ${contact.city}` : ''}
-${contact.country ? `Country: ${contact.country}` : ''}
-${contact.notes ? `Notes: ${contact.notes}` : ''}
-${contact.tags?.length ? `Tags: ${contact.tags.join(', ')}` : ''}
-${contact.personalTier ? `Relationship: ${contact.personalTier.replace('_', ' ')}` : ''}
-${contact.businessLevel ? `Business Relationship: ${contact.businessLevel.replace('_', ' ')}` : ''}
+${contact.company ? `Company: ${contact.company}` : ""}
+${contact.role ? `Role: ${contact.role}` : ""}
+${contact.city ? `City: ${contact.city}` : ""}
+${contact.country ? `Country: ${contact.country}` : ""}
+${contact.notes ? `Notes: ${contact.notes}` : ""}
+${contact.tags?.length ? `Tags: ${contact.tags.join(", ")}` : ""}
+${contact.personalTier ? `Relationship: ${contact.personalTier.replace("_", " ")}` : ""}
+${contact.businessLevel ? `Business Relationship: ${contact.businessLevel.replace("_", " ")}` : ""}
 
 Return ONLY a JSON array of 5 strings, each being a conversation starter. No explanation needed.`;
-    } else if (type === 'relationship_insights') {
+    } else if (type === "relationship_insights") {
       systemPrompt = `You are an insightful relationship advisor. Analyze the contact information and provide actionable insights to strengthen the relationship.`;
-      
+
       userPrompt = `Analyze this contact and provide relationship insights:
 Name: ${contact.name}
 Type: ${contact.contactType}
-${contact.company ? `Company: ${contact.company}` : ''}
-${contact.role ? `Role: ${contact.role}` : ''}
-${contact.personalTier ? `Tier: ${contact.personalTier}` : ''}
-${contact.businessLevel ? `Level: ${contact.businessLevel}` : ''}
-${contact.notes ? `Notes: ${contact.notes}` : ''}
-${contact.tags?.length ? `Tags: ${contact.tags.join(', ')}` : ''}
-Last Contact: ${contact.lastContactedAt || 'Never'}
+${contact.company ? `Company: ${contact.company}` : ""}
+${contact.role ? `Role: ${contact.role}` : ""}
+${contact.personalTier ? `Tier: ${contact.personalTier}` : ""}
+${contact.businessLevel ? `Level: ${contact.businessLevel}` : ""}
+${contact.notes ? `Notes: ${contact.notes}` : ""}
+${contact.tags?.length ? `Tags: ${contact.tags.join(", ")}` : ""}
+Last Contact: ${contact.lastContactedAt || "Never"}
 Contact Frequency: Every ${contact.contactFrequencyDays} days
 
 Return ONLY a JSON object with:
@@ -88,20 +92,23 @@ Return ONLY a JSON object with:
       throw new Error("Invalid type. Use 'conversation_starters' or 'relationship_insights'");
     }
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -121,13 +128,16 @@ Return ONLY a JSON object with:
     const result = JSON.parse(jsonMatch[0]);
 
     return new Response(JSON.stringify({ result }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Contact insights error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });

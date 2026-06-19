@@ -17,28 +17,23 @@ const scaleClasses = {
 };
 
 const Touchable = React.forwardRef<HTMLDivElement, TouchableProps>(
-  ({ 
-    children, 
-    className, 
-    haptic = "light", 
-    scale = "md", 
-    disabled = false,
-    onClick,
-    ...props 
-  }, ref) => {
+  (
+    { children, className, haptic = "light", scale = "md", disabled = false, onClick, ...props },
+    ref,
+  ) => {
     const { vibrate } = useHaptics();
 
     const handleClick = React.useCallback(
       (e: React.MouseEvent<HTMLDivElement>) => {
         if (disabled) return;
-        
+
         if (haptic) {
           vibrate(haptic);
         }
-        
+
         onClick?.(e);
       },
-      [disabled, haptic, vibrate, onClick]
+      [disabled, haptic, vibrate, onClick],
     );
 
     return (
@@ -48,7 +43,7 @@ const Touchable = React.forwardRef<HTMLDivElement, TouchableProps>(
           "touch-manipulation select-none transition-transform duration-150 ease-out",
           scale && scaleClasses[scale],
           disabled && "opacity-50 pointer-events-none",
-          className
+          className,
         )}
         onClick={handleClick}
         {...props}
@@ -56,7 +51,7 @@ const Touchable = React.forwardRef<HTMLDivElement, TouchableProps>(
         {children}
       </div>
     );
-  }
+  },
 );
 
 Touchable.displayName = "Touchable";

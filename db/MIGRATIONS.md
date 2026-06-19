@@ -12,7 +12,7 @@ every deploy, so schema changes no longer need a manual `psql` step.
   (`restartPolicyType: NEVER`): it runs to completion on each deploy and exits.
 
 This is separate from the **bootstrap** ([`db/migration/apply-bootstrap.sh`](./migration/apply-bootstrap.sh)),
-which provisions a *fresh* database from `db/bootstrap/`. Bootstrap = day 0;
+which provisions a _fresh_ database from `db/bootstrap/`. Bootstrap = day 0;
 this runner = every day after.
 
 ## One-time setup (create the service in Railway)
@@ -42,7 +42,7 @@ this runner = every day after.
 
 1. Add `supabase/migrations/<timestamp>_<name>.sql` (same as before).
 2. Write it **idempotently** — `CREATE TABLE IF NOT EXISTS`, `CREATE OR REPLACE
-   FUNCTION`, `DROP ... IF EXISTS` — so a retry is always safe.
+FUNCTION`, `DROP ... IF EXISTS` — so a retry is always safe.
 3. Keep it **additive / backward-compatible**: the `migrate`, `edge-functions`,
    and `cron` services deploy in parallel, so a migration may land slightly
    before or after the code that uses it. Don't drop/rename columns the running

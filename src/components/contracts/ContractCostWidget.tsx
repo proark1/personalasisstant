@@ -1,8 +1,13 @@
-import { useMemo } from 'react';
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { Contract, CONTRACT_CATEGORIES } from '@/hooks/useContracts';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { Receipt, TrendingUp, TrendingDown } from 'lucide-react';
+import { useMemo } from "react";
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
+import { Contract, CONTRACT_CATEGORIES } from "@/hooks/useContracts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { Receipt, TrendingUp, TrendingDown } from "lucide-react";
 
 interface ContractCostWidgetProps {
   contracts: Contract[];
@@ -10,49 +15,49 @@ interface ContractCostWidgetProps {
 
 export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
   const costAnalysis = useMemo(() => {
-    const activeContracts = contracts.filter(c => c.isActive && c.costAmount);
-    
+    const activeContracts = contracts.filter((c) => c.isActive && c.costAmount);
+
     let monthlyTotal = 0;
     const categoryTotals: Record<string, number> = {};
-    
-    activeContracts.forEach(contract => {
+
+    activeContracts.forEach((contract) => {
       if (!contract.costAmount) return;
-      
+
       let monthlyCost = 0;
       switch (contract.costFrequency) {
-        case 'monthly':
+        case "monthly":
           monthlyCost = contract.costAmount;
           break;
-        case 'quarterly':
+        case "quarterly":
           monthlyCost = contract.costAmount / 3;
           break;
-        case 'yearly':
+        case "yearly":
           monthlyCost = contract.costAmount / 12;
           break;
-        case 'one_time':
+        case "one_time":
           return;
       }
-      
+
       monthlyTotal += monthlyCost;
       const categoryYearly = monthlyCost * 12;
       categoryTotals[contract.category] = (categoryTotals[contract.category] || 0) + categoryYearly;
     });
-    
+
     const yearlyTotal = monthlyTotal * 12;
-    
+
     const categoryData = Object.entries(categoryTotals)
       .map(([category, total]) => {
-        const categoryInfo = CONTRACT_CATEGORIES.find(c => c.value === category);
+        const categoryInfo = CONTRACT_CATEGORIES.find((c) => c.value === category);
         return {
           name: categoryInfo?.label || category,
           value: Math.round(total),
           color: getCategoryColor(category),
-          icon: categoryInfo?.icon || '📋',
+          icon: categoryInfo?.icon || "📋",
         };
       })
-      .filter(d => d.value > 0)
+      .filter((d) => d.value > 0)
       .sort((a, b) => b.value - a.value);
-    
+
     return {
       monthlyTotal: Math.round(monthlyTotal * 100) / 100,
       yearlyTotal: Math.round(yearlyTotal * 100) / 100,
@@ -94,12 +99,12 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number) => [`€${value.toLocaleString()}`, 'Yearly']}
+                    formatter={(value: number) => [`€${value.toLocaleString()}`, "Yearly"]}
                     contentStyle={{
-                      background: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px',
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
                     }}
                   />
                 </PieChart>
@@ -110,7 +115,7 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
               </div>
             )}
           </div>
-          
+
           {/* Stats */}
           <div className="flex-1 w-full space-y-4">
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
@@ -133,15 +138,15 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground font-medium">By Category (Yearly)</p>
               <div className="space-y-1.5">
                 {costAnalysis.categoryData.slice(0, 4).map((cat) => (
                   <div key={cat.name} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-2.5 h-2.5 rounded-full" 
+                      <div
+                        className="w-2.5 h-2.5 rounded-full"
                         style={{ backgroundColor: cat.color }}
                       />
                       <span className="text-muted-foreground">
@@ -158,9 +163,10 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
                 )}
               </div>
             </div>
-            
+
             <p className="text-xs text-muted-foreground">
-              {costAnalysis.contractCount} active contract{costAnalysis.contractCount !== 1 ? 's' : ''} with costs
+              {costAnalysis.contractCount} active contract
+              {costAnalysis.contractCount !== 1 ? "s" : ""} with costs
             </p>
           </div>
         </div>
@@ -171,13 +177,13 @@ export function ContractCostWidget({ contracts }: ContractCostWidgetProps) {
 
 function getCategoryColor(category: string): string {
   const colors: Record<string, string> = {
-    insurance: 'hsl(var(--chart-1))',
-    utilities: 'hsl(var(--chart-2))',
-    subscription: 'hsl(var(--chart-3))',
-    phone: 'hsl(var(--chart-4))',
-    internet: 'hsl(var(--chart-5))',
-    streaming: 'hsl(210, 100%, 60%)',
-    other: 'hsl(var(--muted-foreground))',
+    insurance: "hsl(var(--chart-1))",
+    utilities: "hsl(var(--chart-2))",
+    subscription: "hsl(var(--chart-3))",
+    phone: "hsl(var(--chart-4))",
+    internet: "hsl(var(--chart-5))",
+    streaming: "hsl(210, 100%, 60%)",
+    other: "hsl(var(--muted-foreground))",
   };
   return colors[category] || colors.other;
 }

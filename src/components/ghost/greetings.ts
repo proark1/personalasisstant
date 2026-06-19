@@ -53,7 +53,6 @@ export function pickGreetingBank(hour: number): string[] {
 export function getRandomGreeting(now: Date = new Date()): string {
   const bank = pickGreetingBank(now.getHours());
   const greeting = bank[Math.floor(Math.random() * bank.length)];
-  const addon =
-    MOTIVATIONAL_ADDONS[Math.floor(Math.random() * MOTIVATIONAL_ADDONS.length)];
+  const addon = MOTIVATIONAL_ADDONS[Math.floor(Math.random() * MOTIVATIONAL_ADDONS.length)];
   return greeting + addon;
 }

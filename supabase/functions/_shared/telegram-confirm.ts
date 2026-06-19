@@ -6,8 +6,8 @@
 // reply with plain text ("yes"/"no"/"ja"/"nein"/…) and we resolve that against
 // the most recently queued pending action for that chat.
 
-import { chunkForTelegram } from './telegram-inline.ts';
-
+import { chunkForTelegram } from "./telegram-inline.ts";
+import { mintInternalToken } from "./auth.ts";
 
 export interface PendingAction {
   id: string;
@@ -31,43 +31,45 @@ export async function tgSendWithKeyboard(
   try {
     const chunks = chunkForTelegram(text);
     await fetch(`https://api.telegram.org/bot${telegramKey}/sendMessage`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         chat_id: chatId,
         text: chunks[0],
-        parse_mode: 'HTML',
+        parse_mode: "HTML",
         disable_web_page_preview: true,
         reply_markup: keyboard,
       }),
     });
     for (const chunk of chunks.slice(1)) {
       await fetch(`https://api.telegram.org/bot${telegramKey}/sendMessage`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           chat_id: chatId,
           text: chunk,
-          parse_mode: 'HTML',
+          parse_mode: "HTML",
           disable_web_page_preview: true,
         }),
       });
     }
   } catch (e) {
-    console.error('tgSendWithKeyboard failed', e);
+    console.error("tgSendWithKeyboard failed", e);
   }
 }
 
 export function buildConfirmKeyboard(actionId: string) {
   return {
-    inline_keyboard: [[
-      { text: '✅ Yes, do it', callback_data: `dori_confirm:${actionId}` },
-      { text: '❌ Cancel', callback_data: `dori_reject:${actionId}` },
-    ]],
+    inline_keyboard: [
+      [
+        { text: "✅ Yes, do it", callback_data: `dori_confirm:${actionId}` },
+        { text: "❌ Cancel", callback_data: `dori_reject:${actionId}` },
+      ],
+    ],
   };
 }
 
@@ -78,14 +80,14 @@ export async function tgAnswerCallback(
 ): Promise<void> {
   try {
     await fetch(`https://api.telegram.org/bot${telegramKey}/answerCallbackQuery`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ callback_query_id: callbackQueryId, text: text.slice(0, 200) }),
     });
   } catch (e) {
-    console.error('answerCallbackQuery failed', e);
+    console.error("answerCallbackQuery failed", e);
   }
 }
 
@@ -97,19 +99,19 @@ export async function tgEditMessageText(
 ): Promise<void> {
   try {
     await fetch(`https://api.telegram.org/bot${telegramKey}/editMessageText`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         chat_id: chatId,
         message_id: messageId,
         text: text.slice(0, 4000),
-        parse_mode: 'HTML',
+        parse_mode: "HTML",
       }),
     });
   } catch (e) {
-    console.error('editMessageText failed', e);
+    console.error("editMessageText failed", e);
   }
 }
 
@@ -129,13 +131,13 @@ const NO_PATTERNS = [
   /^(?:\s*)(?:❌|👎)/,
 ];
 
-export function classifyConfirmationText(text: string): 'yes' | 'no' | null {
+export function classifyConfirmationText(text: string): "yes" | "no" | null {
   const t = text.trim();
   if (!t) return null;
   // Reject ambiguous longer messages that clearly aren't a bare yes/no.
   if (t.split(/\s+/).length > 6) return null;
-  if (YES_PATTERNS.some((r) => r.test(t))) return 'yes';
-  if (NO_PATTERNS.some((r) => r.test(t))) return 'no';
+  if (YES_PATTERNS.some((r) => r.test(t))) return "yes";
+  if (NO_PATTERNS.some((r) => r.test(t))) return "no";
   return null;
 }
 
@@ -153,22 +155,24 @@ export async function fetchLatestPendingForChat(
 ): Promise<PendingAction | null> {
   const nowIso = new Date().toISOString();
   const { data } = await supabase
-    .from('auto_actions_log')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'pending')
-    .eq('source', source)
-    .eq('source_ref', sourceRef)
+    .from("auto_actions_log")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .eq("source", source)
+    .eq("source_ref", sourceRef)
     .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
-    .order('created_at', { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   return (data as PendingAction | null) || null;
 }
 
-export function isActionableNow(action: (PendingAction & { expires_at?: string | null }) | null | undefined): boolean {
+export function isActionableNow(
+  action: (PendingAction & { expires_at?: string | null }) | null | undefined,
+): boolean {
   if (!action) return false;
-  if (action.status !== 'pending') return false;
+  if (action.status !== "pending") return false;
   const exp = action.expires_at;
   if (!exp) return true;
   return new Date(exp).getTime() > Date.now();
@@ -179,12 +183,12 @@ export function isActionableNow(action: (PendingAction & { expires_at?: string |
 export async function sweepExpiredPending(supabase: TgConfirmClient): Promise<void> {
   try {
     await supabase
-      .from('auto_actions_log')
-      .update({ status: 'expired' })
-      .eq('status', 'pending')
-      .lt('expires_at', new Date().toISOString());
+      .from("auto_actions_log")
+      .update({ status: "expired" })
+      .eq("status", "pending")
+      .lt("expires_at", new Date().toISOString());
   } catch (e) {
-    console.error('sweepExpiredPending failed', e);
+    console.error("sweepExpiredPending failed", e);
   }
 }
 
@@ -197,30 +201,30 @@ export async function approveAndExecutePending(
   serviceKey: string,
 ): Promise<string> {
   const toolXml = action.action_data?.tool_xml as string | undefined;
-  const replaySource = String(action.action_data?.source || action.source || '');
-  const replaySourceRef = String(action.action_data?.source_ref || action.source_ref || '');
-  const replayWorkspaceId = typeof action.action_data?.workspace_id === 'string'
-    ? action.action_data.workspace_id
-    : null;
-  const replayHouseholdId = typeof action.action_data?.household_id === 'string'
-    ? action.action_data.household_id
-    : null;
+  const replaySource = String(action.action_data?.source || action.source || "");
+  const replaySourceRef = String(action.action_data?.source_ref || action.source_ref || "");
+  const replayWorkspaceId =
+    typeof action.action_data?.workspace_id === "string" ? action.action_data.workspace_id : null;
+  const replayHouseholdId =
+    typeof action.action_data?.household_id === "string" ? action.action_data.household_id : null;
   if (!toolXml) {
-    await supabase.from('auto_actions_log')
-      .update({ status: 'approved', approved_at: new Date().toISOString() })
-      .eq('id', action.id);
+    await supabase
+      .from("auto_actions_log")
+      .update({ status: "approved", approved_at: new Date().toISOString() })
+      .eq("id", action.id);
     return `✅ Approved: ${action.reason}`;
   }
   try {
     const resp = await fetch(`${supabaseUrl}/functions/v1/chat`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
-        'x-telegram-user-id': action.user_id,
-        ...(replaySource ? { 'x-dori-channel': replaySource } : {}),
-        ...(replaySourceRef ? { 'x-dori-channel-ref': replaySourceRef } : {}),
-        ...(replayHouseholdId ? { 'x-dori-household': replayHouseholdId } : {}),
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        "x-telegram-user-id": action.user_id,
+        "x-internal-token": await mintInternalToken(action.user_id),
+        ...(replaySource ? { "x-dori-channel": replaySource } : {}),
+        ...(replaySourceRef ? { "x-dori-channel-ref": replaySourceRef } : {}),
+        ...(replayHouseholdId ? { "x-dori-household": replayHouseholdId } : {}),
       },
       body: JSON.stringify({
         messages: [],
@@ -235,18 +239,19 @@ export async function approveAndExecutePending(
     });
     const data = await resp.json();
     const results = (data?.toolResults || []) as { ok: boolean; message: string }[];
-    const outcome = results.map((r) => r.message).join('\n') || `✅ Done: ${action.reason}`;
+    const outcome = results.map((r) => r.message).join("\n") || `✅ Done: ${action.reason}`;
 
-    await supabase.from('auto_actions_log')
+    await supabase
+      .from("auto_actions_log")
       .update({
-        status: 'approved',
+        status: "approved",
         approved_at: new Date().toISOString(),
         action_data: { ...(action.action_data || {}), execution_result: results },
       })
-      .eq('id', action.id);
+      .eq("id", action.id);
     return outcome;
   } catch (e) {
-    console.error('approveAndExecutePending failed', e);
+    console.error("approveAndExecutePending failed", e);
     return `⚠️ Couldn't run ${action.reason}: ${(e as Error).message}`;
   }
 }
@@ -256,8 +261,9 @@ export async function rejectPending(
   actionId: string,
   reason: string,
 ): Promise<string> {
-  await supabase.from('auto_actions_log')
-    .update({ status: 'rejected', rejected_at: new Date().toISOString() })
-    .eq('id', actionId);
+  await supabase
+    .from("auto_actions_log")
+    .update({ status: "rejected", rejected_at: new Date().toISOString() })
+    .eq("id", actionId);
   return `🚫 Cancelled: ${reason}`;
 }

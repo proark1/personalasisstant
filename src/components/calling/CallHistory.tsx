@@ -1,66 +1,71 @@
-import { useState } from 'react';
-import { useCallHistory, CallHistoryItem } from '@/hooks/useCallHistory';
-import { useCall } from './CallProvider';
-import { CallRecordings } from './CallRecordings';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { 
-  Phone, 
-  Video, 
-  PhoneIncoming, 
-  PhoneOutgoing, 
+import { useState } from "react";
+import { useCallHistory, CallHistoryItem } from "@/hooks/useCallHistory";
+import { useCall } from "./CallProvider";
+import { CallRecordings } from "./CallRecordings";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Phone,
+  Video,
+  PhoneIncoming,
+  PhoneOutgoing,
   PhoneMissed,
   Clock,
   RefreshCw,
-  Disc
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+  Disc,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 interface CallHistoryProps {
   userId: string;
 }
 
 export function CallHistory({ userId }: CallHistoryProps) {
-  const [activeTab, setActiveTab] = useState<'history' | 'recordings'>('history');
+  const [activeTab, setActiveTab] = useState<"history" | "recordings">("history");
   const { history, loading, refetch } = useCallHistory(userId);
   const { startVideoCall, startAudioCall } = useCall();
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const formatDuration = (seconds: number | null) => {
-    if (!seconds) return '';
+    if (!seconds) return "";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const getStatusIcon = (item: CallHistoryItem) => {
-    if (item.status === 'missed' || item.status === 'declined') {
+    if (item.status === "missed" || item.status === "declined") {
       return <PhoneMissed className="w-4 h-4 text-destructive" />;
     }
-    if (item.direction === 'incoming') {
+    if (item.direction === "incoming") {
       return <PhoneIncoming className="w-4 h-4 text-success" />;
     }
     return <PhoneOutgoing className="w-4 h-4 text-primary" />;
   };
 
   const getStatusLabel = (item: CallHistoryItem) => {
-    if (item.status === 'missed') {
-      return item.direction === 'incoming' ? 'Missed' : 'No answer';
+    if (item.status === "missed") {
+      return item.direction === "incoming" ? "Missed" : "No answer";
     }
-    if (item.status === 'declined') {
-      return 'Declined';
+    if (item.status === "declined") {
+      return "Declined";
     }
-    return item.direction === 'incoming' ? 'Incoming' : 'Outgoing';
+    return item.direction === "incoming" ? "Incoming" : "Outgoing";
   };
 
   const handleRedial = async (item: CallHistoryItem) => {
-    const targetId = item.direction === 'outgoing' ? item.calleeId : item.callerId;
-    if (item.callType === 'video') {
+    const targetId = item.direction === "outgoing" ? item.calleeId : item.callerId;
+    if (item.callType === "video") {
       await startVideoCall(targetId);
     } else {
       await startAudioCall(targetId);
@@ -69,7 +74,11 @@ export function CallHistory({ userId }: CallHistoryProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'history' | 'recordings')} className="flex flex-col h-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as "history" | "recordings")}
+        className="flex flex-col h-full"
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <TabsList className="grid w-[200px] grid-cols-2">
             <TabsTrigger value="history" className="gap-1.5">
@@ -81,7 +90,7 @@ export function CallHistory({ userId }: CallHistoryProps) {
               Recordings
             </TabsTrigger>
           </TabsList>
-          {activeTab === 'history' && (
+          {activeTab === "history" && (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={refetch}>
               <RefreshCw className="w-4 h-4" />
             </Button>
@@ -101,12 +110,13 @@ export function CallHistory({ userId }: CallHistoryProps) {
           ) : (
             <ScrollArea className="h-full">
               <div className="divide-y divide-border">
-                {history.map(item => {
-                  const otherName = item.direction === 'outgoing' ? item.calleeName : item.callerName;
-                  
+                {history.map((item) => {
+                  const otherName =
+                    item.direction === "outgoing" ? item.calleeName : item.callerName;
+
                   return (
-                    <div 
-                      key={item.id} 
+                    <div
+                      key={item.id}
                       className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
                     >
                       <Avatar className="h-10 w-10 shrink-0">
@@ -114,17 +124,17 @@ export function CallHistory({ userId }: CallHistoryProps) {
                           {getInitials(otherName)}
                         </AvatarFallback>
                       </Avatar>
-                      
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-foreground truncate">{otherName}</span>
-                          {item.callType === 'video' ? (
+                          {item.callType === "video" ? (
                             <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                           ) : (
                             <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                           )}
                         </div>
-                        
+
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           {getStatusIcon(item)}
                           <span>{getStatusLabel(item)}</span>
@@ -137,12 +147,12 @@ export function CallHistory({ userId }: CallHistoryProps) {
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
                           {formatDistanceToNow(item.createdAt, { addSuffix: true })}
                         </span>
-                        
+
                         <Button
                           variant="ghost"
                           size="icon"
@@ -150,7 +160,7 @@ export function CallHistory({ userId }: CallHistoryProps) {
                           onClick={() => handleRedial(item)}
                           title="Redial"
                         >
-                          {item.callType === 'video' ? (
+                          {item.callType === "video" ? (
                             <Video className="w-4 h-4" />
                           ) : (
                             <Phone className="w-4 h-4" />

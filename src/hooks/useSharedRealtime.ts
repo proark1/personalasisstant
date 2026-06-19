@@ -5,9 +5,9 @@
  * Drop-in replacement for ad-hoc useEffect realtime subscriptions.
  * Multiple hooks calling this for the same (table, userId) share one channel.
  */
-import { useEffect, useRef } from 'react';
-import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { subscribeToTable } from '@/lib/realtimeCoordinator';
+import { useEffect, useRef } from "react";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { subscribeToTable } from "@/lib/realtimeCoordinator";
 
 export function useSharedRealtime(
   table: string,
@@ -20,11 +20,6 @@ export function useSharedRealtime(
 
   useEffect(() => {
     if (!userId) return;
-    return subscribeToTable(
-      table,
-      userId,
-      (payload) => handlerRef.current(payload),
-      filter,
-    );
+    return subscribeToTable(table, userId, (payload) => handlerRef.current(payload), filter);
   }, [table, userId, filter]);
 }

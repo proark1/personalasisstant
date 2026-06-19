@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
 
 export interface TripOverviewRow {
   trip_id: string;
@@ -58,7 +58,7 @@ export interface PackingList {
   id: string;
   trip_id: string;
   name: string;
-  source: 'manual' | 'ai_generated' | 'imported' | string;
+  source: "manual" | "ai_generated" | "imported" | string;
   generated_at: string | null;
   items: PackingItem[];
   metadata: Record<string, unknown>;
@@ -100,152 +100,170 @@ export function useTripOverview() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const { data: payload, error } = await supabase.functions.invoke('trip-overview', { body: {} });
+      const { data: payload, error } = await supabase.functions.invoke("trip-overview", {
+        body: {},
+      });
       if (error) throw error;
       setData(payload as TripOverviewResponse);
     } catch (e) {
-      console.warn('[useTripOverview] refresh failed', (e as Error).message);
+      console.warn("[useTripOverview] refresh failed", (e as Error).message);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   // Realtime: any change to trips/segments/packing repaints the page.
   // One channel with N listeners is cheaper than N channels — saves
   // WebSocket connections on both sides.
   useEffect(() => {
     if (!user?.id) return;
-    const tables = ['trips', 'trip_segments', 'packing_lists', 'trip_bookings'];
+    const tables = ["trips", "trip_segments", "packing_lists", "trip_bookings"];
     const channel = supabase.channel(`trip-updates-${user.id}`);
     for (const table of tables) {
-      channel.on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table,
-        filter: `user_id=eq.${user.id}`,
-      }, () => { refresh(); });
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table,
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          refresh();
+        },
+      );
     }
     channel.subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id, refresh]);
 
   // Fetch the weather forecast for a trip and persist a one-line
   // summary back onto the trip row so the dashboard renders it
   // without re-fetching.
-  const refreshWeather = useCallback(async (trip: TripOverviewRow) => {
-    if (!trip.destination_lat || !trip.destination_lon) {
-      toast.info('No coordinates set for this trip');
-      return null;
-    }
-    setBusyTripId(trip.trip_id);
-    try {
-      const { data: w, error } = await supabase.functions.invoke('weather-forecast', {
-        body: {
-          lat: trip.destination_lat,
-          lon: trip.destination_lon,
-          start_date: trip.start_date,
-          end_date: trip.end_date,
-        },
-      });
-      if (error) throw error;
-      const summary = (w as Record<string, unknown>)?.summary as string | undefined;
-      if (summary) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
-          .from('trips')
-          .update({
-            weather_summary: summary,
-            weather_refreshed_at: new Date().toISOString(),
-          })
-          .eq('id', trip.trip_id);
+  const refreshWeather = useCallback(
+    async (trip: TripOverviewRow) => {
+      if (!trip.destination_lat || !trip.destination_lon) {
+        toast.info("No coordinates set for this trip");
+        return null;
       }
-      await refresh();
-      toast.success('Weather updated');
-      return w;
-    } catch (e) {
-      toast.error(await describeEdgeError(e, 'Weather failed'));
-      return null;
-    } finally {
-      setBusyTripId(null);
-    }
-  }, [refresh]);
+      setBusyTripId(trip.trip_id);
+      try {
+        const { data: w, error } = await supabase.functions.invoke("weather-forecast", {
+          body: {
+            lat: trip.destination_lat,
+            lon: trip.destination_lon,
+            start_date: trip.start_date,
+            end_date: trip.end_date,
+          },
+        });
+        if (error) throw error;
+        const summary = (w as Record<string, unknown>)?.summary as string | undefined;
+        if (summary) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
+            .from("trips")
+            .update({
+              weather_summary: summary,
+              weather_refreshed_at: new Date().toISOString(),
+            })
+            .eq("id", trip.trip_id);
+        }
+        await refresh();
+        toast.success("Weather updated");
+        return w;
+      } catch (e) {
+        toast.error(await describeEdgeError(e, "Weather failed"));
+        return null;
+      } finally {
+        setBusyTripId(null);
+      }
+    },
+    [refresh],
+  );
 
-  const prepTrip = useCallback(async (tripId: string, force = false) => {
-    setBusyTripId(tripId);
-    try {
-      const { data, error } = await supabase.functions.invoke('trip-prep', {
-        body: { trip_id: tripId, force },
-      });
-      if (error) throw error;
-      const dataRecord = data as Record<string, unknown>;
-      if (dataRecord?.error) throw new Error(dataRecord.error as string);
-      const skipped = dataRecord?.skipped;
-      if (skipped) {
-        toast.info('Already prepped — pass force to re-run');
+  const prepTrip = useCallback(
+    async (tripId: string, force = false) => {
+      setBusyTripId(tripId);
+      try {
+        const { data, error } = await supabase.functions.invoke("trip-prep", {
+          body: { trip_id: tripId, force },
+        });
+        if (error) throw error;
+        const dataRecord = data as Record<string, unknown>;
+        if (dataRecord?.error) throw new Error(dataRecord.error as string);
+        const skipped = dataRecord?.skipped;
+        if (skipped) {
+          toast.info("Already prepped — pass force to re-run");
+        } else {
+          const kicked = dataRecord?.packing_kicked_off;
+          toast.success(`🎒 Pack task added${kicked ? " + packing list generating" : ""}`);
+        }
+        await refresh();
+        return data;
+      } catch (e) {
+        toast.error(await describeEdgeError(e, "Prep failed"));
+        return null;
+      } finally {
+        setBusyTripId(null);
+      }
+    },
+    [refresh],
+  );
+
+  const generatePacking = useCallback(
+    async (tripId: string, opts?: { replace?: boolean; extraContext?: string }) => {
+      setBusyTripId(tripId);
+      try {
+        const { data: r, error } = await supabase.functions.invoke("generate-packing-list", {
+          body: {
+            trip_id: tripId,
+            replace: opts?.replace === true,
+            extra_context: opts?.extraContext ?? "",
+          },
+        });
+        if (error) throw error;
+        const rRecord = r as Record<string, unknown>;
+        if (rRecord?.error) throw new Error(rRecord.error as string);
+        toast.success(`Packing list generated (${rRecord?.items_count} items)`);
+        await refresh();
+        return r;
+      } catch (e) {
+        toast.error(await describeEdgeError(e, "Packing failed"));
+        return null;
+      } finally {
+        setBusyTripId(null);
+      }
+    },
+    [refresh],
+  );
+
+  const togglePackedItem = useCallback(
+    async (list: PackingList, itemIndex: number) => {
+      const items = [...(list.items ?? [])];
+      if (!items[itemIndex]) return;
+      items[itemIndex] = { ...items[itemIndex], packed: !items[itemIndex].packed };
+      // packing_lists is not in the generated Supabase types; use any to bypass type constraint
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("packing_lists")
+        .update({ items })
+        .eq("id", list.id);
+      if (error) {
+        toast.error(`Failed: ${error.message}`);
       } else {
-        const kicked = dataRecord?.packing_kicked_off;
-        toast.success(`🎒 Pack task added${kicked ? ' + packing list generating' : ''}`);
+        // Optimistic local update — the realtime subscription will
+        // backfill the new packing_pct from the view.
+        await refresh();
       }
-      await refresh();
-      return data;
-    } catch (e) {
-      toast.error(await describeEdgeError(e, 'Prep failed'));
-      return null;
-    } finally {
-      setBusyTripId(null);
-    }
-  }, [refresh]);
-
-  const generatePacking = useCallback(async (
-    tripId: string,
-    opts?: { replace?: boolean; extraContext?: string },
-  ) => {
-    setBusyTripId(tripId);
-    try {
-      const { data: r, error } = await supabase.functions.invoke('generate-packing-list', {
-        body: {
-          trip_id: tripId,
-          replace: opts?.replace === true,
-          extra_context: opts?.extraContext ?? '',
-        },
-      });
-      if (error) throw error;
-      const rRecord = r as Record<string, unknown>;
-      if (rRecord?.error) throw new Error(rRecord.error as string);
-      toast.success(`Packing list generated (${rRecord?.items_count} items)`);
-      await refresh();
-      return r;
-    } catch (e) {
-      toast.error(await describeEdgeError(e, 'Packing failed'));
-      return null;
-    } finally {
-      setBusyTripId(null);
-    }
-  }, [refresh]);
-
-  const togglePackedItem = useCallback(async (
-    list: PackingList,
-    itemIndex: number,
-  ) => {
-    const items = [...(list.items ?? [])];
-    if (!items[itemIndex]) return;
-    items[itemIndex] = { ...items[itemIndex], packed: !items[itemIndex].packed };
-    // packing_lists is not in the generated Supabase types; use any to bypass type constraint
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
-      .from('packing_lists')
-      .update({ items })
-      .eq('id', list.id);
-    if (error) {
-      toast.error(`Failed: ${error.message}`);
-    } else {
-      // Optimistic local update — the realtime subscription will
-      // backfill the new packing_pct from the view.
-      await refresh();
-    }
-  }, [refresh]);
+    },
+    [refresh],
+  );
 
   return {
     data,

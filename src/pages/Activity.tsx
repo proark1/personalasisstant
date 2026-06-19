@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { formatDistanceToNow } from 'date-fns';
-import { Activity, ShieldCheck, Undo2, Zap, Clock } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { formatDistanceToNow } from "date-fns";
+import { Activity, ShieldCheck, Undo2, Zap, Clock } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Unified "Dori did stuff on your behalf" timeline. Merges three
 // independent log tables (auto_actions_log / dori_undo_log /
@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 // single audit surface. Tap a row to see the underlying JSON.
 
 type Row = {
-  kind: 'auto' | 'undo' | 'proactive';
+  kind: "auto" | "undo" | "proactive";
   id: string;
   when: string;
   title: string;
@@ -44,49 +44,56 @@ export default function ActivityPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const db = supabase as any;
         const [autoRes, undoRes, proactiveRes] = await Promise.all([
-          db.from('auto_actions_log')
-            .select('id, action_type, entity_type, reason, status, source, source_ref, created_at, approved_at, rejected_at, action_data')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
+          db
+            .from("auto_actions_log")
+            .select(
+              "id, action_type, entity_type, reason, status, source, source_ref, created_at, approved_at, rejected_at, action_data",
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
             .limit(80),
-          db.from('dori_undo_log')
-            .select('id, op, entity_type, entity_id, label, consumed_at, created_at, source, source_ref')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
+          db
+            .from("dori_undo_log")
+            .select(
+              "id, op, entity_type, entity_id, label, consumed_at, created_at, source, source_ref",
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
             .limit(80),
-          db.from('dori_proactive_log')
-            .select('id, trigger_type, trigger_key, channel, channel_ref, message, sent_at')
-            .eq('user_id', user.id)
-            .order('sent_at', { ascending: false })
+          db
+            .from("dori_proactive_log")
+            .select("id, trigger_type, trigger_key, channel, channel_ref, message, sent_at")
+            .eq("user_id", user.id)
+            .order("sent_at", { ascending: false })
             .limit(80),
         ]);
         if (!alive) return;
         const merged: Row[] = [
           ...(autoRes.data || []).map((r: Record<string, unknown>) => ({
-            kind: 'auto' as const,
+            kind: "auto" as const,
             id: r.id as string,
             when: r.created_at as string,
             title: r.reason as string,
-            subtitle: `${r.action_type}${r.entity_type ? ` · ${r.entity_type}` : ''}`,
+            subtitle: `${r.action_type}${r.entity_type ? ` · ${r.entity_type}` : ""}`,
             status: r.status as string | undefined,
             source: r.source as string | undefined,
             meta: r,
           })),
           ...(undoRes.data || []).map((r: Record<string, unknown>) => ({
-            kind: 'undo' as const,
+            kind: "undo" as const,
             id: r.id as string,
             when: r.created_at as string,
             title: r.label as string,
-            subtitle: `${r.op} · ${r.entity_type}${r.consumed_at ? ' · reverted' : ''}`,
+            subtitle: `${r.op} · ${r.entity_type}${r.consumed_at ? " · reverted" : ""}`,
             source: r.source as string | undefined,
             meta: r,
           })),
           ...(proactiveRes.data || []).map((r: Record<string, unknown>) => ({
-            kind: 'proactive' as const,
+            kind: "proactive" as const,
             id: r.id as string,
             when: r.sent_at as string,
             title: (r.message || r.trigger_type) as string,
-            subtitle: `${r.trigger_type} → ${r.channel || 'in-app'}`,
+            subtitle: `${r.trigger_type} → ${r.channel || "in-app"}`,
             source: r.channel as string | undefined,
             meta: r,
           })),
@@ -94,33 +101,45 @@ export default function ActivityPage() {
         setRows(merged);
       } catch (e) {
         if (!alive) return;
-        console.error('Activity load failed', e);
-        setLoadError((e as Error)?.message || 'Could not load activity');
+        console.error("Activity load failed", e);
+        setLoadError((e as Error)?.message || "Could not load activity");
       } finally {
         if (alive) setLoading(false);
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [user?.id]);
 
-  const kindIcon = (k: Row['kind']) =>
-    k === 'auto' ? <ShieldCheck className="w-4 h-4" />
-    : k === 'undo' ? <Undo2 className="w-4 h-4" />
-    : <Zap className="w-4 h-4" />;
+  const kindIcon = (k: Row["kind"]) =>
+    k === "auto" ? (
+      <ShieldCheck className="w-4 h-4" />
+    ) : k === "undo" ? (
+      <Undo2 className="w-4 h-4" />
+    ) : (
+      <Zap className="w-4 h-4" />
+    );
 
-  const kindLabel = (k: Row['kind']) =>
-    k === 'auto' ? 'Confirmed action'
-    : k === 'undo' ? 'Undo window'
-    : 'Proactive nudge';
+  const kindLabel = (k: Row["kind"]) =>
+    k === "auto" ? "Confirmed action" : k === "undo" ? "Undo window" : "Proactive nudge";
 
   const statusBadge = (row: Row) => {
-    if (row.kind !== 'auto') return null;
-    const s = row.status || 'pending';
-    const v: 'default' | 'destructive' | 'outline' | 'secondary' =
-      s === 'approved' || s === 'auto_applied' ? 'default' :
-      s === 'rejected' ? 'destructive' :
-      s === 'expired' ? 'outline' : 'secondary';
-    return <Badge variant={v} className="text-[10px] px-1.5">{s}</Badge>;
+    if (row.kind !== "auto") return null;
+    const s = row.status || "pending";
+    const v: "default" | "destructive" | "outline" | "secondary" =
+      s === "approved" || s === "auto_applied"
+        ? "default"
+        : s === "rejected"
+          ? "destructive"
+          : s === "expired"
+            ? "outline"
+            : "secondary";
+    return (
+      <Badge variant={v} className="text-[10px] px-1.5">
+        {s}
+      </Badge>
+    );
   };
 
   const groupedByDay = useMemo(() => {
@@ -128,7 +147,12 @@ export default function ActivityPage() {
     for (const r of rows) {
       // `undefined` defers to the browser's locale so the page matches
       // the user's preferred date format instead of hard-coding en-GB.
-      const d = new Date(r.when).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+      const d = new Date(r.when).toLocaleDateString(undefined, {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
       if (!groups.has(d)) groups.set(d, []);
       groups.get(d)!.push(r);
     }
@@ -143,7 +167,8 @@ export default function ActivityPage() {
           Activity
         </h1>
         <p className="text-sm text-muted-foreground">
-          Everything Dori did on your behalf, plus every proactive nudge. Audit trail for your own peace of mind.
+          Everything Dori did on your behalf, plus every proactive nudge. Audit trail for your own
+          peace of mind.
         </p>
       </div>
 
@@ -187,7 +212,12 @@ export default function ActivityPage() {
                       <span className="truncate">{kindLabel(row.kind)}</span>
                       <span>·</span>
                       <span className="truncate">{row.subtitle}</span>
-                      {row.source && <><span>·</span><span>{row.source}</span></>}
+                      {row.source && (
+                        <>
+                          <span>·</span>
+                          <span>{row.source}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
@@ -208,7 +238,9 @@ export default function ActivityPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Why did Dori do this?</CardTitle>
-              <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>Close</Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
+                Close
+              </Button>
             </div>
             <CardDescription>{selected.title}</CardDescription>
           </CardHeader>

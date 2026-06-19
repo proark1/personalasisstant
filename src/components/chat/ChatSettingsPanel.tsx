@@ -1,54 +1,43 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Bell, 
-  BellOff, 
-  UserX, 
-  Star
-} from 'lucide-react';
-import { useChatSettings } from '@/hooks/useChatSettings';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Bell, BellOff, UserX, Star } from "lucide-react";
+import { useChatSettings } from "@/hooks/useChatSettings";
 
 interface ChatSettingsPanelProps {
   userId: string;
 }
 
 export function ChatSettingsPanel({ userId: _userId }: ChatSettingsPanelProps) {
-  const { 
-    settings, 
-    blockedUsers, 
-    updateSettings, 
-    unblockUser,
-    isInDndMode 
-  } = useChatSettings();
+  const { settings, blockedUsers, updateSettings, unblockUser, isInDndMode } = useChatSettings();
 
-  const [dndStart, setDndStart] = useState(settings.dndStart || '22:00');
-  const [dndEnd, setDndEnd] = useState(settings.dndEnd || '08:00');
+  const [dndStart, setDndStart] = useState(settings.dndStart || "22:00");
+  const [dndEnd, setDndEnd] = useState(settings.dndEnd || "08:00");
 
   const daysOfWeek = [
-    { value: 0, label: 'Sun' },
-    { value: 1, label: 'Mon' },
-    { value: 2, label: 'Tue' },
-    { value: 3, label: 'Wed' },
-    { value: 4, label: 'Thu' },
-    { value: 5, label: 'Fri' },
-    { value: 6, label: 'Sat' },
+    { value: 0, label: "Sun" },
+    { value: 1, label: "Mon" },
+    { value: 2, label: "Tue" },
+    { value: 3, label: "Wed" },
+    { value: 4, label: "Thu" },
+    { value: 5, label: "Fri" },
+    { value: 6, label: "Sat" },
   ];
 
   const toggleDndDay = (day: number) => {
     const newDays = settings.dndDays.includes(day)
-      ? settings.dndDays.filter(d => d !== day)
+      ? settings.dndDays.filter((d) => d !== day)
       : [...settings.dndDays, day];
     updateSettings({ dndDays: newDays });
   };
 
   const handleDndToggle = (enabled: boolean) => {
-    updateSettings({ 
+    updateSettings({
       dndEnabled: enabled,
       dndStart: enabled ? dndStart : undefined,
       dndEnd: enabled ? dndEnd : undefined,
@@ -74,7 +63,9 @@ export function ChatSettingsPanel({ userId: _userId }: ChatSettingsPanelProps) {
             )}
             Do Not Disturb
             {isInDndMode() && (
-              <Badge variant="secondary" className="ml-2">Active</Badge>
+              <Badge variant="secondary" className="ml-2">
+                Active
+              </Badge>
             )}
           </CardTitle>
         </CardHeader>
@@ -127,8 +118,8 @@ export function ChatSettingsPanel({ userId: _userId }: ChatSettingsPanelProps) {
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {settings.dndDays.length === 0 
-                    ? 'DND active every day'
+                  {settings.dndDays.length === 0
+                    ? "DND active every day"
                     : `DND active on selected days only`}
                 </p>
               </div>
@@ -147,9 +138,7 @@ export function ChatSettingsPanel({ userId: _userId }: ChatSettingsPanelProps) {
         </CardHeader>
         <CardContent>
           {blockedUsers.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No blocked users
-            </p>
+            <p className="text-sm text-muted-foreground text-center py-4">No blocked users</p>
           ) : (
             <ScrollArea className="h-[150px]">
               <div className="space-y-2">
@@ -164,11 +153,7 @@ export function ChatSettingsPanel({ userId: _userId }: ChatSettingsPanelProps) {
                         <p className="text-xs text-muted-foreground">{user.reason}</p>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => unblockUser(user.blockedId)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => unblockUser(user.blockedId)}>
                       Unblock
                     </Button>
                   </div>
@@ -189,7 +174,8 @@ export function ChatSettingsPanel({ userId: _userId }: ChatSettingsPanelProps) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            {settings.priorityContacts.length} priority contact{settings.priorityContacts.length !== 1 ? 's' : ''}
+            {settings.priorityContacts.length} priority contact
+            {settings.priorityContacts.length !== 1 ? "s" : ""}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             Messages from priority contacts will always notify you, even during DND.

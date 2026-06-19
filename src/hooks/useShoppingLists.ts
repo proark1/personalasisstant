@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { toast } from 'sonner';
-import { fetchWithRetry, TimeoutError } from '@/lib/fetchWithTimeout';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
+import { fetchWithRetry, TimeoutError } from "@/lib/fetchWithTimeout";
 
 export interface ShoppingListItem {
   id: string;
@@ -51,22 +51,23 @@ export function useShoppingLists() {
 
     try {
       const { data, error } = await fetchWithRetry(
-        async () => supabase
-          .from('shopping_lists')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
-        { maxRetries: 2, timeoutMs: 12000 }
+        async () =>
+          supabase
+            .from("shopping_lists")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false }),
+        { maxRetries: 2, timeoutMs: 12000 },
       );
 
       if (error) throw error;
       setLists(data || []);
     } catch (error) {
-      console.error('Error fetching shopping lists:', error);
+      console.error("Error fetching shopping lists:", error);
       if (error instanceof TimeoutError) {
-        setFetchError('Loading took too long. Tap to retry.');
+        setFetchError("Loading took too long. Tap to retry.");
       } else {
-        setFetchError('Failed to load shopping lists.');
+        setFetchError("Failed to load shopping lists.");
       }
     } finally {
       setIsLoading(false);
@@ -75,50 +76,52 @@ export function useShoppingLists() {
 
   const fetchListWithItems = async (listId: string): Promise<ShoppingList | null> => {
     if (!user?.id) return null;
-    
+
     try {
       const { data: listData, error: listError } = await supabase
-        .from('shopping_lists')
-        .select('*')
-        .eq('id', listId)
+        .from("shopping_lists")
+        .select("*")
+        .eq("id", listId)
         .single();
 
       if (listError) throw listError;
 
       const { data: itemsData, error: itemsError } = await supabase
-        .from('shopping_list_items')
-        .select('*')
-        .eq('list_id', listId)
-        .order('created_at', { ascending: true });
+        .from("shopping_list_items")
+        .select("*")
+        .eq("list_id", listId)
+        .order("created_at", { ascending: true });
 
       if (itemsError) throw itemsError;
 
       return { ...listData, items: itemsData || [] };
     } catch (error) {
-      console.error('Error fetching list with items:', error);
+      console.error("Error fetching list with items:", error);
       return null;
     }
   };
 
-  const addList = async (list: Omit<ShoppingList, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+  const addList = async (
+    list: Omit<ShoppingList, "id" | "user_id" | "created_at" | "updated_at">,
+  ) => {
     if (!user?.id) return null;
 
     try {
       // `items` is a client-only relation, not a column on shopping_lists.
       const { items: _items, ...listFields } = list;
       const { data, error } = await supabase
-        .from('shopping_lists')
+        .from("shopping_lists")
         .insert({ ...listFields, user_id: user.id })
         .select()
         .single();
 
       if (error) throw error;
-      setLists(prev => [data, ...prev]);
-      toast.success(t('shopping.toast.listCreated'));
+      setLists((prev) => [data, ...prev]);
+      toast.success(t("shopping.toast.listCreated"));
       return data;
     } catch (error) {
-      console.error('Error adding shopping list:', error);
-      toast.error(t('shopping.toast.listCreateFailed'));
+      console.error("Error adding shopping list:", error);
+      toast.error(t("shopping.toast.listCreateFailed"));
       return null;
     }
   };
@@ -128,20 +131,20 @@ export function useShoppingLists() {
       // Strip the client-only `items` relation before persisting.
       const { items: _items, ...updateFields } = updates;
       const { data, error } = await supabase
-        .from('shopping_lists')
+        .from("shopping_lists")
         .update({ ...updateFields, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('user_id', user?.id)
+        .eq("id", id)
+        .eq("user_id", user?.id)
         .select()
         .single();
 
       if (error) throw error;
-      setLists(prev => prev.map(l => l.id === id ? data : l));
-      toast.success(t('shopping.toast.listUpdated'));
+      setLists((prev) => prev.map((l) => (l.id === id ? data : l)));
+      toast.success(t("shopping.toast.listUpdated"));
       return data;
     } catch (error) {
-      console.error('Error updating shopping list:', error);
-      toast.error(t('shopping.toast.listUpdateFailed'));
+      console.error("Error updating shopping list:", error);
+      toast.error(t("shopping.toast.listUpdateFailed"));
       return null;
     }
   };
@@ -149,36 +152,40 @@ export function useShoppingLists() {
   const deleteList = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('shopping_lists')
+        .from("shopping_lists")
         .delete()
-        .eq('id', id)
-        .eq('user_id', user?.id);
+        .eq("id", id)
+        .eq("user_id", user?.id);
 
       if (error) throw error;
-      setLists(prev => prev.filter(l => l.id !== id));
-      toast.success(t('shopping.toast.listDeleted'));
+      setLists((prev) => prev.filter((l) => l.id !== id));
+      toast.success(t("shopping.toast.listDeleted"));
     } catch (error) {
-      console.error('Error deleting shopping list:', error);
-      toast.error(t('shopping.toast.listDeleteFailed'));
+      console.error("Error deleting shopping list:", error);
+      toast.error(t("shopping.toast.listDeleteFailed"));
     }
   };
 
-  const addItem = async (listId: string, item: Omit<ShoppingListItem, 'id' | 'list_id' | 'user_id' | 'created_at'>, silent = false) => {
+  const addItem = async (
+    listId: string,
+    item: Omit<ShoppingListItem, "id" | "list_id" | "user_id" | "created_at">,
+    silent = false,
+  ) => {
     if (!user?.id) return null;
 
     try {
       const { data, error } = await supabase
-        .from('shopping_list_items')
+        .from("shopping_list_items")
         .insert({ ...item, list_id: listId, user_id: user.id })
         .select()
         .single();
 
       if (error) throw error;
-      if (!silent) toast.success(t('shopping.toast.itemAdded'));
+      if (!silent) toast.success(t("shopping.toast.itemAdded"));
       return data;
     } catch (error) {
-      console.error('Error adding item:', error);
-      if (!silent) toast.error(t('shopping.toast.itemAddFailed'));
+      console.error("Error adding item:", error);
+      if (!silent) toast.error(t("shopping.toast.itemAddFailed"));
       return null;
     }
   };
@@ -186,17 +193,17 @@ export function useShoppingLists() {
   const updateItem = async (itemId: string, updates: Partial<ShoppingListItem>) => {
     try {
       const { data, error } = await supabase
-        .from('shopping_list_items')
+        .from("shopping_list_items")
         .update(updates)
-        .eq('id', itemId)
+        .eq("id", itemId)
         .select()
         .single();
 
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Error updating item:', error);
-      toast.error(t('shopping.toast.itemUpdateFailed'));
+      console.error("Error updating item:", error);
+      toast.error(t("shopping.toast.itemUpdateFailed"));
       return null;
     }
   };
@@ -207,16 +214,13 @@ export function useShoppingLists() {
 
   const deleteItem = async (itemId: string) => {
     try {
-      const { error } = await supabase
-        .from('shopping_list_items')
-        .delete()
-        .eq('id', itemId);
+      const { error } = await supabase.from("shopping_list_items").delete().eq("id", itemId);
 
       if (error) throw error;
-      toast.success(t('shopping.toast.itemRemoved'));
+      toast.success(t("shopping.toast.itemRemoved"));
     } catch (error) {
-      console.error('Error deleting item:', error);
-      toast.error(t('shopping.toast.itemRemoveFailed'));
+      console.error("Error deleting item:", error);
+      toast.error(t("shopping.toast.itemRemoveFailed"));
     }
   };
 
@@ -251,11 +255,13 @@ export function useShoppingLists() {
     return newList;
   };
 
-  useEffect(() => { fetchLists(); }, [fetchLists]);
+  useEffect(() => {
+    fetchLists();
+  }, [fetchLists]);
 
-  const getActiveLists = () => lists.filter(l => !l.is_template && !l.is_completed);
-  const getTemplates = () => lists.filter(l => l.is_template);
-  const getCompletedLists = () => lists.filter(l => l.is_completed && !l.is_template);
+  const getActiveLists = () => lists.filter((l) => !l.is_template && !l.is_completed);
+  const getTemplates = () => lists.filter((l) => l.is_template);
+  const getCompletedLists = () => lists.filter((l) => l.is_completed && !l.is_template);
 
   return {
     lists,

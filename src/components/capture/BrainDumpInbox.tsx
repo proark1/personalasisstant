@@ -1,23 +1,23 @@
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  CheckSquare, 
-  StickyNote, 
-  Calendar, 
-  Trash2, 
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  CheckSquare,
+  StickyNote,
+  Calendar,
+  Trash2,
   ArrowRight,
   Sparkles,
   Loader2,
-  Inbox 
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useBrainDump, BrainDump } from '@/hooks/useBrainDump';
-import { format } from 'date-fns';
+  Inbox,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useBrainDump, BrainDump } from "@/hooks/useBrainDump";
+import { format } from "date-fns";
 
 interface BrainDumpInboxProps {
   isOpen: boolean;
@@ -32,16 +32,16 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-  task: 'bg-primary/10 text-primary',
-  note: 'bg-accent/10 text-accent',
-  event: 'bg-warning/10 text-warning',
-  reminder: 'bg-secondary/10 text-secondary',
+  task: "bg-primary/10 text-primary",
+  note: "bg-accent/10 text-accent",
+  event: "bg-warning/10 text-warning",
+  reminder: "bg-secondary/10 text-secondary",
 };
 
 export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
   const { dumps, isLoading, fetchDumps, convertDump, deleteDump } = useBrainDump();
   const [selectedDump, setSelectedDump] = useState<BrainDump | null>(null);
-  const [editedTitle, setEditedTitle] = useState('');
+  const [editedTitle, setEditedTitle] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -55,7 +55,7 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
     }
   }, [selectedDump]);
 
-  const handleConvert = async (type: 'task' | 'note' | 'event') => {
+  const handleConvert = async (type: "task" | "note" | "event") => {
     if (!selectedDump) return;
 
     const data: Record<string, unknown> = {
@@ -63,12 +63,12 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
       description: selectedDump.content,
     };
 
-    if (type === 'task') {
-      data.priority = selectedDump.suggested_priority || 'medium';
-      data.category = selectedDump.suggested_category || 'personal';
+    if (type === "task") {
+      data.priority = selectedDump.suggested_priority || "medium";
+      data.category = selectedDump.suggested_category || "personal";
     }
 
-    if (type === 'event') {
+    if (type === "event") {
       // Default to tomorrow at 10am
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -77,7 +77,7 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
       data.end_time = new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString();
     }
 
-    if (type === 'note') {
+    if (type === "note") {
       data.content = selectedDump.content;
     }
 
@@ -101,9 +101,7 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
           <DialogTitle className="flex items-center gap-2">
             <Inbox className="w-5 h-5" />
             Brain Dump Inbox
-            {dumps.length > 0 && (
-              <Badge variant="secondary">{dumps.length}</Badge>
-            )}
+            {dumps.length > 0 && <Badge variant="secondary">{dumps.length}</Badge>}
           </DialogTitle>
         </DialogHeader>
 
@@ -115,17 +113,11 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
           <div className="text-center py-8">
             <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground">All caught up!</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Your brain dump inbox is empty
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">Your brain dump inbox is empty</p>
           </div>
         ) : selectedDump ? (
           <div className="space-y-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedDump(null)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setSelectedDump(null)}>
               ← Back to list
             </Button>
 
@@ -151,7 +143,8 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-primary" />
                     <span className="text-sm">
-                      AI suggests: <Badge variant="outline" className="ml-1 capitalize">
+                      AI suggests:{" "}
+                      <Badge variant="outline" className="ml-1 capitalize">
                         {selectedDump.suggested_type}
                       </Badge>
                     </span>
@@ -164,7 +157,7 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
                     <Button
                       variant="outline"
                       className="flex-col h-auto py-3"
-                      onClick={() => handleConvert('task')}
+                      onClick={() => handleConvert("task")}
                     >
                       <CheckSquare className="w-5 h-5 mb-1" />
                       <span className="text-xs">Task</span>
@@ -172,7 +165,7 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
                     <Button
                       variant="outline"
                       className="flex-col h-auto py-3"
-                      onClick={() => handleConvert('note')}
+                      onClick={() => handleConvert("note")}
                     >
                       <StickyNote className="w-5 h-5 mb-1" />
                       <span className="text-xs">Note</span>
@@ -180,7 +173,7 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
                     <Button
                       variant="outline"
                       className="flex-col h-auto py-3"
-                      onClick={() => handleConvert('event')}
+                      onClick={() => handleConvert("event")}
                     >
                       <Calendar className="w-5 h-5 mb-1" />
                       <span className="text-xs">Event</span>
@@ -205,10 +198,12 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
               {dumps.map((dump) => {
                 const suggestedType = dump.suggested_type as keyof typeof TYPE_ICONS;
                 const Icon = suggestedType ? TYPE_ICONS[suggestedType] : Sparkles;
-                const colorClass = suggestedType ? TYPE_COLORS[suggestedType] : 'bg-muted text-muted-foreground';
+                const colorClass = suggestedType
+                  ? TYPE_COLORS[suggestedType]
+                  : "bg-muted text-muted-foreground";
 
                 return (
-                  <Card 
+                  <Card
                     key={dump.id}
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => setSelectedDump(dump)}
@@ -223,7 +218,7 @@ export function BrainDumpInbox({ isOpen, onClose }: BrainDumpInboxProps) {
                             {dump.ai_summary || dump.content.slice(0, 50)}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(dump.created_at), 'MMM d, h:mm a')}
+                            {format(new Date(dump.created_at), "MMM d, h:mm a")}
                           </p>
                         </div>
                         <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />

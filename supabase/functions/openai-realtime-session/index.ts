@@ -1,44 +1,51 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'X-Content-Type-Options': 'nosniff',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "X-Content-Type-Options": "nosniff",
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   // Auth gate
-  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   {
-    const _sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user }, error } = await _sb.auth.getUser();
+    const _sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const {
+      data: { user },
+      error,
+    } = await _sb.auth.getUser();
     if (error || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured');
+      throw new Error("OPENAI_API_KEY is not configured");
     }
 
     const { userProfile, contextData } = await req.json();
-    console.log('Creating OpenAI Realtime session with context:', { 
-      hasProfile: !!userProfile, 
+    console.log("Creating OpenAI Realtime session with context:", {
+      hasProfile: !!userProfile,
       taskCount: contextData?.allTasks?.length || 0,
       contactCount: contextData?.allContacts?.length || 0,
       contractCount: contextData?.allContracts?.length || 0,
@@ -53,7 +60,7 @@ serve(async (req) => {
 
     // Build comprehensive system prompt
     const systemPrompt = buildSystemPrompt(userProfile, contextData);
-    console.log('System prompt length:', systemPrompt.length);
+    console.log("System prompt length:", systemPrompt.length);
 
     // Define all tools for full platform integration
     const tools = [
@@ -61,82 +68,126 @@ serve(async (req) => {
       {
         type: "function",
         name: "create_task",
-        description: "Create a new task for the user. Use this when the user wants to add a new task, todo, or reminder.",
+        description:
+          "Create a new task for the user. Use this when the user wants to add a new task, todo, or reminder.",
         parameters: {
           type: "object",
           properties: {
             title: { type: "string", description: "The title/name of the task" },
-            priority: { type: "string", enum: ["low", "medium", "high"], description: "Task priority level" },
-            category: { type: "string", enum: ["work", "personal", "health", "finance", "learning", "shopping"], description: "Task category" },
+            priority: {
+              type: "string",
+              enum: ["low", "medium", "high"],
+              description: "Task priority level",
+            },
+            category: {
+              type: "string",
+              enum: ["work", "personal", "health", "finance", "learning", "shopping"],
+              description: "Task category",
+            },
             due_date: { type: "string", description: "Due date in ISO format (YYYY-MM-DD)" },
-            project_id: { type: "string", description: "Optional project ID to assign this task to" }
+            project_id: {
+              type: "string",
+              description: "Optional project ID to assign this task to",
+            },
           },
-          required: ["title"]
-        }
+          required: ["title"],
+        },
       },
       {
         type: "function",
         name: "complete_task",
-        description: "Mark a task as completed/done. Use when the user says they finished, completed, or done with a task.",
+        description:
+          "Mark a task as completed/done. Use when the user says they finished, completed, or done with a task.",
         parameters: {
           type: "object",
           properties: {
-            task_query: { type: "string", description: "Task name, partial name, or description to search for" }
+            task_query: {
+              type: "string",
+              description: "Task name, partial name, or description to search for",
+            },
           },
-          required: ["task_query"]
-        }
+          required: ["task_query"],
+        },
       },
       {
         type: "function",
         name: "trash_task",
-        description: "Move a task to trash/delete it. Use when user wants to remove, delete, or trash a task.",
+        description:
+          "Move a task to trash/delete it. Use when user wants to remove, delete, or trash a task.",
         parameters: {
           type: "object",
           properties: {
-            task_query: { type: "string", description: "Task name, partial name, or description to search for" }
+            task_query: {
+              type: "string",
+              description: "Task name, partial name, or description to search for",
+            },
           },
-          required: ["task_query"]
-        }
+          required: ["task_query"],
+        },
       },
       {
         type: "function",
         name: "reschedule_task",
-        description: "Change the due date of a task. Use when user wants to move, reschedule, or change when a task is due.",
+        description:
+          "Change the due date of a task. Use when user wants to move, reschedule, or change when a task is due.",
         parameters: {
           type: "object",
           properties: {
-            task_query: { type: "string", description: "Task name, partial name, or description to search for" },
-            new_date: { type: "string", description: "New due date - can be natural language like 'tomorrow', 'next monday', or ISO date" }
+            task_query: {
+              type: "string",
+              description: "Task name, partial name, or description to search for",
+            },
+            new_date: {
+              type: "string",
+              description:
+                "New due date - can be natural language like 'tomorrow', 'next monday', or ISO date",
+            },
           },
-          required: ["task_query", "new_date"]
-        }
+          required: ["task_query", "new_date"],
+        },
       },
       {
         type: "function",
         name: "edit_task",
-        description: "Edit/update a task's title or other properties. Use when user wants to rename or modify a task.",
+        description:
+          "Edit/update a task's title or other properties. Use when user wants to rename or modify a task.",
         parameters: {
           type: "object",
           properties: {
-            task_query: { type: "string", description: "Task name, partial name, or description to search for" },
+            task_query: {
+              type: "string",
+              description: "Task name, partial name, or description to search for",
+            },
             new_title: { type: "string", description: "New title for the task" },
-            new_priority: { type: "string", enum: ["low", "medium", "high"], description: "New priority level" },
-            new_category: { type: "string", enum: ["work", "personal", "health", "finance", "learning", "shopping"], description: "New category" }
+            new_priority: {
+              type: "string",
+              enum: ["low", "medium", "high"],
+              description: "New priority level",
+            },
+            new_category: {
+              type: "string",
+              enum: ["work", "personal", "health", "finance", "learning", "shopping"],
+              description: "New category",
+            },
           },
-          required: ["task_query"]
-        }
+          required: ["task_query"],
+        },
       },
       {
         type: "function",
         name: "search_tasks",
-        description: "Search for tasks by name or keyword. Use to find specific tasks before operating on them.",
+        description:
+          "Search for tasks by name or keyword. Use to find specific tasks before operating on them.",
         parameters: {
           type: "object",
           properties: {
-            query: { type: "string", description: "Search query - task name, keyword, or partial match" }
+            query: {
+              type: "string",
+              description: "Search query - task name, keyword, or partial match",
+            },
           },
-          required: ["query"]
-        }
+          required: ["query"],
+        },
       },
       {
         type: "function",
@@ -145,26 +196,41 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            type: { type: "string", enum: ["today", "overdue", "upcoming", "all"], description: "Type of summary" }
+            type: {
+              type: "string",
+              enum: ["today", "overdue", "upcoming", "all"],
+              description: "Type of summary",
+            },
           },
-          required: ["type"]
-        }
+          required: ["type"],
+        },
       },
 
       // ==================== CONTACT TOOLS ====================
       {
         type: "function",
         name: "search_contacts",
-        description: "Search for contacts by name, company, location, role, or tags. Use when user asks about people, networking, who to contact, or who they know.",
+        description:
+          "Search for contacts by name, company, location, role, or tags. Use when user asks about people, networking, who to contact, or who they know.",
         parameters: {
           type: "object",
           properties: {
-            query: { type: "string", description: "Search term - name, company, city, country, role, or keyword" },
-            location: { type: "string", description: "Filter by city or country (e.g., 'Dubai', 'UAE', 'Germany')" },
-            type: { type: "string", enum: ["personal", "business", "all"], description: "Filter by contact type" }
+            query: {
+              type: "string",
+              description: "Search term - name, company, city, country, role, or keyword",
+            },
+            location: {
+              type: "string",
+              description: "Filter by city or country (e.g., 'Dubai', 'UAE', 'Germany')",
+            },
+            type: {
+              type: "string",
+              enum: ["personal", "business", "all"],
+              description: "Filter by contact type",
+            },
           },
-          required: ["query"]
-        }
+          required: ["query"],
+        },
       },
       {
         type: "function",
@@ -180,11 +246,15 @@ serve(async (req) => {
             phone: { type: "string", description: "Phone number" },
             city: { type: "string", description: "City" },
             country: { type: "string", description: "Country" },
-            contact_type: { type: "string", enum: ["personal", "business"], description: "Contact type" },
-            notes: { type: "string", description: "Notes about this contact" }
+            contact_type: {
+              type: "string",
+              enum: ["personal", "business"],
+              description: "Contact type",
+            },
+            notes: { type: "string", description: "Notes about this contact" },
           },
-          required: ["name"]
-        }
+          required: ["name"],
+        },
       },
       {
         type: "function",
@@ -200,22 +270,23 @@ serve(async (req) => {
             phone: { type: "string", description: "New phone" },
             city: { type: "string", description: "New city" },
             country: { type: "string", description: "New country" },
-            notes: { type: "string", description: "New notes" }
+            notes: { type: "string", description: "New notes" },
           },
-          required: ["contact_query"]
-        }
+          required: ["contact_query"],
+        },
       },
       {
         type: "function",
         name: "mark_contact_contacted",
-        description: "Mark that you've contacted someone. This resets their follow-up timer. Use when user says they called, emailed, or met with someone.",
+        description:
+          "Mark that you've contacted someone. This resets their follow-up timer. Use when user says they called, emailed, or met with someone.",
         parameters: {
           type: "object",
           properties: {
-            contact_query: { type: "string", description: "Contact name to search for" }
+            contact_query: { type: "string", description: "Contact name to search for" },
           },
-          required: ["contact_query"]
-        }
+          required: ["contact_query"],
+        },
       },
       {
         type: "function",
@@ -224,38 +295,47 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            contact_query: { type: "string", description: "Contact name to search for" }
+            contact_query: { type: "string", description: "Contact name to search for" },
           },
-          required: ["contact_query"]
-        }
+          required: ["contact_query"],
+        },
       },
       {
         type: "function",
         name: "get_contacts_due",
-        description: "Get contacts that are due for follow-up. Use when user asks who they should reach out to.",
+        description:
+          "Get contacts that are due for follow-up. Use when user asks who they should reach out to.",
         parameters: {
           type: "object",
           properties: {},
-          required: []
-        }
+          required: [],
+        },
       },
 
       // ==================== EVENT/CALENDAR TOOLS ====================
       {
         type: "function",
         name: "create_event",
-        description: "Create a new calendar event or meeting. Use when user wants to schedule something.",
+        description:
+          "Create a new calendar event or meeting. Use when user wants to schedule something.",
         parameters: {
           type: "object",
           properties: {
             title: { type: "string", description: "Event title" },
-            start_time: { type: "string", description: "Start date/time - can be natural language like 'tomorrow at 3pm' or ISO format" },
-            end_time: { type: "string", description: "End date/time - can be duration like '1 hour' or specific time" },
+            start_time: {
+              type: "string",
+              description:
+                "Start date/time - can be natural language like 'tomorrow at 3pm' or ISO format",
+            },
+            end_time: {
+              type: "string",
+              description: "End date/time - can be duration like '1 hour' or specific time",
+            },
             location: { type: "string", description: "Event location" },
-            description: { type: "string", description: "Event description or notes" }
+            description: { type: "string", description: "Event description or notes" },
           },
-          required: ["title", "start_time"]
-        }
+          required: ["title", "start_time"],
+        },
       },
       {
         type: "function",
@@ -265,10 +345,14 @@ serve(async (req) => {
           type: "object",
           properties: {
             query: { type: "string", description: "Search term - event title or keyword" },
-            date_range: { type: "string", enum: ["today", "tomorrow", "this_week", "next_week", "this_month"], description: "Time range to search" }
+            date_range: {
+              type: "string",
+              enum: ["today", "tomorrow", "this_week", "next_week", "this_month"],
+              description: "Time range to search",
+            },
           },
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
@@ -281,10 +365,10 @@ serve(async (req) => {
             new_title: { type: "string", description: "New title" },
             new_start_time: { type: "string", description: "New start time" },
             new_end_time: { type: "string", description: "New end time" },
-            new_location: { type: "string", description: "New location" }
+            new_location: { type: "string", description: "New location" },
           },
-          required: ["event_query"]
-        }
+          required: ["event_query"],
+        },
       },
       {
         type: "function",
@@ -293,31 +377,49 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            event_query: { type: "string", description: "Event title to search for" }
+            event_query: { type: "string", description: "Event title to search for" },
           },
-          required: ["event_query"]
-        }
+          required: ["event_query"],
+        },
       },
 
       // ==================== CONTRACT TOOLS ====================
       {
         type: "function",
         name: "create_contract",
-        description: "Add a new contract or subscription. Use when user wants to track a service, subscription, or agreement.",
+        description:
+          "Add a new contract or subscription. Use when user wants to track a service, subscription, or agreement.",
         parameters: {
           type: "object",
           properties: {
             name: { type: "string", description: "Contract/subscription name" },
             provider: { type: "string", description: "Service provider name" },
-            category: { type: "string", enum: ["subscription", "insurance", "utilities", "lease", "service", "membership", "software", "other"], description: "Contract category" },
+            category: {
+              type: "string",
+              enum: [
+                "subscription",
+                "insurance",
+                "utilities",
+                "lease",
+                "service",
+                "membership",
+                "software",
+                "other",
+              ],
+              description: "Contract category",
+            },
             cost_amount: { type: "number", description: "Cost amount" },
-            cost_frequency: { type: "string", enum: ["monthly", "quarterly", "yearly", "one-time"], description: "Payment frequency" },
+            cost_frequency: {
+              type: "string",
+              enum: ["monthly", "quarterly", "yearly", "one-time"],
+              description: "Payment frequency",
+            },
             renewal_date: { type: "string", description: "Renewal or expiration date" },
             auto_renews: { type: "boolean", description: "Whether it auto-renews" },
-            notes: { type: "string", description: "Additional notes" }
+            notes: { type: "string", description: "Additional notes" },
           },
-          required: ["name"]
-        }
+          required: ["name"],
+        },
       },
       {
         type: "function",
@@ -326,11 +428,14 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            query: { type: "string", description: "Search term - contract name, provider, or keyword" },
-            category: { type: "string", description: "Filter by category" }
+            query: {
+              type: "string",
+              description: "Search term - contract name, provider, or keyword",
+            },
+            category: { type: "string", description: "Filter by category" },
           },
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
@@ -344,10 +449,10 @@ serve(async (req) => {
             cost_frequency: { type: "string", description: "New payment frequency" },
             renewal_date: { type: "string", description: "New renewal date" },
             is_active: { type: "boolean", description: "Active status" },
-            notes: { type: "string", description: "New notes" }
+            notes: { type: "string", description: "New notes" },
           },
-          required: ["contract_query"]
-        }
+          required: ["contract_query"],
+        },
       },
       {
         type: "function",
@@ -356,22 +461,27 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            contract_query: { type: "string", description: "Contract name to search for" }
+            contract_query: { type: "string", description: "Contract name to search for" },
           },
-          required: ["contract_query"]
-        }
+          required: ["contract_query"],
+        },
       },
       {
         type: "function",
         name: "get_contract_costs",
-        description: "Get total subscription/contract costs. Use when user asks how much they spend on subscriptions.",
+        description:
+          "Get total subscription/contract costs. Use when user asks how much they spend on subscriptions.",
         parameters: {
           type: "object",
           properties: {
-            frequency: { type: "string", enum: ["monthly", "yearly"], description: "Cost breakdown frequency" }
+            frequency: {
+              type: "string",
+              enum: ["monthly", "yearly"],
+              description: "Cost breakdown frequency",
+            },
           },
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
@@ -380,10 +490,10 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            days: { type: "number", description: "Number of days to look ahead (default 30)" }
+            days: { type: "number", description: "Number of days to look ahead (default 30)" },
           },
-          required: []
-        }
+          required: [],
+        },
       },
 
       // ==================== PROJECT TOOLS ====================
@@ -396,10 +506,13 @@ serve(async (req) => {
           properties: {
             name: { type: "string", description: "Project name" },
             description: { type: "string", description: "Project description" },
-            color: { type: "string", description: "Project color (hex code or name like 'blue', 'red', etc.)" }
+            color: {
+              type: "string",
+              description: "Project color (hex code or name like 'blue', 'red', etc.)",
+            },
           },
-          required: ["name"]
-        }
+          required: ["name"],
+        },
       },
       {
         type: "function",
@@ -408,8 +521,8 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {},
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
@@ -418,10 +531,10 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            project_query: { type: "string", description: "Project name to search for" }
+            project_query: { type: "string", description: "Project name to search for" },
           },
-          required: ["project_query"]
-        }
+          required: ["project_query"],
+        },
       },
       {
         type: "function",
@@ -431,10 +544,10 @@ serve(async (req) => {
           type: "object",
           properties: {
             task_query: { type: "string", description: "Task name to search for" },
-            project_query: { type: "string", description: "Project name to assign to" }
+            project_query: { type: "string", description: "Project name to assign to" },
           },
-          required: ["task_query", "project_query"]
-        }
+          required: ["task_query", "project_query"],
+        },
       },
       {
         type: "function",
@@ -446,10 +559,10 @@ serve(async (req) => {
             project_query: { type: "string", description: "Project name to search for" },
             new_name: { type: "string", description: "New project name" },
             new_description: { type: "string", description: "New description" },
-            new_color: { type: "string", description: "New color" }
+            new_color: { type: "string", description: "New color" },
           },
-          required: ["project_query"]
-        }
+          required: ["project_query"],
+        },
       },
       {
         type: "function",
@@ -458,36 +571,46 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            project_query: { type: "string", description: "Project name to search for" }
+            project_query: { type: "string", description: "Project name to search for" },
           },
-          required: ["project_query"]
-        }
+          required: ["project_query"],
+        },
       },
 
       // ==================== HEALTH TOOLS ====================
       {
         type: "function",
         name: "get_health_summary",
-        description: "Get health data summary including steps, calories, sleep, heart rate, etc. Use when user asks about their health, fitness, activity, steps, or wellness data.",
+        description:
+          "Get health data summary including steps, calories, sleep, heart rate, etc. Use when user asks about their health, fitness, activity, steps, or wellness data.",
         parameters: {
           type: "object",
           properties: {
-            period: { type: "string", enum: ["today", "yesterday", "week", "month"], description: "Time period for health data" }
+            period: {
+              type: "string",
+              enum: ["today", "yesterday", "week", "month"],
+              description: "Time period for health data",
+            },
           },
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
         name: "get_steps",
-        description: "Get step count for a specific period. Use when user asks about their steps or walking activity.",
+        description:
+          "Get step count for a specific period. Use when user asks about their steps or walking activity.",
         parameters: {
           type: "object",
           properties: {
-            period: { type: "string", enum: ["today", "yesterday", "week"], description: "Time period for step count" }
+            period: {
+              type: "string",
+              enum: ["today", "yesterday", "week"],
+              description: "Time period for step count",
+            },
           },
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
@@ -496,22 +619,31 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            period: { type: "string", enum: ["last_night", "week", "month"], description: "Time period for sleep data" }
+            period: {
+              type: "string",
+              enum: ["last_night", "week", "month"],
+              description: "Time period for sleep data",
+            },
           },
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
         name: "get_calories",
-        description: "Get calories burned data. Use when user asks about their calories or energy expenditure.",
+        description:
+          "Get calories burned data. Use when user asks about their calories or energy expenditure.",
         parameters: {
           type: "object",
           properties: {
-            period: { type: "string", enum: ["today", "yesterday", "week"], description: "Time period for calorie data" }
+            period: {
+              type: "string",
+              enum: ["today", "yesterday", "week"],
+              description: "Time period for calorie data",
+            },
           },
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
@@ -520,50 +652,70 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            period: { type: "string", enum: ["today", "week", "month"], description: "Time period for heart rate data" }
+            period: {
+              type: "string",
+              enum: ["today", "week", "month"],
+              description: "Time period for heart rate data",
+            },
           },
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
         name: "get_habit_summary",
-        description: "Get habit tracking summary and streak information. Use when user asks about their habits or routines.",
+        description:
+          "Get habit tracking summary and streak information. Use when user asks about their habits or routines.",
         parameters: {
           type: "object",
           properties: {
-            habit_query: { type: "string", description: "Optional habit name to filter by" }
+            habit_query: { type: "string", description: "Optional habit name to filter by" },
           },
-          required: []
-        }
+          required: [],
+        },
       },
 
       // ==================== NOTE TOOLS ====================
       {
         type: "function",
         name: "create_note",
-        description: "Create a new note. Use when user wants to write down, note, or remember something. Good for quick thoughts, ideas, or anything the user wants to save.",
+        description:
+          "Create a new note. Use when user wants to write down, note, or remember something. Good for quick thoughts, ideas, or anything the user wants to save.",
         parameters: {
           type: "object",
           properties: {
-            title: { type: "string", description: "Note title (optional, will use 'Untitled' if not provided)" },
-            content: { type: "string", description: "Note content/body - what the user wants to save" },
-            tags: { type: "array", items: { type: "string" }, description: "Optional tags to organize the note" }
+            title: {
+              type: "string",
+              description: "Note title (optional, will use 'Untitled' if not provided)",
+            },
+            content: {
+              type: "string",
+              description: "Note content/body - what the user wants to save",
+            },
+            tags: {
+              type: "array",
+              items: { type: "string" },
+              description: "Optional tags to organize the note",
+            },
           },
-          required: ["content"]
-        }
+          required: ["content"],
+        },
       },
       {
         type: "function",
         name: "search_notes",
-        description: "Search for notes by title, content, or tags. Use when user wants to find a note they created.",
+        description:
+          "Search for notes by title, content, or tags. Use when user wants to find a note they created.",
         parameters: {
           type: "object",
           properties: {
-            query: { type: "string", description: "Search term - note title, content keyword, or tag" }
+            query: {
+              type: "string",
+              description: "Search term - note title, content keyword, or tag",
+            },
           },
-          required: ["query"]
-        }
+          required: ["query"],
+        },
       },
       {
         type: "function",
@@ -572,40 +724,55 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            note_query: { type: "string", description: "Note title to search for" }
+            note_query: { type: "string", description: "Note title to search for" },
           },
-          required: ["note_query"]
-        }
+          required: ["note_query"],
+        },
       },
 
       // ==================== HABIT CREATION TOOLS ====================
       {
         type: "function",
         name: "create_habit",
-        description: "Create a new habit to track. Use when user wants to start tracking a new habit or daily routine.",
+        description:
+          "Create a new habit to track. Use when user wants to start tracking a new habit or daily routine.",
         parameters: {
           type: "object",
           properties: {
-            name: { type: "string", description: "Habit name (e.g., 'Drink 8 glasses of water', 'Meditate', 'Exercise')" },
+            name: {
+              type: "string",
+              description: "Habit name (e.g., 'Drink 8 glasses of water', 'Meditate', 'Exercise')",
+            },
             description: { type: "string", description: "Optional description of the habit" },
-            icon: { type: "string", description: "Emoji icon for the habit (e.g., '💧', '🧘', '🏃')" },
-            frequency: { type: "string", enum: ["daily", "weekly", "custom"], description: "How often the habit should be done" },
-            target_count: { type: "number", description: "How many times per day/week to complete (default 1)" }
+            icon: {
+              type: "string",
+              description: "Emoji icon for the habit (e.g., '💧', '🧘', '🏃')",
+            },
+            frequency: {
+              type: "string",
+              enum: ["daily", "weekly", "custom"],
+              description: "How often the habit should be done",
+            },
+            target_count: {
+              type: "number",
+              description: "How many times per day/week to complete (default 1)",
+            },
           },
-          required: ["name"]
-        }
+          required: ["name"],
+        },
       },
       {
         type: "function",
         name: "log_habit",
-        description: "Mark a habit as completed/done for today. Use when user says they did their habit.",
+        description:
+          "Mark a habit as completed/done for today. Use when user says they did their habit.",
         parameters: {
           type: "object",
           properties: {
-            habit_query: { type: "string", description: "Habit name to search for" }
+            habit_query: { type: "string", description: "Habit name to search for" },
           },
-          required: ["habit_query"]
-        }
+          required: ["habit_query"],
+        },
       },
       {
         type: "function",
@@ -614,62 +781,80 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            habit_query: { type: "string", description: "Habit name to search for" }
+            habit_query: { type: "string", description: "Habit name to search for" },
           },
-          required: ["habit_query"]
-        }
+          required: ["habit_query"],
+        },
       },
 
       // ==================== CHAT/MESSAGE TOOLS ====================
       {
         type: "function",
         name: "send_chat_message",
-        description: "Send a direct message/chat to a contact. Supports family relationships like 'my wife', 'my mom', etc. Use when user wants to message someone.",
+        description:
+          "Send a direct message/chat to a contact. Supports family relationships like 'my wife', 'my mom', etc. Use when user wants to message someone.",
         parameters: {
           type: "object",
           properties: {
-            recipient_query: { type: "string", description: "Contact name OR family relationship (e.g., 'John', 'my wife', 'mom')" },
-            message: { type: "string", description: "Message content to send" }
+            recipient_query: {
+              type: "string",
+              description: "Contact name OR family relationship (e.g., 'John', 'my wife', 'mom')",
+            },
+            message: { type: "string", description: "Message content to send" },
           },
-          required: ["recipient_query", "message"]
-        }
+          required: ["recipient_query", "message"],
+        },
       },
 
       // ==================== CALL TOOLS ====================
       {
         type: "function",
         name: "initiate_call",
-        description: "Start a voice or video call to a contact. Supports family relationships like 'my wife', 'my husband', 'my mom'. Use when user says 'call [someone]'.",
+        description:
+          "Start a voice or video call to a contact. Supports family relationships like 'my wife', 'my husband', 'my mom'. Use when user says 'call [someone]'.",
         parameters: {
           type: "object",
           properties: {
-            contact_query: { type: "string", description: "Contact name OR family relationship (e.g., 'John Smith', 'my wife', 'mom')" },
-            call_type: { type: "string", enum: ["voice", "video"], description: "Type of call (default voice)" }
+            contact_query: {
+              type: "string",
+              description:
+                "Contact name OR family relationship (e.g., 'John Smith', 'my wife', 'mom')",
+            },
+            call_type: {
+              type: "string",
+              enum: ["voice", "video"],
+              description: "Type of call (default voice)",
+            },
           },
-          required: ["contact_query"]
-        }
+          required: ["contact_query"],
+        },
       },
 
       // ==================== STARTUP BRAINSTORMING TOOLS ====================
       {
         type: "function",
         name: "brainstorm_startup",
-        description: "Help the user brainstorm and develop a startup idea. Use this when the user wants to discuss a new business, startup, venture, or company idea. This triggers a structured brainstorming session.",
+        description:
+          "Help the user brainstorm and develop a startup idea. Use this when the user wants to discuss a new business, startup, venture, or company idea. This triggers a structured brainstorming session.",
         parameters: {
           type: "object",
           properties: {
             idea_name: { type: "string", description: "A name or title for the startup idea" },
             problem_statement: { type: "string", description: "The problem this startup solves" },
             target_audience: { type: "string", description: "Who this startup serves" },
-            initial_thoughts: { type: "string", description: "Any initial ideas or context provided by the user" }
+            initial_thoughts: {
+              type: "string",
+              description: "Any initial ideas or context provided by the user",
+            },
           },
-          required: ["idea_name"]
-        }
+          required: ["idea_name"],
+        },
       },
       {
         type: "function",
         name: "save_startup_idea",
-        description: "Save a startup idea that was discussed during brainstorming. Use this when the user wants to save or capture the current startup discussion for later review.",
+        description:
+          "Save a startup idea that was discussed during brainstorming. Use this when the user wants to save or capture the current startup discussion for later review.",
         parameters: {
           type: "object",
           properties: {
@@ -678,117 +863,471 @@ serve(async (req) => {
             problem_statement: { type: "string", description: "The problem being solved" },
             target_audience: { type: "string", description: "Target customers/users" },
             unique_value_proposition: { type: "string", description: "What makes this unique" },
-            key_features: { type: "array", items: { type: "string" }, description: "Main features or capabilities" },
+            key_features: {
+              type: "array",
+              items: { type: "string" },
+              description: "Main features or capabilities",
+            },
             business_model: { type: "string", description: "How it will make money" },
             competitive_advantage: { type: "string", description: "Competitive differentiators" },
-            next_steps: { type: "string", description: "Suggested next steps" }
+            next_steps: { type: "string", description: "Suggested next steps" },
           },
-          required: ["name", "description"]
-        }
+          required: ["name", "description"],
+        },
       },
       {
         type: "function",
         name: "list_startup_ideas",
-        description: "List the user's saved startup ideas. Use when user wants to see their previous startup brainstorms or continue working on an idea.",
+        description:
+          "List the user's saved startup ideas. Use when user wants to see their previous startup brainstorms or continue working on an idea.",
         parameters: {
           type: "object",
           properties: {
-            status: { type: "string", enum: ["brainstorming", "researching", "validating", "building", "launched", "all"], description: "Filter by idea status (default: all)" }
+            status: {
+              type: "string",
+              enum: ["brainstorming", "researching", "validating", "building", "launched", "all"],
+              description: "Filter by idea status (default: all)",
+            },
           },
-          required: []
-        }
+          required: [],
+        },
       },
 
       // ==================== EMAIL TOOLS ====================
       {
         type: "function",
         name: "get_email_summary",
-        description: "Get a summary of the user's unread emails including count and top priority emails. Use when user asks about their inbox, emails, or messages.",
+        description:
+          "Get a summary of the user's unread emails including count and top priority emails. Use when user asks about their inbox, emails, or messages.",
         parameters: {
           type: "object",
           properties: {},
-          required: []
-        }
+          required: [],
+        },
       },
       {
         type: "function",
         name: "search_emails",
-        description: "Search emails by sender name, subject, or keyword. Use when user asks about specific emails or emails from a specific person.",
+        description:
+          "Search emails by sender name, subject, or keyword. Use when user asks about specific emails or emails from a specific person.",
         parameters: {
           type: "object",
           properties: {
-            query: { type: "string", description: "Search term - sender name, subject keyword, or email content" }
+            query: {
+              type: "string",
+              description: "Search term - sender name, subject keyword, or email content",
+            },
           },
-          required: ["query"]
-        }
+          required: ["query"],
+        },
       },
       // ==================== EMAIL REPLY/COMPOSE TOOLS ====================
       {
         type: "function",
         name: "reply_to_email",
-        description: "Reply to an email that the user has received. Use this when the user wants to respond to an email. The email_query is used to identify which email to reply to (match by sender name, subject, or keyword). The reply_body is the content of the reply.",
+        description:
+          "Reply to an email that the user has received. Use this when the user wants to respond to an email. The email_query is used to identify which email to reply to (match by sender name, subject, or keyword). The reply_body is the content of the reply.",
         parameters: {
           type: "object",
           properties: {
-            email_query: { type: "string", description: "Identifier to match the email — sender name, subject keyword, or partial match (e.g., 'Eurowings', 'the flight email')" },
-            reply_body: { type: "string", description: "The reply message content" }
+            email_query: {
+              type: "string",
+              description:
+                "Identifier to match the email — sender name, subject keyword, or partial match (e.g., 'Eurowings', 'the flight email')",
+            },
+            reply_body: { type: "string", description: "The reply message content" },
           },
-          required: ["email_query", "reply_body"]
-        }
+          required: ["email_query", "reply_body"],
+        },
       },
       {
         type: "function",
         name: "compose_new_email",
-        description: "Compose and send a new email (not a reply). Use when the user wants to write a fresh email to someone. Requires the recipient email address.",
+        description:
+          "Compose and send a new email (not a reply). Use when the user wants to write a fresh email to someone. Requires the recipient email address.",
         parameters: {
           type: "object",
           properties: {
             to: { type: "string", description: "Recipient email address" },
             subject: { type: "string", description: "Email subject line" },
-            body: { type: "string", description: "Email body content" }
+            body: { type: "string", description: "Email body content" },
           },
-          required: ["to", "subject", "body"]
-        }
+          required: ["to", "subject", "body"],
+        },
       },
       // ==================== Phase 3: voice parity tools ====================
       // These mirror the chat-edge tools. Execution is proxied through the
       // chat function via the default-case fallback in useOpenAIRealtime.
-      { type: "function", name: "log_expense", description: "Log a personal expense. Amount + category required.", parameters: { type: "object", properties: { amount: { type: "number" }, category: { type: "string" }, note: { type: "string" }, currency: { type: "string" } }, required: ["amount", "category"] } },
-      { type: "function", name: "query_expenses", description: "Show recent expenses or totals by category/period.", parameters: { type: "object", properties: { period: { type: "string", description: "today|week|month|year" }, category: { type: "string" } } } },
-      { type: "function", name: "weather", description: "Get current weather / forecast for a city.", parameters: { type: "object", properties: { city: { type: "string" }, days: { type: "number" } }, required: ["city"] } },
-      { type: "function", name: "find_time", description: "Find free meeting slots with named participants (workspace mode).", parameters: { type: "object", properties: { participants: { type: "array", items: { type: "string" } }, durationMinutes: { type: "number" }, withinDays: { type: "number" } }, required: ["participants", "durationMinutes"] } },
-      { type: "function", name: "web_search", description: "Search the web for real-time / factual / news info.", parameters: { type: "object", properties: { q: { type: "string" } }, required: ["q"] } },
-      { type: "function", name: "undo", description: "Undo the last destructive action.", parameters: { type: "object", properties: {} } },
-      { type: "function", name: "set_language", description: "Set preferred language (e.g. en, de).", parameters: { type: "object", properties: { lang: { type: "string" } }, required: ["lang"] } },
-      { type: "function", name: "log_wellbeing", description: "Log mood/energy/sleep/water/exercise/stress for today.", parameters: { type: "object", properties: { mood: { type: "number" }, energy_level: { type: "number" }, sleep_hours: { type: "number" }, water_glasses: { type: "number" }, exercise_minutes: { type: "number" }, stress_level: { type: "number" }, notes: { type: "string" } } } },
-      { type: "function", name: "manage_goal", description: "Create/progress/list/delete a long-term goal.", parameters: { type: "object", properties: { action: { type: "string", enum: ["create", "progress", "list", "delete"] }, name: { type: "string" }, target_value: { type: "number" }, current_value: { type: "number" }, add: { type: "number" }, unit: { type: "string" }, target_date: { type: "string" } }, required: ["action"] } },
-      { type: "function", name: "bulk_reschedule", description: "Shift many open tasks at once. when=today|overdue|tomorrow plus shift_days.", parameters: { type: "object", properties: { when: { type: "string" }, date: { type: "string" }, shift_days: { type: "number" } }, required: ["shift_days"] } },
-      { type: "function", name: "summarize_emails", description: "Summarise recent unread emails into a short digest.", parameters: { type: "object", properties: { limit: { type: "number" } } } },
-      { type: "function", name: "email_action", description: "Star/unstar/archive/trash/snooze/mark_read/mark_unread/forward/unsubscribe an email.", parameters: { type: "object", properties: { action: { type: "string" }, query: { type: "string" }, messageId: { type: "string" }, snoozeUntil: { type: "string" }, forwardTo: { type: "string" } }, required: ["action"] } },
-      { type: "function", name: "task_filter", description: "List tasks by status, tag, priority, or due window.", parameters: { type: "object", properties: { status: { type: "string" }, priority: { type: "string" }, tag: { type: "string" }, when: { type: "string" } } } },
-      { type: "function", name: "task_tag", description: "Add or remove tags on a task.", parameters: { type: "object", properties: { query: { type: "string" }, add: { type: "array", items: { type: "string" } }, remove: { type: "array", items: { type: "string" } } }, required: ["query"] } },
-      { type: "function", name: "task_estimate", description: "Set estimated minutes on a task.", parameters: { type: "object", properties: { query: { type: "string" }, minutes: { type: "number" } }, required: ["query", "minutes"] } },
-      { type: "function", name: "task_complete_note", description: "Complete a task with a short note.", parameters: { type: "object", properties: { query: { type: "string" }, note: { type: "string" } }, required: ["query", "note"] } },
-      { type: "function", name: "task_duplicate", description: "Duplicate a task.", parameters: { type: "object", properties: { query: { type: "string" }, title: { type: "string" }, dueDate: { type: "string" } }, required: ["query"] } },
-      { type: "function", name: "task_subtask", description: "Add a subtask under a parent task.", parameters: { type: "object", properties: { parentQuery: { type: "string" }, title: { type: "string" } }, required: ["parentQuery", "title"] } },
-      { type: "function", name: "task_assign", description: "Assign a task to a workspace member by display name.", parameters: { type: "object", properties: { query: { type: "string" }, assignee: { type: "string" } }, required: ["query", "assignee"] } },
-      { type: "function", name: "period_log", description: "Log a period entry.", parameters: { type: "object", properties: { date: { type: "string" }, flow: { type: "string" }, symptoms: { type: "array", items: { type: "string" } }, notes: { type: "string" } } } },
-      { type: "function", name: "fasting_log", description: "Log a fast (start/end times).", parameters: { type: "object", properties: { startedAt: { type: "string" }, endedAt: { type: "string" }, type: { type: "string" }, notes: { type: "string" } } } },
-      { type: "function", name: "pantry", description: "Manage household pantry: add/remove/list/low.", parameters: { type: "object", properties: { action: { type: "string" }, name: { type: "string" }, quantity: { type: "number" }, unit: { type: "string" } }, required: ["action"] } },
-      { type: "function", name: "flight_track", description: "Track a flight by number and date.", parameters: { type: "object", properties: { flightNumber: { type: "string" }, date: { type: "string" }, from: { type: "string" }, to: { type: "string" } }, required: ["flightNumber", "date"] } },
-      { type: "function", name: "presence", description: "Set or query household presence (home/away/work/travel).", parameters: { type: "object", properties: { action: { type: "string" }, status: { type: "string" }, location: { type: "string" } }, required: ["action"] } },
-      { type: "function", name: "budget", description: "Set/check/list a monthly category budget.", parameters: { type: "object", properties: { action: { type: "string" }, category: { type: "string" }, amount: { type: "number" }, month: { type: "string" } }, required: ["action"] } },
-      { type: "function", name: "meds", description: "Log meds taken or schedule reminders.", parameters: { type: "object", properties: { action: { type: "string" }, name: { type: "string" }, dose: { type: "string" }, time: { type: "string" } }, required: ["action"] } },
-      { type: "function", name: "zakat", description: "Calculate Zakat (2.5%).", parameters: { type: "object", properties: { wealth: { type: "number" }, currency: { type: "string" } }, required: ["wealth"] } },
-      { type: "function", name: "timezone", description: "Get current local time / timezone for a city.", parameters: { type: "object", properties: { city: { type: "string" } }, required: ["city"] } },
-      { type: "function", name: "currency", description: "Convert amount between currencies.", parameters: { type: "object", properties: { amount: { type: "number" }, from: { type: "string" }, to: { type: "string" } }, required: ["amount", "from", "to"] } },
+      {
+        type: "function",
+        name: "log_expense",
+        description: "Log a personal expense. Amount + category required.",
+        parameters: {
+          type: "object",
+          properties: {
+            amount: { type: "number" },
+            category: { type: "string" },
+            note: { type: "string" },
+            currency: { type: "string" },
+          },
+          required: ["amount", "category"],
+        },
+      },
+      {
+        type: "function",
+        name: "query_expenses",
+        description: "Show recent expenses or totals by category/period.",
+        parameters: {
+          type: "object",
+          properties: {
+            period: { type: "string", description: "today|week|month|year" },
+            category: { type: "string" },
+          },
+        },
+      },
+      {
+        type: "function",
+        name: "weather",
+        description: "Get current weather / forecast for a city.",
+        parameters: {
+          type: "object",
+          properties: { city: { type: "string" }, days: { type: "number" } },
+          required: ["city"],
+        },
+      },
+      {
+        type: "function",
+        name: "find_time",
+        description: "Find free meeting slots with named participants (workspace mode).",
+        parameters: {
+          type: "object",
+          properties: {
+            participants: { type: "array", items: { type: "string" } },
+            durationMinutes: { type: "number" },
+            withinDays: { type: "number" },
+          },
+          required: ["participants", "durationMinutes"],
+        },
+      },
+      {
+        type: "function",
+        name: "web_search",
+        description: "Search the web for real-time / factual / news info.",
+        parameters: { type: "object", properties: { q: { type: "string" } }, required: ["q"] },
+      },
+      {
+        type: "function",
+        name: "undo",
+        description: "Undo the last destructive action.",
+        parameters: { type: "object", properties: {} },
+      },
+      {
+        type: "function",
+        name: "set_language",
+        description: "Set preferred language (e.g. en, de).",
+        parameters: {
+          type: "object",
+          properties: { lang: { type: "string" } },
+          required: ["lang"],
+        },
+      },
+      {
+        type: "function",
+        name: "log_wellbeing",
+        description: "Log mood/energy/sleep/water/exercise/stress for today.",
+        parameters: {
+          type: "object",
+          properties: {
+            mood: { type: "number" },
+            energy_level: { type: "number" },
+            sleep_hours: { type: "number" },
+            water_glasses: { type: "number" },
+            exercise_minutes: { type: "number" },
+            stress_level: { type: "number" },
+            notes: { type: "string" },
+          },
+        },
+      },
+      {
+        type: "function",
+        name: "manage_goal",
+        description: "Create/progress/list/delete a long-term goal.",
+        parameters: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: ["create", "progress", "list", "delete"] },
+            name: { type: "string" },
+            target_value: { type: "number" },
+            current_value: { type: "number" },
+            add: { type: "number" },
+            unit: { type: "string" },
+            target_date: { type: "string" },
+          },
+          required: ["action"],
+        },
+      },
+      {
+        type: "function",
+        name: "bulk_reschedule",
+        description: "Shift many open tasks at once. when=today|overdue|tomorrow plus shift_days.",
+        parameters: {
+          type: "object",
+          properties: {
+            when: { type: "string" },
+            date: { type: "string" },
+            shift_days: { type: "number" },
+          },
+          required: ["shift_days"],
+        },
+      },
+      {
+        type: "function",
+        name: "summarize_emails",
+        description: "Summarise recent unread emails into a short digest.",
+        parameters: { type: "object", properties: { limit: { type: "number" } } },
+      },
+      {
+        type: "function",
+        name: "email_action",
+        description:
+          "Star/unstar/archive/trash/snooze/mark_read/mark_unread/forward/unsubscribe an email.",
+        parameters: {
+          type: "object",
+          properties: {
+            action: { type: "string" },
+            query: { type: "string" },
+            messageId: { type: "string" },
+            snoozeUntil: { type: "string" },
+            forwardTo: { type: "string" },
+          },
+          required: ["action"],
+        },
+      },
+      {
+        type: "function",
+        name: "task_filter",
+        description: "List tasks by status, tag, priority, or due window.",
+        parameters: {
+          type: "object",
+          properties: {
+            status: { type: "string" },
+            priority: { type: "string" },
+            tag: { type: "string" },
+            when: { type: "string" },
+          },
+        },
+      },
+      {
+        type: "function",
+        name: "task_tag",
+        description: "Add or remove tags on a task.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string" },
+            add: { type: "array", items: { type: "string" } },
+            remove: { type: "array", items: { type: "string" } },
+          },
+          required: ["query"],
+        },
+      },
+      {
+        type: "function",
+        name: "task_estimate",
+        description: "Set estimated minutes on a task.",
+        parameters: {
+          type: "object",
+          properties: { query: { type: "string" }, minutes: { type: "number" } },
+          required: ["query", "minutes"],
+        },
+      },
+      {
+        type: "function",
+        name: "task_complete_note",
+        description: "Complete a task with a short note.",
+        parameters: {
+          type: "object",
+          properties: { query: { type: "string" }, note: { type: "string" } },
+          required: ["query", "note"],
+        },
+      },
+      {
+        type: "function",
+        name: "task_duplicate",
+        description: "Duplicate a task.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string" },
+            title: { type: "string" },
+            dueDate: { type: "string" },
+          },
+          required: ["query"],
+        },
+      },
+      {
+        type: "function",
+        name: "task_subtask",
+        description: "Add a subtask under a parent task.",
+        parameters: {
+          type: "object",
+          properties: { parentQuery: { type: "string" }, title: { type: "string" } },
+          required: ["parentQuery", "title"],
+        },
+      },
+      {
+        type: "function",
+        name: "task_assign",
+        description: "Assign a task to a workspace member by display name.",
+        parameters: {
+          type: "object",
+          properties: { query: { type: "string" }, assignee: { type: "string" } },
+          required: ["query", "assignee"],
+        },
+      },
+      {
+        type: "function",
+        name: "period_log",
+        description: "Log a period entry.",
+        parameters: {
+          type: "object",
+          properties: {
+            date: { type: "string" },
+            flow: { type: "string" },
+            symptoms: { type: "array", items: { type: "string" } },
+            notes: { type: "string" },
+          },
+        },
+      },
+      {
+        type: "function",
+        name: "fasting_log",
+        description: "Log a fast (start/end times).",
+        parameters: {
+          type: "object",
+          properties: {
+            startedAt: { type: "string" },
+            endedAt: { type: "string" },
+            type: { type: "string" },
+            notes: { type: "string" },
+          },
+        },
+      },
+      {
+        type: "function",
+        name: "pantry",
+        description: "Manage household pantry: add/remove/list/low.",
+        parameters: {
+          type: "object",
+          properties: {
+            action: { type: "string" },
+            name: { type: "string" },
+            quantity: { type: "number" },
+            unit: { type: "string" },
+          },
+          required: ["action"],
+        },
+      },
+      {
+        type: "function",
+        name: "flight_track",
+        description: "Track a flight by number and date.",
+        parameters: {
+          type: "object",
+          properties: {
+            flightNumber: { type: "string" },
+            date: { type: "string" },
+            from: { type: "string" },
+            to: { type: "string" },
+          },
+          required: ["flightNumber", "date"],
+        },
+      },
+      {
+        type: "function",
+        name: "presence",
+        description: "Set or query household presence (home/away/work/travel).",
+        parameters: {
+          type: "object",
+          properties: {
+            action: { type: "string" },
+            status: { type: "string" },
+            location: { type: "string" },
+          },
+          required: ["action"],
+        },
+      },
+      {
+        type: "function",
+        name: "budget",
+        description: "Set/check/list a monthly category budget.",
+        parameters: {
+          type: "object",
+          properties: {
+            action: { type: "string" },
+            category: { type: "string" },
+            amount: { type: "number" },
+            month: { type: "string" },
+          },
+          required: ["action"],
+        },
+      },
+      {
+        type: "function",
+        name: "meds",
+        description: "Log meds taken or schedule reminders.",
+        parameters: {
+          type: "object",
+          properties: {
+            action: { type: "string" },
+            name: { type: "string" },
+            dose: { type: "string" },
+            time: { type: "string" },
+          },
+          required: ["action"],
+        },
+      },
+      {
+        type: "function",
+        name: "zakat",
+        description: "Calculate Zakat (2.5%).",
+        parameters: {
+          type: "object",
+          properties: { wealth: { type: "number" }, currency: { type: "string" } },
+          required: ["wealth"],
+        },
+      },
+      {
+        type: "function",
+        name: "timezone",
+        description: "Get current local time / timezone for a city.",
+        parameters: {
+          type: "object",
+          properties: { city: { type: "string" } },
+          required: ["city"],
+        },
+      },
+      {
+        type: "function",
+        name: "currency",
+        description: "Convert amount between currencies.",
+        parameters: {
+          type: "object",
+          properties: {
+            amount: { type: "number" },
+            from: { type: "string" },
+            to: { type: "string" },
+          },
+          required: ["amount", "from", "to"],
+        },
+      },
     ];
 
     // Request ephemeral token from OpenAI
     const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -798,14 +1337,14 @@ serve(async (req) => {
         tools: tools,
         tool_choice: "auto",
         input_audio_transcription: {
-          model: "whisper-1"
+          model: "whisper-1",
         },
         turn_detection: {
           type: "server_vad",
           threshold: 0.5,
           prefix_padding_ms: 300,
-          silence_duration_ms: 800
-        }
+          silence_duration_ms: 800,
+        },
       }),
     });
 
@@ -819,29 +1358,35 @@ serve(async (req) => {
     console.log("Session created successfully with", tools.length, "tools");
 
     return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error creating realtime session:", error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
 
-function buildSystemPrompt(userProfile: Record<string, unknown>, contextData: Record<string, unknown>): string {
+function buildSystemPrompt(
+  userProfile: Record<string, unknown>,
+  contextData: Record<string, unknown>,
+): string {
   const now = new Date();
-  const timeString = now.toLocaleString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
+  const timeString = now.toLocaleString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
   });
 
   let prompt = `You are a powerful, friendly personal assistant with FULL access to the user's productivity platform. You can manage their tasks, calendar events, contacts, contracts, projects, notes, habits, and communications through voice commands.
@@ -962,9 +1507,10 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     prompt += `\n## About the User:\n`;
     if (userProfile.display_name) prompt += `- Name: ${userProfile.display_name}\n`;
     if (userProfile.role) prompt += `- Role: ${userProfile.role}\n`;
-    if (userProfile.businesses?.length) prompt += `- Businesses: ${userProfile.businesses.join(', ')}\n`;
+    if (userProfile.businesses?.length)
+      prompt += `- Businesses: ${userProfile.businesses.join(", ")}\n`;
     if (userProfile.location_city || userProfile.location_country) {
-      prompt += `- Location: ${[userProfile.location_city, userProfile.location_country].filter(Boolean).join(', ')}\n`;
+      prompt += `- Location: ${[userProfile.location_city, userProfile.location_country].filter(Boolean).join(", ")}\n`;
     }
     if (userProfile.timezone) prompt += `- Timezone: ${userProfile.timezone}\n`;
     if (userProfile.goals) prompt += `- Goals: ${userProfile.goals}\n`;
@@ -979,7 +1525,7 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     prompt += `- Active contracts: ${contextData.totalContracts || 0}\n`;
     prompt += `- Total projects: ${contextData.totalProjects || 0}\n`;
     prompt += `- Habits tracked: ${contextData.totalHabits || 0}\n`;
-    prompt += `- Apple Health connected: ${contextData.healthData?.isConnected ? 'Yes' : 'No'}\n`;
+    prompt += `- Apple Health connected: ${contextData.healthData?.isConnected ? "Yes" : "No"}\n`;
 
     // Health data summary
     if (contextData.healthData?.todaySummary) {
@@ -996,9 +1542,16 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Weekly health trends
     if (contextData.healthData?.weeklyData?.length > 0) {
       const weekData = contextData.healthData.weeklyData;
-      const totalSteps = weekData.reduce((sum: number, d: Record<string, unknown>) => sum + ((d.steps as number) || 0), 0);
+      const totalSteps = weekData.reduce(
+        (sum: number, d: Record<string, unknown>) => sum + ((d.steps as number) || 0),
+        0,
+      );
       const avgSteps = Math.round(totalSteps / weekData.length);
-      const avgSleep = weekData.reduce((sum: number, d: Record<string, unknown>) => sum + ((d.sleepHours as number) || 0), 0) / weekData.length;
+      const avgSleep =
+        weekData.reduce(
+          (sum: number, d: Record<string, unknown>) => sum + ((d.sleepHours as number) || 0),
+          0,
+        ) / weekData.length;
       prompt += `\n### Week Overview (${weekData.length} days):\n`;
       prompt += `- Average daily steps: ${avgSteps.toLocaleString()}\n`;
       if (avgSleep > 0) prompt += `- Average sleep: ${avgSleep.toFixed(1)} hours\n`;
@@ -1007,10 +1560,12 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     // Habits summary
     if (contextData.habitData?.habits?.length > 0) {
       prompt += `\n### Active Habits:\n`;
-      (contextData.habitData as Record<string, unknown[]>).habits.slice(0, 5).forEach((h: unknown) => {
-        const habit = h as Record<string, unknown>;
-        prompt += `- ${habit.icon} ${habit.name} (${habit.frequency})\n`;
-      });
+      (contextData.habitData as Record<string, unknown[]>).habits
+        .slice(0, 5)
+        .forEach((h: unknown) => {
+          const habit = h as Record<string, unknown>;
+          prompt += `- ${habit.icon} ${habit.name} (${habit.frequency})\n`;
+        });
     }
 
     // Today's tasks
@@ -1025,7 +1580,7 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     if (contextData.overdueTasks?.length > 0) {
       prompt += `\n### Overdue Tasks:\n`;
       contextData.overdueTasks.forEach((t: Record<string, unknown>) => {
-        prompt += `- "${t.title}" - was due ${(t.dueDate as string | undefined)?.split('T')[0]}\n`;
+        prompt += `- "${t.title}" - was due ${(t.dueDate as string | undefined)?.split("T")[0]}\n`;
       });
     }
 
@@ -1034,8 +1589,11 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
       prompt += `\n### Upcoming Events:\n`;
       contextData.upcomingEvents.forEach((e: Record<string, unknown>) => {
         const date = new Date(e.startTime as string).toLocaleDateString();
-        const time = new Date(e.startTime as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        prompt += `- "${e.title}" on ${date} at ${time}${e.location ? ` at ${e.location}` : ''}\n`;
+        const time = new Date(e.startTime as string).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        prompt += `- "${e.title}" on ${date} at ${time}${e.location ? ` at ${e.location}` : ""}\n`;
       });
     }
 
@@ -1043,7 +1601,7 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     if (contextData.contactsDue?.length > 0) {
       prompt += `\n### Contacts Due for Follow-up:\n`;
       contextData.contactsDue.forEach((c: Record<string, unknown>) => {
-        prompt += `- ${c.name}${c.company ? ` at ${c.company}` : ''}\n`;
+        prompt += `- ${c.name}${c.company ? ` at ${c.company}` : ""}\n`;
       });
     }
 
@@ -1051,7 +1609,7 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     if (contextData.contractsWithRenewals?.length > 0) {
       prompt += `\n### Contracts Expiring Soon:\n`;
       contextData.contractsWithRenewals.forEach((c: Record<string, unknown>) => {
-        prompt += `- ${c.name} - renews ${(c.renewalDate as string | undefined)?.split('T')[0]}${c.costAmount ? ` ($${c.costAmount}/${c.costFrequency})` : ''}\n`;
+        prompt += `- ${c.name} - renews ${(c.renewalDate as string | undefined)?.split("T")[0]}${c.costAmount ? ` ($${c.costAmount}/${c.costFrequency})` : ""}\n`;
       });
     }
 
@@ -1059,7 +1617,7 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     if (contextData.allProjects?.length > 0) {
       prompt += `\n### Projects:\n`;
       contextData.allProjects.slice(0, 10).forEach((p: Record<string, unknown>) => {
-        prompt += `- "${p.name}"${p.description ? `: ${p.description}` : ''}\n`;
+        prompt += `- "${p.name}"${p.description ? `: ${p.description}` : ""}\n`;
       });
     }
 
@@ -1067,8 +1625,11 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     if (contextData.unreadEmails?.length > 0) {
       prompt += `\n### Unread Emails (${contextData.totalUnreadEmails || contextData.unreadEmails.length} total):\n`;
       contextData.unreadEmails.forEach((e: Record<string, unknown>) => {
-        const time = new Date(e.receivedAt as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        prompt += `- From ${e.from}: "${e.subject || '(no subject)'}" (${time})${e.snippet ? ` — ${(e.snippet as string).substring(0, 80)}` : ''}\n`;
+        const time = new Date(e.receivedAt as string).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        prompt += `- From ${e.from}: "${e.subject || "(no subject)"}" (${time})${e.snippet ? ` — ${(e.snippet as string).substring(0, 80)}` : ""}\n`;
       });
     } else if (contextData.totalUnreadEmails === 0) {
       prompt += `\n### Email: Inbox is clear — no unread emails.\n`;
@@ -1078,12 +1639,14 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     if (contextData.familyMembers?.length > 0) {
       prompt += `\n### Family Members:\n`;
       contextData.familyMembers.forEach((m: Record<string, unknown>) => {
-        let info = `- **${m.name}** (${m.relationship}${m.age !== null ? `, ${m.age} years old` : ''})`;
-        if (m.school) info += ` — School: ${m.school}${m.grade ? `, Grade: ${m.grade}` : ''}`;
+        let info = `- **${m.name}** (${m.relationship}${m.age !== null ? `, ${m.age} years old` : ""})`;
+        if (m.school) info += ` — School: ${m.school}${m.grade ? `, Grade: ${m.grade}` : ""}`;
         if (m.kindergarten) info += ` — Kindergarten: ${m.kindergarten}`;
-        if (Array.isArray(m.activities) && m.activities.length > 0) info += ` — Activities: ${(m.activities as Record<string, unknown>[]).map((a) => `${a.name} (${a.schedule})`).join(', ')}`;
-        if (Array.isArray(m.allergies) && m.allergies.length > 0) info += ` — ⚠️ Allergies: ${(m.allergies as string[]).join(', ')}`;
-        prompt += info + '\n';
+        if (Array.isArray(m.activities) && m.activities.length > 0)
+          info += ` — Activities: ${(m.activities as Record<string, unknown>[]).map((a) => `${a.name} (${a.schedule})`).join(", ")}`;
+        if (Array.isArray(m.allergies) && m.allergies.length > 0)
+          info += ` — ⚠️ Allergies: ${(m.allergies as string[]).join(", ")}`;
+        prompt += info + "\n";
       });
     }
 
@@ -1091,21 +1654,29 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     if (contextData.familySchedule?.todayEvents?.length > 0) {
       prompt += `\n### Today's Family Schedule:\n`;
       contextData.familySchedule.todayEvents.forEach((e: Record<string, unknown>) => {
-        const time = new Date(e.startTime as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        prompt += `- ${e.title} at ${time}${e.location ? ` (${e.location})` : ''}\n`;
+        const time = new Date(e.startTime as string).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        prompt += `- ${e.title} at ${time}${e.location ? ` (${e.location})` : ""}\n`;
       });
     }
     if (contextData.familySchedule?.tomorrowEvents?.length > 0) {
       prompt += `\n### Tomorrow's Family Schedule:\n`;
       contextData.familySchedule.tomorrowEvents.forEach((e: Record<string, unknown>) => {
-        const time = new Date(e.startTime as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        prompt += `- ${e.title} at ${time}${e.location ? ` (${e.location})` : ''}\n`;
+        const time = new Date(e.startTime as string).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        prompt += `- ${e.title} at ${time}${e.location ? ` (${e.location})` : ""}\n`;
       });
     }
     if (contextData.familySchedule?.upcomingBirthdays?.length > 0) {
       prompt += `\n### Upcoming Family Birthdays:\n`;
       contextData.familySchedule.upcomingBirthdays.forEach((b: Record<string, unknown>) => {
-        const daysUntil = Math.ceil((new Date(b.date as string).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        const daysUntil = Math.ceil(
+          (new Date(b.date as string).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+        );
         prompt += `- ${b.member} turns ${b.age} in ${daysUntil} days\n`;
       });
     }
@@ -1114,10 +1685,9 @@ If you know the user's name, include it: "Hey [Name]! What can I help with?"
     if (contextData.shoppingLists?.length > 0) {
       prompt += `\n### Active Shopping Lists:\n`;
       contextData.shoppingLists.forEach((l: Record<string, unknown>) => {
-        prompt += `- ${l.name}${l.dueDate ? ` (due ${l.dueDate})` : ''}\n`;
+        prompt += `- ${l.name}${l.dueDate ? ` (due ${l.dueDate})` : ""}\n`;
       });
     }
-
   }
 
   return prompt;

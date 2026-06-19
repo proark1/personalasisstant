@@ -2,7 +2,12 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
   prefix: "",
   theme: {
     container: {
@@ -14,13 +19,13 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
-        arabic: ['var(--quran-font)', 'Amiri', 'serif'],
-        'arabic-amiri': ['Amiri', 'serif'],
-        'arabic-naskh': ['"Noto Naskh Arabic"', 'serif'],
-        'arabic-scheherazade': ['"Scheherazade New"', 'serif'],
-        'arabic-lateef': ['Lateef', 'serif'],
+        sans: ["Inter", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
+        arabic: ["var(--quran-font)", "Amiri", "serif"],
+        "arabic-amiri": ["Amiri", "serif"],
+        "arabic-naskh": ['"Noto Naskh Arabic"', "serif"],
+        "arabic-scheherazade": ['"Scheherazade New"', "serif"],
+        "arabic-lateef": ["Lateef", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -110,11 +115,11 @@ export default {
           "0%, 100%": { transform: "scale(1)", opacity: "0.8" },
           "50%": { transform: "scale(1.1)", opacity: "1" },
         },
-        "wave": {
+        wave: {
           "0%, 100%": { transform: "scaleY(0.5)" },
           "50%": { transform: "scaleY(1.5)" },
         },
-        "shimmer": {
+        shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
         "bounce-in": {
@@ -127,7 +132,7 @@ export default {
           "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
-        "press": {
+        press: {
           "0%, 100%": { transform: "scale(1)" },
           "50%": { transform: "scale(0.97)" },
         },
@@ -137,15 +142,15 @@ export default {
         "accordion-up": "accordion-up 0.2s ease-out",
         "spin-slow": "spin-slow 20s linear infinite",
         "pulse-ring": "pulse-ring 2s ease-in-out infinite",
-        "wave": "wave 1s ease-in-out infinite",
-        "shimmer": "shimmer 1.5s infinite",
+        wave: "wave 1s ease-in-out infinite",
+        shimmer: "shimmer 1.5s infinite",
         "bounce-in": "bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)",
         "slide-up-fade": "slide-up-fade 0.3s ease-out",
-        "press": "press 0.15s ease-out",
+        press: "press 0.15s ease-out",
       },
       backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-conic': 'conic-gradient(var(--tw-gradient-stops))',
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "gradient-conic": "conic-gradient(var(--tw-gradient-stops))",
       },
     },
   },

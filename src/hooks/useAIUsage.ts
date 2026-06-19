@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 export interface AIUsageSummary {
   spent_cents: number;
@@ -34,16 +34,12 @@ export function useAIUsage() {
     try {
       const db = supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> };
       const [sRes, mRes] = await Promise.all([
+        db.from("ai_usage_summary").select("*").eq("user_id", user.id).maybeSingle(),
         db
-          .from('ai_usage_summary')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle(),
-        db
-          .from('ai_usage_monthly')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('month', { ascending: false })
+          .from("ai_usage_monthly")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("month", { ascending: false })
           .limit(12),
       ]);
       if (sRes.data) {
@@ -59,24 +55,33 @@ export function useAIUsage() {
       } else {
         // No row yet — user has made zero AI calls. Render the empty state.
         setSummary({
-          spent_cents: 0, cap_cents: 500, headroom_cents: 500,
-          used_pct: 0, over_cap: false, calls: 0, tokens: 0,
+          spent_cents: 0,
+          cap_cents: 500,
+          headroom_cents: 500,
+          used_pct: 0,
+          over_cap: false,
+          calls: 0,
+          tokens: 0,
         });
       }
-      setMonthly((mRes.data ?? []).map((r: Record<string, unknown>) => ({
-        month: r.month,
-        calls: Number(r.calls ?? 0),
-        total_tokens: Number(r.total_tokens ?? 0),
-        cost_cents: Number(r.cost_cents ?? 0),
-      })));
+      setMonthly(
+        (mRes.data ?? []).map((r: Record<string, unknown>) => ({
+          month: r.month,
+          calls: Number(r.calls ?? 0),
+          total_tokens: Number(r.total_tokens ?? 0),
+          cost_cents: Number(r.cost_cents ?? 0),
+        })),
+      );
     } catch (e) {
-      console.warn('[useAIUsage] refresh failed', (e as Error).message);
+      console.warn("[useAIUsage] refresh failed", (e as Error).message);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   return { summary, monthly, loading, refresh };
 }

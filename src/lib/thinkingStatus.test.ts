@@ -38,8 +38,6 @@ describe("classifyThinkingStatus", () => {
   });
 
   it("is case-insensitive", () => {
-    expect(classifyThinkingStatus("SCHEDULE a MEETING")).toBe(
-      "Looking at your calendar...",
-    );
+    expect(classifyThinkingStatus("SCHEDULE a MEETING")).toBe("Looking at your calendar...");
   });
 });

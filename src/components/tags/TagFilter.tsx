@@ -1,8 +1,8 @@
-import { Tag as TagIcon, X } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tag } from '@/hooks/useTags';
+import { Tag as TagIcon, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tag } from "@/hooks/useTags";
 
 interface TagFilterProps {
   tags: Tag[];
@@ -22,29 +22,24 @@ export function TagFilter({ tags, selectedTagIds, onToggleTag, onClearFilters }:
           <span>Filter by Tags</span>
         </div>
         {selectedTagIds.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-5 px-1 text-xs"
-            onClick={onClearFilters}
-          >
+          <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={onClearFilters}>
             Clear
           </Button>
         )}
       </div>
       <ScrollArea className="w-full">
         <div className="flex flex-wrap gap-1 pb-1">
-          {tags.map(tag => {
+          {tags.map((tag) => {
             const isSelected = selectedTagIds.includes(tag.id);
             return (
               <Badge
                 key={tag.id}
-                variant={isSelected ? 'default' : 'outline'}
+                variant={isSelected ? "default" : "outline"}
                 className="cursor-pointer text-xs transition-colors"
                 style={{
                   borderColor: tag.color,
-                  color: isSelected ? 'white' : tag.color,
-                  backgroundColor: isSelected ? tag.color : 'transparent',
+                  color: isSelected ? "white" : tag.color,
+                  backgroundColor: isSelected ? tag.color : "transparent",
                 }}
                 onClick={() => onToggleTag(tag.id)}
               >

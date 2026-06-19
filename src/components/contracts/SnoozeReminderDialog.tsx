@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,11 +6,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { BellOff } from 'lucide-react';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { BellOff } from "lucide-react";
 
 interface SnoozeReminderDialogProps {
   open: boolean;
@@ -20,11 +20,11 @@ interface SnoozeReminderDialogProps {
 }
 
 const SNOOZE_OPTIONS = [
-  { value: 1, label: '1 month' },
-  { value: 2, label: '2 months' },
-  { value: 3, label: '3 months' },
-  { value: 6, label: '6 months' },
-  { value: 12, label: '1 year' },
+  { value: 1, label: "1 month" },
+  { value: 2, label: "2 months" },
+  { value: 3, label: "3 months" },
+  { value: 6, label: "6 months" },
+  { value: 12, label: "1 year" },
 ];
 
 export function SnoozeReminderDialog({
@@ -33,7 +33,7 @@ export function SnoozeReminderDialog({
   contractName,
   onSnooze,
 }: SnoozeReminderDialogProps) {
-  const [selectedMonths, setSelectedMonths] = useState<string>('3');
+  const [selectedMonths, setSelectedMonths] = useState<string>("3");
 
   const handleSnooze = () => {
     onSnooze(parseInt(selectedMonths));
@@ -70,9 +70,7 @@ export function SnoozeReminderDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSnooze}>
-            Snooze Reminders
-          </Button>
+          <Button onClick={handleSnooze}>Snooze Reminders</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

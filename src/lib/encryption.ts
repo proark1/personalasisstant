@@ -1,10 +1,10 @@
 // End-to-end encryption utilities using Web Crypto API
 
-const ALGORITHM = 'RSA-OAEP';
-const SYMMETRIC_ALGORITHM = 'AES-GCM';
+const ALGORITHM = "RSA-OAEP";
+const SYMMETRIC_ALGORITHM = "AES-GCM";
 const KEY_LENGTH = 256;
-const DB_NAME = 'flux-encryption';
-const STORE_NAME = 'keys';
+const DB_NAME = "flux-encryption";
+const STORE_NAME = "keys";
 
 // Generate RSA key pair for asymmetric encryption
 export async function generateKeyPair(): Promise<CryptoKeyPair> {
@@ -13,10 +13,10 @@ export async function generateKeyPair(): Promise<CryptoKeyPair> {
       name: ALGORITHM,
       modulusLength: 2048,
       publicExponent: new Uint8Array([1, 0, 1]),
-      hash: 'SHA-256',
+      hash: "SHA-256",
     },
     true,
-    ['encrypt', 'decrypt']
+    ["encrypt", "decrypt"],
   );
 }
 
@@ -28,25 +28,25 @@ export async function generateSymmetricKey(): Promise<CryptoKey> {
       length: KEY_LENGTH,
     },
     true,
-    ['encrypt', 'decrypt']
+    ["encrypt", "decrypt"],
   );
 }
 
 // Export public key to base64 string for storage
 export async function exportPublicKey(publicKey: CryptoKey): Promise<string> {
-  const exported = await crypto.subtle.exportKey('spki', publicKey);
+  const exported = await crypto.subtle.exportKey("spki", publicKey);
   return arrayBufferToBase64(exported);
 }
 
 // Export private key to base64 string for backup
 export async function exportPrivateKey(privateKey: CryptoKey): Promise<string> {
-  const exported = await crypto.subtle.exportKey('pkcs8', privateKey);
+  const exported = await crypto.subtle.exportKey("pkcs8", privateKey);
   return arrayBufferToBase64(exported);
 }
 
 // Export symmetric key to base64 string
 export async function exportSymmetricKey(key: CryptoKey): Promise<string> {
-  const exported = await crypto.subtle.exportKey('raw', key);
+  const exported = await crypto.subtle.exportKey("raw", key);
   return arrayBufferToBase64(exported);
 }
 
@@ -54,14 +54,14 @@ export async function exportSymmetricKey(key: CryptoKey): Promise<string> {
 export async function importPublicKey(publicKeyBase64: string): Promise<CryptoKey> {
   const keyData = base64ToArrayBuffer(publicKeyBase64);
   return await crypto.subtle.importKey(
-    'spki',
+    "spki",
     keyData,
     {
       name: ALGORITHM,
-      hash: 'SHA-256',
+      hash: "SHA-256",
     },
     true,
-    ['encrypt']
+    ["encrypt"],
   );
 }
 
@@ -69,14 +69,14 @@ export async function importPublicKey(publicKeyBase64: string): Promise<CryptoKe
 export async function importPrivateKey(privateKeyBase64: string): Promise<CryptoKey> {
   const keyData = base64ToArrayBuffer(privateKeyBase64);
   return await crypto.subtle.importKey(
-    'pkcs8',
+    "pkcs8",
     keyData,
     {
       name: ALGORITHM,
-      hash: 'SHA-256',
+      hash: "SHA-256",
     },
     true,
-    ['decrypt']
+    ["decrypt"],
   );
 }
 
@@ -84,25 +84,25 @@ export async function importPrivateKey(privateKeyBase64: string): Promise<Crypto
 export async function importSymmetricKey(keyBase64: string): Promise<CryptoKey> {
   const keyData = base64ToArrayBuffer(keyBase64);
   return await crypto.subtle.importKey(
-    'raw',
+    "raw",
     keyData,
     {
       name: SYMMETRIC_ALGORITHM,
       length: KEY_LENGTH,
     },
     true,
-    ['encrypt', 'decrypt']
+    ["encrypt", "decrypt"],
   );
 }
 
 // Encrypt message with recipient's public key (for direct messages)
 export async function encryptWithPublicKey(
   message: string,
-  publicKey: CryptoKey
+  publicKey: CryptoKey,
 ): Promise<{ encryptedContent: string; encryptedKey: string }> {
   // Generate a random AES key for this message
   const messageKey = await generateSymmetricKey();
-  
+
   // Encrypt the message with the AES key
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encodedMessage = new TextEncoder().encode(message);
@@ -112,24 +112,24 @@ export async function encryptWithPublicKey(
       iv,
     },
     messageKey,
-    encodedMessage
+    encodedMessage,
   );
-  
+
   // Encrypt the AES key with the recipient's public key
-  const exportedKey = await crypto.subtle.exportKey('raw', messageKey);
+  const exportedKey = await crypto.subtle.exportKey("raw", messageKey);
   const encryptedKey = await crypto.subtle.encrypt(
     {
       name: ALGORITHM,
     },
     publicKey,
-    exportedKey
+    exportedKey,
   );
-  
+
   // Combine IV and encrypted data
   const combined = new Uint8Array(iv.length + encryptedData.byteLength);
   combined.set(iv);
   combined.set(new Uint8Array(encryptedData), iv.length);
-  
+
   return {
     encryptedContent: arrayBufferToBase64(combined.buffer),
     encryptedKey: arrayBufferToBase64(encryptedKey),
@@ -140,7 +140,7 @@ export async function encryptWithPublicKey(
 export async function decryptWithPrivateKey(
   encryptedContent: string,
   encryptedKey: string,
-  privateKey: CryptoKey
+  privateKey: CryptoKey,
 ): Promise<string> {
   try {
     // Decrypt the AES key with private key
@@ -150,46 +150,46 @@ export async function decryptWithPrivateKey(
         name: ALGORITHM,
       },
       privateKey,
-      encryptedKeyBuffer
+      encryptedKeyBuffer,
     );
-    
+
     // Import the AES key
     const messageKey = await crypto.subtle.importKey(
-      'raw',
+      "raw",
       decryptedKeyBuffer,
       {
         name: SYMMETRIC_ALGORITHM,
         length: KEY_LENGTH,
       },
       false,
-      ['decrypt']
+      ["decrypt"],
     );
-    
+
     // Decrypt the message
     const combined = base64ToArrayBuffer(encryptedContent);
     const iv = combined.slice(0, 12);
     const encryptedData = combined.slice(12);
-    
+
     const decryptedData = await crypto.subtle.decrypt(
       {
         name: SYMMETRIC_ALGORITHM,
         iv: new Uint8Array(iv),
       },
       messageKey,
-      encryptedData
+      encryptedData,
     );
-    
+
     return new TextDecoder().decode(decryptedData);
   } catch (error) {
-    console.error('Decryption failed:', error);
-    throw new Error('Failed to decrypt message');
+    console.error("Decryption failed:", error);
+    throw new Error("Failed to decrypt message");
   }
 }
 
 // Encrypt with symmetric key (for group messages)
 export async function encryptWithSymmetricKey(
   message: string,
-  symmetricKey: CryptoKey
+  symmetricKey: CryptoKey,
 ): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encodedMessage = new TextEncoder().encode(message);
@@ -199,54 +199,54 @@ export async function encryptWithSymmetricKey(
       iv,
     },
     symmetricKey,
-    encodedMessage
+    encodedMessage,
   );
-  
+
   const combined = new Uint8Array(iv.length + encryptedData.byteLength);
   combined.set(iv);
   combined.set(new Uint8Array(encryptedData), iv.length);
-  
+
   return arrayBufferToBase64(combined.buffer);
 }
 
 // Decrypt with symmetric key (for group messages)
 export async function decryptWithSymmetricKey(
   encryptedContent: string,
-  symmetricKey: CryptoKey
+  symmetricKey: CryptoKey,
 ): Promise<string> {
   try {
     const combined = base64ToArrayBuffer(encryptedContent);
     const iv = combined.slice(0, 12);
     const encryptedData = combined.slice(12);
-    
+
     const decryptedData = await crypto.subtle.decrypt(
       {
         name: SYMMETRIC_ALGORITHM,
         iv: new Uint8Array(iv),
       },
       symmetricKey,
-      encryptedData
+      encryptedData,
     );
-    
+
     return new TextDecoder().decode(decryptedData);
   } catch (error) {
-    console.error('Decryption failed:', error);
-    throw new Error('Failed to decrypt message');
+    console.error("Decryption failed:", error);
+    throw new Error("Failed to decrypt message");
   }
 }
 
 // Encrypt symmetric key with public key (for sharing group keys)
 export async function encryptKeyForUser(
   symmetricKey: CryptoKey,
-  publicKey: CryptoKey
+  publicKey: CryptoKey,
 ): Promise<string> {
-  const exportedKey = await crypto.subtle.exportKey('raw', symmetricKey);
+  const exportedKey = await crypto.subtle.exportKey("raw", symmetricKey);
   const encryptedKey = await crypto.subtle.encrypt(
     {
       name: ALGORITHM,
     },
     publicKey,
-    exportedKey
+    exportedKey,
   );
   return arrayBufferToBase64(encryptedKey);
 }
@@ -254,7 +254,7 @@ export async function encryptKeyForUser(
 // Decrypt symmetric key with private key
 export async function decryptKeyWithPrivateKey(
   encryptedKey: string,
-  privateKey: CryptoKey
+  privateKey: CryptoKey,
 ): Promise<CryptoKey> {
   const encryptedKeyBuffer = base64ToArrayBuffer(encryptedKey);
   const decryptedKeyBuffer = await crypto.subtle.decrypt(
@@ -262,18 +262,18 @@ export async function decryptKeyWithPrivateKey(
       name: ALGORITHM,
     },
     privateKey,
-    encryptedKeyBuffer
+    encryptedKeyBuffer,
   );
-  
+
   return await crypto.subtle.importKey(
-    'raw',
+    "raw",
     decryptedKeyBuffer,
     {
       name: SYMMETRIC_ALGORITHM,
       length: KEY_LENGTH,
     },
     true,
-    ['encrypt', 'decrypt']
+    ["encrypt", "decrypt"],
   );
 }
 
@@ -286,7 +286,7 @@ async function openDB(): Promise<IDBDatabase> {
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        db.createObjectStore(STORE_NAME, { keyPath: "id" });
       }
     };
   });
@@ -297,7 +297,7 @@ export async function storePrivateKey(userId: string, privateKey: CryptoKey): Pr
   // Store the CryptoKey object directly via structured clone instead of
   // exporting to base64, so the raw key material is never exposed in IndexedDB
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const transaction = db.transaction(STORE_NAME, "readwrite");
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put({ id: `private-key-${userId}`, key: privateKey, version: 2 });
     request.onerror = () => reject(request.error);
@@ -308,7 +308,7 @@ export async function storePrivateKey(userId: string, privateKey: CryptoKey): Pr
 export async function getPrivateKey(userId: string): Promise<CryptoKey | null> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
+    const transaction = db.transaction(STORE_NAME, "readonly");
     const store = transaction.objectStore(STORE_NAME);
     const request = store.get(`private-key-${userId}`);
     request.onerror = () => reject(request.error);
@@ -337,7 +337,7 @@ export async function storeGroupKey(groupId: string, symmetricKey: CryptoKey): P
   const db = await openDB();
   const exported = await exportSymmetricKey(symmetricKey);
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const transaction = db.transaction(STORE_NAME, "readwrite");
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put({ id: `group-key-${groupId}`, key: exported });
     request.onerror = () => reject(request.error);
@@ -348,7 +348,7 @@ export async function storeGroupKey(groupId: string, symmetricKey: CryptoKey): P
 export async function getGroupKey(groupId: string): Promise<CryptoKey | null> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
+    const transaction = db.transaction(STORE_NAME, "readonly");
     const store = transaction.objectStore(STORE_NAME);
     const request = store.get(`group-key-${groupId}`);
     request.onerror = () => reject(request.error);
@@ -370,7 +370,7 @@ export async function getGroupKey(groupId: string): Promise<CryptoKey | null> {
 // Utility functions
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  let binary = '';
+  let binary = "";
   for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);
   }

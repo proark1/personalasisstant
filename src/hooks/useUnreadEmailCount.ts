@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 export function useUnreadEmailCount() {
   const { user } = useAuth();
@@ -11,11 +11,11 @@ export function useUnreadEmailCount() {
 
     const fetchCount = async () => {
       const { count, error } = await supabase
-        .from('user_emails')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false)
-        .eq('user_archived', false);
+        .from("user_emails")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false)
+        .eq("user_archived", false);
 
       if (!error && count !== null) {
         setUnreadCount(count);

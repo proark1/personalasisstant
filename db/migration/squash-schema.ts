@@ -36,13 +36,13 @@
  * this script in CI.
  */
 
-import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const migrationsDir = join(repoRoot, 'supabase', 'migrations');
-const outFile = join(repoRoot, 'db', 'bootstrap', '02_app_schema.sql');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const migrationsDir = join(repoRoot, "supabase", "migrations");
+const outFile = join(repoRoot, "db", "bootstrap", "02_app_schema.sql");
 
 // ──────────────────────────────────────────────────────────────────────────────
 // SQL statement splitter
@@ -58,7 +58,7 @@ const outFile = join(repoRoot, 'db', 'bootstrap', '02_app_schema.sql');
 
 function splitStatements(sql: string): string[] {
   const out: string[] = [];
-  let cur = '';
+  let cur = "";
   let i = 0;
   const len = sql.length;
 
@@ -67,8 +67,8 @@ function splitStatements(sql: string): string[] {
     const next2 = sql.slice(i, i + 2);
 
     // Line comment — copy to end-of-line
-    if (next2 === '--') {
-      const nl = sql.indexOf('\n', i);
+    if (next2 === "--") {
+      const nl = sql.indexOf("\n", i);
       const end = nl === -1 ? len : nl + 1;
       cur += sql.slice(i, end);
       i = end;
@@ -76,8 +76,8 @@ function splitStatements(sql: string): string[] {
     }
 
     // Block comment — copy through closing */
-    if (next2 === '/*') {
-      const close = sql.indexOf('*/', i + 2);
+    if (next2 === "/*") {
+      const close = sql.indexOf("*/", i + 2);
       const end = close === -1 ? len : close + 2;
       cur += sql.slice(i, end);
       i = end;
@@ -95,7 +95,10 @@ function splitStatements(sql: string): string[] {
           continue;
         }
         cur += sql[i];
-        if (sql[i] === "'") { i++; break; }
+        if (sql[i] === "'") {
+          i++;
+          break;
+        }
         i++;
       }
       continue;
@@ -114,14 +117,17 @@ function splitStatements(sql: string): string[] {
           continue;
         }
         cur += sql[i];
-        if (sql[i] === '"') { i++; break; }
+        if (sql[i] === '"') {
+          i++;
+          break;
+        }
         i++;
       }
       continue;
     }
 
     // Dollar-quoted block: $tag$ ... $tag$
-    if (c === '$') {
+    if (c === "$") {
       const tagMatch = sql.slice(i).match(/^\$([A-Za-z_][A-Za-z0-9_]*)?\$/);
       if (tagMatch) {
         const tag = tagMatch[0];
@@ -134,11 +140,11 @@ function splitStatements(sql: string): string[] {
     }
 
     // Statement terminator
-    if (c === ';') {
-      cur += ';';
+    if (c === ";") {
+      cur += ";";
       const trimmed = cur.trim();
       if (trimmed.length > 0) out.push(trimmed);
-      cur = '';
+      cur = "";
       i++;
       continue;
     }
@@ -160,7 +166,7 @@ function splitStatements(sql: string): string[] {
 // against the actual statement, not its prelude.
 function statementHead(stmt: string): string {
   return stmt
-    .replace(/^(\s*(--[^\n]*\n|\/\*[\s\S]*?\*\/|\s))+/, '')
+    .replace(/^(\s*(--[^\n]*\n|\/\*[\s\S]*?\*\/|\s))+/, "")
     .trimStart()
     .toUpperCase();
 }
@@ -170,7 +176,8 @@ function shouldSkip(stmt: string): boolean {
 
   // RLS — policies and the table-level toggle.
   if (/^(CREATE|ALTER|DROP)\s+POLICY\b/.test(head)) return true;
-  if (/^ALTER\s+TABLE\b.*\b(ENABLE|DISABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY\b/.test(head)) return true;
+  if (/^ALTER\s+TABLE\b.*\b(ENABLE|DISABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY\b/.test(head))
+    return true;
 
   // REVOKE/GRANT on a function — would fail with "function does not exist"
   // when the CREATE FUNCTION was stripped because its body referenced a
@@ -191,11 +198,8 @@ function shouldSkip(stmt: string): boolean {
   // prose like "…rotate through Vault." (sentence period) in a column comment
   // doesn't get treated as a schema-qualified reference — that bug stripped
   // the bank_connections CREATE TABLE because of a "Vault." in its comments.
-  const noComments = stmt
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/--[^\n]*/g, ' ');
-  if (/\b(storage|vault|realtime|net|extensions|cron)\s*\./i.test(noComments) &&
-      true) {
+  const noComments = stmt.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
+  if (/\b(storage|vault|realtime|net|extensions|cron)\s*\./i.test(noComments) && true) {
     // Allow EXTENSION statements that target `extensions` schema — except
     // pg_net which we already excluded above.
     if (/^CREATE\s+EXTENSION\b/i.test(head)) {
@@ -209,8 +213,12 @@ function shouldSkip(stmt: string): boolean {
   if (/^DROP\s+TRIGGER\b/.test(head) && /\bauth\s*\.\s*users\b/i.test(stmt)) return true;
 
   // GRANT / REVOKE on auth/storage roles — Supabase-specific.
-  if (/^(GRANT|REVOKE)\b/.test(head) &&
-      /\b(anon|authenticated|service_role|supabase_admin|supabase_auth_admin|authenticator)\b/i.test(stmt)) {
+  if (
+    /^(GRANT|REVOKE)\b/.test(head) &&
+    /\b(anon|authenticated|service_role|supabase_admin|supabase_auth_admin|authenticator)\b/i.test(
+      stmt,
+    )
+  ) {
     return true;
   }
 
@@ -221,8 +229,11 @@ function rewrite(stmt: string): string {
   let out = stmt;
 
   // FKs: REFERENCES auth.users(id) → REFERENCES public.users(id)
-  out = out.replace(/REFERENCES\s+auth\s*\.\s*users\s*\(\s*id\s*\)/gi, 'REFERENCES public.users(id)');
-  out = out.replace(/REFERENCES\s+auth\s*\.\s*users\b/gi, 'REFERENCES public.users');
+  out = out.replace(
+    /REFERENCES\s+auth\s*\.\s*users\s*\(\s*id\s*\)/gi,
+    "REFERENCES public.users(id)",
+  );
+  out = out.replace(/REFERENCES\s+auth\s*\.\s*users\b/gi, "REFERENCES public.users");
 
   // CREATE TRIGGER → CREATE OR REPLACE TRIGGER (PG 14+). The squash output
   // contains overlapping migrations that re-define the same trigger, and
@@ -232,17 +243,23 @@ function rewrite(stmt: string): string {
   if (/^CREATE\s+TRIGGER\b/.test(statementHead(stmt))) {
     // Case-SENSITIVE so we hit the uppercase SQL keyword and not lowercase
     // English in comments like "-- Create trigger for projects updated_at".
-    out = out.replace(/\bCREATE\s+TRIGGER\b/, 'CREATE OR REPLACE TRIGGER');
+    out = out.replace(/\bCREATE\s+TRIGGER\b/, "CREATE OR REPLACE TRIGGER");
   }
 
   // auth.uid() / auth.role() outside policy bodies — these survive into
   // function bodies, CHECK constraints, DEFAULTs. Replace with NULL and
   // annotate so a human can review the call site later.
   if (/\bauth\s*\.\s*uid\s*\(\s*\)/i.test(out)) {
-    out = out.replace(/\bauth\s*\.\s*uid\s*\(\s*\)/gi, 'NULL /* TODO(auth-migration): was auth.uid() */');
+    out = out.replace(
+      /\bauth\s*\.\s*uid\s*\(\s*\)/gi,
+      "NULL /* TODO(auth-migration): was auth.uid() */",
+    );
   }
   if (/\bauth\s*\.\s*role\s*\(\s*\)/i.test(out)) {
-    out = out.replace(/\bauth\s*\.\s*role\s*\(\s*\)/gi, "'authenticated' /* TODO(auth-migration): was auth.role() */");
+    out = out.replace(
+      /\bauth\s*\.\s*role\s*\(\s*\)/gi,
+      "'authenticated' /* TODO(auth-migration): was auth.role() */",
+    );
   }
 
   return out;
@@ -257,12 +274,13 @@ function rewrite(stmt: string): string {
 // / auth.role() are KEPT here (we define them in the prelude); only the
 // auth.users FK form is repointed at public.users.
 
-const rlsOutFile = join(dirname(outFile), '03_rls_policies.sql');
+const rlsOutFile = join(dirname(outFile), "03_rls_policies.sql");
 
 function isRlsStatement(stmt: string): boolean {
   const head = statementHead(stmt);
   if (/^(CREATE|ALTER|DROP)\s+POLICY\b/.test(head)) return true;
-  if (/^ALTER\s+TABLE\b.*\b(ENABLE|DISABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY\b/.test(head)) return true;
+  if (/^ALTER\s+TABLE\b.*\b(ENABLE|DISABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY\b/.test(head))
+    return true;
   return false;
 }
 
@@ -270,58 +288,66 @@ function isRlsStatement(stmt: string): boolean {
 // table-level constraint entries. Returns each as e.g.
 //   `workspace_id uuid REFERENCES public.workspaces(id) ON DELETE SET NULL`
 function extractColumnDefs(stmt: string): string[] {
-  const start = stmt.indexOf('(');
+  const start = stmt.indexOf("(");
   if (start < 0) return [];
   let depth = 0;
   let end = -1;
   for (let i = start; i < stmt.length; i++) {
-    if (stmt[i] === '(') depth++;
-    else if (stmt[i] === ')') {
+    if (stmt[i] === "(") depth++;
+    else if (stmt[i] === ")") {
       depth--;
-      if (depth === 0) { end = i; break; }
+      if (depth === 0) {
+        end = i;
+        break;
+      }
     }
   }
   if (end < 0) return [];
   const body = stmt.slice(start + 1, end);
   const parts: string[] = [];
-  let buf = '';
-  let pdepth = 0;     // ( )
-  let bdepth = 0;     // [ ]  (ARRAY['a','b'])
+  let buf = "";
+  let pdepth = 0; // ( )
+  let bdepth = 0; // [ ]  (ARRAY['a','b'])
   let inString = false;
   for (let i = 0; i < body.length; i++) {
     const ch = body[i];
     if (inString) {
       buf += ch;
       if (ch === "'") {
-        if (body[i + 1] === "'") { buf += body[++i]; }
-        else inString = false;
+        if (body[i + 1] === "'") {
+          buf += body[++i];
+        } else inString = false;
       }
       continue;
     }
     // Line comment — copy through end of line so a comma inside doesn't split.
-    if (ch === '-' && body[i + 1] === '-') {
-      const nl = body.indexOf('\n', i);
+    if (ch === "-" && body[i + 1] === "-") {
+      const nl = body.indexOf("\n", i);
       const stop = nl === -1 ? body.length : nl + 1;
       buf += body.slice(i, stop);
       i = stop - 1;
       continue;
     }
     // Block comment.
-    if (ch === '/' && body[i + 1] === '*') {
-      const close = body.indexOf('*/', i + 2);
+    if (ch === "/" && body[i + 1] === "*") {
+      const close = body.indexOf("*/", i + 2);
       const stop = close === -1 ? body.length : close + 2;
       buf += body.slice(i, stop);
       i = stop - 1;
       continue;
     }
-    if (ch === "'") { inString = true; buf += ch; continue; }
-    if (ch === '(') pdepth++;
-    else if (ch === ')') pdepth--;
-    else if (ch === '[') bdepth++;
-    else if (ch === ']') bdepth--;
-    if (ch === ',' && pdepth === 0 && bdepth === 0) {
+    if (ch === "'") {
+      inString = true;
+      buf += ch;
+      continue;
+    }
+    if (ch === "(") pdepth++;
+    else if (ch === ")") pdepth--;
+    else if (ch === "[") bdepth++;
+    else if (ch === "]") bdepth--;
+    if (ch === "," && pdepth === 0 && bdepth === 0) {
       parts.push(buf.trim());
-      buf = '';
+      buf = "";
     } else {
       buf += ch;
     }
@@ -331,22 +357,31 @@ function extractColumnDefs(stmt: string): string[] {
   // UNIQUE — both would fail on ADD COLUMN if a PK/unique already exists for
   // the table from the first CREATE TABLE.
   return parts
-    .map((p) => p.replace(/^\s*(?:--[^\n]*\n)+/, '').trimStart())
-    .filter((p) => !/^(CONSTRAINT|PRIMARY\s+KEY|UNIQUE|CHECK|FOREIGN\s+KEY|EXCLUDE|LIKE)\b/i.test(p))
-    .map((p) => p.replace(/\s+PRIMARY\s+KEY\b/i, '').replace(/\s+UNIQUE\b/i, '').trim());
+    .map((p) => p.replace(/^\s*(?:--[^\n]*\n)+/, "").trimStart())
+    .filter(
+      (p) => !/^(CONSTRAINT|PRIMARY\s+KEY|UNIQUE|CHECK|FOREIGN\s+KEY|EXCLUDE|LIKE)\b/i.test(p),
+    )
+    .map((p) =>
+      p
+        .replace(/\s+PRIMARY\s+KEY\b/i, "")
+        .replace(/\s+UNIQUE\b/i, "")
+        .trim(),
+    );
 }
 
 function rewriteRls(stmt: string): string {
   let out = stmt
-    .replace(/REFERENCES\s+auth\s*\.\s*users\s*\(\s*id\s*\)/gi, 'REFERENCES public.users(id)')
-    .replace(/REFERENCES\s+auth\s*\.\s*users\b/gi, 'REFERENCES public.users')
+    .replace(/REFERENCES\s+auth\s*\.\s*users\s*\(\s*id\s*\)/gi, "REFERENCES public.users(id)")
+    .replace(/REFERENCES\s+auth\s*\.\s*users\b/gi, "REFERENCES public.users")
     // Idempotent: existing DROP POLICY statements get IF EXISTS if they lack it.
-    .replace(/\bDROP\s+POLICY\s+(?!IF\s+EXISTS\b)/gi, 'DROP POLICY IF EXISTS ');
+    .replace(/\bDROP\s+POLICY\s+(?!IF\s+EXISTS\b)/gi, "DROP POLICY IF EXISTS ");
 
   // Make CREATE POLICY idempotent — overlapping migrations re-create the same
   // policy and PG has no CREATE OR REPLACE POLICY. Prepend DROP IF EXISTS.
   if (/^CREATE\s+POLICY\b/.test(statementHead(out))) {
-    const m = out.match(/CREATE\s+POLICY\s+(?:"([^"]+)"|(\w+))\s+ON\s+((?:"?\w+"?\s*\.\s*)?"?\w+"?)/i);
+    const m = out.match(
+      /CREATE\s+POLICY\s+(?:"([^"]+)"|(\w+))\s+ON\s+((?:"?\w+"?\s*\.\s*)?"?\w+"?)/i,
+    );
     if (m) {
       const name = m[1] ?? m[2];
       const table = m[3];
@@ -401,26 +436,26 @@ $$;
 
 function main() {
   const files = readdirSync(migrationsDir)
-    .filter((f) => f.endsWith('.sql'))
+    .filter((f) => f.endsWith(".sql"))
     .sort(); // filenames begin with YYYYMMDDHHMMSS — lexical sort == chronological
 
   console.log(`[squash] ${files.length} migration files`);
 
   const banner = [
-    '-- Generated by db/migration/squash-schema.ts — DO NOT EDIT BY HAND.',
-    '-- Re-run the script after adding new supabase/migrations/*.sql to refresh.',
-    '--',
-    '-- This file represents the Supabase migration history with Supabase-specific',
-    '-- statements stripped (RLS, auth.*, storage.*, pg_net, supabase_realtime,',
-    '-- on_auth_user_* triggers) and `auth.users(id)` FKs rewritten to point at',
-    '-- the Auth.js `users(id)` table created in 01_auth_js.sql.',
-    '--',
-    '-- Apply order on a fresh Railway Postgres:',
-    '--   1. 00_extensions.sql',
-    '--   2. 01_auth_js.sql',
-    '--   3. 02_app_schema.sql   (this file)',
-    '',
-  ].join('\n');
+    "-- Generated by db/migration/squash-schema.ts — DO NOT EDIT BY HAND.",
+    "-- Re-run the script after adding new supabase/migrations/*.sql to refresh.",
+    "--",
+    "-- This file represents the Supabase migration history with Supabase-specific",
+    "-- statements stripped (RLS, auth.*, storage.*, pg_net, supabase_realtime,",
+    "-- on_auth_user_* triggers) and `auth.users(id)` FKs rewritten to point at",
+    "-- the Auth.js `users(id)` table created in 01_auth_js.sql.",
+    "--",
+    "-- Apply order on a fresh Railway Postgres:",
+    "--   1. 00_extensions.sql",
+    "--   2. 01_auth_js.sql",
+    "--   3. 02_app_schema.sql   (this file)",
+    "",
+  ].join("\n");
 
   const parts: string[] = [banner];
   const rlsParts: string[] = [RLS_PRELUDE];
@@ -432,7 +467,7 @@ function main() {
   let droppedDupes = 0;
 
   for (const file of files) {
-    const sql = readFileSync(join(migrationsDir, file), 'utf8');
+    const sql = readFileSync(join(migrationsDir, file), "utf8");
     const stmts = splitStatements(sql);
 
     const keptFromFile: string[] = [];
@@ -443,11 +478,14 @@ function main() {
         if (isRlsStatement(raw)) {
           // Drop policies that target Supabase-only schemas (e.g. storage.objects)
           // — those tables don't exist in the self-hosted Railway stack.
-          const noComments = raw
-            .replace(/\/\*[\s\S]*?\*\//g, ' ')
-            .replace(/--[^\n]*/g, ' ');
-          const supabaseOnly = /\b(storage|vault|realtime|net|extensions|cron)\s*\./i.test(noComments);
-          if (!supabaseOnly) { rlsFromFile.push(rewriteRls(raw)); rls++; }
+          const noComments = raw.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
+          const supabaseOnly = /\b(storage|vault|realtime|net|extensions|cron)\s*\./i.test(
+            noComments,
+          );
+          if (!supabaseOnly) {
+            rlsFromFile.push(rewriteRls(raw));
+            rls++;
+          }
         }
         continue;
       }
@@ -462,7 +500,9 @@ function main() {
       // ALTER TABLE ADD COLUMN IF NOT EXISTS for every column in the second
       // definition so we end up with the union and never lose anything.
       const head = statementHead(after);
-      const tableMatch = head.match(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"?PUBLIC"?\s*\.\s*)?"?(\w+)"?/);
+      const tableMatch = head.match(
+        /^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"?PUBLIC"?\s*\.\s*)?"?(\w+)"?/,
+      );
       if (tableMatch) {
         const tableName = tableMatch[1].toLowerCase();
         if (seenTables.has(tableName)) {
@@ -470,7 +510,7 @@ function main() {
           if (colDefs.length > 0) {
             const alters = colDefs
               .map((c) => `ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS ${c};`)
-              .join('\n');
+              .join("\n");
             after = `${after};\n-- Additive merge from duplicate CREATE TABLE:\n${alters}`;
             droppedDupes++;
           }
@@ -487,20 +527,22 @@ function main() {
       parts.push(`\n-- ──────────────────────────────────────────────────────────────────────`);
       parts.push(`-- ${file}`);
       parts.push(`-- ──────────────────────────────────────────────────────────────────────\n`);
-      parts.push(keptFromFile.join('\n\n'));
+      parts.push(keptFromFile.join("\n\n"));
     }
     if (rlsFromFile.length > 0) {
       rlsParts.push(`\n-- ${file}`);
-      rlsParts.push(rlsFromFile.join('\n'));
+      rlsParts.push(rlsFromFile.join("\n"));
     }
   }
 
   mkdirSync(dirname(outFile), { recursive: true });
-  writeFileSync(outFile, parts.join('\n') + '\n', 'utf8');
+  writeFileSync(outFile, parts.join("\n") + "\n", "utf8");
   rlsParts.push("\nNOTIFY pgrst, 'reload schema';");
-  writeFileSync(rlsOutFile, rlsParts.join('\n') + '\n', 'utf8');
+  writeFileSync(rlsOutFile, rlsParts.join("\n") + "\n", "utf8");
 
-  console.log(`[squash] kept=${kept} skipped=${skipped} rewritten=${rewritten} rls=${rls} dupe-tables=${droppedDupes}`);
+  console.log(
+    `[squash] kept=${kept} skipped=${skipped} rewritten=${rewritten} rls=${rls} dupe-tables=${droppedDupes}`,
+  );
   console.log(`[squash] wrote ${outFile}`);
   console.log(`[squash] wrote ${rlsOutFile} (${rls} RLS statements)`);
 }

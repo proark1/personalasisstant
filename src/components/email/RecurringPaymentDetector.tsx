@@ -1,20 +1,20 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Receipt, Plus, X, AlertCircle } from 'lucide-react';
-import { ContractCategory, CostFrequency } from '@/hooks/useContracts';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Receipt, Plus, X, AlertCircle } from "lucide-react";
+import { ContractCategory, CostFrequency } from "@/hooks/useContracts";
 
 export interface DetectedPayment {
   name: string;
@@ -23,7 +23,7 @@ export interface DetectedPayment {
   frequency: CostFrequency;
   category: ContractCategory;
   emailCount: number;
-  confidence: 'high' | 'medium' | 'low';
+  confidence: "high" | "medium" | "low";
 }
 
 interface RecurringPaymentDetectorProps {
@@ -50,48 +50,63 @@ export function RecurringPaymentDetector({
     setHasSearched(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('detect-recurring-payments', {});
+      const { data, error } = await supabase.functions.invoke("detect-recurring-payments", {});
 
       if (error) {
-        toast({ variant: 'destructive', title: 'Detection failed', description: await describeEdgeError(error, 'Detection failed') });
+        toast({
+          variant: "destructive",
+          title: "Detection failed",
+          description: await describeEdgeError(error, "Detection failed"),
+        });
         return;
       }
 
       const result = data as { payments?: DetectedPayment[]; error?: string };
       if (result.error) {
-        toast({ variant: 'destructive', title: 'Detection failed', description: result.error });
+        toast({ variant: "destructive", title: "Detection failed", description: result.error });
         return;
       }
 
       setPayments(result.payments || []);
       if ((result.payments || []).length === 0) {
-        toast({ title: 'No new recurring payments found', description: 'All detected payments are already in your contracts.' });
+        toast({
+          title: "No new recurring payments found",
+          description: "All detected payments are already in your contracts.",
+        });
       }
     } catch (err) {
-      console.error('Detection error:', err);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not analyze emails.' });
+      console.error("Detection error:", err);
+      toast({ variant: "destructive", title: "Error", description: "Could not analyze emails." });
     } finally {
       setLoading(false);
     }
   };
 
   const handleDismiss = (name: string) => {
-    setDismissed(prev => new Set([...prev, name]));
+    setDismissed((prev) => new Set([...prev, name]));
   };
 
-  const visiblePayments = payments.filter(p => !dismissed.has(p.name));
+  const visiblePayments = payments.filter((p) => !dismissed.has(p.name));
 
   const confidenceColor = (c: string) => {
     switch (c) {
-      case 'high': return 'bg-emerald-500/10 text-emerald-700 border-emerald-200';
-      case 'medium': return 'bg-amber-500/10 text-amber-700 border-amber-200';
-      default: return 'bg-muted text-muted-foreground';
+      case "high":
+        return "bg-emerald-500/10 text-emerald-700 border-emerald-200";
+      case "medium":
+        return "bg-amber-500/10 text-amber-700 border-amber-200";
+      default:
+        return "bg-muted text-muted-foreground";
     }
   };
 
   const categoryEmoji: Record<string, string> = {
-    insurance: '🛡️', utilities: '⚡', subscription: '📦',
-    phone: '📱', internet: '🌐', streaming: '🎬', other: '📄',
+    insurance: "🛡️",
+    utilities: "⚡",
+    subscription: "📦",
+    phone: "📱",
+    internet: "🌐",
+    streaming: "🎬",
+    other: "📄",
   };
 
   return (
@@ -103,7 +118,8 @@ export function RecurringPaymentDetector({
             Find Recurring Payments
           </DialogTitle>
           <DialogDescription>
-            Scan your emails to detect subscriptions and recurring charges, then add them as contracts.
+            Scan your emails to detect subscriptions and recurring charges, then add them as
+            contracts.
           </DialogDescription>
         </DialogHeader>
 
@@ -113,10 +129,15 @@ export function RecurringPaymentDetector({
               <Receipt className="w-8 h-8 text-primary" />
             </div>
             <p className="text-sm text-muted-foreground text-center max-w-xs">
-              We'll analyze your recent emails to find recurring payment patterns like subscriptions, bills, and invoices.
+              We'll analyze your recent emails to find recurring payment patterns like
+              subscriptions, bills, and invoices.
             </p>
             <Button onClick={detectPayments} disabled={loading} className="gap-2">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />}
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Receipt className="w-4 h-4" />
+              )}
               Scan Emails
             </Button>
           </div>
@@ -138,17 +159,15 @@ export function RecurringPaymentDetector({
           <ScrollArea className="flex-1 -mx-4 px-4">
             <div className="space-y-3 pb-4">
               <p className="text-xs text-muted-foreground">
-                Found {visiblePayments.length} potential recurring payment{visiblePayments.length !== 1 ? 's' : ''}
+                Found {visiblePayments.length} potential recurring payment
+                {visiblePayments.length !== 1 ? "s" : ""}
               </p>
               {visiblePayments.map((payment, idx) => (
-                <div
-                  key={`${payment.name}-${idx}`}
-                  className="border rounded-lg p-3 space-y-2"
-                >
+                <div key={`${payment.name}-${idx}`} className="border rounded-lg p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-base">{categoryEmoji[payment.category] || '📄'}</span>
+                        <span className="text-base">{categoryEmoji[payment.category] || "📄"}</span>
                         <h4 className="font-medium text-sm truncate">{payment.name}</h4>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -166,17 +185,25 @@ export function RecurringPaymentDetector({
                   <div className="flex items-center gap-2 flex-wrap">
                     {payment.amount > 0 && (
                       <Badge variant="secondary" className="text-xs">
-                        €{payment.amount.toFixed(2)} / {payment.frequency === 'monthly' ? 'mo' : payment.frequency === 'quarterly' ? 'qtr' : 'yr'}
+                        €{payment.amount.toFixed(2)} /{" "}
+                        {payment.frequency === "monthly"
+                          ? "mo"
+                          : payment.frequency === "quarterly"
+                            ? "qtr"
+                            : "yr"}
                       </Badge>
                     )}
                     <Badge variant="outline" className="text-xs capitalize">
                       {payment.category}
                     </Badge>
-                    <Badge variant="outline" className={`text-xs ${confidenceColor(payment.confidence)}`}>
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${confidenceColor(payment.confidence)}`}
+                    >
                       {payment.confidence} confidence
                     </Badge>
                     <span className="text-[10px] text-muted-foreground">
-                      {payment.emailCount} email{payment.emailCount !== 1 ? 's' : ''}
+                      {payment.emailCount} email{payment.emailCount !== 1 ? "s" : ""}
                     </span>
                   </div>
 

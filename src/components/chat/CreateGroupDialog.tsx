@@ -1,14 +1,20 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users } from 'lucide-react';
-import { SpaceMember } from '@/hooks/useSpaceMembers';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Users } from "lucide-react";
+import { SpaceMember } from "@/hooks/useSpaceMembers";
 
 interface CreateGroupDialogProps {
   isOpen: boolean;
@@ -17,21 +23,29 @@ interface CreateGroupDialogProps {
   onCreateGroup: (name: string, memberIds: string[], description?: string) => Promise<unknown>;
 }
 
-export function CreateGroupDialog({ isOpen, onClose, members, onCreateGroup }: CreateGroupDialogProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+export function CreateGroupDialog({
+  isOpen,
+  onClose,
+  members,
+  onCreateGroup,
+}: CreateGroupDialogProps) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const toggleMember = (memberId: string) => {
-    setSelectedMembers(prev =>
-      prev.includes(memberId)
-        ? prev.filter(id => id !== memberId)
-        : [...prev, memberId]
+    setSelectedMembers((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId],
     );
   };
 
@@ -43,14 +57,14 @@ export function CreateGroupDialog({ isOpen, onClose, members, onCreateGroup }: C
     setIsCreating(false);
 
     if (result) {
-      setName('');
-      setDescription('');
+      setName("");
+      setDescription("");
       setSelectedMembers([]);
       onClose();
     }
   };
 
-  const acceptedMembers = members.filter(m => m.status === 'accepted');
+  const acceptedMembers = members.filter((m) => m.status === "accepted");
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -125,7 +139,7 @@ export function CreateGroupDialog({ isOpen, onClose, members, onCreateGroup }: C
             onClick={handleCreate}
             disabled={!name.trim() || selectedMembers.length === 0 || isCreating}
           >
-            {isCreating ? 'Creating...' : 'Create Group'}
+            {isCreating ? "Creating..." : "Create Group"}
           </Button>
         </DialogFooter>
       </DialogContent>

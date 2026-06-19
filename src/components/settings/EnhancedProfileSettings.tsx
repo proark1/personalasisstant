@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { useUserProfile } from '@/hooks/useUserProfile';
-import { useToast } from '@/hooks/use-toast';
-import { X, Plus, MapPin, Target, Sparkles, User, Building, Brain, Calendar } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useToast } from "@/hooks/use-toast";
+import { X, Plus, MapPin, Target, Sparkles, User, Building, Brain, Calendar } from "lucide-react";
 
 interface EnhancedProfileSettingsProps {
   onClose?: () => void;
@@ -18,38 +18,38 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
   const { profile, isLoading, updateProfile } = useUserProfile();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Form state
-  const [displayName, setDisplayName] = useState('');
-  const [bio, setBio] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [role, setRole] = useState('');
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [role, setRole] = useState("");
   const [businesses, setBusinesses] = useState<string[]>([]);
-  const [newBusiness, setNewBusiness] = useState('');
+  const [newBusiness, setNewBusiness] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
-  const [newInterest, setNewInterest] = useState('');
+  const [newInterest, setNewInterest] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
-  const [newSkill, setNewSkill] = useState('');
-  const [goals, setGoals] = useState('');
-  const [locationCity, setLocationCity] = useState('');
-  const [locationCountry, setLocationCountry] = useState('');
-  const [preferredWorkHours, setPreferredWorkHours] = useState('');
-  const [timezone, setTimezone] = useState('');
+  const [newSkill, setNewSkill] = useState("");
+  const [goals, setGoals] = useState("");
+  const [locationCity, setLocationCity] = useState("");
+  const [locationCountry, setLocationCountry] = useState("");
+  const [preferredWorkHours, setPreferredWorkHours] = useState("");
+  const [timezone, setTimezone] = useState("");
 
   // Load profile data into form
   useEffect(() => {
     if (profile) {
-      setDisplayName(profile.displayName || '');
-      setBio(profile.bio || '');
-      setBirthDate(profile.birthDate || '');
-      setRole(profile.role || '');
+      setDisplayName(profile.displayName || "");
+      setBio(profile.bio || "");
+      setBirthDate(profile.birthDate || "");
+      setRole(profile.role || "");
       setBusinesses(profile.businesses || []);
       setInterests(profile.interests || []);
       setSkills(profile.skills || []);
-      setGoals(profile.goals || '');
-      setLocationCity(profile.locationCity || '');
-      setLocationCountry(profile.locationCountry || '');
-      setPreferredWorkHours(profile.preferredWorkHours || '');
+      setGoals(profile.goals || "");
+      setLocationCity(profile.locationCity || "");
+      setLocationCountry(profile.locationCountry || "");
+      setPreferredWorkHours(profile.preferredWorkHours || "");
       setTimezone(profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
     }
   }, [profile]);
@@ -57,19 +57,19 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
   const handleAddItem = (
     value: string,
     setter: React.Dispatch<React.SetStateAction<string[]>>,
-    inputSetter: React.Dispatch<React.SetStateAction<string>>
+    inputSetter: React.Dispatch<React.SetStateAction<string>>,
   ) => {
     if (value.trim()) {
-      setter(prev => [...prev, value.trim()]);
-      inputSetter('');
+      setter((prev) => [...prev, value.trim()]);
+      inputSetter("");
     }
   };
 
   const handleRemoveItem = (
     index: number,
-    setter: React.Dispatch<React.SetStateAction<string[]>>
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
   ) => {
-    setter(prev => prev.filter((_, i) => i !== index));
+    setter((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -92,8 +92,8 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
 
       if (result.success) {
         toast({
-          title: 'Profile updated',
-          description: 'Your profile has been saved. The AI assistant now knows you better!',
+          title: "Profile updated",
+          description: "Your profile has been saved. The AI assistant now knows you better!",
         });
         onClose?.();
       } else {
@@ -101,9 +101,9 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
       }
     } catch {
       toast({
-        title: 'Error',
-        description: 'Failed to save profile. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to save profile. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
@@ -130,7 +130,8 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
             <div>
               <p className="font-medium text-sm">Help your AI assistant know you better</p>
               <p className="text-xs text-muted-foreground mt-1">
-                This information helps DarAI give you personalized suggestions, recommend contacts when you travel, and understand your business context.
+                This information helps DarAI give you personalized suggestions, recommend contacts
+                when you travel, and understand your business context.
               </p>
             </div>
           </div>
@@ -200,9 +201,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
             <Building className="w-4 h-4" />
             Your Businesses / Ventures
           </CardTitle>
-          <CardDescription>
-            Add your companies, startups, or projects
-          </CardDescription>
+          <CardDescription>Add your companies, startups, or projects</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
@@ -226,7 +225,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
               onChange={(e) => setNewBusiness(e.target.value)}
               placeholder="e.g., Startup A - Crypto Exchange"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   e.preventDefault();
                   handleAddItem(newBusiness, setBusinesses, setNewBusiness);
                 }
@@ -276,7 +275,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
                 onChange={(e) => setNewInterest(e.target.value)}
                 placeholder="e.g., crypto, AI, real estate"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     e.preventDefault();
                     handleAddItem(newInterest, setInterests, setNewInterest);
                   }
@@ -318,7 +317,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
                 onChange={(e) => setNewSkill(e.target.value)}
                 placeholder="e.g., product management, fundraising"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     e.preventDefault();
                     handleAddItem(newSkill, setSkills, setNewSkill);
                   }
@@ -344,9 +343,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
             <Target className="w-4 h-4" />
             Current Goals
           </CardTitle>
-          <CardDescription>
-            What are you currently working towards?
-          </CardDescription>
+          <CardDescription>What are you currently working towards?</CardDescription>
         </CardHeader>
         <CardContent>
           <Textarea
@@ -418,7 +415,7 @@ export function EnhancedProfileSettings({ onClose }: EnhancedProfileSettingsProp
           </Button>
         )}
         <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? 'Saving...' : 'Save Profile'}
+          {isSaving ? "Saving..." : "Save Profile"}
         </Button>
       </div>
     </div>

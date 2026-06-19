@@ -1,38 +1,38 @@
-import React from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Sparkles, Check, X, BellOff, Lightbulb, Bot } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import React from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, Check, X, BellOff, Lightbulb, Bot } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import {
   useDoriActivityLog,
   type DoriActivityEntry,
   type DoriActivityKind,
-} from '@/hooks/useDoriActivityLog';
+} from "@/hooks/useDoriActivityLog";
 
 /** Icon per event_type, falling back to a per-kind default. */
 function entryIcon(entry: DoriActivityEntry): React.ElementType {
   switch (entry.type) {
-    case 'proactive_action_accepted':
+    case "proactive_action_accepted":
       return Check;
-    case 'proactive_action_dismissed':
+    case "proactive_action_dismissed":
       return X;
-    case 'proactive_action_muted':
+    case "proactive_action_muted":
       return BellOff;
-    case 'proactive_action_shown':
+    case "proactive_action_shown":
       return Lightbulb;
     default:
-      return entry.kind === 'ai' ? Bot : Sparkles;
+      return entry.kind === "ai" ? Bot : Sparkles;
   }
 }
 
 const kindLabel: Record<DoriActivityKind, string> = {
-  proactive: 'Suggestion',
-  ai: 'Action',
+  proactive: "Suggestion",
+  ai: "Action",
 };
 
 const kindColor: Record<DoriActivityKind, string> = {
-  proactive: 'bg-primary/15 text-primary',
-  ai: 'bg-accent/40 text-foreground',
+  proactive: "bg-primary/15 text-primary",
+  ai: "bg-accent/40 text-foreground",
 };
 
 export function DoriActivityLog() {
@@ -74,7 +74,9 @@ export function DoriActivityLog() {
               key={entry.id}
               className="flex items-start gap-3 p-3 rounded-lg bg-card/50 border border-border/50 hover:border-border transition-colors"
             >
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${kindColor[entry.kind]}`}>
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${kindColor[entry.kind]}`}
+              >
                 <Icon className="h-4 w-4" />
               </div>
 

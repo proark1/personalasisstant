@@ -1,34 +1,34 @@
-import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { 
-  MessageCircle, 
-  History, 
-  Voicemail, 
-  Calendar, 
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  MessageCircle,
+  History,
+  Voicemail,
+  Calendar,
   BarChart3,
   Settings,
   Search,
   Star,
-  Clock
-} from 'lucide-react';
-import { TeamChatPanel } from '@/components/chat/TeamChatPanel';
-import { CallHistory } from '@/components/calling/CallHistory';
-import { VoicemailPanel } from '@/components/calling/VoicemailPanel';
-import { ScheduledCallsPanel } from '@/components/calling/ScheduledCallsPanel';
-import { CommunicationDashboard } from '@/components/social/CommunicationDashboard';
-import { ChatSettingsPanel } from '@/components/chat/ChatSettingsPanel';
-import { MessageSearchDialog } from '@/components/chat/MessageSearchDialog';
-import { SavedMessagesDialog } from '@/components/chat/SavedMessagesDialog';
-import { ScheduleCallDialog } from '@/components/calling/ScheduleCallDialog';
-import { PanelShell } from '@/components/ui/panel-shell';
+  Clock,
+} from "lucide-react";
+import { TeamChatPanel } from "@/components/chat/TeamChatPanel";
+import { CallHistory } from "@/components/calling/CallHistory";
+import { VoicemailPanel } from "@/components/calling/VoicemailPanel";
+import { ScheduledCallsPanel } from "@/components/calling/ScheduledCallsPanel";
+import { CommunicationDashboard } from "@/components/social/CommunicationDashboard";
+import { ChatSettingsPanel } from "@/components/chat/ChatSettingsPanel";
+import { MessageSearchDialog } from "@/components/chat/MessageSearchDialog";
+import { SavedMessagesDialog } from "@/components/chat/SavedMessagesDialog";
+import { ScheduleCallDialog } from "@/components/calling/ScheduleCallDialog";
+import { PanelShell } from "@/components/ui/panel-shell";
 
 interface SocialPanelProps {
   userId: string;
 }
 
 export function SocialPanel({ userId }: SocialPanelProps) {
-  const [activeTab, setActiveTab] = useState<string>('chat');
+  const [activeTab, setActiveTab] = useState<string>("chat");
   const [showSearch, setShowSearch] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [showScheduleCall, setShowScheduleCall] = useState(false);
@@ -49,12 +49,7 @@ export function SocialPanel({ userId }: SocialPanelProps) {
   );
 
   return (
-    <PanelShell
-      icon={MessageCircle}
-      title="Social"
-      actions={headerActions}
-      noPadding
-    >
+    <PanelShell icon={MessageCircle} title="Social" actions={headerActions} noPadding>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <div className="px-4 pt-2 pb-2">
           <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
@@ -84,11 +79,11 @@ export function SocialPanel({ userId }: SocialPanelProps) {
             </TabsTrigger>
           </TabsList>
         </div>
-        
+
         <TabsContent value="chat" className="flex-1 m-0 overflow-hidden">
           <TeamChatPanel userId={userId} />
         </TabsContent>
-        
+
         <TabsContent value="calls" className="flex-1 m-0 overflow-hidden p-4">
           <CallHistory userId={userId} />
         </TabsContent>
@@ -113,7 +108,11 @@ export function SocialPanel({ userId }: SocialPanelProps) {
       {/* Dialogs */}
       <MessageSearchDialog open={showSearch} onOpenChange={setShowSearch} />
       <SavedMessagesDialog open={showSaved} onOpenChange={setShowSaved} />
-      <ScheduleCallDialog open={showScheduleCall} onOpenChange={setShowScheduleCall} userId={userId} />
+      <ScheduleCallDialog
+        open={showScheduleCall}
+        onOpenChange={setShowScheduleCall}
+        userId={userId}
+      />
     </PanelShell>
   );
 }

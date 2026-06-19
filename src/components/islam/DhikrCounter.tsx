@@ -1,9 +1,9 @@
-import { motion } from 'framer-motion';
-import { GlassCard } from '@/components/ui/glass-card';
-import { Button } from '@/components/ui/button';
-import { RotateCcw } from 'lucide-react';
-import { useHaptics } from '@/hooks/useHaptics';
-import { cn } from '@/lib/utils';
+import { motion } from "framer-motion";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
+import { useHaptics } from "@/hooks/useHaptics";
+import { cn } from "@/lib/utils";
 
 interface DhikrType {
   id: string;
@@ -28,23 +28,29 @@ interface DhikrCounterProps {
   compact?: boolean;
 }
 
-export function DhikrCounter({ dhikrTypes, dhikrLogs, onIncrement, onReset, compact }: DhikrCounterProps) {
+export function DhikrCounter({
+  dhikrTypes,
+  dhikrLogs,
+  onIncrement,
+  onReset,
+  compact,
+}: DhikrCounterProps) {
   const { vibrate } = useHaptics();
 
-  const getLog = (typeId: string) => dhikrLogs.find(l => l.dhikr_type === typeId);
-  
+  const getLog = (typeId: string) => dhikrLogs.find((l) => l.dhikr_type === typeId);
+
   const totalCompleted = dhikrTypes.reduce((sum, t) => {
     const log = getLog(t.id);
     return sum + (log?.completed_count || 0);
   }, 0);
-  
+
   const totalTarget = dhikrTypes.reduce((sum, t) => {
     const log = getLog(t.id);
     return sum + (log?.target_count || t.defaultTarget);
   }, 0);
 
   const handleTap = (typeId: string) => {
-    vibrate('light');
+    vibrate("light");
     onIncrement(typeId);
   };
 
@@ -53,7 +59,9 @@ export function DhikrCounter({ dhikrTypes, dhikrLogs, onIncrement, onReset, comp
       <div className="space-y-2">
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm font-medium">Today's Dhikr</span>
-          <span className="text-xs text-muted-foreground">{totalCompleted}/{totalTarget}</span>
+          <span className="text-xs text-muted-foreground">
+            {totalCompleted}/{totalTarget}
+          </span>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {dhikrTypes.slice(0, 3).map((type) => {
@@ -72,7 +80,7 @@ export function DhikrCounter({ dhikrTypes, dhikrLogs, onIncrement, onReset, comp
                   "relative rounded-xl p-3 text-center border transition-colors",
                   done
                     ? "bg-emerald-500/10 border-emerald-500/30"
-                    : "bg-muted/50 border-border hover:bg-muted"
+                    : "bg-muted/50 border-border hover:bg-muted",
                 )}
               >
                 <div
@@ -106,16 +114,13 @@ export function DhikrCounter({ dhikrTypes, dhikrLogs, onIncrement, onReset, comp
             pressable
             haptic="light"
             onClick={() => handleTap(type.id)}
-            className={cn(
-              "relative overflow-hidden p-4",
-              done && "border-emerald-500/40"
-            )}
+            className={cn("relative overflow-hidden p-4", done && "border-emerald-500/40")}
           >
             {/* Progress fill */}
             <div
               className={cn(
                 "absolute inset-0 origin-left transition-all duration-300",
-                done ? "bg-emerald-500/10" : "bg-primary/5"
+                done ? "bg-emerald-500/10" : "bg-primary/5",
               )}
               style={{ transform: `scaleX(${pct / 100})` }}
             />
@@ -125,9 +130,20 @@ export function DhikrCounter({ dhikrTypes, dhikrLogs, onIncrement, onReset, comp
                 {/* Circular mini progress */}
                 <div className="relative w-12 h-12 shrink-0">
                   <svg viewBox="0 0 48 48" className="w-full h-full -rotate-90">
-                    <circle cx="24" cy="24" r="20" fill="none" strokeWidth="3"
-                      className="stroke-muted" />
-                    <circle cx="24" cy="24" r="20" fill="none" strokeWidth="3"
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      fill="none"
+                      strokeWidth="3"
+                      className="stroke-muted"
+                    />
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      fill="none"
+                      strokeWidth="3"
                       className={done ? "stroke-emerald-500" : "stroke-primary"}
                       strokeDasharray={`${pct * 1.257} 125.7`}
                       strokeLinecap="round"
@@ -140,7 +156,9 @@ export function DhikrCounter({ dhikrTypes, dhikrLogs, onIncrement, onReset, comp
 
                 <div>
                   <p className="font-arabic text-lg leading-tight">{type.arabic}</p>
-                  <p className="text-xs text-muted-foreground">{type.english} · {target}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {type.english} · {target}
+                  </p>
                 </div>
               </div>
 
@@ -149,7 +167,10 @@ export function DhikrCounter({ dhikrTypes, dhikrLogs, onIncrement, onReset, comp
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 shrink-0"
-                  onClick={(e) => { e.stopPropagation(); onReset(type.id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReset(type.id);
+                  }}
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </Button>

@@ -52,7 +52,10 @@ export function LearnedRoutinesCard() {
       </div>
       <div className="space-y-2">
         {routines.map((r) => (
-          <div key={r.id} className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/40">
+          <div
+            key={r.id}
+            className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/40"
+          >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{r.title}</p>
               <p className="text-xs text-muted-foreground line-clamp-2">{r.description}</p>
@@ -61,10 +64,20 @@ export function LearnedRoutinesCard() {
               </p>
             </div>
             <div className="flex gap-1 shrink-0">
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => respond(r.id, "accepted")}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => respond(r.id, "accepted")}
+              >
                 <Check className="w-3.5 h-3.5 text-success" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => respond(r.id, "dismissed")}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => respond(r.id, "dismissed")}
+              >
                 <X className="w-3.5 h-3.5 text-muted-foreground" />
               </Button>
             </div>

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { TaskCategory, TaskPriority } from '@/types/flux';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { TaskCategory, TaskPriority } from "@/types/flux";
 
 export interface TaskTemplate {
   id: string;
@@ -37,23 +37,25 @@ export function useTaskTemplates() {
     if (!user) return;
 
     const { data, error } = await supabase
-      .from('task_templates')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .from("task_templates")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setTemplates(data.map((t: DbTaskTemplate) => ({
-        id: t.id,
-        name: t.name,
-        title: t.title,
-        description: t.description || undefined,
-        category: t.category as TaskCategory,
-        priority: t.priority as TaskPriority,
-        recurrenceRule: t.recurrence_rule || undefined,
-        reminderBefore: t.reminder_before || undefined,
-        createdAt: new Date(t.created_at),
-      })));
+      setTemplates(
+        data.map((t: DbTaskTemplate) => ({
+          id: t.id,
+          name: t.name,
+          title: t.title,
+          description: t.description || undefined,
+          category: t.category as TaskCategory,
+          priority: t.priority as TaskPriority,
+          recurrenceRule: t.recurrence_rule || undefined,
+          reminderBefore: t.reminder_before || undefined,
+          createdAt: new Date(t.created_at),
+        })),
+      );
     }
     setLoading(false);
   }, [user]);
@@ -62,50 +64,50 @@ export function useTaskTemplates() {
     fetchTemplates();
   }, [fetchTemplates]);
 
-  const createTemplate = useCallback(async (template: Omit<TaskTemplate, 'id' | 'createdAt'>) => {
-    if (!user) return null;
+  const createTemplate = useCallback(
+    async (template: Omit<TaskTemplate, "id" | "createdAt">) => {
+      if (!user) return null;
 
-    const { data, error } = await supabase
-      .from('task_templates')
-      .insert({
-        user_id: user.id,
-        name: template.name,
-        title: template.title,
-        description: template.description,
-        category: template.category,
-        priority: template.priority,
-        recurrence_rule: template.recurrenceRule,
-        reminder_before: template.reminderBefore,
-      })
-      .select()
-      .single();
+      const { data, error } = await supabase
+        .from("task_templates")
+        .insert({
+          user_id: user.id,
+          name: template.name,
+          title: template.title,
+          description: template.description,
+          category: template.category,
+          priority: template.priority,
+          recurrence_rule: template.recurrenceRule,
+          reminder_before: template.reminderBefore,
+        })
+        .select()
+        .single();
 
-    if (!error && data) {
-      const newTemplate: TaskTemplate = {
-        id: data.id,
-        name: data.name,
-        title: data.title,
-        description: data.description || undefined,
-        category: data.category as TaskCategory,
-        priority: data.priority as TaskPriority,
-        recurrenceRule: data.recurrence_rule || undefined,
-        reminderBefore: data.reminder_before || undefined,
-        createdAt: new Date(data.created_at),
-      };
-      setTemplates(prev => [newTemplate, ...prev]);
-      return newTemplate;
-    }
-    return null;
-  }, [user]);
+      if (!error && data) {
+        const newTemplate: TaskTemplate = {
+          id: data.id,
+          name: data.name,
+          title: data.title,
+          description: data.description || undefined,
+          category: data.category as TaskCategory,
+          priority: data.priority as TaskPriority,
+          recurrenceRule: data.recurrence_rule || undefined,
+          reminderBefore: data.reminder_before || undefined,
+          createdAt: new Date(data.created_at),
+        };
+        setTemplates((prev) => [newTemplate, ...prev]);
+        return newTemplate;
+      }
+      return null;
+    },
+    [user],
+  );
 
   const deleteTemplate = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('task_templates')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from("task_templates").delete().eq("id", id);
 
     if (!error) {
-      setTemplates(prev => prev.filter(t => t.id !== id));
+      setTemplates((prev) => prev.filter((t) => t.id !== id));
     }
     return { error: error?.message || null };
   }, []);

@@ -1,12 +1,24 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useHealthTracking } from '@/hooks/useHealthTracking';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useHealthTracking } from "@/hooks/useHealthTracking";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 
 interface AddVaccinationDialogProps {
   open: boolean;
@@ -16,14 +28,14 @@ interface AddVaccinationDialogProps {
 export function AddVaccinationDialog({ open, onOpenChange }: AddVaccinationDialogProps) {
   const { addVaccination } = useHealthTracking();
   const { members } = useFamilyMembers();
-  const [vaccineName, setVaccineName] = useState('');
-  const [memberId, setMemberId] = useState<string>('');
-  const [dateAdministered, setDateAdministered] = useState('');
-  const [administeredBy, setAdministeredBy] = useState('');
-  const [location, setLocation] = useState('');
-  const [lotNumber, setLotNumber] = useState('');
-  const [nextDoseDate, setNextDoseDate] = useState('');
-  const [notes, setNotes] = useState('');
+  const [vaccineName, setVaccineName] = useState("");
+  const [memberId, setMemberId] = useState<string>("");
+  const [dateAdministered, setDateAdministered] = useState("");
+  const [administeredBy, setAdministeredBy] = useState("");
+  const [location, setLocation] = useState("");
+  const [lotNumber, setLotNumber] = useState("");
+  const [nextDoseDate, setNextDoseDate] = useState("");
+  const [notes, setNotes] = useState("");
 
   const handleSubmit = async () => {
     if (!vaccineName.trim() || !dateAdministered) return;
@@ -44,14 +56,14 @@ export function AddVaccinationDialog({ open, onOpenChange }: AddVaccinationDialo
   };
 
   const resetForm = () => {
-    setVaccineName('');
-    setMemberId('');
-    setDateAdministered('');
-    setAdministeredBy('');
-    setLocation('');
-    setLotNumber('');
-    setNextDoseDate('');
-    setNotes('');
+    setVaccineName("");
+    setMemberId("");
+    setDateAdministered("");
+    setAdministeredBy("");
+    setLocation("");
+    setLotNumber("");
+    setNextDoseDate("");
+    setNotes("");
   };
 
   return (
@@ -74,14 +86,19 @@ export function AddVaccinationDialog({ open, onOpenChange }: AddVaccinationDialo
             </div>
             <div className="space-y-2">
               <Label htmlFor="member">For</Label>
-              <Select value={memberId || "_me"} onValueChange={(v) => setMemberId(v === "_me" ? "" : v)}>
+              <Select
+                value={memberId || "_me"}
+                onValueChange={(v) => setMemberId(v === "_me" ? "" : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select person" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_me">Me</SelectItem>
                   {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -153,7 +170,9 @@ export function AddVaccinationDialog({ open, onOpenChange }: AddVaccinationDialo
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSubmit} disabled={!vaccineName.trim() || !dateAdministered}>
             Add Record
           </Button>

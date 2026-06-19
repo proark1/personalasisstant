@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { useAuth } from './useAuth';
-import { useMorningBriefing } from './useMorningBriefing';
-import { useProactiveSettings } from './useProactiveSettings';
+import { useEffect, useRef } from "react";
+import { useAuth } from "./useAuth";
+import { useMorningBriefing } from "./useMorningBriefing";
+import { useProactiveSettings } from "./useProactiveSettings";
 
-const LAST_AUTO_PLAY_KEY = 'dori_last_morning_autoplay';
+const LAST_AUTO_PLAY_KEY = "dori_last_morning_autoplay";
 
 export function useMorningAutoPlay(): null {
   const { user } = useAuth();
@@ -19,7 +19,7 @@ export function useMorningAutoPlay(): null {
 
     // Check if we should auto-play
     const checkAutoPlay = () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split("T")[0];
       const lastAutoPlay = localStorage.getItem(LAST_AUTO_PLAY_KEY);
 
       // Only auto-play once per day

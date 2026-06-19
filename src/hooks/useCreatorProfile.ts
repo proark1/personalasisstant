@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { toast } from 'sonner';
-import { DEFAULT_CREATOR_PROFILE, describeContentError, type CreatorProfile } from '@/lib/content';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
+import { DEFAULT_CREATOR_PROFILE, describeContentError, type CreatorProfile } from "@/lib/content";
 
 // `creator_profiles` is a newly added table not yet in the generated Supabase
 // types, so we reach it through an untyped client handle (same approach as
@@ -12,7 +12,7 @@ const db = supabase as unknown as { from: (table: string) => ReturnType<typeof s
 
 export type CreatorProfileDraft = Omit<
   CreatorProfile,
-  'id' | 'user_id' | 'created_at' | 'updated_at' | 'last_generated_on'
+  "id" | "user_id" | "created_at" | "updated_at" | "last_generated_on"
 >;
 
 export function useCreatorProfile() {
@@ -26,33 +26,36 @@ export function useCreatorProfile() {
     if (!user?.id) return;
     try {
       const { data, error } = await db
-        .from('creator_profiles')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("creator_profiles")
+        .select("*")
+        .eq("user_id", user.id)
         .maybeSingle();
       if (error) {
-        console.error('Error fetching creator profile:', error);
+        console.error("Error fetching creator profile:", error);
       } else {
         const row = (data as CreatorProfile) ?? null;
         setProfile(row);
         // Keep the saved content language in step with the app language, so the
         // daily cron (which can't read the client) also generates in it.
         if (row && language && row.primary_language !== language) {
-          void db.from('creator_profiles')
+          void db
+            .from("creator_profiles")
             .update({ primary_language: language })
-            .eq('user_id', user.id)
+            .eq("user_id", user.id)
             .then(() => setProfile((p) => (p ? { ...p, primary_language: language } : p)))
-            .catch((err: unknown) => console.error('Failed to sync content language:', err));
+            .catch((err: unknown) => console.error("Failed to sync content language:", err));
         }
       }
     } catch (err) {
-      console.error('Failed to fetch creator profile:', err);
+      console.error("Failed to fetch creator profile:", err);
     } finally {
       setLoading(false);
     }
   }, [user?.id, language]);
 
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   // Seed values from the user's general profile so they don't start from a
   // blank form. Returns a draft (not yet saved).
@@ -61,9 +64,9 @@ export function useCreatorProfile() {
     if (!user?.id) return base;
     try {
       const { data } = await supabase
-        .from('profiles')
-        .select('bio, interests, businesses')
-        .eq('user_id', user.id)
+        .from("profiles")
+        .select("bio, interests, businesses")
+        .eq("user_id", user.id)
         .maybeSingle();
       if (data) {
         const topics = [...(data.interests || []), ...(data.businesses || [])]
@@ -71,48 +74,57 @@ export function useCreatorProfile() {
           .filter(Boolean);
         return {
           ...base,
-          persona: data.bio || '',
+          persona: data.bio || "",
           topics: Array.from(new Set(topics)).slice(0, 12),
-          business_context: (data.businesses || []).join(', '),
+          business_context: (data.businesses || []).join(", "),
         };
       }
     } catch (err) {
-      console.error('Prefill failed:', err);
+      console.error("Prefill failed:", err);
     }
     return base;
   }, [user?.id]);
 
-  const save = useCallback(async (values: Partial<CreatorProfileDraft>): Promise<CreatorProfile | null> => {
-    if (!user?.id) return null;
-    setSaving(true);
-    // Optimistic local merge so the form feels instant.
-    setProfile((prev) => (prev ? { ...prev, ...values } as CreatorProfile : prev));
-    try {
-      const payload = {
-        user_id: user.id,
-        ...(profile ? {} : DEFAULT_CREATOR_PROFILE),
-        ...values,
-        // Content language follows the app language rather than a manual field.
-        primary_language: language,
-        updated_at: new Date().toISOString(),
-      };
-      const { data, error } = await db
-        .from('creator_profiles')
-        .upsert(payload, { onConflict: 'user_id' })
-        .select()
-        .single();
-      if (error) throw error;
-      setProfile(data as CreatorProfile);
-      return data as CreatorProfile;
-    } catch (err) {
-      console.error('Failed to save creator profile:', err);
-      toast.error(describeContentError(err, t('content.toast.saveFailed'), t('content.toast.migrationMissing')));
-      fetchProfile(); // revert to server state
-      return null;
-    } finally {
-      setSaving(false);
-    }
-  }, [user?.id, profile, fetchProfile, language, t]);
+  const save = useCallback(
+    async (values: Partial<CreatorProfileDraft>): Promise<CreatorProfile | null> => {
+      if (!user?.id) return null;
+      setSaving(true);
+      // Optimistic local merge so the form feels instant.
+      setProfile((prev) => (prev ? ({ ...prev, ...values } as CreatorProfile) : prev));
+      try {
+        const payload = {
+          user_id: user.id,
+          ...(profile ? {} : DEFAULT_CREATOR_PROFILE),
+          ...values,
+          // Content language follows the app language rather than a manual field.
+          primary_language: language,
+          updated_at: new Date().toISOString(),
+        };
+        const { data, error } = await db
+          .from("creator_profiles")
+          .upsert(payload, { onConflict: "user_id" })
+          .select()
+          .single();
+        if (error) throw error;
+        setProfile(data as CreatorProfile);
+        return data as CreatorProfile;
+      } catch (err) {
+        console.error("Failed to save creator profile:", err);
+        toast.error(
+          describeContentError(
+            err,
+            t("content.toast.saveFailed"),
+            t("content.toast.migrationMissing"),
+          ),
+        );
+        fetchProfile(); // revert to server state
+        return null;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [user?.id, profile, fetchProfile, language, t],
+  );
 
   return { profile, loading, saving, save, prefillFromProfile, refetch: fetchProfile };
 }

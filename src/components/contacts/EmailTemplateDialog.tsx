@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Contact } from '@/hooks/useContacts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Copy, Mail, Send } from 'lucide-react';
+import { useState } from "react";
+import { Contact } from "@/hooks/useContacts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Copy, Mail, Send } from "lucide-react";
 
 interface EmailTemplateDialogProps {
   contact: Contact;
@@ -17,8 +17,8 @@ interface EmailTemplateDialogProps {
 
 const TEMPLATES = {
   followup: {
-    name: 'Follow-up',
-    subject: 'Following up',
+    name: "Follow-up",
+    subject: "Following up",
     body: `Hi {{name}},
 
 I hope this message finds you well! I wanted to reach out and see how things are going with you.
@@ -30,8 +30,8 @@ Let me know if you have some time for a quick call or coffee.
 Best regards`,
   },
   introduction: {
-    name: 'Introduction',
-    subject: 'Nice to meet you',
+    name: "Introduction",
+    subject: "Nice to meet you",
     body: `Hi {{name}},
 
 It was great meeting you recently! I really enjoyed our conversation about {{company}}.
@@ -43,8 +43,8 @@ Looking forward to connecting again soon.
 Best`,
   },
   thankyou: {
-    name: 'Thank You',
-    subject: 'Thank you!',
+    name: "Thank You",
+    subject: "Thank you!",
     body: `Hi {{name}},
 
 I just wanted to take a moment to thank you for your time and support.
@@ -56,8 +56,8 @@ Please let me know if there's ever anything I can do to help you.
 Best regards`,
   },
   reconnect: {
-    name: 'Reconnect',
-    subject: 'Long time no see!',
+    name: "Reconnect",
+    subject: "Long time no see!",
     body: `Hi {{name}},
 
 I was thinking about you recently and realized it's been too long since we caught up!
@@ -69,8 +69,8 @@ Are you free for a call sometime this week or next?
 Best`,
   },
   birthday: {
-    name: 'Birthday',
-    subject: 'Happy Birthday! 🎂',
+    name: "Birthday",
+    subject: "Happy Birthday! 🎂",
     body: `Hi {{name}},
 
 Happy Birthday! 🎉
@@ -86,26 +86,26 @@ Cheers`,
 export function EmailTemplateDialog({ contact, open, onOpenChange }: EmailTemplateDialogProps) {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const [activeTemplate, setActiveTemplate] = useState<keyof typeof TEMPLATES>('followup');
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  const [activeTemplate, setActiveTemplate] = useState<keyof typeof TEMPLATES>("followup");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
 
   const applyTemplate = (templateKey: keyof typeof TEMPLATES) => {
     const template = TEMPLATES[templateKey];
     const replacements: Record<string, string> = {
-      '{{name}}': contact.name.split(' ')[0],
-      '{{fullname}}': contact.name,
-      '{{company}}': contact.company || 'your work',
-      '{{role}}': contact.role || 'your field',
-      '{{city}}': contact.city || 'your area',
+      "{{name}}": contact.name.split(" ")[0],
+      "{{fullname}}": contact.name,
+      "{{company}}": contact.company || "your work",
+      "{{role}}": contact.role || "your field",
+      "{{city}}": contact.city || "your area",
     };
 
     let processedSubject = template.subject;
     let processedBody = template.body;
 
     Object.entries(replacements).forEach(([placeholder, value]) => {
-      processedSubject = processedSubject.replace(new RegExp(placeholder, 'g'), value);
-      processedBody = processedBody.replace(new RegExp(placeholder, 'g'), value);
+      processedSubject = processedSubject.replace(new RegExp(placeholder, "g"), value);
+      processedBody = processedBody.replace(new RegExp(placeholder, "g"), value);
     });
 
     setSubject(processedSubject);
@@ -116,12 +116,12 @@ export function EmailTemplateDialog({ contact, open, onOpenChange }: EmailTempla
   const handleCopy = () => {
     const fullEmail = `Subject: ${subject}\n\n${body}`;
     navigator.clipboard.writeText(fullEmail);
-    toast({ title: t('contacts.toast.copiedClipboard') });
+    toast({ title: t("contacts.toast.copiedClipboard") });
   };
 
   const handleSendEmail = () => {
     if (!contact.email) {
-      toast({ title: t('contacts.toast.noEmailAddress'), variant: 'destructive' });
+      toast({ title: t("contacts.toast.noEmailAddress"), variant: "destructive" });
       return;
     }
 
@@ -131,7 +131,7 @@ export function EmailTemplateDialog({ contact, open, onOpenChange }: EmailTempla
 
   // Initialize with first template
   useState(() => {
-    applyTemplate('followup');
+    applyTemplate("followup");
   });
 
   return (
@@ -150,7 +150,7 @@ export function EmailTemplateDialog({ contact, open, onOpenChange }: EmailTempla
             {Object.entries(TEMPLATES).map(([key, template]) => (
               <Button
                 key={key}
-                variant={activeTemplate === key ? 'default' : 'outline'}
+                variant={activeTemplate === key ? "default" : "outline"}
                 size="sm"
                 onClick={() => applyTemplate(key as keyof typeof TEMPLATES)}
               >

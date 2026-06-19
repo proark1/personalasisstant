@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -14,7 +14,8 @@ serve(async (req) => {
   // so require the service-role bearer in code (matches the *-cron siblings).
   if (req.headers.get("Authorization") !== `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -47,7 +48,9 @@ serve(async (req) => {
       // Compute today's score from daily_checkins + recent activity
       const { data: checkins } = await supabase
         .from("daily_checkins")
-        .select("checkin_date, day_rating, mood, energy_level, sleep_hours, sleep_quality, stress_level")
+        .select(
+          "checkin_date, day_rating, mood, energy_level, sleep_hours, sleep_quality, stress_level",
+        )
         .eq("user_id", userId)
         .order("checkin_date", { ascending: false })
         .limit(7);
@@ -118,18 +121,23 @@ function computeScore(c: CheckinRow | null): number | null {
   return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
 }
 
-function identifyFactors(today: CheckinRow, prev: CheckinRow): Array<{ factor: string; change: string }> {
+function identifyFactors(
+  today: CheckinRow,
+  prev: CheckinRow,
+): Array<{ factor: string; change: string }> {
   const factors: Array<{ factor: string; change: string }> = [];
   if (today.sleep_hours && prev.sleep_hours) {
     const diff = today.sleep_hours - prev.sleep_hours;
-    if (Math.abs(diff) >= 1) factors.push({ factor: "sleep", change: `${diff > 0 ? "+" : ""}${diff.toFixed(1)}h` });
+    if (Math.abs(diff) >= 1)
+      factors.push({ factor: "sleep", change: `${diff > 0 ? "+" : ""}${diff.toFixed(1)}h` });
   }
   if (today.energy_level !== prev.energy_level) {
     factors.push({ factor: "energy", change: `${prev.energy_level} → ${today.energy_level}` });
   }
   if (today.stress_level && prev.stress_level) {
     const diff = today.stress_level - prev.stress_level;
-    if (Math.abs(diff) >= 1) factors.push({ factor: "stress", change: `${diff > 0 ? "+" : ""}${diff}` });
+    if (Math.abs(diff) >= 1)
+      factors.push({ factor: "stress", change: `${diff > 0 ? "+" : ""}${diff}` });
   }
   return factors;
 }
@@ -139,7 +147,11 @@ async function callGemini(
   todayScore: number,
   prevScore: number,
   factors: Array<{ factor: string; change: string }>,
-): Promise<{ headline: string; commentary: string; suggestions: Array<{ label: string; action: string }> }> {
+): Promise<{
+  headline: string;
+  commentary: string;
+  suggestions: Array<{ label: string; action: string }>;
+}> {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) {
     return {
@@ -152,18 +164,25 @@ async function callGemini(
   const prompt = `User Life Score: today ${todayScore}, yesterday ${prevScore}. Factors: ${JSON.stringify(factors)}. Recent checkins: ${JSON.stringify(checkins.slice(0, 3))}. Write a SHORT (max 2 sentence) commentary as Dori (warm, direct, German-context personal assistant). Return JSON: { "headline": "5-7 word headline", "commentary": "1-2 sentences", "suggestions": [{"label": "...", "action": "..."}] (0-2 items)}.`;
 
   try {
-    const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "You are Dori, a warm personal assistant. Always respond with valid JSON only." },
-          { role: "user", content: prompt },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
+    const resp = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are Dori, a warm personal assistant. Always respond with valid JSON only.",
+            },
+            { role: "user", content: prompt },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      },
+    );
     const data = await resp.json();
     const content = data.choices?.[0]?.message?.content || "{}";
     const parsed = JSON.parse(content);

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { TablesUpdate } from '@/integrations/supabase/types';
-import { WeeklyReview, Task } from '@/types/flux';
-import { startOfWeek, format } from 'date-fns';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
+import { WeeklyReview, Task } from "@/types/flux";
+import { startOfWeek, format } from "date-fns";
 
 interface DbWeeklyReview {
   id: string;
@@ -32,7 +32,7 @@ export function useWeeklyReview(userId: string | undefined) {
   });
 
   const getCurrentWeekStart = () => {
-    return format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    return format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
   };
 
   const fetchCurrentReview = useCallback(async () => {
@@ -44,11 +44,11 @@ export function useWeeklyReview(userId: string | undefined) {
 
     setLoading(true);
     const weekStart = getCurrentWeekStart();
-    
+
     const { data } = await supabase
-      .from('weekly_reviews')
-      .select('*')
-      .eq('week_start', weekStart)
+      .from("weekly_reviews")
+      .select("*")
+      .eq("week_start", weekStart)
       .maybeSingle();
 
     if (data) {
@@ -63,70 +63,77 @@ export function useWeeklyReview(userId: string | undefined) {
     fetchCurrentReview();
   }, [fetchCurrentReview]);
 
-  const createOrUpdateReview = useCallback(async (updates: Partial<Omit<WeeklyReview, 'id' | 'createdAt' | 'updatedAt' | 'weekStart'>>) => {
-    if (!userId) return null;
+  const createOrUpdateReview = useCallback(
+    async (
+      updates: Partial<Omit<WeeklyReview, "id" | "createdAt" | "updatedAt" | "weekStart">>,
+    ) => {
+      if (!userId) return null;
 
-    const weekStart = getCurrentWeekStart();
+      const weekStart = getCurrentWeekStart();
 
-    const dbUpdates: Record<string, unknown> = {};
-    if (updates.completedTasksCount !== undefined) dbUpdates.completed_tasks_count = updates.completedTasksCount;
-    if (updates.incompleteTasksReviewed !== undefined) dbUpdates.incomplete_tasks_reviewed = updates.incompleteTasksReviewed;
-    if (updates.intentions !== undefined) dbUpdates.intentions = updates.intentions;
-    if (updates.celebrations !== undefined) dbUpdates.celebrations = updates.celebrations;
+      const dbUpdates: Record<string, unknown> = {};
+      if (updates.completedTasksCount !== undefined)
+        dbUpdates.completed_tasks_count = updates.completedTasksCount;
+      if (updates.incompleteTasksReviewed !== undefined)
+        dbUpdates.incomplete_tasks_reviewed = updates.incompleteTasksReviewed;
+      if (updates.intentions !== undefined) dbUpdates.intentions = updates.intentions;
+      if (updates.celebrations !== undefined) dbUpdates.celebrations = updates.celebrations;
 
-    if (currentReview) {
-      // Update existing
-      const { data, error } = await supabase
-        .from('weekly_reviews')
-        .update(dbUpdates as TablesUpdate<'weekly_reviews'>)
-        .eq('id', currentReview.id)
-        .select()
-        .single();
+      if (currentReview) {
+        // Update existing
+        const { data, error } = await supabase
+          .from("weekly_reviews")
+          .update(dbUpdates as TablesUpdate<"weekly_reviews">)
+          .eq("id", currentReview.id)
+          .select()
+          .single();
 
-      if (data && !error) {
-        const updated = dbReviewToReview(data);
-        setCurrentReview(updated);
-        return updated;
+        if (data && !error) {
+          const updated = dbReviewToReview(data);
+          setCurrentReview(updated);
+          return updated;
+        }
+      } else {
+        // Create new
+        const { data, error } = await supabase
+          .from("weekly_reviews")
+          .insert({
+            user_id: userId,
+            week_start: weekStart,
+            ...dbUpdates,
+          })
+          .select()
+          .single();
+
+        if (data && !error) {
+          const newReview = dbReviewToReview(data);
+          setCurrentReview(newReview);
+          return newReview;
+        }
       }
-    } else {
-      // Create new
-      const { data, error } = await supabase
-        .from('weekly_reviews')
-        .insert({
-          user_id: userId,
-          week_start: weekStart,
-          ...dbUpdates,
-        })
-        .select()
-        .single();
-
-      if (data && !error) {
-        const newReview = dbReviewToReview(data);
-        setCurrentReview(newReview);
-        return newReview;
-      }
-    }
-    return null;
-  }, [userId, currentReview]);
+      return null;
+    },
+    [userId, currentReview],
+  );
 
   const getWeeklyStats = useCallback((tasks: Task[]) => {
     const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-    const weekTasks = tasks.filter(t => {
+    const weekTasks = tasks.filter((t) => {
       const createdAt = new Date(t.createdAt);
       return createdAt >= weekStart;
     });
 
-    const completed = weekTasks.filter(t => t.completed);
-    const incomplete = tasks.filter(t => !t.completed);
+    const completed = weekTasks.filter((t) => t.completed);
+    const incomplete = tasks.filter((t) => !t.completed);
 
     return {
       totalCreated: weekTasks.length,
       completedThisWeek: completed.length,
       incompleteTotal: incomplete.length,
       byPriority: {
-        high: incomplete.filter(t => t.priority === 'high').length,
-        medium: incomplete.filter(t => t.priority === 'medium').length,
-        low: incomplete.filter(t => t.priority === 'low').length,
+        high: incomplete.filter((t) => t.priority === "high").length,
+        medium: incomplete.filter((t) => t.priority === "medium").length,
+        low: incomplete.filter((t) => t.priority === "low").length,
       },
     };
   }, []);

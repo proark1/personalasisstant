@@ -354,4 +354,3 @@ This separates "ideas were generated" from "Telegram delivered" from "push/in-ap
 4. Add Telegram inline actions for content ideas.
 5. Wire `proactive_feedback` and `analytics_events` into a receptivity rollup.
 6. Decide whether `push` means real native push or in-app notification, then make the UX and code match.
-

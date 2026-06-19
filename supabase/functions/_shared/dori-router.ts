@@ -21,13 +21,13 @@
 // base prompt behaviour, so we never make it worse.
 
 export type Specialist =
-  | 'general'
-  | 'health'
-  | 'family'
-  | 'meeting'
-  | 'finance'
-  | 'travel'
-  | 'email';
+  | "general"
+  | "health"
+  | "family"
+  | "meeting"
+  | "finance"
+  | "travel"
+  | "email";
 
 export interface RouteResult {
   specialist: Specialist;
@@ -40,39 +40,75 @@ interface Pattern {
   weight: number;
 }
 
-const PATTERNS: Record<Exclude<Specialist, 'general'>, Pattern[]> = {
+const PATTERNS: Record<Exclude<Specialist, "general">, Pattern[]> = {
   health: [
-    { re: /\b(sleep|slept|sleeping|sleep score|hrv|heart rate|resting hr|steps?|calories?|workout|workouts|exercise|gym|run|running|walk|walking|stretch|yoga|meditation|mindfulness)\b/i, weight: 0.6 },
-    { re: /\b(medication|meds?|prescription|refill|doctor|appointment|symptom|sick|pain|ache|headache|fatigue|tired|energy|mood|anxiety|stress|fitness|weight|bmi|blood (pressure|sugar|oxygen)|water intake|hydration)\b/i, weight: 0.7 },
-    { re: /\b(diet|nutrition|eat|food|meal|breakfast|lunch|dinner|snack|recipe|calorie|protein|carbs?|fat)\b/i, weight: 0.4 },
+    {
+      re: /\b(sleep|slept|sleeping|sleep score|hrv|heart rate|resting hr|steps?|calories?|workout|workouts|exercise|gym|run|running|walk|walking|stretch|yoga|meditation|mindfulness)\b/i,
+      weight: 0.6,
+    },
+    {
+      re: /\b(medication|meds?|prescription|refill|doctor|appointment|symptom|sick|pain|ache|headache|fatigue|tired|energy|mood|anxiety|stress|fitness|weight|bmi|blood (pressure|sugar|oxygen)|water intake|hydration)\b/i,
+      weight: 0.7,
+    },
+    {
+      re: /\b(diet|nutrition|eat|food|meal|breakfast|lunch|dinner|snack|recipe|calorie|protein|carbs?|fat)\b/i,
+      weight: 0.4,
+    },
   ],
   family: [
-    { re: /\b(my (wife|husband|spouse|partner|kid|kids|son|daughter|child|children|mom|dad|mother|father|brother|sister|family))\b/i, weight: 0.7 },
-    { re: /\b(school|teacher|classroom|grade|kindergarten|daycare|nursery|homework|playdate|sleepover|birthday party|sitter|babysitter)\b/i, weight: 0.6 },
-    { re: /\b(shopping list|grocery|groceries|family schedule|family event|allergies?|allergy)\b/i, weight: 0.5 },
+    {
+      re: /\b(my (wife|husband|spouse|partner|kid|kids|son|daughter|child|children|mom|dad|mother|father|brother|sister|family))\b/i,
+      weight: 0.7,
+    },
+    {
+      re: /\b(school|teacher|classroom|grade|kindergarten|daycare|nursery|homework|playdate|sleepover|birthday party|sitter|babysitter)\b/i,
+      weight: 0.6,
+    },
+    {
+      re: /\b(shopping list|grocery|groceries|family schedule|family event|allergies?|allergy)\b/i,
+      weight: 0.5,
+    },
   ],
   meeting: [
     { re: /\b(schedule (a |an )?(meeting|call|sync|1:1|standup|review))\b/i, weight: 0.8 },
-    { re: /\b(find (a )?time|book a slot|find a slot|when (can|should) we meet|when (is|are) (\w+ )?free|set up a meeting)\b/i, weight: 0.8 },
-    { re: /\b(reschedule|move (the |that )?meeting|push (the |that )?meeting|cancel (the |that )?meeting)\b/i, weight: 0.7 },
+    {
+      re: /\b(find (a )?time|book a slot|find a slot|when (can|should) we meet|when (is|are) (\w+ )?free|set up a meeting)\b/i,
+      weight: 0.8,
+    },
+    {
+      re: /\b(reschedule|move (the |that )?meeting|push (the |that )?meeting|cancel (the |that )?meeting)\b/i,
+      weight: 0.7,
+    },
     { re: /\b(prep|prepare) (for )?(the |a |my )?(meeting|call|interview)\b/i, weight: 0.6 },
   ],
   finance: [
-    { re: /\b(contract|subscription|renewal|cancel(?:lation)?|bill|invoice|invoiced|payment|charged|spending|budget|cost|expense|salary|income|tax|taxes)\b/i, weight: 0.7 },
-    { re: /\b(insurance|netflix|spotify|amazon prime|electricity|gas|water|telecom|internet|mobile plan)\b/i, weight: 0.4 },
+    {
+      re: /\b(contract|subscription|renewal|cancel(?:lation)?|bill|invoice|invoiced|payment|charged|spending|budget|cost|expense|salary|income|tax|taxes)\b/i,
+      weight: 0.7,
+    },
+    {
+      re: /\b(insurance|netflix|spotify|amazon prime|electricity|gas|water|telecom|internet|mobile plan)\b/i,
+      weight: 0.4,
+    },
   ],
   travel: [
-    { re: /\b(flight|fly|flying|airport|hotel|airbnb|trip|travel(?:ing|ling)?|going to (\w+)|in (paris|london|berlin|nyc|tokyo|dubai)|destination|itinerary|pack(?:ing)?)\b/i, weight: 0.6 },
+    {
+      re: /\b(flight|fly|flying|airport|hotel|airbnb|trip|travel(?:ing|ling)?|going to (\w+)|in (paris|london|berlin|nyc|tokyo|dubai)|destination|itinerary|pack(?:ing)?)\b/i,
+      weight: 0.6,
+    },
     { re: /\b(visa|passport|booking|reservation|check[- ]in|jet ?lag)\b/i, weight: 0.7 },
   ],
   email: [
-    { re: /\b(email|inbox|gmail|reply to|draft (a |an )?(reply|email|response)|send (an |the )?email|compose)\b/i, weight: 0.7 },
+    {
+      re: /\b(email|inbox|gmail|reply to|draft (a |an )?(reply|email|response)|send (an |the )?email|compose)\b/i,
+      weight: 0.7,
+    },
     { re: /\b(unread|important emails?|latest emails?|from .{1,30}@)\b/i, weight: 0.6 },
   ],
 };
 
 const SPECIALIST_PROMPTS: Record<Specialist, string> = {
-  general: '',
+  general: "",
   health: `## ACTIVE SPECIALIST: HEALTH COACH
 Right now the user is asking about health, fitness, sleep, mood, food, or medical matters. Apply these rules in addition to the base prompt:
 - Pull the most recent dailySummary, weeklyTrends, medications, and appointments from context FIRST.
@@ -117,7 +153,7 @@ The user is asking about email. Apply these:
 };
 
 export function classifyIntent(message: string): RouteResult {
-  const text = message || '';
+  const text = message || "";
   const scores: Record<string, number> = {};
   const matched: Record<string, string[]> = {};
 
@@ -139,7 +175,7 @@ export function classifyIntent(message: string): RouteResult {
   // Pick the highest-scoring specialist if it clears a min bar; else general.
   const ranked = Object.entries(scores).sort(([, a], [, b]) => b - a);
   if (ranked.length === 0 || ranked[0][1] < 0.5) {
-    return { specialist: 'general', confidence: 0, matched: [] };
+    return { specialist: "general", confidence: 0, matched: [] };
   }
   const [winner, score] = ranked[0];
   // Confidence = score / (score + runner-up). Above 0.65 = clear win.
@@ -153,16 +189,18 @@ export function classifyIntent(message: string): RouteResult {
 }
 
 export function specialistPrompt(specialist: Specialist): string {
-  return SPECIALIST_PROMPTS[specialist] || '';
+  return SPECIALIST_PROMPTS[specialist] || "";
 }
 
 // Sticky routing: if the last turn picked a specialist and the new
 // message is a short follow-up ("yes", "do it", "ok", "the second
 // one"), keep the same specialist instead of re-classifying.
 export function isFollowUpAffirmative(message: string): boolean {
-  const m = (message || '').trim().toLowerCase();
+  const m = (message || "").trim().toLowerCase();
   if (m.length > 40) return false;
-  return /^(yes|y|ok|okay|sure|do it|go|go ahead|sounds good|perfect|👍|thumbs up|the (first|second|third|1st|2nd|3rd)( one)?|all of (them|those)|skip \d|drop \d)/.test(m);
+  return /^(yes|y|ok|okay|sure|do it|go|go ahead|sounds good|perfect|👍|thumbs up|the (first|second|third|1st|2nd|3rd)( one)?|all of (them|those)|skip \d|drop \d)/.test(
+    m,
+  );
 }
 
 export interface RouteDecision extends RouteResult {

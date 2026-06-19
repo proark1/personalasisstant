@@ -22,21 +22,21 @@ export function computeContractCosts(contracts: ContractCostInput[]): ContractCo
   for (const c of active) {
     if (!c.costAmount) continue;
     const amount = c.costAmount;
-    const freq = c.costFrequency || 'monthly';
+    const freq = c.costFrequency || "monthly";
     switch (freq) {
-      case 'monthly':
+      case "monthly":
         monthlyTotal += amount;
         yearlyTotal += amount * 12;
         break;
-      case 'yearly':
+      case "yearly":
         monthlyTotal += amount / 12;
         yearlyTotal += amount;
         break;
-      case 'quarterly':
+      case "quarterly":
         monthlyTotal += amount / 3;
         yearlyTotal += amount * 4;
         break;
-      case 'one_time':
+      case "one_time":
         yearlyTotal += amount;
         break;
       default:
@@ -56,9 +56,7 @@ export interface FormatContractCostInput extends ContractCostInput {
 
 // Format a textual summary block matching the prior inline rendering
 // (markdown-bold totals + the 10 most expensive line items).
-export function formatContractCostSummary(
-  contracts: FormatContractCostInput[],
-): string {
+export function formatContractCostSummary(contracts: FormatContractCostInput[]): string {
   const { monthlyTotal, yearlyTotal, activeCount } = computeContractCosts(contracts);
   const active = contracts.filter((c) => c.isActive !== false);
   const lineItems = active
@@ -67,9 +65,9 @@ export function formatContractCostSummary(
     .slice(0, 10)
     .map(
       (c) =>
-        `- ${c.name}${c.provider ? ` (${c.provider})` : ''}: €${c.costAmount}/${c.costFrequency || 'month'}`,
+        `- ${c.name}${c.provider ? ` (${c.provider})` : ""}: €${c.costAmount}/${c.costFrequency || "month"}`,
     )
-    .join('\n');
+    .join("\n");
 
   return (
     `📊 **Financial Summary**\n\n` +

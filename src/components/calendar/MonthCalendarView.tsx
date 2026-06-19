@@ -1,61 +1,62 @@
-import { useMemo, useState } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { CalendarEvent, Task } from '@/types/flux';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { usePublicHolidays } from '@/hooks/usePublicHolidays';
-import { useIslamicHolidays, IslamicHoliday } from '@/hooks/useIslamicHolidays';
-import { expandRecurringItems } from '@/lib/recurrenceExpander';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
+import { useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { CalendarEvent, Task } from "@/types/flux";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { usePublicHolidays } from "@/hooks/usePublicHolidays";
+import { useIslamicHolidays, IslamicHoliday } from "@/hooks/useIslamicHolidays";
+import { expandRecurringItems } from "@/lib/recurrenceExpander";
+import {
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Circle,
   Calendar as CalendarIcon,
   Plus,
   Flag,
-  Moon
-} from 'lucide-react';
-import { 
-  format, 
+  Moon,
+} from "lucide-react";
+import {
+  format,
   startOfMonth,
   endOfMonth,
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isToday, 
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isToday,
   isSameMonth,
   addMonths,
   subMonths,
   addWeeks,
   subWeeks,
   isPast,
-  parseISO
-} from 'date-fns';
-import { de, enUS } from 'date-fns/locale';
-import { toValidDate, formatSafe } from '@/lib/safeDate';
-import { EditTaskModal } from '../tasks/EditTaskModal';
+  parseISO,
+} from "date-fns";
+import { de, enUS } from "date-fns/locale";
+import { toValidDate, formatSafe } from "@/lib/safeDate";
+import { EditTaskModal } from "../tasks/EditTaskModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface MonthCalendarViewProps {
   events: CalendarEvent[];
   tasks: Task[];
   onToggleTaskComplete?: (id: string) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
-  onAddTask?: (task: Omit<Task, 'id' | 'createdAt'>) => void;
-  onItemClick?: (item: { id: string; type: 'event' | 'task' }) => void;
+  onAddTask?: (task: Omit<Task, "id" | "createdAt">) => void;
+  onItemClick?: (item: { id: string; type: "event" | "task" }) => void;
 }
 
-type ViewMode = 'month' | 'week' | 'day';
+type ViewMode = "month" | "week" | "day";
 
 export function MonthCalendarView({
   events,
@@ -66,16 +67,16 @@ export function MonthCalendarView({
   onItemClick,
 }: MonthCalendarViewProps) {
   const { t, language } = useLanguage();
-  const dateLocale = language === 'de' ? de : enUS;
+  const dateLocale = language === "de" ? de : enUS;
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showAddTaskDialog, setShowAddTaskDialog] = useState(false);
   const [selectedDateForTask, setSelectedDateForTask] = useState<Date | null>(null);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [newTaskCategory, setNewTaskCategory] = useState<'personal' | 'business'>('personal');
-  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState<"low" | "medium" | "high">("medium");
+  const [newTaskCategory, setNewTaskCategory] = useState<"personal" | "business">("personal");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
   const [selectedHoliday, setSelectedHoliday] = useState<{
     name: string;
     local_name: string | null;
@@ -84,18 +85,18 @@ export function MonthCalendarView({
     country_code: string;
   } | null>(null);
   const [selectedIslamicHoliday, setSelectedIslamicHoliday] = useState<IslamicHoliday | null>(null);
-  
+
   // Fetch public holidays
   const { holidays } = usePublicHolidays();
-  
+
   // Fetch Islamic holidays
   const { holidays: islamicHolidays } = useIslamicHolidays();
 
   // Calculate days based on view mode
   const days = useMemo(() => {
-    if (viewMode === 'day') {
+    if (viewMode === "day") {
       return [currentDate];
-    } else if (viewMode === 'week') {
+    } else if (viewMode === "week") {
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
       const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
       return eachDayOfInterval({ start: weekStart, end: weekEnd });
@@ -117,9 +118,9 @@ export function MonthCalendarView({
 
     return {
       expandedTasks: expandRecurringItems(
-        tasks.filter(t => t.dueDate && !t.parentId),
+        tasks.filter((t) => t.dueDate && !t.parentId),
         rangeStart,
-        rangeEnd
+        rangeEnd,
       ),
       expandedEvents: expandRecurringItems(events, rangeStart, rangeEnd),
     };
@@ -128,11 +129,11 @@ export function MonthCalendarView({
   // Group tasks by date (including recurrence instances)
   const tasksByDate = useMemo(() => {
     const map = new Map<string, (Task & { isRecurrenceInstance?: boolean })[]>();
-    expandedTasks.forEach(task => {
+    expandedTasks.forEach((task) => {
       if (task.dueDate && !task.parentId) {
         const due = toValidDate(task.dueDate);
         if (!due) return;
-        const dateKey = format(due, 'yyyy-MM-dd');
+        const dateKey = format(due, "yyyy-MM-dd");
         if (!map.has(dateKey)) {
           map.set(dateKey, []);
         }
@@ -145,10 +146,10 @@ export function MonthCalendarView({
   // Group events by date (including recurrence instances)
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
-    expandedEvents.forEach(event => {
+    expandedEvents.forEach((event) => {
       const start = toValidDate(event.startTime);
       if (!start) return;
-      const dateKey = format(start, 'yyyy-MM-dd');
+      const dateKey = format(start, "yyyy-MM-dd");
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }
@@ -160,7 +161,7 @@ export function MonthCalendarView({
   // Group holidays by date
   const holidaysByDate = useMemo(() => {
     const map = new Map<string, typeof holidays>();
-    holidays.forEach(holiday => {
+    holidays.forEach((holiday) => {
       const dateKey = holiday.date;
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
@@ -173,7 +174,7 @@ export function MonthCalendarView({
   // Group Islamic holidays by date
   const islamicHolidaysByDate = useMemo(() => {
     const map = new Map<string, IslamicHoliday[]>();
-    islamicHolidays.forEach(holiday => {
+    islamicHolidays.forEach((holiday) => {
       const dateKey = holiday.date;
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
@@ -183,35 +184,31 @@ export function MonthCalendarView({
     return map;
   }, [islamicHolidays]);
 
-  const navigate = (direction: 'prev' | 'next') => {
-    if (viewMode === 'day') {
-      setCurrentDate(prev => {
+  const navigate = (direction: "prev" | "next") => {
+    if (viewMode === "day") {
+      setCurrentDate((prev) => {
         const newDate = new Date(prev);
-        newDate.setDate(newDate.getDate() + (direction === 'prev' ? -1 : 1));
+        newDate.setDate(newDate.getDate() + (direction === "prev" ? -1 : 1));
         return newDate;
       });
-    } else if (viewMode === 'week') {
-      setCurrentDate(prev => 
-        direction === 'prev' ? subWeeks(prev, 1) : addWeeks(prev, 1)
-      );
+    } else if (viewMode === "week") {
+      setCurrentDate((prev) => (direction === "prev" ? subWeeks(prev, 1) : addWeeks(prev, 1)));
     } else {
-      setCurrentDate(prev => 
-        direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1)
-      );
+      setCurrentDate((prev) => (direction === "prev" ? subMonths(prev, 1) : addMonths(prev, 1)));
     }
   };
 
   const goToToday = () => {
     setCurrentDate(new Date());
-    setViewMode('day');
+    setViewMode("day");
   };
 
   const handleDayClick = (day: Date) => {
     setSelectedDateForTask(day);
-    setNewTaskTitle('');
-    setNewTaskPriority('medium');
-    setNewTaskCategory('personal');
-    setNewTaskDescription('');
+    setNewTaskTitle("");
+    setNewTaskPriority("medium");
+    setNewTaskCategory("personal");
+    setNewTaskDescription("");
     setShowAddTaskDialog(true);
   };
 
@@ -227,21 +224,21 @@ export function MonthCalendarView({
           category: newTaskCategory,
           dueDate: selectedDateForTask,
           completed: false,
-          status: 'backlog',
-        } as Omit<Task, 'id' | 'createdAt'>)
+          status: "backlog",
+        } as Omit<Task, "id" | "createdAt">),
       );
 
       setShowAddTaskDialog(false);
       setSelectedDateForTask(null);
     } catch (e) {
-      console.error('Failed to create task from calendar:', e);
+      console.error("Failed to create task from calendar:", e);
     }
   };
 
-  const handleItemClick = (item: { id: string; type: 'event' | 'task' }) => {
-    if (item.type === 'task') {
-      const baseId = item.id.split('-instance-')[0];
-      const task = tasks.find(t => t.id === baseId);
+  const handleItemClick = (item: { id: string; type: "event" | "task" }) => {
+    if (item.type === "task") {
+      const baseId = item.id.split("-instance-")[0];
+      const task = tasks.find((t) => t.id === baseId);
       if (task) {
         setEditingTask(task);
       }
@@ -251,30 +248,26 @@ export function MonthCalendarView({
   };
 
   const priorityColors: Record<string, string> = {
-    high: 'bg-destructive/20 text-destructive border-destructive/30',
-    medium: 'bg-warning/20 text-warning border-warning/30',
-    low: 'bg-muted text-muted-foreground border-border',
+    high: "bg-destructive/20 text-destructive border-destructive/30",
+    medium: "bg-warning/20 text-warning border-warning/30",
+    low: "bg-muted text-muted-foreground border-border",
   };
 
-  const weekDayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weekDayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  const headerLabel = viewMode === 'day'
-    ? format(currentDate, 'EEEE, MMM d, yyyy', { locale: dateLocale })
-    : viewMode === 'week'
-    ? `${format(days[0], 'MMM d', { locale: dateLocale })} - ${format(days[days.length - 1], 'MMM d, yyyy', { locale: dateLocale })}`
-    : format(currentDate, 'MMMM yyyy', { locale: dateLocale });
+  const headerLabel =
+    viewMode === "day"
+      ? format(currentDate, "EEEE, MMM d, yyyy", { locale: dateLocale })
+      : viewMode === "week"
+        ? `${format(days[0], "MMM d", { locale: dateLocale })} - ${format(days[days.length - 1], "MMM d, yyyy", { locale: dateLocale })}`
+        : format(currentDate, "MMMM yyyy", { locale: dateLocale });
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-3 py-2 flex items-center justify-between border-b border-border shrink-0">
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => navigate('prev')}
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("prev")}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <Button
@@ -285,51 +278,41 @@ export function MonthCalendarView({
           >
             {headerLabel}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => navigate('next')}
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("next")}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {/* View Toggle */}
           <div className="flex bg-muted/50 p-0.5 rounded-md">
             <Button
-              variant={viewMode === 'month' ? 'secondary' : 'ghost'}
+              variant={viewMode === "month" ? "secondary" : "ghost"}
               size="sm"
               className="h-6 px-2 text-[10px]"
-              onClick={() => setViewMode('month')}
+              onClick={() => setViewMode("month")}
             >
               Month
             </Button>
             <Button
-              variant={viewMode === 'week' ? 'secondary' : 'ghost'}
+              variant={viewMode === "week" ? "secondary" : "ghost"}
               size="sm"
               className="h-6 px-2 text-[10px]"
-              onClick={() => setViewMode('week')}
+              onClick={() => setViewMode("week")}
             >
               Week
             </Button>
             <Button
-              variant={viewMode === 'day' ? 'secondary' : 'ghost'}
+              variant={viewMode === "day" ? "secondary" : "ghost"}
               size="sm"
               className="h-6 px-2 text-[10px]"
-              onClick={() => setViewMode('day')}
+              onClick={() => setViewMode("day")}
             >
               Day
             </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs h-7"
-            onClick={goToToday}
-          >
-            {t('common.today')}
+          <Button variant="outline" size="sm" className="text-xs h-7" onClick={goToToday}>
+            {t("common.today")}
           </Button>
         </div>
       </div>
@@ -337,16 +320,21 @@ export function MonthCalendarView({
       {/* Calendar Grid */}
       <div className="flex-1 overflow-y-auto">
         {/* Day/Week/Month Views */}
-        {viewMode === 'day' ? (
+        {viewMode === "day" ? (
           /* Day View - List all items for today */
           <div className="p-4 space-y-3">
             {(() => {
-              const dateKey = format(currentDate, 'yyyy-MM-dd');
+              const dateKey = format(currentDate, "yyyy-MM-dd");
               const dayTasks = tasksByDate.get(dateKey) || [];
               const dayEvents = eventsByDate.get(dateKey) || [];
               const dayHolidays = holidaysByDate.get(dateKey) || [];
               const dayIslamicHolidays = islamicHolidaysByDate.get(dateKey) || [];
-              const hasItems = dayTasks.length + dayEvents.length + dayHolidays.length + dayIslamicHolidays.length > 0;
+              const hasItems =
+                dayTasks.length +
+                  dayEvents.length +
+                  dayHolidays.length +
+                  dayIslamicHolidays.length >
+                0;
 
               if (!hasItems) {
                 return (
@@ -373,18 +361,22 @@ export function MonthCalendarView({
                     <button
                       type="button"
                       key={holiday.id}
-                      onClick={() => setSelectedHoliday({
-                        name: holiday.name,
-                        local_name: holiday.local_name,
-                        date: holiday.date,
-                        country_name: holiday.country_name,
-                        country_code: holiday.country_code,
-                      })}
+                      onClick={() =>
+                        setSelectedHoliday({
+                          name: holiday.name,
+                          local_name: holiday.local_name,
+                          date: holiday.date,
+                          country_name: holiday.country_name,
+                          country_code: holiday.country_code,
+                        })
+                      }
                       className="w-full text-left p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg cursor-pointer hover:bg-emerald-500/20 transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <Flag className="w-4 h-4 text-emerald-600" />
-                        <span className="font-medium text-emerald-700 dark:text-emerald-400">{holiday.name}</span>
+                        <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                          {holiday.name}
+                        </span>
                       </div>
                       {holiday.local_name && holiday.local_name !== holiday.name && (
                         <p className="text-sm text-emerald-600/80 mt-1">{holiday.local_name}</p>
@@ -402,7 +394,9 @@ export function MonthCalendarView({
                     >
                       <div className="flex items-center gap-2">
                         <Moon className="w-4 h-4 text-amber-600" />
-                        <span className="font-medium text-amber-700 dark:text-amber-400">{holiday.name}</span>
+                        <span className="font-medium text-amber-700 dark:text-amber-400">
+                          {holiday.name}
+                        </span>
                       </div>
                       <p className="text-sm text-amber-600/80 mt-1">{holiday.local_name}</p>
                     </button>
@@ -413,7 +407,7 @@ export function MonthCalendarView({
                     <button
                       type="button"
                       key={event.id}
-                      onClick={() => handleItemClick({ id: event.id, type: 'event' })}
+                      onClick={() => handleItemClick({ id: event.id, type: "event" })}
                       className="w-full text-left p-3 bg-primary/10 border border-primary/30 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors"
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -421,7 +415,8 @@ export function MonthCalendarView({
                         <span className="font-medium">{event.title}</span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {formatSafe(event.startTime, 'h:mm a')} - {formatSafe(event.endTime, 'h:mm a')}
+                        {formatSafe(event.startTime, "h:mm a")} -{" "}
+                        {formatSafe(event.endTime, "h:mm a")}
                       </p>
                       {event.location && (
                         <p className="text-xs text-muted-foreground mt-1">📍 {event.location}</p>
@@ -434,9 +429,13 @@ export function MonthCalendarView({
 
                   {/* Tasks */}
                   {dayTasks.map((task) => {
-                    const isOverdue = task.dueDate && !task.completed && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate));
-                    const baseId = task.id.split('-instance-')[0];
-                    
+                    const isOverdue =
+                      task.dueDate &&
+                      !task.completed &&
+                      isPast(new Date(task.dueDate)) &&
+                      !isToday(new Date(task.dueDate));
+                    const baseId = task.id.split("-instance-")[0];
+
                     return (
                       <div
                         key={`${task.id}-${task.dueDate?.toString()}`}
@@ -447,13 +446,13 @@ export function MonthCalendarView({
                           task.completed
                             ? "bg-muted/30 border-muted"
                             : priorityColors[task.priority] || priorityColors.low,
-                          isOverdue && "border-destructive"
+                          isOverdue && "border-destructive",
                         )}
-                        onClick={() => handleItemClick({ id: task.id, type: 'task' })}
+                        onClick={() => handleItemClick({ id: task.id, type: "task" })}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
+                          if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            handleItemClick({ id: task.id, type: 'task' });
+                            handleItemClick({ id: task.id, type: "task" });
                           }
                         }}
                       >
@@ -472,14 +471,18 @@ export function MonthCalendarView({
                             )}
                           </button>
                           <div className="flex-1 min-w-0">
-                            <span className={cn(
-                              "font-medium block",
-                              task.completed && "line-through text-muted-foreground"
-                            )}>
+                            <span
+                              className={cn(
+                                "font-medium block",
+                                task.completed && "line-through text-muted-foreground",
+                              )}
+                            >
                               {task.title}
                             </span>
                             {task.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {task.description}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -501,17 +504,22 @@ export function MonthCalendarView({
               );
             })()}
           </div>
-        ) : viewMode === 'week' ? (
+        ) : viewMode === "week" ? (
           /* Week View - Vertical list of all items */
           <div className="p-3 space-y-4">
             {days.map((day) => {
-              const dateKey = format(day, 'yyyy-MM-dd');
+              const dateKey = format(day, "yyyy-MM-dd");
               const dayTasks = tasksByDate.get(dateKey) || [];
               const dayEvents = eventsByDate.get(dateKey) || [];
               const dayHolidays = holidaysByDate.get(dateKey) || [];
               const dayIslamicHolidays = islamicHolidaysByDate.get(dateKey) || [];
               const isCurrentDay = isToday(day);
-              const hasItems = dayTasks.length + dayEvents.length + dayHolidays.length + dayIslamicHolidays.length > 0;
+              const hasItems =
+                dayTasks.length +
+                  dayEvents.length +
+                  dayHolidays.length +
+                  dayIslamicHolidays.length >
+                0;
 
               return (
                 <div key={day.toISOString()} className="space-y-2">
@@ -520,28 +528,27 @@ export function MonthCalendarView({
                     type="button"
                     className={cn(
                       "w-full text-left flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-muted/50",
-                      isCurrentDay && "bg-primary/10"
+                      isCurrentDay && "bg-primary/10",
                     )}
                     onClick={() => {
                       setCurrentDate(day);
-                      setViewMode('day');
+                      setViewMode("day");
                     }}
                   >
-                    <div className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold",
-                      isCurrentDay ? "bg-primary text-primary-foreground" : "bg-muted"
-                    )}>
-                      {format(day, 'd')}
+                    <div
+                      className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold",
+                        isCurrentDay ? "bg-primary text-primary-foreground" : "bg-muted",
+                      )}
+                    >
+                      {format(day, "d")}
                     </div>
                     <div>
-                      <div className={cn(
-                        "text-sm font-medium",
-                        isCurrentDay && "text-primary"
-                      )}>
-                        {format(day, 'EEEE', { locale: dateLocale })}
+                      <div className={cn("text-sm font-medium", isCurrentDay && "text-primary")}>
+                        {format(day, "EEEE", { locale: dateLocale })}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {format(day, 'MMM d', { locale: dateLocale })}
+                        {format(day, "MMM d", { locale: dateLocale })}
                       </div>
                     </div>
                     {!hasItems && (
@@ -557,18 +564,22 @@ export function MonthCalendarView({
                         <button
                           type="button"
                           key={holiday.id}
-                          onClick={() => setSelectedHoliday({
-                            name: holiday.name,
-                            local_name: holiday.local_name,
-                            date: holiday.date,
-                            country_name: holiday.country_name,
-                            country_code: holiday.country_code,
-                          })}
+                          onClick={() =>
+                            setSelectedHoliday({
+                              name: holiday.name,
+                              local_name: holiday.local_name,
+                              date: holiday.date,
+                              country_name: holiday.country_name,
+                              country_code: holiday.country_code,
+                            })
+                          }
                           className="w-full text-left p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg cursor-pointer hover:bg-emerald-500/20 transition-colors"
                         >
                           <div className="flex items-center gap-2">
                             <Flag className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{holiday.name}</span>
+                            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                              {holiday.name}
+                            </span>
                           </div>
                         </button>
                       ))}
@@ -583,7 +594,9 @@ export function MonthCalendarView({
                         >
                           <div className="flex items-center gap-2">
                             <Moon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span className="text-sm font-medium text-amber-700 dark:text-amber-400">{holiday.name}</span>
+                            <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                              {holiday.name}
+                            </span>
                           </div>
                         </button>
                       ))}
@@ -593,7 +606,7 @@ export function MonthCalendarView({
                         <button
                           type="button"
                           key={event.id}
-                          onClick={() => handleItemClick({ id: event.id, type: 'event' })}
+                          onClick={() => handleItemClick({ id: event.id, type: "event" })}
                           className="w-full text-left p-2 bg-primary/10 border border-primary/30 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors"
                         >
                           <div className="flex items-start gap-2">
@@ -601,10 +614,13 @@ export function MonthCalendarView({
                             <div className="flex-1 min-w-0">
                               <span className="text-sm font-medium block">{event.title}</span>
                               <span className="text-xs text-muted-foreground">
-                                {formatSafe(event.startTime, 'h:mm a')} - {formatSafe(event.endTime, 'h:mm a')}
+                                {formatSafe(event.startTime, "h:mm a")} -{" "}
+                                {formatSafe(event.endTime, "h:mm a")}
                               </span>
                               {event.location && (
-                                <span className="text-xs text-muted-foreground block">📍 {event.location}</span>
+                                <span className="text-xs text-muted-foreground block">
+                                  📍 {event.location}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -613,8 +629,12 @@ export function MonthCalendarView({
 
                       {/* Tasks - show ALL with full text */}
                       {dayTasks.map((task) => {
-                        const isOverdue = task.dueDate && !task.completed && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate));
-                        const baseId = task.id.split('-instance-')[0];
+                        const isOverdue =
+                          task.dueDate &&
+                          !task.completed &&
+                          isPast(new Date(task.dueDate)) &&
+                          !isToday(new Date(task.dueDate));
+                        const baseId = task.id.split("-instance-")[0];
 
                         return (
                           <div
@@ -626,13 +646,13 @@ export function MonthCalendarView({
                               task.completed
                                 ? "bg-muted/30 border-muted"
                                 : priorityColors[task.priority] || priorityColors.low,
-                              isOverdue && "border-destructive"
+                              isOverdue && "border-destructive",
                             )}
-                            onClick={() => handleItemClick({ id: task.id, type: 'task' })}
+                            onClick={() => handleItemClick({ id: task.id, type: "task" })}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
+                              if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
-                                handleItemClick({ id: task.id, type: 'task' });
+                                handleItemClick({ id: task.id, type: "task" });
                               }
                             }}
                           >
@@ -650,10 +670,12 @@ export function MonthCalendarView({
                                   <Circle className="w-4 h-4" />
                                 )}
                               </button>
-                              <span className={cn(
-                                "text-sm font-medium",
-                                task.completed && "line-through text-muted-foreground"
-                              )}>
+                              <span
+                                className={cn(
+                                  "text-sm font-medium",
+                                  task.completed && "line-through text-muted-foreground",
+                                )}
+                              >
                                 {task.title}
                               </span>
                             </div>
@@ -672,10 +694,7 @@ export function MonthCalendarView({
             {/* Day Headers */}
             <div className="grid grid-cols-7 border-b border-border sticky top-0 bg-background z-10">
               {weekDayNames.map((day) => (
-                <div
-                  key={day}
-                  className="py-2 text-center border-r last:border-r-0 border-border"
-                >
+                <div key={day} className="py-2 text-center border-r last:border-r-0 border-border">
                   <div className="text-[10px] text-muted-foreground uppercase font-medium">
                     {day}
                   </div>
@@ -686,45 +705,51 @@ export function MonthCalendarView({
             {/* Days Grid */}
             <div className="grid grid-cols-7">
               {days.map((day) => {
-                const dateKey = format(day, 'yyyy-MM-dd');
+                const dateKey = format(day, "yyyy-MM-dd");
                 const dayTasks = tasksByDate.get(dateKey) || [];
                 const dayEvents = eventsByDate.get(dateKey) || [];
                 const dayHolidays = holidaysByDate.get(dateKey) || [];
                 const dayIslamicHolidays = islamicHolidaysByDate.get(dateKey) || [];
                 const isCurrentDay = isToday(day);
                 const isCurrentMonth = isSameMonth(day, currentDate);
-                const totalItems = dayTasks.length + dayEvents.length + dayHolidays.length + dayIslamicHolidays.length;
+                const totalItems =
+                  dayTasks.length +
+                  dayEvents.length +
+                  dayHolidays.length +
+                  dayIslamicHolidays.length;
 
                 return (
                   <div
                     key={day.toISOString()}
                     role="button"
                     tabIndex={0}
-                    aria-label={format(day, 'PPPP', { locale: dateLocale })}
+                    aria-label={format(day, "PPPP", { locale: dateLocale })}
                     onClick={() => {
                       setCurrentDate(day);
-                      setViewMode('day');
+                      setViewMode("day");
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
+                      if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         setCurrentDate(day);
-                        setViewMode('day');
+                        setViewMode("day");
                       }
                     }}
                     className={cn(
                       "border-r last:border-r-0 border-b border-border p-1 cursor-pointer hover:bg-muted/50 transition-colors min-h-[80px]",
                       isCurrentDay && "bg-primary/5",
-                      !isCurrentMonth && "bg-muted/30"
+                      !isCurrentMonth && "bg-muted/30",
                     )}
                   >
                     {/* Day Number */}
-                    <div className={cn(
-                      "text-xs font-medium mb-1 px-1 flex items-center justify-between",
-                      isCurrentDay && "text-primary",
-                      !isCurrentMonth && "text-muted-foreground/50"
-                    )}>
-                      <span>{format(day, 'd')}</span>
+                    <div
+                      className={cn(
+                        "text-xs font-medium mb-1 px-1 flex items-center justify-between",
+                        isCurrentDay && "text-primary",
+                        !isCurrentMonth && "text-muted-foreground/50",
+                      )}
+                    >
+                      <span>{format(day, "d")}</span>
                     </div>
 
                     <div className="space-y-0.5 overflow-hidden">
@@ -745,7 +770,7 @@ export function MonthCalendarView({
                             });
                           }}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
+                            if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
                               e.stopPropagation();
                               setSelectedHoliday({
@@ -776,7 +801,7 @@ export function MonthCalendarView({
                             setSelectedIslamicHoliday(holiday);
                           }}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
+                            if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
                               e.stopPropagation();
                               setSelectedIslamicHoliday(holiday);
@@ -798,13 +823,13 @@ export function MonthCalendarView({
                           tabIndex={0}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleItemClick({ id: event.id, type: 'event' });
+                            handleItemClick({ id: event.id, type: "event" });
                           }}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
+                            if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
                               e.stopPropagation();
-                              handleItemClick({ id: event.id, type: 'event' });
+                              handleItemClick({ id: event.id, type: "event" });
                             }
                           }}
                           className="px-1 py-0.5 text-[9px] bg-primary/20 text-primary rounded truncate cursor-pointer hover:bg-primary/30 transition-colors"
@@ -815,9 +840,13 @@ export function MonthCalendarView({
 
                       {/* Tasks */}
                       {dayTasks.slice(0, 2).map((task) => {
-                        const isOverdue = task.dueDate && !task.completed && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate));
-                        const baseId = task.id.split('-instance-')[0];
-                        
+                        const isOverdue =
+                          task.dueDate &&
+                          !task.completed &&
+                          isPast(new Date(task.dueDate)) &&
+                          !isToday(new Date(task.dueDate));
+                        const baseId = task.id.split("-instance-")[0];
+
                         return (
                           <div
                             key={`${task.id}-${task.dueDate?.toString()}`}
@@ -829,17 +858,17 @@ export function MonthCalendarView({
                                 ? "bg-muted/50 text-muted-foreground line-through opacity-60"
                                 : priorityColors[task.priority] || priorityColors.low,
                               isOverdue && "border-destructive",
-                              task.isRecurrenceInstance && "border-dashed"
+                              task.isRecurrenceInstance && "border-dashed",
                             )}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleItemClick({ id: task.id, type: 'task' });
+                              handleItemClick({ id: task.id, type: "task" });
                             }}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
+                              if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                handleItemClick({ id: task.id, type: 'task' });
+                                handleItemClick({ id: task.id, type: "task" });
                               }
                             }}
                           >
@@ -883,15 +912,15 @@ export function MonthCalendarView({
         <EditTaskModal
           task={editingTask}
           onClose={() => setEditingTask(null)}
-           onSave={async (id, updates) => {
-             try {
-               await Promise.resolve(onUpdateTask?.(id, updates));
-               setEditingTask(null);
-             } catch (e) {
-               console.error('Failed to update task from calendar:', e);
-               throw e;
-             }
-           }}
+          onSave={async (id, updates) => {
+            try {
+              await Promise.resolve(onUpdateTask?.(id, updates));
+              setEditingTask(null);
+            } catch (e) {
+              console.error("Failed to update task from calendar:", e);
+              throw e;
+            }
+          }}
           onDelete={() => {
             setEditingTask(null);
           }}
@@ -904,16 +933,17 @@ export function MonthCalendarView({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
-              {t('tasks.addTask')} - {selectedDateForTask && format(selectedDateForTask, 'PP', { locale: dateLocale })}
+              {t("tasks.addTask")} -{" "}
+              {selectedDateForTask && format(selectedDateForTask, "PP", { locale: dateLocale })}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="task-title">{t('tasks.title')}</Label>
+              <Label htmlFor="task-title">{t("tasks.title")}</Label>
               <Input
                 id="task-title"
-                placeholder={t('tasks.titlePlaceholder') || 'Task title...'}
+                placeholder={t("tasks.titlePlaceholder") || "Task title..."}
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 autoFocus
@@ -921,10 +951,10 @@ export function MonthCalendarView({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="task-description">{t('tasks.description')}</Label>
+              <Label htmlFor="task-description">{t("tasks.description")}</Label>
               <Textarea
                 id="task-description"
-                placeholder={t('tasks.descriptionPlaceholder') || 'Description (optional)...'}
+                placeholder={t("tasks.descriptionPlaceholder") || "Description (optional)..."}
                 value={newTaskDescription}
                 onChange={(e) => setNewTaskDescription(e.target.value)}
                 rows={2}
@@ -933,28 +963,34 @@ export function MonthCalendarView({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t('tasks.priority')}</Label>
-                <Select value={newTaskPriority} onValueChange={(v) => setNewTaskPriority(v as 'low' | 'medium' | 'high')}>
+                <Label>{t("tasks.priority")}</Label>
+                <Select
+                  value={newTaskPriority}
+                  onValueChange={(v) => setNewTaskPriority(v as "low" | "medium" | "high")}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">{t('priority.low')}</SelectItem>
-                    <SelectItem value="medium">{t('priority.medium')}</SelectItem>
-                    <SelectItem value="high">{t('priority.high')}</SelectItem>
+                    <SelectItem value="low">{t("priority.low")}</SelectItem>
+                    <SelectItem value="medium">{t("priority.medium")}</SelectItem>
+                    <SelectItem value="high">{t("priority.high")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label>{t('tasks.category')}</Label>
-                <Select value={newTaskCategory} onValueChange={(v) => setNewTaskCategory(v as 'personal' | 'business')}>
+                <Label>{t("tasks.category")}</Label>
+                <Select
+                  value={newTaskCategory}
+                  onValueChange={(v) => setNewTaskCategory(v as "personal" | "business")}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="personal">{t('category.personal')}</SelectItem>
-                    <SelectItem value="business">{t('category.business')}</SelectItem>
+                    <SelectItem value="personal">{t("category.personal")}</SelectItem>
+                    <SelectItem value="business">{t("category.business")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -962,10 +998,10 @@ export function MonthCalendarView({
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowAddTaskDialog(false)}>
-                {t('common.cancel')}
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleCreateTask} disabled={!newTaskTitle.trim()}>
-                {t('tasks.addTask')}
+                {t("tasks.addTask")}
               </Button>
             </div>
           </div>
@@ -981,26 +1017,33 @@ export function MonthCalendarView({
               Public Holiday
             </DialogTitle>
           </DialogHeader>
-          
+
           {selectedHoliday && (
             <div className="space-y-4 py-2">
               <div className="space-y-1">
                 <p className="text-lg font-semibold">{selectedHoliday.name}</p>
-                {selectedHoliday.local_name && selectedHoliday.local_name !== selectedHoliday.name && (
-                  <p className="text-sm text-muted-foreground italic">
-                    {selectedHoliday.local_name}
-                  </p>
-                )}
+                {selectedHoliday.local_name &&
+                  selectedHoliday.local_name !== selectedHoliday.name && (
+                    <p className="text-sm text-muted-foreground italic">
+                      {selectedHoliday.local_name}
+                    </p>
+                  )}
               </div>
 
               <div className="grid gap-3 text-sm">
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                  <span>{format(parseISO(selectedHoliday.date), 'EEEE, MMMM d, yyyy', { locale: dateLocale })}</span>
+                  <span>
+                    {format(parseISO(selectedHoliday.date), "EEEE, MMMM d, yyyy", {
+                      locale: dateLocale,
+                    })}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Flag className="w-4 h-4 text-muted-foreground" />
-                  <span>{selectedHoliday.country_name} ({selectedHoliday.country_code})</span>
+                  <span>
+                    {selectedHoliday.country_name} ({selectedHoliday.country_code})
+                  </span>
                 </div>
               </div>
 
@@ -1015,7 +1058,10 @@ export function MonthCalendarView({
       </Dialog>
 
       {/* Islamic Holiday Details Dialog */}
-      <Dialog open={!!selectedIslamicHoliday} onOpenChange={(open) => !open && setSelectedIslamicHoliday(null)}>
+      <Dialog
+        open={!!selectedIslamicHoliday}
+        onOpenChange={(open) => !open && setSelectedIslamicHoliday(null)}
+      >
         <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1023,7 +1069,7 @@ export function MonthCalendarView({
               Islamic Event
             </DialogTitle>
           </DialogHeader>
-          
+
           {selectedIslamicHoliday && (
             <div className="space-y-4 py-2">
               <div className="space-y-1">
@@ -1036,7 +1082,11 @@ export function MonthCalendarView({
               <div className="grid gap-3 text-sm">
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                  <span>{format(parseISO(selectedIslamicHoliday.date), 'EEEE, MMMM d, yyyy', { locale: dateLocale })}</span>
+                  <span>
+                    {format(parseISO(selectedIslamicHoliday.date), "EEEE, MMMM d, yyyy", {
+                      locale: dateLocale,
+                    })}
+                  </span>
                 </div>
               </div>
 
@@ -1048,7 +1098,9 @@ export function MonthCalendarView({
               {/* Actions */}
               {selectedIslamicHoliday.actions && selectedIslamicHoliday.actions.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Recommended Actions:</p>
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                    Recommended Actions:
+                  </p>
                   <ul className="space-y-1">
                     {selectedIslamicHoliday.actions.map((action, index) => (
                       <li key={index} className="flex items-start gap-2 text-sm">
@@ -1063,7 +1115,9 @@ export function MonthCalendarView({
               {/* Special Prayer */}
               {selectedIslamicHoliday.specialPrayer && (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">Special Prayer:</p>
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">
+                    Special Prayer:
+                  </p>
                   <p className="text-sm">{selectedIslamicHoliday.specialPrayer}</p>
                 </div>
               )}
@@ -1078,9 +1132,7 @@ export function MonthCalendarView({
                   <p className="text-sm italic text-muted-foreground">
                     {selectedIslamicHoliday.dua.transliteration}
                   </p>
-                  <p className="text-sm">
-                    {selectedIslamicHoliday.dua.translation}
-                  </p>
+                  <p className="text-sm">{selectedIslamicHoliday.dua.translation}</p>
                 </div>
               )}
 

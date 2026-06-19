@@ -9,77 +9,78 @@
 // All views/queries are RLS-scoped via auth.uid(); the edge function
 // just executes them and shapes the response.
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ error: 'Missing auth' }, 401);
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return json({ error: "Missing auth" }, 401);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const userClient = createClient(
       supabaseUrl,
-      Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!,
+      Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
-    const { data: { user }, error: uErr } = await userClient.auth.getUser();
-    if (uErr || !user) return json({ error: 'Unauthorized' }, 401);
+    const {
+      data: { user },
+      error: uErr,
+    } = await userClient.auth.getUser();
+    if (uErr || !user) return json({ error: "Unauthorized" }, 401);
 
-    const admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Run the queries in parallel — none depend on each other.
     const [accRes, sumRes, txRes, auditRes, connRes] = await Promise.all([
       admin
-        .from('financial_accounts')
-        .select('id, name, account_type, institution, currency, current_balance, source, mask, subtype, bank_connection_id, is_active')
-        .eq('user_id', user.id)
-        .eq('is_active', true),
+        .from("financial_accounts")
+        .select(
+          "id, name, account_type, institution, currency, current_balance, source, mask, subtype, bank_connection_id, is_active",
+        )
+        .eq("user_id", user.id)
+        .eq("is_active", true),
       // finance_summary uses auth.uid() inside the view, so a direct
       // user_id filter is redundant but documents intent.
+      admin.from("finance_summary").select("*").eq("user_id", user.id),
       admin
-        .from('finance_summary')
-        .select('*')
-        .eq('user_id', user.id),
-      admin
-        .from('financial_transactions')
-        .select('id, account_id, amount, direction, category, description, merchant, occurred_on, pending, source')
-        .eq('user_id', user.id)
-        .gte('occurred_on', isoDaysAgo(30))
-        .order('occurred_on', { ascending: false })
+        .from("financial_transactions")
+        .select(
+          "id, account_id, amount, direction, category, description, merchant, occurred_on, pending, source",
+        )
+        .eq("user_id", user.id)
+        .gte("occurred_on", isoDaysAgo(30))
+        .order("occurred_on", { ascending: false })
         .limit(100),
+      admin.from("subscription_audit").select("*").eq("user_id", user.id),
       admin
-        .from('subscription_audit')
-        .select('*')
-        .eq('user_id', user.id),
-      admin
-        .from('bank_connections')
-        .select('id, provider, institution_name, status, last_synced_at, last_error')
-        .eq('user_id', user.id)
-        .neq('status', 'disabled'),
+        .from("bank_connections")
+        .select("id, provider, institution_name, status, last_synced_at, last_error")
+        .eq("user_id", user.id)
+        .neq("status", "disabled"),
     ]);
 
     // Per-currency balance + 30d in/out totals.
     const accounts = accRes.data ?? [];
     const balances: Record<string, number> = {};
     for (const a of accounts as Array<Record<string, unknown>>) {
-      const cur = a.currency || 'USD';
+      const cur = a.currency || "USD";
       balances[cur] = (balances[cur] || 0) + Number(a.current_balance || 0);
     }
 
     let totalSpend30d = 0;
     let totalIncome30d = 0;
     for (const t of (txRes.data ?? []) as Array<Record<string, unknown>>) {
-      if (t.direction === 'expense') totalSpend30d += Number(t.amount);
-      else if (t.direction === 'income') totalIncome30d += Number(t.amount);
+      if (t.direction === "expense") totalSpend30d += Number(t.amount);
+      else if (t.direction === "income") totalIncome30d += Number(t.amount);
     }
 
     return json({
@@ -97,7 +98,7 @@ serve(async (req) => {
       },
     });
   } catch (err) {
-    console.error('[finance-summary] failed', (err as Error).message);
+    console.error("[finance-summary] failed", (err as Error).message);
     return json({ error: (err as Error).message }, 500);
   }
 });
@@ -117,8 +118,8 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: {
       ...corsHeaders,
-      'Content-Type': 'application/json',
-      'X-Content-Type-Options': 'nosniff',
+      "Content-Type": "application/json",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

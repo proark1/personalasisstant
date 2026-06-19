@@ -184,7 +184,7 @@ Gaps:
 - There are two action-risk systems:
   - `src/lib/actionRisk.ts` is pure client-side classification.
   - `chat/index.ts` has its own server-side `MUTATING_TOOLS` and `requiresConfirmation`.
-  They are not obviously the same source of truth.
+    They are not obviously the same source of truth.
 - Native tool calling exists but is opt-in via `x-dori-native-tools: 1`. Telegram calls do not set that header, so Telegram still relies on XML tool tags.
 - Some tools advertised in the assistant prompt are not included in `NATIVE_TOOLS`, so native rollout is incomplete.
 - The assistant prompt says "Any task with a date -> ALSO create a calendar event" because of a stated preference. That may be too aggressive globally unless user-specific memory proves it.
@@ -479,20 +479,20 @@ Minimum matrix:
 
 ## Concrete Backlog
 
-| Priority | Item | Why |
-|---|---|---|
-| P0 | Fix workspace group text routing | Workspace Telegram groups cannot be trusted until this is fixed. |
-| P0 | Replace WAV `sendVoice` upload | Telegram voice replies may fail or render incorrectly. |
-| P0 | Replace audio-as-`image_url` transcription | Unsupported/fragile path for core voice input. |
-| P0 | Require webhook secret in production | Prevent spoofed Telegram updates. |
-| P1 | Add chat-ref scoped memory | Prevent context bleed across Telegram chats. |
-| P1 | Use `chunkForTelegram` globally | Prevent silent truncation. |
-| P1 | Add German fixtures | Product requirement is bilingual, not "model probably can". |
-| P1 | Enable native tools for Telegram | Reduces XML parsing risk and malformed tool calls. |
-| P1 | Update diagnostics for webhooks | Current UI still implies cron health for replies. |
-| P2 | Scoped/localized command menus | Better Telegram UX and lower command overload. |
-| P2 | Workspace Telegram settings UI | Backend support needs visible onboarding. |
-| P2 | Improve document extraction | Current PDF regex is not enough for real contracts/statements. |
+| Priority | Item                                       | Why                                                              |
+| -------- | ------------------------------------------ | ---------------------------------------------------------------- |
+| P0       | Fix workspace group text routing           | Workspace Telegram groups cannot be trusted until this is fixed. |
+| P0       | Replace WAV `sendVoice` upload             | Telegram voice replies may fail or render incorrectly.           |
+| P0       | Replace audio-as-`image_url` transcription | Unsupported/fragile path for core voice input.                   |
+| P0       | Require webhook secret in production       | Prevent spoofed Telegram updates.                                |
+| P1       | Add chat-ref scoped memory                 | Prevent context bleed across Telegram chats.                     |
+| P1       | Use `chunkForTelegram` globally            | Prevent silent truncation.                                       |
+| P1       | Add German fixtures                        | Product requirement is bilingual, not "model probably can".      |
+| P1       | Enable native tools for Telegram           | Reduces XML parsing risk and malformed tool calls.               |
+| P1       | Update diagnostics for webhooks            | Current UI still implies cron health for replies.                |
+| P2       | Scoped/localized command menus             | Better Telegram UX and lower command overload.                   |
+| P2       | Workspace Telegram settings UI             | Backend support needs visible onboarding.                        |
+| P2       | Improve document extraction                | Current PDF regex is not enough for real contracts/statements.   |
 
 ## Official Platform Notes
 

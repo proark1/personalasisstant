@@ -13,13 +13,14 @@
 //
 // Auth: service-role bearer.
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { strictAppOrigin } from "../_shared/cors.ts";
+import { mintInternalToken } from "../_shared/auth.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 // "Stale" threshold: a bot that hasn't been updated in this long is a
@@ -27,32 +28,37 @@ const corsHeaders = {
 const STALE_MINUTES = 25;
 
 const ACTIVE_STATUSES = [
-  'pending', 'scheduled', 'joining', 'in_call',
-  'call_ended', 'transcript_ready', 'analysis_ready',
+  "pending",
+  "scheduled",
+  "joining",
+  "in_call",
+  "call_ended",
+  "transcript_ready",
+  "analysis_ready",
 ];
 
 const PER_RUN_LIMIT = 40;
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const authHeader = req.headers.get('Authorization') || '';
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    if (!serviceKey || authHeader.replace(/^Bearer\s+/i, '') !== serviceKey) {
-      return json({ error: 'Unauthorized' }, 401);
+    const authHeader = req.headers.get("Authorization") || "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (!serviceKey || authHeader.replace(/^Bearer\s+/i, "") !== serviceKey) {
+      return json({ error: "Unauthorized" }, 401);
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(supabaseUrl, serviceKey);
 
     const cutoff = new Date(Date.now() - STALE_MINUTES * 60_000).toISOString();
     const { data: stale, error } = await admin
-      .from('meeting_bots')
-      .select('id, user_id, external_bot_id, status, updated_at, title')
-      .in('status', ACTIVE_STATUSES)
-      .lt('updated_at', cutoff)
-      .not('external_bot_id', 'is', null)
-      .order('updated_at', { ascending: true })
+      .from("meeting_bots")
+      .select("id, user_id, external_bot_id, status, updated_at, title")
+      .in("status", ACTIVE_STATUSES)
+      .lt("updated_at", cutoff)
+      .not("external_bot_id", "is", null)
+      .order("updated_at", { ascending: true })
       .limit(PER_RUN_LIMIT);
     if (error) return json({ error: error.message }, 500);
 
@@ -61,13 +67,14 @@ serve(async (req) => {
     for (const bot of (stale ?? []) as Array<{ id: string; user_id: string }>) {
       try {
         const r = await fetch(`${supabaseUrl}/functions/v1/meeting-bot-control`, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json',
-            'x-telegram-user-id': bot.user_id,
+            "Content-Type": "application/json",
+            "x-telegram-user-id": bot.user_id,
+            "x-internal-token": await mintInternalToken(bot.user_id),
           },
-          body: JSON.stringify({ id: bot.id, action: 'refresh' }),
+          body: JSON.stringify({ id: bot.id, action: "refresh" }),
           signal: AbortSignal.timeout(40_000),
         });
         if (r.ok) refreshed += 1;
@@ -84,7 +91,7 @@ serve(async (req) => {
       errors: errors.slice(0, 10),
     });
   } catch (err) {
-    console.error('[meeting-bot-reconciler-cron] failed', (err as Error).message);
+    console.error("[meeting-bot-reconciler-cron] failed", (err as Error).message);
     return json({ error: (err as Error).message }, 500);
   }
 });
@@ -92,6 +99,10 @@ serve(async (req) => {
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Content-Type-Options': 'nosniff' },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }

@@ -1,25 +1,32 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
-import { 
-  ShoppingCart, 
-  Plus, 
-  Users, 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
+import {
+  ShoppingCart,
+  Plus,
+  Users,
   Apple,
   Milk,
   Beef,
   Croissant,
   Sparkles,
-  Check
-} from 'lucide-react';
-import { Project } from '@/types/flux';
+  Check,
+} from "lucide-react";
+import { Project } from "@/types/flux";
 
 interface Contact {
   userId: string;
@@ -28,87 +35,94 @@ interface Contact {
 }
 
 interface FamilyShoppingTemplateProps {
-  onCreateProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Project | null>;
+  onCreateProject: (
+    project: Omit<Project, "id" | "createdAt" | "updatedAt">,
+  ) => Promise<Project | null>;
   onShareProject: (projectId: string, email: string) => Promise<{ error: string | null }>;
-  onAddTask: (task: { title: string; projectId: string; category: 'personal'; priority: 'medium' }) => void;
+  onAddTask: (task: {
+    title: string;
+    projectId: string;
+    category: "personal";
+    priority: "medium";
+  }) => void;
   contacts: Contact[];
 }
 
 // Common shopping categories with preset items
 const SHOPPING_CATEGORIES = [
   {
-    name: 'Produce',
+    name: "Produce",
     icon: Apple,
-    color: 'text-green-500',
-    items: ['Bananas', 'Apples', 'Oranges', 'Lettuce', 'Tomatoes', 'Onions', 'Potatoes', 'Carrots'],
+    color: "text-green-500",
+    items: ["Bananas", "Apples", "Oranges", "Lettuce", "Tomatoes", "Onions", "Potatoes", "Carrots"],
   },
   {
-    name: 'Dairy',
+    name: "Dairy",
     icon: Milk,
-    color: 'text-blue-400',
-    items: ['Milk', 'Eggs', 'Butter', 'Cheese', 'Yogurt', 'Cream'],
+    color: "text-blue-400",
+    items: ["Milk", "Eggs", "Butter", "Cheese", "Yogurt", "Cream"],
   },
   {
-    name: 'Meat',
+    name: "Meat",
     icon: Beef,
-    color: 'text-red-400',
-    items: ['Chicken breast', 'Ground beef', 'Bacon', 'Pork chops', 'Salmon'],
+    color: "text-red-400",
+    items: ["Chicken breast", "Ground beef", "Bacon", "Pork chops", "Salmon"],
   },
   {
-    name: 'Bakery',
+    name: "Bakery",
     icon: Croissant,
-    color: 'text-amber-500',
-    items: ['Bread', 'Bagels', 'Croissants', 'Tortillas', 'Muffins'],
+    color: "text-amber-500",
+    items: ["Bread", "Bagels", "Croissants", "Tortillas", "Muffins"],
   },
 ];
 
-export function FamilyShoppingTemplate({ 
-  onCreateProject, 
-  onShareProject, 
+export function FamilyShoppingTemplate({
+  onCreateProject,
+  onShareProject,
   onAddTask,
-  contacts 
+  contacts,
 }: FamilyShoppingTemplateProps) {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<'name' | 'items' | 'share'>('name');
-  const [projectName, setProjectName] = useState('Family Shopping');
+  const [step, setStep] = useState<"name" | "items" | "share">("name");
+  const [projectName, setProjectName] = useState("Family Shopping");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
-  const [customItem, setCustomItem] = useState('');
+  const [customItem, setCustomItem] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
 
   const handleToggleItem = (item: string) => {
-    setSelectedItems(prev => 
-      prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
+    setSelectedItems((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item],
     );
   };
 
   const handleAddCustomItem = () => {
     if (customItem.trim() && !selectedItems.includes(customItem.trim())) {
-      setSelectedItems(prev => [...prev, customItem.trim()]);
-      setCustomItem('');
+      setSelectedItems((prev) => [...prev, customItem.trim()]);
+      setCustomItem("");
     }
   };
 
   const handleToggleContact = (userId: string) => {
-    setSelectedContacts(prev =>
-      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    setSelectedContacts((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
     );
   };
 
   const handleCreateProject = async () => {
     setIsCreating(true);
-    
+
     // Create the project
     const project = await onCreateProject({
       name: projectName,
-      description: 'Shared family shopping list',
-      color: '#22c55e', // Green for shopping
+      description: "Shared family shopping list",
+      color: "#22c55e", // Green for shopping
       isArchived: false,
     });
 
     if (!project) {
-      toast.error('Failed to create shopping list');
+      toast.error("Failed to create shopping list");
       setIsCreating(false);
       return;
     }
@@ -120,23 +134,23 @@ export function FamilyShoppingTemplate({
       onAddTask({
         title: item,
         projectId: project.id,
-        category: 'personal',
-        priority: 'medium',
+        category: "personal",
+        priority: "medium",
       });
     }
 
-    setStep('share');
+    setStep("share");
     setIsCreating(false);
   };
 
   const handleShareWithFamily = async () => {
     if (!createdProjectId) return;
-    
+
     setIsCreating(true);
     let sharedCount = 0;
 
     for (const contactId of selectedContacts) {
-      const contact = contacts.find(c => c.userId === contactId);
+      const contact = contacts.find((c) => c.userId === contactId);
       if (contact?.email) {
         const { error } = await onShareProject(createdProjectId, contact.email);
         if (!error) sharedCount++;
@@ -144,7 +158,9 @@ export function FamilyShoppingTemplate({
     }
 
     if (sharedCount > 0) {
-      toast.success(`Shopping list shared with ${sharedCount} family member${sharedCount > 1 ? 's' : ''}!`);
+      toast.success(
+        `Shopping list shared with ${sharedCount} family member${sharedCount > 1 ? "s" : ""}!`,
+      );
     }
 
     setIsCreating(false);
@@ -153,16 +169,16 @@ export function FamilyShoppingTemplate({
 
   const handleClose = () => {
     setOpen(false);
-    setStep('name');
-    setProjectName('Family Shopping');
+    setStep("name");
+    setProjectName("Family Shopping");
     setSelectedItems([]);
     setSelectedContacts([]);
-    setCustomItem('');
+    setCustomItem("");
     setCreatedProjectId(null);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => o ? setOpen(true) : handleClose()}>
+    <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : handleClose())}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <ShoppingCart className="w-4 h-4" />
@@ -173,18 +189,18 @@ export function FamilyShoppingTemplate({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-green-500" />
-            {step === 'name' && 'Create Shopping List'}
-            {step === 'items' && 'Add Items'}
-            {step === 'share' && 'Share with Family'}
+            {step === "name" && "Create Shopping List"}
+            {step === "items" && "Add Items"}
+            {step === "share" && "Share with Family"}
           </DialogTitle>
           <DialogDescription>
-            {step === 'name' && 'Name your shared shopping list'}
-            {step === 'items' && 'Select items to add to your list'}
-            {step === 'share' && 'Invite family members to collaborate'}
+            {step === "name" && "Name your shared shopping list"}
+            {step === "items" && "Select items to add to your list"}
+            {step === "share" && "Invite family members to collaborate"}
           </DialogDescription>
         </DialogHeader>
 
-        {step === 'name' && (
+        {step === "name" && (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>List Name</Label>
@@ -194,8 +210,8 @@ export function FamilyShoppingTemplate({
                 placeholder="e.g., Weekly Groceries"
               />
             </div>
-            <Button 
-              onClick={() => setStep('items')} 
+            <Button
+              onClick={() => setStep("items")}
               className="w-full"
               disabled={!projectName.trim()}
             >
@@ -204,7 +220,7 @@ export function FamilyShoppingTemplate({
           </div>
         )}
 
-        {step === 'items' && (
+        {step === "items" && (
           <div className="space-y-4">
             <ScrollArea className="h-[300px] pr-4">
               <div className="space-y-4">
@@ -231,8 +247,8 @@ export function FamilyShoppingTemplate({
                 ))}
 
                 {/* Custom items */}
-                {selectedItems.filter(item => 
-                  !SHOPPING_CATEGORIES.flatMap(c => c.items).includes(item)
+                {selectedItems.filter(
+                  (item) => !SHOPPING_CATEGORIES.flatMap((c) => c.items).includes(item),
                 ).length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -240,19 +256,21 @@ export function FamilyShoppingTemplate({
                       <span className="font-medium text-sm">Custom Items</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {selectedItems.filter(item => 
-                        !SHOPPING_CATEGORIES.flatMap(c => c.items).includes(item)
-                      ).map((item) => (
-                        <Badge
-                          key={item}
-                          variant="default"
-                          className="cursor-pointer"
-                          onClick={() => handleToggleItem(item)}
-                        >
-                          <Check className="w-3 h-3 mr-1" />
-                          {item}
-                        </Badge>
-                      ))}
+                      {selectedItems
+                        .filter(
+                          (item) => !SHOPPING_CATEGORIES.flatMap((c) => c.items).includes(item),
+                        )
+                        .map((item) => (
+                          <Badge
+                            key={item}
+                            variant="default"
+                            className="cursor-pointer"
+                            onClick={() => handleToggleItem(item)}
+                          >
+                            <Check className="w-3 h-3 mr-1" />
+                            {item}
+                          </Badge>
+                        ))}
                     </div>
                   </div>
                 )}
@@ -264,7 +282,7 @@ export function FamilyShoppingTemplate({
                 value={customItem}
                 onChange={(e) => setCustomItem(e.target.value)}
                 placeholder="Add custom item..."
-                onKeyDown={(e) => e.key === 'Enter' && handleAddCustomItem()}
+                onKeyDown={(e) => e.key === "Enter" && handleAddCustomItem()}
               />
               <Button variant="outline" size="icon" onClick={handleAddCustomItem}>
                 <Plus className="w-4 h-4" />
@@ -276,25 +294,23 @@ export function FamilyShoppingTemplate({
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep('name')} className="flex-1">
+              <Button variant="outline" onClick={() => setStep("name")} className="flex-1">
                 Back
               </Button>
-              <Button 
-                onClick={handleCreateProject} 
-                className="flex-1"
-                disabled={isCreating}
-              >
-                {isCreating ? 'Creating...' : 'Create List'}
+              <Button onClick={handleCreateProject} className="flex-1" disabled={isCreating}>
+                {isCreating ? "Creating..." : "Create List"}
               </Button>
             </div>
           </div>
         )}
 
-        {step === 'share' && (
+        {step === "share" && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
               <Check className="w-5 h-5 text-green-500" />
-              <span className="text-sm">Shopping list created with {selectedItems.length} items!</span>
+              <span className="text-sm">
+                Shopping list created with {selectedItems.length} items!
+              </span>
             </div>
 
             {contacts.length > 0 ? (
@@ -303,17 +319,17 @@ export function FamilyShoppingTemplate({
                   <Label>Select family members to share with</Label>
                   <div className="space-y-2">
                     {contacts.map((contact) => (
-                      <Card 
+                      <Card
                         key={contact.userId}
                         className={`cursor-pointer transition-all ${
-                          selectedContacts.includes(contact.userId) 
-                            ? 'border-primary bg-primary/5' 
-                            : ''
+                          selectedContacts.includes(contact.userId)
+                            ? "border-primary bg-primary/5"
+                            : ""
                         }`}
                         onClick={() => handleToggleContact(contact.userId)}
                       >
                         <CardContent className="p-3 flex items-center gap-3">
-                          <Checkbox 
+                          <Checkbox
                             checked={selectedContacts.includes(contact.userId)}
                             onCheckedChange={() => handleToggleContact(contact.userId)}
                           />
@@ -338,12 +354,12 @@ export function FamilyShoppingTemplate({
                   <Button variant="outline" onClick={handleClose} className="flex-1">
                     Skip
                   </Button>
-                  <Button 
-                    onClick={handleShareWithFamily} 
+                  <Button
+                    onClick={handleShareWithFamily}
                     className="flex-1"
                     disabled={selectedContacts.length === 0 || isCreating}
                   >
-                    {isCreating ? 'Sharing...' : `Share with ${selectedContacts.length}`}
+                    {isCreating ? "Sharing..." : `Share with ${selectedContacts.length}`}
                   </Button>
                 </div>
               </>

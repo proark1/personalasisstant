@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from "react";
 
 interface UseVoiceRecognitionOptions {
   onTranscript?: (transcript: string, isFinal: boolean) => void;
@@ -42,12 +42,12 @@ export function useVoiceRecognition({
   onTranscript,
   onError,
   continuous = true,
-  lang = 'en-US',
+  lang = "en-US",
 }: UseVoiceRecognitionOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [transcript, setTranscript] = useState('');
+  const [transcript, setTranscript] = useState("");
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const shouldRestartRef = useRef(false);
   const isPausedRef = useRef(false);
@@ -68,8 +68,8 @@ export function useVoiceRecognition({
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       if (isPausedRef.current) return;
 
-      let interimTranscript = '';
-      let finalTranscript = '';
+      let interimTranscript = "";
+      let finalTranscript = "";
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
@@ -86,11 +86,11 @@ export function useVoiceRecognition({
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error('Speech recognition error:', event.error);
-      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      console.error("Speech recognition error:", event.error);
+      if (event.error !== "no-speech" && event.error !== "aborted") {
         onErrorRef.current?.(event.error);
       }
-      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      if (event.error !== "no-speech" && event.error !== "aborted") {
         setIsListening(false);
       }
     };
@@ -152,19 +152,19 @@ export function useVoiceRecognition({
   const startListening = useCallback(() => {
     const recognition = ensureRecognition();
     if (!recognition) {
-      onError?.('Speech recognition not supported');
+      onError?.("Speech recognition not supported");
       return;
     }
 
-    setTranscript('');
+    setTranscript("");
     shouldRestartRef.current = true;
     try {
       recognition.start();
       setIsListening(true);
       setIsPaused(false);
     } catch (e) {
-      console.error('Failed to start recognition:', e);
-      onError?.('Failed to start voice recognition');
+      console.error("Failed to start recognition:", e);
+      onError?.("Failed to start voice recognition");
     }
   }, [ensureRecognition, onError]);
 
@@ -196,7 +196,7 @@ export function useVoiceRecognition({
       try {
         recognitionRef.current.start();
       } catch (e) {
-        console.error('Failed to resume recognition:', e);
+        console.error("Failed to resume recognition:", e);
       }
     }
   }, []);

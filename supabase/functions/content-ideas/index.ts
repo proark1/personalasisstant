@@ -13,7 +13,12 @@ import { resolveUserId, adminClient } from "../_shared/auth.ts";
 import { assertWithinQuota, type SupabaseQuotaClient } from "../_shared/ai-quota.ts";
 import { strictAppOrigin } from "../_shared/cors.ts";
 import { generateContentIdeas, type CreatorProfileLike } from "../_shared/contentIdeas.ts";
-import { dateKeyInTimezone, recentHeadlines, persistDailyBatch, type ContentAdminClient } from "../_shared/contentPersist.ts";
+import {
+  dateKeyInTimezone,
+  recentHeadlines,
+  persistDailyBatch,
+  type ContentAdminClient,
+} from "../_shared/contentPersist.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -38,7 +43,8 @@ serve(async (req) => {
     const admin = adminClient();
     const contentAdmin = admin as unknown as ContentAdminClient;
 
-    if (!Deno.env.get("GEMINI_API_KEY")) return json({ error: "GEMINI_API_KEY not configured" }, 503);
+    if (!Deno.env.get("GEMINI_API_KEY"))
+      return json({ error: "GEMINI_API_KEY not configured" }, 503);
 
     const body = await req.json().catch(() => ({}));
 
@@ -56,11 +62,7 @@ serve(async (req) => {
         .select("bio, interests, businesses, location_city, location_country, timezone")
         .eq("user_id", userId)
         .maybeSingle(),
-      admin
-        .from("user_location_settings")
-        .select("timezone")
-        .eq("user_id", userId)
-        .maybeSingle(),
+      admin.from("user_location_settings").select("timezone").eq("user_id", userId).maybeSingle(),
     ]);
 
     const profileLike: CreatorProfileLike = profile
@@ -79,7 +81,9 @@ serve(async (req) => {
           business_context: (baseProfile?.businesses ?? []).join(", "),
         };
 
-    const count = Number.isFinite(body?.count) ? Number(body.count) : (profile?.ideas_per_day ?? 10);
+    const count = Number.isFinite(body?.count)
+      ? Number(body.count)
+      : (profile?.ideas_per_day ?? 10);
     const ratio = Number.isFinite(body?.trending_ratio)
       ? Number(body.trending_ratio)
       : (profile?.trending_ratio ?? 0.5);
@@ -88,9 +92,10 @@ serve(async (req) => {
       : (profile?.idea_source ?? "mixed");
     // Language: the client passes its current app language; fall back to the
     // saved content language, then English.
-    const language = typeof body?.language === "string" && body.language
-      ? body.language
-      : (profile?.primary_language ?? "en");
+    const language =
+      typeof body?.language === "string" && body.language
+        ? body.language
+        : (profile?.primary_language ?? "en");
     const location = {
       city: baseProfile?.location_city ?? null,
       country: baseProfile?.location_country ?? null,
@@ -124,7 +129,8 @@ serve(async (req) => {
         .from("creator_profiles")
         .update({ last_generated_on: today, updated_at: new Date().toISOString() })
         .eq("user_id", userId);
-      if (stampErr) console.warn("[content-ideas] failed to stamp last_generated_on:", stampErr.message);
+      if (stampErr)
+        console.warn("[content-ideas] failed to stamp last_generated_on:", stampErr.message);
     }
 
     return json({ ok: true, generated_on: today, count: inserted.length, ideas: inserted });

@@ -1,13 +1,16 @@
-import { Button } from '@/components/ui/button';
-import { Search, Menu } from 'lucide-react';
-import { NotificationCenter, type AppNotification } from '@/components/notifications/NotificationCenter';
-import { DoriNotificationIcon } from '@/components/assistant/DoriNotificationIcon';
-import { AssistantHubSheet } from '@/components/hub/AssistantHubSheet';
-import { VisionCaptureButton } from '@/components/capture/VisionCaptureButton';
-import { BrainDumpFAB } from '@/components/capture/BrainDumpFAB';
-import { SchedulePlannerSheet } from '@/components/schedule/SchedulePlannerSheet';
-import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from "@/components/ui/button";
+import { Search, Menu } from "lucide-react";
+import {
+  NotificationCenter,
+  type AppNotification,
+} from "@/components/notifications/NotificationCenter";
+import { DoriNotificationIcon } from "@/components/assistant/DoriNotificationIcon";
+import { AssistantHubSheet } from "@/components/hub/AssistantHubSheet";
+import { VisionCaptureButton } from "@/components/capture/VisionCaptureButton";
+import { BrainDumpFAB } from "@/components/capture/BrainDumpFAB";
+import { SchedulePlannerSheet } from "@/components/schedule/SchedulePlannerSheet";
+import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ContextualHeaderProps {
   title: string;

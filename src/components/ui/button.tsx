@@ -11,16 +11,23 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 shadow-lg shadow-primary/20",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
-        outline: "border border-border bg-transparent hover:bg-muted active:bg-muted/80 hover:text-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-secondary/70",
+        default:
+          "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 shadow-lg shadow-primary/20",
+        destructive:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
+        outline:
+          "border border-border bg-transparent hover:bg-muted active:bg-muted/80 hover:text-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-secondary/70",
         ghost: "hover:bg-muted active:bg-muted/80 hover:text-foreground",
         link: "text-primary underline-offset-4 hover:underline active:opacity-70",
-        glass: "bg-glass/60 backdrop-blur-lg border border-glass-border/50 text-foreground hover:bg-glass/80 active:bg-glass/90 hover:border-primary/30",
+        glass:
+          "bg-glass/60 backdrop-blur-lg border border-glass-border/50 text-foreground hover:bg-glass/80 active:bg-glass/90 hover:border-primary/30",
         glow: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:shadow-xl",
-        ghost_mode: "bg-ghost-primary/20 text-ghost-primary border border-ghost-primary/30 hover:bg-ghost-primary/30 active:bg-ghost-primary/40 hover:shadow-lg hover:shadow-ghost-primary/20",
-        voice_mode: "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 active:bg-primary/40 hover:shadow-lg hover:shadow-primary/20",
+        ghost_mode:
+          "bg-ghost-primary/20 text-ghost-primary border border-ghost-primary/30 hover:bg-ghost-primary/30 active:bg-ghost-primary/40 hover:shadow-lg hover:shadow-ghost-primary/20",
+        voice_mode:
+          "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 active:bg-primary/40 hover:shadow-lg hover:shadow-primary/20",
       },
       size: {
         default: "h-10 px-4 py-2 min-h-[44px]",
@@ -36,19 +43,32 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   haptic?: "light" | "medium" | "heavy" | "success" | false;
   loading?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, haptic = "light", loading = false, onClick, disabled, children, ...props }, ref) => {
+  (
+    {
+      className,
+      variant,
+      size,
+      asChild = false,
+      haptic = "light",
+      loading = false,
+      onClick,
+      disabled,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
     const { vibrate } = useHaptics();
     const Comp = asChild ? Slot : "button";
 
@@ -59,7 +79,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         }
         onClick?.(e);
       },
-      [haptic, vibrate, onClick]
+      [haptic, vibrate, onClick],
     );
 
     if (asChild) {
@@ -90,7 +110,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </Comp>
     );
-  }
+  },
 );
 Button.displayName = "Button";
 

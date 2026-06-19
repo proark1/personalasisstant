@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Plus, X, Tag as TagIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tag } from '@/hooks/useTags';
+import { useState } from "react";
+import { Plus, X, Tag as TagIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tag } from "@/hooks/useTags";
 
 interface TagManagerProps {
   tags: Tag[];
@@ -16,14 +16,14 @@ interface TagManagerProps {
 }
 
 const TAG_COLORS = [
-  '#3b82f6', // blue
-  '#10b981', // green
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#8b5cf6', // purple
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#f97316', // orange
+  "#3b82f6", // blue
+  "#10b981", // green
+  "#f59e0b", // amber
+  "#ef4444", // red
+  "#8b5cf6", // purple
+  "#ec4899", // pink
+  "#06b6d4", // cyan
+  "#f97316", // orange
 ];
 
 export function TagManager({
@@ -34,20 +34,20 @@ export function TagManager({
   onAddTag,
   onRemoveTag,
 }: TagManagerProps) {
-  const [newTagName, setNewTagName] = useState('');
+  const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
   const [isCreating, setIsCreating] = useState(false);
 
-  const availableTags = tags.filter(t => !selectedTags.some(st => st.id === t.id));
+  const availableTags = tags.filter((t) => !selectedTags.some((st) => st.id === t.id));
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
-    
+
     setIsCreating(true);
     const tag = await onCreateTag(newTagName.trim(), newTagColor);
     if (tag) {
       onAddTag(tag.id);
-      setNewTagName('');
+      setNewTagName("");
     }
     setIsCreating(false);
   };
@@ -56,7 +56,7 @@ export function TagManager({
     <div className="space-y-2">
       {/* Selected Tags */}
       <div className="flex flex-wrap gap-1">
-        {selectedTags.map(tag => (
+        {selectedTags.map((tag) => (
           <Badge
             key={tag.id}
             variant="outline"
@@ -65,15 +65,12 @@ export function TagManager({
           >
             <TagIcon className="h-3 w-3" />
             {tag.name}
-            <button
-              onClick={() => onRemoveTag(tag.id)}
-              className="ml-1 hover:opacity-70"
-            >
+            <button onClick={() => onRemoveTag(tag.id)} className="ml-1 hover:opacity-70">
               <X className="h-3 w-3" />
             </button>
           </Badge>
         ))}
-        
+
         {/* Add Tag Popover */}
         <Popover>
           <PopoverTrigger asChild>
@@ -89,7 +86,7 @@ export function TagManager({
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Existing Tags</p>
                   <div className="flex flex-wrap gap-1">
-                    {availableTags.map(tag => (
+                    {availableTags.map((tag) => (
                       <Badge
                         key={tag.id}
                         variant="outline"
@@ -104,7 +101,7 @@ export function TagManager({
                   </div>
                 </div>
               )}
-              
+
               {/* Create New Tag */}
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Create New</p>
@@ -114,15 +111,15 @@ export function TagManager({
                     onChange={(e) => setNewTagName(e.target.value)}
                     placeholder="Tag name"
                     className="h-8 text-sm"
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateTag()}
                   />
                 </div>
                 <div className="flex gap-1">
-                  {TAG_COLORS.map(color => (
+                  {TAG_COLORS.map((color) => (
                     <button
                       key={color}
                       className={`w-5 h-5 rounded-full border-2 ${
-                        newTagColor === color ? 'border-foreground' : 'border-transparent'
+                        newTagColor === color ? "border-foreground" : "border-transparent"
                       }`}
                       style={{ backgroundColor: color }}
                       onClick={() => setNewTagColor(color)}

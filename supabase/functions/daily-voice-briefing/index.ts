@@ -1,20 +1,64 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
 
-interface GroupRow { group_id: string }
-interface MemberRow { user_id: string }
-interface TaskRow { id: string; title: string; priority: string; completed: boolean; due_date?: string; user_id: string }
-interface EventRow { id: string; title: string; start_time: string; end_time: string; location?: string; user_id: string }
-interface EmailRow { id: string; from_name?: string; subject?: string; priority_score?: number; is_read?: boolean; category?: string; user_id: string }
-interface ContractRow { id: string; name: string; renewal_date?: string; cost_amount?: number; cost_frequency?: string; user_id: string }
-interface ContactRow { id: string; name: string; last_contacted_at?: string; user_id: string }
-interface CheckinRow { mood?: string; energy_level?: string; sleep_hours?: number; user_id: string }
+interface GroupRow {
+  group_id: string;
+}
+interface MemberRow {
+  user_id: string;
+}
+interface TaskRow {
+  id: string;
+  title: string;
+  priority: string;
+  completed: boolean;
+  due_date?: string;
+  user_id: string;
+}
+interface EventRow {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  location?: string;
+  user_id: string;
+}
+interface EmailRow {
+  id: string;
+  from_name?: string;
+  subject?: string;
+  priority_score?: number;
+  is_read?: boolean;
+  category?: string;
+  user_id: string;
+}
+interface ContractRow {
+  id: string;
+  name: string;
+  renewal_date?: string;
+  cost_amount?: number;
+  cost_frequency?: string;
+  user_id: string;
+}
+interface ContactRow {
+  id: string;
+  name: string;
+  last_contacted_at?: string;
+  user_id: string;
+}
+interface CheckinRow {
+  mood?: string;
+  energy_level?: string;
+  sleep_hours?: number;
+  user_id: string;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  'X-Content-Type-Options': 'nosniff',
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "X-Content-Type-Options": "nosniff",
 };
 
 serve(async (req) => {
@@ -23,7 +67,10 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -36,9 +83,15 @@ serve(async (req) => {
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await userClient.auth.getUser();
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const db = createClient(supabaseUrl, supabaseServiceKey);
@@ -46,7 +99,14 @@ serve(async (req) => {
     const today = new Date().toISOString().split("T")[0];
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+    const todayEnd = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+    ).toISOString();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -65,25 +125,96 @@ serve(async (req) => {
         .select("user_id")
         .in("group_id", groupIds)
         .eq("status", "accepted");
-      const ids = Array.from(new Set([userId, ...((members || []).map((m: MemberRow) => m.user_id))]));
-      const { data: profs } = await db.from("profiles").select("user_id, display_name").in("user_id", ids);
-      const map = new Map((profs || []).map((p: { user_id: string; display_name?: string }) => [p.user_id, p.display_name || "Member"]));
-      household = ids.map(id => ({ user_id: id, display_name: map.get(id) || "Member" }));
+      const ids = Array.from(
+        new Set([userId, ...(members || []).map((m: MemberRow) => m.user_id)]),
+      );
+      const { data: profs } = await db
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", ids);
+      const map = new Map(
+        (profs || []).map((p: { user_id: string; display_name?: string }) => [
+          p.user_id,
+          p.display_name || "Member",
+        ]),
+      );
+      household = ids.map((id) => ({ user_id: id, display_name: map.get(id) || "Member" }));
     }
     const isShared = household.length >= 2;
-    const householdUserIds = isShared ? household.map(h => h.user_id) : [userId];
-    const ownerNameById = new Map(household.map(h => [h.user_id, (h.display_name || "").split(/\s+/)[0]]));
+    const householdUserIds = isShared ? household.map((h) => h.user_id) : [userId];
+    const ownerNameById = new Map(
+      household.map((h) => [h.user_id, (h.display_name || "").split(/\s+/)[0]]),
+    );
 
     // Fetch cross-module data in parallel — across the household when shared
-    const [tasksRes, eventsRes, emailsRes, contractsRes, contactsRes, checkinsRes, habitsRes, habitLogsRes, profileRes] = await Promise.all([
-      db.from("tasks").select("id, title, priority, completed, due_date, user_id").in("user_id", householdUserIds).eq("completed", false).order("priority", { ascending: true }).limit(15),
-      db.from("events").select("id, title, start_time, end_time, location, user_id").in("user_id", householdUserIds).gte("start_time", todayStart).lte("start_time", todayEnd).order("start_time"),
-      db.from("user_emails").select("id, from_name, subject, priority_score, is_read, category, user_id").in("user_id", householdUserIds).eq("is_read", false).eq("user_archived", false).order("priority_score").limit(15),
-      db.from("contracts").select("id, name, renewal_date, cancellation_notice_days, auto_renews, cost_amount, cost_frequency, user_id").in("user_id", householdUserIds).eq("is_active", true).not("renewal_date", "is", null).lte("renewal_date", sevenDaysFromNow).gte("renewal_date", today),
-      db.from("user_contacts").select("id, name, last_contacted_at, user_id").in("user_id", householdUserIds).lt("last_contacted_at", thirtyDaysAgo).order("last_contacted_at").limit(8),
-      db.from("daily_checkins").select("mood, energy_level, sleep_hours, user_id").in("user_id", householdUserIds).eq("checkin_date", new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0]),
-      db.from("habits").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_active", true),
-      db.from("habit_logs").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("log_date", today),
+    const [
+      tasksRes,
+      eventsRes,
+      emailsRes,
+      contractsRes,
+      contactsRes,
+      checkinsRes,
+      habitsRes,
+      habitLogsRes,
+      profileRes,
+    ] = await Promise.all([
+      db
+        .from("tasks")
+        .select("id, title, priority, completed, due_date, user_id")
+        .in("user_id", householdUserIds)
+        .eq("completed", false)
+        .order("priority", { ascending: true })
+        .limit(15),
+      db
+        .from("events")
+        .select("id, title, start_time, end_time, location, user_id")
+        .in("user_id", householdUserIds)
+        .gte("start_time", todayStart)
+        .lte("start_time", todayEnd)
+        .order("start_time"),
+      db
+        .from("user_emails")
+        .select("id, from_name, subject, priority_score, is_read, category, user_id")
+        .in("user_id", householdUserIds)
+        .eq("is_read", false)
+        .eq("user_archived", false)
+        .order("priority_score")
+        .limit(15),
+      db
+        .from("contracts")
+        .select(
+          "id, name, renewal_date, cancellation_notice_days, auto_renews, cost_amount, cost_frequency, user_id",
+        )
+        .in("user_id", householdUserIds)
+        .eq("is_active", true)
+        .not("renewal_date", "is", null)
+        .lte("renewal_date", sevenDaysFromNow)
+        .gte("renewal_date", today),
+      db
+        .from("user_contacts")
+        .select("id, name, last_contacted_at, user_id")
+        .in("user_id", householdUserIds)
+        .lt("last_contacted_at", thirtyDaysAgo)
+        .order("last_contacted_at")
+        .limit(8),
+      db
+        .from("daily_checkins")
+        .select("mood, energy_level, sleep_hours, user_id")
+        .in("user_id", householdUserIds)
+        .eq(
+          "checkin_date",
+          new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        ),
+      db
+        .from("habits")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("is_active", true),
+      db
+        .from("habit_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("log_date", today),
       db.from("profiles").select("display_name").eq("user_id", userId).single(),
     ]);
 
@@ -92,66 +223,127 @@ serve(async (req) => {
     const unreadEmails = emailsRes.data || [];
     const contracts = contractsRes.data || [];
     const overdueContacts = contactsRes.data || [];
-    const yesterdayCheckin = (checkinsRes.data as CheckinRow[] | null)?.find((c) => c.user_id === userId) || null;
+    const yesterdayCheckin =
+      (checkinsRes.data as CheckinRow[] | null)?.find((c) => c.user_id === userId) || null;
     const totalHabits = habitsRes.count || 0;
     const habitsLogged = habitLogsRes.count || 0;
     const userName = profileRes.data?.display_name || "there";
 
     const highPriorityTasks = (tasks as TaskRow[]).filter((t) => t.priority === "high");
-    const priorityEmails = (unreadEmails as EmailRow[]).filter((e) => (e.priority_score ?? 999) <= 2);
+    const priorityEmails = (unreadEmails as EmailRow[]).filter(
+      (e) => (e.priority_score ?? 999) <= 2,
+    );
 
     // Helper: prefix with owner name when household is shared
-    const owner = (uid: string) => isShared ? `${ownerNameById.get(uid) || "Member"}'s ` : "";
-    const ownerSuffix = (uid: string) => isShared ? ` (${ownerNameById.get(uid) || "Member"})` : "";
+    const owner = (uid: string) => (isShared ? `${ownerNameById.get(uid) || "Member"}'s ` : "");
+    const ownerSuffix = (uid: string) =>
+      isShared ? ` (${ownerNameById.get(uid) || "Member"})` : "";
 
     // Build highlights
     const highlights: Array<{ type: string; label: string }> = [];
-    if (tasks.length > 0) highlights.push({ type: "task", label: `${tasks.length} pending task${tasks.length > 1 ? "s" : ""}${highPriorityTasks.length > 0 ? `, ${highPriorityTasks.length} high priority` : ""}` });
-    if (events.length > 0) highlights.push({ type: "calendar", label: `${events.length} event${events.length > 1 ? "s" : ""} today` });
-    if (unreadEmails.length > 0) highlights.push({ type: "email", label: `${unreadEmails.length} unread email${unreadEmails.length > 1 ? "s" : ""}${priorityEmails.length > 0 ? `, ${priorityEmails.length} priority` : ""}` });
-    if (contracts.length > 0) highlights.push({ type: "contract", label: `${contracts.length} contract${contracts.length > 1 ? "s" : ""} renewing soon` });
-    if (overdueContacts.length > 0) highlights.push({ type: "contact", label: `${overdueContacts.length} contact${overdueContacts.length > 1 ? "s" : ""} to follow up` });
-    if (totalHabits > 0) highlights.push({ type: "habit", label: `${habitsLogged}/${totalHabits} habits logged` });
+    if (tasks.length > 0)
+      highlights.push({
+        type: "task",
+        label: `${tasks.length} pending task${tasks.length > 1 ? "s" : ""}${highPriorityTasks.length > 0 ? `, ${highPriorityTasks.length} high priority` : ""}`,
+      });
+    if (events.length > 0)
+      highlights.push({
+        type: "calendar",
+        label: `${events.length} event${events.length > 1 ? "s" : ""} today`,
+      });
+    if (unreadEmails.length > 0)
+      highlights.push({
+        type: "email",
+        label: `${unreadEmails.length} unread email${unreadEmails.length > 1 ? "s" : ""}${priorityEmails.length > 0 ? `, ${priorityEmails.length} priority` : ""}`,
+      });
+    if (contracts.length > 0)
+      highlights.push({
+        type: "contract",
+        label: `${contracts.length} contract${contracts.length > 1 ? "s" : ""} renewing soon`,
+      });
+    if (overdueContacts.length > 0)
+      highlights.push({
+        type: "contact",
+        label: `${overdueContacts.length} contact${overdueContacts.length > 1 ? "s" : ""} to follow up`,
+      });
+    if (totalHabits > 0)
+      highlights.push({ type: "habit", label: `${habitsLogged}/${totalHabits} habits logged` });
 
     // Build context for AI
     const contextParts: string[] = [];
     contextParts.push(`User name: ${userName}`);
     if (isShared) {
-      contextParts.push(`Household members connected: ${household.map(h => h.display_name).join(", ")}. When mentioning tasks/events/emails/health/contacts that belong to a specific person, ALWAYS name them explicitly (e.g. "Sarah has a 10am dentist appointment", "Asad has 3 priority emails") instead of saying "you".`);
+      contextParts.push(
+        `Household members connected: ${household.map((h) => h.display_name).join(", ")}. When mentioning tasks/events/emails/health/contacts that belong to a specific person, ALWAYS name them explicitly (e.g. "Sarah has a 10am dentist appointment", "Asad has 3 priority emails") instead of saying "you".`,
+      );
     }
-    contextParts.push(`Current time: ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`);
-    contextParts.push(`Day: ${now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}`);
+    contextParts.push(
+      `Current time: ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`,
+    );
+    contextParts.push(
+      `Day: ${now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}`,
+    );
 
     if (tasks.length > 0) {
-      const topTasks = (tasks as TaskRow[]).slice(0, 5).map((t) => `${owner(t.user_id)}"${t.title}" (${t.priority} priority${t.due_date ? `, due ${t.due_date}` : ""})`).join(", ");
+      const topTasks = (tasks as TaskRow[])
+        .slice(0, 5)
+        .map(
+          (t) =>
+            `${owner(t.user_id)}"${t.title}" (${t.priority} priority${t.due_date ? `, due ${t.due_date}` : ""})`,
+        )
+        .join(", ");
       contextParts.push(`Pending tasks (${tasks.length} total): ${topTasks}`);
     }
     if (events.length > 0) {
-      const eventList = (events as EventRow[]).map((e) => `${owner(e.user_id)}"${e.title}" at ${new Date(e.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}${e.location ? ` (${e.location})` : ""}`).join(", ");
+      const eventList = (events as EventRow[])
+        .map(
+          (e) =>
+            `${owner(e.user_id)}"${e.title}" at ${new Date(e.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}${e.location ? ` (${e.location})` : ""}`,
+        )
+        .join(", ");
       contextParts.push(`Today's events: ${eventList}`);
     }
     if (unreadEmails.length > 0) {
-      const emailList = priorityEmails.slice(0, 4).map((e) => `${owner(e.user_id)}"${e.subject}" from ${e.from_name || "unknown"}`).join(", ");
-      contextParts.push(`Unread emails: ${unreadEmails.length} total. Priority: ${emailList || "none"}`);
+      const emailList = priorityEmails
+        .slice(0, 4)
+        .map((e) => `${owner(e.user_id)}"${e.subject}" from ${e.from_name || "unknown"}`)
+        .join(", ");
+      contextParts.push(
+        `Unread emails: ${unreadEmails.length} total. Priority: ${emailList || "none"}`,
+      );
     }
     if (contracts.length > 0) {
-      const contractList = (contracts as ContractRow[]).map((c) => `${owner(c.user_id)}"${c.name}" renews ${c.renewal_date}${c.cost_amount ? ` (${c.cost_amount}€/${c.cost_frequency})` : ""}`).join(", ");
+      const contractList = (contracts as ContractRow[])
+        .map(
+          (c) =>
+            `${owner(c.user_id)}"${c.name}" renews ${c.renewal_date}${c.cost_amount ? ` (${c.cost_amount}€/${c.cost_frequency})` : ""}`,
+        )
+        .join(", ");
       contextParts.push(`Contract alerts: ${contractList}`);
     }
     if (overdueContacts.length > 0) {
-      const contactList = (overdueContacts as ContactRow[]).map((c) => `${c.name}${ownerSuffix(c.user_id)}`).join(", ");
+      const contactList = (overdueContacts as ContactRow[])
+        .map((c) => `${c.name}${ownerSuffix(c.user_id)}`)
+        .join(", ");
       contextParts.push(`Contacts to follow up: ${contactList}`);
     }
     if (isShared) {
-      const checkinByUser = new Map((checkinsRes.data as CheckinRow[] || []).map((c) => [c.user_id, c]));
-      const lines = household.map(h => {
-        const c = checkinByUser.get(h.user_id) as CheckinRow | undefined;
-        if (!c) return null;
-        return `${h.display_name}: mood=${c.mood || "unknown"}, energy=${c.energy_level || "unknown"}, sleep=${c.sleep_hours ? c.sleep_hours + "h" : "unknown"}`;
-      }).filter(Boolean);
-      if (lines.length > 0) contextParts.push(`Yesterday's check-ins (per person):\n${lines.join("\n")}`);
+      const checkinByUser = new Map(
+        ((checkinsRes.data as CheckinRow[]) || []).map((c) => [c.user_id, c]),
+      );
+      const lines = household
+        .map((h) => {
+          const c = checkinByUser.get(h.user_id) as CheckinRow | undefined;
+          if (!c) return null;
+          return `${h.display_name}: mood=${c.mood || "unknown"}, energy=${c.energy_level || "unknown"}, sleep=${c.sleep_hours ? c.sleep_hours + "h" : "unknown"}`;
+        })
+        .filter(Boolean);
+      if (lines.length > 0)
+        contextParts.push(`Yesterday's check-ins (per person):\n${lines.join("\n")}`);
     } else if (yesterdayCheckin) {
-      contextParts.push(`Yesterday's check-in: mood=${yesterdayCheckin.mood || "unknown"}, energy=${yesterdayCheckin.energy_level || "unknown"}, sleep=${yesterdayCheckin.sleep_hours ? yesterdayCheckin.sleep_hours + "h" : "unknown"}`);
+      contextParts.push(
+        `Yesterday's check-in: mood=${yesterdayCheckin.mood || "unknown"}, energy=${yesterdayCheckin.energy_level || "unknown"}, sleep=${yesterdayCheckin.sleep_hours ? yesterdayCheckin.sleep_hours + "h" : "unknown"}`,
+      );
     }
     if (totalHabits > 0) {
       contextParts.push(`Habits: ${habitsLogged} of ${totalHabits} logged today`);
@@ -171,24 +363,33 @@ Rules:
 - Keep it under 150 words
 - Don't use bullet points, write as flowing speech`;
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gemini-3-flash-preview",
+          messages: [{ role: "user", content: prompt }],
+        }),
       },
-      body: JSON.stringify({
-        model: "gemini-3-flash-preview",
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+    );
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Payment required" }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       const errText = await response.text();
       console.error("AI gateway error:", response.status, errText);
@@ -196,16 +397,20 @@ Rules:
     }
 
     const result = await response.json();
-    const briefingText = result.choices?.[0]?.message?.content || "Good morning! Have a great day ahead.";
+    const briefingText =
+      result.choices?.[0]?.message?.content || "Good morning! Have a great day ahead.";
 
     return new Response(JSON.stringify({ briefingText, highlights }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("daily-voice-briefing error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });

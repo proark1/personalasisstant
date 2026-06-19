@@ -1,15 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
-import { Badge } from '@/components/ui/badge';
-import { Mic, X, Send, Inbox, Brain, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useBrainDump } from '@/hooks/useBrainDump';
-import { BrainDumpInbox } from './BrainDumpInbox';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { toast } from 'sonner';
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
+import { Badge } from "@/components/ui/badge";
+import { Mic, X, Send, Inbox, Brain, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useBrainDump } from "@/hooks/useBrainDump";
+import { BrainDumpInbox } from "./BrainDumpInbox";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { toast } from "sonner";
 
 interface BrainDumpFABProps {
   className?: string;
@@ -19,14 +19,14 @@ interface BrainDumpFABProps {
 export function BrainDumpFAB({ className, collapsed: _collapsed = false }: BrainDumpFABProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const isMountedRef = useRef(true);
-  
+
   const { addDump, unprocessedCount, isProcessing, fetchDumps } = useBrainDump();
 
   useEffect(() => {
@@ -41,20 +41,20 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
-    
+
     await addDump(text);
-    setText('');
+    setText("");
     setIsExpanded(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       setIsExpanded(false);
-      setText('');
+      setText("");
     }
   };
 
@@ -65,7 +65,7 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
       // iOS Safari doesn't support audio/webm in MediaRecorder; fall back to
       // audio/mp4 (which the platform accepts) so iPhone users aren't locked
       // out of voice capture.
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       const recorderStream = stream;
       audioChunksRef.current = [];
@@ -86,8 +86,8 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
       // If MediaRecorder construction fails AFTER getUserMedia succeeded, the
       // mic stream stays open until the page is reloaded. Stop it explicitly.
       stream?.getTracks().forEach((t) => t.stop());
-      console.error('mic error', err);
-      toast.error('Microphone access denied or unsupported');
+      console.error("mic error", err);
+      toast.error("Microphone access denied or unsupported");
     }
   };
 
@@ -105,11 +105,11 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
       // helper to avoid the 32 KB atob() limit on long clips.
       const base64Audio = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1] ?? '');
+        reader.onloadend = () => resolve((reader.result as string).split(",")[1] ?? "");
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
-      const { data, error } = await supabase.functions.invoke('voice-to-text', {
+      const { data, error } = await supabase.functions.invoke("voice-to-text", {
         body: { audio: base64Audio },
       });
       // The recorder's onstop fires from the unmount cleanup too, so a
@@ -121,11 +121,12 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
       if (data?.text) {
         setText((prev) => (prev ? `${prev} ${data.text}` : data.text));
       } else {
-        toast.error('No speech detected');
+        toast.error("No speech detected");
       }
     } catch (err) {
-      console.error('transcribe error', err);
-      if (isMountedRef.current) toast.error(await describeEdgeError(err, 'Could not transcribe audio'));
+      console.error("transcribe error", err);
+      if (isMountedRef.current)
+        toast.error(await describeEdgeError(err, "Could not transcribe audio"));
     } finally {
       if (isMountedRef.current) setIsTranscribing(false);
     }
@@ -142,22 +143,17 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
       // leak a live MediaStream + microphone access. Mark unmounted so any
       // in-flight transcription doesn't try to setState after teardown.
       isMountedRef.current = false;
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
     };
   }, []);
 
   // Check if we're in menu mode (not floating)
-  const isMenuMode = className?.includes('static');
+  const isMenuMode = className?.includes("static");
 
   if (isInboxOpen) {
-    return (
-      <BrainDumpInbox
-        isOpen={isInboxOpen}
-        onClose={() => setIsInboxOpen(false)}
-      />
-    );
+    return <BrainDumpInbox isOpen={isInboxOpen} onClose={() => setIsInboxOpen(false)} />;
   }
 
   // Menu mode: render as a simple button that opens expanded input inline
@@ -174,12 +170,12 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
                   className="shrink-0 h-8 w-8"
                   onClick={() => {
                     setIsExpanded(false);
-                    setText('');
+                    setText("");
                   }}
                 >
                   <X className="w-4 h-4" />
                 </Button>
-                
+
                 <Input
                   ref={inputRef}
                   value={text}
@@ -188,7 +184,7 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
                   placeholder="Quick thought..."
                   className="flex-1 h-8 text-sm"
                 />
-                
+
                 <Button
                   size="icon"
                   className="shrink-0 h-8 w-8"
@@ -202,9 +198,7 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-2 px-1">
-                AI will categorize this 🧠
-              </p>
+              <p className="text-xs text-muted-foreground mt-2 px-1">AI will categorize this 🧠</p>
             </GlassCardContent>
           </GlassCard>
         )}
@@ -218,8 +212,8 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
               onClick={() => setIsInboxOpen(true)}
             >
               <Inbox className="w-4 h-4" />
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
               >
                 {unprocessedCount}
@@ -228,7 +222,7 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
           )}
 
           <Button
-            variant={isExpanded ? 'secondary' : 'ghost'}
+            variant={isExpanded ? "secondary" : "ghost"}
             size="icon"
             className="h-9 w-9"
             onClick={() => setIsExpanded(!isExpanded)}
@@ -254,12 +248,12 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
                 className="shrink-0"
                 onClick={() => {
                   setIsExpanded(false);
-                  setText('');
+                  setText("");
                 }}
               >
                 <X className="w-4 h-4" />
               </Button>
-              
+
               <Input
                 ref={inputRef}
                 value={text}
@@ -268,21 +262,22 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
                 placeholder="Quick thought, task, anything..."
                 className="flex-1"
               />
-              
+
               <Button
                 variant="ghost"
                 size="icon"
-                className={cn(
-                  "shrink-0",
-                  isRecording && "text-destructive animate-pulse"
-                )}
+                className={cn("shrink-0", isRecording && "text-destructive animate-pulse")}
                 onClick={toggleRecording}
                 disabled={isTranscribing}
-                aria-label={isRecording ? 'Stop recording' : 'Start voice capture'}
+                aria-label={isRecording ? "Stop recording" : "Start voice capture"}
               >
-                {isTranscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+                {isTranscribing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
               </Button>
-              
+
               <Button
                 size="icon"
                 className="shrink-0"
@@ -314,8 +309,8 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
             onClick={() => setIsInboxOpen(true)}
           >
             <Inbox className="w-5 h-5" />
-            <Badge 
-              variant="destructive" 
+            <Badge
+              variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
             >
               {unprocessedCount}
@@ -328,9 +323,9 @@ export function BrainDumpFAB({ className, collapsed: _collapsed = false }: Brain
           size="icon"
           className={cn(
             "h-14 w-14 rounded-full shadow-lg transition-all",
-            isExpanded 
-              ? "bg-muted text-muted-foreground" 
-              : "bg-gradient-to-br from-primary to-accent"
+            isExpanded
+              ? "bg-muted text-muted-foreground"
+              : "bg-gradient-to-br from-primary to-accent",
           )}
           onClick={() => setIsExpanded(!isExpanded)}
         >

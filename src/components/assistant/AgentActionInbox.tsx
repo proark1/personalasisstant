@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { ShieldCheck, Check, X, Inbox } from 'lucide-react';
-import { useAgentActions } from '@/hooks/useAgentActions';
-import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { trackProactiveOutcome } from '@/lib/telemetry';
+import { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ShieldCheck, Check, X, Inbox } from "lucide-react";
+import { useAgentActions } from "@/hooks/useAgentActions";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
+import { trackProactiveOutcome } from "@/lib/telemetry";
 
 export function AgentActionInbox() {
   const [open, setOpen] = useState(false);
@@ -20,17 +20,26 @@ export function AgentActionInbox() {
     for (const action of actions) {
       if (shownRef.current.has(action.id)) continue;
       shownRef.current.add(action.id);
-      trackProactiveOutcome('agent_action_inbox', 'shown', { actionId: action.id, actionType: action.actionType });
+      trackProactiveOutcome("agent_action_inbox", "shown", {
+        actionId: action.id,
+        actionType: action.actionType,
+      });
     }
   }, [open, actions]);
 
-  const handleApprove = (action: typeof actions[number]) => {
-    trackProactiveOutcome('agent_action_inbox', 'accepted', { actionId: action.id, actionType: action.actionType });
+  const handleApprove = (action: (typeof actions)[number]) => {
+    trackProactiveOutcome("agent_action_inbox", "accepted", {
+      actionId: action.id,
+      actionType: action.actionType,
+    });
     approve(action.id);
   };
 
-  const handleReject = (action: typeof actions[number]) => {
-    trackProactiveOutcome('agent_action_inbox', 'dismissed', { actionId: action.id, actionType: action.actionType });
+  const handleReject = (action: (typeof actions)[number]) => {
+    trackProactiveOutcome("agent_action_inbox", "dismissed", {
+      actionId: action.id,
+      actionType: action.actionType,
+    });
     reject(action.id);
   };
 
@@ -44,7 +53,7 @@ export function AgentActionInbox() {
               variant="destructive"
               className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 text-[10px] flex items-center justify-center"
             >
-              {count > 9 ? '9+' : count}
+              {count > 9 ? "9+" : count}
             </Badge>
           )}
         </Button>
@@ -69,11 +78,11 @@ export function AgentActionInbox() {
               <p className="text-xs mt-1">No actions waiting for your approval.</p>
             </div>
           ) : (
-            actions.map(action => (
+            actions.map((action) => (
               <div
                 key={action.id}
                 className={cn(
-                  'rounded-lg border border-border bg-card p-3 space-y-2 animate-fade-in',
+                  "rounded-lg border border-border bg-card p-3 space-y-2 animate-fade-in",
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -81,9 +90,11 @@ export function AgentActionInbox() {
                     <p className="text-sm font-medium leading-snug">{action.reason}</p>
                     <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                        {action.actionType.replace(/_/g, ' ')}
+                        {action.actionType.replace(/_/g, " ")}
                       </Badge>
-                      <span>{formatDistanceToNow(new Date(action.createdAt), { addSuffix: true })}</span>
+                      <span>
+                        {formatDistanceToNow(new Date(action.createdAt), { addSuffix: true })}
+                      </span>
                     </div>
                   </div>
                 </div>

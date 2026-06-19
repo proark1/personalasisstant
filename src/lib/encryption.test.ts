@@ -68,11 +68,7 @@ describe("encryption — asymmetric (direct messages)", () => {
       "hi alice",
       recipient.publicKey,
     );
-    const plain = await decryptWithPrivateKey(
-      encryptedContent,
-      encryptedKey,
-      recipient.privateKey,
-    );
+    const plain = await decryptWithPrivateKey(encryptedContent, encryptedKey, recipient.privateKey);
     expect(plain).toBe("hi alice");
   });
 

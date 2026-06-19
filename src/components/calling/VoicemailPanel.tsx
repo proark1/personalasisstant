@@ -1,19 +1,12 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  Voicemail as VoicemailIcon, 
-  Play, 
-  Pause, 
-  Trash2, 
-  Clock,
-  FileText
-} from 'lucide-react';
-import { useCallFeatures, Voicemail } from '@/hooks/useCallFeatures';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Voicemail as VoicemailIcon, Play, Pause, Trash2, Clock, FileText } from "lucide-react";
+import { useCallFeatures, Voicemail } from "@/hooks/useCallFeatures";
+import { format } from "date-fns";
 
 interface VoicemailPanelProps {
   userId: string;
@@ -49,14 +42,19 @@ export function VoicemailPanel({ userId: _userId }: VoicemailPanelProps) {
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
-  const unreadCount = voicemails.filter(v => !v.isRead).length;
+  const unreadCount = voicemails.filter((v) => !v.isRead).length;
 
   return (
     <Card>
@@ -66,9 +64,7 @@ export function VoicemailPanel({ userId: _userId }: VoicemailPanelProps) {
             <VoicemailIcon className="w-5 h-5" />
             Voicemail
           </CardTitle>
-          {unreadCount > 0 && (
-            <Badge variant="destructive">{unreadCount} new</Badge>
-          )}
+          {unreadCount > 0 && <Badge variant="destructive">{unreadCount} new</Badge>}
         </div>
       </CardHeader>
       <CardContent>
@@ -84,24 +80,22 @@ export function VoicemailPanel({ userId: _userId }: VoicemailPanelProps) {
                 <div
                   key={vm.id}
                   className={`p-3 rounded-lg border ${
-                    !vm.isRead ? 'bg-accent/50 border-primary/20' : 'border-border'
+                    !vm.isRead ? "bg-accent/50 border-primary/20" : "border-border"
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback>
-                        {getInitials(vm.callerName || 'U')}
-                      </AvatarFallback>
+                      <AvatarFallback>{getInitials(vm.callerName || "U")}</AvatarFallback>
                     </Avatar>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <p className="font-medium">{vm.callerName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {format(vm.createdAt, 'MMM d, h:mm a')}
+                          {format(vm.createdAt, "MMM d, h:mm a")}
                         </p>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                         <Clock className="w-3 h-3" />
                         {formatDuration(vm.durationSeconds)}

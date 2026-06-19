@@ -1,26 +1,47 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useContracts } from '@/hooks/useContracts';
-import { useActiveWorkspaceId } from '@/contexts/WorkspaceContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { ContractCostWidget } from '@/components/contracts/ContractCostWidget';
-import { 
-  ArrowLeft, 
-  CheckCircle2, 
-  Flame, 
-  Clock, 
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useContracts } from "@/hooks/useContracts";
+import { useActiveWorkspaceId } from "@/contexts/WorkspaceContext";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { ContractCostWidget } from "@/components/contracts/ContractCostWidget";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Flame,
+  Clock,
   Calendar,
   TrendingUp,
   Target,
-  Zap
-} from 'lucide-react';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, isSameDay, subDays, addDays, startOfDay } from 'date-fns';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
-import { Task, TaskCategory } from '@/types/flux';
+  Zap,
+} from "lucide-react";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  isWithinInterval,
+  isSameDay,
+  subDays,
+  addDays,
+  startOfDay,
+} from "date-fns";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
+import { Task, TaskCategory } from "@/types/flux";
 
 interface DbTask {
   id: string;
@@ -47,24 +68,26 @@ export default function Dashboard() {
     if (!user) return;
 
     const fetchTasks = async () => {
-      const base = supabase.from('tasks').select('*');
+      const base = supabase.from("tasks").select("*");
       const scoped = workspaceId
-        ? base.eq('workspace_id', workspaceId)
-        : base.eq('user_id', user.id).is('workspace_id', null);
+        ? base.eq("workspace_id", workspaceId)
+        : base.eq("user_id", user.id).is("workspace_id", null);
       const { data } = await scoped;
 
       if (data) {
-        setTasks(data.map((t: DbTask) => ({
-          id: t.id,
-          title: t.title,
-          description: t.description || undefined,
-          category: t.category as TaskCategory,
-          priority: t.priority as 'high' | 'medium' | 'low',
-          completed: t.completed,
-          createdAt: new Date(t.created_at),
-          updatedAt: new Date(t.updated_at),
-          dueDate: t.due_date ? new Date(t.due_date) : undefined,
-        })));
+        setTasks(
+          data.map((t: DbTask) => ({
+            id: t.id,
+            title: t.title,
+            description: t.description || undefined,
+            category: t.category as TaskCategory,
+            priority: t.priority as "high" | "medium" | "low",
+            completed: t.completed,
+            createdAt: new Date(t.created_at),
+            updatedAt: new Date(t.updated_at),
+            dueDate: t.due_date ? new Date(t.due_date) : undefined,
+          })),
+        );
       }
       setLoading(false);
     };
@@ -80,35 +103,35 @@ export default function Dashboard() {
     const monthEnd = endOfMonth(now);
 
     // Tasks completed this week
-    const completedThisWeek = tasks.filter(t =>
-      t.completed &&
-      t.updatedAt &&
-      isWithinInterval(t.updatedAt, { start: weekStart, end: weekEnd })
+    const completedThisWeek = tasks.filter(
+      (t) =>
+        t.completed &&
+        t.updatedAt &&
+        isWithinInterval(t.updatedAt, { start: weekStart, end: weekEnd }),
     ).length;
 
     // Tasks completed this month
-    const completedThisMonth = tasks.filter(t =>
-      t.completed &&
-      t.updatedAt &&
-      isWithinInterval(t.updatedAt, { start: monthStart, end: monthEnd })
+    const completedThisMonth = tasks.filter(
+      (t) =>
+        t.completed &&
+        t.updatedAt &&
+        isWithinInterval(t.updatedAt, { start: monthStart, end: monthEnd }),
     ).length;
 
     // Category breakdown
-    const businessTasks = tasks.filter(t => t.category === 'business').length;
-    const personalTasks = tasks.filter(t => t.category === 'personal').length;
-    const familyTasks = tasks.filter(t => t.category === 'family').length;
+    const businessTasks = tasks.filter((t) => t.category === "business").length;
+    const personalTasks = tasks.filter((t) => t.category === "personal").length;
+    const familyTasks = tasks.filter((t) => t.category === "family").length;
 
     // Productivity streak (consecutive days with completed tasks)
     let streak = 0;
     let checkDate = startOfDay(now);
-    
+
     for (let i = 0; i < 365; i++) {
-      const dayTasks = tasks.filter(t =>
-        t.completed &&
-        t.updatedAt &&
-        isSameDay(t.updatedAt, checkDate)
+      const dayTasks = tasks.filter(
+        (t) => t.completed && t.updatedAt && isSameDay(t.updatedAt, checkDate),
       );
-      
+
       if (dayTasks.length > 0) {
         streak++;
         checkDate = subDays(checkDate, 1);
@@ -119,18 +142,19 @@ export default function Dashboard() {
 
     // Peak productivity hours
     const hourCounts: Record<number, number> = {};
-    tasks.filter(t => t.completed).forEach(t => {
-      if (t.createdAt) {
-        const hour = t.createdAt.getHours();
-        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
-      }
-    });
+    tasks
+      .filter((t) => t.completed)
+      .forEach((t) => {
+        if (t.createdAt) {
+          const hour = t.createdAt.getHours();
+          hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+        }
+      });
 
-    const peakHour = Object.entries(hourCounts)
-      .sort(([, a], [, b]) => b - a)[0]?.[0];
-    const peakHourLabel = peakHour 
+    const peakHour = Object.entries(hourCounts).sort(([, a], [, b]) => b - a)[0]?.[0];
+    const peakHourLabel = peakHour
       ? `${parseInt(peakHour)}:00 - ${parseInt(peakHour) + 1}:00`
-      : 'N/A';
+      : "N/A";
 
     // Hourly distribution for chart
     const hourlyData = Array.from({ length: 24 }, (_, i) => ({
@@ -140,10 +164,15 @@ export default function Dashboard() {
 
     // Upcoming deadlines (next 7 days)
     const upcomingDeadlines = tasks
-      .filter(t => !t.completed && t.dueDate && isWithinInterval(t.dueDate, { 
-        start: now, 
-        end: addDays(now, 7) 
-      }))
+      .filter(
+        (t) =>
+          !t.completed &&
+          t.dueDate &&
+          isWithinInterval(t.dueDate, {
+            start: now,
+            end: addDays(now, 7),
+          }),
+      )
       .sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0));
 
     return {
@@ -157,19 +186,18 @@ export default function Dashboard() {
       hourlyData,
       upcomingDeadlines,
       totalTasks: tasks.length,
-      completedTasks: tasks.filter(t => t.completed).length,
+      completedTasks: tasks.filter((t) => t.completed).length,
     };
   }, [tasks]);
 
   const categoryData = [
-    { name: 'Business', value: stats.businessTasks, color: 'hsl(var(--primary))' },
-    { name: 'Personal', value: stats.personalTasks, color: 'hsl(var(--accent))' },
-    { name: 'Family', value: stats.familyTasks, color: 'hsl(var(--warning))' },
-  ].filter(d => d.value > 0);
+    { name: "Business", value: stats.businessTasks, color: "hsl(var(--primary))" },
+    { name: "Personal", value: stats.personalTasks, color: "hsl(var(--accent))" },
+    { name: "Family", value: stats.familyTasks, color: "hsl(var(--warning))" },
+  ].filter((d) => d.value > 0);
 
-  const completionRate = stats.totalTasks > 0 
-    ? Math.round((stats.completedTasks / stats.totalTasks) * 100) 
-    : 0;
+  const completionRate =
+    stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0;
 
   if (loading) {
     return (
@@ -184,7 +212,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
@@ -287,9 +315,7 @@ export default function Dashboard() {
                     <span className="text-sm">Personal: {stats.personalTasks}</span>
                   </div>
                   <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground">
-                      Completion Rate
-                    </p>
+                    <p className="text-sm text-muted-foreground">Completion Rate</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Progress value={completionRate} className="h-2 flex-1" />
                       <span className="text-sm font-medium">{completionRate}%</span>
@@ -312,24 +338,16 @@ export default function Dashboard() {
               <div className="h-40">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={stats.hourlyData.filter((_, i) => i >= 6 && i <= 22)}>
-                    <XAxis 
-                      dataKey="hour" 
-                      tick={{ fontSize: 10 }}
-                      interval={2}
-                    />
+                    <XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={2} />
                     <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
+                    <Tooltip
+                      contentStyle={{
+                        background: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
                       }}
                     />
-                    <Bar 
-                      dataKey="tasks" 
-                      fill="hsl(var(--primary))" 
-                      radius={[4, 4, 0, 0]}
-                    />
+                    <Bar dataKey="tasks" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -351,17 +369,21 @@ export default function Dashboard() {
           <CardContent>
             {stats.upcomingDeadlines.length > 0 ? (
               <div className="space-y-3">
-                {stats.upcomingDeadlines.slice(0, 5).map(task => (
-                  <div 
-                    key={task.id} 
+                {stats.upcomingDeadlines.slice(0, 5).map((task) => (
+                  <div
+                    key={task.id}
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${
-                        task.priority === 'high' ? 'bg-destructive' :
-                        task.priority === 'medium' ? 'bg-warning' :
-                        'bg-muted-foreground'
-                      }`} />
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          task.priority === "high"
+                            ? "bg-destructive"
+                            : task.priority === "medium"
+                              ? "bg-warning"
+                              : "bg-muted-foreground"
+                        }`}
+                      />
                       <div>
                         <p className="font-medium text-sm">{task.title}</p>
                         <p className="text-xs text-muted-foreground capitalize">
@@ -370,7 +392,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {task.dueDate && format(task.dueDate, 'MMM d, h:mm a')}
+                      {task.dueDate && format(task.dueDate, "MMM d, h:mm a")}
                     </div>
                   </div>
                 ))}

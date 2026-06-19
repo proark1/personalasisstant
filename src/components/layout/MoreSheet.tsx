@@ -1,12 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Drawer, DrawerContent } from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useHaptics } from '@/hooks/useHaptics';
-import { MoreHorizontal, Search, Clock } from 'lucide-react';
-import { NAV_AREAS, SETTINGS_ITEM, resolveNavLabel, type NavItem } from '@/config/navigation';
+import { useState, useMemo, useEffect } from "react";
+import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useHaptics } from "@/hooks/useHaptics";
+import { MoreHorizontal, Search, Clock } from "lucide-react";
+import { NAV_AREAS, SETTINGS_ITEM, resolveNavLabel, type NavItem } from "@/config/navigation";
 
 export type MoreSheetPanel = string;
 
@@ -24,19 +24,21 @@ interface SheetItem extends NavItem {
 // Flatten the shared nav config into the flat, sectioned list the sheet wants.
 const allItems: SheetItem[] = [
   ...NAV_AREAS.flatMap((area) => area.items.map((item) => ({ ...item, section: area.label }))),
-  { ...SETTINGS_ITEM, section: 'Settings' },
+  { ...SETTINGS_ITEM, section: "Settings" },
 ];
 
-const RECENTS_KEY = 'moresheet-recents';
+const RECENTS_KEY = "moresheet-recents";
 
 function getRecents(): MoreSheetPanel[] {
   try {
-    return JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]');
-  } catch { return []; }
+    return JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]");
+  } catch {
+    return [];
+  }
 }
 
 function addRecent(panel: MoreSheetPanel) {
-  const recents = getRecents().filter(p => p !== panel);
+  const recents = getRecents().filter((p) => p !== panel);
   recents.unshift(panel);
   localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.slice(0, 3)));
 }
@@ -47,23 +49,26 @@ const staggerContainer = {
 };
 const staggerItem = {
   hidden: { opacity: 0, scale: 0.96 },
-  show: { opacity: 1, scale: 1, transition: { duration: 0.2, ease: 'easeOut' } },
+  show: { opacity: 1, scale: 1, transition: { duration: 0.2, ease: "easeOut" } },
 };
 
 export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreSheetProps) {
   const { t } = useLanguage();
   const { vibrate } = useHaptics();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [recents, setRecents] = useState<MoreSheetPanel[]>([]);
 
   useEffect(() => {
-    if (open) { setRecents(getRecents()); setSearch(''); }
+    if (open) {
+      setRecents(getRecents());
+      setSearch("");
+    }
   }, [open]);
 
   const labelOf = (item: SheetItem) => resolveNavLabel(item, t);
 
   const handleSelect = (panel: MoreSheetPanel) => {
-    vibrate('light');
+    vibrate("light");
     addRecent(panel);
     onNavigate(panel);
     onOpenChange(false);
@@ -72,19 +77,19 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
   const filtered = useMemo(() => {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
-    return allItems.filter(i => labelOf(i).toLowerCase().includes(q) || i.id.includes(q));
+    return allItems.filter((i) => labelOf(i).toLowerCase().includes(q) || i.id.includes(q));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, t]);
 
-  const recentItems = useMemo(() =>
-    recents.map(id => allItems.find(i => i.id === id)).filter(Boolean) as SheetItem[],
-    [recents]
+  const recentItems = useMemo(
+    () => recents.map((id) => allItems.find((i) => i.id === id)).filter(Boolean) as SheetItem[],
+    [recents],
   );
 
   const sections = useMemo(() => {
     const items = filtered || allItems;
     const groups: Record<string, SheetItem[]> = {};
-    items.forEach(item => {
+    items.forEach((item) => {
       if (!groups[item.section]) groups[item.section] = [];
       groups[item.section].push(item);
     });
@@ -114,14 +119,14 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
                 <Clock className="w-3 h-3" /> Recent
               </span>
               <div className="flex gap-2 mt-2">
-                {recentItems.map(item => (
+                {recentItems.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => handleSelect(item.id)}
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium",
                       "bg-primary/10 text-primary border border-primary/20",
-                      "active:scale-95 touch-manipulation transition-all"
+                      "active:scale-95 touch-manipulation transition-all",
                     )}
                   >
                     <item.icon className="w-3.5 h-3.5" />
@@ -142,7 +147,7 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
                 className="grid grid-cols-3 gap-2 mt-2"
                 variants={staggerContainer}
                 initial="hidden"
-                animate={open ? 'show' : 'hidden'}
+                animate={open ? "show" : "hidden"}
               >
                 {items.map((item) => {
                   const isActive = activePanel === item.id;
@@ -156,7 +161,7 @@ export function MoreSheet({ open, onOpenChange, onNavigate, activePanel }: MoreS
                         "active:scale-95 touch-manipulation border",
                         isActive
                           ? "bg-primary/10 text-primary border-primary/20"
-                          : "text-muted-foreground border-border bg-card hover:bg-muted"
+                          : "text-muted-foreground border-border bg-card hover:bg-muted",
                       )}
                     >
                       <item.icon className="w-5 h-5" />

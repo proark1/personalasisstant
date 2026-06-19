@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { TablesInsert } from '@/integrations/supabase/types';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
 
 export type ConfirmationOverrides = Record<
   string,
@@ -60,19 +60,19 @@ export interface ProactiveSettings {
 // confirmation requirements for. Keep in sync with MUTATING_TOOLS in
 // supabase/functions/chat/index.ts.
 export const CONFIRMATION_ENTITIES: { key: string; label: string }[] = [
-  { key: 'task', label: 'Tasks' },
-  { key: 'event', label: 'Calendar events' },
-  { key: 'contact', label: 'Contacts' },
-  { key: 'contract', label: 'Contracts' },
-  { key: 'property', label: 'Properties' },
-  { key: 'business', label: 'Businesses / ideas' },
-  { key: 'family_member', label: 'Family members' },
-  { key: 'note', label: 'Notes' },
-  { key: 'shopping_item', label: 'Shopping items' },
-  { key: 'reminder', label: 'Reminders' },
+  { key: "task", label: "Tasks" },
+  { key: "event", label: "Calendar events" },
+  { key: "contact", label: "Contacts" },
+  { key: "contract", label: "Contracts" },
+  { key: "property", label: "Properties" },
+  { key: "business", label: "Businesses / ideas" },
+  { key: "family_member", label: "Family members" },
+  { key: "note", label: "Notes" },
+  { key: "shopping_item", label: "Shopping items" },
+  { key: "reminder", label: "Reminders" },
 ];
 
-const DEFAULT_SETTINGS: Omit<ProactiveSettings, 'user_id'> = {
+const DEFAULT_SETTINGS: Omit<ProactiveSettings, "user_id"> = {
   enabled: true,
   forgotten_tasks_enabled: true,
   contract_renewals_enabled: true,
@@ -84,16 +84,16 @@ const DEFAULT_SETTINGS: Omit<ProactiveSettings, 'user_id'> = {
   voice_proactive_enabled: false,
   calendar_overload_enabled: true,
   calendar_overload_threshold: 6,
-  morning_briefing_time: '08:00',
-  evening_review_time: '20:00',
+  morning_briefing_time: "08:00",
+  evening_review_time: "20:00",
   weekly_planning_day: 0,
   forgotten_task_days: 3,
   contact_checkin_days: 14,
   contract_reminder_days: [30, 14, 7, 3, 1],
   habit_streak_warning_hours: 4,
   quiet_hours_enabled: true,
-  quiet_hours_start: '22:00',
-  quiet_hours_end: '07:00',
+  quiet_hours_start: "22:00",
+  quiet_hours_end: "07:00",
   push_notifications_enabled: true,
   in_app_notifications_enabled: true,
   voice_alerts_enabled: false,
@@ -126,13 +126,13 @@ export function useProactiveSettings() {
 
     try {
       const { data, error } = await supabase
-        .from('proactive_settings')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("proactive_settings")
+        .select("*")
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching proactive settings:', error);
+        console.error("Error fetching proactive settings:", error);
       }
 
       if (data) {
@@ -142,7 +142,7 @@ export function useProactiveSettings() {
         setSettings({ ...DEFAULT_SETTINGS, user_id: user.id });
       }
     } catch (err) {
-      console.error('Failed to fetch proactive settings:', err);
+      console.error("Failed to fetch proactive settings:", err);
     } finally {
       setLoading(false);
     }
@@ -160,19 +160,19 @@ export function useProactiveSettings() {
 
     try {
       const { error } = await supabase
-        .from('proactive_settings')
-        .upsert(newSettings as TablesInsert<'proactive_settings'>, { onConflict: 'user_id' });
+        .from("proactive_settings")
+        .upsert(newSettings as TablesInsert<"proactive_settings">, { onConflict: "user_id" });
 
       if (error) {
-        console.error('Error updating proactive settings:', error);
-        toast.error('Failed to save settings');
+        console.error("Error updating proactive settings:", error);
+        toast.error("Failed to save settings");
         fetchSettings(); // Revert to server state
       } else {
-        toast.success('Settings saved');
+        toast.success("Settings saved");
       }
     } catch (err) {
-      console.error('Failed to update proactive settings:', err);
-      toast.error('Failed to save settings');
+      console.error("Failed to update proactive settings:", err);
+      toast.error("Failed to save settings");
     }
   };
 
@@ -180,15 +180,15 @@ export function useProactiveSettings() {
     if (!user?.id) return;
 
     try {
-      const { error } = await supabase.functions.invoke('proactive-assistant', {
-        body: { user_id: user.id, trigger_type: triggerType }
+      const { error } = await supabase.functions.invoke("proactive-assistant", {
+        body: { user_id: user.id, trigger_type: triggerType },
       });
 
       if (error) {
-        console.error('Error triggering proactive check:', error);
+        console.error("Error triggering proactive check:", error);
       }
     } catch (err) {
-      console.error('Failed to trigger proactive check:', err);
+      console.error("Failed to trigger proactive check:", err);
     }
   };
 

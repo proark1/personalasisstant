@@ -1,31 +1,47 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFamilyMemoryHome } from '@/hooks/useFamilyMemoryHome';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useFamilyMemoryHome } from "@/hooks/useFamilyMemoryHome";
 
-interface Props { open: boolean; onOpenChange: (v: boolean) => void; }
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}
 
 export function AddMaintenanceDialog({ open, onOpenChange }: Props) {
   const { addMaintenance } = useFamilyMemoryHome();
-  const [taskName, setTaskName] = useState('');
-  const [category, setCategory] = useState('general');
-  const [frequencyMonths, setFrequencyMonths] = useState('12');
-  const [lastDone, setLastDone] = useState('');
-  const [nextDue, setNextDue] = useState('');
-  const [providerName, setProviderName] = useState('');
-  const [providerPhone, setProviderPhone] = useState('');
-  const [cost, setCost] = useState('');
-  const [notes, setNotes] = useState('');
+  const [taskName, setTaskName] = useState("");
+  const [category, setCategory] = useState("general");
+  const [frequencyMonths, setFrequencyMonths] = useState("12");
+  const [lastDone, setLastDone] = useState("");
+  const [nextDue, setNextDue] = useState("");
+  const [providerName, setProviderName] = useState("");
+  const [providerPhone, setProviderPhone] = useState("");
+  const [cost, setCost] = useState("");
+  const [notes, setNotes] = useState("");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!taskName) return;
     await addMaintenance({
-      task_name: taskName, category,
+      task_name: taskName,
+      category,
       frequency_months: frequencyMonths ? parseInt(frequencyMonths) : null,
       last_done_date: lastDone || null,
       next_due_date: nextDue || null,
@@ -40,17 +56,26 @@ export function AddMaintenanceDialog({ open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Household Maintenance</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Household Maintenance</DialogTitle>
+        </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-2">
             <Label>Task *</Label>
-            <Input value={taskName} onChange={e => setTaskName(e.target.value)} placeholder="Boiler service" required />
+            <Input
+              value={taskName}
+              onChange={(e) => setTaskName(e.target.value)}
+              placeholder="Boiler service"
+              required
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Category</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="general">General</SelectItem>
                   <SelectItem value="heating">Heating</SelectItem>
@@ -64,36 +89,49 @@ export function AddMaintenanceDialog({ open, onOpenChange }: Props) {
             </div>
             <div className="space-y-2">
               <Label>Frequency (months)</Label>
-              <Input type="number" value={frequencyMonths} onChange={e => setFrequencyMonths(e.target.value)} />
+              <Input
+                type="number"
+                value={frequencyMonths}
+                onChange={(e) => setFrequencyMonths(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Last done</Label>
-              <Input type="date" value={lastDone} onChange={e => setLastDone(e.target.value)} />
+              <Input type="date" value={lastDone} onChange={(e) => setLastDone(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Next due</Label>
-              <Input type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} />
+              <Input type="date" value={nextDue} onChange={(e) => setNextDue(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Provider</Label>
-              <Input value={providerName} onChange={e => setProviderName(e.target.value)} />
+              <Input value={providerName} onChange={(e) => setProviderName(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Provider phone</Label>
-              <Input value={providerPhone} onChange={e => setProviderPhone(e.target.value)} />
+              <Input value={providerPhone} onChange={(e) => setProviderPhone(e.target.value)} />
             </div>
             <div className="space-y-2 col-span-2">
               <Label>Cost estimate</Label>
-              <Input type="number" step="0.01" value={cost} onChange={e => setCost(e.target.value)} />
+              <Input
+                type="number"
+                step="0.01"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+              />
             </div>
           </div>
           <div className="space-y-2">
             <Label>Notes</Label>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={!taskName}>Save</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!taskName}>
+              Save
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

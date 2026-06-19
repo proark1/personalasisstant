@@ -10,15 +10,15 @@
 // Items shape on the row's `items` JSONB:
 //   [{ name, category?, packed: false, qty?, note? }]
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { adminClient, resolveUserId } from '../_shared/auth.ts';
-import { assertWithinQuota } from '../_shared/ai-quota.ts';
-import { generateStructured } from '../_shared/geminiStructured.ts';
-import { strictAppOrigin } from '../_shared/cors.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { adminClient, resolveUserId } from "../_shared/auth.ts";
+import { assertWithinQuota } from "../_shared/ai-quota.ts";
+import { generateStructured } from "../_shared/geminiStructured.ts";
+import { strictAppOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': strictAppOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": strictAppOrigin(),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 // MODEL is unused — generateStructured uses its own default
@@ -26,120 +26,139 @@ const corsHeaders = {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SYSTEM_PROMPT = [
-  'You are a travel packing expert. Produce a packing list tailored to the',
-  'trip: destination, weather, length, purpose, and any extra context the',
-  'user provided. Categorize items.',
-  '',
-  'Rules:',
-  '- 12–25 items total. Quality, not quantity.',
-  '- Items MUST be physical objects you pack into a bag — not actions.',
+  "You are a travel packing expert. Produce a packing list tailored to the",
+  "trip: destination, weather, length, purpose, and any extra context the",
+  "user provided. Categorize items.",
+  "",
+  "Rules:",
+  "- 12–25 items total. Quality, not quantity.",
+  "- Items MUST be physical objects you pack into a bag — not actions.",
   '- Use clear singular names ("Rain jacket", not "weather-appropriate clothing").',
-  '- `category` is one of: clothing, toiletries, electronics, documents,',
-  '  health, work, leisure, weather, other.',
-  '- Skip generic basics the user obviously already packs (toothbrush is OK to',
+  "- `category` is one of: clothing, toiletries, electronics, documents,",
+  "  health, work, leisure, weather, other.",
+  "- Skip generic basics the user obviously already packs (toothbrush is OK to",
   '  include, but skip "phone").',
-  '- For business trips, lean into work items. For beach trips, lean into',
-  '  swimwear/sunscreen. For cold destinations, layered warm clothing.',
-].join('\n');
+  "- For business trips, lean into work items. For beach trips, lean into",
+  "  swimwear/sunscreen. For cold destinations, layered warm clothing.",
+].join("\n");
 
 const TOOL = {
-  type: 'function',
+  type: "function",
   function: {
-    name: 'record_packing_list',
-    description: 'Record the generated packing list',
+    name: "record_packing_list",
+    description: "Record the generated packing list",
     parameters: {
-      type: 'object',
+      type: "object",
       properties: {
         items: {
-          type: 'array',
+          type: "array",
           maxItems: 25,
           items: {
-            type: 'object',
+            type: "object",
             properties: {
-              name: { type: 'string' },
+              name: { type: "string" },
               category: {
-                type: 'string',
-                enum: ['clothing', 'toiletries', 'electronics', 'documents', 'health', 'work', 'leisure', 'weather', 'other'],
+                type: "string",
+                enum: [
+                  "clothing",
+                  "toiletries",
+                  "electronics",
+                  "documents",
+                  "health",
+                  "work",
+                  "leisure",
+                  "weather",
+                  "other",
+                ],
               },
-              qty: { type: 'integer', minimum: 1 },
-              note: { type: 'string' },
+              qty: { type: "integer", minimum: 1 },
+              note: { type: "string" },
             },
-            required: ['name', 'category'],
+            required: ["name", "category"],
           },
         },
-        rationale: { type: 'string' },
+        rationale: { type: "string" },
       },
-      required: ['items'],
+      required: ["items"],
     },
   },
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const auth = await resolveUserId(req);
-    if (!auth) return json({ error: 'Unauthorized' }, 401);
+    if (!auth) return json({ error: "Unauthorized" }, 401);
     const user = { id: auth.userId };
     const admin = adminClient();
 
     const body = await req.json().catch(() => ({}));
-    const tripId = String(body.trip_id || '');
-    if (!UUID_RE.test(tripId)) return json({ error: 'invalid trip_id' }, 400);
+    const tripId = String(body.trip_id || "");
+    if (!UUID_RE.test(tripId)) return json({ error: "invalid trip_id" }, 400);
     const replace = body.replace === true;
-    const extraContext = typeof body.extra_context === 'string'
-      ? body.extra_context.slice(0, 500)
-      : '';
+    const extraContext =
+      typeof body.extra_context === "string" ? body.extra_context.slice(0, 500) : "";
 
     // Load trip + cached weather summary if any.
     const { data: trip, error: tErr } = await admin
-      .from('trips')
-      .select('*')
-      .eq('id', tripId)
-      .eq('user_id', user.id)
+      .from("trips")
+      .select("*")
+      .eq("id", tripId)
+      .eq("user_id", user.id)
       .single();
-    if (tErr || !trip) return json({ error: 'trip not found' }, 404);
+    if (tErr || !trip) return json({ error: "trip not found" }, 404);
 
-    let weatherSummary = trip.weather_summary || '';
-    let weatherDays: Array<{ date: string; temp_min_c?: number; temp_max_c?: number; precipitation_probability?: number; summary?: string }> = [];
+    let weatherSummary = trip.weather_summary || "";
+    let weatherDays: Array<{
+      date: string;
+      temp_min_c?: number;
+      temp_max_c?: number;
+      precipitation_probability?: number;
+      summary?: string;
+    }> = [];
     if (trip.destination_lat != null && trip.destination_lon != null) {
       const latGrid = Math.round(Number(trip.destination_lat) * 10) / 10;
       const lonGrid = Math.round(Number(trip.destination_lon) * 10) / 10;
       const { data: cached } = await admin
-        .from('weather_snapshots')
-        .select('date, temp_min_c, temp_max_c, precipitation_probability, summary')
-        .eq('lat_grid', latGrid)
-        .eq('lon_grid', lonGrid)
-        .gte('date', trip.start_date)
-        .lte('date', trip.end_date)
-        .order('date');
+        .from("weather_snapshots")
+        .select("date, temp_min_c, temp_max_c, precipitation_probability, summary")
+        .eq("lat_grid", latGrid)
+        .eq("lon_grid", lonGrid)
+        .gte("date", trip.start_date)
+        .lte("date", trip.end_date)
+        .order("date");
       weatherDays = cached ?? [];
       if (!weatherSummary && weatherDays.length > 0) {
-        weatherSummary = weatherDays.map((d) => `${d.date}: ${d.summary}`).join('\n');
+        weatherSummary = weatherDays.map((d) => `${d.date}: ${d.summary}`).join("\n");
       }
     }
 
     const lengthDays = daysBetween(trip.start_date, trip.end_date) + 1;
 
     const userPrompt = [
-      `Destination: ${trip.destination}${trip.destination_country ? `, ${trip.destination_country}` : ''}`,
-      `Dates: ${trip.start_date} → ${trip.end_date} (${lengthDays} day${lengthDays === 1 ? '' : 's'})`,
-      `Purpose: ${trip.purpose || 'unspecified'}`,
-      `Status: ${trip.status || 'planned'}`,
-      weatherSummary ? `Weather forecast:\n${weatherSummary}` : 'No weather forecast available — pick safe layered choices.',
-      extraContext ? `\nExtra context from the user: ${extraContext}` : '',
-    ].filter(Boolean).join('\n');
+      `Destination: ${trip.destination}${trip.destination_country ? `, ${trip.destination_country}` : ""}`,
+      `Dates: ${trip.start_date} → ${trip.end_date} (${lengthDays} day${lengthDays === 1 ? "" : "s"})`,
+      `Purpose: ${trip.purpose || "unspecified"}`,
+      `Status: ${trip.status || "planned"}`,
+      weatherSummary
+        ? `Weather forecast:\n${weatherSummary}`
+        : "No weather forecast available — pick safe layered choices.",
+      extraContext ? `\nExtra context from the user: ${extraContext}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
-    const geminiKey = Deno.env.get('GEMINI_API_KEY');
+    const geminiKey = Deno.env.get("GEMINI_API_KEY");
     if (!geminiKey) {
-      return json({ error: 'GEMINI_API_KEY not configured' }, 503);
+      return json({ error: "GEMINI_API_KEY not configured" }, 503);
     }
 
     try {
       await assertWithinQuota(admin, user.id);
     } catch (e) {
       const code = (e as { code?: string })?.code;
-      return json({ error: (e as Error).message, code }, code === 'quota_exceeded' ? 429 : 500);
+      return json({ error: (e as Error).message, code }, code === "quota_exceeded" ? 429 : 500);
     }
 
     // Native generateContent + responseSchema (the OpenAI-compat endpoint with
@@ -154,77 +173,80 @@ serve(async (req) => {
         timeoutMs: 45_000,
       });
     } catch (e) {
-      console.error('[generate-packing-list] AI failed', (e as Error).message);
-      return json({ error: 'AI returned invalid structured data' }, 502);
+      console.error("[generate-packing-list] AI failed", (e as Error).message);
+      return json({ error: "AI returned invalid structured data" }, 502);
     }
     const items = Array.isArray(parsed?.items) ? parsed.items : [];
 
-    const cleanItems = items.slice(0, 25).map((it: Record<string, unknown>) => ({
-      name: String(it?.name || '').slice(0, 100),
-      category: String(it?.category || 'other').slice(0, 30),
-      qty: Number.isInteger(it?.qty) && (it.qty as number) > 0 ? it.qty as number : 1,
-      note: typeof it?.note === 'string' ? it.note.slice(0, 200) : null,
-      packed: false,
-    })).filter((it) => it.name.length > 0);
+    const cleanItems = items
+      .slice(0, 25)
+      .map((it: Record<string, unknown>) => ({
+        name: String(it?.name || "").slice(0, 100),
+        category: String(it?.category || "other").slice(0, 30),
+        qty: Number.isInteger(it?.qty) && (it.qty as number) > 0 ? (it.qty as number) : 1,
+        note: typeof it?.note === "string" ? it.note.slice(0, 200) : null,
+        packed: false,
+      }))
+      .filter((it) => it.name.length > 0);
 
     if (cleanItems.length === 0) {
-      return json({ error: 'AI returned no usable items' }, 500);
+      return json({ error: "AI returned no usable items" }, 500);
     }
 
     // Find or create the AI packing list for this trip.
     const { data: existing } = await admin
-      .from('packing_lists')
-      .select('id, items')
-      .eq('user_id', user.id)
-      .eq('trip_id', tripId)
-      .eq('source', 'ai_generated')
+      .from("packing_lists")
+      .select("id, items")
+      .eq("user_id", user.id)
+      .eq("trip_id", tripId)
+      .eq("source", "ai_generated")
       .maybeSingle();
 
     let listId: string;
     if (existing && !replace) {
       // Append items, dedup by name (case-insensitive).
       const existingItems = (existing.items as Array<Record<string, unknown>>) ?? [];
-      const have = new Set(existingItems.map((i) => String(i?.name || '').toLowerCase()));
+      const have = new Set(existingItems.map((i) => String(i?.name || "").toLowerCase()));
       const merged = [
         ...existingItems,
         ...cleanItems.filter((i) => !have.has(i.name.toLowerCase())),
       ];
       const { error: upErr } = await admin
-        .from('packing_lists')
+        .from("packing_lists")
         .update({
           items: merged,
           generated_at: new Date().toISOString(),
           metadata: { rationale: parsed?.rationale ?? null },
         })
-        .eq('id', existing.id);
+        .eq("id", existing.id);
       if (upErr) return json({ error: upErr.message }, 500);
       listId = existing.id;
     } else if (existing && replace) {
       const { error: upErr } = await admin
-        .from('packing_lists')
+        .from("packing_lists")
         .update({
           items: cleanItems,
           generated_at: new Date().toISOString(),
           metadata: { rationale: parsed?.rationale ?? null },
         })
-        .eq('id', existing.id);
+        .eq("id", existing.id);
       if (upErr) return json({ error: upErr.message }, 500);
       listId = existing.id;
     } else {
       const { data: ins, error: insErr } = await admin
-        .from('packing_lists')
+        .from("packing_lists")
         .insert({
           user_id: user.id,
           trip_id: tripId,
-          name: 'Smart packing list',
-          source: 'ai_generated',
+          name: "Smart packing list",
+          source: "ai_generated",
           items: cleanItems,
           generated_at: new Date().toISOString(),
           metadata: { rationale: parsed?.rationale ?? null },
         })
-        .select('id')
+        .select("id")
         .single();
-      if (insErr || !ins) return json({ error: insErr?.message || 'insert failed' }, 500);
+      if (insErr || !ins) return json({ error: insErr?.message || "insert failed" }, 500);
       listId = ins.id;
     }
 
@@ -236,20 +258,24 @@ serve(async (req) => {
       weather_used: weatherDays.length > 0,
     });
   } catch (err) {
-    console.error('[generate-packing-list] failed', (err as Error).message);
+    console.error("[generate-packing-list] failed", (err as Error).message);
     return json({ error: (err as Error).message }, 500);
   }
 });
 
 function daysBetween(start: string, end: string): number {
-  const s = new Date(start + 'T00:00:00Z').getTime();
-  const e = new Date(end + 'T00:00:00Z').getTime();
+  const s = new Date(start + "T00:00:00Z").getTime();
+  const e = new Date(end + "T00:00:00Z").getTime();
   return Math.max(0, Math.round((e - s) / 86_400_000));
 }
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Content-Type-Options': 'nosniff' },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }

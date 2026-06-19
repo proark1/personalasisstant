@@ -6,14 +6,15 @@
 @tailwind utilities;
 
 /* iOS safe-area background: paint a full-screen backdrop behind the app */
-html, body {
+html,
+body {
   background-color: hsl(var(--background)) !important;
-  height: 100%;
+  min-height: 100%;
 }
 
 /* On iOS, the "viewport behind" can show through near the safe-area; this forces a solid backdrop */
 body::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
   background-color: hsl(var(--background)) !important;
@@ -21,13 +22,11 @@ body::before {
   z-index: -1;
 }
 
-
-
 @layer base {
   :root {
     /* Quran font variable - can be changed dynamically */
-    --quran-font: 'Amiri';
-    
+    --quran-font: "Amiri";
+
     /* Light theme — Emerald on clean cool-neutral */
     --background: 0 0% 98%;
     --foreground: 215 28% 14%;
@@ -182,7 +181,7 @@ body::before {
     --glass-border: 280 30% 85%;
     --glow-primary: 330 90% 55%;
     --glow-accent: 45 100% 50%;
-    
+
     --ghost-bg: 280 30% 97%;
     --ghost-primary: 330 90% 55%;
     --ghost-secondary: 175 80% 45%;
@@ -211,44 +210,31 @@ body::before {
   * {
     @apply border-border;
   }
-  
+
   html {
     @apply bg-background text-foreground;
-    height: 100%;
-    height: -webkit-fill-available;
-    overflow: hidden;
-    overscroll-behavior: none;
+    min-height: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: "Inter", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    height: 100%;
-    height: -webkit-fill-available;
     min-height: 100dvh;
-    overflow: hidden;
-    overscroll-behavior: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
     width: 100%;
   }
 
-  /* iOS Safari scroll fix - allow nested scrolling in iframes/web views */
-  /* NOTE: keep body fixed to ensure the entire safe-area is painted (prevents white bars). */
-  
   #root {
     @apply bg-background text-foreground;
     background-color: hsl(var(--background)) !important;
     min-height: 100dvh;
-    height: 100%;
-    overflow: hidden;
+    overflow-x: hidden;
   }
-
 
   /* Safe area for mobile devices - paint with background color */
   .safe-area-bottom {
@@ -304,7 +290,7 @@ body::before {
   border: 1px solid hsl(var(--border));
   box-shadow:
     0 2px 6px -2px hsl(var(--foreground) / 0.06),
-    0 10px 28px -10px hsl(var(--foreground) / 0.10);
+    0 10px 28px -10px hsl(var(--foreground) / 0.1);
 }
 
 /* Gradient Borders */
@@ -315,18 +301,18 @@ body::before {
 }
 
 .gradient-border::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   padding: 1px;
   border-radius: inherit;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--border)),
-    hsl(var(--border) / 0.4)
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  background: linear-gradient(135deg, hsl(var(--border)), hsl(var(--border) / 0.4));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
@@ -338,20 +324,26 @@ body::before {
 }
 
 @keyframes gradient-rotate {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Modern Shadows */
 .shadow-soft {
-  box-shadow: 
+  box-shadow:
     0 2px 8px -2px hsl(var(--foreground) / 0.08),
     0 4px 16px -4px hsl(var(--foreground) / 0.04);
 }
 
 .shadow-elevated {
-  box-shadow: 
+  box-shadow:
     0 4px 12px -2px hsl(var(--foreground) / 0.1),
     0 8px 24px -4px hsl(var(--foreground) / 0.06),
     0 16px 48px -8px hsl(var(--foreground) / 0.04);
@@ -361,13 +353,13 @@ body::before {
 .shadow-glow {
   box-shadow:
     0 1px 2px hsl(var(--foreground) / 0.04),
-    0 6px 18px -8px hsl(var(--foreground) / 0.10);
+    0 6px 18px -8px hsl(var(--foreground) / 0.1);
 }
 
 .shadow-glow-accent {
   box-shadow:
     0 1px 2px hsl(var(--foreground) / 0.04),
-    0 6px 18px -8px hsl(var(--foreground) / 0.10);
+    0 6px 18px -8px hsl(var(--foreground) / 0.1);
 }
 
 /* Text Gradients — single-hue, gentle (no cyan/purple clash). */
@@ -379,12 +371,7 @@ body::before {
 }
 
 .text-gradient-shine {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--primary)),
-    hsl(var(--accent)),
-    hsl(var(--primary))
-  );
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary)));
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -393,12 +380,16 @@ body::before {
 }
 
 @keyframes shine {
-  to { background-position: 200% center; }
+  to {
+    background-position: 200% center;
+  }
 }
 
 /* Interactive Feedback */
 .interactive-lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .interactive-lift:hover {
@@ -424,10 +415,14 @@ body::before {
 }
 
 .ripple::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), hsl(var(--primary) / 0.15) 0%, transparent 70%);
+  background: radial-gradient(
+    circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+    hsl(var(--primary) / 0.15) 0%,
+    transparent 70%
+  );
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
@@ -450,8 +445,12 @@ body::before {
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Floating Animation */
@@ -460,8 +459,13 @@ body::before {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 /* Pulse Glow */
@@ -470,7 +474,8 @@ body::before {
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 hsl(var(--primary) / 0);
   }
   50% {
@@ -484,9 +489,17 @@ body::before {
 }
 
 @keyframes success-check {
-  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
-  50% { transform: scale(1.2) rotate(-45deg); }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(-45deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
 }
 
 /* Bounce In */
@@ -495,9 +508,17 @@ body::before {
 }
 
 @keyframes bounce-in {
-  0% { transform: scale(0); opacity: 0; }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* Stagger Children Animation */
@@ -506,18 +527,40 @@ body::before {
   opacity: 0;
 }
 
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
-.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
-.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 50ms;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 100ms;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 150ms;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 200ms;
+}
+.stagger-children > *:nth-child(6) {
+  animation-delay: 250ms;
+}
+.stagger-children > *:nth-child(7) {
+  animation-delay: 300ms;
+}
+.stagger-children > *:nth-child(8) {
+  animation-delay: 350ms;
+}
 
 @keyframes stagger-fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* XP Floating Badge */
@@ -526,8 +569,14 @@ body::before {
 }
 
 @keyframes xp-float {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(-40px) scale(0.8); opacity: 0; }
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-40px) scale(0.8);
+    opacity: 0;
+  }
 }
 
 /* Streak Fire */
@@ -536,8 +585,14 @@ body::before {
 }
 
 @keyframes streak-fire {
-  0% { filter: brightness(1) saturate(1); transform: scale(1); }
-  100% { filter: brightness(1.2) saturate(1.3); transform: scale(1.1); }
+  0% {
+    filter: brightness(1) saturate(1);
+    transform: scale(1);
+  }
+  100% {
+    filter: brightness(1.2) saturate(1.3);
+    transform: scale(1.1);
+  }
 }
 
 @layer components {
@@ -587,31 +642,33 @@ body::before {
 
   /* Glow effects */
   .glow-primary {
-    box-shadow: 0 0 20px hsl(var(--glow-primary) / 0.3),
-                0 0 40px hsl(var(--glow-primary) / 0.1);
+    box-shadow:
+      0 0 20px hsl(var(--glow-primary) / 0.3),
+      0 0 40px hsl(var(--glow-primary) / 0.1);
   }
 
   .glow-accent {
-    box-shadow: 0 0 20px hsl(var(--glow-accent) / 0.3),
-                0 0 40px hsl(var(--glow-accent) / 0.1);
+    box-shadow:
+      0 0 20px hsl(var(--glow-accent) / 0.3),
+      0 0 40px hsl(var(--glow-accent) / 0.1);
   }
 
   /* Text glow */
   .text-glow {
-    text-shadow: 0 0 10px hsl(var(--primary) / 0.5),
-                 0 0 20px hsl(var(--primary) / 0.3);
+    text-shadow:
+      0 0 10px hsl(var(--primary) / 0.5),
+      0 0 20px hsl(var(--primary) / 0.3);
   }
 
   .text-glow-accent {
-    text-shadow: 0 0 10px hsl(var(--accent) / 0.5),
-                 0 0 20px hsl(var(--accent) / 0.3);
+    text-shadow:
+      0 0 10px hsl(var(--accent) / 0.5),
+      0 0 20px hsl(var(--accent) / 0.3);
   }
 
   /* Ghost mode background */
   .ghost-gradient {
-    background: radial-gradient(ellipse at center, 
-      hsl(var(--ghost-bg)) 0%,
-      hsl(222 47% 3%) 100%);
+    background: radial-gradient(ellipse at center, hsl(var(--ghost-bg)) 0%, hsl(222 47% 3%) 100%);
   }
 
   /* Animated gradient border */
@@ -620,25 +677,35 @@ body::before {
   }
 
   .gradient-border::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: -1px;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, 
-      hsl(var(--primary)) 0%, 
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary)) 0%,
       hsl(var(--accent)) 50%,
-      hsl(var(--primary)) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      hsl(var(--primary)) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     animation: gradient-rotate 4s linear infinite;
   }
 
   @keyframes gradient-rotate {
-    0% { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 200% 50%;
+    }
   }
 }
 
@@ -688,44 +755,54 @@ body::before {
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes slideUp {
-    from { 
+    from {
       opacity: 0;
       transform: translateY(20px);
     }
-    to { 
+    to {
       opacity: 1;
       transform: translateY(0);
     }
   }
 
   @keyframes scaleIn {
-    from { 
+    from {
       opacity: 0;
       transform: scale(0.95);
     }
-    to { 
+    to {
       opacity: 1;
       transform: scale(1);
     }
   }
 
   @keyframes pulseGlow {
-    0%, 100% { 
+    0%,
+    100% {
       box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
     }
-    50% { 
+    50% {
       box-shadow: 0 0 40px hsl(var(--primary) / 0.5);
     }
   }
 
   @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
 
   @keyframes bounceIn {
@@ -775,20 +852,30 @@ body::before {
   }
 
   /* Stagger animation delays for lists */
-  .stagger-1 { animation-delay: 0.05s; }
-  .stagger-2 { animation-delay: 0.1s; }
-  .stagger-3 { animation-delay: 0.15s; }
-  .stagger-4 { animation-delay: 0.2s; }
-  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-1 {
+    animation-delay: 0.05s;
+  }
+  .stagger-2 {
+    animation-delay: 0.1s;
+  }
+  .stagger-3 {
+    animation-delay: 0.15s;
+  }
+  .stagger-4 {
+    animation-delay: 0.2s;
+  }
+  .stagger-5 {
+    animation-delay: 0.25s;
+  }
 
   /* Mono font for code/status */
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "JetBrains Mono", monospace;
   }
 
   /* Arabic font for Quran text */
   .font-arabic {
-    font-family: 'Amiri', 'Traditional Arabic', 'Arial Unicode MS', serif;
+    font-family: "Amiri", "Traditional Arabic", "Arial Unicode MS", serif;
     line-height: 2;
   }
 
@@ -854,7 +941,7 @@ body::before {
   }
 
   .message-bubble-outgoing::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     right: -8px;
@@ -872,7 +959,7 @@ body::before {
   }
 
   .message-bubble-incoming::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: -8px;
@@ -939,7 +1026,9 @@ body::before {
 
 /* Respect user preference for reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

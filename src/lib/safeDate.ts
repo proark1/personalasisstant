@@ -1,4 +1,4 @@
-import { format as dfFormat } from 'date-fns';
+import { format as dfFormat } from "date-fns";
 
 /**
  * Coerce an arbitrary value (Date, ISO string, timestamp, …) into a *valid*
@@ -25,7 +25,7 @@ export function formatSafe(
   value: unknown,
   formatStr: string,
   options?: FormatOptions,
-  fallback = '',
+  fallback = "",
 ): string {
   const d = toValidDate(value);
   if (!d) return fallback;

@@ -28,7 +28,8 @@ import { languageName } from "../_shared/contentIdeas.ts";
 const VARIATIONS: Record<string, string> = {
   shorter: "Make this noticeably SHORTER and tighter than a normal version — cut every spare word.",
   longer: "Make this a bit LONGER and more detailed than a normal version, without padding.",
-  punchier: "Make this PUNCHIER and higher-energy — bolder hook, snappier lines, stronger pattern interrupts.",
+  punchier:
+    "Make this PUNCHIER and higher-energy — bolder hook, snappier lines, stronger pattern interrupts.",
 };
 
 const corsHeaders = {
@@ -58,7 +59,10 @@ const SHORT_SCHEMA = {
   properties: {
     hook: { type: "string", description: "The exact spoken first line (0-2s)." },
     script: { type: "string", description: "The full spoken script, 20-45s when read aloud." },
-    shot_list: { type: "string", description: "B-roll / shot ideas and on-screen text beats, as short lines." },
+    shot_list: {
+      type: "string",
+      description: "B-roll / shot ideas and on-screen text beats, as short lines.",
+    },
     duration_seconds: { type: "integer" },
     cta: { type: "string", description: "The closing call-to-action." },
     platform_variants: {
@@ -83,11 +87,17 @@ const LONG_SCHEMA = {
   type: "object",
   properties: {
     title_options: { type: "array", items: { type: "string" } },
-    thumbnail_concept: { type: "string", description: "Thumbnail idea incl. 3-5 words of on-thumbnail text." },
+    thumbnail_concept: {
+      type: "string",
+      description: "Thumbnail idea incl. 3-5 words of on-thumbnail text.",
+    },
     hook: { type: "string", description: "The spoken 0-15s opening hook." },
     script: { type: "string", description: "The full spoken script with clear chapter markers." },
     shot_list: { type: "string", description: "Chapter outline / b-roll suggestions." },
-    description: { type: "string", description: "SEO YouTube description, 2-3 sentences + a short outline." },
+    description: {
+      type: "string",
+      description: "SEO YouTube description, 2-3 sentences + a short outline.",
+    },
     hashtags: { type: "array", items: { type: "string" }, description: "Tags/hashtags." },
     cta: { type: "string" },
     duration_seconds: { type: "integer" },
@@ -95,8 +105,19 @@ const LONG_SCHEMA = {
   required: ["title_options", "thumbnail_concept", "hook", "script", "description"],
 };
 
-interface IdeaRow { headline?: string; hook?: string; summary?: string; source_url?: string }
-interface ProfileRow { persona?: string; tone?: string[]; audience?: string; business_context?: string; default_cta?: string }
+interface IdeaRow {
+  headline?: string;
+  hook?: string;
+  summary?: string;
+  source_url?: string;
+}
+interface ProfileRow {
+  persona?: string;
+  tone?: string[];
+  audience?: string;
+  business_context?: string;
+  default_cta?: string;
+}
 
 function voiceBlock(idea: IdeaRow, profile: ProfileRow | null, langName: string): string {
   const tone = Array.isArray(profile?.tone) ? profile.tone.filter(Boolean).join(", ") : "";
@@ -112,10 +133,17 @@ function voiceBlock(idea: IdeaRow, profile: ProfileRow | null, langName: string)
     idea.hook ? `OPENING ANGLE: ${idea.hook}` : "",
     idea.summary ? `WHAT TO COVER: ${idea.summary}` : "",
     idea.source_url ? `SOURCE (for facts; don't fabricate beyond it): ${idea.source_url}` : "",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-async function callGemini(geminiKey: string, system: string, user: string, schema: unknown): Promise<Record<string, unknown>> {
+async function callGemini(
+  geminiKey: string,
+  system: string,
+  user: string,
+  schema: unknown,
+): Promise<Record<string, unknown>> {
   const resp = await fetch(GEMINI_URL, {
     method: "POST",
     headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
@@ -161,10 +189,17 @@ async function callGemini(geminiKey: string, system: string, user: string, schem
     return JSON.parse(text);
   } catch {
     // Tolerate stray fences/prose around the JSON object.
-    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const cleaned = text
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .trim();
     const m = cleaned.match(/\{[\s\S]*\}/);
     if (m) {
-      try { return JSON.parse(m[0]); } catch { /* fall through */ }
+      try {
+        return JSON.parse(m[0]);
+      } catch {
+        /* fall through */
+      }
     }
     throw new Error("AI returned invalid JSON");
   }
@@ -172,7 +207,14 @@ async function callGemini(geminiKey: string, system: string, user: string, schem
 
 function asStringArray(v: unknown, max: number): string[] {
   if (!Array.isArray(v)) return [];
-  return v.map((x) => String(x || "").replace(/^#/, "").trim()).filter(Boolean).slice(0, max);
+  return v
+    .map((x) =>
+      String(x || "")
+        .replace(/^#/, "")
+        .trim(),
+    )
+    .filter(Boolean)
+    .slice(0, max);
 }
 
 serve(async (req) => {
@@ -191,9 +233,10 @@ serve(async (req) => {
     const ideaId = String(body?.idea_id || "");
     if (!UUID_RE.test(ideaId)) return json({ error: "invalid idea_id" }, 400);
 
-    const formats: ScriptFormat[] = Array.isArray(body?.formats) && body.formats.length
-      ? body.formats.filter((f: string) => f === "short" || f === "long")
-      : ["short", "long"];
+    const formats: ScriptFormat[] =
+      Array.isArray(body?.formats) && body.formats.length
+        ? body.formats.filter((f: string) => f === "short" || f === "long")
+        : ["short", "long"];
     if (formats.length === 0) return json({ error: "no valid formats requested" }, 400);
 
     const { data: idea, error: ideaErr } = await admin
@@ -227,14 +270,20 @@ serve(async (req) => {
     }
 
     const langName = languageName(
-      (typeof body?.language === "string" && body.language) ? body.language : profile?.primary_language,
+      typeof body?.language === "string" && body.language
+        ? body.language
+        : profile?.primary_language,
     );
     const shortSeconds = Number.isInteger(body?.short_seconds)
       ? body.short_seconds
-      : (Number.isInteger(profile?.short_seconds) ? profile.short_seconds : 30);
+      : Number.isInteger(profile?.short_seconds)
+        ? profile.short_seconds
+        : 30;
     const longMinutes = Number.isInteger(body?.long_minutes)
       ? body.long_minutes
-      : (Number.isInteger(profile?.long_minutes) ? profile.long_minutes : 6);
+      : Number.isInteger(profile?.long_minutes)
+        ? profile.long_minutes
+        : 6;
     const variationHint = VARIATIONS[String(body?.variation || "")] || "";
 
     const vBlock = voiceBlock(idea, profile, langName);

@@ -1,20 +1,26 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { CalendarIcon, Video, Phone, Users } from 'lucide-react';
-import { format } from 'date-fns';
-import { useCallFeatures } from '@/hooks/useCallFeatures';
-import { useSpaceMembers } from '@/hooks/useSpaceMembers';
-import { cn } from '@/lib/utils';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { CalendarIcon, Video, Phone, Users } from "lucide-react";
+import { format } from "date-fns";
+import { useCallFeatures } from "@/hooks/useCallFeatures";
+import { useSpaceMembers } from "@/hooks/useSpaceMembers";
+import { cn } from "@/lib/utils";
 
 interface ScheduleCallDialogProps {
   open: boolean;
@@ -29,14 +35,14 @@ export function ScheduleCallDialog({
   userId,
   preselectedParticipant,
 }: ScheduleCallDialogProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [date, setDate] = useState<Date>();
-  const [time, setTime] = useState('10:00');
-  const [duration, setDuration] = useState('30');
-  const [callType, setCallType] = useState<'video' | 'audio'>('video');
+  const [time, setTime] = useState("10:00");
+  const [duration, setDuration] = useState("30");
+  const [callType, setCallType] = useState<"video" | "audio">("video");
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
-    preselectedParticipant ? [preselectedParticipant] : []
+    preselectedParticipant ? [preselectedParticipant] : [],
   );
   const [scheduling, setScheduling] = useState(false);
 
@@ -47,7 +53,7 @@ export function ScheduleCallDialog({
     if (!date || selectedParticipants.length === 0) return;
 
     setScheduling(true);
-    const [hours, minutes] = time.split(':').map(Number);
+    const [hours, minutes] = time.split(":").map(Number);
     const scheduledFor = new Date(date);
     scheduledFor.setHours(hours, minutes, 0, 0);
 
@@ -57,27 +63,30 @@ export function ScheduleCallDialog({
       callType,
       title || undefined,
       description || undefined,
-      parseInt(duration)
+      parseInt(duration),
     );
 
     setScheduling(false);
-    setTitle('');
-    setDescription('');
+    setTitle("");
+    setDescription("");
     setDate(undefined);
     setSelectedParticipants([]);
     onOpenChange(false);
   };
 
   const toggleParticipant = (memberId: string) => {
-    setSelectedParticipants(prev =>
-      prev.includes(memberId)
-        ? prev.filter(id => id !== memberId)
-        : [...prev, memberId]
+    setSelectedParticipants((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId],
     );
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -131,10 +140,12 @@ export function ScheduleCallDialog({
                       />
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="text-xs">
-                          {getInitials(member.member_profile?.display_name || 'U')}
+                          {getInitials(member.member_profile?.display_name || "U")}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm">{member.member_profile?.display_name || member.member_email}</span>
+                      <span className="text-sm">
+                        {member.member_profile?.display_name || member.member_email}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -142,7 +153,8 @@ export function ScheduleCallDialog({
             </ScrollArea>
             {selectedParticipants.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                {selectedParticipants.length} participant{selectedParticipants.length !== 1 ? 's' : ''} selected
+                {selectedParticipants.length} participant
+                {selectedParticipants.length !== 1 ? "s" : ""} selected
               </p>
             )}
           </div>
@@ -156,7 +168,7 @@ export function ScheduleCallDialog({
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
+                      !date && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -177,11 +189,7 @@ export function ScheduleCallDialog({
 
             <div className="space-y-2">
               <Label>Time</Label>
-              <Input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
+              <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
           </div>
 
@@ -205,7 +213,7 @@ export function ScheduleCallDialog({
 
             <div className="space-y-2">
               <Label>Call Type</Label>
-              <Select value={callType} onValueChange={(v) => setCallType(v as 'video' | 'audio')}>
+              <Select value={callType} onValueChange={(v) => setCallType(v as "video" | "audio")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -233,7 +241,7 @@ export function ScheduleCallDialog({
             className="w-full"
           >
             <Users className="w-4 h-4 mr-2" />
-            {scheduling ? 'Scheduling...' : 'Schedule Call'}
+            {scheduling ? "Scheduling..." : "Schedule Call"}
           </Button>
         </div>
       </DialogContent>

@@ -1,14 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useShoppingLists, ShoppingList, ShoppingListItem } from '@/hooks/useShoppingLists';
-import { useAuth } from '@/hooks/useAuth';
-import { useFamilyMembers } from '@/hooks/useFamilyMembers';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useShoppingLists, ShoppingList, ShoppingListItem } from "@/hooks/useShoppingLists";
+import { useAuth } from "@/hooks/useAuth";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, Plus, Trash2, CheckCircle2 } from "lucide-react";
 
 interface ShoppingListDetailProps {
   listId: string;
@@ -16,17 +22,17 @@ interface ShoppingListDetailProps {
 }
 
 const itemCategories = [
-  { value: 'produce', label: '🥬 Produce' },
-  { value: 'dairy', label: '🥛 Dairy' },
-  { value: 'meat', label: '🥩 Meat' },
-  { value: 'bakery', label: '🍞 Bakery' },
-  { value: 'frozen', label: '🧊 Frozen' },
-  { value: 'pantry', label: '🥫 Pantry' },
-  { value: 'beverages', label: '🥤 Beverages' },
-  { value: 'snacks', label: '🍿 Snacks' },
-  { value: 'household', label: '🧹 Household' },
-  { value: 'personal', label: '🧴 Personal Care' },
-  { value: 'other', label: '📦 Other' },
+  { value: "produce", label: "🥬 Produce" },
+  { value: "dairy", label: "🥛 Dairy" },
+  { value: "meat", label: "🥩 Meat" },
+  { value: "bakery", label: "🍞 Bakery" },
+  { value: "frozen", label: "🧊 Frozen" },
+  { value: "pantry", label: "🥫 Pantry" },
+  { value: "beverages", label: "🥤 Beverages" },
+  { value: "snacks", label: "🍿 Snacks" },
+  { value: "household", label: "🧹 Household" },
+  { value: "personal", label: "🧴 Personal Care" },
+  { value: "other", label: "📦 Other" },
 ];
 
 export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) {
@@ -34,9 +40,9 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
   const { members } = useFamilyMembers();
   const [list, setList] = useState<ShoppingList | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemCategory, setNewItemCategory] = useState('other');
-  const [newItemQuantity, setNewItemQuantity] = useState('1');
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemCategory, setNewItemCategory] = useState("other");
+  const [newItemQuantity, setNewItemQuantity] = useState("1");
 
   const { user } = useAuth();
 
@@ -50,7 +56,7 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
 
   useEffect(() => {
     loadList();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId, user?.id]);
 
   const handleAddItem = async () => {
@@ -66,9 +72,9 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
       added_by: null,
     });
 
-    setNewItemName('');
-    setNewItemQuantity('1');
-    setNewItemCategory('other');
+    setNewItemName("");
+    setNewItemQuantity("1");
+    setNewItemCategory("other");
     loadList();
   };
 
@@ -91,7 +97,7 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
 
   const getMemberName = (id: string | null) => {
     if (!id) return null;
-    return members.find(m => m.id === id)?.name || 'Unknown';
+    return members.find((m) => m.id === id)?.name || "Unknown";
   };
 
   if (isLoading) {
@@ -113,14 +119,17 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
     );
   }
 
-  const groupedItems = (list.items || []).reduce((acc, item) => {
-    const cat = item.category || 'other';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(item);
-    return acc;
-  }, {} as Record<string, ShoppingListItem[]>);
+  const groupedItems = (list.items || []).reduce(
+    (acc, item) => {
+      const cat = item.category || "other";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(item);
+      return acc;
+    },
+    {} as Record<string, ShoppingListItem[]>,
+  );
 
-  const checkedCount = (list.items || []).filter(i => i.is_checked).length;
+  const checkedCount = (list.items || []).filter((i) => i.is_checked).length;
   const totalCount = (list.items || []).length;
 
   return (
@@ -161,7 +170,7 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
             placeholder="Add item..."
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
+            onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
             className="flex-1"
           />
           <Input
@@ -202,9 +211,7 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
 
             return (
               <div key={cat.value}>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                  {cat.label}
-                </h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">{cat.label}</h3>
                 <Card className="divide-y divide-border">
                   {items.map((item) => (
                     <div
@@ -217,13 +224,11 @@ export function ShoppingListDetail({ listId, onBack }: ShoppingListDetailProps) 
                       />
                       <span
                         className={`flex-1 ${
-                          item.is_checked ? 'line-through text-muted-foreground' : ''
+                          item.is_checked ? "line-through text-muted-foreground" : ""
                         }`}
                       >
                         {item.quantity > 1 && (
-                          <span className="text-muted-foreground mr-1">
-                            {item.quantity}x
-                          </span>
+                          <span className="text-muted-foreground mr-1">{item.quantity}x</span>
                         )}
                         {item.name}
                       </span>

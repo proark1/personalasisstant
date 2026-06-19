@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { strictAppOrigin } from '../_shared/cors.ts';
-import { resolveUserId } from '../_shared/auth.ts';
+import { strictAppOrigin } from "../_shared/cors.ts";
+import { resolveUserId } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": strictAppOrigin(),
@@ -17,7 +17,8 @@ serve(async (req) => {
   const auth = await resolveUserId(req);
   if (!auth) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -42,7 +43,10 @@ serve(async (req) => {
       .single();
 
     if (!task) {
-      return new Response(JSON.stringify({ error: "task not found" }), { status: 404, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "task not found" }), {
+        status: 404,
+        headers: corsHeaders,
+      });
     }
 
     const { data: members } = await supabase
@@ -52,7 +56,10 @@ serve(async (req) => {
       .eq("status", "accepted");
 
     if (!members || members.length === 0) {
-      return new Response(JSON.stringify({ error: "no members" }), { status: 404, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "no members" }), {
+        status: 404,
+        headers: corsHeaders,
+      });
     }
 
     // Authorize: both the caller AND the task's current owner must be accepted
@@ -63,7 +70,8 @@ serve(async (req) => {
     const isTaskOwnerMember = members.some((m) => m.user_id === task.user_id);
     if (!isCallerMember || !isTaskOwnerMember) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 

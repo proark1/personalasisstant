@@ -1,12 +1,24 @@
-import { useState, useRef } from 'react';
-import { Contact, ContactInput, ContactType, PersonalTier, BusinessLevel } from '@/hooks/useContacts';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Download, Upload, FileText, FileSpreadsheet } from 'lucide-react';
+import { useState, useRef } from "react";
+import {
+  Contact,
+  ContactInput,
+  ContactType,
+  PersonalTier,
+  BusinessLevel,
+} from "@/hooks/useContacts";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Download, Upload, FileText, FileSpreadsheet } from "lucide-react";
 
 interface ContactImportExportProps {
   contacts: Contact[];
@@ -16,7 +28,7 @@ interface ContactImportExportProps {
 export function ContactImportExport({ contacts, onImport }: ContactImportExportProps) {
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [csvData, setCsvData] = useState('');
+  const [csvData, setCsvData] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -24,53 +36,74 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
   // Export to CSV
   const exportToCSV = () => {
     const headers = [
-      'Name', 'Email', 'Phone', 'Company', 'Role', 'Country', 'City',
-      'Contact Type', 'Personal Tier', 'Business Level', 'Contact Frequency (Days)',
-      'Notes', 'Tags', 'LinkedIn URL', 'Twitter URL', 'Website URL', 'Birth Date'
+      "Name",
+      "Email",
+      "Phone",
+      "Company",
+      "Role",
+      "Country",
+      "City",
+      "Contact Type",
+      "Personal Tier",
+      "Business Level",
+      "Contact Frequency (Days)",
+      "Notes",
+      "Tags",
+      "LinkedIn URL",
+      "Twitter URL",
+      "Website URL",
+      "Birth Date",
     ];
 
-    const rows = contacts.map(c => [
+    const rows = contacts.map((c) => [
       c.name,
-      c.email || '',
-      c.phone || '',
-      c.company || '',
-      c.role || '',
-      c.country || '',
-      c.city || '',
+      c.email || "",
+      c.phone || "",
+      c.company || "",
+      c.role || "",
+      c.country || "",
+      c.city || "",
       c.contactType,
-      c.personalTier || '',
-      c.businessLevel || '',
+      c.personalTier || "",
+      c.businessLevel || "",
       c.contactFrequencyDays.toString(),
-      c.notes || '',
-      c.tags.join('; '),
-      c.linkedinUrl || '',
-      c.twitterUrl || '',
-      c.websiteUrl || '',
-      c.birthDate || '',
+      c.notes || "",
+      c.tags.join("; "),
+      c.linkedinUrl || "",
+      c.twitterUrl || "",
+      c.websiteUrl || "",
+      c.birthDate || "",
     ]);
 
     const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${(cell || "").replace(/"/g, '""')}"`).join(",")),
+    ].join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `contacts-export-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `contacts-export-${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
 
-    toast({ title: t('contacts.toast.exported'), description: t(contacts.length === 1 ? 'contacts.toast.exportedCsvDesc.one' : 'contacts.toast.exportedCsvDesc.other').replace('{count}', String(contacts.length)) });
+    toast({
+      title: t("contacts.toast.exported"),
+      description: t(
+        contacts.length === 1
+          ? "contacts.toast.exportedCsvDesc.one"
+          : "contacts.toast.exportedCsvDesc.other",
+      ).replace("{count}", String(contacts.length)),
+    });
   };
 
   // Export to vCard
   const exportToVCard = () => {
-    const vCards = contacts.map(c => {
+    const vCards = contacts.map((c) => {
       const lines = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
+        "BEGIN:VCARD",
+        "VERSION:3.0",
         `FN:${c.name}`,
-        `N:${c.name.split(' ').reverse().join(';')};;;`,
+        `N:${c.name.split(" ").reverse().join(";")};;;`,
       ];
 
       if (c.email) lines.push(`EMAIL:${c.email}`);
@@ -78,39 +111,50 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
       if (c.company) lines.push(`ORG:${c.company}`);
       if (c.role) lines.push(`TITLE:${c.role}`);
       if (c.city || c.country) {
-        lines.push(`ADR:;;${c.city || ''};${c.country || ''};;;`);
+        lines.push(`ADR:;;${c.city || ""};${c.country || ""};;;`);
       }
       if (c.linkedinUrl) lines.push(`URL;TYPE=LinkedIn:${c.linkedinUrl}`);
       if (c.twitterUrl) lines.push(`URL;TYPE=Twitter:${c.twitterUrl}`);
       if (c.websiteUrl) lines.push(`URL:${c.websiteUrl}`);
-      if (c.birthDate) lines.push(`BDAY:${c.birthDate.replace(/-/g, '')}`);
-      if (c.notes) lines.push(`NOTE:${c.notes.replace(/\n/g, '\\n')}`);
+      if (c.birthDate) lines.push(`BDAY:${c.birthDate.replace(/-/g, "")}`);
+      if (c.notes) lines.push(`NOTE:${c.notes.replace(/\n/g, "\\n")}`);
 
-      lines.push('END:VCARD');
-      return lines.join('\r\n');
+      lines.push("END:VCARD");
+      return lines.join("\r\n");
     });
 
-    const blob = new Blob([vCards.join('\r\n\r\n')], { type: 'text/vcard;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob([vCards.join("\r\n\r\n")], { type: "text/vcard;charset=utf-8;" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `contacts-export-${new Date().toISOString().split('T')[0]}.vcf`;
+    link.download = `contacts-export-${new Date().toISOString().split("T")[0]}.vcf`;
     link.click();
 
-    toast({ title: t('contacts.toast.exported'), description: t(contacts.length === 1 ? 'contacts.toast.exportedVcardDesc.one' : 'contacts.toast.exportedVcardDesc.other').replace('{count}', String(contacts.length)) });
+    toast({
+      title: t("contacts.toast.exported"),
+      description: t(
+        contacts.length === 1
+          ? "contacts.toast.exportedVcardDesc.one"
+          : "contacts.toast.exportedVcardDesc.other",
+      ).replace("{count}", String(contacts.length)),
+    });
   };
 
   // Parse CSV
   const parseCSV = (csv: string): ContactInput[] => {
-    const lines = csv.split('\n').filter(line => line.trim());
+    const lines = csv.split("\n").filter((line) => line.trim());
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+    const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim().toLowerCase());
     const contacts: ContactInput[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].match(/(?:^|,)("(?:[^"]*(?:""[^"]*)*)"|[^,]*)/g)?.map(v => 
-        v.replace(/^,?"?|"?$/g, '').replace(/""/g, '"').trim()
-      ) || [];
+      const values =
+        lines[i].match(/(?:^|,)("(?:[^"]*(?:""[^"]*)*)"|[^,]*)/g)?.map((v) =>
+          v
+            .replace(/^,?"?|"?$/g, "")
+            .replace(/""/g, '"')
+            .trim(),
+        ) || [];
 
       const getVal = (names: string[]) => {
         for (const name of names) {
@@ -120,27 +164,30 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
         return undefined;
       };
 
-      const name = getVal(['name', 'full name', 'fullname']);
+      const name = getVal(["name", "full name", "fullname"]);
       if (!name) continue;
 
       contacts.push({
         name,
-        email: getVal(['email', 'e-mail', 'email address']),
-        phone: getVal(['phone', 'telephone', 'mobile', 'cell']),
-        company: getVal(['company', 'organization', 'org']),
-        role: getVal(['role', 'title', 'job title', 'position']),
-        country: getVal(['country']),
-        city: getVal(['city']),
-        contactType: (getVal(['contact type', 'type']) as ContactType) || 'personal',
-        personalTier: getVal(['personal tier', 'tier']) as PersonalTier | undefined,
-        businessLevel: getVal(['business level', 'level']) as BusinessLevel | undefined,
-        contactFrequencyDays: parseInt(getVal(['contact frequency', 'frequency']) || '30') || 30,
-        notes: getVal(['notes', 'note', 'comments']),
-        tags: getVal(['tags'])?.split(/[;,]/).map(t => t.trim()).filter(Boolean),
-        linkedinUrl: getVal(['linkedin', 'linkedin url']),
-        twitterUrl: getVal(['twitter', 'twitter url']),
-        websiteUrl: getVal(['website', 'website url', 'url']),
-        birthDate: getVal(['birth date', 'birthday', 'dob']),
+        email: getVal(["email", "e-mail", "email address"]),
+        phone: getVal(["phone", "telephone", "mobile", "cell"]),
+        company: getVal(["company", "organization", "org"]),
+        role: getVal(["role", "title", "job title", "position"]),
+        country: getVal(["country"]),
+        city: getVal(["city"]),
+        contactType: (getVal(["contact type", "type"]) as ContactType) || "personal",
+        personalTier: getVal(["personal tier", "tier"]) as PersonalTier | undefined,
+        businessLevel: getVal(["business level", "level"]) as BusinessLevel | undefined,
+        contactFrequencyDays: parseInt(getVal(["contact frequency", "frequency"]) || "30") || 30,
+        notes: getVal(["notes", "note", "comments"]),
+        tags: getVal(["tags"])
+          ?.split(/[;,]/)
+          .map((t) => t.trim())
+          .filter(Boolean),
+        linkedinUrl: getVal(["linkedin", "linkedin url"]),
+        twitterUrl: getVal(["twitter", "twitter url"]),
+        websiteUrl: getVal(["website", "website url", "url"]),
+        birthDate: getVal(["birth date", "birthday", "dob"]),
       });
     }
 
@@ -163,7 +210,7 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
   // Import contacts
   const handleImport = async () => {
     if (!csvData.trim()) {
-      toast({ title: t('contacts.toast.noDataImport'), variant: 'destructive' });
+      toast({ title: t("contacts.toast.noDataImport"), variant: "destructive" });
       return;
     }
 
@@ -171,17 +218,28 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
     try {
       const parsed = parseCSV(csvData);
       if (parsed.length === 0) {
-        toast({ title: t('contacts.toast.noValidContacts'), variant: 'destructive' });
+        toast({ title: t("contacts.toast.noValidContacts"), variant: "destructive" });
         return;
       }
 
       await onImport(parsed);
-      toast({ title: t('contacts.toast.importSuccess'), description: t(parsed.length === 1 ? 'contacts.toast.importSuccessDesc.one' : 'contacts.toast.importSuccessDesc.other').replace('{count}', String(parsed.length)) });
-      setCsvData('');
+      toast({
+        title: t("contacts.toast.importSuccess"),
+        description: t(
+          parsed.length === 1
+            ? "contacts.toast.importSuccessDesc.one"
+            : "contacts.toast.importSuccessDesc.other",
+        ).replace("{count}", String(parsed.length)),
+      });
+      setCsvData("");
       setOpen(false);
     } catch (error) {
-      console.error('Import error:', error);
-      toast({ title: t('contacts.toast.importFailed'), description: t('contacts.toast.importFailedDesc'), variant: 'destructive' });
+      console.error("Import error:", error);
+      toast({
+        title: t("contacts.toast.importFailed"),
+        description: t("contacts.toast.importFailedDesc"),
+        variant: "destructive",
+      });
     } finally {
       setImporting(false);
     }
@@ -235,8 +293,8 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
                 onChange={handleFileUpload}
                 className="hidden"
               />
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full"
               >
@@ -261,12 +319,12 @@ export function ContactImportExport({ contacts, onImport }: ContactImportExportP
                 className="font-mono text-xs"
               />
 
-              <Button 
-                onClick={handleImport} 
+              <Button
+                onClick={handleImport}
                 disabled={importing || !csvData.trim()}
                 className="w-full"
               >
-                {importing ? 'Importing...' : 'Import Contacts'}
+                {importing ? "Importing..." : "Import Contacts"}
               </Button>
             </div>
           </TabsContent>

@@ -1,14 +1,25 @@
-import { useMemo } from 'react';
-import { Contact } from '@/hooks/useContacts';
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { motion } from 'framer-motion';
-import { 
-  TrendingUp, TrendingDown, Users, AlertCircle, 
-  CheckCircle, Clock, Heart, Briefcase 
-} from 'lucide-react';
-import { isPast, differenceInDays } from 'date-fns';
+import { useMemo } from "react";
+import { Contact } from "@/hooks/useContacts";
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { motion } from "framer-motion";
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Heart,
+  Briefcase,
+} from "lucide-react";
+import { isPast, differenceInDays } from "date-fns";
 
 interface ContactNetworkHealthProps {
   contacts: Contact[];
@@ -43,7 +54,7 @@ export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
 
     const neglectedList: { contact: Contact; daysPastDue: number }[] = [];
 
-    contacts.forEach(contact => {
+    contacts.forEach((contact) => {
       totalFrequency += contact.contactFrequencyDays;
 
       if (contact.nextContactDue) {
@@ -68,15 +79,16 @@ export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
     });
 
     neglectedList.sort((a, b) => b.daysPastDue - a.daysPastDue);
-    const topNeglected = neglectedList.slice(0, 5).map(n => n.contact);
+    const topNeglected = neglectedList.slice(0, 5).map((n) => n.contact);
 
     const totalWithDue = overdueCount + healthyCount;
     const healthRatio = totalWithDue > 0 ? healthyCount / totalWithDue : 1;
     const overallHealth = Math.round(healthRatio * 100);
 
-    const personalCount = contacts.filter(c => c.contactType === 'personal').length;
-    const businessCount = contacts.filter(c => c.contactType === 'business').length;
-    const avgContactFrequency = contacts.length > 0 ? Math.round(totalFrequency / contacts.length) : 30;
+    const personalCount = contacts.filter((c) => c.contactType === "personal").length;
+    const businessCount = contacts.filter((c) => c.contactType === "business").length;
+    const avgContactFrequency =
+      contacts.length > 0 ? Math.round(totalFrequency / contacts.length) : 30;
 
     return {
       overallHealth,
@@ -93,17 +105,17 @@ export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
   }, [contacts]);
 
   const getHealthColor = (health: number) => {
-    if (health >= 80) return 'text-green-500';
-    if (health >= 60) return 'text-yellow-500';
-    if (health >= 40) return 'text-orange-500';
-    return 'text-red-500';
+    if (health >= 80) return "text-green-500";
+    if (health >= 60) return "text-yellow-500";
+    if (health >= 40) return "text-orange-500";
+    return "text-red-500";
   };
 
   const getHealthLabel = (health: number) => {
-    if (health >= 80) return 'Excellent';
-    if (health >= 60) return 'Good';
-    if (health >= 40) return 'Needs Attention';
-    return 'Critical';
+    if (health >= 80) return "Excellent";
+    if (health >= 60) return "Good";
+    if (health >= 40) return "Needs Attention";
+    return "Critical";
   };
 
   return (
@@ -128,7 +140,9 @@ export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
                 <p className={`text-4xl font-bold ${getHealthColor(metrics.overallHealth)}`}>
                   {metrics.overallHealth}%
                 </p>
-                <p className="text-sm text-muted-foreground">{getHealthLabel(metrics.overallHealth)}</p>
+                <p className="text-sm text-muted-foreground">
+                  {getHealthLabel(metrics.overallHealth)}
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-semibold">{metrics.totalContacts}</p>
@@ -143,10 +157,25 @@ export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Heart, color: 'text-red-500', label: 'Personal', value: metrics.personalCount },
-          { icon: Briefcase, color: 'text-blue-500', label: 'Business', value: metrics.businessCount },
-          { icon: CheckCircle, color: 'text-green-500', label: 'Healthy', value: metrics.healthyCount },
-          { icon: AlertCircle, color: 'text-orange-500', label: 'Overdue', value: metrics.overdueCount },
+          { icon: Heart, color: "text-red-500", label: "Personal", value: metrics.personalCount },
+          {
+            icon: Briefcase,
+            color: "text-blue-500",
+            label: "Business",
+            value: metrics.businessCount,
+          },
+          {
+            icon: CheckCircle,
+            color: "text-green-500",
+            label: "Healthy",
+            value: metrics.healthyCount,
+          },
+          {
+            icon: AlertCircle,
+            color: "text-orange-500",
+            label: "Overdue",
+            value: metrics.overdueCount,
+          },
         ].map((stat) => (
           <motion.div key={stat.label} variants={fadeIn}>
             <GlassCard className="p-4">
@@ -205,13 +234,13 @@ export function ContactNetworkHealth({ contacts }: ContactNetworkHealthProps) {
             </GlassCardHeader>
             <GlassCardContent>
               <div className="space-y-2">
-                {metrics.topNeglected.map(contact => (
+                {metrics.topNeglected.map((contact) => (
                   <div key={contact.id} className="flex items-center justify-between text-sm">
                     <span>{contact.name}</span>
                     <span className="text-muted-foreground">
-                      {contact.nextContactDue 
+                      {contact.nextContactDue
                         ? `${differenceInDays(new Date(), contact.nextContactDue)} days overdue`
-                        : 'No due date'}
+                        : "No due date"}
                     </span>
                   </div>
                 ))}

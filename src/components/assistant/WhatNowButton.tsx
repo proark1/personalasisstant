@@ -1,23 +1,29 @@
-import { useState, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Card } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { describeEdgeError } from '@/lib/edgeError';
-import { toast } from 'sonner';
-import { trackProactiveOutcome } from '@/lib/telemetry';
-import { Task, CalendarEvent } from '@/types/flux';
-import { useDailyCheckins } from '@/hooks/useDailyCheckins';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Sparkles, Play, Brain, Coffee, Target, Loader2, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeError } from "@/lib/edgeError";
+import { toast } from "sonner";
+import { trackProactiveOutcome } from "@/lib/telemetry";
+import { Task, CalendarEvent } from "@/types/flux";
+import { useDailyCheckins } from "@/hooks/useDailyCheckins";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Sparkles, Play, Brain, Coffee, Target, Loader2, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface WhatNowButtonProps {
   tasks: Task[];
   events?: CalendarEvent[];
   onStartTask?: (task: Task) => void;
   className?: string;
-  variant?: 'default' | 'fab';
+  variant?: "default" | "fab";
 }
 
 interface AISuggestion {
@@ -29,12 +35,12 @@ interface AISuggestion {
   breakReason?: string;
 }
 
-export function WhatNowButton({ 
-  tasks, 
-  events, 
+export function WhatNowButton({
+  tasks,
+  events,
   onStartTask,
   className,
-  variant = 'default'
+  variant = "default",
 }: WhatNowButtonProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,56 +56,56 @@ export function WhatNowButton({
 
     const now = new Date();
     const hour = now.getHours();
-    
+
     // Filter incomplete tasks
-    const incompleteTasks = tasks.filter(t => !t.completed && !t.trashed);
-    
+    const incompleteTasks = tasks.filter((t) => !t.completed && !t.trashed);
+
     // Get today's events
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-    const todayEvents = (events || []).filter(e => 
-      e.startTime >= todayStart && e.startTime <= todayEnd
+    const todayEvents = (events || []).filter(
+      (e) => e.startTime >= todayStart && e.startTime <= todayEnd,
     );
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+      const { data, error } = await supabase.functions.invoke("ai-assistant", {
         body: {
-          type: 'what_now',
+          type: "what_now",
           context: {
             currentTime: now.toISOString(),
             currentHour: hour,
-            energyLevel: todayMorning?.energy_level || 'medium',
-            mood: todayMorning?.mood || 'neutral',
+            energyLevel: todayMorning?.energy_level || "medium",
+            mood: todayMorning?.mood || "neutral",
             mainFocus: todayMorning?.main_focus,
-            tasks: incompleteTasks.map(t => ({
+            tasks: incompleteTasks.map((t) => ({
               id: t.id,
               title: t.title,
               priority: t.priority,
               category: t.category,
-              dueDate: t.dueDate?.toISOString()
+              dueDate: t.dueDate?.toISOString(),
             })),
-            upcomingEvents: todayEvents.map(e => ({
+            upcomingEvents: todayEvents.map((e) => ({
               title: e.title,
               startTime: e.startTime.toISOString(),
-              endTime: e.endTime.toISOString()
-            }))
-          }
-        }
+              endTime: e.endTime.toISOString(),
+            })),
+          },
+        },
       });
 
       if (error) throw error;
 
       // Match returned task ID to actual task object
-      const matchedTask = data.taskId 
-        ? incompleteTasks.find(t => t.id === data.taskId) 
-        : null;
+      const matchedTask = data.taskId ? incompleteTasks.find((t) => t.id === data.taskId) : null;
 
-      const matchedAlternatives = (data.alternatives || []).map((alt: { taskId: string; reason: string }) => ({
-        task: incompleteTasks.find(t => t.id === alt.taskId)!,
-        reason: alt.reason
-      })).filter((alt: { task: Task; reason: string }) => alt.task);
+      const matchedAlternatives = (data.alternatives || [])
+        .map((alt: { taskId: string; reason: string }) => ({
+          task: incompleteTasks.find((t) => t.id === alt.taskId)!,
+          reason: alt.reason,
+        }))
+        .filter((alt: { task: Task; reason: string }) => alt.task);
 
       setSuggestion({
         task: matchedTask,
@@ -107,27 +113,27 @@ export function WhatNowButton({
         alternatives: matchedAlternatives,
         tip: data.tip || "Take it one step at a time",
         suggestedBreak: data.suggestedBreak,
-        breakReason: data.breakReason
+        breakReason: data.breakReason,
       });
     } catch (error) {
-      console.error('What now error:', error);
-      toast.error(await describeEdgeError(error, t('whatNow.aiError')));
+      console.error("What now error:", error);
+      toast.error(await describeEdgeError(error, t("whatNow.aiError")));
 
       // Fallback to simple logic
       const priorityOrder = { high: 3, medium: 2, low: 1 };
-      const sortedTasks = incompleteTasks.sort((a, b) => 
-        (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
+      const sortedTasks = incompleteTasks.sort(
+        (a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0),
       );
 
       if (sortedTasks.length > 0) {
         setSuggestion({
           task: sortedTasks[0],
           reason: "This is your highest priority task",
-          alternatives: sortedTasks.slice(1, 3).map(t => ({
+          alternatives: sortedTasks.slice(1, 3).map((t) => ({
             task: t,
-            reason: `${t.priority} priority`
+            reason: `${t.priority} priority`,
           })),
-          tip: "Start small - even 2 minutes counts!"
+          tip: "Start small - even 2 minutes counts!",
         });
       } else {
         setSuggestion({
@@ -136,7 +142,7 @@ export function WhatNowButton({
           alternatives: [],
           tip: "Great job staying on top of things!",
           suggestedBreak: true,
-          breakReason: "You've completed all your tasks. Take a well-deserved break!"
+          breakReason: "You've completed all your tasks. Take a well-deserved break!",
         });
       }
     } finally {
@@ -150,12 +156,12 @@ export function WhatNowButton({
   };
 
   const handleStartTask = (task: Task) => {
-    trackProactiveOutcome('what_now', 'accepted', { taskId: task.id });
+    trackProactiveOutcome("what_now", "accepted", { taskId: task.id });
     onStartTask?.(task);
     setOpen(false);
   };
 
-  if (variant === 'fab') {
+  if (variant === "fab") {
     return (
       <>
         <button
@@ -165,14 +171,14 @@ export function WhatNowButton({
             "bg-gradient-to-br from-primary via-accent to-primary",
             "shadow-lg shadow-primary/30 flex items-center justify-center",
             "animate-pulse hover:animate-none hover:scale-110 transition-transform",
-            className
+            className,
           )}
         >
           <Brain className="w-6 h-6 text-primary-foreground" />
         </button>
-        
-        <WhatNowDialog 
-          open={open} 
+
+        <WhatNowDialog
+          open={open}
           onOpenChange={setOpen}
           isLoading={isLoading}
           suggestion={suggestion}
@@ -191,15 +197,15 @@ export function WhatNowButton({
         className={cn(
           "gap-2 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20",
           "hover:from-primary/20 hover:to-accent/20",
-          className
+          className,
         )}
       >
         <Brain className="w-4 h-4" />
-        {t('whatNow.button')}
+        {t("whatNow.button")}
       </Button>
-      
-      <WhatNowDialog 
-        open={open} 
+
+      <WhatNowDialog
+        open={open}
         onOpenChange={setOpen}
         isLoading={isLoading}
         suggestion={suggestion}
@@ -219,34 +225,32 @@ interface WhatNowDialogProps {
   onStartTask: (task: Task) => void;
 }
 
-function WhatNowDialog({ 
-  open, 
-  onOpenChange, 
-  isLoading, 
-  suggestion, 
+function WhatNowDialog({
+  open,
+  onOpenChange,
+  isLoading,
+  suggestion,
   onRefresh,
-  onStartTask 
+  onStartTask,
 }: WhatNowDialogProps) {
   const { t } = useLanguage();
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            {t('whatNow.title')}
+            {t("whatNow.title")}
           </DialogTitle>
-          <DialogDescription>
-            {t('whatNow.description')}
-          </DialogDescription>
+          <DialogDescription>{t("whatNow.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">{t('whatNow.analyzing')}</p>
+              <p className="text-sm text-muted-foreground">{t("whatNow.analyzing")}</p>
             </div>
           ) : suggestion?.suggestedBreak ? (
             <Card className="p-6 bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
@@ -255,10 +259,8 @@ function WhatNowDialog({
                   <Coffee className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">{t('whatNow.takeBreak')}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {suggestion.breakReason}
-                  </p>
+                  <h3 className="font-semibold text-lg">{t("whatNow.takeBreak")}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{suggestion.breakReason}</p>
                 </div>
               </div>
             </Card>
@@ -271,29 +273,32 @@ function WhatNowDialog({
                     <Target className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-primary font-medium uppercase tracking-wide">{t('whatNow.doThisNow')}</p>
+                    <p className="text-xs text-primary font-medium uppercase tracking-wide">
+                      {t("whatNow.doThisNow")}
+                    </p>
                     <h3 className="font-semibold text-lg truncate">{suggestion.task.title}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{suggestion.reason}</p>
-                    
+
                     <div className="flex items-center gap-2 mt-3">
-                      <span className={cn(
-                        "text-xs px-2 py-1 rounded-full",
-                        suggestion.task.priority === 'high' ? "bg-red-500/10 text-red-600" :
-                        suggestion.task.priority === 'medium' ? "bg-amber-500/10 text-amber-600" :
-                        "bg-green-500/10 text-green-600"
-                      )}>
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-1 rounded-full",
+                          suggestion.task.priority === "high"
+                            ? "bg-red-500/10 text-red-600"
+                            : suggestion.task.priority === "medium"
+                              ? "bg-amber-500/10 text-amber-600"
+                              : "bg-green-500/10 text-green-600",
+                        )}
+                      >
                         {t(`priority.${suggestion.task.priority}`)}
                       </span>
                     </div>
                   </div>
                 </div>
-                
-                <Button 
-                  onClick={() => onStartTask(suggestion.task!)}
-                  className="w-full mt-4 gap-2"
-                >
+
+                <Button onClick={() => onStartTask(suggestion.task!)} className="w-full mt-4 gap-2">
                   <Play className="w-4 h-4" />
-                  {t('whatNow.startNow')}
+                  {t("whatNow.startNow")}
                 </Button>
               </Card>
 
@@ -306,9 +311,11 @@ function WhatNowDialog({
               {/* Alternatives */}
               {suggestion.alternatives.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium mb-2 text-muted-foreground">{t('whatNow.orTryThese')}</p>
+                  <p className="text-sm font-medium mb-2 text-muted-foreground">
+                    {t("whatNow.orTryThese")}
+                  </p>
                   <div className="space-y-2">
-                    {suggestion.alternatives.map(alt => (
+                    {suggestion.alternatives.map((alt) => (
                       <button
                         key={alt.task.id}
                         onClick={() => onStartTask(alt.task)}
@@ -324,7 +331,7 @@ function WhatNowDialog({
             </>
           ) : (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">{t('whatNow.noSuggestions')}</p>
+              <p className="text-muted-foreground">{t("whatNow.noSuggestions")}</p>
             </div>
           )}
         </div>
@@ -332,7 +339,7 @@ function WhatNowDialog({
         <div className="flex justify-end">
           <Button variant="ghost" size="sm" onClick={onRefresh} className="gap-2">
             <RefreshCw className="w-4 h-4" />
-            {t('whatNow.getNew')}
+            {t("whatNow.getNew")}
           </Button>
         </div>
       </DialogContent>

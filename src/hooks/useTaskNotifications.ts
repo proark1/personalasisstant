@@ -1,8 +1,8 @@
-import { useEffect, useCallback, useRef } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { Task } from '@/types/flux';
-import { differenceInMinutes, isToday, addMinutes } from 'date-fns';
-import { usePushNotifications } from './usePushNotifications';
+import { useEffect, useCallback, useRef } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Task } from "@/types/flux";
+import { differenceInMinutes, isToday, addMinutes } from "date-fns";
+import { usePushNotifications } from "./usePushNotifications";
 
 interface UseTaskNotificationsOptions {
   tasks: Task[];
@@ -16,8 +16,8 @@ const ADHD_REMINDER_INTERVALS = [15, 5, 0]; // 15min, 5min, now
 const OVERDUE_NAG_INTERVAL = 10; // Nag every 10 minutes if overdue
 const MAX_OVERDUE_NAGS = 3;
 
-export function useTaskNotifications({ 
-  tasks, 
+export function useTaskNotifications({
+  tasks,
   defaultReminderMinutes,
   enabled,
   adhdMode = false,
@@ -27,10 +27,10 @@ export function useTaskNotifications({
   const overdueNagCount = useRef<Map<string, number>>(new Map());
   const scheduledNotifications = useRef<Map<string, number[]>>(new Map());
   const permissionGranted = useRef(false);
-  
+
   const isNative = Capacitor.isNativePlatform();
-  const { 
-    scheduleLocalNotification, 
+  const {
+    scheduleLocalNotification,
     cancelLocalNotification,
     requestPermission: requestNativePermission,
     requestLocalNotificationPermission,
@@ -48,23 +48,27 @@ export function useTaskNotifications({
       permission: NotificationPermission;
       requestPermission(): Promise<NotificationPermission>;
     }
-    const BrowserNotification = (typeof window !== 'undefined'
-      ? (window as unknown as { Notification?: BrowserNotifPermissionAPI }).Notification
-      : undefined);
+    const BrowserNotification =
+      typeof window !== "undefined"
+        ? (window as unknown as { Notification?: BrowserNotifPermissionAPI }).Notification
+        : undefined;
 
     if (!BrowserNotification) {
-      console.log('Browser does not support notifications');
+      console.log("Browser does not support notifications");
       return false;
     }
 
-    if (BrowserNotification.permission === 'granted') {
+    if (BrowserNotification.permission === "granted") {
       permissionGranted.current = true;
       return true;
     }
 
-    if (BrowserNotification.permission !== 'denied' && typeof BrowserNotification.requestPermission === 'function') {
+    if (
+      BrowserNotification.permission !== "denied" &&
+      typeof BrowserNotification.requestPermission === "function"
+    ) {
       const permission = await BrowserNotification.requestPermission();
-      permissionGranted.current = permission === 'granted';
+      permissionGranted.current = permission === "granted";
       return permissionGranted.current;
     }
 
@@ -72,65 +76,70 @@ export function useTaskNotifications({
   }, [isNative, requestNativePermission, requestLocalNotificationPermission]);
 
   // Schedule notifications in advance for native platforms
-  const scheduleTaskNotifications = useCallback(async (task: Task) => {
-    if (!isNative || !task.dueDate || task.completed) return;
+  const scheduleTaskNotifications = useCallback(
+    async (task: Task) => {
+      if (!isNative || !task.dueDate || task.completed) return;
 
-    const dueDate = new Date(task.dueDate);
-    const now = new Date();
-    
-    // Cancel existing scheduled notifications for this task
-    const existingIds = scheduledNotifications.current.get(task.id) || [];
-    for (const id of existingIds) {
-      await cancelLocalNotification(id);
-    }
-    
-    const newIds: number[] = [];
-    const reminderMinutes = task.reminderBefore ?? defaultReminderMinutes;
-    
-    // Schedule reminder notification
-    if (reminderMinutes > 0) {
-      const reminderTime = addMinutes(dueDate, -reminderMinutes);
-      if (reminderTime > now) {
+      const dueDate = new Date(task.dueDate);
+      const now = new Date();
+
+      // Cancel existing scheduled notifications for this task
+      const existingIds = scheduledNotifications.current.get(task.id) || [];
+      for (const id of existingIds) {
+        await cancelLocalNotification(id);
+      }
+
+      const newIds: number[] = [];
+      const reminderMinutes = task.reminderBefore ?? defaultReminderMinutes;
+
+      // Schedule reminder notification
+      if (reminderMinutes > 0) {
+        const reminderTime = addMinutes(dueDate, -reminderMinutes);
+        if (reminderTime > now) {
+          const id = await scheduleLocalNotification(
+            "📋 Task Reminder",
+            `"${task.title}" is due in ${reminderMinutes} minutes`,
+            reminderTime,
+            { taskId: task.id, type: "reminder" },
+          );
+          if (id) newIds.push(id);
+        }
+      }
+
+      // Schedule due now notification
+      if (dueDate > now) {
         const id = await scheduleLocalNotification(
-          '📋 Task Reminder',
-          `"${task.title}" is due in ${reminderMinutes} minutes`,
-          reminderTime,
-          { taskId: task.id, type: 'reminder' }
+          "🔔 Task Due Now!",
+          `"${task.title}" is due now`,
+          dueDate,
+          { taskId: task.id, type: "due" },
         );
         if (id) newIds.push(id);
       }
-    }
-    
-    // Schedule due now notification
-    if (dueDate > now) {
-      const id = await scheduleLocalNotification(
-        '🔔 Task Due Now!',
-        `"${task.title}" is due now`,
-        dueDate,
-        { taskId: task.id, type: 'due' }
-      );
-      if (id) newIds.push(id);
-    }
-    
-    if (newIds.length > 0) {
-      scheduledNotifications.current.set(task.id, newIds);
-    }
-  }, [isNative, defaultReminderMinutes, scheduleLocalNotification, cancelLocalNotification]);
+
+      if (newIds.length > 0) {
+        scheduledNotifications.current.set(task.id, newIds);
+      }
+    },
+    [isNative, defaultReminderMinutes, scheduleLocalNotification, cancelLocalNotification],
+  );
 
   const playNotificationSound = useCallback(() => {
     try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const audioContext = new AudioCtx();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-      
+
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-      
+
       oscillator.frequency.value = 800;
-      oscillator.type = 'sine';
+      oscillator.type = "sine";
       gainNode.gain.value = 0.1;
-      
+
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.15);
     } catch {
@@ -138,87 +147,86 @@ export function useTaskNotifications({
     }
   }, []);
 
-  const showNotification = useCallback((
-    task: Task, 
-    minutesBefore: number,
-    isOverdue: boolean = false,
-    isUrgent: boolean = false
-  ) => {
-    if (!permissionGranted.current) return;
+  const showNotification = useCallback(
+    (task: Task, minutesBefore: number, isOverdue: boolean = false, isUrgent: boolean = false) => {
+      if (!permissionGranted.current) return;
 
-    // Check if we already notified for this interval
-    const taskNotifications = notifiedTasks.current.get(task.id) || new Set();
-    const notificationKey = isOverdue ? -minutesBefore : minutesBefore;
-    if (taskNotifications.has(notificationKey)) return;
+      // Check if we already notified for this interval
+      const taskNotifications = notifiedTasks.current.get(task.id) || new Set();
+      const notificationKey = isOverdue ? -minutesBefore : minutesBefore;
+      if (taskNotifications.has(notificationKey)) return;
 
-    // Format the time message
-    let timeMessage: string;
-    let title: string;
-    
-    if (isOverdue) {
-      const minutesOverdue = Math.abs(minutesBefore);
-      if (minutesOverdue < 60) {
-        timeMessage = `${minutesOverdue} minute${minutesOverdue !== 1 ? 's' : ''} overdue`;
+      // Format the time message
+      let timeMessage: string;
+      let title: string;
+
+      if (isOverdue) {
+        const minutesOverdue = Math.abs(minutesBefore);
+        if (minutesOverdue < 60) {
+          timeMessage = `${minutesOverdue} minute${minutesOverdue !== 1 ? "s" : ""} overdue`;
+        } else {
+          const hours = Math.floor(minutesOverdue / 60);
+          timeMessage = `${hours} hour${hours !== 1 ? "s" : ""} overdue`;
+        }
+        title = isUrgent ? "⚠️ Task Overdue!" : "📋 Task Reminder";
+      } else if (minutesBefore === 0) {
+        timeMessage = "due now";
+        title = "🔔 Task Due Now!";
+      } else if (minutesBefore >= 1440) {
+        const days = Math.round(minutesBefore / 1440);
+        timeMessage = `due in ${days} day${days > 1 ? "s" : ""}`;
+        title = "📋 Upcoming Task";
+      } else if (minutesBefore >= 60) {
+        const hours = Math.round(minutesBefore / 60);
+        timeMessage = `due in ${hours} hour${hours > 1 ? "s" : ""}`;
+        title = "📋 Task Reminder";
       } else {
-        const hours = Math.floor(minutesOverdue / 60);
-        timeMessage = `${hours} hour${hours !== 1 ? 's' : ''} overdue`;
+        timeMessage = `due in ${minutesBefore} minute${minutesBefore !== 1 ? "s" : ""}`;
+        title = minutesBefore <= 5 ? "⏰ Task Due Soon!" : "📋 Task Reminder";
       }
-      title = isUrgent ? '⚠️ Task Overdue!' : '📋 Task Reminder';
-    } else if (minutesBefore === 0) {
-      timeMessage = 'due now';
-      title = '🔔 Task Due Now!';
-    } else if (minutesBefore >= 1440) {
-      const days = Math.round(minutesBefore / 1440);
-      timeMessage = `due in ${days} day${days > 1 ? 's' : ''}`;
-      title = '📋 Upcoming Task';
-    } else if (minutesBefore >= 60) {
-      const hours = Math.round(minutesBefore / 60);
-      timeMessage = `due in ${hours} hour${hours > 1 ? 's' : ''}`;
-      title = '📋 Task Reminder';
-    } else {
-      timeMessage = `due in ${minutesBefore} minute${minutesBefore !== 1 ? 's' : ''}`;
-      title = minutesBefore <= 5 ? '⏰ Task Due Soon!' : '📋 Task Reminder';
-    }
 
-    const body = `"${task.title}" is ${timeMessage}`;
+      const body = `"${task.title}" is ${timeMessage}`;
 
-    // Play sound for urgent notifications (web only)
-    if (!isNative && (isUrgent || minutesBefore <= 5)) {
-      playNotificationSound();
-    }
-
-    if (isNative) {
-      // Use native push notification on mobile
-      scheduleLocalNotification(title, body, new Date(), { taskId: task.id });
-    } else {
-      // Use web notification on desktop
-      interface BrowserNotifAPI {
-        permission: NotificationPermission;
-        new(title: string, opts?: NotificationOptions): Notification;
+      // Play sound for urgent notifications (web only)
+      if (!isNative && (isUrgent || minutesBefore <= 5)) {
+        playNotificationSound();
       }
-      const BrowserNotification = (typeof window !== 'undefined'
-        ? (window as unknown as { Notification?: BrowserNotifAPI }).Notification
-        : undefined);
 
-      if (!BrowserNotification) return;
+      if (isNative) {
+        // Use native push notification on mobile
+        scheduleLocalNotification(title, body, new Date(), { taskId: task.id });
+      } else {
+        // Use web notification on desktop
+        interface BrowserNotifAPI {
+          permission: NotificationPermission;
+          new (title: string, opts?: NotificationOptions): Notification;
+        }
+        const BrowserNotification =
+          typeof window !== "undefined"
+            ? (window as unknown as { Notification?: BrowserNotifAPI }).Notification
+            : undefined;
 
-      const notification = new BrowserNotification(title, {
-        body,
-        icon: '/favicon.ico',
-        tag: `${task.id}-${notificationKey}`,
-        requireInteraction: isUrgent || minutesBefore <= 5,
-      });
+        if (!BrowserNotification) return;
 
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
-    }
+        const notification = new BrowserNotification(title, {
+          body,
+          icon: "/favicon.ico",
+          tag: `${task.id}-${notificationKey}`,
+          requireInteraction: isUrgent || minutesBefore <= 5,
+        });
 
-    // Mark as notified
-    taskNotifications.add(notificationKey);
-    notifiedTasks.current.set(task.id, taskNotifications);
-  }, [isNative, playNotificationSound, scheduleLocalNotification]);
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      }
+
+      // Mark as notified
+      taskNotifications.add(notificationKey);
+      notifiedTasks.current.set(task.id, taskNotifications);
+    },
+    [isNative, playNotificationSound, scheduleLocalNotification],
+  );
 
   useEffect(() => {
     permissionGranted.current = false;
@@ -229,25 +237,25 @@ export function useTaskNotifications({
 
     const checkTasks = () => {
       const now = new Date();
-      
-      tasks.forEach(task => {
+
+      tasks.forEach((task) => {
         if (!task.dueDate || task.completed) return;
-        
+
         const dueDate = new Date(task.dueDate);
         const minutesUntilDue = differenceInMinutes(dueDate, now);
         const isOverdue = minutesUntilDue < 0;
-        
+
         if (adhdMode) {
           // ADHD Mode: Multiple gentle reminders
           if (isOverdue && isToday(dueDate)) {
             // Nag for overdue tasks (up to MAX_OVERDUE_NAGS times)
             const nagCount = overdueNagCount.current.get(task.id) || 0;
             const minutesOverdue = Math.abs(minutesUntilDue);
-            
+
             if (nagCount < MAX_OVERDUE_NAGS && minutesOverdue % OVERDUE_NAG_INTERVAL < 1) {
               const currentNagInterval = Math.floor(minutesOverdue / OVERDUE_NAG_INTERVAL);
               const taskNotifications = notifiedTasks.current.get(task.id) || new Set();
-              
+
               if (!taskNotifications.has(-currentNagInterval * OVERDUE_NAG_INTERVAL)) {
                 showNotification(task, -minutesOverdue, true, nagCount >= 2);
                 overdueNagCount.current.set(task.id, nagCount + 1);
@@ -260,7 +268,7 @@ export function useTaskNotifications({
                 showNotification(task, interval, false, interval <= 5);
               }
             }
-            
+
             // Also send at default reminder time if it's different
             const reminderMinutes = task.reminderBefore ?? defaultReminderMinutes;
             if (reminderMinutes > 0 && !ADHD_REMINDER_INTERVALS.includes(reminderMinutes)) {
@@ -272,10 +280,10 @@ export function useTaskNotifications({
         } else {
           // Standard mode: Single reminder
           if (isOverdue) return;
-          
+
           const reminderMinutes = task.reminderBefore ?? defaultReminderMinutes;
           if (reminderMinutes <= 0) return;
-          
+
           if (minutesUntilDue <= reminderMinutes && minutesUntilDue > 0) {
             showNotification(task, minutesUntilDue);
           }
@@ -294,30 +302,30 @@ export function useTaskNotifications({
 
   // Reset tracking and schedule notifications when tasks change
   useEffect(() => {
-    const currentTaskIds = new Set(tasks.map(t => t.id));
-    
+    const currentTaskIds = new Set(tasks.map((t) => t.id));
+
     // Clean up notifications for removed tasks
     notifiedTasks.current.forEach((_, id) => {
       if (!currentTaskIds.has(id)) {
         notifiedTasks.current.delete(id);
         overdueNagCount.current.delete(id);
-        
+
         // Cancel scheduled notifications for removed tasks
         const scheduledIds = scheduledNotifications.current.get(id) || [];
-        scheduledIds.forEach(notifId => cancelLocalNotification(notifId));
+        scheduledIds.forEach((notifId) => cancelLocalNotification(notifId));
         scheduledNotifications.current.delete(id);
       }
     });
 
     // Reset completed tasks
-    tasks.forEach(task => {
+    tasks.forEach((task) => {
       if (task.completed) {
         notifiedTasks.current.delete(task.id);
         overdueNagCount.current.delete(task.id);
-        
+
         // Cancel scheduled notifications for completed tasks
         const scheduledIds = scheduledNotifications.current.get(task.id) || [];
-        scheduledIds.forEach(notifId => cancelLocalNotification(notifId));
+        scheduledIds.forEach((notifId) => cancelLocalNotification(notifId));
         scheduledNotifications.current.delete(task.id);
       }
     });
@@ -327,7 +335,7 @@ export function useTaskNotifications({
   useEffect(() => {
     if (!isNative || !enabled) return;
 
-    tasks.forEach(task => {
+    tasks.forEach((task) => {
       if (!task.completed && task.dueDate) {
         scheduleTaskNotifications(task);
       }

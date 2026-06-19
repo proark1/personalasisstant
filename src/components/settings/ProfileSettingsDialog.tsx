@@ -1,39 +1,51 @@
-import { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { UserSettings, ColorScheme, TaskCategory, TaskPriority, personalityConfigs } from '@/types/flux';
-import { 
-  X, 
-  User, 
-  Save, 
-  Loader2, 
-  Palette, 
-  Bell, 
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  UserSettings,
+  ColorScheme,
+  TaskCategory,
+  TaskPriority,
+  personalityConfigs,
+} from "@/types/flux";
+import {
+  X,
+  User,
+  Save,
+  Loader2,
+  Palette,
+  Bell,
   ListTodo,
   Sun,
   Moon,
   Check,
   Brain,
   Briefcase,
-  Users
-} from 'lucide-react';
-import { EnhancedProfileSettings } from './EnhancedProfileSettings';
-import { SpaceMembersPanel } from './SpaceMembersPanel';
+  Users,
+} from "lucide-react";
+import { EnhancedProfileSettings } from "./EnhancedProfileSettings";
+import { SpaceMembersPanel } from "./SpaceMembersPanel";
 
 interface ProfileSettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   settings: UserSettings;
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
-  onUpdateNotifications: (updates: Partial<UserSettings['notifications']>) => void;
+  onUpdateNotifications: (updates: Partial<UserSettings["notifications"]>) => void;
 }
 
 interface Profile {
@@ -45,28 +57,30 @@ interface Profile {
 }
 
 const colorSchemes: { value: ColorScheme; label: string; color: string }[] = [
-  { value: 'emerald', label: 'Emerald', color: 'bg-emerald-500' },
-  { value: 'cyan', label: 'Electric Cyan', color: 'bg-cyan-500' },
-  { value: 'purple', label: 'Violet', color: 'bg-purple-500' },
-  { value: 'green', label: 'Green', color: 'bg-green-500' },
-  { value: 'orange', label: 'Sunset', color: 'bg-orange-500' },
-  { value: 'pink', label: 'Rose', color: 'bg-pink-500' },
+  { value: "emerald", label: "Emerald", color: "bg-emerald-500" },
+  { value: "cyan", label: "Electric Cyan", color: "bg-cyan-500" },
+  { value: "purple", label: "Violet", color: "bg-purple-500" },
+  { value: "green", label: "Green", color: "bg-green-500" },
+  { value: "orange", label: "Sunset", color: "bg-orange-500" },
+  { value: "pink", label: "Rose", color: "bg-pink-500" },
 ];
 
-export function ProfileSettingsDialog({ 
-  isOpen, 
-  onClose, 
-  settings, 
-  onUpdateSettings, 
-  onUpdateNotifications 
+export function ProfileSettingsDialog({
+  isOpen,
+  onClose,
+  settings,
+  onUpdateSettings,
+  onUpdateNotifications,
 }: ProfileSettingsDialogProps) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'profile' | 'aiprofile' | 'appearance' | 'notifications' | 'defaults' | 'assistant' | 'team'>('profile');
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "aiprofile" | "appearance" | "notifications" | "defaults" | "assistant" | "team"
+  >("profile");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -77,22 +91,24 @@ export function ProfileSettingsDialog({
   const loadProfile = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
         .single();
 
       if (error) throw error;
 
       setProfile(data);
-      setDisplayName(data.display_name || '');
-      setEmail(data.email || '');
+      setDisplayName(data.display_name || "");
+      setEmail(data.email || "");
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error("Error loading profile:", error);
     } finally {
       setLoading(false);
     }
@@ -104,25 +120,25 @@ export function ProfileSettingsDialog({
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from("profiles")
         .update({
           display_name: displayName.trim() || null,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', profile.id);
+        .eq("id", profile.id);
 
       if (error) throw error;
 
       toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been saved.',
+        title: "Profile Updated",
+        description: "Your profile has been saved.",
       });
     } catch (error) {
-      console.error('Error saving profile:', error);
+      console.error("Error saving profile:", error);
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to save profile',
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save profile",
       });
     } finally {
       setSaving(false);
@@ -130,13 +146,13 @@ export function ProfileSettingsDialog({
   };
 
   const tabs = [
-    { id: 'profile' as const, label: 'Profile', icon: User },
-    { id: 'aiprofile' as const, label: 'AI Profile', icon: Briefcase },
-    { id: 'team' as const, label: 'Team', icon: Users },
-    { id: 'appearance' as const, label: 'Appearance', icon: Palette },
-    { id: 'assistant' as const, label: 'Assistant', icon: Brain },
-    { id: 'notifications' as const, label: 'Notifications', icon: Bell },
-    { id: 'defaults' as const, label: 'Defaults', icon: ListTodo },
+    { id: "profile" as const, label: "Profile", icon: User },
+    { id: "aiprofile" as const, label: "AI Profile", icon: Briefcase },
+    { id: "team" as const, label: "Team", icon: Users },
+    { id: "appearance" as const, label: "Appearance", icon: Palette },
+    { id: "assistant" as const, label: "Assistant", icon: Brain },
+    { id: "notifications" as const, label: "Notifications", icon: Bell },
+    { id: "defaults" as const, label: "Defaults", icon: ListTodo },
   ];
 
   if (!isOpen) return null;
@@ -163,9 +179,9 @@ export function ProfileSettingsDialog({
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 py-3 text-sm transition-colors whitespace-nowrap px-2",
-                activeTab === tab.id 
-                  ? "text-primary border-b-2 border-primary -mb-px" 
-                  : "text-muted-foreground hover:text-foreground"
+                activeTab === tab.id
+                  ? "text-primary border-b-2 border-primary -mb-px"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <tab.icon className="w-4 h-4" />
@@ -176,15 +192,11 @@ export function ProfileSettingsDialog({
 
         {/* Content */}
         <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
-          {activeTab === 'aiprofile' && (
-            <EnhancedProfileSettings />
-          )}
+          {activeTab === "aiprofile" && <EnhancedProfileSettings />}
 
-          {activeTab === 'team' && profile && (
-            <SpaceMembersPanel userId={profile.user_id} />
-          )}
+          {activeTab === "team" && profile && <SpaceMembersPanel userId={profile.user_id} />}
 
-          {activeTab === 'profile' && (
+          {activeTab === "profile" && (
             <>
               {loading ? (
                 <div className="flex items-center justify-center py-8">
@@ -195,9 +207,14 @@ export function ProfileSettingsDialog({
                   {/* Avatar */}
                   <div className="flex flex-col items-center gap-4">
                     <Avatar className="w-20 h-20">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt={displayName || email || 'Profile avatar'} />
+                      <AvatarImage
+                        src={profile?.avatar_url || undefined}
+                        alt={displayName || email || "Profile avatar"}
+                      />
                       <AvatarFallback className="text-2xl bg-primary/20 text-primary">
-                        {displayName?.charAt(0)?.toUpperCase() || email?.charAt(0)?.toUpperCase() || 'U'}
+                        {displayName?.charAt(0)?.toUpperCase() ||
+                          email?.charAt(0)?.toUpperCase() ||
+                          "U"}
                       </AvatarFallback>
                     </Avatar>
                   </div>
@@ -216,23 +233,12 @@ export function ProfileSettingsDialog({
                   {/* Email (read-only) */}
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={email}
-                      disabled
-                      className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Email cannot be changed here
-                    </p>
+                    <Input id="email" value={email} disabled className="bg-muted" />
+                    <p className="text-xs text-muted-foreground">Email cannot be changed here</p>
                   </div>
 
                   {/* Save Button */}
-                  <Button 
-                    onClick={handleSaveProfile} 
-                    disabled={saving}
-                    className="w-full"
-                  >
+                  <Button onClick={handleSaveProfile} disabled={saving} className="w-full">
                     {saving ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -250,24 +256,24 @@ export function ProfileSettingsDialog({
             </>
           )}
 
-          {activeTab === 'appearance' && (
+          {activeTab === "appearance" && (
             <>
               {/* Theme Toggle */}
               <div className="space-y-3">
                 <label className="text-sm font-medium">Theme</label>
                 <div className="flex gap-3">
                   <Button
-                    variant={settings.theme === 'dark' ? 'secondary' : 'outline'}
+                    variant={settings.theme === "dark" ? "secondary" : "outline"}
                     className="flex-1 gap-2"
-                    onClick={() => onUpdateSettings({ theme: 'dark' })}
+                    onClick={() => onUpdateSettings({ theme: "dark" })}
                   >
                     <Moon className="w-4 h-4" />
                     Dark
                   </Button>
                   <Button
-                    variant={settings.theme === 'light' ? 'secondary' : 'outline'}
+                    variant={settings.theme === "light" ? "secondary" : "outline"}
                     className="flex-1 gap-2"
-                    onClick={() => onUpdateSettings({ theme: 'light' })}
+                    onClick={() => onUpdateSettings({ theme: "light" })}
                   >
                     <Sun className="w-4 h-4" />
                     Light
@@ -286,7 +292,8 @@ export function ProfileSettingsDialog({
                       className={cn(
                         "aspect-square rounded-lg flex items-center justify-center transition-transform hover:scale-110",
                         scheme.color,
-                        settings.colorScheme === scheme.value && "ring-2 ring-offset-2 ring-offset-background ring-foreground"
+                        settings.colorScheme === scheme.value &&
+                          "ring-2 ring-offset-2 ring-offset-background ring-foreground",
                       )}
                       title={scheme.label}
                     >
@@ -300,7 +307,7 @@ export function ProfileSettingsDialog({
             </>
           )}
 
-          {activeTab === 'assistant' && (
+          {activeTab === "assistant" && (
             <div className="space-y-3">
               <label className="text-sm font-medium">Assistant Personality</label>
               <p className="text-xs text-muted-foreground">
@@ -315,7 +322,7 @@ export function ProfileSettingsDialog({
                       "w-full p-3 rounded-lg border text-left transition-colors",
                       settings.assistantPersonality === personality.id
                         ? "border-primary bg-primary/10"
-                        : "border-border hover:bg-muted"
+                        : "border-border hover:bg-muted",
                     )}
                   >
                     <div className="flex items-center justify-between">
@@ -324,22 +331,22 @@ export function ProfileSettingsDialog({
                         <Check className="w-4 h-4 text-primary" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {personality.description}
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{personality.description}</p>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {activeTab === 'notifications' && (
+          {activeTab === "notifications" && (
             <>
               {/* Task Reminders */}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">Task Reminders</p>
-                  <p className="text-xs text-muted-foreground">Get notified before task deadlines</p>
+                  <p className="text-xs text-muted-foreground">
+                    Get notified before task deadlines
+                  </p>
                 </div>
                 <Switch
                   checked={settings.notifications.taskReminders}
@@ -369,7 +376,9 @@ export function ProfileSettingsDialog({
                 </div>
                 <Slider
                   value={[settings.notifications.reminderMinutesBefore]}
-                  onValueChange={([value]) => onUpdateNotifications({ reminderMinutesBefore: value })}
+                  onValueChange={([value]) =>
+                    onUpdateNotifications({ reminderMinutesBefore: value })
+                  }
                   min={5}
                   max={60}
                   step={5}
@@ -401,7 +410,9 @@ export function ProfileSettingsDialog({
                 </div>
                 <Switch
                   checked={settings.notifications.contactReminders}
-                  onCheckedChange={(checked) => onUpdateNotifications({ contactReminders: checked })}
+                  onCheckedChange={(checked) =>
+                    onUpdateNotifications({ contactReminders: checked })
+                  }
                 />
               </div>
 
@@ -415,20 +426,24 @@ export function ProfileSettingsDialog({
                 </div>
                 <Switch
                   checked={settings.notifications.contractReminders}
-                  onCheckedChange={(checked) => onUpdateNotifications({ contractReminders: checked })}
+                  onCheckedChange={(checked) =>
+                    onUpdateNotifications({ contractReminders: checked })
+                  }
                 />
               </div>
             </>
           )}
 
-          {activeTab === 'defaults' && (
+          {activeTab === "defaults" && (
             <>
               {/* Default Task Category */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Default Task Category</label>
                 <Select
                   value={settings.defaultTaskCategory}
-                  onValueChange={(value: TaskCategory) => onUpdateSettings({ defaultTaskCategory: value })}
+                  onValueChange={(value: TaskCategory) =>
+                    onUpdateSettings({ defaultTaskCategory: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -445,7 +460,9 @@ export function ProfileSettingsDialog({
                 <label className="text-sm font-medium">Default Task Priority</label>
                 <Select
                   value={settings.defaultTaskPriority}
-                  onValueChange={(value: TaskPriority) => onUpdateSettings({ defaultTaskPriority: value })}
+                  onValueChange={(value: TaskPriority) =>
+                    onUpdateSettings({ defaultTaskPriority: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />

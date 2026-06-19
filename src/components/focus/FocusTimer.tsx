@@ -1,28 +1,34 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Task } from '@/types/flux';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
-import { AmbientSoundsPanel } from './AmbientSoundsPanel';
-import { 
-  Play, 
-  Pause, 
-  RotateCcw, 
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Task } from "@/types/flux";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { AmbientSoundsPanel } from "./AmbientSoundsPanel";
+import {
+  Play,
+  Pause,
+  RotateCcw,
   Target,
   Coffee,
   Flame,
   X,
   Clock,
   Volume2,
-  ChevronDown
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  ChevronDown,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FocusTimerProps {
   tasks: Task[];
@@ -30,17 +36,17 @@ interface FocusTimerProps {
   onClose: () => void;
 }
 
-type TimerMode = 'focus' | 'short-break' | 'long-break';
+type TimerMode = "focus" | "short-break" | "long-break";
 
 const TIMER_PRESETS = {
-  'focus': 25 * 60,
-  'short-break': 5 * 60,
-  'long-break': 15 * 60,
+  focus: 25 * 60,
+  "short-break": 5 * 60,
+  "long-break": 15 * 60,
 };
 
 export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
   const { user } = useAuth();
-  const [mode, setMode] = useState<TimerMode>('focus');
+  const [mode, setMode] = useState<TimerMode>("focus");
   const [timeLeft, setTimeLeft] = useState(TIMER_PRESETS.focus);
   const [isRunning, setIsRunning] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -63,11 +69,11 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
       today.setHours(0, 0, 0, 0);
 
       const { data } = await supabase
-        .from('focus_sessions')
-        .select('duration_minutes')
-        .eq('user_id', user.id)
-        .eq('is_completed', true)
-        .gte('started_at', today.toISOString());
+        .from("focus_sessions")
+        .select("duration_minutes")
+        .eq("user_id", user.id)
+        .eq("is_completed", true)
+        .gte("started_at", today.toISOString());
 
       if (data) {
         const totalMinutes = data.reduce((sum, s) => sum + s.duration_minutes, 0);
@@ -84,33 +90,37 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
 
     if (isRunning && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
+        setTimeLeft((prev) => prev - 1);
       }, 1000);
     } else if (timeLeft === 0 && isRunning) {
       handleTimerComplete();
     }
 
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, timeLeft]);
 
   const handleTimerComplete = useCallback(async () => {
     setIsRunning(false);
-    
+
     // Play notification sound
     try {
-      audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleR8cXP///+WWQB8Yn/');
+      audioRef.current = new Audio(
+        "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleR8cXP///+WWQB8Yn/",
+      );
       audioRef.current.play().catch(() => {});
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
-    if (mode === 'focus') {
+    if (mode === "focus") {
       const focusDuration = TIMER_PRESETS.focus / 60;
-      setSessionsCompleted(prev => prev + 1);
-      setDailyFocusMinutes(prev => prev + focusDuration);
+      setSessionsCompleted((prev) => prev + 1);
+      setDailyFocusMinutes((prev) => prev + focusDuration);
 
       // Save focus session to database
       if (user && sessionStartRef.current) {
-        await supabase.from('focus_sessions').insert({
+        await supabase.from("focus_sessions").insert({
           user_id: user.id,
           task_id: selectedTaskId,
           duration_minutes: focusDuration,
@@ -120,23 +130,23 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
         });
       }
 
-      toast.success('Focus session complete!', {
-        description: 'Great job! Take a break.',
+      toast.success("Focus session complete!", {
+        description: "Great job! Take a break.",
       });
 
       // Auto-switch to break
       if (sessionsCompleted > 0 && (sessionsCompleted + 1) % 4 === 0) {
-        setMode('long-break');
-        setTimeLeft(TIMER_PRESETS['long-break']);
+        setMode("long-break");
+        setTimeLeft(TIMER_PRESETS["long-break"]);
       } else {
-        setMode('short-break');
-        setTimeLeft(TIMER_PRESETS['short-break']);
+        setMode("short-break");
+        setTimeLeft(TIMER_PRESETS["short-break"]);
       }
     } else {
-      toast.success('Break complete!', {
-        description: 'Ready to focus again?',
+      toast.success("Break complete!", {
+        description: "Ready to focus again?",
       });
-      setMode('focus');
+      setMode("focus");
       setTimeLeft(TIMER_PRESETS.focus);
     }
 
@@ -163,7 +173,7 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
     sessionStartRef.current = null;
   };
 
-  const incompleteTasks = tasks.filter(t => !t.completed);
+  const incompleteTasks = tasks.filter((t) => !t.completed);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -179,28 +189,28 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
           {/* Mode Tabs */}
           <div className="flex gap-2">
             <Button
-              variant={mode === 'focus' ? 'default' : 'outline'}
+              variant={mode === "focus" ? "default" : "outline"}
               size="sm"
               className="flex-1"
-              onClick={() => switchMode('focus')}
+              onClick={() => switchMode("focus")}
             >
               <Target className="w-4 h-4 mr-1" />
               Focus
             </Button>
             <Button
-              variant={mode === 'short-break' ? 'default' : 'outline'}
+              variant={mode === "short-break" ? "default" : "outline"}
               size="sm"
               className="flex-1"
-              onClick={() => switchMode('short-break')}
+              onClick={() => switchMode("short-break")}
             >
               <Coffee className="w-4 h-4 mr-1" />
               Short
             </Button>
             <Button
-              variant={mode === 'long-break' ? 'default' : 'outline'}
+              variant={mode === "long-break" ? "default" : "outline"}
               size="sm"
               className="flex-1"
-              onClick={() => switchMode('long-break')}
+              onClick={() => switchMode("long-break")}
             >
               <Coffee className="w-4 h-4 mr-1" />
               Long
@@ -208,16 +218,16 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
           </div>
 
           {/* Task Selector */}
-          <Select 
-            value={selectedTaskId || '_none'} 
-            onValueChange={(val) => setSelectedTaskId(val === '_none' ? null : val)}
+          <Select
+            value={selectedTaskId || "_none"}
+            onValueChange={(val) => setSelectedTaskId(val === "_none" ? null : val)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Link to a task (optional)" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="_none">No task</SelectItem>
-              {incompleteTasks.map(task => (
+              {incompleteTasks.map((task) => (
                 <SelectItem key={task.id} value={task.id}>
                   {task.title}
                 </SelectItem>
@@ -228,27 +238,24 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
           {/* Timer Display */}
           <div className="relative">
             <div className="text-center">
-              <div 
+              <div
                 className={cn(
                   "text-7xl font-mono font-bold tracking-tight transition-colors",
-                  mode === 'focus' ? "text-primary" : "text-accent"
+                  mode === "focus" ? "text-primary" : "text-accent",
                 )}
               >
-                {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
               </div>
               <p className="text-sm text-muted-foreground mt-2 capitalize">
-                {mode.replace('-', ' ')}
+                {mode.replace("-", " ")}
               </p>
             </div>
 
             {/* Progress Ring */}
             <div className="mt-4">
-              <Progress 
-                value={progress} 
-                className={cn(
-                  "h-2",
-                  mode === 'focus' ? "[&>div]:bg-primary" : "[&>div]:bg-accent"
-                )}
+              <Progress
+                value={progress}
+                className={cn("h-2", mode === "focus" ? "[&>div]:bg-primary" : "[&>div]:bg-accent")}
               />
             </div>
           </div>
@@ -268,21 +275,17 @@ export function FocusTimer({ tasks, isOpen, onClose }: FocusTimerProps) {
               size="icon"
               className={cn(
                 "h-16 w-16 rounded-full",
-                isRunning 
-                  ? "bg-destructive hover:bg-destructive/90" 
-                  : mode === 'focus' 
+                isRunning
+                  ? "bg-destructive hover:bg-destructive/90"
+                  : mode === "focus"
                     ? "bg-primary hover:bg-primary/90"
-                    : "bg-accent hover:bg-accent/90"
+                    : "bg-accent hover:bg-accent/90",
               )}
               onClick={toggleTimer}
               aria-label={isRunning ? "Pause timer" : "Start timer"}
               aria-pressed={isRunning}
             >
-              {isRunning ? (
-                <Pause className="w-6 h-6" />
-              ) : (
-                <Play className="w-6 h-6 ml-1" />
-              )}
+              {isRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
             </Button>
             <Button
               variant="outline"
