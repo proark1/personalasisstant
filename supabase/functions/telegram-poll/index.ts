@@ -284,19 +284,29 @@ async function sendMemorySnapshot(
 }
 
 
-async function sendAssistantCockpit(chatId: number, tgKey: string): Promise<void> {
-  await tgSendWithKeyboard(chatId, buildAssistantCockpitMessage(), buildAssistantCockpitKeyboard(), tgKey);
+async function sendAssistantCockpit(
+  supabase: SupabaseClient,
+  chatId: number,
+  userId: string,
+  tgKey: string,
+): Promise<void> {
+  const locale = await loadProfileLocale(supabase, userId);
+  await tgSendWithKeyboard(chatId, buildAssistantCockpitMessage(locale), buildAssistantCockpitKeyboard(locale), tgKey);
 }
 
 async function sendSteeringCommand(
+  supabase: SupabaseClient,
   chatId: number,
+  userId: string,
   tgKey: string,
   command: TelegramSteeringCommand,
 ): Promise<void> {
-  await tgSendWithKeyboard(chatId, buildSteeringCommandMessage(command), buildAssistantCockpitKeyboard(), tgKey);
+  const locale = await loadProfileLocale(supabase, userId);
+  await tgSendWithKeyboard(chatId, buildSteeringCommandMessage(command, locale), buildAssistantCockpitKeyboard(locale), tgKey);
 }
 
 async function runSteeringCommand(
+  supabase: SupabaseClient,
   chatId: number,
   userId: string,
   tgKey: string,
@@ -308,7 +318,7 @@ async function runSteeringCommand(
   serviceKey: string,
 ): Promise<void> {
   if (!args.trim()) {
-    await sendSteeringCommand(chatId, tgKey, command);
+    await sendSteeringCommand(supabase, chatId, userId, tgKey, command);
     return;
   }
 
@@ -423,7 +433,7 @@ async function sendPrivateHelp(
 ): Promise<void> {
   const locale = await loadProfileLocale(supabase, userId);
   const text = locale?.toLowerCase().startsWith('de') ? PRIVATE_HELP_TEXT_DE : PRIVATE_HELP_TEXT;
-  await tgSendWithKeyboard(chatId, text, buildAssistantCockpitKeyboard(), telegramKey);
+  await tgSendWithKeyboard(chatId, text, buildAssistantCockpitKeyboard(locale), telegramKey);
 }
 
 // Download a Telegram file by id and return the raw bytes. Used by the
@@ -1170,7 +1180,7 @@ Deno.serve(async (req) => {
                 source: 'callback',
                 handlers: {
                   sendHelp: () => sendPrivateHelp(supabase, cbChatId, commandUserId, TELEGRAM_API_KEY),
-                  sendCockpit: () => sendAssistantCockpit(cbChatId, TELEGRAM_API_KEY),
+                  sendCockpit: () => sendAssistantCockpit(supabase, cbChatId, commandUserId, TELEGRAM_API_KEY),
                   sendApprovals: () => sendApprovalInbox(supabase, cbChatId, commandUserId, TELEGRAM_API_KEY, false),
                   sendNow: async () => {
                     try {
@@ -1188,7 +1198,7 @@ Deno.serve(async (req) => {
                       await sendMessage(cbChatId, '⚠️ Could not load memory right now. Try again shortly.', TELEGRAM_API_KEY);
                     }
                   },
-                  sendSteering: (command, args) => runSteeringCommand(cbChatId, commandUserId, TELEGRAM_API_KEY, command, args, false, activeWs, supabaseUrl, serviceKey),
+                  sendSteering: (command, args) => runSteeringCommand(supabase, cbChatId, commandUserId, TELEGRAM_API_KEY, command, args, false, activeWs, supabaseUrl, serviceKey),
                   recordMetric: (command) => recordTelegramControlMetric(supabase, commandUserId, cbChatId, command, 'callback', activeWs),
                 },
               });
@@ -2056,7 +2066,7 @@ Deno.serve(async (req) => {
         source: 'slash',
         handlers: {
           sendHelp: () => sendPrivateHelp(supabase, chatId, link.user_id, TELEGRAM_API_KEY),
-          sendCockpit: () => sendAssistantCockpit(chatId, TELEGRAM_API_KEY),
+          sendCockpit: () => sendAssistantCockpit(supabase, chatId, link.user_id, TELEGRAM_API_KEY),
           sendApprovals: () => sendApprovalInbox(supabase, chatId, link.user_id, TELEGRAM_API_KEY, wasVoiceMessage),
           sendNow: async () => {
             try {
@@ -2074,7 +2084,7 @@ Deno.serve(async (req) => {
               await sendMessage(chatId, '⚠️ Could not load memory right now. Try again shortly.', TELEGRAM_API_KEY);
             }
           },
-          sendSteering: (command, args) => runSteeringCommand(chatId, link.user_id, TELEGRAM_API_KEY, command, args, wasVoiceMessage, activeWsForChat, supabaseUrl, serviceKey),
+          sendSteering: (command, args) => runSteeringCommand(supabase, chatId, link.user_id, TELEGRAM_API_KEY, command, args, wasVoiceMessage, activeWsForChat, supabaseUrl, serviceKey),
           recordMetric: (command) => recordTelegramControlMetric(supabase, link.user_id, chatId, command, 'slash', activeWsForChat),
           markProcessed: () => markTelegramProcessed(supabase, u.update_id, chatId, text, u),
         },

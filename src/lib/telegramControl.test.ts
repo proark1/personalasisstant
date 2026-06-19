@@ -22,6 +22,17 @@ describe('Telegram cockpit controls', () => {
     expect(decodeCallback('dori_cmd:delegate')).toEqual({ kind: 'quick_command', command: 'delegate' });
   });
 
+  it('localizes cockpit copy and labels for German users without changing callbacks', () => {
+    const message = buildAssistantCockpitMessage('de');
+    const keyboard = buildAssistantCockpitKeyboard('de-DE');
+    const buttons = keyboard.inline_keyboard.flat();
+
+    expect(message).toContain('Dori Cockpit');
+    expect(message).toContain('bester naechster Schritt');
+    expect(buttons.map((b) => b.text)).toEqual(expect.arrayContaining(['🎯 Jetzt', '📥 Freigaben', '⚙️ Einstellungen']));
+    expect(buttons.map((b) => b.callback_data)).toEqual(expect.arrayContaining(['dori_cmd:now', 'dori_cmd:approvals', 'dori_cmd:settings']));
+  });
+
   it('resolves richer steering aliases', () => {
     expect(resolveTelegramControlCommand('/cockpit')).toBe('cockpit');
     expect(resolveTelegramControlCommand('/briefing')).toBe('brief');
@@ -35,6 +46,11 @@ describe('Telegram cockpit controls', () => {
     expect(message).toContain('Delegate');
     expect(message).toContain('ask before sending');
     expect(message).toContain('cockpit control');
+
+    const german = buildSteeringCommandMessage('delegate', 'de');
+    expect(german).toContain('Delegieren');
+    expect(german).toContain('Probier zum Beispiel');
+    expect(german).toContain('Entwirf Antworten');
   });
 
   it('extracts steering arguments and turns them into executable Dori prompts', () => {

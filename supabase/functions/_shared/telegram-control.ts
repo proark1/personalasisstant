@@ -8,7 +8,7 @@ export interface TelegramInlineButton {
   callback_data: string;
 }
 
-export interface TelegramInlineKeyboard {
+export interface TelegramInlineKeyboard extends Record<string, unknown> {
   inline_keyboard: TelegramInlineButton[][];
 }
 
@@ -58,6 +58,63 @@ export const TELEGRAM_STEERING_COMMANDS = {
 export type TelegramSteeringCommand = keyof typeof TELEGRAM_STEERING_COMMANDS;
 
 export type TelegramControlCommand = TelegramQuickCommand | 'cockpit' | TelegramSteeringCommand;
+
+const TELEGRAM_STEERING_COMMANDS_DE: Record<TelegramSteeringCommand, {
+  title: string;
+  headline: string;
+  examples: [string, string];
+}> = {
+  brief: {
+    title: '🗞 Briefing',
+    headline: 'Bitte Dori um ein kompaktes Lagebild zu Kalender, Aufgaben, Inbox, Risiken und der besten naechsten Entscheidung.',
+    examples: [
+      'Briefing fuer die naechsten 8 Stunden.',
+      'Gib mir ein Executive Briefing: Kalender, Aufgaben, E-Mails und Risiken.',
+    ],
+  },
+  plan: {
+    title: '🧭 Planen',
+    headline: 'Mach aus einem unklaren Ziel einen konkreten Schritt-fuer-Schritt-Plan, den Dori mit dir ausfuehren kann.',
+    examples: [
+      'Plane meinen Tag um Deep Work und Meetings herum.',
+      'Plane die Launch-Checkliste fuer Freitag und frag vor dem Erstellen von Aufgaben.',
+    ],
+  },
+  delegate: {
+    title: '🪄 Delegieren',
+    headline: 'Gib Dori eine Aufgabe, Randbedingungen und Freigaberegeln, damit sie Entwuerfe, Termine oder naechste Schritte vorbereiten kann.',
+    examples: [
+      'Delegiere: Entwirf Antworten auf dringende E-Mails, aber frag vor dem Senden.',
+      'Delegiere: mach aus dieser Sprachnachricht Aufgaben und Erinnerungen.',
+    ],
+  },
+  review: {
+    title: '✅ Review',
+    headline: 'Pruefe offene Entscheidungen, unfertige Arbeit, letzte Aktionen und alles, was deine Freigabe braucht.',
+    examples: [
+      'Pruefe, was sich heute geaendert hat und was noch meine Aufmerksamkeit braucht.',
+      'Pruefe offene Freigaben und riskante Aufgaben, bevor ich Feierabend mache.',
+    ],
+  },
+  settings: {
+    title: '⚙️ Einstellungen',
+    headline: 'Steuere Dori-Einstellungen wie Fokusmodus, Sprachantworten, Zeitzone, Workspace-Kontext und Memory.',
+    examples: [
+      'Schalte Sprachantworten ein und Fokusmodus fuer 2 Stunden.',
+      'Wechsle in meinen Arbeits-Workspace und merk dir Meetings erst nach 10.',
+    ],
+  },
+};
+
+function isGermanLocale(locale?: string | null): boolean {
+  return (locale || '').toLowerCase().startsWith('de');
+}
+
+function steeringDefinitions(locale?: string | null): typeof TELEGRAM_STEERING_COMMANDS {
+  return isGermanLocale(locale)
+    ? TELEGRAM_STEERING_COMMANDS_DE as typeof TELEGRAM_STEERING_COMMANDS
+    : TELEGRAM_STEERING_COMMANDS;
+}
 
 export interface TelegramControlDispatchArgs {
   text: string;
@@ -135,35 +192,43 @@ export function buildSteeringPrompt(command: TelegramSteeringCommand, args: stri
   }
 }
 
-export function buildAssistantCockpitMessage(): string {
+export function buildAssistantCockpitMessage(locale?: string | null): string {
+  if (isGermanLocale(locale)) {
+    return `<b>🕹 Dori Cockpit</b>\n\nWaehle eine Steuerung oder schreib einfach natuerlich weiter. Nutze das Cockpit, wenn du Dori schnell lenken willst.\n\n<b>Schnellzugriff</b>\n🎯 Jetzt — bester naechster Schritt\n📥 Freigaben — Dinge, die auf dein OK warten\n🧠 Memory — was Dori gespeichert hat\n\n<b>Steuerungsmodi</b>\n🗞 Briefing · 🧭 Planen · 🪄 Delegieren · ✅ Review · ⚙️ Einstellungen`;
+  }
   return `<b>🕹 Dori cockpit</b>\n\nPick a control, or keep talking naturally. Use this when you want to steer Dori instead of writing a perfect prompt.\n\n<b>Fast controls</b>\n🎯 Now — best next action\n📥 Approvals — things waiting for your OK\n🧠 Memory — what Dori remembers\n\n<b>Steering modes</b>\n🗞 Brief · 🧭 Plan · 🪄 Delegate · ✅ Review · ⚙️ Settings`;
 }
 
-export function buildAssistantCockpitKeyboard(): TelegramInlineKeyboard {
+export function buildAssistantCockpitKeyboard(locale?: string | null): TelegramInlineKeyboard {
+  const de = isGermanLocale(locale);
   return {
     inline_keyboard: [
       [
-        { text: '🎯 Now', callback_data: 'dori_cmd:now' },
-        { text: '📥 Approvals', callback_data: 'dori_cmd:approvals' },
+        { text: de ? '🎯 Jetzt' : '🎯 Now', callback_data: 'dori_cmd:now' },
+        { text: de ? '📥 Freigaben' : '📥 Approvals', callback_data: 'dori_cmd:approvals' },
       ],
       [
-        { text: '🗞 Brief', callback_data: 'dori_cmd:brief' },
-        { text: '🧭 Plan', callback_data: 'dori_cmd:plan' },
+        { text: de ? '🗞 Briefing' : '🗞 Brief', callback_data: 'dori_cmd:brief' },
+        { text: de ? '🧭 Planen' : '🧭 Plan', callback_data: 'dori_cmd:plan' },
       ],
       [
-        { text: '🪄 Delegate', callback_data: 'dori_cmd:delegate' },
+        { text: de ? '🪄 Delegieren' : '🪄 Delegate', callback_data: 'dori_cmd:delegate' },
         { text: '✅ Review', callback_data: 'dori_cmd:review' },
       ],
       [
-        { text: '🧠 Memory', callback_data: 'dori_cmd:memory' },
-        { text: '⚙️ Settings', callback_data: 'dori_cmd:settings' },
+        { text: de ? '🧠 Memory' : '🧠 Memory', callback_data: 'dori_cmd:memory' },
+        { text: de ? '⚙️ Einstellungen' : '⚙️ Settings', callback_data: 'dori_cmd:settings' },
       ],
-      [{ text: '✖️ Close', callback_data: 'dori_dismiss' }],
+      [{ text: de ? '✖️ Schliessen' : '✖️ Close', callback_data: 'dori_dismiss' }],
     ],
   };
 }
 
-export function buildSteeringCommandMessage(command: TelegramSteeringCommand): string {
-  const def = TELEGRAM_STEERING_COMMANDS[command];
-  return `<b>${def.title}</b>\n\n${def.headline}\n\n<b>Try saying</b>\n• <code>${def.examples[0]}</code>\n• <code>${def.examples[1]}</code>\n\nOr tap another cockpit control below.`;
+export function buildSteeringCommandMessage(command: TelegramSteeringCommand, locale?: string | null): string {
+  const def = steeringDefinitions(locale)[command];
+  const tryLabel = isGermanLocale(locale) ? 'Probier zum Beispiel' : 'Try saying';
+  const footer = isGermanLocale(locale)
+    ? 'Oder tippe unten auf eine andere Cockpit-Steuerung.'
+    : 'Or tap another cockpit control below.';
+  return `<b>${def.title}</b>\n\n${def.headline}\n\n<b>${tryLabel}</b>\n• <code>${def.examples[0]}</code>\n• <code>${def.examples[1]}</code>\n\n${footer}`;
 }
