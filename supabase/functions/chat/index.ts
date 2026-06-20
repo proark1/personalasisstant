@@ -15,8 +15,18 @@ import {
   type Channel,
   type RecentEntity,
 } from "../_shared/dori-conversation-state.ts";
-import { decideRoute, type Specialist } from "../_shared/dori-router.ts";
+import { decideRoute, specialistPrompt, type Specialist } from "../_shared/dori-router.ts";
 import { NATIVE_TOOLS, toolCallsToLegacyXml } from "../_shared/dori-tools.ts";
+import {
+  decideTier,
+  escalateModel,
+  runTriage,
+  buildToolObservation,
+  failureSignature,
+  ESCALATE_AFTER_TOOLS,
+  type TriageResult,
+} from "../_shared/dori-triage.ts";
+import { recallEntities } from "../_shared/dori-kg-recall.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("APP_URL") || "*",
@@ -907,8 +917,8 @@ Adapt your tone and suggestions based on time:
 - Afternoon tasks: schedule between 1-5 PM
 - If user says "later" or "when I have time", suggest specific times
 - Consider user's existing tasks when suggesting times
-- "Block my calendar 2-4 PM tomorrow" / "block focus time" / "mark me busy" → use `schedule_event` with `category: "focus"`, a clear title like `🎯 Focus block` (or whatever the user named it), and the requested time range. Treat this as a real event so other planners (find_time, plan_my_week) see the slot as busy. Apply the same pattern for "block this for deep work" / "I'm doing a workout from 6-7" etc.
-- Travel time: when scheduling an event with a `location` and the user hints at travel ("dentist at 3", "soccer game across town"), CHAIN a `set_reminder` for `triggerAt = event.startTime - estimatedMinutes`. Estimate 15 min in-city, 30 min cross-city, 45 min airport, or use any explicit number the user gave. The reminder message should be "🚗 Leave for <event title> (<location>)" so the user sees what's coming. Skip when the event has no location or when the user is clearly home (presence=home, virtual meeting, etc.).
+- "Block my calendar 2-4 PM tomorrow" / "block focus time" / "mark me busy" → use \`schedule_event\` with \`category: "focus"\`, a clear title like \`🎯 Focus block\` (or whatever the user named it), and the requested time range. Treat this as a real event so other planners (find_time, plan_my_week) see the slot as busy. Apply the same pattern for "block this for deep work" / "I'm doing a workout from 6-7" etc.
+- Travel time: when scheduling an event with a \`location\` and the user hints at travel ("dentist at 3", "soccer game across town"), CHAIN a \`set_reminder\` for \`triggerAt = event.startTime - estimatedMinutes\`. Estimate 15 min in-city, 30 min cross-city, 45 min airport, or use any explicit number the user gave. The reminder message should be "🚗 Leave for <event title> (<location>)" so the user sees what's coming. Skip when the event has no location or when the user is clearly home (presence=home, virtual meeting, etc.).
 
 ## GUIDELINES
 - Be concise and helpful
@@ -965,19 +975,19 @@ You CAN use multiple tools in a single response. For example:
 Just include multiple tool XML blocks in your response. Each will be executed.
 
 ## FORWARDED MESSAGES
-If the incoming user turn starts with `[forwarded from <name>]`, the body that follows was written by someone else, NOT the current user. Default behavior:
+If the incoming user turn starts with \`[forwarded from <name>]\`, the body that follows was written by someone else, NOT the current user. Default behavior:
 - Do NOT silently create tasks/events from third-party text. Instead, briefly summarise what was forwarded (1 sentence) and ASK what to do: save as note, create a task, add an event, save sender as contact, draft a reply, ignore.
 - If the user previously said something like "save anything Mom forwards as a contract reminder", honour that preference.
-- Sender name = the value after `forwarded from`. Treat it as a candidate contact / family-member if the user wants to save it.
+- Sender name = the value after \`forwarded from\`. Treat it as a candidate contact / family-member if the user wants to save it.
 
 ## VISION (when the user attaches a photo)
 The photo arrives as a multimodal user turn — describe what you see, THEN propose the matching action:
-- Receipt / bill → `query_expenses` or log via the expense tools, plus a "verify" task.
-- Business card → `manage_contact` create.
-- Flyer / poster / invitation → `schedule_event` (extract date, time, location).
-- Prescription / medication label → `manage_family_member` update with medication notes, plus a refill task.
-- Whiteboard / handwritten notes → `manage_note` create, set tags from the topic.
-- Calendar screenshot → `schedule_event` for each visible entry.
+- Receipt / bill → \`query_expenses\` or log via the expense tools, plus a "verify" task.
+- Business card → \`manage_contact\` create.
+- Flyer / poster / invitation → \`schedule_event\` (extract date, time, location).
+- Prescription / medication label → \`manage_family_member\` update with medication notes, plus a refill task.
+- Whiteboard / handwritten notes → \`manage_note\` create, set tags from the topic.
+- Calendar screenshot → \`schedule_event\` for each visible entry.
 - Fridge / pantry / outfit / room photo (creative ask) → answer descriptively with 2-3 ideas; do NOT silently create tasks unless the user asks ("save these recipes", "add the missing items to the shopping list").
 - Always say what you see in 1-2 sentences before acting so the user can correct misreads.
 
@@ -4494,7 +4504,19 @@ async function loadDoriIntelligence(
     semanticBlock = hits.length ? '\n\n' + formatMemoriesForPrompt(hits) : '';
   }
 
-  return memoryBlock + prefsBlock + memoriesBlock + semanticBlock;
+  // Knowledge-graph recall: entity-aware context for whoever/whatever the
+  // message names. Complements the fuzzy semantic hits with durable, linked
+  // facts (e.g. "Project Atlas" → its description + connected people).
+  let kgBlock = '';
+  if (query && query.length >= 4) {
+    kgBlock = await recallEntities(supabase, {
+      userId,
+      workspaceId: workspaceId ?? null,
+      message: query,
+    });
+  }
+
+  return memoryBlock + prefsBlock + memoriesBlock + semanticBlock + kgBlock;
 }
 
 serve(async (req) => {
@@ -4590,6 +4612,18 @@ serve(async (req) => {
 
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+
+    // Tiered model routing. Stronger "Pro" model is opt-in via env: when
+    // DORI_PRO_MODEL is unset (or DORI_TIER_FLAG="0"), proModelEnabled is
+    // null and every turn stays on Flash — i.e. behaviour is identical to
+    // before this feature, so it's safe to ship dark.
+    const PRO_MODEL = Deno.env.get("DORI_PRO_MODEL") || null;
+    const TIER_ENABLED = (Deno.env.get("DORI_TIER_FLAG") ?? "1") !== "0";
+    const proModelEnabled = TIER_ENABLED ? PRO_MODEL : null;
+    // LLM triage (sharpens routing + tier). Default ON — it's one cheap Flash
+    // call that only fires on the <10% of turns the regex router is unsure
+    // about. Set DORI_TRIAGE_FLAG="0" to disable.
+    const TRIAGE_ENABLED = (Deno.env.get("DORI_TRIAGE_FLAG") ?? "1") !== "0";
 
     // Resolve the active workspace server-side — but NEVER trust the caller's
     // claim without checking the authenticated user is actually a member.
@@ -4810,10 +4844,35 @@ serve(async (req) => {
     // Specialist routing. Cheap regex classifier + sticky-follow-up so
     // a "yes" after a meeting flow stays in the meeting specialist.
     const route = decideRoute(lastUserContent, conversationState?.active_specialist);
-    const specialistBlock = route.prompt ? `\n\n${route.prompt}` : '';
+
+    // LLM triage fallback. Fires only when the regex router is unsure
+    // (confidence < 0.55) — so p50 latency/cost is unchanged on the >90% of
+    // turns the regex handles. Its output sharpens BOTH routing (below) and
+    // the model-tier decision (when a Pro model is configured).
+    let triage: TriageResult | null = null;
+    if (TRIAGE_ENABLED && route.confidence < 0.55 && lastUserContent.length >= 8 && userId !== 'anonymous') {
+      triage = await runTriage(lastUserContent, GEMINI_API_KEY);
+    }
+
+    // Build the specialist add-on. Default to the regex route's single
+    // specialist; when triage ran and named concrete specialists, prefer it
+    // and COMPOSE up to two (e.g. "schedule a meeting and I'm exhausted" →
+    // meeting + health) instead of dropping one.
+    let specialistBlock = route.prompt ? `\n\n${route.prompt}` : '';
+    let effectiveSpecialists: Specialist[] = route.effective === 'general' ? [] : [route.effective];
+    if (triage) {
+      const picked = triage.specialists.filter((s) => s !== 'general').slice(0, 2);
+      const blocks = picked.map((s) => specialistPrompt(s)).filter(Boolean);
+      if (blocks.length) {
+        specialistBlock = '\n\n' + blocks.join('\n\n');
+        effectiveSpecialists = picked;
+      }
+    }
 
     // Fire-and-forget log of the routing decision (debug + offline eval).
-    if (route.specialist !== 'general' && userId !== 'anonymous') {
+    // Log whenever the regex picked a specialist OR triage ran, so we can
+    // review triage-vs-regex disagreements offline.
+    if ((route.specialist !== 'general' || triage) && userId !== 'anonymous') {
       supabaseAdmin
         .from('dori_intent_routing')
         .insert({
@@ -4822,8 +4881,12 @@ serve(async (req) => {
           user_message_excerpt: lastUserContent.slice(0, 240),
           classified_specialist: route.specialist,
           confidence: route.confidence,
-          used_specialist: route.effective,
-          metadata: { matched: route.matched },
+          used_specialist: effectiveSpecialists[0] ?? 'general',
+          metadata: {
+            matched: route.matched,
+            triage: triage ? { specialists: triage.specialists, complexity: triage.complexity, multiStep: triage.multiStep } : null,
+            effective_specialists: effectiveSpecialists,
+          },
         })
         .then(({ error }: any) => {
           if (error) console.warn('[routing log] failed', error.message);
@@ -5241,9 +5304,9 @@ NEVER treat a user request as a single-module action. Before responding, ask you
 
 Concrete chains you should execute automatically:
 - "Sarah's birthday next month" / "Tugba's birthday is October 1st" → ALWAYS run all three of these in one response:
-    (a) manage_family_member action="create" or "update" with the `birthDate` field so the birthday is stored on the family record (and re-used by proactive reminders next year),
-    (b) schedule_event for the birthday itself with `recurrenceRule: "FREQ=YEARLY"`,
-    (c) manage_task "Buy gift for <name>" with `dueDate` set to 3 days before the birthday (use `recurrenceRule: "FREQ=YEARLY"` so the prep task repeats too).
+    (a) manage_family_member action="create" or "update" with the \`birthDate\` field so the birthday is stored on the family record (and re-used by proactive reminders next year),
+    (b) schedule_event for the birthday itself with \`recurrenceRule: "FREQ=YEARLY"\`,
+    (c) manage_task "Buy gift for <name>" with \`dueDate\` set to 3 days before the birthday (use \`recurrenceRule: "FREQ=YEARLY"\` so the prep task repeats too).
   Optionally chain a compose_email or send_family_message draft if the user hints at one.
 - "Plan dinner with the Khans on Friday" → find contact + create calendar event Fri 7pm + create task "Confirm with Khans 1 day before" + offer to draft a WhatsApp/email message
 - "Cancel the Netflix contract" → find contract + propose cancellation email draft + create task "Verify Netflix cancelled" due in 7 days
@@ -5372,8 +5435,21 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
       } : null,
     });
 
-    const model = 'gemini-3-flash-preview';
-    
+    // Pick the model + agent-round budget for this turn. Cheap heuristic +
+    // (when it ran) the triage signal. With no Pro model configured this is
+    // always Flash/4 — identical to the previous hardcoded behaviour.
+    const tier = decideTier({
+      message: lastUserContent,
+      routeConfidence: route.confidence,
+      hasImage: !!imageUrl,
+      triageComplexity: triage?.complexity ?? null,
+      triageMultiStep: triage?.multiStep ?? null,
+    }, proModelEnabled);
+    const model = tier.model;
+    if (tier.tier === 'pro') {
+      console.log('[tier] pro', { model, maxRounds: tier.maxRounds, reason: tier.reason });
+    }
+
     // Native function-calling is opt-in per request via a header so we
     // can roll it out one surface at a time. The legacy XML path stays
     // intact — when tools are NOT sent, the model continues to emit
@@ -5382,8 +5458,8 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // array, which we convert back to legacy XML for execution.
     const useNativeTools = req.headers.get('x-dori-native-tools') === '1';
 
-    async function callAI(msgs: { role: string; content: string | any[] }[], stream: boolean) {
-      const payload: any = { model, messages: msgs, stream };
+    async function callAI(msgs: { role: string; content: string | any[] }[], stream: boolean, modelOverride?: string) {
+      const payload: any = { model: modelOverride || model, messages: msgs, stream };
       if (useNativeTools) {
         payload.tools = NATIVE_TOOLS;
         payload.tool_choice = 'auto';
@@ -5500,7 +5576,12 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // and closes with a done event that carries the full tool result list.
     if (executeServerSide && streamFinalText) {
       const encoder = new TextEncoder();
-      const MAX_AGENT_ROUNDS = 4;
+      // Adaptive round budget + mid-loop model escalation from the tier
+      // decision. `let` because escalateModel may raise both mid-loop.
+      let maxAgentRounds = tier.maxRounds;
+      let currentModel = tier.model;
+      let currentTier = tier.tier;
+      let prevFailureSig = '';
       const conversationMsgs: { role: string; content: string | any[] }[] = [...allMessages];
       const allExecResults: ToolExecResult[] = [];
 
@@ -5524,8 +5605,8 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
           try {
             let finalPromptText = '';
-            for (let round = 0; round < MAX_AGENT_ROUNDS; round++) {
-              const aiResp = await callAI(conversationMsgs, true);
+            for (let round = 0; round < maxAgentRounds; round++) {
+              const aiResp = await callAI(conversationMsgs, true, currentModel);
               if (!aiResp.ok || !aiResp.body) {
                 const t = aiResp.body ? await aiResp.text() : `status ${aiResp.status}`;
                 console.error(`stream round ${round} AI error:`, aiResp.status, t);
@@ -5593,15 +5674,29 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
               if (roundResults.length === 0) break;  // no tools → we're done
 
+              // Repeated-failure guard: if this round failed the same way as
+              // the last, the model is looping on a broken call — stop rather
+              // than burn rounds re-failing identically.
+              const failSig = failureSignature(roundResults);
+              if (failSig && failSig === prevFailureSig) {
+                console.warn('[agent stream] repeated identical tool failure, breaking', failSig);
+                break;
+              }
+              prevFailureSig = failSig;
+
+              // Mid-loop escalation once real multi-step work is underway.
+              const esc = escalateModel(currentTier, allExecResults.length, proModelEnabled);
+              if (esc) {
+                currentModel = esc.model;
+                currentTier = esc.tier;
+                maxAgentRounds = Math.max(maxAgentRounds, esc.maxRounds);
+              }
+
               // Feed the round's output + results back for the next AI call.
+              // buildToolObservation adds explicit self-correction guidance on
+              // failures so the model retries/asks instead of faking success.
               conversationMsgs.push({ role: 'assistant', content: roundText });
-              const observation = roundResults.map((r, i) =>
-                `[${i + 1}] ${r.tool} → ${r.ok ? 'OK' : 'FAIL'}: ${r.message}`
-              ).join('\n');
-              conversationMsgs.push({
-                role: 'system',
-                content: `Tool results from your last turn:\n${observation}\n\nIf the user's request is fully satisfied, reply with a brief natural-language confirmation and DO NOT emit more tools. If more steps are needed, emit the next tool(s).`,
-              });
+              conversationMsgs.push({ role: 'system', content: buildToolObservation(roundResults) });
             }
 
             const cleanText = stripAllToolTags(finalPromptText).trim();
@@ -5622,7 +5717,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               openIntent: null,
               pendingPayload: {},
               recentEntities: [],
-              activeSpecialist: route.effective,
+              activeSpecialist: effectiveSpecialists[0] ?? route.effective,
             }).catch(() => {});
             if (cleanText && lastUserContent.length >= 12) {
               rememberSemantic(supabaseAdmin, {
@@ -5651,17 +5746,29 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
     // ===== SERVER-SIDE EXECUTION BRANCH (Telegram, voice, agent loop) =====
     // Multi-step agentic loop: AI proposes tools → we execute → feed results back → AI decides next step.
-    // Stops when AI returns no new tool calls, or after MAX_AGENT_ROUNDS.
+    // Stops when AI returns no new tool calls, or after the tier's round budget.
     if (executeServerSide) {
-      const MAX_AGENT_ROUNDS = 4;
+      // Adaptive round budget + mid-loop model escalation from the tier
+      // decision (see decideTier / escalateModel).
+      let maxAgentRounds = tier.maxRounds;
+      let currentModel = tier.model;
+      let currentTier = tier.tier;
+      let prevFailureSig = '';
       const conversationMsgs: { role: string; content: string | any[] }[] = [...allMessages];
       const allExecResults: ToolExecResult[] = [];
       let finalText = '';
       let totalPromptTokens = 0;
       let totalCompletionTokens = 0;
 
-      for (let round = 0; round < MAX_AGENT_ROUNDS; round++) {
-        const fullResp = await callAI(conversationMsgs, false);
+      // Action source is constant for the turn — hoisted so the post-loop
+      // verify pass can reuse it.
+      const effectiveSource = actionSource || (currentChannel === 'tg_family' ? 'tg_family'
+        : currentChannel === 'tg_private' ? 'tg_private'
+        : 'web');
+      const effectiveSourceRef = actionSourceRef ?? tgChannelRef ?? null;
+
+      for (let round = 0; round < maxAgentRounds; round++) {
+        const fullResp = await callAI(conversationMsgs, false, currentModel);
         if (!fullResp.ok) {
           const t = await fullResp.text();
           console.error(`Gemini (agent round ${round}) error:`, fullResp.status, t);
@@ -5679,11 +5786,6 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
         totalPromptTokens += aiData.usage?.prompt_tokens || 0;
         totalCompletionTokens += aiData.usage?.completion_tokens || 0;
 
-        // Default the action source from the channel if caller didn't specify one.
-        const effectiveSource = actionSource || (currentChannel === 'tg_family' ? 'tg_family'
-          : currentChannel === 'tg_private' ? 'tg_private'
-          : 'web');
-        const effectiveSourceRef = actionSourceRef ?? tgChannelRef ?? null;
         const roundResults = await executeToolsServerSide(roundText, userId, supabaseAdmin, {
           source: effectiveSource,
           sourceRef: effectiveSourceRef,
@@ -5695,14 +5797,58 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
         if (roundResults.length === 0) break;
 
+        // Repeated-failure guard: stop if the model loops on a broken call.
+        const failSig = failureSignature(roundResults);
+        if (failSig && failSig === prevFailureSig) {
+          console.warn('[agent loop] repeated identical tool failure, breaking', failSig);
+          break;
+        }
+        prevFailureSig = failSig;
+
+        // Mid-loop escalation once real multi-step work is underway.
+        const esc = escalateModel(currentTier, allExecResults.length, proModelEnabled);
+        if (esc) {
+          currentModel = esc.model;
+          currentTier = esc.tier;
+          maxAgentRounds = Math.max(maxAgentRounds, esc.maxRounds);
+        }
+
         conversationMsgs.push({ role: 'assistant', content: roundText });
-        const observation = roundResults.map((r, i) =>
-          `[${i + 1}] ${r.tool} → ${r.ok ? 'OK' : 'FAIL'}: ${r.message}`
-        ).join('\n');
-        conversationMsgs.push({
-          role: 'system',
-          content: `Tool results from your last turn:\n${observation}\n\nIf the user's request is fully satisfied, reply with a brief natural-language confirmation and DO NOT emit more tools. If more steps are needed, emit the next tool(s).`,
-        });
+        conversationMsgs.push({ role: 'system', content: buildToolObservation(roundResults) });
+      }
+
+      // Verify pass — one self-check, gated to Pro-tier turns that did real
+      // multi-step work. Catches "claimed done but skipped a step" without
+      // adding latency to simple turns.
+      if (proModelEnabled && currentTier === 'pro' && allExecResults.length >= ESCALATE_AFTER_TOOLS && finalText) {
+        try {
+          conversationMsgs.push({ role: 'assistant', content: finalText });
+          conversationMsgs.push({
+            role: 'system',
+            content: "Self-check: re-read the user's ORIGINAL request and confirm every part is done. If anything is still missing or a tool failed, emit the remaining tool(s) now. If everything is complete, reply with ONLY a brief confirmation and no tools.",
+          });
+          const vResp = await callAI(conversationMsgs, false, currentModel);
+          if (vResp.ok) {
+            const vData = await vResp.json();
+            const vText: string = flattenAssistantMessage(vData.choices?.[0]?.message);
+            totalPromptTokens += vData.usage?.prompt_tokens || 0;
+            totalCompletionTokens += vData.usage?.completion_tokens || 0;
+            const vResults = await executeToolsServerSide(vText, userId, supabaseAdmin, {
+              source: effectiveSource,
+              sourceRef: effectiveSourceRef,
+              workspaceId: activeWorkspace?.id ?? null,
+              workspaceMembers: activeWorkspace?.members,
+              timezone: userTimezone,
+            });
+            if (vResults.length > 0) {
+              // The verify pass found and did more work — adopt its prose.
+              allExecResults.push(...vResults);
+              finalText = vText;
+            }
+          }
+        } catch (e) {
+          console.warn('[agent verify] failed', (e as Error).message);
+        }
       }
 
       const cleanText = stripAllToolTags(finalText);
@@ -5739,7 +5885,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
           openIntent: proposedPlan ? 'awaiting_plan_approval' : null,
           pendingPayload: proposedPlan ? (proposedPlan as any).payload ?? {} : {},
           recentEntities,
-          activeSpecialist: route.effective,
+          activeSpecialist: effectiveSpecialists[0] ?? route.effective,
         });
       } catch (e) {
         console.warn('[saveConversationState agent] failed', (e as Error).message);
@@ -5846,7 +5992,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               openIntent: null,
               pendingPayload: {},
               recentEntities: [],
-              activeSpecialist: route.effective,
+              activeSpecialist: effectiveSpecialists[0] ?? route.effective,
             }).catch(() => {});
             if (cleaned && lastUserContent.length >= 12) {
               rememberSemantic(supabaseAdmin, {

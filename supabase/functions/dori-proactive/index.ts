@@ -5,6 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendDoriReply } from '../_shared/telegram-voice.ts';
 import { isUserQuietNow } from '../_shared/dori-quiet.ts';
+import { loadFeedbackStats } from '../_shared/dori-feedback.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': Deno.env.get('APP_URL') || '*',
@@ -31,6 +32,7 @@ interface UserCtx {
   todayKey: string; // YYYY-MM-DD in user's tz
   displayName: string;
   household: HouseholdMember[]; // includes self; length>=2 means shared household
+  suppressed: Set<string>; // trigger types this user consistently 👎'd — skip them
 }
 
 // Resolve all accepted family-agent members the user shares a group with,
@@ -123,6 +125,7 @@ async function send(ctx: UserCtx, text: string) {
 // ---------- TRIGGERS ----------
 
 async function morningBrief(supabase: any, ctx: UserCtx) {
+  if (ctx.suppressed.has('morning_brief')) return;
   if (!ctx.settings.daily_review_enabled && !ctx.settings.weekly_planning_enabled) return;
   const target = ctx.settings.morning_briefing_time || '07:30:00';
   const [th, tm] = target.split(':').map((n: string) => parseInt(n));
@@ -220,6 +223,7 @@ async function contractRenewals(supabase: any, ctx: UserCtx) {
 }
 
 async function birthdayReminders(supabase: any, ctx: UserCtx) {
+  if (ctx.suppressed.has('birthday_reminder')) return;
   if (!ctx.settings.birthday_reminders_enabled) return;
   // Fire once per day in late morning window
   if (ctx.nowLocal.getHours() < 9 || ctx.nowLocal.getHours() > 11) return;
@@ -291,7 +295,7 @@ async function prayerReminders(supabase: any, ctx: UserCtx) {
   const times = estimatePrayerTimes(ctx.nowLocal);
   const nowMin = ctx.nowLocal.getHours() * 60 + ctx.nowLocal.getMinutes();
 
-  if (ctx.settings.prayer_reminders_enabled) {
+  if (ctx.settings.prayer_reminders_enabled && !ctx.suppressed.has('prayer_reminder')) {
     for (const [name, t] of Object.entries(times)) {
       const targetMin = t.h * 60 + t.m - minutesBefore;
       // Cron runs every 30 min — fire if within ±15 min of pre-prayer target
@@ -306,7 +310,7 @@ async function prayerReminders(supabase: any, ctx: UserCtx) {
   }
 
   // Evening dua nudge — fire after Maghrib, before Isha
-  if (ctx.settings.evening_dua_enabled) {
+  if (ctx.settings.evening_dua_enabled && !ctx.suppressed.has('evening_dua')) {
     const maghribMin = times.Maghrib.h * 60 + times.Maghrib.m;
     const targetMin = maghribMin + 30; // 30 min after Maghrib
     if (Math.abs(nowMin - targetMin) <= 15) {
@@ -323,6 +327,7 @@ async function prayerReminders(supabase: any, ctx: UserCtx) {
 // Scan recent unread emails for action items (todos / questions / payments)
 // and push a Telegram digest. Auto-creates tasks for clear action items.
 async function emailActionItems(supabase: any, ctx: UserCtx) {
+  if (ctx.suppressed.has('email_actions')) return;
   if (ctx.settings.email_action_alerts_enabled === false) return;
   // Once per day, mid-morning
   if (ctx.nowLocal.getHours() < 9 || ctx.nowLocal.getHours() > 11) return;
@@ -426,6 +431,7 @@ async function emailActionItems(supabase: any, ctx: UserCtx) {
 }
 
 async function staleContacts(supabase: any, ctx: UserCtx) {
+  if (ctx.suppressed.has('stale_contact')) return;
   if (!ctx.settings.contact_checkins_enabled) return;
   // Only nudge once a day, evening-ish
   if (ctx.nowLocal.getHours() < 17 || ctx.nowLocal.getHours() > 20) return;
@@ -505,11 +511,15 @@ Deno.serve(async (req) => {
       const household = await resolveHousehold(supabase, s.user_id);
       const self = household.find(h => h.user_id === s.user_id);
 
+      // Feedback loop: skip nudge types this user has consistently disliked.
+      const feedback = await loadFeedbackStats(supabase, s.user_id);
+
       const ctx: UserCtx = {
         userId: s.user_id, chatId: Number(link.chat_id), settings: s,
         preferVoice: !!s.prefer_voice_replies, tz, nowLocal: now.date, todayKey: now.dayKey,
         displayName: self?.display_name || 'You',
         household,
+        suppressed: feedback.disliked,
       };
 
       const before = sent;

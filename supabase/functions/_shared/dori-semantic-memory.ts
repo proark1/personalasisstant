@@ -110,16 +110,19 @@ export async function retrieveRelevantMemories(supabase: any, args: RetrieveArgs
 }
 
 // Compact, cache-friendly block ready to drop into the system prompt.
-// Hits are pre-sorted by similarity DESC. Importance is a tiebreaker
-// nudge — a high-importance milestone outranks a slightly closer chat
-// turn.
+// Hits already arrive blended-ranked from match_semantic_memories; we
+// re-apply the SAME score here (similarity + importance + recency decay)
+// so the prompt order matches the RPC and a durable/recent milestone
+// outranks a slightly-closer stale chat turn.
 export function formatMemoriesForPrompt(hits: SemanticHit[]): string {
   if (hits.length === 0) return '';
-  const ranked = [...hits].sort((a, b) => {
-    const sa = a.similarity + a.importance * 0.05;
-    const sb = b.similarity + b.importance * 0.05;
-    return sb - sa;
-  });
+  const now = Date.now();
+  const score = (h: SemanticHit): number => {
+    const ageDays = Math.max(0, (now - new Date(h.created_at).getTime()) / 86_400_000);
+    const recency = Math.exp(-ageDays / 45);
+    return h.similarity + h.importance * 0.05 + recency * 0.05;
+  };
+  const ranked = [...hits].sort((a, b) => score(b) - score(a));
   const lines = ranked.map((h) => {
     const sim = (h.similarity * 100).toFixed(0);
     const tag = `${h.source}${h.source_ref ? `#${h.source_ref.slice(0, 24)}` : ''}`;
