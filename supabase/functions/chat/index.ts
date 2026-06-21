@@ -32,6 +32,7 @@ import {
   type TriageResult,
 } from "../_shared/dori-triage.ts";
 import { recallEntities } from "../_shared/dori-kg-recall.ts";
+import { estimateCostUsd, usageFooter } from "../_shared/ai-pricing.ts";
 import { strictAppOrigin } from "../_shared/cors.ts";
 import { mintInternalToken, resolveUserId } from "../_shared/auth.ts";
 
@@ -1037,11 +1038,8 @@ async function logAIUsage(
   requestData?: Record<string, unknown>,
 ) {
   try {
-    // Estimate cost based on model (rough estimates for Gemini Flash)
-    const inputCostPer1K = 0.000075; // $0.075 per 1M input tokens
-    const outputCostPer1K = 0.0003; // $0.30 per 1M output tokens
-    const costEstimate =
-      (promptTokens / 1000) * inputCostPer1K + (completionTokens / 1000) * outputCostPer1K;
+    // Per-model cost estimate (shared with the Telegram usage footer).
+    const costEstimate = estimateCostUsd(model, promptTokens, completionTokens);
 
     await supabase.from("ai_usage").insert({
       user_id: userId,
@@ -1056,6 +1054,23 @@ async function logAIUsage(
     });
   } catch (error) {
     console.error("Failed to log AI usage:", error);
+  }
+}
+
+// Admin-controlled flag (app_settings.telegram_token_usage_enabled) gating the
+// per-reply token/cost footer on Telegram. Defaults to ON (fails open) so a
+// missing row or read error still shows usage.
+async function isUsageFooterEnabled(supabase: SupabaseClient): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "telegram_token_usage_enabled")
+      .maybeSingle();
+    if (!data) return true;
+    return data.value === true || data.value === "true";
+  } catch {
+    return true;
   }
 }
 
@@ -8546,6 +8561,12 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
       }
     }
 
+    // Per-reply token/cost footer for Telegram (admin-toggleable). Only read
+    // the flag for Telegram channels so web/voice never pay the lookup.
+    const showUsageFooter = currentChannel.startsWith("tg")
+      ? await isUsageFooterEnabled(supabaseAdmin)
+      : false;
+
     // ===== SERVER-SIDE STREAMING BRANCH (Telegram with streamFinalText=true) =====
     // Runs the agent loop per-round, streams the AI's prose as deltas (filtering
     // out <tool> blocks so the user never sees XML), runs tools after each round,
@@ -8688,12 +8709,18 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
             }
 
             const cleanText = stripAllToolTags(finalPromptText).trim();
-            emit({ type: "done", reply: cleanText, toolResults: allExecResults });
             // Token accounting: include the full conversation we sent (system
             // prompt + messages) as the prompt cost, and the accumulated
             // completion text across every round as the completion cost.
             const promptTokens = Math.ceil(initialPromptChars / 4);
             const completionTokens = Math.ceil(totalStreamCompletionChars / 4);
+            // Append the usage footer to the user-facing reply ONLY — keep
+            // cleanText clean so logs/memory don't store the footer.
+            const replyText =
+              showUsageFooter && cleanText
+                ? cleanText + usageFooter(model, promptTokens, completionTokens)
+                : cleanText;
+            emit({ type: "done", reply: replyText, toolResults: allExecResults });
             await logAIUsage(
               supabaseAdmin,
               userId,
@@ -8957,9 +8984,16 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
         }).catch(() => {});
       }
 
+      // Append the usage footer to the user-facing reply ONLY (logs/memory
+      // above already used the clean text).
+      const replyOut =
+        showUsageFooter && cleanText.trim()
+          ? cleanText.trim() + usageFooter(model, totalPromptTokens, totalCompletionTokens)
+          : cleanText.trim();
+
       return new Response(
         JSON.stringify({
-          reply: cleanText.trim(),
+          reply: replyOut,
           toolResults: allExecResults,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },

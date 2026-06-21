@@ -23,6 +23,7 @@ import { AnalyticsOverview } from "./AnalyticsOverview";
 import { UserAnalyticsTable } from "./UserAnalyticsTable";
 import { EventsLog } from "./EventsLog";
 import { AIUsagePanel } from "./AIUsagePanel";
+import { TelegramUsageToggle } from "./TelegramUsageToggle";
 import { AdminDataExportImport } from "./AdminDataExportImport";
 
 interface AdminAnalyticsPanelProps {
@@ -205,7 +206,8 @@ export function AdminAnalyticsPanel({ userId: _userId }: AdminAnalyticsPanelProp
             <EventsLog events={events} />
           </TabsContent>
 
-          <TabsContent value="ai" className="mt-0">
+          <TabsContent value="ai" className="mt-0 space-y-4">
+            <TelegramUsageToggle />
             <AIUsagePanel aiUsage={aiUsage} />
           </TabsContent>
 
