@@ -20,8 +20,18 @@ import {
   type Channel,
   type RecentEntity,
 } from "../_shared/dori-conversation-state.ts";
-import { decideRoute } from "../_shared/dori-router.ts";
+import { decideRoute, specialistPrompt, type Specialist } from "../_shared/dori-router.ts";
 import { NATIVE_TOOLS, toolCallsToLegacyXml } from "../_shared/dori-tools.ts";
+import {
+  decideTier,
+  escalateModel,
+  runTriage,
+  buildToolObservation,
+  failureSignature,
+  ESCALATE_AFTER_TOOLS,
+  type TriageResult,
+} from "../_shared/dori-triage.ts";
+import { recallEntities } from "../_shared/dori-kg-recall.ts";
 import { strictAppOrigin } from "../_shared/cors.ts";
 import { mintInternalToken, resolveUserId } from "../_shared/auth.ts";
 
@@ -7297,7 +7307,19 @@ async function loadDoriIntelligence(
     semanticBlock = hits.length ? "\n\n" + formatMemoriesForPrompt(hits) : "";
   }
 
-  return memoryBlock + prefsBlock + memoriesBlock + semanticBlock;
+  // Knowledge-graph recall: entity-aware context for whoever/whatever the
+  // message names. Complements the fuzzy semantic hits with durable, linked
+  // facts (e.g. "Project Atlas" → its description + connected people).
+  let kgBlock = "";
+  if (query && query.length >= 4) {
+    kgBlock = await recallEntities(supabase, {
+      userId,
+      workspaceId: workspaceId ?? null,
+      message: query,
+    });
+  }
+
+  return memoryBlock + prefsBlock + memoriesBlock + semanticBlock + kgBlock;
 }
 
 serve(async (req) => {
@@ -7374,6 +7396,16 @@ serve(async (req) => {
 
     const personalityAddition = personalityPrompts[personality] || personalityPrompts.balanced;
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+
+    // Tiered model routing. Stronger "Pro" model is opt-in via env: when
+    // DORI_PRO_MODEL is unset (or DORI_TIER_FLAG="0"), proModelEnabled is
+    // null and every turn stays on Flash — behaviour identical to before.
+    const PRO_MODEL = Deno.env.get("DORI_PRO_MODEL") || null;
+    const TIER_ENABLED = (Deno.env.get("DORI_TIER_FLAG") ?? "1") !== "0";
+    const proModelEnabled = TIER_ENABLED ? PRO_MODEL : null;
+    // LLM triage (sharpens routing + tier). Default ON — one cheap Flash call
+    // that only fires on the <10% of turns the regex router is unsure about.
+    const TRIAGE_ENABLED = (Deno.env.get("DORI_TRIAGE_FLAG") ?? "1") !== "0";
 
     // Resolve the active workspace server-side — but NEVER trust the caller's
     // claim without checking the authenticated user is actually a member.
@@ -7660,10 +7692,32 @@ serve(async (req) => {
     // Specialist routing. Cheap regex classifier + sticky-follow-up so
     // a "yes" after a meeting flow stays in the meeting specialist.
     const route = decideRoute(lastUserContent, conversationState?.active_specialist);
-    const specialistBlock = route.prompt ? `\n\n${route.prompt}` : "";
+
+    // LLM triage fallback. Fires only when the regex router is unsure
+    // (confidence < 0.55), so p50 latency/cost is unchanged on the >90% of
+    // turns the regex handles. Sharpens BOTH routing (below) and the
+    // model-tier decision (when a Pro model is configured).
+    let triage: TriageResult | null = null;
+    if (TRIAGE_ENABLED && route.confidence < 0.55 && lastUserContent.length >= 8 && userId !== "anonymous") {
+      triage = await runTriage(lastUserContent, GEMINI_API_KEY ?? "");
+    }
+
+    // Build the specialist add-on. Default to the regex route; when triage
+    // ran and named concrete specialists, prefer it and COMPOSE up to two
+    // (e.g. "schedule a meeting and I'm exhausted" → meeting + health).
+    let specialistBlock = route.prompt ? `\n\n${route.prompt}` : "";
+    let effectiveSpecialists: Specialist[] = route.effective === "general" ? [] : [route.effective];
+    if (triage) {
+      const picked = triage.specialists.filter((s) => s !== "general").slice(0, 2);
+      const blocks = picked.map((s) => specialistPrompt(s)).filter(Boolean);
+      if (blocks.length) {
+        specialistBlock = "\n\n" + blocks.join("\n\n");
+        effectiveSpecialists = picked;
+      }
+    }
 
     // Fire-and-forget log of the routing decision (debug + offline eval).
-    if (route.specialist !== "general" && userId !== "anonymous") {
+    if ((route.specialist !== "general" || triage) && userId !== "anonymous") {
       supabaseAdmin
         .from("dori_intent_routing")
         .insert({
@@ -7672,8 +7726,12 @@ serve(async (req) => {
           user_message_excerpt: lastUserContent.slice(0, 240),
           classified_specialist: route.specialist,
           confidence: route.confidence,
-          used_specialist: route.effective,
-          metadata: { matched: route.matched },
+          used_specialist: effectiveSpecialists[0] ?? "general",
+          metadata: {
+            matched: route.matched,
+            triage: triage ? { specialists: triage.specialists, complexity: triage.complexity, multiStep: triage.multiStep } : null,
+            effective_specialists: effectiveSpecialists,
+          },
         })
         .then(({ error }: { error: { message?: string } | null }) => {
           if (error) console.warn("[routing log] failed", error.message);
@@ -8310,7 +8368,20 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
         : null,
     });
 
-    const model = "gemini-3-flash-preview";
+    // Per-turn model + agent-round budget. Cheap heuristic + (when it ran)
+    // the triage signal. With no Pro model configured this is always Flash/4
+    // — identical to the previous hardcoded behaviour.
+    const tier = decideTier({
+      message: lastUserContent,
+      routeConfidence: route.confidence,
+      hasImage: !!imageUrl,
+      triageComplexity: triage?.complexity ?? null,
+      triageMultiStep: triage?.multiStep ?? null,
+    }, proModelEnabled);
+    const model = tier.model;
+    if (tier.tier === "pro") {
+      console.log("[tier] pro", { model, maxRounds: tier.maxRounds, reason: tier.reason });
+    }
     // Stable model used as a fallback when the preview model is capacity
     // throttled (Gemini returns 503/5xx). Same family used by every other
     // call in this file, so quality stays consistent.
@@ -8352,8 +8423,9 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // reach Dori". Retry the primary once, then fall back to the stable model.
     // Only 5xx is retried — 4xx (quota 429, bad request 400) is returned as-is
     // so the caller's existing 429/402 handling still applies.
-    async function callAI(msgs: { role: string; content: AiMessageContent }[], stream: boolean) {
-      const attempts = [model, model, FALLBACK_MODEL];
+    async function callAI(msgs: { role: string; content: AiMessageContent }[], stream: boolean, modelOverride?: string) {
+      const base = modelOverride || model;
+      const attempts = [base, base, FALLBACK_MODEL];
       let resp!: Response;
       for (let i = 0; i < attempts.length; i++) {
         if (i > 0) {
@@ -8480,7 +8552,12 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
     // and closes with a done event that carries the full tool result list.
     if (executeServerSide && streamFinalText) {
       const encoder = new TextEncoder();
-      const MAX_AGENT_ROUNDS = 4;
+      // Adaptive round budget + mid-loop model escalation from the tier
+      // decision. `let` because escalateModel may raise both mid-loop.
+      let maxAgentRounds = tier.maxRounds;
+      let currentModel = tier.model;
+      let currentTier = tier.tier;
+      let prevFailureSig = "";
       const conversationMsgs: { role: string; content: AiMessageContent }[] = [...allMessages];
       const allExecResults: ToolExecResult[] = [];
 
@@ -8514,8 +8591,8 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
           try {
             let finalPromptText = "";
-            for (let round = 0; round < MAX_AGENT_ROUNDS; round++) {
-              const aiResp = await callAI(conversationMsgs, true);
+            for (let round = 0; round < maxAgentRounds; round++) {
+              const aiResp = await callAI(conversationMsgs, true, currentModel);
               if (!aiResp.ok || !aiResp.body) {
                 const t = aiResp.body ? await aiResp.text() : `status ${aiResp.status}`;
                 console.error(`stream round ${round} AI error:`, aiResp.status, t);
@@ -8587,15 +8664,27 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
               if (roundResults.length === 0) break; // no tools → we're done
 
+              // Repeated-failure guard: stop if the model loops on a broken call.
+              const failSig = failureSignature(roundResults);
+              if (failSig && failSig === prevFailureSig) {
+                console.warn("[agent stream] repeated identical tool failure, breaking", failSig);
+                break;
+              }
+              prevFailureSig = failSig;
+
+              // Mid-loop escalation once real multi-step work is underway.
+              const esc = escalateModel(currentTier, allExecResults.length, proModelEnabled);
+              if (esc) {
+                currentModel = esc.model;
+                currentTier = esc.tier;
+                maxAgentRounds = Math.max(maxAgentRounds, esc.maxRounds);
+              }
+
               // Feed the round's output + results back for the next AI call.
+              // buildToolObservation adds explicit self-correction guidance on
+              // failures so the model retries/asks instead of faking success.
               conversationMsgs.push({ role: "assistant", content: roundText });
-              const observation = roundResults
-                .map((r, i) => `[${i + 1}] ${r.tool} → ${r.ok ? "OK" : "FAIL"}: ${r.message}`)
-                .join("\n");
-              conversationMsgs.push({
-                role: "system",
-                content: `Tool results from your last turn:\n${observation}\n\nIf the user's request is fully satisfied, reply with a brief natural-language confirmation and DO NOT emit more tools. If more steps are needed, emit the next tool(s).`,
-              });
+              conversationMsgs.push({ role: "system", content: buildToolObservation(roundResults) });
             }
 
             const cleanText = stripAllToolTags(finalPromptText).trim();
@@ -8633,7 +8722,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               openIntent: null,
               pendingPayload: {},
               recentEntities: [],
-              activeSpecialist: route.effective,
+              activeSpecialist: effectiveSpecialists[0] ?? route.effective,
             }).catch(() => {});
             if (cleanText && lastUserContent.length >= 12) {
               rememberSemantic(supabaseAdmin, {
@@ -8674,17 +8763,32 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
     // ===== SERVER-SIDE EXECUTION BRANCH (Telegram, voice, agent loop) =====
     // Multi-step agentic loop: AI proposes tools → we execute → feed results back → AI decides next step.
-    // Stops when AI returns no new tool calls, or after MAX_AGENT_ROUNDS.
+    // Stops when AI returns no new tool calls, or after the tier's round budget.
     if (executeServerSide) {
-      const MAX_AGENT_ROUNDS = 4;
+      // Adaptive round budget + mid-loop model escalation from the tier decision.
+      let maxAgentRounds = tier.maxRounds;
+      let currentModel = tier.model;
+      let currentTier = tier.tier;
+      let prevFailureSig = "";
       const conversationMsgs: { role: string; content: AiMessageContent }[] = [...allMessages];
       const allExecResults: ToolExecResult[] = [];
       let finalText = "";
       let totalPromptTokens = 0;
       let totalCompletionTokens = 0;
 
-      for (let round = 0; round < MAX_AGENT_ROUNDS; round++) {
-        const fullResp = await callAI(conversationMsgs, false);
+      // Action source is constant for the turn — hoisted so the post-loop
+      // verify pass can reuse it.
+      const verifySource =
+        actionSource ||
+        (currentChannel === "tg_family" || currentChannel === "tg_workspace"
+          ? currentChannel
+          : currentChannel === "tg_private"
+            ? "tg_private"
+            : "web");
+      const verifySourceRef = actionSourceRef ?? tgChannelRef ?? null;
+
+      for (let round = 0; round < maxAgentRounds; round++) {
+        const fullResp = await callAI(conversationMsgs, false, currentModel);
         if (!fullResp.ok) {
           const t = await fullResp.text();
           console.error(`Gemini (agent round ${round}) error:`, fullResp.status, t);
@@ -8724,14 +8828,60 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
 
         if (roundResults.length === 0) break;
 
+        // Repeated-failure guard: stop if the model loops on a broken call.
+        const failSig = failureSignature(roundResults);
+        if (failSig && failSig === prevFailureSig) {
+          console.warn("[agent loop] repeated identical tool failure, breaking", failSig);
+          break;
+        }
+        prevFailureSig = failSig;
+
+        // Mid-loop escalation once real multi-step work is underway.
+        const esc = escalateModel(currentTier, allExecResults.length, proModelEnabled);
+        if (esc) {
+          currentModel = esc.model;
+          currentTier = esc.tier;
+          maxAgentRounds = Math.max(maxAgentRounds, esc.maxRounds);
+        }
+
         conversationMsgs.push({ role: "assistant", content: roundText });
-        const observation = roundResults
-          .map((r, i) => `[${i + 1}] ${r.tool} → ${r.ok ? "OK" : "FAIL"}: ${r.message}`)
-          .join("\n");
-        conversationMsgs.push({
-          role: "system",
-          content: `Tool results from your last turn:\n${observation}\n\nIf the user's request is fully satisfied, reply with a brief natural-language confirmation and DO NOT emit more tools. If more steps are needed, emit the next tool(s).`,
-        });
+        conversationMsgs.push({ role: "system", content: buildToolObservation(roundResults) });
+      }
+
+      // Verify pass — one self-check, gated to Pro-tier turns that did real
+      // multi-step work. Catches "claimed done but skipped a step" without
+      // adding latency to simple turns.
+      if (proModelEnabled && currentTier === "pro" && allExecResults.length >= ESCALATE_AFTER_TOOLS && finalText) {
+        try {
+          conversationMsgs.push({ role: "assistant", content: finalText });
+          conversationMsgs.push({
+            role: "system",
+            content:
+              "Self-check: re-read the user's ORIGINAL request and confirm every part is done. If anything is still missing or a tool failed, emit the remaining tool(s) now. If everything is complete, reply with ONLY a brief confirmation and no tools.",
+          });
+          const vResp = await callAI(conversationMsgs, false, currentModel);
+          if (vResp.ok) {
+            const vData = await vResp.json();
+            const vText: string = flattenAssistantMessage(vData.choices?.[0]?.message);
+            totalPromptTokens += vData.usage?.prompt_tokens || 0;
+            totalCompletionTokens += vData.usage?.completion_tokens || 0;
+            const vResults = await executeToolsServerSide(vText, userId, supabaseAdmin, {
+              source: verifySource,
+              sourceRef: verifySourceRef,
+              workspaceId: activeWorkspace?.id ?? null,
+              householdId,
+              workspaceMembers: activeWorkspace?.members,
+              timezone: userTimezone,
+              userText: lastUserMsg,
+            });
+            if (vResults.length > 0) {
+              allExecResults.push(...vResults);
+              finalText = vText;
+            }
+          }
+        } catch (e) {
+          console.warn("[agent verify] failed", (e as Error).message);
+        }
       }
 
       const cleanText = stripAllToolTags(finalText);
@@ -8784,7 +8934,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
           openIntent: proposedPlan ? "awaiting_plan_approval" : null,
           pendingPayload: proposedPlan ? (proposedPlan.payload ?? {}) : {},
           recentEntities,
-          activeSpecialist: route.effective,
+          activeSpecialist: effectiveSpecialists[0] ?? route.effective,
         });
       } catch (e) {
         console.warn("[saveConversationState agent] failed", (e as Error).message);
@@ -8927,7 +9077,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               openIntent: null,
               pendingPayload: {},
               recentEntities: [],
-              activeSpecialist: route.effective,
+              activeSpecialist: effectiveSpecialists[0] ?? route.effective,
             }).catch(() => {});
             if (cleaned && lastUserContent.length >= 12) {
               rememberSemantic(supabaseAdmin, {
