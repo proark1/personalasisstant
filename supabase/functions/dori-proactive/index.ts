@@ -17,6 +17,10 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY")!;
+// Cross-domain morning brief: let an LLM weave tasks + calendar + last night's
+// sleep/energy into one prioritized note. Default ON; set "0" to revert to the
+// deterministic list. Always falls back to the list on any error.
+const SMART_BRIEF_ENABLED = (Deno.env.get("DORI_SMART_BRIEF") ?? "1") !== "0";
 
 interface HouseholdMember {
   user_id: string;
@@ -34,6 +38,7 @@ interface UserCtx {
   displayName: string;
   household: HouseholdMember[]; // includes self; length>=2 means shared household
   suppressed: Set<string>; // trigger types this user consistently 👎'd — skip them
+  outbox: { text: string }[]; // a tick's nudges, bundled into ONE message at flush
 }
 
 // Resolve all accepted family-agent members the user shares a group with,
@@ -163,7 +168,14 @@ async function logSent(
   });
 }
 
+// Triggers call send() to QUEUE a nudge; nothing leaves until flushOutbox()
+// bundles the tick's queue into a single Telegram message. This stops Dori
+// from firing 3 separate pings when several triggers hit the same 30-min tick.
 async function send(ctx: UserCtx, text: string) {
+  ctx.outbox.push({ text });
+}
+
+async function deliver(ctx: UserCtx, text: string) {
   await sendDoriReply({
     chatId: ctx.chatId,
     text,
@@ -172,7 +184,82 @@ async function send(ctx: UserCtx, text: string) {
   });
 }
 
+// Flush the queued nudges as ONE message. Order is the trigger order, which
+// the main loop arranges most-urgent-first. A single queued nudge is sent
+// as-is (no digest wrapper), so the common case is unchanged.
+async function flushOutbox(ctx: UserCtx) {
+  if (ctx.outbox.length === 0) return;
+  if (ctx.outbox.length === 1) {
+    await deliver(ctx, ctx.outbox[0].text);
+    return;
+  }
+  const digest = ctx.outbox.map((o) => o.text).join("\n\n———\n\n");
+  await deliver(ctx, digest);
+}
+
 // ---------- TRIGGERS ----------
+
+// Cross-domain morning reasoning: weave today's tasks + calendar with last
+// night's sleep/energy into one prioritized, human note. Returns null on any
+// failure so the caller falls back to the deterministic list.
+async function composeSmartBrief(
+  supabase: SupabaseClient,
+  ctx: UserCtx,
+  events: { start_time: string; title: string; location?: string }[],
+  tasks: { title: string; priority: string }[],
+): Promise<string | null> {
+  try {
+    const { data: checkin } = await supabase
+      .from("daily_checkins")
+      .select("sleep_hours, sleep_quality, energy_level, mood, checkin_date")
+      .eq("user_id", ctx.userId)
+      .order("checkin_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const eventLines = events.map((e) => {
+      const t = new Date(e.start_time).toLocaleTimeString("en-GB", {
+        timeZone: ctx.tz,
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      return `${t} ${e.title}${e.location ? ` @ ${e.location}` : ""}`;
+    });
+    const taskLines = tasks.map((t) => `${t.title} (${t.priority})`);
+    const c = checkin as
+      | { sleep_hours?: number; sleep_quality?: number; energy_level?: string }
+      | null;
+    const sleep = c
+      ? `sleep ${c.sleep_hours ?? "?"}h (quality ${c.sleep_quality ?? "?"}/5), energy ${c.energy_level ?? "?"}`
+      : "no recent check-in";
+
+    const result = (await generateStructured({
+      system:
+        "You are Dori, a warm, concise personal assistant writing a Telegram morning brief. " +
+        "Weave the day's calendar and tasks together with the user's recent sleep/energy into ONE short note (<= 90 words). " +
+        "Lead with what matters most today. If sleep was poor or the day is packed, gently adjust expectations (protect energy, trim the list). " +
+        "Use light Telegram HTML (<b>bold</b>), at most 2-3 short bullets with •, one or two emoji. No headers, no preamble, no markdown fences. Address the user directly.",
+      user:
+        `Today is ${ctx.todayKey}.\n` +
+        `Last night: ${sleep}.\n` +
+        `Events today (${events.length}):\n${eventLines.join("\n") || "none"}\n` +
+        `Open priority tasks:\n${taskLines.join("\n") || "none"}`,
+      schema: {
+        type: "object",
+        properties: { brief: { type: "string" } },
+        required: ["brief"],
+      },
+      temperature: 0.5,
+      maxOutputTokens: 400,
+    })) as { brief?: string } | null;
+
+    const brief = result?.brief?.trim();
+    return brief && brief.length >= 10 ? brief : null;
+  } catch (e) {
+    console.warn("[composeSmartBrief] failed", (e as Error).message);
+    return null;
+  }
+}
 
 async function morningBrief(supabase: SupabaseClient, ctx: UserCtx) {
   if (ctx.suppressed.has("morning_brief")) return;
@@ -236,7 +323,10 @@ async function morningBrief(supabase: SupabaseClient, ctx: UserCtx) {
         lines.push(`• ${t.title}${t.priority === "high" || t.priority === "urgent" ? " 🔥" : ""}`),
       );
   }
-  const msg = lines.join("\n");
+  const staticMsg = lines.join("\n");
+  // Prefer the cross-domain LLM brief; fall back to the deterministic list.
+  const smart = SMART_BRIEF_ENABLED ? await composeSmartBrief(supabase, ctx, events, tasks) : null;
+  const msg = smart || staticMsg;
   await send(ctx, msg);
   await logSent(supabase, ctx, "morning_brief", key, msg);
 }
@@ -618,16 +708,20 @@ Deno.serve(async (req) => {
         displayName: self?.display_name || "You",
         household,
         suppressed: feedback.disliked,
+        outbox: [],
       };
 
       const before = sent;
-      await morningBrief(supabase, ctx);
+      // Order = digest order (most urgent first). Each trigger QUEUES its
+      // nudge; flushOutbox sends the whole tick as one message.
       await meetingPrep(supabase, ctx);
       await contractRenewals(supabase, ctx);
-      await staleContacts(supabase, ctx);
-      await birthdayReminders(supabase, ctx);
-      await prayerReminders(supabase, ctx);
+      await morningBrief(supabase, ctx);
       await emailActionItems(supabase, ctx);
+      await prayerReminders(supabase, ctx);
+      await birthdayReminders(supabase, ctx);
+      await staleContacts(supabase, ctx);
+      await flushOutbox(ctx);
       processed++;
       // crude counter via log table re-read avoided; trust no-throw means OK
       sent = before; // leave at 0 — we just count attempts

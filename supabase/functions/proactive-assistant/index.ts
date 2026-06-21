@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchAtRiskTasks, nudgeMessage } from "../_shared/dori-slip-risk.ts";
 import { strictAppOrigin } from "../_shared/cors.ts";
+import { loadFeedbackStats } from "../_shared/dori-feedback.ts";
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
@@ -124,6 +125,11 @@ serve(async (req) => {
 
       if (!settings.enabled) continue;
 
+      // Feedback loop: skip reminder types this user has consistently 👎'd,
+      // and tighten the slip-risk bar if they mildly dislike slip nudges.
+      const feedback = await loadFeedbackStats(supabase, userId);
+      const suppressed = feedback.disliked;
+
       // Check quiet hours
       if (settings.quiet_hours_enabled) {
         const currentHour = now.getHours();
@@ -146,7 +152,7 @@ serve(async (req) => {
 
       // Process each reminder type
       if (!trigger_type || trigger_type === "forgotten_tasks") {
-        if (settings.forgotten_tasks_enabled) {
+        if (settings.forgotten_tasks_enabled && !suppressed.has("forgotten_task")) {
           const reminders = await checkForgottenTasks(
             supabase,
             userId,
@@ -186,7 +192,7 @@ serve(async (req) => {
       }
 
       if (!trigger_type || trigger_type === "habit_streaks") {
-        if (settings.habit_streaks_enabled) {
+        if (settings.habit_streaks_enabled && !suppressed.has("habit_streak")) {
           const reminders = await checkHabitStreaks(
             supabase,
             userId,
@@ -197,7 +203,7 @@ serve(async (req) => {
       }
 
       if (!trigger_type || trigger_type === "daily_review") {
-        if (settings.daily_review_enabled) {
+        if (settings.daily_review_enabled && !suppressed.has("daily_review")) {
           const reminders = await checkDailyReview(supabase, userId);
           remindersCreated.push(...reminders);
         }
@@ -217,7 +223,7 @@ serve(async (req) => {
 
       // Weekly Planning Sunday Prompt
       if (!trigger_type || trigger_type === "weekly_planning") {
-        if (settings.weekly_planning_enabled) {
+        if (settings.weekly_planning_enabled && !suppressed.has("weekly_planning")) {
           const reminders = await checkWeeklyPlanning(
             supabase,
             userId,
@@ -239,8 +245,12 @@ serve(async (req) => {
       // forgotten_tasks_enabled — a user who muted forgotten tasks
       // also wants quiet on the predictive side.
       if (!trigger_type || trigger_type === "predictive_slip") {
-        if (settings.forgotten_tasks_enabled) {
-          const reminders = await checkPredictiveSlip(supabase, userId);
+        if (settings.forgotten_tasks_enabled && !suppressed.has("predictive_slip")) {
+          // Adaptive threshold: if the user mildly dislikes slip nudges (net
+          // negative but not enough to fully suppress), only surface the
+          // higher-risk tasks so we nag less.
+          const slipMinRisk = (feedback.netByType["predictive_slip"] ?? 0) < 0 ? 0.75 : 0.6;
+          const reminders = await checkPredictiveSlip(supabase, userId, slipMinRisk);
           remindersCreated.push(...reminders);
         }
       }
@@ -944,14 +954,14 @@ async function checkWeeklyPlanning(
 // Reads dori_slip_risk (a view that joins open tasks against the
 // rolled-up dori_task_stats). Suppresses repeat nudges within 24h on
 // the same task so the user doesn't get pinged every cron tick.
-async function checkPredictiveSlip(supabase: SupabaseClient, userId: string) {
+async function checkPredictiveSlip(supabase: SupabaseClient, userId: string, minRisk = 0.6) {
   const reminders: Record<string, unknown>[] = [];
 
   let atRisk;
   try {
     atRisk = await fetchAtRiskTasks(supabase, {
       userId,
-      minRisk: 0.6,
+      minRisk,
       withinHours: 48,
       limit: 5,
       excludeOverdue: true,

@@ -11,7 +11,12 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const TIGHT_TRANSITION_MIN = 15; // less than X minutes between non-overlapping events = tight
+// Less than X minutes between non-overlapping events = tight. Tunable via
+// env so the threshold isn't frozen at one value for everyone; defaults to 15.
+const TIGHT_TRANSITION_MIN = (() => {
+  const v = parseInt(Deno.env.get("DORI_TIGHT_TRANSITION_MIN") ?? "");
+  return Number.isFinite(v) && v > 0 ? v : 15;
+})();
 
 interface ConflictEntity {
   type: string;
