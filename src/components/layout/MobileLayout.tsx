@@ -102,6 +102,9 @@ const CorrelationsDashboard = lazy(() =>
 const MeetingBotsPanel = lazy(() =>
   import("../assistant/MeetingBotsPanel").then((m) => ({ default: m.MeetingBotsPanel })),
 );
+const AssistantOpsPanel = lazy(() =>
+  import("../assistant/AssistantOpsPanel").then((m) => ({ default: m.AssistantOpsPanel })),
+);
 const ContentStudioPanel = lazy(() =>
   import("../content/ContentStudioPanel").then((m) => ({ default: m.ContentStudioPanel })),
 );
@@ -162,6 +165,7 @@ type Tab =
   | "dashboard"
   | "calendar"
   | "chat"
+  | "assistant-ops"
   | "tasks"
   | "more"
   | "social"
@@ -293,6 +297,8 @@ export function MobileLayout({
             stats={doriStats}
           />
         );
+      case "assistant-ops":
+        return <AssistantOpsPanel />;
       case "social":
         return userId ? <TeamChatPanel userId={userId} /> : null;
       case "calendar":

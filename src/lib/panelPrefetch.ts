@@ -12,6 +12,7 @@
  */
 const PANEL_IMPORTS: Record<string, () => Promise<unknown>> = {
   assistant: () => import("../components/chat/ChatPanel"),
+  "assistant-ops": () => import("../components/assistant/AssistantOpsPanel"),
   tasks: () => import("../components/tasks/TaskList"),
   calendar: () => import("../components/calendar/CalendarPanel"),
   social: () => import("../components/social/SocialPanel"),

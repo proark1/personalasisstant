@@ -176,6 +176,9 @@ const CorrelationsDashboard = lazy(() =>
 const MeetingBotsPanel = lazy(() =>
   import("../assistant/MeetingBotsPanel").then((m) => ({ default: m.MeetingBotsPanel })),
 );
+const AssistantOpsPanel = lazy(() =>
+  import("../assistant/AssistantOpsPanel").then((m) => ({ default: m.AssistantOpsPanel })),
+);
 const ContentStudioPanel = lazy(() =>
   import("../content/ContentStudioPanel").then((m) => ({ default: m.ContentStudioPanel })),
 );
@@ -374,6 +377,7 @@ export const StandardMode = memo(function StandardMode({
       tasks: t("nav.tasks"),
       calendar: t("nav.calendar"),
       assistant: t("nav.assistant"),
+      "assistant-ops": t("nav.assistantOps") || "Assistant Ops",
       social: t("nav.social"),
       contacts: t("nav.contacts"),
       contracts: t("nav.contracts"),
@@ -741,6 +745,12 @@ export const StandardMode = memo(function StandardMode({
                           actionCards={actionCards}
                           stats={doriStats}
                         />
+                      </div>
+                    )}
+
+                    {activePanel === "assistant-ops" && (
+                      <div className="flex-1 glass-panel-solid rounded-xl overflow-hidden">
+                        <AssistantOpsPanel />
                       </div>
                     )}
 

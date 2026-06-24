@@ -15,6 +15,7 @@ import {
   CheckSquare,
   Calendar,
   Sparkles,
+  Gauge,
   StickyNote,
   BookHeart,
   Activity,
@@ -95,6 +96,7 @@ export const NAV_AREAS: NavArea[] = [
     icon: Sparkles,
     items: [
       { id: "assistant", label: "Assistant", labelKey: "nav.assistant", icon: Sparkles },
+      { id: "assistant-ops", label: "Assistant Ops", labelKey: "nav.assistantOps", icon: Gauge },
       { id: "notes", label: "Notes", labelKey: "nav.notes", icon: StickyNote },
       { id: "journal", label: "Journal", labelKey: "nav.journal", icon: BookHeart },
       { id: "activity", label: "Activity", labelKey: "nav.activity", icon: Activity },

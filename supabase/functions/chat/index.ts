@@ -46,6 +46,7 @@ import {
   recordToolCallTrace,
   startAssistantTrace,
 } from "../_shared/assistant-observability.ts";
+import { classifyToolCall, type ToolPolicy } from "../_shared/assistant-tool-registry.ts";
 
 type SupabaseClient = DbClient;
 
@@ -1632,6 +1633,37 @@ function requiresConfirmation(
   return false;
 }
 
+function registryOperationFor(tool: string, action: string, op: OpKind): string {
+  const normalized = action.toLowerCase();
+  if (tool === "send_email" || tool === "send_family_message") return "send";
+  if (normalized === "add" || normalized === "create") return "create";
+  if (normalized === "send" || normalized === "forward" || normalized === "reply") return "send";
+  if (normalized === "unsubscribe") return "unsubscribe";
+  if (normalized === "delete" || normalized === "remove" || normalized === "cancel") return "delete";
+  if (normalized === "search" || normalized === "summarize" || normalized === "translate" || normalized === "list") {
+    return normalized === "search" ? "search" : "read";
+  }
+  return op;
+}
+
+function shouldQueueForApproval(
+  settings: Record<string, unknown> | null,
+  spec: MutatingTool,
+  action: string,
+  op: OpKind,
+): { shouldQueue: boolean; policy: ToolPolicy; operation: string } {
+  const operation = registryOperationFor(spec.tool, action, op);
+  const policy = classifyToolCall({ tool: spec.tool, operation });
+  if (!policy.known || policy.approval !== "auto") {
+    return { shouldQueue: true, policy, operation };
+  }
+  return {
+    shouldQueue: requiresConfirmation(settings, spec.entity, op),
+    policy,
+    operation,
+  };
+}
+
 async function loadConfirmationSettings(
   supabase: SupabaseClient,
   userId: string,
@@ -1654,6 +1686,10 @@ interface ToolExecResult {
   tool: string;
   ok: boolean;
   message: string;
+  operation?: string | null;
+  riskLevel?: string;
+  approvalMode?: string;
+  sensitivity?: string;
   data?: unknown;
   queued?: boolean;
   actionId?: unknown; // set when the call was queued for approval
@@ -1859,7 +1895,8 @@ async function executeToolsServerSide(
         if (!parsed) continue;
         const op = spec.classify(parsed.action, parsed.data);
         if (!op) continue;
-        if (!spec.forceConfirm && !requiresConfirmation(settings, spec.entity, op)) continue;
+        const policyDecision = shouldQueueForApproval(settings, spec, parsed.action, op);
+        if (!policyDecision.shouldQueue) continue;
 
         let summary = spec.summarize(parsed.action, parsed.data, opts?.timezone);
         // Resolve the target up front (if the tool supports it). If it can't be
@@ -1872,7 +1909,15 @@ async function executeToolsServerSide(
             timezone: opts?.timezone,
           });
           if (pf && !pf.ok) {
-            out.push({ tool: spec.tool, ok: false, message: pf.message });
+            out.push({
+              tool: spec.tool,
+              ok: false,
+              message: pf.message,
+              operation: policyDecision.operation,
+              riskLevel: policyDecision.policy.risk,
+              approvalMode: policyDecision.policy.approval,
+              sensitivity: policyDecision.policy.sensitivity,
+            });
             strippedText = strippedText.replace(parsed.fullMatch, "");
             continue;
           }
@@ -1914,6 +1959,10 @@ async function executeToolsServerSide(
                 tool: spec.tool,
                 ok: false,
                 message: `📅 Already on your calendar — skipped "${parsed.data.title}".`,
+                operation: policyDecision.operation,
+                riskLevel: policyDecision.policy.risk,
+                approvalMode: policyDecision.policy.approval,
+                sensitivity: policyDecision.policy.sensitivity,
               });
               strippedText = strippedText.replace(parsed.fullMatch, "");
               continue;
@@ -1932,6 +1981,13 @@ async function executeToolsServerSide(
                 tool_xml: parsed.fullMatch,
                 parsed: parsed.data,
                 op,
+                registry_policy: {
+                  operation: policyDecision.operation,
+                  risk: policyDecision.policy.risk,
+                  approval: policyDecision.policy.approval,
+                  sensitivity: policyDecision.policy.sensitivity,
+                  reason: policyDecision.policy.reason,
+                },
                 source: opts?.source || "web",
                 source_ref: opts?.sourceRef || null,
                 workspace_id: opts?.workspaceId || null,
@@ -1953,6 +2009,10 @@ async function executeToolsServerSide(
             queued: true,
             actionId: inserted?.id,
             summary,
+            operation: policyDecision.operation,
+            riskLevel: policyDecision.policy.risk,
+            approvalMode: policyDecision.policy.approval,
+            sensitivity: policyDecision.policy.sensitivity,
             message: `⏸️ Needs your OK: ${summary}`,
           });
         } catch (e) {
@@ -1960,6 +2020,10 @@ async function executeToolsServerSide(
             tool: spec.tool,
             ok: false,
             message: `Could not queue: ${(e as Error).message}`,
+            operation: policyDecision.operation,
+            riskLevel: policyDecision.policy.risk,
+            approvalMode: policyDecision.policy.approval,
+            sensitivity: policyDecision.policy.sensitivity,
           });
         }
         strippedText = strippedText.replace(parsed.fullMatch, "");
@@ -7242,19 +7306,22 @@ async function executeToolsServerSide(
 
   if (opts?.traceId) {
     await Promise.all(
-      out.map((result) =>
-        recordToolCallTrace(supabase, {
+      out.map((result) => {
+        const policy = classifyToolCall({ tool: result.tool, operation: result.operation });
+        return recordToolCallTrace(supabase, {
           traceId: opts.traceId,
           userId,
           toolName: result.tool,
+          operation: result.operation ?? policy.operation,
           status: result.queued ? "queued" : result.ok ? "success" : "error",
           resultSummary: result.message,
           errorMessage: result.ok ? null : result.message,
           undoId: result.undoId ?? null,
-          riskLevel: result.queued ? "high" : "low",
-          approvalMode: result.queued ? "confirm" : "auto",
-        }),
-      ),
+          riskLevel: result.riskLevel ?? policy.risk,
+          approvalMode: result.approvalMode ?? policy.approval,
+          sensitivity: result.sensitivity ?? policy.sensitivity,
+        });
+      }),
     );
   }
 

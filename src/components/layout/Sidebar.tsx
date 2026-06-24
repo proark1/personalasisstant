@@ -36,6 +36,7 @@ export type ActivePanel =
   | "social"
   | "calendar"
   | "assistant"
+  | "assistant-ops"
   | "dashboard"
   | "projects"
   | "contacts"

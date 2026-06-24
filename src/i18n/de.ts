@@ -16,6 +16,7 @@ const de: Record<string, string> = {
   "nav.family": "Familie",
   "nav.settings": "Einstellungen",
   "nav.assistant": "Assistent",
+  "nav.assistantOps": "Assistent-Ops",
   "nav.assets": "Immobilien & Fahrzeuge",
   "nav.chat": "Chat",
   "nav.calls": "Anrufe",
