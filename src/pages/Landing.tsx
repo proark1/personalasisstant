@@ -1,253 +1,724 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Sparkles,
-  CheckSquare,
-  Calendar,
-  Users,
-  Heart,
-  Bot,
-  FileText,
+  Activity,
   ArrowRight,
-  Zap,
+  BadgeCheck,
+  Bell,
+  Bot,
   Brain,
+  Calendar,
+  CheckCircle2,
+  CheckSquare,
+  Clock,
+  FileText,
+  Heart,
+  LayoutDashboard,
+  LockKeyhole,
+  Mail,
+  Mic,
+  Route,
   Shield,
+  Sparkles,
+  Target,
+  Users,
+  Wallet,
+  Zap,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import doriFish from "@/assets/dori-fish.png";
 
-const features = [
+type Feature = {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  detail: string;
+  className: string;
+};
+
+type WorkflowStep = {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+};
+
+const navItems = [
+  { label: "Assistant", href: "#assistant" },
+  { label: "Outcomes", href: "#outcomes" },
+  { label: "Trust", href: "#trust" },
+];
+
+const features: Feature[] = [
   {
-    icon: CheckSquare,
-    title: "Smart Tasks",
-    description: "AI-prioritized tasks that adapt to your energy and schedule.",
-    gradient: "from-primary to-primary/60",
+    icon: Brain,
+    title: "Turns chaos into a plan",
+    description:
+      "Dori takes loose thoughts, overdue tasks, and calendar pressure and turns them into a realistic next move.",
+    detail: "Daily focus",
+    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
   },
   {
     icon: Calendar,
-    title: "Calendar Hub",
-    description: "Unified calendar with smart scheduling and conflict detection.",
-    gradient: "from-accent to-accent/60",
+    title: "Protects your schedule",
+    description:
+      "Meetings, deadlines, routines, prep work, and conflicts stay visible before they become urgent.",
+    detail: "Time aware",
+    className: "bg-sky-50 text-sky-700 border-sky-200",
   },
   {
     icon: Users,
-    title: "Family Manager",
-    description: "Meals, shopping, budgets, and health — all in one place.",
-    gradient: "from-[hsl(var(--success))] to-[hsl(var(--success))]/60",
+    title: "Runs family logistics",
+    description:
+      "Meals, shopping, school notes, shared reminders, and household follow-ups move through one assistant.",
+    detail: "Shared context",
+    className: "bg-violet-50 text-violet-700 border-violet-200",
   },
   {
     icon: Heart,
-    title: "Health Tracking",
-    description: "Track mood, sleep, exercise, and get AI-powered insights.",
-    gradient: "from-[hsl(var(--destructive))] to-[hsl(var(--destructive))]/60",
+    title: "Keeps routines alive",
+    description:
+      "Health signals, habits, mood, sleep, and daily check-ins become practical nudges instead of another dashboard.",
+    detail: "Gentle nudges",
+    className: "bg-rose-50 text-rose-700 border-rose-200",
   },
   {
-    icon: Bot,
-    title: "Dori AI Assistant",
-    description: "Your personal AI that learns your patterns and helps you act.",
-    gradient: "from-primary to-accent",
+    icon: Wallet,
+    title: "Catches money leaks",
+    description:
+      "Subscriptions, renewals, bills, and contracts get surfaced while there is still time to act.",
+    detail: "Cost control",
+    className: "bg-amber-50 text-amber-700 border-amber-200",
   },
   {
-    icon: FileText,
-    title: "Contract Manager",
-    description: "Never miss a renewal or cancellation deadline again.",
-    gradient: "from-[hsl(var(--warning))] to-[hsl(var(--warning))]/60",
+    icon: Shield,
+    title: "Understands your context",
+    description:
+      "DarAI is not a blank chatbot. It works from your authenticated workspace, history, and connected life modules.",
+    detail: "Personalized",
+    className: "bg-slate-50 text-slate-700 border-slate-200",
   },
+];
+
+const workflow: WorkflowStep[] = [
+  {
+    icon: Mic,
+    title: "Say what is on your mind",
+    description: "Voice, type, or brain-dump the messy version. Dori can work with that.",
+  },
+  {
+    icon: Route,
+    title: "Dori checks the real context",
+    description:
+      "Tasks, calendar, family, health, contracts, and email signals are connected before advice is given.",
+  },
+  {
+    icon: Target,
+    title: "You get a clear next move",
+    description:
+      "The assistant gives priorities, prep, reminders, and follow-ups without adding decision fatigue.",
+  },
+];
+
+const proofPoints = [
+  { label: "Life modules connected", value: "10+", icon: LayoutDashboard },
+  { label: "Automated workflows", value: "22", icon: Bot },
+  { label: "Daily plan status", value: "Ready", icon: Activity },
+];
+
+const assistantTasks = [
+  { label: "Move dentist prep to tomorrow", status: "Handled", icon: CheckCircle2 },
+  { label: "Flag contract renewal window", status: "Needs action", icon: FileText },
+  { label: "Build family dinner list", status: "Ready", icon: Users },
+];
+
+const salesHighlights = [
+  "Plan the day in minutes, not mental loops",
+  "Catch renewals, tasks, and appointments before they slip",
+  "Give your family one assistant for shared follow-through",
 ];
 
 const stagger = {
   container: {
     hidden: {},
-    show: { transition: { staggerChildren: 0.08, delayChildren: 0.3 } },
+    show: { transition: { staggerChildren: 0.08, delayChildren: 0.12 } },
   },
   item: {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+    hidden: { opacity: 0, y: 18 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
   },
 };
 
+function LogoMark({ className = "h-9 w-9" }: { className?: string }) {
+  return (
+    <div
+      className={`${className} flex items-center justify-center rounded-[8px] bg-primary text-primary-foreground shadow-lg shadow-primary/20`}
+    >
+      <Sparkles className="h-4 w-4" />
+    </div>
+  );
+}
+
+function ProductPreview() {
+  return (
+    <div className="relative mx-auto w-full max-w-6xl" aria-label="DarAI product preview">
+      <div className="relative max-h-[520px] overflow-hidden rounded-[8px] border border-border bg-card shadow-2xl shadow-foreground/10">
+        <div className="flex h-10 items-center justify-between border-b border-border bg-muted/40 px-4">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+          </div>
+          <div className="hidden rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground sm:block">
+            Dori assistant workspace
+          </div>
+        </div>
+
+        <div className="grid min-h-[480px] grid-cols-1 bg-background lg:grid-cols-[172px_1fr] 2xl:grid-cols-[188px_1fr_300px]">
+          <aside className="hidden border-r border-border bg-muted/25 p-4 lg:block">
+            <div className="mb-8 flex items-center gap-2">
+              <LogoMark className="h-8 w-8" />
+              <div>
+                <p className="text-sm font-semibold">DarAI</p>
+                <p className="text-xs text-muted-foreground">AI assistant</p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              {[
+                { icon: LayoutDashboard, label: "Overview", active: true },
+                { icon: CheckSquare, label: "Tasks" },
+                { icon: Calendar, label: "Calendar" },
+                { icon: Heart, label: "Health" },
+                { icon: FileText, label: "Contracts" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className={`flex items-center gap-2 rounded-[8px] px-3 py-2 text-sm ${
+                    item.active
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </aside>
+
+          <main className="p-4 sm:p-6">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="mb-1 text-sm text-muted-foreground">Today</p>
+                <h2 className="text-2xl font-semibold">Dori built your next move.</h2>
+              </div>
+              <div className="flex w-fit items-center gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                <BadgeCheck className="h-4 w-4" />
+                <span>Plan ready</span>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {proofPoints.map((point) => (
+                <div key={point.label} className="rounded-[8px] border border-border bg-card p-4">
+                  <point.icon className="mb-3 h-5 w-5 text-primary" />
+                  <p className="text-2xl font-semibold">{point.value}</p>
+                  <p className="text-xs text-muted-foreground">{point.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_220px]">
+              <div className="rounded-[8px] border border-border bg-card p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold">Priority stack</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Ordered by time, energy, and risk
+                    </p>
+                  </div>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="space-y-3">
+                  {[
+                    {
+                      title: "Reply to the high-value email",
+                      meta: "12 min - highest leverage",
+                      color: "bg-emerald-500",
+                      width: "w-10/12",
+                    },
+                    {
+                      title: "Prepare the school form",
+                      meta: "Due tomorrow - family",
+                      color: "bg-sky-500",
+                      width: "w-8/12",
+                    },
+                    {
+                      title: "Cancel unused trial",
+                      meta: "Renewal window open",
+                      color: "bg-amber-500",
+                      width: "w-7/12",
+                    },
+                  ].map((task) => (
+                    <div
+                      key={task.title}
+                      className="rounded-[8px] border border-border bg-background p-3"
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">{task.title}</p>
+                          <p className="text-xs text-muted-foreground">{task.meta}</p>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div className={`h-full rounded-full ${task.color} ${task.width}`} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[8px] border border-border bg-card p-4">
+                <div className="mb-4 flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-amber-600" />
+                  <h3 className="font-semibold">Signals</h3>
+                </div>
+                <div className="space-y-3 text-sm">
+                  <div className="rounded-[8px] bg-amber-50 p-3 text-amber-800">
+                    Contract renewal can still be cancelled.
+                  </div>
+                  <div className="rounded-[8px] bg-sky-50 p-3 text-sky-800">
+                    Two calendar blocks can be protected.
+                  </div>
+                  <div className="rounded-[8px] bg-rose-50 p-3 text-rose-800">
+                    Sleep trend is below baseline.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </main>
+
+          <aside className="hidden border-l border-border bg-muted/20 p-6 2xl:block">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="h-12 w-12 overflow-hidden rounded-full border border-border bg-background">
+                <img
+                  src={doriFish}
+                  alt="Dori assistant avatar"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div>
+                <p className="font-semibold">Dori</p>
+                <p className="text-xs text-muted-foreground">Personal assistant</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded-[8px] bg-primary p-4 text-sm text-primary-foreground">
+                I checked your calendar, open loops, family tasks, and renewal dates. Here is the
+                shortest safe plan.
+              </div>
+              <div className="rounded-[8px] border border-border bg-card p-4 text-sm text-muted-foreground">
+                Show me only what needs action.
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {assistantTasks.map((task) => (
+                <div
+                  key={task.label}
+                  className="flex items-center gap-3 rounded-[8px] border border-border bg-card p-3"
+                >
+                  <task.icon className="h-4 w-4 text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{task.label}</p>
+                    <p className="text-xs text-muted-foreground">{task.status}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-card to-transparent"
+          aria-hidden="true"
+        />
+      </div>
+    </div>
+  );
+}
+
+function MobileAssistantPreview() {
+  return (
+    <div className="mx-auto w-full max-w-sm rounded-[8px] border border-border bg-card p-4 text-left shadow-xl shadow-foreground/10">
+      <div className="mb-4 flex items-center gap-3">
+        <img
+          src={doriFish}
+          alt="Dori assistant avatar"
+          className="h-12 w-12 rounded-full border border-border bg-background object-cover"
+        />
+        <div>
+          <p className="font-semibold">Dori sorted your day</p>
+          <p className="text-sm text-muted-foreground">3 open loops need action</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {["Today's plan is ready", "Contract renewal flagged", "Family dinner list prepared"].map(
+          (item) => (
+            <div
+              key={item}
+              className="flex items-center gap-2 rounded-[8px] border border-border bg-background px-3 py-2 text-sm"
+            >
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <span>{item}</span>
+            </div>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      {/* Nav */}
-      <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-background/70 border-b border-border/50">
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-4 h-16">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+          <Link to="/landing" className="flex items-center gap-3" aria-label="DarAI home">
+            <LogoMark />
+            <span className="text-lg font-semibold">DarAI</span>
+          </Link>
+
+          <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+            {navItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg tracking-tight">DarAI</span>
-          </div>
-          <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/auth">Log in</Link>
             </Button>
             <Button size="sm" className="gap-1" asChild>
               <Link to="/auth">
-                Get Started <ArrowRight className="w-3.5 h-3.5" />
+                Start <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="relative pt-32 pb-20 px-4">
-        {/* Glow blobs */}
-        <div className="absolute top-20 left-1/4 w-72 h-72 rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
-        <div className="absolute top-40 right-1/4 w-60 h-60 rounded-full bg-accent/10 blur-[100px] pointer-events-none" />
+      <section
+        id="assistant"
+        className="relative overflow-hidden border-b border-border px-4 pb-7 pt-20 lg:pb-10 lg:pt-24"
+      >
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,hsl(var(--secondary))_0%,hsl(var(--background))_42%,hsl(var(--background))_100%)]"
+          aria-hidden="true"
+        />
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.32] [background-image:linear-gradient(hsl(var(--border))_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border))_1px,transparent_1px)] [background-size:44px_44px]"
+          aria-hidden="true"
+        />
 
-        <div className="max-w-3xl mx-auto text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-          >
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium mb-6 border border-primary/20">
-              <Zap className="w-3 h-3" />
-              Built for ADHD minds
-            </div>
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-8 lg:grid-cols-[0.88fr_1.12fr] lg:items-center lg:gap-10">
+            <motion.div
+              className="mx-auto max-w-3xl text-center lg:mx-0 lg:text-left"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+            >
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background px-3 py-1.5 text-sm font-medium text-primary shadow-sm">
+                <Zap className="h-4 w-4" />
+                Meet Dori, the AI assistant for the work between your apps
+              </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-[1.1] tracking-tight mb-5">
-              Your life,{" "}
-              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                intelligently
-              </span>{" "}
-              organized
-            </h1>
+              <h1 className="text-4xl font-semibold leading-tight sm:text-6xl lg:leading-none xl:text-7xl">
+                DarAI AI Assistant
+              </h1>
 
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed">
-              DarAI combines AI assistance, task management, calendar, health tracking, and family
-              tools into one beautifully simple app.
-            </p>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8 lg:mx-0">
+                Stop carrying life admin in your head. Dori plans your day, catches what might slip,
+                and turns tasks, calendar, email, family, health, and contracts into one clear next
+                move.
+              </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button size="lg" className="gap-2 px-8 text-base" asChild>
-                <Link to="/auth">
-                  <Sparkles className="w-4 h-4" />
-                  Get Started Free
-                </Link>
-              </Button>
-              <Button variant="outline" size="lg" className="gap-2 px-8 text-base" asChild>
-                <a href="#features">See Features</a>
-              </Button>
-            </div>
-          </motion.div>
+              <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
+                <Button size="lg" className="w-full gap-2 sm:w-auto" asChild>
+                  <Link to="/auth">
+                    <Sparkles className="h-4 w-4" />
+                    Start with Dori
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-2 bg-background sm:w-auto"
+                  asChild
+                >
+                  <a href="#outcomes">
+                    See what Dori does <ArrowRight className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+
+              <div className="mt-5 hidden flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground sm:flex lg:justify-start">
+                {["Start free", "Private workspace", "Built for daily follow-through"].map(
+                  (item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-border bg-background px-3 py-1 shadow-sm"
+                    >
+                      {item}
+                    </span>
+                  ),
+                )}
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="min-w-0"
+              initial={{ opacity: 0, y: 28 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.12, ease: "easeOut" }}
+            >
+              <div className="lg:hidden">
+                <MobileAssistantPreview />
+              </div>
+              <div className="hidden lg:block">
+                <ProductPreview />
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <motion.div
-            className="text-center mb-14"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-          >
-            <h2 className="text-3xl sm:text-4xl font-bold mb-3 tracking-tight">
-              Everything you need, nothing you don't
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-lg mx-auto">
-              Six pillars designed to reduce overwhelm and help you take action.
+      <section className="border-b border-border bg-card px-4 py-6">
+        <div className="mx-auto grid max-w-7xl gap-4 text-sm text-muted-foreground md:grid-cols-3">
+          {salesHighlights.map((item) => (
+            <div key={item} className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="outcomes" className="px-4 py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-10 max-w-3xl">
+            <p className="mb-3 text-sm font-semibold uppercase text-primary">
+              Why people come back every day
             </p>
-          </motion.div>
+            <h2 className="text-4xl font-semibold leading-tight">
+              One assistant for the things that usually fall between apps.
+            </h2>
+            <p className="mt-4 text-lg leading-8 text-muted-foreground">
+              DarAI gives you time, clarity, and follow-through. Dori gives every part of your life
+              a place to land, then helps you act before small misses become expensive.
+            </p>
+          </div>
 
           <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+            className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
             variants={stagger.container}
             initial="hidden"
             whileInView="show"
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: "-80px" }}
           >
-            {features.map((f) => (
+            {features.map((feature) => (
               <motion.div
-                key={f.title}
+                key={feature.title}
                 variants={stagger.item}
-                className="group relative rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm p-6 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
+                className="rounded-[8px] border border-border bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg"
               >
                 <div
-                  className={`w-10 h-10 rounded-lg bg-gradient-to-br ${f.gradient} flex items-center justify-center mb-4 text-primary-foreground`}
+                  className={`mb-5 inline-flex h-11 w-11 items-center justify-center rounded-[8px] border ${feature.className}`}
                 >
-                  <f.icon className="w-5 h-5" />
+                  <feature.icon className="h-5 w-5" />
                 </div>
-                <h3 className="font-semibold text-base mb-1.5">{f.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{f.description}</p>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h3 className="font-semibold">{feature.title}</h3>
+                  <span className="rounded-full border border-border bg-muted px-2 py-1 text-xs text-muted-foreground">
+                    {feature.detail}
+                  </span>
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground">{feature.description}</p>
               </motion.div>
             ))}
           </motion.div>
         </div>
       </section>
 
-      {/* ADHD Section */}
-      <section className="py-20 px-4 bg-muted/30">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm p-8 md:p-12 text-center"
-            initial={{ opacity: 0, scale: 0.97 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-          >
-            <Brain className="w-10 h-10 text-accent mx-auto mb-4" />
-            <h2 className="text-2xl sm:text-3xl font-bold mb-4 tracking-tight">
-              Designed for how your brain actually works
+      <section className="border-y border-border bg-muted/30 px-4 py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+          <div>
+            <p className="mb-3 text-sm font-semibold uppercase text-primary">How Dori works</p>
+            <h2 className="text-4xl font-semibold leading-tight">
+              From messy thought to finished follow-up.
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8 text-left">
-              {[
-                {
-                  icon: Zap,
-                  title: "Low-friction capture",
-                  desc: "Voice dumps, quick-add, brain dump inbox — capture thoughts before they vanish.",
-                },
-                {
-                  icon: Brain,
-                  title: '"What now?" guidance',
-                  desc: "AI picks your next best task based on energy, time, and priority.",
-                },
-                {
-                  icon: Shield,
-                  title: "Gentle accountability",
-                  desc: "Streak tracking, nudges, and celebrations — not guilt.",
-                },
-              ].map((item) => (
-                <div key={item.title} className="flex flex-col gap-2">
-                  <item.icon className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold text-sm">{item.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+            <p className="mt-4 text-lg leading-8 text-muted-foreground">
+              The assistant is built for the moment you do not want another tool to manage. Capture
+              the messy input, let Dori connect the context, then act on the clean version.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {workflow.map((step, index) => (
+              <div
+                key={step.title}
+                className="rounded-[8px] border border-border bg-card p-5 shadow-sm"
+              >
+                <div className="mb-5 flex items-center justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[8px] bg-primary/10 text-primary">
+                    <step.icon className="h-5 w-5" />
+                  </div>
+                  <span className="text-sm font-semibold text-muted-foreground">0{index + 1}</span>
                 </div>
-              ))}
-            </div>
-          </motion.div>
+                <h3 className="mb-2 font-semibold">{step.title}</h3>
+                <p className="text-sm leading-6 text-muted-foreground">{step.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="py-24 px-4 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-        >
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4 tracking-tight">
-            Ready to take control?
-          </h2>
-          <p className="text-muted-foreground mb-8 text-lg">
-            Free to start. No credit card required.
-          </p>
-          <Button size="lg" className="gap-2 px-10 text-base" asChild>
-            <Link to="/auth">
-              <Sparkles className="w-4 h-4" />
-              Get Started Free
-            </Link>
-          </Button>
-        </motion.div>
+      <section id="trust" className="px-4 py-20">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1fr_1fr] lg:items-stretch">
+          <div className="rounded-[8px] border border-border bg-card p-6 shadow-sm">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[8px] bg-slate-100 text-slate-700">
+                <LockKeyhole className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold uppercase text-primary">Trust layer</p>
+                <h2 className="text-3xl font-semibold">
+                  Professional enough for your personal data.
+                </h2>
+              </div>
+            </div>
+            <p className="text-lg leading-8 text-muted-foreground">
+              DarAI handles sensitive context like schedules, family details, health notes, and
+              contracts, so the assistant is designed around authenticated access, scoped
+              workspaces, and clear operational boundaries.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              {
+                icon: LockKeyhole,
+                title: "Workspace boundaries",
+                desc: "Personal and shared family contexts stay organized by space.",
+              },
+              {
+                icon: Shield,
+                title: "Secure gateway pattern",
+                desc: "API traffic routes through a controlled service layer.",
+              },
+              {
+                icon: Mail,
+                title: "Email-aware workflows",
+                desc: "Summaries and follow-ups are treated as sensitive productivity data.",
+              },
+              {
+                icon: Clock,
+                title: "Operational checks",
+                desc: "Schedulers, health endpoints, and CI checks keep releases visible.",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="rounded-[8px] border border-border bg-card p-5 shadow-sm"
+              >
+                <item.icon className="mb-4 h-5 w-5 text-primary" />
+                <h3 className="mb-2 font-semibold">{item.title}</h3>
+                <p className="text-sm leading-6 text-muted-foreground">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-8 px-4 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} DarAI. Built with ❤️ for busy minds.</p>
+      <section className="px-4 pb-20">
+        <div className="mx-auto overflow-hidden rounded-[8px] border border-border bg-foreground text-background shadow-2xl shadow-foreground/15">
+          <div className="grid gap-8 p-6 md:p-10 lg:grid-cols-[1fr_360px] lg:items-center">
+            <div>
+              <p className="mb-3 text-sm font-semibold uppercase text-primary">Start simple</p>
+              <h2 className="text-4xl font-semibold leading-tight">
+                Let Dori turn today into a plan you can actually follow.
+              </h2>
+              <p className="mt-4 max-w-2xl text-lg leading-8 text-background/70">
+                Use DarAI for one day of tasks, calendar, family reminders, health context, and
+                follow-ups. The value shows up when the assistant understands the whole picture.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Button size="lg" className="w-full gap-2 sm:w-auto" asChild>
+                  <Link to="/auth">
+                    <Sparkles className="h-4 w-4" />
+                    Start with Dori
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full border-background/20 bg-transparent text-background hover:bg-background/10 hover:text-background sm:w-auto"
+                  asChild
+                >
+                  <a href="#assistant">Back to preview</a>
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-[8px] border border-background/10 bg-background/10 p-5">
+              <div className="mb-5 flex items-center gap-3">
+                <img
+                  src={doriFish}
+                  alt="Dori assistant avatar"
+                  className="h-14 w-14 rounded-full border border-background/20 bg-background object-cover"
+                />
+                <div>
+                  <p className="font-semibold">Dori is ready</p>
+                  <p className="text-sm text-background/65">Planning, reminders, and context</p>
+                </div>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div className="rounded-[8px] bg-background p-3 text-foreground">
+                  Start with: "What should I focus on today?"
+                </div>
+                <div className="rounded-[8px] border border-background/15 p-3 text-background/75">
+                  Dori will pull together your calendar, tasks, family signals, and open loops.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-border px-4 py-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <LogoMark className="h-8 w-8" />
+            <span>&copy; {new Date().getFullYear()} DarAI. Built for busy minds.</span>
+          </div>
+          <div className="flex gap-4">
+            <Link to="/auth" className="hover:text-foreground">
+              Log in
+            </Link>
+            <a href="#trust" className="hover:text-foreground">
+              Trust
+            </a>
+          </div>
+        </div>
       </footer>
     </div>
   );
