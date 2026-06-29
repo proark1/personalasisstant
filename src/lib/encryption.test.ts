@@ -63,7 +63,8 @@ describe("encryption — symmetric (group messages)", () => {
 
 describe("encryption — asymmetric (direct messages)", () => {
   it("round-trips a message via the recipient's keypair", async () => {
-    const recipient = await generateKeyPair();
+    const recipient = await generateKeyPair({ modulusLength: 1024 });
+    expect(recipient.privateKey.extractable).toBe(false);
     const { encryptedContent, encryptedKey } = await encryptWithPublicKey(
       "hi alice",
       recipient.publicKey,
@@ -73,8 +74,8 @@ describe("encryption — asymmetric (direct messages)", () => {
   }, 15_000);
 
   it("cannot be decrypted by a third party's key", async () => {
-    const alice = await generateKeyPair();
-    const eve = await generateKeyPair();
+    const alice = await generateKeyPair({ modulusLength: 1024 });
+    const eve = await generateKeyPair({ modulusLength: 1024 });
     const { encryptedContent, encryptedKey } = await encryptWithPublicKey(
       "for alice",
       alice.publicKey,
@@ -85,7 +86,7 @@ describe("encryption — asymmetric (direct messages)", () => {
   }, 15_000);
 
   it("survives public/private key export and import", async () => {
-    const original = await generateKeyPair();
+    const original = await generateKeyPair({ extractable: true, modulusLength: 1024 });
     const pubB64 = await exportPublicKey(original.publicKey);
     const privB64 = await exportPrivateKey(original.privateKey);
 
@@ -99,7 +100,7 @@ describe("encryption — asymmetric (direct messages)", () => {
 
 describe("encryption — group key sharing", () => {
   it("shares a group key wrapped to each member", async () => {
-    const alice = await generateKeyPair();
+    const alice = await generateKeyPair({ modulusLength: 1024 });
     const groupKey = await generateSymmetricKey();
     const wrapped = await encryptKeyForUser(groupKey, alice.publicKey);
     const unwrapped = await decryptKeyWithPrivateKey(wrapped, alice.privateKey);

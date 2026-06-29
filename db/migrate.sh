@@ -18,8 +18,9 @@
 #   Set MIGRATE_BASELINE to the last migration you KNOW is already applied (e.g.
 #   the most recent file at the time you add this service). Everything up to and
 #   including it is marked applied; anything newer runs. If MIGRATE_BASELINE is
-#   unset on a fresh tracking table, we assume the DB matches the whole repo and
-#   record all current files as applied (with a loud warning).
+#   unset on a fresh tracking table, we fail instead of guessing. Operators can
+#   set MIGRATE_ASSUME_BOOTSTRAP_CURRENT=true only when they have separately
+#   verified that the live DB already matches the current repo bootstrap.
 #
 # Each migration is applied AND recorded in a single transaction, so a crash can
 # never leave one half-applied or unrecorded. Write migrations idempotently
@@ -78,10 +79,16 @@ if [[ ${#APPLIED[@]} -eq 0 ]]; then
     mark_applied "${seed[@]}"
     # fall through: anything newer than the baseline runs below
   else
-    echo "[migrate] WARNING: schema_migrations is empty and MIGRATE_BASELINE is unset."
-    echo "[migrate]          Recording ALL current migrations as applied WITHOUT executing them,"
-    echo "[migrate]          assuming this DB already matches the repo. If that is wrong, set"
-    echo "[migrate]          MIGRATE_BASELINE=<last-applied-file.sql> and redeploy."
+    if [[ "${MIGRATE_ASSUME_BOOTSTRAP_CURRENT:-}" != "true" ]]; then
+      echo "[migrate] ERROR: schema_migrations is empty and MIGRATE_BASELINE is unset." >&2
+      echo "[migrate]        Refusing to mark migrations as applied without an explicit baseline." >&2
+      echo "[migrate]        Set MIGRATE_BASELINE=<last-applied-file.sql> for first deploy," >&2
+      echo "[migrate]        or MIGRATE_ASSUME_BOOTSTRAP_CURRENT=true only after verifying" >&2
+      echo "[migrate]        the live DB already matches this repo bootstrap." >&2
+      exit 3
+    fi
+
+    echo "[migrate] MIGRATE_ASSUME_BOOTSTRAP_CURRENT=true — recording all current migrations as applied"
     seed=()
     for f in "${files[@]}"; do seed+=("$(basename "$f")"); done
     mark_applied "${seed[@]}"

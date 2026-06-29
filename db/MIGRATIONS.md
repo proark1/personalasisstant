@@ -35,8 +35,9 @@ this runner = every day after.
    deploys, `applying <file>` for each new migration or `applied 0 new migration(s)`.
 
 > If you deploy without `MIGRATE_BASELINE` on an empty tracking table, the runner
-> assumes the DB already matches the whole repo and records every current file as
-> applied (with a warning) — safe here, but the explicit baseline is preferred.
+> now fails instead of guessing. Use `MIGRATE_ASSUME_BOOTSTRAP_CURRENT=true` only
+> after verifying the live DB already matches this repo's bootstrap; otherwise
+> set an explicit `MIGRATE_BASELINE` and redeploy.
 
 ## Day-to-day: adding a migration
 

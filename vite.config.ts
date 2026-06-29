@@ -77,15 +77,7 @@ function manualChunks(id: string): string | undefined {
   return undefined;
 }
 
-export default defineConfig(({ mode }) => ({
-  // Strip dev-only logging from production bundles. console.log/info/debug are
-  // marked pure so the minifier drops them (their return value is never used);
-  // console.error/warn are kept on purpose — the ErrorBoundary and telemetry
-  // rely on them for iOS/Safari crash signal. `debugger` statements are dropped.
-  esbuild:
-    mode === "production"
-      ? { pure: ["console.log", "console.info", "console.debug"], drop: ["debugger"] }
-      : {},
+export default defineConfig(() => ({
   test: {
     environment: "jsdom",
     globals: true,
@@ -105,7 +97,20 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   build: {
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: ["log", "info", "debug"],
+        pure_funcs: ["console.log", "console.info", "console.debug"],
+      },
+    },
     rollupOptions: {
+      // Strip dev-only logging from production bundles. Vite 8 uses Oxc by
+      // default, so top-level esbuild pure/drop settings are ignored. Terser
+      // catches calls that survive Rollup tree-shaking.
+      treeshake: {
+        manualPureFunctions: ["console.log", "console.info", "console.debug"],
+      },
       output: {
         manualChunks,
       },

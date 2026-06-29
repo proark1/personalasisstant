@@ -171,8 +171,8 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
       return pc;
       // iceServers is a stable constant; endCall depends on callStatus which changes —
       // adding either would cause the peer connection to be torn down on transitions
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [userId],
   );
 
@@ -336,8 +336,8 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
       }
       // callStatus and endCall intentionally omitted: endCall depends on callStatus
       // which would trigger the whole setup to re-run on each state change
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [userId, initializeMedia, createPeerConnection, toast],
   );
 
@@ -471,8 +471,8 @@ export function useWebRTCCall({ userId, onIncomingCall, enabled = true }: UseWeb
       }
       // callStatus and endCall intentionally excluded: callStatus changes trigger unwanted re-subscriptions;
       // endCall is only called on disconnect events inside the callback
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [userId, initializeMedia, createPeerConnection],
   );
 

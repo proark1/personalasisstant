@@ -89,11 +89,18 @@ async function sendTelegramMessage(
   }
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const telegramKey = Deno.env.get("TELEGRAM_API_KEY")!;
+
+    if ((req.headers.get("Authorization") || "") !== `Bearer ${serviceKey}`) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     const admin = createClient(supabaseUrl, serviceKey);
 

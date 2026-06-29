@@ -21,6 +21,7 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      "react-hooks/exhaustive-deps": "error",
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       // Unused imports are auto-removed; unused vars/args are errors unless
       // prefixed with `_` (matches tsconfig's noUnusedLocals/Parameters).

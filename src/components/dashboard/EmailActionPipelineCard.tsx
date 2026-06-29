@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { describeEdgeError } from "@/lib/edgeError";
 import { Card } from "@/components/ui/card";
@@ -85,7 +85,7 @@ export function EmailActionPipelineCard({
   const [scanning, setScanning] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user?.id) return;
     const { data } = await supabase
       .from("email_classifications")
@@ -96,12 +96,11 @@ export function EmailActionPipelineCard({
       .order("created_at", { ascending: false })
       .limit(variant === "list" ? 100 : 20);
     setItems((data ?? []) as Suggestion[]);
-  };
+  }, [user?.id, variant]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     load();
-  }, [user?.id]);
+  }, [load]);
 
   const runClassifier = async (limit = 25, force = false) => {
     if (!user?.id) return;

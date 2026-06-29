@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import {
@@ -22,21 +22,31 @@ export function useEncryption() {
   const { user } = useAuth();
   const [privateKey, setPrivateKey] = useState<CryptoKey | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
+  const initializingUserRef = useRef<string | null>(null);
 
   // Initialize encryption keys on user login
   useEffect(() => {
-    if (!user?.id || isInitializing) return;
+    if (!user?.id) {
+      initializingUserRef.current = null;
+      setPrivateKey(null);
+      setIsReady(false);
+      return;
+    }
+
+    if (initializingUserRef.current === user.id) return;
+    initializingUserRef.current = user.id;
+    let cancelled = false;
 
     const initializeKeys = async () => {
-      setIsInitializing(true);
       try {
         // Try to get existing private key from IndexedDB
         const existingPrivateKey = await getPrivateKey(user.id);
 
         if (existingPrivateKey) {
-          setPrivateKey(existingPrivateKey);
-          setIsReady(true);
+          if (!cancelled) {
+            setPrivateKey(existingPrivateKey);
+            setIsReady(true);
+          }
         } else {
           // Check if user has a public key in profile
           const { data: profile } = await supabase
@@ -59,24 +69,34 @@ export function useEncryption() {
               .update({ public_key: publicKeyBase64 })
               .eq("user_id", user.id);
 
-            setPrivateKey(keyPair.privateKey);
-            setIsReady(true);
+            if (!cancelled) {
+              setPrivateKey(keyPair.privateKey);
+              setIsReady(true);
+            }
           } else {
             // User has public key but no private key (device change)
             // User needs to restore from backup
             console.warn("Private key not found. User needs to restore from backup.");
-            setIsReady(false);
+            if (!cancelled) {
+              setPrivateKey(null);
+              setIsReady(false);
+            }
           }
         }
       } catch (error) {
         console.error("Failed to initialize encryption:", error);
-      } finally {
-        setIsInitializing(false);
+        initializingUserRef.current = null;
       }
     };
 
     initializeKeys();
-  }, [user?.id, isInitializing]);
+    return () => {
+      cancelled = true;
+      if (initializingUserRef.current === user.id) {
+        initializingUserRef.current = null;
+      }
+    };
+  }, [user?.id]);
 
   // Get recipient's public key
   const getRecipientPublicKey = useCallback(

@@ -277,3 +277,60 @@ verify_jwt = true
 
 [functions.admin-data-import]
 verify_jwt = true
+
+# Function directories that are also classified by the self-hosted router
+# manifest in supabase/functions/main/function-auth.ts. Keep these entries in
+# sync so hosted and self-hosted paths agree on the first auth layer.
+[functions.admin-user-management]
+verify_jwt = true
+
+[functions.apple-caldav-connect]
+verify_jwt = true
+
+[functions.apple-caldav-sync]
+verify_jwt = true
+
+[functions.calendar-sync-all]
+verify_jwt = false
+
+[functions.dori-execute-action]
+verify_jwt = true
+
+[functions.dori-onboarding-seed]
+verify_jwt = true
+
+[functions.embed-memories-backfill]
+verify_jwt = false
+
+[functions.islamic-daily-hadith]
+verify_jwt = false
+
+[functions.islamic-event-reminders]
+verify_jwt = false
+
+[functions.learned-preferences-rollup]
+verify_jwt = false
+
+[functions.outlook-oauth-callback]
+verify_jwt = false
+
+[functions.outlook-oauth-start]
+verify_jwt = true
+
+[functions.outlook-sync]
+verify_jwt = true
+
+[functions.prayer-times]
+verify_jwt = true
+
+[functions.telegram-register-commands]
+verify_jwt = false
+
+[functions.user-data-export]
+verify_jwt = true
+
+[functions.workspace-join]
+verify_jwt = true
+
+[functions.workspace-weekly-recap]
+verify_jwt = false

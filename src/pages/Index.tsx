@@ -309,7 +309,7 @@ const Index = () => {
   const { events: _familyEvents, getUpcomingEvents: getUpcomingFamilyEvents } = useFamilyEvents();
 
   // Notes for voice assistant
-  const { createNote, deleteNote, searchNotes, notes } = useNotes(user?.id);
+  const { createNote, deleteNote, notes } = useNotes(user?.id);
 
   // User profile for AI context
   const { profile: userProfile } = useUserProfile();
@@ -1288,12 +1288,15 @@ const Index = () => {
       } finally {
         sendLockRef.current = false;
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- large AI handler; health/apple/memory deps are stable getters, adding them would cause excessive re-renders without behavior change
     },
     [
+      activeWorkspaceId,
       addMessage,
       addTask,
       addEvent,
+      appleHealthConnected,
+      appleHealthToday,
+      appleHealthWeekly,
       deleteTask,
       toggleTaskComplete,
       updateTask,
@@ -1314,7 +1317,6 @@ const Index = () => {
       unreadEmailCount,
       createNote,
       deleteNote,
-      searchNotes,
       addContact,
       updateContact,
       deleteContact,
@@ -1329,10 +1331,16 @@ const Index = () => {
       createHabit,
       logHabit,
       deleteHabit,
+      getActiveMedications,
+      getMemoriesForContext,
+      getRecentMetrics,
+      getUpcomingAppointments,
+      getUpcomingFamilyEvents,
       previousConversationMessages,
       user?.id,
       startConversation,
       confirmDoriToolCall,
+      vaccinations,
     ],
   );
 

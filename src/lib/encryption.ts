@@ -6,28 +6,53 @@ const KEY_LENGTH = 256;
 const DB_NAME = "flux-encryption";
 const STORE_NAME = "keys";
 
+interface KeyGenerationOptions {
+  extractable?: boolean;
+  modulusLength?: number;
+}
+
 // Generate RSA key pair for asymmetric encryption
-export async function generateKeyPair(): Promise<CryptoKeyPair> {
-  return await crypto.subtle.generateKey(
+export async function generateKeyPair(options: KeyGenerationOptions = {}): Promise<CryptoKeyPair> {
+  const { extractable = false, modulusLength = 2048 } = options;
+  const keyPair = await crypto.subtle.generateKey(
     {
       name: ALGORITHM,
-      modulusLength: 2048,
+      modulusLength,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: "SHA-256",
     },
     true,
     ["encrypt", "decrypt"],
   );
+
+  if (extractable) return keyPair;
+
+  const privateKeyData = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+  const privateKey = await crypto.subtle.importKey(
+    "pkcs8",
+    privateKeyData,
+    {
+      name: ALGORITHM,
+      hash: "SHA-256",
+    },
+    false,
+    ["decrypt"],
+  );
+
+  return {
+    publicKey: keyPair.publicKey,
+    privateKey,
+  };
 }
 
 // Generate AES key for symmetric encryption (group messages)
-export async function generateSymmetricKey(): Promise<CryptoKey> {
+export async function generateSymmetricKey(extractable = true): Promise<CryptoKey> {
   return await crypto.subtle.generateKey(
     {
       name: SYMMETRIC_ALGORITHM,
       length: KEY_LENGTH,
     },
-    true,
+    extractable,
     ["encrypt", "decrypt"],
   );
 }
@@ -60,13 +85,16 @@ export async function importPublicKey(publicKeyBase64: string): Promise<CryptoKe
       name: ALGORITHM,
       hash: "SHA-256",
     },
-    true,
+    false,
     ["encrypt"],
   );
 }
 
 // Import private key from base64 string
-export async function importPrivateKey(privateKeyBase64: string): Promise<CryptoKey> {
+export async function importPrivateKey(
+  privateKeyBase64: string,
+  extractable = false,
+): Promise<CryptoKey> {
   const keyData = base64ToArrayBuffer(privateKeyBase64);
   return await crypto.subtle.importKey(
     "pkcs8",
@@ -75,7 +103,7 @@ export async function importPrivateKey(privateKeyBase64: string): Promise<Crypto
       name: ALGORITHM,
       hash: "SHA-256",
     },
-    true,
+    extractable,
     ["decrypt"],
   );
 }
@@ -335,11 +363,10 @@ export async function getPrivateKey(userId: string): Promise<CryptoKey | null> {
 
 export async function storeGroupKey(groupId: string, symmetricKey: CryptoKey): Promise<void> {
   const db = await openDB();
-  const exported = await exportSymmetricKey(symmetricKey);
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, "readwrite");
     const store = transaction.objectStore(STORE_NAME);
-    const request = store.put({ id: `group-key-${groupId}`, key: exported });
+    const request = store.put({ id: `group-key-${groupId}`, key: symmetricKey, version: 2 });
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
   });
@@ -355,8 +382,13 @@ export async function getGroupKey(groupId: string): Promise<CryptoKey | null> {
     request.onsuccess = async () => {
       if (request.result?.key) {
         try {
-          const key = await importSymmetricKey(request.result.key);
-          resolve(key);
+          if (request.result.key instanceof CryptoKey) {
+            resolve(request.result.key);
+          } else {
+            const key = await importSymmetricKey(request.result.key);
+            await storeGroupKey(groupId, key);
+            resolve(key);
+          }
         } catch {
           resolve(null);
         }

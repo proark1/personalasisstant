@@ -339,14 +339,21 @@ export function useGroupChat(userId: string | null) {
         let encryptedContent: string | undefined;
         let encryptionVersion: number | undefined;
 
-        // Encrypt if ready
-        if (isReady) {
-          const encrypted = await encryptGroupMessage(messageContent, groupId);
-          if (encrypted) {
-            messageContent = ""; // Clear plaintext
-            encryptedContent = encrypted;
-            encryptionVersion = 1;
+        if (messageContent) {
+          if (!isReady) {
+            console.warn("Group message encryption is not ready; refusing plaintext send");
+            return null;
           }
+
+          const encrypted = await encryptGroupMessage(messageContent, groupId);
+          if (!encrypted) {
+            console.warn("Group message encryption failed; refusing plaintext send");
+            return null;
+          }
+
+          messageContent = ""; // Clear plaintext
+          encryptedContent = encrypted;
+          encryptionVersion = 1;
         }
 
         const { data, error } = await supabase

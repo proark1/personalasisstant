@@ -23,6 +23,7 @@ interface UsePushNotificationsOptions {
 export function usePushNotifications(options: UsePushNotificationsOptions = {}) {
   const tokenRef = useRef<string | null>(null);
   const registeredRef = useRef(false);
+  const optionsRef = useRef(options);
 
   const isNative = Capacitor.isNativePlatform();
   const platform = Capacitor.getPlatform() as "ios" | "android" | "web";
@@ -51,7 +52,6 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
         if (error) {
           console.error("Error saving push token:", error);
         } else {
-          console.log("Push token saved to database");
           tokenRef.current = token;
         }
       } catch (error) {
@@ -60,6 +60,10 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
     },
     [platform],
   );
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   const removeTokenFromDatabase = useCallback(async () => {
     try {
@@ -155,7 +159,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
 
     const hasPermission = await requestPermission();
     if (!hasPermission) {
-      console.log("Push notification permission denied");
+      console.warn("Push notification permission denied");
       return;
     }
 
@@ -275,7 +279,6 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
 
     // Push notification listeners
     const registrationListener = PushNotifications.addListener("registration", (token: Token) => {
-      console.log("Push registration success:", token.value);
       saveTokenToDatabase(token.value);
     });
 
@@ -286,16 +289,14 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
     const notificationListener = PushNotifications.addListener(
       "pushNotificationReceived",
       (notification: PushNotificationSchema) => {
-        console.log("Push notification received:", notification);
-        options.onNotificationReceived?.(notification);
+        optionsRef.current.onNotificationReceived?.(notification);
       },
     );
 
     const actionListener = PushNotifications.addListener(
       "pushNotificationActionPerformed",
       (action: ActionPerformed) => {
-        console.log("Push notification action:", action);
-        options.onNotificationAction?.(action);
+        optionsRef.current.onNotificationAction?.(action);
       },
     );
 
@@ -303,16 +304,13 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
     const localNotificationListener = LocalNotifications.addListener(
       "localNotificationReceived",
       (notification: LocalNotificationSchema) => {
-        console.log("Local notification received:", notification);
-        options.onLocalNotificationReceived?.(notification);
+        optionsRef.current.onLocalNotificationReceived?.(notification);
       },
     );
 
     const localActionListener = LocalNotifications.addListener(
       "localNotificationActionPerformed",
-      (action) => {
-        console.log("Local notification action:", action);
-      },
+      () => {},
     );
 
     // Auto-register on mount
@@ -326,7 +324,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
       localNotificationListener.then((l) => l.remove());
       localActionListener.then((l) => l.remove());
     };
-  }, [isNative, register, saveTokenToDatabase, options]);
+  }, [isNative, register, saveTokenToDatabase]);
 
   // Clean up token on logout
   useEffect(() => {

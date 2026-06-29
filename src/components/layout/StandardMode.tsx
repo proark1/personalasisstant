@@ -362,9 +362,8 @@ export const StandardMode = memo(function StandardMode({
     () => ({
       setActivePanel: (p: string) => setActivePanel(p as ActivePanel),
       setSelectedProjectId,
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
-    [setSelectedProjectId],
+    [setActivePanel, setSelectedProjectId],
   );
   useDeepLinkHandler(deepLinkOptions);
   const { celebrate } = useCelebration();

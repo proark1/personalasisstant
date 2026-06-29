@@ -12,6 +12,8 @@
 // In production the Caddy gateway strips `/functions/v1` so the
 // runtime never sees that prefix.
 
+import { authorizeFunctionRequest } from "./function-auth.ts";
+
 // The `EdgeRuntime` global is provided by supabase/edge-runtime.
 // Declare its shape so TypeScript (and `deno check`) don't complain.
 declare const EdgeRuntime: {
@@ -95,6 +97,9 @@ Deno.serve(async (req: Request) => {
   if (fnName === "main" || fnName === "_shared") {
     return json({ error: "function not callable" }, 404);
   }
+
+  const authFailure = authorizeFunctionRequest(req, fnName);
+  if (authFailure) return authFailure;
 
   const servicePath = `${FUNCTIONS_DIR}/${fnName}`;
   // Keep a clone so we can retry once on a fresh isolate if the first attempt

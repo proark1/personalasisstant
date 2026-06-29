@@ -30,58 +30,57 @@ export function useExpoPushNotifications() {
     setIsNative(Capacitor.isNativePlatform());
   }, []);
 
-  const saveTokenToDatabase = async (nativeToken: string, expoToken?: string) => {
-    if (!user?.id) return;
+  const saveTokenToDatabase = useCallback(
+    async (nativeToken: string, expoToken?: string) => {
+      if (!user?.id) return;
 
-    try {
-      const platform = Capacitor.getPlatform();
+      try {
+        const platform = Capacitor.getPlatform();
 
-      // Check if token already exists
-      const { data: existing } = await supabase
-        .from("push_tokens")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("token", nativeToken)
-        .single();
-
-      if (existing) {
-        // Update existing token
-        await supabase
+        // Check if token already exists
+        const { data: existing } = await supabase
           .from("push_tokens")
-          .update({
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("token", nativeToken)
+          .single();
+
+        if (existing) {
+          // Update existing token
+          await supabase
+            .from("push_tokens")
+            .update({
+              expo_push_token: expoToken || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existing.id);
+        } else {
+          // Insert new token
+          await supabase.from("push_tokens").insert({
+            user_id: user.id,
+            token: nativeToken,
             expo_push_token: expoToken || null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-      } else {
-        // Insert new token
-        await supabase.from("push_tokens").insert({
-          user_id: user.id,
-          token: nativeToken,
-          expo_push_token: expoToken || null,
-          platform,
-        });
+            platform,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to save push token:", err);
       }
+    },
+    [user?.id],
+  );
 
-      console.log("Push token saved to database");
-    } catch (err) {
-      console.error("Failed to save push token:", err);
-    }
-  };
-
-  const removeTokenFromDatabase = async () => {
+  const removeTokenFromDatabase = useCallback(async () => {
     if (!user?.id || !token) return;
 
     try {
       await supabase.from("push_tokens").delete().eq("user_id", user.id).eq("token", token);
-
-      console.log("Push token removed from database");
     } catch (err) {
       console.error("Failed to remove push token:", err);
     }
-  };
+  }, [token, user?.id]);
 
-  const requestPermission = async (): Promise<boolean> => {
+  const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!isNative) {
       // For web, use browser notifications
       type NotificationCtor = typeof Notification;
@@ -112,17 +111,16 @@ export function useExpoPushNotifications() {
       console.error("Failed to request push permission:", err);
       return false;
     }
-  };
+  }, [isNative]);
 
   const register = useCallback(async () => {
     if (!isNative) {
-      console.log("Push notifications not available on web");
       return;
     }
 
     const hasPermission = await requestPermission();
     if (!hasPermission) {
-      console.log("Push notification permission denied");
+      console.warn("Push notification permission denied");
       return;
     }
 
@@ -131,8 +129,7 @@ export function useExpoPushNotifications() {
     } catch (err) {
       console.error("Failed to register for push notifications:", err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNative]); // intentionally excludes requestPermission — it's a plain function, not a useCallback
+  }, [isNative, requestPermission]);
 
   useEffect(() => {
     if (!isNative) return;
@@ -141,7 +138,6 @@ export function useExpoPushNotifications() {
     const registrationListener = PushNotifications.addListener(
       "registration",
       async (tokenData: Token) => {
-        console.log("Push registration success:", tokenData.value);
         setToken(tokenData.value);
 
         // Store ONLY the real native token. We have no genuine Expo push token
@@ -162,8 +158,6 @@ export function useExpoPushNotifications() {
     const receivedListener = PushNotifications.addListener(
       "pushNotificationReceived",
       (notification: PushNotificationSchema) => {
-        console.log("Push notification received:", notification);
-
         // Show a toast for foreground notifications
         toast(notification.title || "Notification", {
           description: notification.body,
@@ -175,8 +169,6 @@ export function useExpoPushNotifications() {
     const actionListener = PushNotifications.addListener(
       "pushNotificationActionPerformed",
       async (action: ActionPerformed) => {
-        console.log("Push notification action:", action);
-
         const data = action.notification.data;
 
         // Handle reminder actions
@@ -232,8 +224,7 @@ export function useExpoPushNotifications() {
       receivedListener.then((l) => l.remove());
       actionListener.then((l) => l.remove());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNative, user?.id, register]); // intentionally excludes saveTokenToDatabase — plain function recreated each render
+  }, [isNative, user?.id, register, saveTokenToDatabase]);
 
   // Clean up token on logout
   useEffect(() => {
@@ -248,8 +239,7 @@ export function useExpoPushNotifications() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]); // intentionally excludes removeTokenFromDatabase — plain function recreated each render
+  }, [removeTokenFromDatabase]);
 
   return {
     token,

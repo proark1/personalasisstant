@@ -404,20 +404,23 @@ export function EmailPanel() {
     isPulling.current = false;
   }, [pullY, syncing, syncEmails]);
 
-  const findThread = (email: Email): EmailThread | null => {
-    const allThreads = [
-      ...(grouped.attention || []),
-      ...(grouped.fyi || []),
-      ...(grouped.lowPriority || []),
-      ...(grouped.flagged || []),
-      ...(grouped.snoozed || []),
-    ];
-    return (
-      allThreads.find(
-        (t) => t.latestEmail.id === email.id || t.allEmails.some((e) => e.id === email.id),
-      ) || null
-    );
-  };
+  const findThread = useCallback(
+    (email: Email): EmailThread | null => {
+      const allThreads = [
+        ...(grouped.attention || []),
+        ...(grouped.fyi || []),
+        ...(grouped.lowPriority || []),
+        ...(grouped.flagged || []),
+        ...(grouped.snoozed || []),
+      ];
+      return (
+        allThreads.find(
+          (t) => t.latestEmail.id === email.id || t.allEmails.some((e) => e.id === email.id),
+        ) || null
+      );
+    },
+    [grouped],
+  );
 
   const handleSelect = useCallback(
     (email: Email) => {
@@ -430,10 +433,8 @@ export function EmailPanel() {
       setSelectedEmail(email);
       setDetailOpen(true);
       if (!email.is_read) markAsRead(email.id);
-      // findThread reads `grouped` via closure; include the deps that affect behavior.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [selectMode, toggleSelect, markAsRead, grouped],
+    [selectMode, toggleSelect, findThread, markAsRead],
   );
 
   // Connect Gmail screen

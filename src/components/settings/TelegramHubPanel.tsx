@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Send,
   Loader2,
@@ -120,7 +120,7 @@ export function TelegramHubPanel() {
   const [dbStatus, setDbStatus] = useState<DbStatusResult | null>(null);
   const [dbChecking, setDbChecking] = useState(false);
 
-  const fetchLink = async () => {
+  const fetchLink = useCallback(async () => {
     if (!user) return;
     const [{ data: l }, { data: g }, { data: ps }] = await Promise.all([
       supabase
@@ -145,12 +145,11 @@ export function TelegramHubPanel() {
     setGroup(g);
     setPersonalVoiceReplies(!!ps?.prefer_voice_replies);
     setLoading(false);
-  };
+  }, [user]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchLink();
-  }, [user]);
+  }, [fetchLink]);
 
   useEffect(() => {
     if ((!code && !groupCode) || (link?.is_active && group?.is_active)) return;
@@ -160,8 +159,7 @@ export function TelegramHubPanel() {
       fetchLink();
     }, 8000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, groupCode, link?.is_active, group?.is_active]);
+  }, [code, groupCode, link?.is_active, group?.is_active, fetchLink]);
 
   const handleGenerate = async () => {
     setGenerating(true);

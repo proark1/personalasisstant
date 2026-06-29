@@ -193,6 +193,19 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
     [user],
   );
 
+  const undoArchive = useCallback(async () => {
+    if (!lastArchived.current) return;
+    const { id, email } = lastArchived.current;
+    await updateEmail(id, { user_archived: false });
+    setEmails((prev) =>
+      [...prev, email].sort(
+        (a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime(),
+      ),
+    );
+    lastArchived.current = null;
+    toast.success("Email restored");
+  }, [updateEmail]);
+
   const archiveEmail = useCallback(
     async (emailId: string) => {
       const emailToArchive = emails.find((e) => e.id === emailId);
@@ -208,23 +221,9 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
         },
         duration: 5000,
       });
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [updateEmail, emails],
-  ); // intentionally excludes undoArchive — defined after this callback to avoid circular deps
-
-  const undoArchive = useCallback(async () => {
-    if (!lastArchived.current) return;
-    const { id, email } = lastArchived.current;
-    await updateEmail(id, { user_archived: false });
-    setEmails((prev) =>
-      [...prev, email].sort(
-        (a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime(),
-      ),
-    );
-    lastArchived.current = null;
-    toast.success("Email restored");
-  }, [updateEmail]);
+    [updateEmail, emails, undoArchive],
+  );
 
   const markImportant = useCallback(
     async (emailId: string) => {

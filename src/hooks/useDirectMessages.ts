@@ -265,15 +265,27 @@ export function useDirectMessages(userId: string | null) {
         let encryptedKey: string | undefined;
         let encryptionVersion: number | undefined;
 
-        // Encrypt if recipient has keys
-        if (recipientPublicKey && isReady) {
-          const encrypted = await encryptDirectMessage(messageContent, recipientId);
-          if (encrypted) {
-            messageContent = ""; // Clear plaintext
-            encryptedContent = encrypted.encryptedContent;
-            encryptedKey = encrypted.encryptedKey;
-            encryptionVersion = 1;
+        if (messageContent) {
+          if (!isReady) {
+            console.warn("Direct message encryption is not ready; refusing plaintext send");
+            return null;
           }
+
+          if (!recipientPublicKey) {
+            console.warn("Recipient does not have encryption keys; refusing plaintext send");
+            return null;
+          }
+
+          const encrypted = await encryptDirectMessage(messageContent, recipientId);
+          if (!encrypted) {
+            console.warn("Direct message encryption failed; refusing plaintext send");
+            return null;
+          }
+
+          messageContent = ""; // Clear plaintext
+          encryptedContent = encrypted.encryptedContent;
+          encryptedKey = encrypted.encryptedKey;
+          encryptionVersion = 1;
         }
 
         const { data, error } = await supabase

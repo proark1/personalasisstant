@@ -45,41 +45,6 @@ export function useBrainDump() {
     }
   }, [user]);
 
-  const addDump = useCallback(
-    async (content: string, voiceUrl?: string) => {
-      if (!user || !content.trim()) return null;
-
-      try {
-        const { data, error } = await supabase
-          .from("brain_dumps")
-          .insert({
-            user_id: user.id,
-            content: content.trim(),
-            voice_url: voiceUrl,
-            is_processed: false,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        setDumps((prev) => [data, ...prev]);
-        toast.success("Captured!", { description: "Added to your inbox" });
-
-        // Trigger AI processing
-        processWithAI(data.id, content);
-
-        return data;
-      } catch (error) {
-        console.error("Failed to add brain dump:", error);
-        toast.error(await describeEdgeError(error, "Failed to capture"));
-        return null;
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    },
-    [user],
-  ); // intentionally excludes processWithAI to avoid circular dep (processWithAI also depends on user)
-
   const processWithAI = useCallback(
     async (dumpId: string, content: string) => {
       if (!user) return;
@@ -119,6 +84,40 @@ export function useBrainDump() {
       }
     },
     [user],
+  );
+
+  const addDump = useCallback(
+    async (content: string, voiceUrl?: string) => {
+      if (!user || !content.trim()) return null;
+
+      try {
+        const { data, error } = await supabase
+          .from("brain_dumps")
+          .insert({
+            user_id: user.id,
+            content: content.trim(),
+            voice_url: voiceUrl,
+            is_processed: false,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setDumps((prev) => [data, ...prev]);
+        toast.success("Captured!", { description: "Added to your inbox" });
+
+        // Trigger AI processing
+        processWithAI(data.id, content);
+
+        return data;
+      } catch (error) {
+        console.error("Failed to add brain dump:", error);
+        toast.error(await describeEdgeError(error, "Failed to capture"));
+        return null;
+      }
+    },
+    [processWithAI, user],
   );
 
   const convertDump = useCallback(
