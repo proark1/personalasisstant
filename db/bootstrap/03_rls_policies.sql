@@ -3203,4 +3203,246 @@ CREATE POLICY "Users can view their own briefing deliveries"
   ON public.briefing_deliveries FOR SELECT
   USING (auth.uid() = user_id);
 
+-- 20260529160000_family_households.sql
+-- ============================================================
+-- 4. RLS: household events visible/editable to every member
+-- ============================================================
+ALTER TABLE public.telegram_group_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Members can view their household roster" ON public.telegram_group_members;
+DROP POLICY IF EXISTS "Members can view their household roster" ON public.telegram_group_members;
+CREATE POLICY "Members can view their household roster" ON public.telegram_group_members
+  FOR SELECT USING (
+    user_id = auth.uid() OR public.is_household_member(group_link_id, auth.uid())
+  );
+-- Writes to the roster happen via the service role (telegram-link edge function),
+-- which bypasses RLS; no end-user write policy is granted.
+
+DROP POLICY IF EXISTS "Members can view household events" ON public.events;
+DROP POLICY IF EXISTS "Members can view household events" ON public.events;
+CREATE POLICY "Members can view household events" ON public.events
+  FOR SELECT USING (
+    household_id IS NOT NULL AND public.is_household_member(household_id, auth.uid())
+  );
+DROP POLICY IF EXISTS "Members can update household events" ON public.events;
+DROP POLICY IF EXISTS "Members can update household events" ON public.events;
+CREATE POLICY "Members can update household events" ON public.events
+  FOR UPDATE USING (
+    household_id IS NOT NULL AND public.is_household_member(household_id, auth.uid())
+  );
+DROP POLICY IF EXISTS "Members can delete household events" ON public.events;
+DROP POLICY IF EXISTS "Members can delete household events" ON public.events;
+CREATE POLICY "Members can delete household events" ON public.events
+  FOR DELETE USING (
+    household_id IS NOT NULL AND public.is_household_member(household_id, auth.uid())
+  );
+
+-- 20260530150000_event_sync_links.sql
+ALTER TABLE public.event_sync_links ENABLE ROW LEVEL SECURITY;
+-- Edge functions use the service role (RLS-exempt); this policy is for any
+-- direct client read/write of links for the user's own events.
+DROP POLICY IF EXISTS "own event sync links" ON public.event_sync_links;
+DROP POLICY IF EXISTS "own event sync links" ON public.event_sync_links;
+CREATE POLICY "own event sync links" ON public.event_sync_links
+  FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_id AND e.user_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_id AND e.user_id = auth.uid()));
+
+-- 20260531120000_content_studio.sql
+ALTER TABLE public.creator_profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own creator profile" ON public.creator_profiles;
+DROP POLICY IF EXISTS "own creator profile" ON public.creator_profiles;
+CREATE POLICY "own creator profile" ON public.creator_profiles
+  FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+ALTER TABLE public.content_ideas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own content ideas" ON public.content_ideas;
+DROP POLICY IF EXISTS "own content ideas" ON public.content_ideas;
+CREATE POLICY "own content ideas" ON public.content_ideas
+  FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+ALTER TABLE public.content_scripts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own content scripts" ON public.content_scripts;
+DROP POLICY IF EXISTS "own content scripts" ON public.content_scripts;
+CREATE POLICY "own content scripts" ON public.content_scripts
+  FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- 20260607120000_fix_cross_tenant_rls.sql
+-- Fix cross-tenant RLS exposure.
+--
+-- Several tables carried a "service role manages …" policy written as
+--   FOR ALL USING (true) WITH CHECK (true)
+-- with NO `TO` clause. In Postgres a clause-less policy applies to PUBLIC
+-- (every role, including `authenticated`/`anon`), and permissive policies are
+-- OR-combined. So each of these silently defeated the per-user / per-member
+-- policies on its table: the effective rule became `(<owner check>) OR true`,
+-- i.e. any authenticated user could read AND write every row.
+--
+-- The service role already has BYPASSRLS (see 03_rls_policies.sql), so these
+-- policies were never needed for the edge functions — they only opened the
+-- hole. Each table keeps its proper per-user / per-member policies; edge
+-- functions continue to operate via the service-role key.
+--
+-- Idempotent (DROP POLICY IF EXISTS), safe to re-run.
+
+-- ── Cross-tenant FOR ALL USING (true) holes ─────────────────────────────────
+DROP POLICY IF EXISTS "Service role manages undo rows"      ON public.dori_undo_log;
+DROP POLICY IF EXISTS "Service role manages task comments"  ON public.task_comments;
+DROP POLICY IF EXISTS "Service role writes documents"       ON public.telegram_documents;
+DROP POLICY IF EXISTS "Service role manages workspaces"     ON public.workspaces;
+DROP POLICY IF EXISTS "Service role manages membership"     ON public.workspace_members;
+DROP POLICY IF EXISTS "Service role manages invite codes"   ON public.workspace_invite_codes;
+DROP POLICY IF EXISTS "Service role manages tg links"       ON public.workspace_telegram_links;
+-- ── pinned_messages: SELECT was USING (true) ────────────────────────────────
+-- Any authenticated user could list every pinned-message reference across all
+-- chats. Scope reads to the pinner, group members (group pins), or the two
+-- participants of the underlying direct message (direct pins).
+DROP POLICY IF EXISTS "pinned_messages_select" ON public.pinned_messages;
+DROP POLICY IF EXISTS "pinned_messages_select" ON public.pinned_messages;
+CREATE POLICY "pinned_messages_select" ON public.pinned_messages
+  FOR SELECT USING (
+    pinned_by = auth.uid()
+    OR (message_type = 'group' AND public.is_group_member(auth.uid(), chat_id))
+    OR (message_type = 'direct' AND EXISTS (
+          SELECT 1 FROM public.direct_messages dm
+          WHERE dm.id = public.pinned_messages.message_id
+            AND (dm.sender_id = auth.uid() OR dm.recipient_id = auth.uid())))
+  );
+
+-- 20260621020000_app_settings.sql
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "app_settings readable by authenticated" ON public.app_settings;
+DROP POLICY IF EXISTS "app_settings readable by authenticated" ON public.app_settings;
+CREATE POLICY "app_settings readable by authenticated"
+  ON public.app_settings FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "app_settings admin write" ON public.app_settings;
+DROP POLICY IF EXISTS "app_settings admin write" ON public.app_settings;
+CREATE POLICY "app_settings admin write"
+  ON public.app_settings FOR ALL TO authenticated
+  USING (public.is_admin(auth.uid()))
+  WITH CHECK (public.is_admin(auth.uid()));
+
+-- 20260624120000_assistant_operating_system.sql
+ALTER TABLE public.assistant_traces ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own assistant traces" ON public.assistant_traces;
+DROP POLICY IF EXISTS "Users view own assistant traces" ON public.assistant_traces;
+CREATE POLICY "Users view own assistant traces"
+  ON public.assistant_traces FOR SELECT
+  USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own assistant traces" ON public.assistant_traces;
+DROP POLICY IF EXISTS "Users insert own assistant traces" ON public.assistant_traces;
+CREATE POLICY "Users insert own assistant traces"
+  ON public.assistant_traces FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own assistant traces" ON public.assistant_traces;
+DROP POLICY IF EXISTS "Users update own assistant traces" ON public.assistant_traces;
+CREATE POLICY "Users update own assistant traces"
+  ON public.assistant_traces FOR UPDATE
+  USING (auth.uid() = user_id);
+ALTER TABLE public.assistant_tool_calls ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own assistant tool calls" ON public.assistant_tool_calls;
+DROP POLICY IF EXISTS "Users view own assistant tool calls" ON public.assistant_tool_calls;
+CREATE POLICY "Users view own assistant tool calls"
+  ON public.assistant_tool_calls FOR SELECT
+  USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own assistant tool calls" ON public.assistant_tool_calls;
+DROP POLICY IF EXISTS "Users insert own assistant tool calls" ON public.assistant_tool_calls;
+CREATE POLICY "Users insert own assistant tool calls"
+  ON public.assistant_tool_calls FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own assistant tool calls" ON public.assistant_tool_calls;
+DROP POLICY IF EXISTS "Users update own assistant tool calls" ON public.assistant_tool_calls;
+CREATE POLICY "Users update own assistant tool calls"
+  ON public.assistant_tool_calls FOR UPDATE
+  USING (auth.uid() = user_id);
+ALTER TABLE public.assistant_eval_cases ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view shared or own eval cases" ON public.assistant_eval_cases;
+DROP POLICY IF EXISTS "Users view shared or own eval cases" ON public.assistant_eval_cases;
+CREATE POLICY "Users view shared or own eval cases"
+  ON public.assistant_eval_cases FOR SELECT
+  USING (owner_user_id IS NULL OR auth.uid() = owner_user_id);
+DROP POLICY IF EXISTS "Users insert own eval cases" ON public.assistant_eval_cases;
+DROP POLICY IF EXISTS "Users insert own eval cases" ON public.assistant_eval_cases;
+CREATE POLICY "Users insert own eval cases"
+  ON public.assistant_eval_cases FOR INSERT
+  WITH CHECK (auth.uid() = owner_user_id);
+DROP POLICY IF EXISTS "Users update own eval cases" ON public.assistant_eval_cases;
+DROP POLICY IF EXISTS "Users update own eval cases" ON public.assistant_eval_cases;
+CREATE POLICY "Users update own eval cases"
+  ON public.assistant_eval_cases FOR UPDATE
+  USING (auth.uid() = owner_user_id);
+ALTER TABLE public.assistant_eval_runs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own eval runs" ON public.assistant_eval_runs;
+DROP POLICY IF EXISTS "Users view own eval runs" ON public.assistant_eval_runs;
+CREATE POLICY "Users view own eval runs"
+  ON public.assistant_eval_runs FOR SELECT
+  USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own eval runs" ON public.assistant_eval_runs;
+DROP POLICY IF EXISTS "Users insert own eval runs" ON public.assistant_eval_runs;
+CREATE POLICY "Users insert own eval runs"
+  ON public.assistant_eval_runs FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own eval runs" ON public.assistant_eval_runs;
+DROP POLICY IF EXISTS "Users update own eval runs" ON public.assistant_eval_runs;
+CREATE POLICY "Users update own eval runs"
+  ON public.assistant_eval_runs FOR UPDATE
+  USING (auth.uid() = user_id);
+ALTER TABLE public.assistant_eval_results ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own eval results" ON public.assistant_eval_results;
+DROP POLICY IF EXISTS "Users view own eval results" ON public.assistant_eval_results;
+CREATE POLICY "Users view own eval results"
+  ON public.assistant_eval_results FOR SELECT
+  USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own eval results" ON public.assistant_eval_results;
+DROP POLICY IF EXISTS "Users insert own eval results" ON public.assistant_eval_results;
+CREATE POLICY "Users insert own eval results"
+  ON public.assistant_eval_results FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+ALTER TABLE public.assistant_opportunities ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own assistant opportunities" ON public.assistant_opportunities;
+DROP POLICY IF EXISTS "Users view own assistant opportunities" ON public.assistant_opportunities;
+CREATE POLICY "Users view own assistant opportunities"
+  ON public.assistant_opportunities FOR SELECT
+  USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own assistant opportunities" ON public.assistant_opportunities;
+DROP POLICY IF EXISTS "Users insert own assistant opportunities" ON public.assistant_opportunities;
+CREATE POLICY "Users insert own assistant opportunities"
+  ON public.assistant_opportunities FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own assistant opportunities" ON public.assistant_opportunities;
+DROP POLICY IF EXISTS "Users update own assistant opportunities" ON public.assistant_opportunities;
+CREATE POLICY "Users update own assistant opportunities"
+  ON public.assistant_opportunities FOR UPDATE
+  USING (auth.uid() = user_id);
+ALTER TABLE public.assistant_daily_plans ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own assistant daily plans" ON public.assistant_daily_plans;
+DROP POLICY IF EXISTS "Users view own assistant daily plans" ON public.assistant_daily_plans;
+CREATE POLICY "Users view own assistant daily plans"
+  ON public.assistant_daily_plans FOR SELECT
+  USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own assistant daily plans" ON public.assistant_daily_plans;
+DROP POLICY IF EXISTS "Users insert own assistant daily plans" ON public.assistant_daily_plans;
+CREATE POLICY "Users insert own assistant daily plans"
+  ON public.assistant_daily_plans FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users update own assistant daily plans" ON public.assistant_daily_plans;
+DROP POLICY IF EXISTS "Users update own assistant daily plans" ON public.assistant_daily_plans;
+CREATE POLICY "Users update own assistant daily plans"
+  ON public.assistant_daily_plans FOR UPDATE
+  USING (auth.uid() = user_id);
+ALTER TABLE public.assistant_security_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own assistant security events" ON public.assistant_security_events;
+DROP POLICY IF EXISTS "Users view own assistant security events" ON public.assistant_security_events;
+CREATE POLICY "Users view own assistant security events"
+  ON public.assistant_security_events FOR SELECT
+  USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users insert own assistant security events" ON public.assistant_security_events;
+DROP POLICY IF EXISTS "Users insert own assistant security events" ON public.assistant_security_events;
+CREATE POLICY "Users insert own assistant security events"
+  ON public.assistant_security_events FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
 NOTIFY pgrst, 'reload schema';

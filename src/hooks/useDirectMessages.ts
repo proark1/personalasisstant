@@ -1,13 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useEncryption } from "./useEncryption";
+import {
+  createEncryptedMessageEnvelope,
+  normalizeEncryptedKeys,
+  messagePreviewText,
+  normalizeChatAttachments,
+  stripAttachmentSecrets,
+  unpackEncryptedMessageEnvelope,
+  type ChatAttachment,
+} from "@/lib/chatMessages";
 
-export interface ChatAttachment {
-  name: string;
-  url: string;
-  type: string;
-  size: number;
-}
+export type { ChatAttachment } from "@/lib/chatMessages";
 
 export interface MessageReaction {
   emoji: string;
@@ -26,6 +31,7 @@ export interface DirectMessage {
   created_at: string;
   encrypted_content?: string | null;
   encrypted_key?: string | null;
+  encrypted_keys?: Record<string, string> | null;
   encryption_version?: number;
   sender_profile?: {
     display_name: string | null;
@@ -57,22 +63,28 @@ export function useDirectMessages(userId: string | null) {
   // Decrypt a single message
   const decryptMessage = useCallback(
     async (msg: DirectMessage): Promise<DirectMessage> => {
-      if (msg.encrypted_content && msg.encrypted_key && isReady) {
+      const encryptedKey =
+        (userId && normalizeEncryptedKeys(msg.encrypted_keys)?.[userId]) ||
+        msg.encrypted_key ||
+        undefined;
+      if (msg.encrypted_content && encryptedKey && isReady) {
         try {
-          const decryptedContent = await decryptDirectMessage(
-            msg.encrypted_content,
-            msg.encrypted_key,
-          );
+          const decryptedContent = await decryptDirectMessage(msg.encrypted_content, encryptedKey);
           if (decryptedContent) {
-            return { ...msg, content: decryptedContent };
+            const envelope = unpackEncryptedMessageEnvelope(decryptedContent);
+            return {
+              ...msg,
+              content: envelope.text,
+              attachments: envelope.attachments ?? normalizeChatAttachments(msg.attachments),
+            };
           }
         } catch (error) {
           console.error("Failed to decrypt message:", error);
         }
       }
-      return msg;
+      return { ...msg, attachments: normalizeChatAttachments(msg.attachments) };
     },
-    [isReady, decryptDirectMessage],
+    [isReady, decryptDirectMessage, userId],
   );
 
   // Fetch all conversations with silent retry for network errors
@@ -146,18 +158,26 @@ export function useDirectMessages(userId: string | null) {
           let lastMessageContent = lastMsg?.content || "";
 
           // Decrypt last message if encrypted
-          if (lastMsg?.encrypted_content && lastMsg?.encrypted_key && isReady) {
+          const lastMsgAttachments = normalizeChatAttachments(lastMsg?.attachments);
+          const encryptedKey =
+            (userId && normalizeEncryptedKeys(lastMsg?.encrypted_keys)?.[userId]) ||
+            lastMsg?.encrypted_key ||
+            undefined;
+          if (lastMsg?.encrypted_content && encryptedKey && isReady) {
             try {
-              const decrypted = await decryptDirectMessage(
-                lastMsg.encrypted_content,
-                lastMsg.encrypted_key,
-              );
+              const decrypted = await decryptDirectMessage(lastMsg.encrypted_content, encryptedKey);
               if (decrypted) {
-                lastMessageContent = decrypted;
+                const envelope = unpackEncryptedMessageEnvelope(decrypted);
+                lastMessageContent = messagePreviewText(
+                  envelope.text,
+                  envelope.attachments ?? lastMsgAttachments,
+                );
               }
             } catch {
               lastMessageContent = "🔒 Encrypted message";
             }
+          } else if (!lastMessageContent && lastMsgAttachments.length > 0) {
+            lastMessageContent = messagePreviewText("", lastMsgAttachments);
           }
 
           const cached = profileCacheRef.current.get(partnerId);
@@ -226,9 +246,8 @@ export function useDirectMessages(userId: string | null) {
 
         const messagesWithProfiles: DirectMessage[] = (data || []).map((msg) => ({
           ...msg,
-          attachments: (Array.isArray(msg.attachments)
-            ? msg.attachments
-            : []) as unknown as ChatAttachment[],
+          attachments: normalizeChatAttachments(msg.attachments),
+          encrypted_keys: normalizeEncryptedKeys(msg.encrypted_keys),
           reactions: (Array.isArray(msg.reactions)
             ? msg.reactions
             : []) as unknown as MessageReaction[],
@@ -263,9 +282,10 @@ export function useDirectMessages(userId: string | null) {
         let messageContent = content.trim();
         let encryptedContent: string | undefined;
         let encryptedKey: string | undefined;
+        let encryptedKeys: Record<string, string> | undefined;
         let encryptionVersion: number | undefined;
 
-        if (messageContent) {
+        if (messageContent || attachments.length > 0) {
           if (!isReady) {
             console.warn("Direct message encryption is not ready; refusing plaintext send");
             return null;
@@ -276,7 +296,10 @@ export function useDirectMessages(userId: string | null) {
             return null;
           }
 
-          const encrypted = await encryptDirectMessage(messageContent, recipientId);
+          const encrypted = await encryptDirectMessage(
+            createEncryptedMessageEnvelope(messageContent, attachments),
+            recipientId,
+          );
           if (!encrypted) {
             console.warn("Direct message encryption failed; refusing plaintext send");
             return null;
@@ -285,7 +308,8 @@ export function useDirectMessages(userId: string | null) {
           messageContent = ""; // Clear plaintext
           encryptedContent = encrypted.encryptedContent;
           encryptedKey = encrypted.encryptedKey;
-          encryptionVersion = 1;
+          encryptedKeys = encrypted.encryptedKeys;
+          encryptionVersion = 2;
         }
 
         const { data, error } = await supabase
@@ -294,9 +318,13 @@ export function useDirectMessages(userId: string | null) {
             sender_id: userId,
             recipient_id: recipientId,
             content: messageContent,
-            attachments: attachments.length > 0 ? JSON.stringify(attachments) : null,
+            attachments:
+              attachments.length > 0
+                ? (stripAttachmentSecrets(attachments) as unknown as Json)
+                : null,
             encrypted_content: encryptedContent,
             encrypted_key: encryptedKey,
+            encrypted_keys: encryptedKeys as Json | undefined,
             encryption_version: encryptionVersion,
           })
           .select()
@@ -380,9 +408,7 @@ export function useDirectMessages(userId: string | null) {
                   ...prev,
                   {
                     ...decrypted,
-                    attachments: (Array.isArray(decrypted.attachments)
-                      ? decrypted.attachments
-                      : []) as ChatAttachment[],
+                    attachments: normalizeChatAttachments(decrypted.attachments),
                     reactions: (Array.isArray(decrypted.reactions)
                       ? decrypted.reactions
                       : []) as MessageReaction[],

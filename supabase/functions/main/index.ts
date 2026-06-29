@@ -98,7 +98,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "function not callable" }, 404);
   }
 
-  const authFailure = authorizeFunctionRequest(req, fnName);
+  const authFailure = await authorizeFunctionRequest(req, fnName);
   if (authFailure) return authFailure;
 
   const servicePath = `${FUNCTIONS_DIR}/${fnName}`;

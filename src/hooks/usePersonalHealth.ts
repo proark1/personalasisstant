@@ -130,7 +130,7 @@ export function usePersonalHealth() {
     toast.success("Added");
     refresh();
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const addWorkout = async (p: Partial<Workout>) => {
     if (!user) return;
     const { error } = await supabase.from("workouts").insert({

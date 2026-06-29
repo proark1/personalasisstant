@@ -91,7 +91,7 @@ export function useFamilyDailyLife() {
     if (!user) return null;
     const { data: row, error } = await supabase
       .from("family_chores")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       .insert({
         ...data,
         user_id: user.id,
@@ -111,7 +111,7 @@ export function useFamilyDailyLife() {
 
   const completeChore = async (chore: FamilyChore) => {
     if (!user) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const completionPayload = {
       user_id: user.id,
       chore_id: chore.id,
@@ -123,7 +123,7 @@ export function useFamilyDailyLife() {
       toast.error(error.message);
       return;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await supabase
       .from("family_chores")
       .update({ last_completed_at: new Date().toISOString() } as any)
@@ -134,7 +134,7 @@ export function useFamilyDailyLife() {
 
   const addAllowance = async (data: Partial<FamilyAllowance>): Promise<null | void> => {
     if (!user) return null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const allowancePayload = {
       ...data,
       user_id: user.id,
@@ -155,7 +155,6 @@ export function useFamilyDailyLife() {
     if (!user || !data.family_member_id) return;
     const existing = mealPrefs.find((m) => m.family_member_id === data.family_member_id);
     if (existing) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase
         .from("family_meal_preferences")
         .update(data as any)
@@ -165,7 +164,6 @@ export function useFamilyDailyLife() {
         return;
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase
         .from("family_meal_preferences")
         .insert({ ...data, user_id: user.id } as any);
@@ -182,7 +180,6 @@ export function useFamilyDailyLife() {
     if (!user || !data.family_member_id) return;
     const existing = sleepSchedules.find((s) => s.family_member_id === data.family_member_id);
     if (existing) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase
         .from("family_sleep_schedule")
         .update(data as any)
@@ -192,7 +189,6 @@ export function useFamilyDailyLife() {
         return;
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase
         .from("family_sleep_schedule")
         .insert({ ...data, user_id: user.id } as any);

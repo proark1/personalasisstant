@@ -96,7 +96,7 @@ export function useFamilyMemoryHome() {
 
   const addTradition = async (data: Partial<FamilyTradition>) => {
     if (!user) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const traditionPayload = {
       ...data,
       user_id: user.id,
@@ -115,7 +115,7 @@ export function useFamilyMemoryHome() {
 
   const addPet = async (data: Partial<Pet>) => {
     if (!user) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const { error } = await supabase
       .from("pets")
       .insert({ ...data, user_id: user.id, name: data.name! } as any);
@@ -129,7 +129,7 @@ export function useFamilyMemoryHome() {
 
   const addMaintenance = async (data: Partial<HouseholdMaintenanceItem>) => {
     if (!user) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const maintenancePayload = {
       ...data,
       user_id: user.id,
@@ -147,7 +147,7 @@ export function useFamilyMemoryHome() {
 
   const addVehicle = async (data: Partial<VehicleRecord>) => {
     if (!user) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const { error } = await supabase
       .from("vehicle_records")
       .insert({ ...data, user_id: user.id, nickname: data.nickname! } as any);

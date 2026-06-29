@@ -89,7 +89,7 @@ export function useJournal() {
     toast.success("Saved");
     refresh();
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const addMilestone = async (p: Partial<Milestone>) => {
     if (!user) return;
     const { error } = await supabase

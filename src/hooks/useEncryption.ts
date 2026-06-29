@@ -7,7 +7,7 @@ import {
   storePrivateKey,
   getPrivateKey,
   importPublicKey,
-  encryptWithPublicKey,
+  encryptForPublicKeys,
   decryptWithPrivateKey,
   generateSymmetricKey,
   storeGroupKey,
@@ -120,15 +120,37 @@ export function useEncryption() {
     async (
       message: string,
       recipientId: string,
-    ): Promise<{ encryptedContent: string; encryptedKey: string } | null> => {
-      const recipientPublicKey = await getRecipientPublicKey(recipientId);
+    ): Promise<{
+      encryptedContent: string;
+      encryptedKey: string;
+      encryptedKeys: Record<string, string>;
+    } | null> => {
+      const participantIds = Array.from(new Set([recipientId, user?.id].filter(Boolean)));
+      const publicKeys: Record<string, CryptoKey> = {};
+      for (const participantId of participantIds) {
+        const publicKey = await getRecipientPublicKey(participantId);
+        if (publicKey) publicKeys[participantId] = publicKey;
+      }
+      const recipientPublicKey = publicKeys[recipientId];
       if (!recipientPublicKey) {
         console.warn("Recipient does not have encryption keys");
         return null;
       }
-      return await encryptWithPublicKey(message, recipientPublicKey);
+      if (user?.id && !publicKeys[user.id]) {
+        console.warn("Sender encryption key is not available");
+        return null;
+      }
+
+      const encrypted = await encryptForPublicKeys(message, publicKeys);
+      const encryptedKey = encrypted.encryptedKeys[recipientId];
+      if (!encryptedKey) return null;
+      return {
+        encryptedContent: encrypted.encryptedContent,
+        encryptedKey,
+        encryptedKeys: encrypted.encryptedKeys,
+      };
     },
-    [getRecipientPublicKey],
+    [getRecipientPublicKey, user?.id],
   );
 
   // Decrypt a direct message

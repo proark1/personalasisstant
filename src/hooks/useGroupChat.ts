@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { ChatAttachment } from "./useDirectMessages";
 import { useEncryption } from "./useEncryption";
+import {
+  createEncryptedMessageEnvelope,
+  messagePreviewText,
+  normalizeChatAttachments,
+  stripAttachmentSecrets,
+  unpackEncryptedMessageEnvelope,
+} from "@/lib/chatMessages";
 
 export interface ChatGroup {
   id: string;
@@ -69,13 +77,18 @@ export function useGroupChat(userId: string | null) {
         try {
           const decryptedContent = await decryptGroupMessage(msg.encrypted_content, msg.group_id);
           if (decryptedContent) {
-            return { ...msg, content: decryptedContent };
+            const envelope = unpackEncryptedMessageEnvelope(decryptedContent);
+            return {
+              ...msg,
+              content: envelope.text,
+              attachments: envelope.attachments ?? normalizeChatAttachments(msg.attachments),
+            };
           }
         } catch (error) {
           console.error("Failed to decrypt group message:", error);
         }
       }
-      return msg;
+      return { ...msg, attachments: normalizeChatAttachments(msg.attachments) };
     },
     [isReady, decryptGroupMessage],
   );
@@ -143,24 +156,31 @@ export function useGroupChat(userId: string | null) {
 
             const { data: lastMsg } = await supabase
               .from("group_messages")
-              .select("content, encrypted_content, created_at")
+              .select("content, attachments, encrypted_content, created_at")
               .eq("group_id", group.id)
               .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();
 
             let lastMessageContent = lastMsg?.content || "";
+            const lastMsgAttachments = normalizeChatAttachments(lastMsg?.attachments);
 
             // Decrypt last message if encrypted
             if (lastMsg?.encrypted_content && isReady) {
               try {
                 const decrypted = await decryptGroupMessage(lastMsg.encrypted_content, group.id);
                 if (decrypted) {
-                  lastMessageContent = decrypted;
+                  const envelope = unpackEncryptedMessageEnvelope(decrypted);
+                  lastMessageContent = messagePreviewText(
+                    envelope.text,
+                    envelope.attachments ?? lastMsgAttachments,
+                  );
                 }
               } catch {
                 lastMessageContent = "🔒 Encrypted message";
               }
+            } else if (!lastMessageContent && lastMsgAttachments.length > 0) {
+              lastMessageContent = messagePreviewText("", lastMsgAttachments);
             }
 
             const members = group.chat_group_members?.map((m: GroupMember) => ({
@@ -304,9 +324,7 @@ export function useGroupChat(userId: string | null) {
 
         const messagesWithProfiles: GroupMessage[] = (data || []).map((msg) => ({
           ...msg,
-          attachments: (Array.isArray(msg.attachments)
-            ? msg.attachments
-            : []) as unknown as ChatAttachment[],
+          attachments: normalizeChatAttachments(msg.attachments),
           reactions: (Array.isArray(msg.reactions)
             ? msg.reactions
             : []) as unknown as MessageReaction[],
@@ -339,13 +357,16 @@ export function useGroupChat(userId: string | null) {
         let encryptedContent: string | undefined;
         let encryptionVersion: number | undefined;
 
-        if (messageContent) {
+        if (messageContent || attachments.length > 0) {
           if (!isReady) {
             console.warn("Group message encryption is not ready; refusing plaintext send");
             return null;
           }
 
-          const encrypted = await encryptGroupMessage(messageContent, groupId);
+          const encrypted = await encryptGroupMessage(
+            createEncryptedMessageEnvelope(messageContent, attachments),
+            groupId,
+          );
           if (!encrypted) {
             console.warn("Group message encryption failed; refusing plaintext send");
             return null;
@@ -353,7 +374,7 @@ export function useGroupChat(userId: string | null) {
 
           messageContent = ""; // Clear plaintext
           encryptedContent = encrypted;
-          encryptionVersion = 1;
+          encryptionVersion = 2;
         }
 
         const { data, error } = await supabase
@@ -362,7 +383,10 @@ export function useGroupChat(userId: string | null) {
             group_id: groupId,
             sender_id: userId,
             content: messageContent,
-            attachments: attachments.length > 0 ? JSON.stringify(attachments) : null,
+            attachments:
+              attachments.length > 0
+                ? (stripAttachmentSecrets(attachments) as unknown as Json)
+                : null,
             encrypted_content: encryptedContent,
             encryption_version: encryptionVersion,
           })

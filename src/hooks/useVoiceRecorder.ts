@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { encryptAttachmentBlob } from "@/lib/chatAttachmentCrypto";
+import type { ChatAttachmentEncryption } from "@/lib/chatAttachmentCrypto";
 
 export function useVoiceRecorder(userId: string) {
   const [isRecording, setIsRecording] = useState(false);
@@ -93,16 +95,20 @@ export function useVoiceRecorder(userId: string) {
     ): Promise<{
       url: string;
       duration: number;
+      encryption: ChatAttachmentEncryption;
     } | null> => {
       setIsProcessing(true);
 
       try {
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.webm`;
+        const { encryptedBlob, encryption } = await encryptAttachmentBlob(blob);
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.webm.enc`;
         const filePath = `${userId}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("chat-attachments")
-          .upload(filePath, blob);
+          .upload(filePath, encryptedBlob, {
+            contentType: "application/octet-stream",
+          });
 
         if (uploadError) throw uploadError;
 
@@ -113,7 +119,7 @@ export function useVoiceRecorder(userId: string) {
         if (signErr || !signed?.signedUrl)
           throw signErr ?? new Error("Could not create signed URL");
 
-        return { url: signed.signedUrl, duration };
+        return { url: signed.signedUrl, duration, encryption };
       } catch (error) {
         console.error("Error uploading voice message:", error);
         toast({

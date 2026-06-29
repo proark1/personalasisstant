@@ -3,6 +3,7 @@ import {
   decryptKeyWithPrivateKey,
   decryptWithPrivateKey,
   decryptWithSymmetricKey,
+  encryptForPublicKeys,
   encryptKeyForUser,
   encryptWithPublicKey,
   encryptWithSymmetricKey,
@@ -95,6 +96,23 @@ describe("encryption — asymmetric (direct messages)", () => {
 
     const { encryptedContent, encryptedKey } = await encryptWithPublicKey("ping", pub);
     expect(await decryptWithPrivateKey(encryptedContent, encryptedKey, priv)).toBe("ping");
+  }, 15_000);
+
+  it("wraps one message key for sender and recipient", async () => {
+    const sender = await generateKeyPair({ modulusLength: 1024 });
+    const recipient = await generateKeyPair({ modulusLength: 1024 });
+    const { encryptedContent, encryptedKeys } = await encryptForPublicKeys("shared direct body", {
+      sender: sender.publicKey,
+      recipient: recipient.publicKey,
+    });
+
+    expect(Object.keys(encryptedKeys).sort()).toEqual(["recipient", "sender"]);
+    await expect(
+      decryptWithPrivateKey(encryptedContent, encryptedKeys.sender, sender.privateKey),
+    ).resolves.toBe("shared direct body");
+    await expect(
+      decryptWithPrivateKey(encryptedContent, encryptedKeys.recipient, recipient.privateKey),
+    ).resolves.toBe("shared direct body");
   }, 15_000);
 });
 

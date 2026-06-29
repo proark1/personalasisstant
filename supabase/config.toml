@@ -128,7 +128,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.telegram-router]
-verify_jwt = false
+verify_jwt = true
 
 [functions.telegram-diagnostics]
 verify_jwt = false

@@ -1417,6 +1417,7 @@ export type Database = {
           created_at: string;
           encrypted_content: string | null;
           encrypted_key: string | null;
+          encrypted_keys: Json | null;
           encryption_version: number | null;
           id: string;
           is_read: boolean;
@@ -1431,6 +1432,7 @@ export type Database = {
           created_at?: string;
           encrypted_content?: string | null;
           encrypted_key?: string | null;
+          encrypted_keys?: Json | null;
           encryption_version?: number | null;
           id?: string;
           is_read?: boolean;
@@ -1445,6 +1447,7 @@ export type Database = {
           created_at?: string;
           encrypted_content?: string | null;
           encrypted_key?: string | null;
+          encrypted_keys?: Json | null;
           encryption_version?: number | null;
           id?: string;
           is_read?: boolean;

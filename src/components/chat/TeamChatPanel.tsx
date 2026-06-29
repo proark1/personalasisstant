@@ -47,12 +47,140 @@ import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { showMessageNotification } from "@/lib/notificationSounds";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { decryptAttachmentBlob } from "@/lib/chatAttachmentCrypto";
+import { getAttachmentEncryptionKey } from "@/lib/chatMessages";
 
 interface TeamChatPanelProps {
   userId: string;
 }
 
 type ChatView = "list" | "direct" | "group";
+
+function isImageAttachment(type: string) {
+  return type.startsWith("image/");
+}
+
+function isAudioAttachment(type: string) {
+  return type.startsWith("audio/");
+}
+
+function AttachmentCard({
+  attachment,
+  href,
+  status,
+}: {
+  attachment: ChatAttachment;
+  href?: string;
+  status?: string;
+}) {
+  const body = (
+    <>
+      <FileText className="w-8 h-8 text-primary flex-shrink-0" />
+      <div className="min-w-0">
+        <p className="text-sm font-medium truncate">{attachment.name}</p>
+        <p className="text-xs text-muted-foreground">
+          {status || (attachment.size ? `${(attachment.size / 1024).toFixed(1)} KB` : "Document")}
+        </p>
+      </div>
+    </>
+  );
+
+  if (!href) {
+    return <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50">{body}</div>;
+  }
+
+  return (
+    <a
+      href={href}
+      download={attachment.name}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 p-2 rounded-lg bg-background/50"
+    >
+      {body}
+    </a>
+  );
+}
+
+function MessageAttachmentView({
+  attachment,
+  isOwn,
+}: {
+  attachment: ChatAttachment;
+  isOwn: boolean;
+}) {
+  const [decryptedUrl, setDecryptedUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const encryption = getAttachmentEncryptionKey(attachment);
+
+  useEffect(() => {
+    if (!attachment.encrypted) {
+      setDecryptedUrl(null);
+      setFailed(false);
+      return;
+    }
+    if (!encryption) {
+      setDecryptedUrl(null);
+      setFailed(true);
+      return;
+    }
+
+    let active = true;
+    let objectUrl: string | null = null;
+
+    const decrypt = async () => {
+      try {
+        setFailed(false);
+        const encryptedResponse = await fetch(attachment.url);
+        if (!encryptedResponse.ok) throw new Error("Attachment download failed");
+        const decryptedBlob = await decryptAttachmentBlob(
+          await encryptedResponse.blob(),
+          encryption,
+        );
+        if (!active) return;
+        objectUrl = URL.createObjectURL(decryptedBlob);
+        setDecryptedUrl(objectUrl);
+      } catch (error) {
+        console.error("Failed to decrypt attachment:", error);
+        if (active) setFailed(true);
+      }
+    };
+
+    decrypt();
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [attachment.encrypted, attachment.url, encryption]);
+
+  if (attachment.encrypted && failed) {
+    return <AttachmentCard attachment={attachment} status="Encrypted attachment unavailable" />;
+  }
+
+  if (attachment.encrypted && !decryptedUrl) {
+    return <AttachmentCard attachment={attachment} status="Decrypting..." />;
+  }
+
+  const url = decryptedUrl || attachment.url;
+  if (isAudioAttachment(attachment.type)) {
+    return <VoiceMessagePlayer url={url} isOwn={isOwn} />;
+  }
+
+  if (isImageAttachment(attachment.type)) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        <img
+          src={url}
+          alt={attachment.name}
+          className="max-w-full rounded-lg max-h-64 object-cover"
+        />
+      </a>
+    );
+  }
+
+  return <AttachmentCard attachment={attachment} href={url} />;
+}
 
 export function TeamChatPanel({ userId }: TeamChatPanelProps) {
   const { language } = useLanguage();
@@ -184,6 +312,9 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
       url: uploaded.url,
       type: "audio/webm",
       size: recording.blob.size,
+      duration: uploaded.duration,
+      encrypted: true,
+      encryption: uploaded.encryption,
     };
 
     if (view === "direct" && selectedPartner) {
@@ -267,9 +398,6 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
     return format(date, "EEEE, d MMMM yyyy", { locale: dateLocale });
   };
 
-  const isImageFile = (type: string) => type.startsWith("image/");
-  const isAudioFile = (type: string) => type.startsWith("audio/");
-
   const acceptedMembers = members.filter((m) => m.status === "accepted");
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
@@ -331,32 +459,7 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
             <div className="space-y-2 mb-1">
               {msg.attachments.map((att, idx) => (
                 <div key={idx}>
-                  {isAudioFile(att.type) ? (
-                    <VoiceMessagePlayer url={att.url} isOwn={isOwn} />
-                  ) : isImageFile(att.type) ? (
-                    <a href={att.url} target="_blank" rel="noopener noreferrer">
-                      <img
-                        src={att.url}
-                        alt={att.name}
-                        className="max-w-full rounded-lg max-h-64 object-cover"
-                      />
-                    </a>
-                  ) : (
-                    <a
-                      href={att.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-2 rounded-lg bg-background/50"
-                    >
-                      <FileText className="w-8 h-8 text-primary flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{att.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {att.size ? `${(att.size / 1024).toFixed(1)} KB` : "Document"}
-                        </p>
-                      </div>
-                    </a>
-                  )}
+                  <MessageAttachmentView attachment={att} isOwn={isOwn} />
                 </div>
               ))}
             </div>
@@ -513,7 +616,7 @@ export function TeamChatPanel({ userId }: TeamChatPanelProps) {
           <div className="flex gap-2 p-3 bg-muted/50 border-t overflow-x-auto">
             {pendingAttachments.map((att, idx) => (
               <div key={idx} className="relative flex-shrink-0">
-                {isImageFile(att.type) ? (
+                {isImageAttachment(att.type) && !att.encrypted ? (
                   <img src={att.url} alt={att.name} className="w-20 h-20 object-cover rounded-lg" />
                 ) : (
                   <div className="w-20 h-20 flex flex-col items-center justify-center bg-muted rounded-lg">

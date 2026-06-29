@@ -2029,7 +2029,7 @@ export function useOpenAIRealtime({
       // The edge function response is a dynamic Supabase payload whose shape
       // (client_secret.value, etc.) isn't typed upstream; `any` is the
       // correct, behavior-preserving choice for reading nested fields off it.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const { data, error } = (await Promise.race([edgeFunctionPromise, timeoutPromise])) as {
         data: any;
         error: { message?: string } | null;

@@ -71,6 +71,7 @@ jobs:
         run: |
           set -e
           for fn in \
+            supabase/functions/main/index.ts \
             supabase/functions/dori-execute-action/index.ts \
             supabase/functions/dori-plan-execute/index.ts \
             supabase/functions/generate-cancellation-email/index.ts \
@@ -80,7 +81,12 @@ jobs:
             supabase/functions/briefing-dispatch-cron/index.ts \
             supabase/functions/plaid-sync-cron/index.ts \
             supabase/functions/trip-prep-cron/index.ts \
-            supabase/functions/meeting-bot-reconciler-cron/index.ts
+            supabase/functions/meeting-bot-reconciler-cron/index.ts \
+            supabase/functions/meeting-bot-webhook/index.ts \
+            supabase/functions/telegram-poll/index.ts \
+            supabase/functions/telegram-router/index.ts \
+            supabase/functions/telegram-register-commands/index.ts \
+            supabase/functions/islamic-daily-hadith/index.ts
           do
             echo "::group::deno check $fn"
             deno check --no-lock "$fn"
@@ -88,7 +94,6 @@ jobs:
           done
 
       - name: Type-check all edge functions
-        continue-on-error: true # baseline-track; chat/shared helper typings are not clean yet
         run: |
           set -e
           fail=0
@@ -101,5 +106,5 @@ jobs:
           done
           exit $fail
 
-      - name: Test shared edge function utilities
-        run: deno test --allow-env --no-lock supabase/functions/_shared/
+      - name: Test edge function utilities
+        run: deno test --allow-env --no-lock supabase/functions/_shared/ supabase/functions/main/function-auth.test.ts

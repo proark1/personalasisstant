@@ -128,6 +128,25 @@ export async function encryptWithPublicKey(
   message: string,
   publicKey: CryptoKey,
 ): Promise<{ encryptedContent: string; encryptedKey: string }> {
+  const encrypted = await encryptForPublicKeys(message, { recipient: publicKey });
+  const encryptedKey = encrypted.encryptedKeys.recipient;
+  if (!encryptedKey) throw new Error("Failed to encrypt message key");
+  return {
+    encryptedContent: encrypted.encryptedContent,
+    encryptedKey,
+  };
+}
+
+// Encrypt one message body and wrap its AES key for every participant.
+export async function encryptForPublicKeys(
+  message: string,
+  publicKeys: Record<string, CryptoKey>,
+): Promise<{ encryptedContent: string; encryptedKeys: Record<string, string> }> {
+  const recipients = Object.entries(publicKeys);
+  if (recipients.length === 0) {
+    throw new Error("At least one recipient public key is required");
+  }
+
   // Generate a random AES key for this message
   const messageKey = await generateSymmetricKey();
 
@@ -143,15 +162,19 @@ export async function encryptWithPublicKey(
     encodedMessage,
   );
 
-  // Encrypt the AES key with the recipient's public key
+  // Encrypt the AES key with every participant's public key
   const exportedKey = await crypto.subtle.exportKey("raw", messageKey);
-  const encryptedKey = await crypto.subtle.encrypt(
-    {
-      name: ALGORITHM,
-    },
-    publicKey,
-    exportedKey,
-  );
+  const encryptedKeys: Record<string, string> = {};
+  for (const [recipientId, publicKey] of recipients) {
+    const encryptedKey = await crypto.subtle.encrypt(
+      {
+        name: ALGORITHM,
+      },
+      publicKey,
+      exportedKey,
+    );
+    encryptedKeys[recipientId] = arrayBufferToBase64(encryptedKey);
+  }
 
   // Combine IV and encrypted data
   const combined = new Uint8Array(iv.length + encryptedData.byteLength);
@@ -160,7 +183,7 @@ export async function encryptWithPublicKey(
 
   return {
     encryptedContent: arrayBufferToBase64(combined.buffer),
-    encryptedKey: arrayBufferToBase64(encryptedKey),
+    encryptedKeys,
   };
 }
 

@@ -1,13 +1,10 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { encryptAttachmentBlob } from "@/lib/chatAttachmentCrypto";
+import type { ChatAttachment } from "@/lib/chatMessages";
 
-export interface ChatAttachment {
-  name: string;
-  url: string;
-  type: string;
-  size: number;
-}
+export type { ChatAttachment } from "@/lib/chatMessages";
 
 export function useChatAttachments(userId: string) {
   const [uploading, setUploading] = useState(false);
@@ -20,12 +17,16 @@ export function useChatAttachments(userId: string) {
       setUploading(true);
       try {
         const fileExt = file.name.split(".").pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const { encryptedBlob, encryption } = await encryptAttachmentBlob(file);
+        const encryptedExt = fileExt ? `${fileExt}.enc` : "enc";
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${encryptedExt}`;
         const filePath = `${userId}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("chat-attachments")
-          .upload(filePath, file);
+          .upload(filePath, encryptedBlob, {
+            contentType: "application/octet-stream",
+          });
 
         if (uploadError) throw uploadError;
 
@@ -41,6 +42,8 @@ export function useChatAttachments(userId: string) {
           url: signed.signedUrl,
           type: file.type,
           size: file.size,
+          encrypted: true,
+          encryption,
         };
       } catch (error) {
         console.error("Error uploading file:", error);

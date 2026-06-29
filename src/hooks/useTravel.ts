@@ -120,7 +120,6 @@ export function useTravel() {
     if (userId) refresh();
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const addTrip = async (p: Partial<Trip>) => {
     if (!user) return;
     const { error } = await supabase.from("trips").insert({

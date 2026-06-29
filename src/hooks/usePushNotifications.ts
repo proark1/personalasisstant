@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import {
   PushNotifications,
@@ -24,6 +24,10 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
   const tokenRef = useRef<string | null>(null);
   const registeredRef = useRef(false);
   const optionsRef = useRef(options);
+  const [token, setToken] = useState<string | null>(null);
+  const [permissionStatus, setPermissionStatus] = useState<"granted" | "denied" | "prompt">(
+    "prompt",
+  );
 
   const isNative = Capacitor.isNativePlatform();
   const platform = Capacitor.getPlatform() as "ios" | "android" | "web";
@@ -53,6 +57,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
           console.error("Error saving push token:", error);
         } else {
           tokenRef.current = token;
+          setToken(token);
         }
       } catch (error) {
         console.error("Error saving push token:", error);
@@ -77,6 +82,8 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
         .delete()
         .eq("user_id", user.id)
         .eq("token", tokenRef.current);
+      tokenRef.current = null;
+      setToken(null);
     } catch (error) {
       console.error("Error removing push token:", error);
     }
@@ -96,12 +103,14 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
           : undefined;
 
       if (BrowserNotification?.permission === "granted") {
+        setPermissionStatus("granted");
         await registerServiceWorker();
         return true;
       }
 
       if (typeof BrowserNotification?.requestPermission === "function") {
         const permission = await BrowserNotification.requestPermission();
+        setPermissionStatus(permission === "granted" ? "granted" : "denied");
         if (permission === "granted") {
           await registerServiceWorker();
         }
@@ -116,15 +125,18 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
       const permStatus = await PushNotifications.checkPermissions();
 
       if (permStatus.receive === "granted") {
+        setPermissionStatus("granted");
         return true;
       }
 
       if (permStatus.receive === "denied") {
+        setPermissionStatus("denied");
         return false;
       }
 
       // Request permission
       const result = await PushNotifications.requestPermissions();
+      setPermissionStatus(result.receive === "granted" ? "granted" : "denied");
       return result.receive === "granted";
     } catch (error) {
       console.error("Error requesting push permission:", error);
@@ -331,17 +343,23 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" && tokenRef.current) {
+        saveTokenToDatabase(tokenRef.current);
+      }
       if (event === "SIGNED_OUT") {
         removeTokenFromDatabase();
+        tokenRef.current = null;
+        setToken(null);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [removeTokenFromDatabase]);
+  }, [removeTokenFromDatabase, saveTokenToDatabase]);
 
   return {
     isNative,
-    token: tokenRef.current,
+    token,
+    permissionStatus,
     requestPermission,
     requestLocalNotificationPermission,
     register,

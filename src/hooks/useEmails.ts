@@ -156,7 +156,6 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
     async (emailId: string, updates: Partial<Email>) => {
       if (!user) return;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await supabase
           .from("user_emails")
           .update(updates as any)
@@ -176,7 +175,6 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
     async (ids: string[], updates: Partial<Email>) => {
       if (!user || ids.length === 0) return;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await supabase
           .from("user_emails")
           .update(updates as any)
@@ -287,7 +285,6 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
       const domain = email.from_email.split("@")[1];
       if (domain) {
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const rulePayload = {
             user_id: user.id,
             sender_pattern: `*@${domain}`,
@@ -313,7 +310,6 @@ export function useEmails({ enabled = true, autoSync = true }: UseEmailsOptions 
     ) => {
       if (!user) return;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await supabase
           .from("email_sender_rules")
           .upsert({ user_id: user.id, sender_pattern: senderPattern, ...rule } as any, {

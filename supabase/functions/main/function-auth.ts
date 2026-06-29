@@ -1,3 +1,5 @@
+import { resolveUserId } from "../_shared/auth.ts";
+
 export type FunctionAuthMode = "public" | "user" | "service" | "webhook";
 
 export const FUNCTION_AUTH_MODES = {
@@ -91,7 +93,7 @@ export const FUNCTION_AUTH_MODES = {
   "telegram-link": "user",
   "telegram-poll": "webhook",
   "telegram-register-commands": "service",
-  "telegram-router": "webhook",
+  "telegram-router": "service",
   "telegram-weekly-briefing": "service",
   "text-to-speech": "user",
   "travel-intelligence": "public",
@@ -115,7 +117,10 @@ export function getFunctionAuthMode(fnName: string): FunctionAuthMode | null {
   return FUNCTION_AUTH_MODES[fnName as keyof typeof FUNCTION_AUTH_MODES] ?? null;
 }
 
-export function authorizeFunctionRequest(req: Request, fnName: string): Response | null {
+export async function authorizeFunctionRequest(
+  req: Request,
+  fnName: string,
+): Promise<Response | null> {
   if (req.method === "OPTIONS") return null;
 
   const authMode = getFunctionAuthMode(fnName);
@@ -123,17 +128,55 @@ export function authorizeFunctionRequest(req: Request, fnName: string): Response
     return authJson({ error: "function not found" }, 404);
   }
 
-  if (authMode === "public" || authMode === "webhook") return null;
-
   const authHeader = req.headers.get("Authorization") || "";
+  if (authMode === "public") return null;
+
+  if (authMode === "webhook") {
+    return authorizeWebhookRequest(req, fnName, authHeader);
+  }
+
   if (authMode === "user") {
-    return /^Bearer\s+\S+/i.test(authHeader)
-      ? null
-      : authJson({ error: "missing bearer token" }, 401);
+    if (!/^Bearer\s+\S+/i.test(authHeader)) {
+      return authJson({ error: "missing bearer token" }, 401);
+    }
+
+    const resolved = await resolveUserId(req);
+    return resolved ? null : authJson({ error: "invalid bearer token" }, 401);
   }
 
   if (hasServiceAccess(req, authHeader)) return null;
   return authJson({ error: "service authorization required" }, 403);
+}
+
+function authorizeWebhookRequest(
+  req: Request,
+  fnName: string,
+  authHeader: string,
+): Response | null {
+  if (hasServiceAccess(req, authHeader)) return null;
+
+  if (fnName === "telegram-poll") {
+    const secret = Deno.env.get("TELEGRAM_WEBHOOK_SECRET");
+    if (!secret && Deno.env.get("DORI_ALLOW_UNSECURED_TELEGRAM_WEBHOOK") === "true") return null;
+    if (!secret) return authJson({ error: "webhook secret not configured" }, 503);
+    return req.headers.get("x-telegram-bot-api-secret-token") === secret
+      ? null
+      : authJson({ error: "invalid webhook secret" }, 401);
+  }
+
+  if (fnName === "meeting-bot-webhook") {
+    if (!Deno.env.get("MEETINGBOT_WEBHOOK_SECRET")) {
+      return authJson({ error: "webhook secret not configured" }, 503);
+    }
+    const hasSignature = Boolean(
+      req.headers.get("x-meetingbot-signature") ||
+      req.headers.get("x-signature") ||
+      req.headers.get("webhook-signature"),
+    );
+    return hasSignature ? null : authJson({ error: "missing webhook signature" }, 401);
+  }
+
+  return null;
 }
 
 function hasServiceAccess(req: Request, authHeader: string): boolean {
@@ -153,6 +196,6 @@ function hasServiceAccess(req: Request, authHeader: string): boolean {
 function authJson(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 }
