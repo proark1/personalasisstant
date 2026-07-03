@@ -18,6 +18,10 @@ import {
   rejectPending,
   tgSendWithKeyboard,
 } from "../_shared/telegram-confirm.ts";
+import {
+  buildScheduleEventToolXml,
+  parseTelegramCalendarShortcut,
+} from "../_shared/telegram-calendar-shortcut.ts";
 import { buildTelegramMainReply, splitTelegramToolResults } from "../_shared/telegram-reply.ts";
 import {
   buildContractRowKeyboard,
@@ -2759,6 +2763,12 @@ Deno.serve(async (req) => {
   const recent = turns.slice(-12);
 
   const finalUserContent = forcedPrefix ? `${forcedPrefix}${payloadText}` : trimmed;
+  const deterministicCalendarEvent = !trimmed.startsWith("/")
+    ? parseTelegramCalendarShortcut(trimmed, { timeZone: userTimezone })
+    : null;
+  const preformedToolText = deterministicCalendarEvent
+    ? buildScheduleEventToolXml(deterministicCalendarEvent)
+    : undefined;
   const conversationMessages = [
     ...recent.map((t) => ({ role: t.role, content: t.content })),
     { role: "user" as const, content: finalUserContent },
@@ -2788,6 +2798,7 @@ Deno.serve(async (req) => {
         executeServerSide: true,
         actionSource: channel,
         actionSourceRef: String(chat_id),
+        preformedToolText,
         workspaceId: workspace_id || undefined,
         householdId: workspace_id || !group ? undefined : group.id,
       }),
