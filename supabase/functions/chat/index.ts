@@ -42,6 +42,10 @@ import {
   startAssistantTrace,
 } from "../_shared/assistant-observability.ts";
 import { classifyToolCall, type ToolPolicy } from "../_shared/assistant-tool-registry.ts";
+import {
+  evaluateTelegramToolGrounding,
+  isTelegramActionSource,
+} from "../_shared/telegram-replay-guard.ts";
 
 type SupabaseClient = DbClient;
 
@@ -1609,6 +1613,49 @@ const MUTATING_TOOLS: MutatingTool[] = [
   },
 ];
 
+function guardTelegramReplayToolText(text: string, opts?: ServerExecOpts): string {
+  if (!isTelegramActionSource(opts?.source) || !opts?.userText?.trim() || opts?.skipApprovalGate) {
+    return text;
+  }
+
+  let guardedText = text;
+  for (const spec of MUTATING_TOOLS) {
+    const fullRegex = new RegExp(spec.regex.source, "g");
+    const matches = [...text.matchAll(fullRegex)];
+    for (const match of matches) {
+      const parsed = spec.parse(match);
+      if (!parsed) continue;
+      const op = spec.classify(parsed.action, parsed.data);
+      if (!op) continue;
+
+      const summary = spec.summarize(parsed.action, parsed.data, opts?.timezone);
+      const grounding = evaluateTelegramToolGrounding(
+        {
+          tool: spec.tool,
+          action: parsed.action,
+          data: parsed.data,
+          summary,
+        },
+        opts.userText,
+      );
+      if (grounding.grounded) continue;
+
+      console.warn("[telegram replay guard] stripped stale tool call", {
+        source: opts.source,
+        sourceRef: opts.sourceRef,
+        tool: spec.tool,
+        action: parsed.action,
+        reason: grounding.reason,
+        evidenceTokens: grounding.evidenceTokens.slice(0, 12),
+        userTextExcerpt: opts.userText.slice(0, 160),
+      });
+      guardedText = guardedText.replace(parsed.fullMatch, "");
+    }
+  }
+
+  return guardedText;
+}
+
 // Resolve whether a given op on a given entity requires user confirmation.
 // Precedence: per-entity override > global op flag > master toggle.
 function requiresConfirmation(
@@ -1881,6 +1928,7 @@ async function executeToolsServerSide(
 ): Promise<ToolExecResult[]> {
   const out: ToolExecResult[] = [];
   if (!userId || userId === "anonymous") return out;
+  text = guardTelegramReplayToolText(text, opts);
 
   // Approval gate: inspect every mutating tool, look up the user's confirmation
   // preferences, and for any op that requires acknowledgment queue it in
@@ -8913,18 +8961,29 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               // every round. If we overwrote, the Telegram client — which
               // accumulated deltas across all rounds — would render something
               // different from the `reply` field in the final edit.
-              finalPromptText += (finalPromptText ? "\n\n" : "") + roundText;
-              totalStreamCompletionChars += roundText.length;
-              const roundResults = await executeToolsServerSide(roundText, userId, supabaseAdmin, {
+              const guardedRoundText = guardTelegramReplayToolText(roundText, {
                 source: effectiveSource,
                 sourceRef: effectiveSourceRef,
-                workspaceId: activeWorkspace?.id ?? null,
-                householdId,
-                workspaceMembers: activeWorkspace?.members,
                 timezone: userTimezone,
                 userText: lastUserMsg,
-                traceId: assistantTrace.traceId,
               });
+              finalPromptText += (finalPromptText ? "\n\n" : "") + guardedRoundText;
+              totalStreamCompletionChars += roundText.length;
+              const roundResults = await executeToolsServerSide(
+                guardedRoundText,
+                userId,
+                supabaseAdmin,
+                {
+                  source: effectiveSource,
+                  sourceRef: effectiveSourceRef,
+                  workspaceId: activeWorkspace?.id ?? null,
+                  householdId,
+                  workspaceMembers: activeWorkspace?.members,
+                  timezone: userTimezone,
+                  userText: lastUserMsg,
+                  traceId: assistantTrace.traceId,
+                },
+              );
               allExecResults.push(...roundResults);
               for (const r of roundResults) {
                 emit({ type: "tool", ...r });
@@ -8951,7 +9010,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               // Feed the round's output + results back for the next AI call.
               // buildToolObservation adds explicit self-correction guidance on
               // failures so the model retries/asks instead of faking success.
-              conversationMsgs.push({ role: "assistant", content: roundText });
+              conversationMsgs.push({ role: "assistant", content: guardedRoundText });
               conversationMsgs.push({
                 role: "system",
                 content: buildToolObservation(roundResults),
@@ -9108,7 +9167,6 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
         }
         const aiData = await fullResp.json();
         const roundText: string = flattenAssistantMessage(aiData.choices?.[0]?.message);
-        finalText = roundText;
         totalPromptTokens += aiData.usage?.prompt_tokens || 0;
         totalCompletionTokens += aiData.usage?.completion_tokens || 0;
 
@@ -9121,16 +9179,28 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               ? "tg_private"
               : "web");
         const effectiveSourceRef = actionSourceRef ?? tgChannelRef ?? null;
-        const roundResults = await executeToolsServerSide(roundText, userId, supabaseAdmin, {
+        const guardedRoundText = guardTelegramReplayToolText(roundText, {
           source: effectiveSource,
           sourceRef: effectiveSourceRef,
-          workspaceId: activeWorkspace?.id ?? null,
-          householdId,
-          workspaceMembers: activeWorkspace?.members,
           timezone: userTimezone,
           userText: lastUserMsg,
-          traceId: assistantTrace.traceId,
         });
+        finalText = guardedRoundText;
+        const roundResults = await executeToolsServerSide(
+          guardedRoundText,
+          userId,
+          supabaseAdmin,
+          {
+            source: effectiveSource,
+            sourceRef: effectiveSourceRef,
+            workspaceId: activeWorkspace?.id ?? null,
+            householdId,
+            workspaceMembers: activeWorkspace?.members,
+            timezone: userTimezone,
+            userText: lastUserMsg,
+            traceId: assistantTrace.traceId,
+          },
+        );
         allExecResults.push(...roundResults);
 
         if (roundResults.length === 0) break;
@@ -9151,7 +9221,7 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
           maxAgentRounds = Math.max(maxAgentRounds, esc.maxRounds);
         }
 
-        conversationMsgs.push({ role: "assistant", content: roundText });
+        conversationMsgs.push({ role: "assistant", content: guardedRoundText });
         conversationMsgs.push({ role: "system", content: buildToolObservation(roundResults) });
       }
 
@@ -9177,19 +9247,30 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
             const vText: string = flattenAssistantMessage(vData.choices?.[0]?.message);
             totalPromptTokens += vData.usage?.prompt_tokens || 0;
             totalCompletionTokens += vData.usage?.completion_tokens || 0;
-            const vResults = await executeToolsServerSide(vText, userId, supabaseAdmin, {
+            const guardedVText = guardTelegramReplayToolText(vText, {
               source: verifySource,
               sourceRef: verifySourceRef,
-              workspaceId: activeWorkspace?.id ?? null,
-              householdId,
-              workspaceMembers: activeWorkspace?.members,
               timezone: userTimezone,
               userText: lastUserMsg,
-              traceId: assistantTrace.traceId,
             });
+            const vResults = await executeToolsServerSide(
+              guardedVText,
+              userId,
+              supabaseAdmin,
+              {
+                source: verifySource,
+                sourceRef: verifySourceRef,
+                workspaceId: activeWorkspace?.id ?? null,
+                householdId,
+                workspaceMembers: activeWorkspace?.members,
+                timezone: userTimezone,
+                userText: lastUserMsg,
+                traceId: assistantTrace.traceId,
+              },
+            );
             if (vResults.length > 0) {
               allExecResults.push(...vResults);
-              finalText = vText;
+              finalText = guardedVText;
             }
           }
         } catch (e) {

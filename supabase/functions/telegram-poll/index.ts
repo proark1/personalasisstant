@@ -2747,6 +2747,7 @@ Deno.serve(async (req) => {
                   telegram_username: fromUsername,
                   telegram_first_name: fromFirstName,
                   workspace_id: wsLink?.workspace_id || null,
+                  was_voice: !!textFromVoice,
                 }),
               });
             } catch (e) {

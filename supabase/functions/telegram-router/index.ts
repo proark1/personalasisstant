@@ -1587,6 +1587,7 @@ Deno.serve(async (req) => {
     telegram_first_name,
     telegram_username,
     workspace_id: requestedWorkspaceId,
+    was_voice,
   } = await req.json();
 
   // Resolve group context. A Telegram group can be linked as a family group or
@@ -2887,7 +2888,12 @@ Deno.serve(async (req) => {
 
     // If there was nothing to say AND nothing queued, keep the old "got it" behaviour.
     if (!finalMsg && queued.length === 0) {
-      await tgSend(chat_id, "Got it.");
+      await tgSend(
+        chat_id,
+        was_voice
+          ? "I heard it, but I couldn't find a clear action to take. Try saying the task, date, and time in one sentence."
+          : "Got it.",
+      );
     }
 
     return new Response('{"ok":true}', { headers: corsHeaders });

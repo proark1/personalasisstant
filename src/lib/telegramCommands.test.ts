@@ -85,6 +85,11 @@ describe("Telegram group intent detection", () => {
     expect(isTelegramGroupActionableText("Termin morgen 14 Uhr Zahnarzt")).toBe(true);
     expect(isTelegramGroupActionableText("Milch auf die Einkaufsliste")).toBe(true);
     expect(isTelegramGroupActionableText("verschieb das Meeting auf Freitag")).toBe(true);
+    expect(
+      isTelegramGroupActionableText(
+        "In den Kalender eintragen, jeden Donnerstag Asad und Tugba gehen zusammen fruehstuecken",
+      ),
+    ).toBe(true);
   });
 
   it("does not wake the bot for ordinary group chatter", () => {
