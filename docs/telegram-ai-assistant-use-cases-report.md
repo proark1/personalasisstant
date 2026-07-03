@@ -36,108 +36,108 @@ Status labels:
 
 ## 100 Telegram Use Cases
 
-| # | User Use Case | Status | Notes / Gap |
-|---:|---|---|---|
-| 1 | Send a voice note to add a task. | Partial | STT exists and injects text; reported group acting bug means reliability is not done. |
-| 2 | Send a voice note to create a calendar event. | Partial | Core event tools exist; needs robust group execution after transcript. |
-| 3 | Send a voice note to set a reminder. | Partial | Reminder tool exists; ambiguity/confirmation handling needs stronger voice UX. |
-| 4 | Dictate a long brain dump and ask Dori to turn it into tasks. | Partial | `delegate` pattern exists; needs better batching and confirmation summary in Telegram. |
-| 5 | Dictate a note for later. | Supported | Notes tools and voice transcription exist. |
-| 6 | Voice ask "what's today?" and receive agenda. | Supported | `/me`, `/today`, agenda and voice reply preference exist. |
-| 7 | Voice ask for a news summary. | Supported | `/news voice` and natural "news + voice" detection exist. |
-| 8 | Voice ask to summarize a document previously uploaded. | Partial | Document extraction and summarize tool exist; voice follow-up context may be fragile. |
-| 9 | Voice ask in German to add "Termin morgen 14 Uhr". | Partial | German support exists, but needs golden voice/action tests. |
-| 10 | Voice ask for a shopping item to be added. | Partial | Shopping tools exist; group voice action reliability needs hardening. |
-| 11 | Voice correct a previous transcript. | Gap | Transcript echo exists, but no explicit correction workflow. |
-| 12 | Voice reply "yes, do it" to approve a pending action. | Partial | Yes/no classifier includes German and casual terms, but voice quirks need test coverage. |
-| 13 | Voice reply "cancel" to reject an action. | Partial | Classifier supports no/cancel terms; needs STT confidence handling. |
-| 14 | Voice enable or disable voice replies. | Supported | `/voice on/off` and settings command can steer preferences. |
-| 15 | Receive long answers as a short voice summary plus text details. | Partial | Voice digest pattern exists; generic long-answer audio summary button is not built. |
-| 16 | Type natural-language task creation. | Supported | Core task tools and private/group routing exist. |
-| 17 | Type natural-language calendar creation. | Supported | Event tools, recurrence, household/workspace context exist. |
-| 18 | Type "move dentist to Friday". | Supported | Event update/search tools exist; ambiguity still needs confirmation. |
-| 19 | Type "delete that task". | Partial | Delete tools exist; pronoun/history scoping must be reliable per chat. |
-| 20 | Type "undo that". | Supported | `/undo`, inline undo buttons, and undo log exist. |
-| 21 | Type a slash command like `/add Pay electricity bill`. | Supported | Command list and router support quick add. |
-| 22 | Type in German without slash commands. | Partial | Model and command sets support German; deterministic German NLU tests are thin. |
-| 23 | Paste a long article and ask for a summary. | Partial | Web/document summarization exists; long Telegram text can confuse action history unless guarded. |
-| 24 | Paste a URL and ask for key points. | Supported | Webpage summarization tool exists. |
-| 25 | Ask "what can you do?" | Supported | Capability/help tools and help commands exist. |
-| 26 | Ask "what did you do today?" | Supported | Recap/recent actions tools exist. |
-| 27 | Ask "what should I do now?" | Supported | `/now` quick command exists. |
-| 28 | Ask for a structured plan. | Supported | `/plan` and planning prompt exist. |
-| 29 | Delegate a multi-step job. | Partial | `/delegate` exists; execution plans exist, but Telegram plan UX needs polish. |
-| 30 | Search memories or ask what Dori remembers. | Supported | `/memory`, memory state and semantic memory exist. |
-| 31 | Send 👍 as approval. | Supported | Confirmation classifier treats thumbs up as yes. |
-| 32 | Send ✅ as approval. | Supported | Confirmation classifier handles checkmark. |
-| 33 | Send ❌ as rejection. | Supported | Confirmation classifier handles cross mark. |
-| 34 | Send 👎 as rejection. | Supported | Confirmation classifier handles thumbs down. |
-| 35 | React to a bot message with an emoji reaction. | Gap | Telegram `message_reaction` updates are not in allowed update types. |
-| 36 | Send 😂/❤️ as emotional feedback. | Gap | No learning loop maps general emoji sentiment to preferences. |
-| 37 | Tap inline "Yes, do it" / "Cancel" buttons. | Supported | Confirmation keyboards and callback handlers exist. |
-| 38 | Use emoji to rate news/content ideas. | Gap | Content idea liking exists in app; Telegram emoji feedback is not wired. |
-| 39 | Ask "what's the latest news?" | Supported | Chat web search detects news/current queries. |
-| 40 | Ask for a spoken news briefing. | Supported | News voice path exists in poll/router. |
-| 41 | Ask for local news based on location. | Partial | News generator accepts location; Telegram topic/location preferences need clearer UX. |
-| 42 | Subscribe to daily news topics. | Partial | Briefing/news preferences exist, but Telegram setup commands are not obvious. |
-| 43 | Ask for tech/business/productivity headlines. | Supported | `generateNews` defaults to technology/business/productivity. |
-| 44 | Ask for "only AI startup news". | Partial | News generator accepts topics, but Telegram `/news voice` currently calls empty topics. |
-| 45 | Ask "send links too". | Supported | News message includes links after voice summary. |
-| 46 | Ask for news in German. | Partial | Locale exists; news voice title/copy appears English-centric. |
-| 47 | Ask for "why this news matters to me". | Partial | Core model can reason; no saved interest-weighting/ranking loop in Telegram. |
-| 48 | Ask for a weekly news recap. | Partial | Briefing machinery exists; Telegram weekly personalized news workflow is unclear. |
-| 49 | Ask to save a news item as a note. | Supported | Web/news plus note tools can do this. |
-| 50 | Ask to create reminders from news events. | Partial | Possible via tool chaining; high risk of hallucinated dates without explicit confirmation. |
-| 51 | Ask "turn today's AI news into content ideas". | Gap | Content Studio can generate trending ideas, but Telegram command bridge is missing. |
-| 52 | Receive daily creator content ideas in Telegram. | Partial | Content profile supports `channels: ["push","telegram"]`; delivery UX needs verification. |
-| 53 | Like/dismiss a content idea from Telegram. | Gap | Content idea statuses exist; Telegram inline buttons are not exposed for ideas. |
-| 54 | Generate a TikTok/Reels/Shorts script from an idea. | Gap | `content-script` exists, but Telegram command/callback is not wired. |
-| 55 | Ask for YouTube long-form script from a liked idea. | Gap | Backend exists; Telegram UX absent. |
-| 56 | Ask for captions/hashtags per platform. | Gap | Script generator supports platform variants; Telegram workflow absent. |
-| 57 | Ask for "make it punchier/shorter/longer". | Gap | Script variations exist; Telegram bridge absent. |
-| 58 | Ask for evergreen content ideas, not news. | Gap | Content Studio supports knowledge mode; no Telegram command. |
-| 59 | Ask for a content calendar from ideas. | Partial | Calendar tools and content ideas exist, but no direct content scheduling flow. |
-| 60 | Ask "what should I post today?" | Partial | App feature exists; Telegram could answer through general AI, but not a polished flow. |
-| 61 | Get morning family digest. | Supported | Family digest and cron/morning flow exist. |
-| 62 | Get morning voice digest. | Supported | Group voice digest settings and voice script exist. |
-| 63 | Ask for today's agenda with tappable cards. | Supported | `/today`, `/tomorrow`, event/task row keyboards exist. |
-| 64 | Mark a task done from an inline button. | Supported | Task callback handlers exist. |
-| 65 | Snooze a task from Telegram. | Supported | Agenda/task callbacks and `/snooze` exist. |
-| 66 | Search notes from Telegram. | Supported | `/notes` and note tools exist. |
-| 67 | Append to an existing note. | Supported | `append_note` exists. |
-| 68 | Log an expense. | Supported | `/expense` and expense tool exist. |
-| 69 | Ask "how much did I spend this month?" | Supported | `/spent` and spend summary tool exist. |
-| 70 | Ask weather. | Supported | `/weather` and weather tool exist. |
-| 71 | Convert currency. | Supported | `/fx` exists. |
-| 72 | Ask timezone/time in another city. | Supported | `/tz` exists. |
-| 73 | Track a flight. | Partial | `/flight` command exists; depth of live flight integration unclear. |
-| 74 | Set focus/quiet mode. | Supported | `/focus`, `/quiet`, settings command exist. |
-| 75 | Ask for last actions/recent mutations. | Supported | `/recent`, recent action tool exist. |
-| 76 | Add family shopping items. | Supported | `/buy`, `/shopping`, shopping tools exist. |
-| 77 | Check off shopping list items with buttons. | Supported | Shopping callback handlers exist. |
-| 78 | Ask who has a chore next. | Supported | `/whoseturn` and chores command exist. |
-| 79 | Ask for today's meal/menu. | Supported | `/menu` exists. |
-| 80 | Send a message to spouse/family member through Dori. | Partial | `send_family_message` exists and approval-gated; Telegram recipient linking must be reliable. |
-| 81 | Create a family poll. | Supported | Telegram native poll tool exists. |
-| 82 | Ask about birthdays. | Supported | `/birthdays` exists. |
-| 83 | Add school/kid logistics. | Partial | Family tools exist; Telegram-specific structured kid workflows are not visible. |
-| 84 | Share a school notice photo and extract tasks/events. | Partial | Photo intake exists; needs strong confirmation and extraction tests. |
-| 85 | Link family members by Telegram username. | Supported | Roster auto-accept and `/linkme` exist. |
-| 86 | Link a workspace group. | Supported | `/linkworkspace` and workspace links exist. |
-| 87 | Add workspace task from group chat. | Supported | Workspace route exists; should still be regression-tested after recent fixes. |
-| 88 | Assign a task to teammate by name. | Partial | Workspace members are injected; assignee resolution needs tests. |
-| 89 | Add a workspace event. | Supported | Workspace event scoping exists. |
-| 90 | Find a meeting time with teammates. | Supported | `/schedule` and slot ranking exist. |
-| 91 | Run standup summary. | Supported | `/standup` exists. |
-| 92 | Run weekly workspace recap. | Supported | `/recap` exists. |
-| 93 | Comment on a workspace task. | Supported | `/comment <task> :: <text>` exists. |
-| 94 | Review workspace blockers and next moves. | Partial | `/review` exists; workspace-specific review quality depends on context hydration. |
-| 95 | Use Telegram supergroup topics as separate project threads. | Not built | No topic/thread-specific routing visible. |
-| 96 | Onboard a new Telegram user safely. | Partial | Link codes exist; setup UX and diagnostics can improve. |
-| 97 | Diagnose webhook/bot health. | Supported | Telegram diagnostics exist, but should cover permission/privacy more deeply. |
-| 98 | Manage approval inbox. | Supported | `/approvals`, inline approvals, pending queue exist. |
-| 99 | Avoid accidental duplicate actions from old group history. | Gap | This is the reported replay bug; needs deterministic latest-turn guard. |
-| 100 | Enforce privacy/security for group actions. | Partial | User mapping and callback ownership checks exist; group mode/privacy diagnostics need more UX. |
+|   # | User Use Case                                                    | Status    | Notes / Gap                                                                                      |
+| --: | ---------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------ |
+|   1 | Send a voice note to add a task.                                 | Partial   | STT exists and injects text; reported group acting bug means reliability is not done.            |
+|   2 | Send a voice note to create a calendar event.                    | Partial   | Core event tools exist; needs robust group execution after transcript.                           |
+|   3 | Send a voice note to set a reminder.                             | Partial   | Reminder tool exists; ambiguity/confirmation handling needs stronger voice UX.                   |
+|   4 | Dictate a long brain dump and ask Dori to turn it into tasks.    | Partial   | `delegate` pattern exists; needs better batching and confirmation summary in Telegram.           |
+|   5 | Dictate a note for later.                                        | Supported | Notes tools and voice transcription exist.                                                       |
+|   6 | Voice ask "what's today?" and receive agenda.                    | Supported | `/me`, `/today`, agenda and voice reply preference exist.                                        |
+|   7 | Voice ask for a news summary.                                    | Supported | `/news voice` and natural "news + voice" detection exist.                                        |
+|   8 | Voice ask to summarize a document previously uploaded.           | Partial   | Document extraction and summarize tool exist; voice follow-up context may be fragile.            |
+|   9 | Voice ask in German to add "Termin morgen 14 Uhr".               | Partial   | German support exists, but needs golden voice/action tests.                                      |
+|  10 | Voice ask for a shopping item to be added.                       | Partial   | Shopping tools exist; group voice action reliability needs hardening.                            |
+|  11 | Voice correct a previous transcript.                             | Gap       | Transcript echo exists, but no explicit correction workflow.                                     |
+|  12 | Voice reply "yes, do it" to approve a pending action.            | Partial   | Yes/no classifier includes German and casual terms, but voice quirks need test coverage.         |
+|  13 | Voice reply "cancel" to reject an action.                        | Partial   | Classifier supports no/cancel terms; needs STT confidence handling.                              |
+|  14 | Voice enable or disable voice replies.                           | Supported | `/voice on/off` and settings command can steer preferences.                                      |
+|  15 | Receive long answers as a short voice summary plus text details. | Partial   | Voice digest pattern exists; generic long-answer audio summary button is not built.              |
+|  16 | Type natural-language task creation.                             | Supported | Core task tools and private/group routing exist.                                                 |
+|  17 | Type natural-language calendar creation.                         | Supported | Event tools, recurrence, household/workspace context exist.                                      |
+|  18 | Type "move dentist to Friday".                                   | Supported | Event update/search tools exist; ambiguity still needs confirmation.                             |
+|  19 | Type "delete that task".                                         | Partial   | Delete tools exist; pronoun/history scoping must be reliable per chat.                           |
+|  20 | Type "undo that".                                                | Supported | `/undo`, inline undo buttons, and undo log exist.                                                |
+|  21 | Type a slash command like `/add Pay electricity bill`.           | Supported | Command list and router support quick add.                                                       |
+|  22 | Type in German without slash commands.                           | Partial   | Model and command sets support German; deterministic German NLU tests are thin.                  |
+|  23 | Paste a long article and ask for a summary.                      | Partial   | Web/document summarization exists; long Telegram text can confuse action history unless guarded. |
+|  24 | Paste a URL and ask for key points.                              | Supported | Webpage summarization tool exists.                                                               |
+|  25 | Ask "what can you do?"                                           | Supported | Capability/help tools and help commands exist.                                                   |
+|  26 | Ask "what did you do today?"                                     | Supported | Recap/recent actions tools exist.                                                                |
+|  27 | Ask "what should I do now?"                                      | Supported | `/now` quick command exists.                                                                     |
+|  28 | Ask for a structured plan.                                       | Supported | `/plan` and planning prompt exist.                                                               |
+|  29 | Delegate a multi-step job.                                       | Partial   | `/delegate` exists; execution plans exist, but Telegram plan UX needs polish.                    |
+|  30 | Search memories or ask what Dori remembers.                      | Supported | `/memory`, memory state and semantic memory exist.                                               |
+|  31 | Send 👍 as approval.                                             | Supported | Confirmation classifier treats thumbs up as yes.                                                 |
+|  32 | Send ✅ as approval.                                             | Supported | Confirmation classifier handles checkmark.                                                       |
+|  33 | Send ❌ as rejection.                                            | Supported | Confirmation classifier handles cross mark.                                                      |
+|  34 | Send 👎 as rejection.                                            | Supported | Confirmation classifier handles thumbs down.                                                     |
+|  35 | React to a bot message with an emoji reaction.                   | Gap       | Telegram `message_reaction` updates are not in allowed update types.                             |
+|  36 | Send 😂/❤️ as emotional feedback.                                | Gap       | No learning loop maps general emoji sentiment to preferences.                                    |
+|  37 | Tap inline "Yes, do it" / "Cancel" buttons.                      | Supported | Confirmation keyboards and callback handlers exist.                                              |
+|  38 | Use emoji to rate news/content ideas.                            | Gap       | Content idea liking exists in app; Telegram emoji feedback is not wired.                         |
+|  39 | Ask "what's the latest news?"                                    | Supported | Chat web search detects news/current queries.                                                    |
+|  40 | Ask for a spoken news briefing.                                  | Supported | News voice path exists in poll/router.                                                           |
+|  41 | Ask for local news based on location.                            | Partial   | News generator accepts location; Telegram topic/location preferences need clearer UX.            |
+|  42 | Subscribe to daily news topics.                                  | Partial   | Briefing/news preferences exist, but Telegram setup commands are not obvious.                    |
+|  43 | Ask for tech/business/productivity headlines.                    | Supported | `generateNews` defaults to technology/business/productivity.                                     |
+|  44 | Ask for "only AI startup news".                                  | Partial   | News generator accepts topics, but Telegram `/news voice` currently calls empty topics.          |
+|  45 | Ask "send links too".                                            | Supported | News message includes links after voice summary.                                                 |
+|  46 | Ask for news in German.                                          | Partial   | Locale exists; news voice title/copy appears English-centric.                                    |
+|  47 | Ask for "why this news matters to me".                           | Partial   | Core model can reason; no saved interest-weighting/ranking loop in Telegram.                     |
+|  48 | Ask for a weekly news recap.                                     | Partial   | Briefing machinery exists; Telegram weekly personalized news workflow is unclear.                |
+|  49 | Ask to save a news item as a note.                               | Supported | Web/news plus note tools can do this.                                                            |
+|  50 | Ask to create reminders from news events.                        | Partial   | Possible via tool chaining; high risk of hallucinated dates without explicit confirmation.       |
+|  51 | Ask "turn today's AI news into content ideas".                   | Gap       | Content Studio can generate trending ideas, but Telegram command bridge is missing.              |
+|  52 | Receive daily creator content ideas in Telegram.                 | Partial   | Content profile supports `channels: ["push","telegram"]`; delivery UX needs verification.        |
+|  53 | Like/dismiss a content idea from Telegram.                       | Gap       | Content idea statuses exist; Telegram inline buttons are not exposed for ideas.                  |
+|  54 | Generate a TikTok/Reels/Shorts script from an idea.              | Gap       | `content-script` exists, but Telegram command/callback is not wired.                             |
+|  55 | Ask for YouTube long-form script from a liked idea.              | Gap       | Backend exists; Telegram UX absent.                                                              |
+|  56 | Ask for captions/hashtags per platform.                          | Gap       | Script generator supports platform variants; Telegram workflow absent.                           |
+|  57 | Ask for "make it punchier/shorter/longer".                       | Gap       | Script variations exist; Telegram bridge absent.                                                 |
+|  58 | Ask for evergreen content ideas, not news.                       | Gap       | Content Studio supports knowledge mode; no Telegram command.                                     |
+|  59 | Ask for a content calendar from ideas.                           | Partial   | Calendar tools and content ideas exist, but no direct content scheduling flow.                   |
+|  60 | Ask "what should I post today?"                                  | Partial   | App feature exists; Telegram could answer through general AI, but not a polished flow.           |
+|  61 | Get morning family digest.                                       | Supported | Family digest and cron/morning flow exist.                                                       |
+|  62 | Get morning voice digest.                                        | Supported | Group voice digest settings and voice script exist.                                              |
+|  63 | Ask for today's agenda with tappable cards.                      | Supported | `/today`, `/tomorrow`, event/task row keyboards exist.                                           |
+|  64 | Mark a task done from an inline button.                          | Supported | Task callback handlers exist.                                                                    |
+|  65 | Snooze a task from Telegram.                                     | Supported | Agenda/task callbacks and `/snooze` exist.                                                       |
+|  66 | Search notes from Telegram.                                      | Supported | `/notes` and note tools exist.                                                                   |
+|  67 | Append to an existing note.                                      | Supported | `append_note` exists.                                                                            |
+|  68 | Log an expense.                                                  | Supported | `/expense` and expense tool exist.                                                               |
+|  69 | Ask "how much did I spend this month?"                           | Supported | `/spent` and spend summary tool exist.                                                           |
+|  70 | Ask weather.                                                     | Supported | `/weather` and weather tool exist.                                                               |
+|  71 | Convert currency.                                                | Supported | `/fx` exists.                                                                                    |
+|  72 | Ask timezone/time in another city.                               | Supported | `/tz` exists.                                                                                    |
+|  73 | Track a flight.                                                  | Partial   | `/flight` command exists; depth of live flight integration unclear.                              |
+|  74 | Set focus/quiet mode.                                            | Supported | `/focus`, `/quiet`, settings command exist.                                                      |
+|  75 | Ask for last actions/recent mutations.                           | Supported | `/recent`, recent action tool exist.                                                             |
+|  76 | Add family shopping items.                                       | Supported | `/buy`, `/shopping`, shopping tools exist.                                                       |
+|  77 | Check off shopping list items with buttons.                      | Supported | Shopping callback handlers exist.                                                                |
+|  78 | Ask who has a chore next.                                        | Supported | `/whoseturn` and chores command exist.                                                           |
+|  79 | Ask for today's meal/menu.                                       | Supported | `/menu` exists.                                                                                  |
+|  80 | Send a message to spouse/family member through Dori.             | Partial   | `send_family_message` exists and approval-gated; Telegram recipient linking must be reliable.    |
+|  81 | Create a family poll.                                            | Supported | Telegram native poll tool exists.                                                                |
+|  82 | Ask about birthdays.                                             | Supported | `/birthdays` exists.                                                                             |
+|  83 | Add school/kid logistics.                                        | Partial   | Family tools exist; Telegram-specific structured kid workflows are not visible.                  |
+|  84 | Share a school notice photo and extract tasks/events.            | Partial   | Photo intake exists; needs strong confirmation and extraction tests.                             |
+|  85 | Link family members by Telegram username.                        | Supported | Roster auto-accept and `/linkme` exist.                                                          |
+|  86 | Link a workspace group.                                          | Supported | `/linkworkspace` and workspace links exist.                                                      |
+|  87 | Add workspace task from group chat.                              | Supported | Workspace route exists; should still be regression-tested after recent fixes.                    |
+|  88 | Assign a task to teammate by name.                               | Partial   | Workspace members are injected; assignee resolution needs tests.                                 |
+|  89 | Add a workspace event.                                           | Supported | Workspace event scoping exists.                                                                  |
+|  90 | Find a meeting time with teammates.                              | Supported | `/schedule` and slot ranking exist.                                                              |
+|  91 | Run standup summary.                                             | Supported | `/standup` exists.                                                                               |
+|  92 | Run weekly workspace recap.                                      | Supported | `/recap` exists.                                                                                 |
+|  93 | Comment on a workspace task.                                     | Supported | `/comment <task> :: <text>` exists.                                                              |
+|  94 | Review workspace blockers and next moves.                        | Partial   | `/review` exists; workspace-specific review quality depends on context hydration.                |
+|  95 | Use Telegram supergroup topics as separate project threads.      | Not built | No topic/thread-specific routing visible.                                                        |
+|  96 | Onboard a new Telegram user safely.                              | Partial   | Link codes exist; setup UX and diagnostics can improve.                                          |
+|  97 | Diagnose webhook/bot health.                                     | Supported | Telegram diagnostics exist, but should cover permission/privacy more deeply.                     |
+|  98 | Manage approval inbox.                                           | Supported | `/approvals`, inline approvals, pending queue exist.                                             |
+|  99 | Avoid accidental duplicate actions from old group history.       | Gap       | This is the reported replay bug; needs deterministic latest-turn guard.                          |
+| 100 | Enforce privacy/security for group actions.                      | Partial   | User mapping and callback ownership checks exist; group mode/privacy diagnostics need more UX.   |
 
 ## Coverage Summary
 

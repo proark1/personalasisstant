@@ -9186,21 +9186,16 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
           userText: lastUserMsg,
         });
         finalText = guardedRoundText;
-        const roundResults = await executeToolsServerSide(
-          guardedRoundText,
-          userId,
-          supabaseAdmin,
-          {
-            source: effectiveSource,
-            sourceRef: effectiveSourceRef,
-            workspaceId: activeWorkspace?.id ?? null,
-            householdId,
-            workspaceMembers: activeWorkspace?.members,
-            timezone: userTimezone,
-            userText: lastUserMsg,
-            traceId: assistantTrace.traceId,
-          },
-        );
+        const roundResults = await executeToolsServerSide(guardedRoundText, userId, supabaseAdmin, {
+          source: effectiveSource,
+          sourceRef: effectiveSourceRef,
+          workspaceId: activeWorkspace?.id ?? null,
+          householdId,
+          workspaceMembers: activeWorkspace?.members,
+          timezone: userTimezone,
+          userText: lastUserMsg,
+          traceId: assistantTrace.traceId,
+        });
         allExecResults.push(...roundResults);
 
         if (roundResults.length === 0) break;
@@ -9253,21 +9248,16 @@ Format: <tool>cancel_subscription</tool><cancel>{"contract_id":"uuid","tone":"fo
               timezone: userTimezone,
               userText: lastUserMsg,
             });
-            const vResults = await executeToolsServerSide(
-              guardedVText,
-              userId,
-              supabaseAdmin,
-              {
-                source: verifySource,
-                sourceRef: verifySourceRef,
-                workspaceId: activeWorkspace?.id ?? null,
-                householdId,
-                workspaceMembers: activeWorkspace?.members,
-                timezone: userTimezone,
-                userText: lastUserMsg,
-                traceId: assistantTrace.traceId,
-              },
-            );
+            const vResults = await executeToolsServerSide(guardedVText, userId, supabaseAdmin, {
+              source: verifySource,
+              sourceRef: verifySourceRef,
+              workspaceId: activeWorkspace?.id ?? null,
+              householdId,
+              workspaceMembers: activeWorkspace?.members,
+              timezone: userTimezone,
+              userText: lastUserMsg,
+              traceId: assistantTrace.traceId,
+            });
             if (vResults.length > 0) {
               allExecResults.push(...vResults);
               finalText = guardedVText;
