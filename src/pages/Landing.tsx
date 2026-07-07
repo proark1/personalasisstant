@@ -54,7 +54,7 @@ const features: Feature[] = [
     icon: Brain,
     title: "Turns chaos into a plan",
     description:
-      "Dori takes loose thoughts, overdue tasks, and calendar pressure and turns them into a realistic next move.",
+      "Drop in the messy version. Dori turns it into a realistic next move you can start now.",
     detail: "Daily focus",
     className: "bg-emerald-50 text-emerald-700 border-emerald-200",
   },
@@ -62,15 +62,14 @@ const features: Feature[] = [
     icon: Calendar,
     title: "Protects your schedule",
     description:
-      "Meetings, deadlines, routines, prep work, and conflicts stay visible before they become urgent.",
+      "Meetings, deadlines, prep work, and conflicts stay visible before they become urgent.",
     detail: "Time aware",
     className: "bg-sky-50 text-sky-700 border-sky-200",
   },
   {
     icon: Users,
     title: "Runs family logistics",
-    description:
-      "Meals, shopping, school notes, shared reminders, and household follow-ups move through one assistant.",
+    description: "Meals, shopping, school notes, and shared reminders move through one assistant.",
     detail: "Shared context",
     className: "bg-violet-50 text-violet-700 border-violet-200",
   },
@@ -86,7 +85,7 @@ const features: Feature[] = [
     icon: Wallet,
     title: "Catches money leaks",
     description:
-      "Subscriptions, renewals, bills, and contracts get surfaced while there is still time to act.",
+      "Subscriptions, renewals, bills, and contracts surface while there is still time to act.",
     detail: "Cost control",
     className: "bg-amber-50 text-amber-700 border-amber-200",
   },
@@ -94,7 +93,7 @@ const features: Feature[] = [
     icon: Shield,
     title: "Understands your context",
     description:
-      "DarAI is not a blank chatbot. It works from your authenticated workspace, history, and connected life modules.",
+      "DarAI works from your authenticated workspace, history, and connected daily context.",
     detail: "Personalized",
     className: "bg-slate-50 text-slate-700 border-slate-200",
   },
@@ -121,8 +120,8 @@ const workflow: WorkflowStep[] = [
 ];
 
 const proofPoints = [
-  { label: "Life modules connected", value: "10+", icon: LayoutDashboard },
-  { label: "Automated workflows", value: "22", icon: Bot },
+  { label: "Tasks, calendar, family, health", value: "10+", icon: LayoutDashboard },
+  { label: "Actions Dori can prepare", value: "22", icon: Bot },
   { label: "Daily plan status", value: "Ready", icon: Activity },
 ];
 
@@ -163,10 +162,10 @@ function ProductPreview() {
   return (
     <Link
       to="/auth?mode=signup"
-      className="relative mx-auto block w-full max-w-6xl rounded-[8px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="group relative mx-auto block w-full max-w-5xl rounded-[8px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       aria-label="Create your DarAI account from the product preview"
     >
-      <div className="relative max-h-[520px] overflow-hidden rounded-[8px] border border-border bg-card shadow-2xl shadow-foreground/10">
+      <div className="relative overflow-hidden rounded-[8px] border border-border bg-card shadow-2xl shadow-foreground/10 transition-transform duration-200 group-hover:-translate-y-1">
         <div className="flex h-10 items-center justify-between border-b border-border bg-muted/40 px-4">
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
@@ -178,10 +177,10 @@ function ProductPreview() {
           </div>
         </div>
 
-        <div className="grid min-h-[480px] grid-cols-1 bg-background lg:grid-cols-[172px_1fr] 2xl:grid-cols-[188px_1fr_300px]">
-          <div className="hidden border-r border-border bg-muted/25 p-4 lg:block">
+        <div className="grid min-h-[430px] grid-cols-1 bg-background lg:grid-cols-[156px_1fr] 2xl:grid-cols-[170px_1fr_260px]">
+          <div className="hidden border-r border-border bg-muted/25 p-3 lg:block">
             <div className="mb-8 flex items-center gap-2">
-              <LogoMark className="h-8 w-8" />
+              <LogoMark className="h-7 w-7" />
               <div>
                 <p className="text-sm font-semibold">DarAI</p>
                 <p className="text-xs text-muted-foreground">AI assistant</p>
@@ -211,11 +210,11 @@ function ProductPreview() {
             </div>
           </div>
 
-          <div className="p-4 sm:p-6">
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="p-4 sm:p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="mb-1 text-sm text-muted-foreground">Today</p>
-                <h2 className="text-2xl font-semibold">Dori built your next move.</h2>
+                <h2 className="text-xl font-semibold sm:text-2xl">Dori built your next move.</h2>
               </div>
               <div className="flex w-fit items-center gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                 <BadgeCheck className="h-4 w-4" />
@@ -225,15 +224,15 @@ function ProductPreview() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               {proofPoints.map((point) => (
-                <div key={point.label} className="rounded-[8px] border border-border bg-card p-4">
-                  <point.icon className="mb-3 h-5 w-5 text-primary" />
-                  <p className="text-2xl font-semibold">{point.value}</p>
+                <div key={point.label} className="rounded-[8px] border border-border bg-card p-3">
+                  <point.icon className="mb-2 h-5 w-5 text-primary" />
+                  <p className="text-xl font-semibold">{point.value}</p>
                   <p className="text-xs text-muted-foreground">{point.label}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_220px]">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_190px]">
               <div className="rounded-[8px] border border-border bg-card p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
@@ -257,12 +256,6 @@ function ProductPreview() {
                       meta: "Due tomorrow - family",
                       color: "bg-sky-500",
                       width: "w-8/12",
-                    },
-                    {
-                      title: "Cancel unused trial",
-                      meta: "Renewal window open",
-                      color: "bg-amber-500",
-                      width: "w-7/12",
                     },
                   ].map((task) => (
                     <div
@@ -304,7 +297,7 @@ function ProductPreview() {
             </div>
           </div>
 
-          <div className="hidden border-l border-border bg-muted/20 p-6 2xl:block">
+          <div className="hidden border-l border-border bg-muted/20 p-5 2xl:block">
             <div className="mb-5 flex items-center gap-3">
               <div className="h-12 w-12 overflow-hidden rounded-full border border-border bg-background">
                 <img
@@ -345,10 +338,10 @@ function ProductPreview() {
             </div>
           </div>
         </div>
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-card to-transparent"
-          aria-hidden="true"
-        />
+        <div className="absolute bottom-4 right-4 hidden items-center gap-2 rounded-[8px] border border-border bg-background/95 px-3 py-2 text-sm font-medium text-primary shadow-lg shadow-foreground/10 transition-colors group-hover:bg-primary group-hover:text-primary-foreground lg:flex">
+          Open your workspace
+          <ArrowRight className="h-4 w-4" />
+        </div>
       </div>
     </Link>
   );
@@ -384,6 +377,10 @@ function MobileAssistantPreview() {
             </div>
           ),
         )}
+      </div>
+      <div className="mt-4 flex items-center gap-2 text-sm font-medium text-primary">
+        Open your workspace
+        <ArrowRight className="h-4 w-4" />
       </div>
     </Link>
   );
@@ -460,6 +457,15 @@ export default function Landing() {
                 move.
               </p>
 
+              <div className="mx-auto mt-5 max-w-2xl rounded-[8px] border border-border bg-background/90 p-3 text-left shadow-sm lg:mx-0">
+                <p className="text-sm font-medium text-foreground">
+                  Try: "What should I focus on today?"
+                </p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Dori answers from your calendar, tasks, family reminders, and open loops.
+                </p>
+              </div>
+
               <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
                 <Button size="lg" className="w-full gap-2 sm:w-auto" asChild>
                   <Link to="/auth?mode=signup">
@@ -489,6 +495,15 @@ export default function Landing() {
                   ),
                 )}
               </div>
+              <div className="mt-4 flex justify-center sm:hidden">
+                <a
+                  href="#trust"
+                  className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-primary"
+                >
+                  Private workspace and trust details
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+              </div>
             </motion.div>
 
             <motion.div
@@ -512,14 +527,14 @@ export default function Landing() {
         <div className="mx-auto grid max-w-7xl gap-4 text-sm text-muted-foreground md:grid-cols-3">
           {salesHighlights.map((item) => (
             <div key={item} className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
               <span>{item}</span>
             </div>
           ))}
         </div>
       </section>
 
-      <section id="outcomes" className="px-4 py-20">
+      <section id="outcomes" className="px-4 py-14 md:py-20">
         <div className="mx-auto max-w-7xl">
           <div className="mb-10 max-w-3xl">
             <p className="mb-3 text-sm font-semibold uppercase text-primary">
@@ -541,8 +556,12 @@ export default function Landing() {
             whileInView="show"
             viewport={{ once: true, margin: "-80px" }}
           >
-            {features.map((feature) => (
-              <motion.div key={feature.title} variants={stagger.item}>
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                variants={stagger.item}
+                className={index > 2 ? "hidden md:block" : undefined}
+              >
                 <Link
                   to="/auth?mode=signup"
                   className="block h-full rounded-[8px] border border-border bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -560,6 +579,10 @@ export default function Landing() {
                     </span>
                   </div>
                   <p className="text-sm leading-6 text-muted-foreground">{feature.description}</p>
+                  <div className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                    Start with this
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
                 </Link>
               </motion.div>
             ))}
@@ -567,7 +590,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="border-y border-border bg-muted/30 px-4 py-20">
+      <section className="border-y border-border bg-muted/30 px-4 py-14 md:py-20">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
             <p className="mb-3 text-sm font-semibold uppercase text-primary">How Dori works</p>
@@ -600,7 +623,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="trust" className="px-4 py-20">
+      <section id="trust" className="px-4 py-14 md:py-20">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1fr_1fr] lg:items-stretch">
           <div className="rounded-[8px] border border-border bg-card p-6 shadow-sm">
             <div className="mb-6 flex items-center gap-3">
@@ -640,8 +663,8 @@ export default function Landing() {
               },
               {
                 icon: Clock,
-                title: "Release checks",
-                desc: "Health checks and CI keep issues visible before they reach daily use.",
+                title: "Reliability checks",
+                desc: "Automated checks keep issues visible before they reach daily use.",
               },
             ].map((item) => (
               <div
@@ -661,7 +684,7 @@ export default function Landing() {
         <div className="mx-auto overflow-hidden rounded-[8px] border border-border bg-foreground text-background shadow-2xl shadow-foreground/15">
           <div className="grid gap-8 p-6 md:p-10 lg:grid-cols-[1fr_360px] lg:items-center">
             <div>
-              <p className="mb-3 text-sm font-semibold uppercase text-primary">Start simple</p>
+              <p className="mb-3 text-sm font-semibold uppercase text-emerald-200">Start simple</p>
               <h2 className="text-4xl font-semibold leading-tight">
                 Let Dori turn today into a plan you can actually follow.
               </h2>
@@ -695,8 +718,8 @@ export default function Landing() {
                   className="h-14 w-14 rounded-full border border-background/20 bg-background object-cover"
                 />
                 <div>
-                  <p className="font-semibold">Dori is ready</p>
-                  <p className="text-sm text-background/65">Planning, reminders, and context</p>
+                  <p className="font-semibold text-background">Dori is ready</p>
+                  <p className="text-sm text-background/75">Planning, reminders, and context</p>
                 </div>
               </div>
               <div className="space-y-3 text-sm">
@@ -719,10 +742,16 @@ export default function Landing() {
             <span>&copy; {new Date().getFullYear()} DarAI. Built for busy minds.</span>
           </div>
           <div className="flex gap-4">
-            <Link to="/auth" className="inline-flex min-h-[44px] items-center hover:text-foreground">
+            <Link
+              to="/auth"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center hover:text-foreground"
+            >
               Log in
             </Link>
-            <a href="#trust" className="inline-flex min-h-[44px] items-center hover:text-foreground">
+            <a
+              href="#trust"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center hover:text-foreground"
+            >
               Trust
             </a>
           </div>

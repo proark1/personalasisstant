@@ -627,6 +627,7 @@ const de: Record<string, string> = {
   "auth.welcomeTitle": "Willkommen zurück",
   "auth.createAccountTitle": "Erstelle dein DarAI-Konto",
   "auth.authSubtitle": "Dein KI-gestütztes Life-Dashboard",
+  "auth.backToDarai": "Zurück zu DarAI",
   "auth.signIn": "Anmelden",
   "auth.createAccount": "Konto erstellen",
   "auth.dontHaveAccount": "Noch kein Konto? Registrieren",

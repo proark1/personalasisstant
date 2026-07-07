@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Sparkles, Mail, Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Sparkles, Mail, Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -109,23 +109,36 @@ export default function Auth() {
   };
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+      <Link
+        to="/landing"
+        className="absolute left-4 top-4 inline-flex min-h-[44px] items-center gap-2 rounded-[8px] px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        {t("auth.backToDarai")}
+      </Link>
       <motion.div
-        className="w-full max-w-md relative z-10"
+        className="relative z-10 w-full max-w-md"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <motion.div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent shadow-glow"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.4, type: "spring" }}
+        <div className="mb-8 flex flex-col items-center">
+          <Link
+            to="/landing"
+            aria-label={t("auth.backToDarai")}
+            className="rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <Sparkles className="w-8 h-8 text-primary-foreground" />
-          </motion.div>
+            <motion.div
+              className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent shadow-glow"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, duration: 0.4, type: "spring" }}
+            >
+              <Sparkles className="h-8 w-8 text-primary-foreground" />
+            </motion.div>
+          </Link>
           <motion.p
             className="mt-3 text-sm text-muted-foreground"
             initial={{ opacity: 0 }}
@@ -229,8 +242,8 @@ export default function Auth() {
                 </button>
               </div>
               {!isLogin && passwordStrength && (
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden flex gap-0.5">
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="flex h-1.5 flex-1 gap-0.5 overflow-hidden rounded-full bg-muted">
                     {[1, 2, 3, 4].map((i) => (
                       <div
                         key={i}
@@ -250,9 +263,9 @@ export default function Auth() {
               )}
             </div>
 
-            <Button type="submit" className="w-full gap-2 h-12 text-base mt-2" loading={loading}>
+            <Button type="submit" className="mt-2 h-12 w-full gap-2 text-base" loading={loading}>
               {isLogin ? t("auth.signIn") : t("auth.createAccount")}
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="h-5 w-5" />
             </Button>
           </form>
 
