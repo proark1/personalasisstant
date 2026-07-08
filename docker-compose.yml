@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-assistant}
+      POSTGRES_USER: ${POSTGRES_USER:-assistant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assistant_dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./services/assistant-runtime/migrations/0001_operational_foundation.sql:/docker-entrypoint-initdb.d/0001_operational_foundation.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  assistant-api:
+    build:
+      context: .
+      dockerfile: services/assistant-runtime/Dockerfile
+    command: assistant-api
+    environment:
+      SERVICE_NAME: assistant-api
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://assistant:assistant_dev_password@postgres:5432/assistant}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      ONEBRAIN_API_URL: ${ONEBRAIN_API_URL:-http://onebrain:8080}
+      ONEBRAIN_AVAILABLE: ${ONEBRAIN_AVAILABLE:-true}
+      SECRET_MASTER_KEY: ${SECRET_MASTER_KEY:-local-dev-change-before-shipping}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  assistant-worker:
+    build:
+      context: .
+      dockerfile: services/assistant-runtime/Dockerfile
+    command: assistant-worker
+    environment:
+      SERVICE_NAME: assistant-worker
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://assistant:assistant_dev_password@postgres:5432/assistant}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      ONEBRAIN_API_URL: ${ONEBRAIN_API_URL:-http://onebrain:8080}
+      ONEBRAIN_AVAILABLE: ${ONEBRAIN_AVAILABLE:-true}
+      SECRET_MASTER_KEY: ${SECRET_MASTER_KEY:-local-dev-change-before-shipping}
+      WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "assistant_runtime.worker.healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  assistant-web:
+    build:
+      context: .
+      dockerfile: apps/assistant-web/Dockerfile
+      args:
+        NEXT_PUBLIC_ASSISTANT_API_URL: ${NEXT_PUBLIC_ASSISTANT_API_URL:-http://localhost:8000}
+    environment:
+      NEXT_PUBLIC_ASSISTANT_API_URL: ${NEXT_PUBLIC_ASSISTANT_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      assistant-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:

@@ -1,0 +1,8 @@
+{
+  "name": "@onebrain/assistant-api-contract",
+  "private": true,
+  "version": "0.1.0",
+  "files": [
+    "openapi.json"
+  ]
+}
