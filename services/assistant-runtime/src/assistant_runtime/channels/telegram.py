@@ -5,17 +5,26 @@ import hmac
 import secrets
 from datetime import timedelta
 from threading import RLock
+from typing import Protocol
 from uuid import UUID, uuid4
 
+import httpx
+
+from assistant_runtime.domain.outbox import InMemoryOutboxStore
 from assistant_runtime.interfaces import SecretProvider
 from assistant_runtime.schemas import (
+    OutboxRow,
+    OutboxState,
     ScopedIdentity,
     TelegramBindingRecord,
     TelegramBindingStatus,
     TelegramBindingStatusResponse,
+    TelegramDeliveryRecord,
     TelegramProvenanceEvent,
     TelegramSetupRequest,
     TelegramSetupResponse,
+    TelegramTestMessageRequest,
+    TelegramTestMessageResponse,
     TelegramWebhookResponse,
     utc_now,
 )
@@ -23,6 +32,36 @@ from assistant_runtime.schemas import (
 
 class TelegramBindingNotFound(KeyError):
     pass
+
+
+class TelegramBindingNotReady(ValueError):
+    pass
+
+
+class TelegramDeliveryNotFound(KeyError):
+    pass
+
+
+class TelegramDeliveryError(RuntimeError):
+    pass
+
+
+class TelegramTransport(Protocol):
+    async def send_message(self, bot_token: str, chat_id: str, message: str) -> str: ...
+
+
+class TelegramBotApiTransport:
+    async def send_message(self, bot_token: str, chat_id: str, message: str) -> str:
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.post(url, json={"chat_id": chat_id, "text": message})
+                response.raise_for_status()
+                payload = response.json()
+        except httpx.HTTPError as exc:
+            raise TelegramDeliveryError("Telegram Bot API sendMessage failed.") from exc
+        message_id = payload.get("result", {}).get("message_id", "unknown")
+        return f"telegram://message/{chat_id}/{message_id}"
 
 
 class InMemoryTelegramBindingStore:
@@ -35,6 +74,7 @@ class InMemoryTelegramBindingStore:
         self._chat_index: dict[str, UUID] = {}
         self._processed_updates: dict[str, TelegramWebhookResponse] = {}
         self._events: list[TelegramProvenanceEvent] = []
+        self._deliveries: dict[str, TelegramDeliveryRecord] = {}
 
     def create_pending(
         self,
@@ -154,6 +194,39 @@ class InMemoryTelegramBindingStore:
         with self._lock:
             return list(self._events)
 
+    def create_delivery(
+        self,
+        binding: TelegramBindingRecord,
+        message: str,
+        idempotency_key: str,
+    ) -> TelegramDeliveryRecord:
+        with self._lock:
+            for delivery in self._deliveries.values():
+                if delivery.idempotency_key == idempotency_key:
+                    return delivery
+            delivery = TelegramDeliveryRecord(
+                delivery_ref=f"onebrain://telegram-delivery/{uuid4()}",
+                binding_id=binding.binding_id,
+                message=message,
+                idempotency_key=idempotency_key,
+            )
+            self._deliveries[delivery.delivery_ref] = delivery
+            return delivery
+
+    def get_delivery(self, delivery_ref: str) -> TelegramDeliveryRecord | None:
+        with self._lock:
+            return self._deliveries.get(delivery_ref)
+
+    def mark_delivery_delivered(
+        self, delivery_ref: str, provider_response_ref: str
+    ) -> TelegramDeliveryRecord:
+        with self._lock:
+            delivery = self._deliveries[delivery_ref]
+            delivery.state = OutboxState.delivered
+            delivery.provider_response_ref = provider_response_ref
+            delivery.updated_at = utc_now()
+            return delivery
+
 
 class TelegramChannel:
     """Telegram notification channel with deterministic binding command routing."""
@@ -162,9 +235,11 @@ class TelegramChannel:
         self,
         secret_provider: SecretProvider,
         binding_store: InMemoryTelegramBindingStore | None = None,
+        transport: TelegramTransport | None = None,
     ) -> None:
         self.secret_provider = secret_provider
         self.bindings = binding_store or InMemoryTelegramBindingStore()
+        self.transport = transport or TelegramBotApiTransport()
 
     async def send(self, user_ref: str, message_ref: str, correlation_id: str) -> str:
         return f"telegram://delivery/{user_ref}/{correlation_id}"
@@ -196,6 +271,92 @@ class TelegramChannel:
         if record is None:
             raise TelegramBindingNotFound(str(binding_id))
         return _status_response(record)
+
+    def queue_test_message(
+        self,
+        binding_id: UUID,
+        request: TelegramTestMessageRequest,
+        outbox: InMemoryOutboxStore,
+    ) -> TelegramTestMessageResponse:
+        record = self.bindings.get(binding_id)
+        if record is None:
+            raise TelegramBindingNotFound(str(binding_id))
+
+        status = TelegramBindingStatus(record.status)
+        if status == TelegramBindingStatus.paused:
+            raise TelegramBindingNotReady("Telegram binding is paused.")
+        if status != TelegramBindingStatus.verified:
+            raise TelegramBindingNotReady("Telegram binding is not verified.")
+        if record.telegram_chat_secret_ref is None:
+            raise TelegramBindingNotReady("Telegram chat secret reference is missing.")
+
+        idempotency_key = request.idempotency_key or f"telegram-test-message:{binding_id}"
+        delivery = self.bindings.create_delivery(record, request.message, idempotency_key)
+        row = outbox.create(
+            scope=record.scope,
+            effect_type="telegram.message.send",
+            payload_ref=delivery.delivery_ref,
+            idempotency_key=delivery.idempotency_key,
+            correlation_id=record.correlation_id,
+            audit_correlation_id=record.audit_correlation_id,
+        )
+        event = self.bindings.record_event(
+            record,
+            event_type="telegram.test_message.queued",
+            update_id=str(row.outbox_id),
+            sanitized_summary="Safe Telegram setup test message queued.",
+            provider_metadata={"delivery_ref": delivery.delivery_ref},
+        )
+        return TelegramTestMessageResponse(
+            status="queued",
+            detail="Telegram test message queued for outbox delivery.",
+            binding_id=record.binding_id,
+            outbox_id=row.outbox_id,
+            delivery_ref=delivery.delivery_ref,
+            event_ref=event.event_ref,
+            correlation_id=record.correlation_id,
+            audit_correlation_id=record.audit_correlation_id,
+        )
+
+    async def relay_next_delivery(self, outbox: InMemoryOutboxStore, worker_id: str) -> int:
+        row = outbox.lease_next(worker_id)
+        if row is None:
+            return 0
+        if row.effect_type != "telegram.message.send":
+            outbox.mark_retry_or_dead_letter(row.outbox_id, "Unsupported Telegram delivery effect.")
+            return 0
+        try:
+            provider_response_ref = await self._deliver_outbox_row(row)
+        except Exception as exc:
+            outbox.mark_retry_or_dead_letter(row.outbox_id, _safe_delivery_error(exc))
+            return 0
+        outbox.mark_delivered(row.outbox_id, provider_response_ref=provider_response_ref)
+        return 1
+
+    async def _deliver_outbox_row(self, row: OutboxRow) -> str:
+        delivery = self.bindings.get_delivery(row.payload_ref)
+        if delivery is None:
+            raise TelegramDeliveryNotFound(row.payload_ref)
+        binding = self.bindings.get(delivery.binding_id)
+        if binding is None:
+            raise TelegramBindingNotFound(str(delivery.binding_id))
+        if binding.telegram_chat_secret_ref is None:
+            raise TelegramBindingNotReady("Telegram chat secret reference is missing.")
+
+        bot_token = self.secret_provider.retrieve_secret(binding.bot_secret_ref)
+        chat_id = self.secret_provider.retrieve_secret(binding.telegram_chat_secret_ref)
+        provider_response_ref = await self.transport.send_message(
+            bot_token, chat_id, delivery.message
+        )
+        self.bindings.mark_delivery_delivered(delivery.delivery_ref, provider_response_ref)
+        self.bindings.record_event(
+            binding,
+            event_type="telegram.message.delivered",
+            update_id=str(row.outbox_id),
+            sanitized_summary="Telegram setup test message delivered.",
+            provider_metadata={"provider_response_ref": provider_response_ref},
+        )
+        return provider_response_ref
 
     async def receive(self, payload: dict[str, object]) -> TelegramWebhookResponse:
         update_id = str(payload.get("update_id", "unknown"))
@@ -480,3 +641,9 @@ def constant_time_secret_matches(provided: str | None, expected: str) -> bool:
     if provided is None:
         return False
     return hmac.compare_digest(provided, expected)
+
+
+def _safe_delivery_error(exc: Exception) -> str:
+    if isinstance(exc, TelegramDeliveryError):
+        return str(exc)
+    return exc.__class__.__name__

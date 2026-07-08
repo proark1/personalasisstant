@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from assistant_runtime import __version__
 from assistant_runtime.channels.telegram import (
     TelegramBindingNotFound,
+    TelegramBindingNotReady,
     TelegramChannel,
     constant_time_secret_matches,
 )
@@ -40,6 +41,8 @@ from assistant_runtime.schemas import (
     TelegramBindingStatusResponse,
     TelegramSetupRequest,
     TelegramSetupResponse,
+    TelegramTestMessageRequest,
+    TelegramTestMessageResponse,
     TelegramWebhookResponse,
     TodayBriefItem,
     TodayResponse,
@@ -195,6 +198,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return container.telegram.binding_status(binding_id)
         except TelegramBindingNotFound as exc:
             raise HTTPException(status_code=404, detail="Telegram binding not found") from exc
+
+    @app.post(
+        "/v1/telegram/bindings/{binding_id}/test-message",
+        response_model=TelegramTestMessageResponse,
+        status_code=202,
+    )
+    async def telegram_test_message(
+        binding_id: UUID, request: TelegramTestMessageRequest
+    ) -> TelegramTestMessageResponse:
+        try:
+            queued = container.telegram.queue_test_message(binding_id, request, container.outbox)
+        except TelegramBindingNotFound as exc:
+            raise HTTPException(status_code=404, detail="Telegram binding not found") from exc
+        except TelegramBindingNotReady as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        container.observability.increment("telegram_test_message", {"status": queued.status})
+        return queued
 
     @app.post("/v1/telegram/webhook", response_model=TelegramWebhookResponse)
     async def telegram_webhook(

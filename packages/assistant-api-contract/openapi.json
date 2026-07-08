@@ -775,6 +775,80 @@
         "title": "TelegramSetupResponse",
         "type": "object"
       },
+      "TelegramTestMessageRequest": {
+        "properties": {
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "message": {
+            "default": "Telegram is connected to your OneBrain assistant.",
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "TelegramTestMessageRequest",
+        "type": "object"
+      },
+      "TelegramTestMessageResponse": {
+        "properties": {
+          "audit_correlation_id": {
+            "title": "Audit Correlation Id",
+            "type": "string"
+          },
+          "binding_id": {
+            "format": "uuid",
+            "title": "Binding Id",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "delivery_ref": {
+            "title": "Delivery Ref",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "event_ref": {
+            "title": "Event Ref",
+            "type": "string"
+          },
+          "outbox_id": {
+            "format": "uuid",
+            "title": "Outbox Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "detail",
+          "binding_id",
+          "outbox_id",
+          "delivery_ref",
+          "event_ref",
+          "correlation_id",
+          "audit_correlation_id"
+        ],
+        "title": "TelegramTestMessageResponse",
+        "type": "object"
+      },
       "TelegramWebhookResponse": {
         "properties": {
           "binding_id": {
@@ -1241,6 +1315,56 @@
           }
         },
         "summary": "Telegram Binding Status"
+      }
+    },
+    "/v1/telegram/bindings/{binding_id}/test-message": {
+      "post": {
+        "operationId": "telegram_test_message_v1_telegram_bindings__binding_id__test_message_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "binding_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Binding Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramTestMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramTestMessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Telegram Test Message"
       }
     },
     "/v1/telegram/setup": {

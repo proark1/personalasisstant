@@ -123,6 +123,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/telegram/bindings/{binding_id}/test-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Telegram Test Message */
+        post: operations["telegram_test_message_v1_telegram_bindings__binding_id__test_message_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/telegram/setup": {
         parameters: {
             query?: never;
@@ -516,6 +533,41 @@ export interface components {
             /** Token Preview */
             token_preview: string;
         };
+        /** TelegramTestMessageRequest */
+        TelegramTestMessageRequest: {
+            /** Idempotency Key */
+            idempotency_key?: string | null;
+            /**
+             * Message
+             * @default Telegram is connected to your OneBrain assistant.
+             */
+            message: string;
+        };
+        /** TelegramTestMessageResponse */
+        TelegramTestMessageResponse: {
+            /** Audit Correlation Id */
+            audit_correlation_id: string;
+            /**
+             * Binding Id
+             * Format: uuid
+             */
+            binding_id: string;
+            /** Correlation Id */
+            correlation_id: string;
+            /** Delivery Ref */
+            delivery_ref: string;
+            /** Detail */
+            detail: string;
+            /** Event Ref */
+            event_ref: string;
+            /**
+             * Outbox Id
+             * Format: uuid
+             */
+            outbox_id: string;
+            /** Status */
+            status: string;
+        };
         /** TelegramWebhookResponse */
         TelegramWebhookResponse: {
             /** Binding Id */
@@ -783,6 +835,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TelegramBindingStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    telegram_test_message_v1_telegram_bindings__binding_id__test_message_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                binding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramTestMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramTestMessageResponse"];
                 };
             };
             /** @description Validation Error */

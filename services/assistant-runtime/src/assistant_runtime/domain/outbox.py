@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from threading import RLock
 from uuid import UUID
 
-from assistant_runtime.schemas import ActionRecord, OutboxRow, OutboxState, utc_now
+from assistant_runtime.schemas import ActionRecord, OutboxRow, OutboxState, ScopedIdentity, utc_now
 
 
 class InMemoryOutboxStore:
@@ -25,19 +25,39 @@ class InMemoryOutboxStore:
         self, action: ActionRecord, effect_type: str, payload_ref: str
     ) -> OutboxRow:
         idempotency_key = f"{action.idempotency_key}:{effect_type}"
+        return self.create(
+            scope=action.scope,
+            effect_type=effect_type,
+            payload_ref=payload_ref,
+            idempotency_key=idempotency_key,
+            correlation_id=action.correlation_id,
+            audit_correlation_id=action.audit_correlation_id,
+            action_id=action.action_id,
+        )
+
+    def create(
+        self,
+        scope: ScopedIdentity,
+        effect_type: str,
+        payload_ref: str,
+        idempotency_key: str,
+        correlation_id: str,
+        audit_correlation_id: str,
+        action_id: UUID | None = None,
+    ) -> OutboxRow:
         with self._lock:
             existing_id = self._idempotency_index.get(idempotency_key)
             if existing_id:
                 return self._rows[existing_id]
 
             row = OutboxRow(
-                scope=action.scope,
-                action_id=action.action_id,
+                scope=scope,
+                action_id=action_id,
                 effect_type=effect_type,
                 payload_ref=payload_ref,
                 idempotency_key=idempotency_key,
-                correlation_id=action.correlation_id,
-                audit_correlation_id=action.audit_correlation_id,
+                correlation_id=correlation_id,
+                audit_correlation_id=audit_correlation_id,
             )
             self._rows[row.outbox_id] = row
             self._idempotency_index[idempotency_key] = row.outbox_id

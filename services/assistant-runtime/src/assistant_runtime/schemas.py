@@ -359,4 +359,35 @@ class TelegramWebhookResponse(BaseModel):
     correlation_id: str = Field(default_factory=lambda: str(uuid4()))
 
 
+class TelegramTestMessageRequest(BaseModel):
+    message: str = Field(
+        default="Telegram is connected to your OneBrain assistant.",
+        min_length=1,
+        max_length=240,
+    )
+    idempotency_key: str | None = None
+
+
+class TelegramTestMessageResponse(BaseModel):
+    status: str
+    detail: str
+    binding_id: UUID
+    outbox_id: UUID
+    delivery_ref: str
+    event_ref: str
+    correlation_id: str
+    audit_correlation_id: str
+
+
+class TelegramDeliveryRecord(BaseModel):
+    delivery_ref: str
+    binding_id: UUID
+    message: str
+    idempotency_key: str
+    state: OutboxState = OutboxState.pending
+    provider_response_ref: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 JsonObject = dict[str, Any]

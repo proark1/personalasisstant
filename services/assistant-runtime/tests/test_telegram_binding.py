@@ -1,11 +1,30 @@
 from __future__ import annotations
 
+import asyncio
+from dataclasses import dataclass, field
+from uuid import UUID
+
 from fastapi.testclient import TestClient
 
 from assistant_runtime.api.app import create_app
 from assistant_runtime.config import Settings
+from assistant_runtime.schemas import OutboxState
 
 WEBHOOK_SECRET = "telegram-test-webhook-secret"
+
+
+@dataclass
+class RecordingTelegramTransport:
+    sent: list[tuple[str, str, str]] = field(default_factory=list)
+
+    async def send_message(self, bot_token: str, chat_id: str, message: str) -> str:
+        self.sent.append((bot_token, chat_id, message))
+        return f"telegram://message/{chat_id}/{len(self.sent)}"
+
+
+class LeakyFailingTelegramTransport:
+    async def send_message(self, bot_token: str, chat_id: str, message: str) -> str:
+        raise RuntimeError(f"failed with token={bot_token} chat={chat_id} message={message}")
 
 
 def _client() -> TestClient:
@@ -171,3 +190,106 @@ def test_unknown_text_is_recorded_as_untrusted_without_creating_action() -> None
         "hello assistant" not in event.sanitized_summary
         for event in app.state.container.telegram.events
     )
+
+
+def test_test_message_requires_verified_unpaused_binding() -> None:
+    client = _client()
+    setup = _setup(client)
+
+    unverified = client.post(f"/v1/telegram/bindings/{setup['binding_id']}/test-message", json={})
+    _post_webhook(client, _private_message(113, 111, 222, setup["binding_command"]))
+    _post_webhook(client, _private_message(114, 111, 222, "/pause"))
+    paused = client.post(f"/v1/telegram/bindings/{setup['binding_id']}/test-message", json={})
+
+    assert unverified.status_code == 409
+    assert paused.status_code == 409
+
+
+def test_verified_binding_queues_test_message_without_sending_inline() -> None:
+    app = create_app(Settings(TELEGRAM_WEBHOOK_SECRET=WEBHOOK_SECRET))
+    transport = RecordingTelegramTransport()
+    app.state.container.telegram.transport = transport
+    client = TestClient(app)
+    setup = _setup(client, token="123456:delivery-secret-token")
+    _post_webhook(client, _private_message(115, 111, 222, setup["binding_command"]))
+
+    response = client.post(f"/v1/telegram/bindings/{setup['binding_id']}/test-message", json={})
+    body = response.json()
+    rows = app.state.container.outbox.all()
+
+    assert response.status_code == 202
+    assert body["status"] == "queued"
+    assert body["delivery_ref"].startswith("onebrain://telegram-delivery/")
+    assert "delivery-secret-token" not in str(body)
+    assert "111" not in str(body)
+    assert len(rows) == 1
+    assert rows[0].effect_type == "telegram.message.send"
+    assert OutboxState(rows[0].state) == OutboxState.pending
+    assert transport.sent == []
+
+
+def test_relay_sends_queued_test_message_and_marks_outbox_delivered() -> None:
+    app = create_app(Settings(TELEGRAM_WEBHOOK_SECRET=WEBHOOK_SECRET))
+    transport = RecordingTelegramTransport()
+    app.state.container.telegram.transport = transport
+    client = TestClient(app)
+    setup = _setup(client, token="123456:delivery-secret-token")
+    _post_webhook(client, _private_message(116, 111, 222, setup["binding_command"]))
+    client.post(
+        f"/v1/telegram/bindings/{setup['binding_id']}/test-message",
+        json={"message": "Setup test message"},
+    )
+
+    processed = asyncio.run(
+        app.state.container.telegram.relay_next_delivery(app.state.container.outbox, "worker-1")
+    )
+    row = app.state.container.outbox.all()[0]
+
+    assert processed == 1
+    assert transport.sent == [("123456:delivery-secret-token", "111", "Setup test message")]
+    assert OutboxState(row.state) == OutboxState.delivered
+    assert row.payload_ref.startswith("telegram://message/111/")
+
+
+def test_relay_retries_when_secret_lookup_fails() -> None:
+    app = create_app(Settings(TELEGRAM_WEBHOOK_SECRET=WEBHOOK_SECRET))
+    app.state.container.telegram.transport = RecordingTelegramTransport()
+    client = TestClient(app)
+    setup = _setup(client, token="123456:delivery-secret-token")
+    _post_webhook(client, _private_message(117, 111, 222, setup["binding_command"]))
+    binding = app.state.container.telegram.bindings.get(UUID(setup["binding_id"]))
+    assert binding is not None
+    app.state.container.secrets.revoke_secret(binding.bot_secret_ref)
+    client.post(f"/v1/telegram/bindings/{setup['binding_id']}/test-message", json={})
+
+    processed = asyncio.run(
+        app.state.container.telegram.relay_next_delivery(app.state.container.outbox, "worker-1")
+    )
+    row = app.state.container.outbox.all()[0]
+
+    assert processed == 0
+    assert OutboxState(row.state) == OutboxState.retry_wait
+    assert row.last_error is not None
+
+
+def test_relay_redacts_transport_error_details() -> None:
+    app = create_app(Settings(TELEGRAM_WEBHOOK_SECRET=WEBHOOK_SECRET))
+    app.state.container.telegram.transport = LeakyFailingTelegramTransport()
+    client = TestClient(app)
+    setup = _setup(client, token="123456:delivery-secret-token")
+    _post_webhook(client, _private_message(118, 111, 222, setup["binding_command"]))
+    client.post(
+        f"/v1/telegram/bindings/{setup['binding_id']}/test-message",
+        json={"message": "Setup test message"},
+    )
+
+    processed = asyncio.run(
+        app.state.container.telegram.relay_next_delivery(app.state.container.outbox, "worker-1")
+    )
+    row = app.state.container.outbox.all()[0]
+
+    assert processed == 0
+    assert OutboxState(row.state) == OutboxState.retry_wait
+    assert row.last_error == "RuntimeError"
+    assert "delivery-secret-token" not in row.last_error
+    assert "111" not in row.last_error
