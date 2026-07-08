@@ -9,6 +9,7 @@ dist/
 coverage/
 *.tsbuildinfo
 .logs/
+.railway-config-pull-*/
 
 .venv/
 __pycache__/
