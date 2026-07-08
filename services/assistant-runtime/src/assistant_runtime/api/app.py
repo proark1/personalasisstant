@@ -3,11 +3,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from assistant_runtime import __version__
-from assistant_runtime.channels.telegram import TelegramChannel
+from assistant_runtime.channels.telegram import (
+    TelegramBindingNotFound,
+    TelegramChannel,
+    constant_time_secret_matches,
+)
 from assistant_runtime.config import Settings, get_settings
 from assistant_runtime.domain.action_store import InMemoryActionStore, InvalidActionTransition
 from assistant_runtime.domain.outbox import InMemoryOutboxStore
@@ -33,6 +37,10 @@ from assistant_runtime.schemas import (
     RiskTier,
     SecurityInspectionRequest,
     SecurityInspectionResponse,
+    TelegramBindingStatusResponse,
+    TelegramSetupRequest,
+    TelegramSetupResponse,
+    TelegramWebhookResponse,
     TodayBriefItem,
     TodayResponse,
 )
@@ -52,7 +60,7 @@ class RuntimeContainer:
         self.secrets = EnvelopeSecretProvider(settings.secret_master_key)
         self.sanitizer = HtmlContentSanitizer()
         self.firewall = BasicInstructionFirewall()
-        self.telegram = TelegramChannel()
+        self.telegram = TelegramChannel(self.secrets)
         self.observability = InMemoryObservabilityProvider()
 
 
@@ -73,7 +81,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_origins=settings.cors_origin_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["authorization", "content-type", "x-request-id"],
+        allow_headers=[
+            "authorization",
+            "content-type",
+            "x-request-id",
+            "x-telegram-bot-api-secret-token",
+        ],
     )
 
     @app.get("/health/live", response_model=HealthResponse)
@@ -167,11 +180,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         firewall = container.firewall.inspect(sanitized, request.source_ref)
         return SecurityInspectionResponse(sanitized=sanitized, firewall=firewall)
 
-    @app.post("/v1/telegram/webhook")
-    async def telegram_webhook(payload: dict[str, object]) -> dict[str, str]:
-        delivery_ref = await container.telegram.receive(payload)
-        container.observability.increment("telegram_inbound", {"status": "received"})
-        return {"status": "received", "delivery_ref": delivery_ref}
+    @app.post("/v1/telegram/setup", response_model=TelegramSetupResponse, status_code=201)
+    async def telegram_setup(request: TelegramSetupRequest) -> TelegramSetupResponse:
+        setup = container.telegram.create_setup(request)
+        container.observability.increment("telegram_setup", {"status": str(setup.status)})
+        return setup
+
+    @app.get(
+        "/v1/telegram/bindings/{binding_id}",
+        response_model=TelegramBindingStatusResponse,
+    )
+    async def telegram_binding_status(binding_id: UUID) -> TelegramBindingStatusResponse:
+        try:
+            return container.telegram.binding_status(binding_id)
+        except TelegramBindingNotFound as exc:
+            raise HTTPException(status_code=404, detail="Telegram binding not found") from exc
+
+    @app.post("/v1/telegram/webhook", response_model=TelegramWebhookResponse)
+    async def telegram_webhook(
+        payload: dict[str, object],
+        telegram_secret: str | None = Header(
+            default=None, alias="X-Telegram-Bot-Api-Secret-Token"
+        ),
+    ) -> TelegramWebhookResponse:
+        if not constant_time_secret_matches(telegram_secret, settings.telegram_webhook_secret):
+            container.observability.increment("telegram_inbound", {"status": "unauthorized"})
+            raise HTTPException(status_code=401, detail="Invalid Telegram webhook secret")
+        result = await container.telegram.receive(payload)
+        container.observability.increment("telegram_inbound", {"status": result.status})
+        return result
 
     return app
 
@@ -240,7 +277,9 @@ def build_today_response(container: RuntimeContainer) -> TodayResponse:
             ProviderHealth(provider="Postgres", status="configured", detail="Operational store"),
             ProviderHealth(provider="Redis", status="configured", detail="Queue and scheduler"),
             ProviderHealth(
-                provider="Telegram", status="skeleton", detail="NotificationChannel boundary"
+                provider="Telegram",
+                status="binding-ready",
+                detail="NotificationChannel setup and webhook binding boundary",
             ),
         ],
         degraded_mode=DegradedModeState(

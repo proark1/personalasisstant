@@ -57,6 +57,14 @@ class ApprovalChannel(StrEnum):
     fresh_auth = "fresh_auth"
 
 
+class TelegramBindingStatus(StrEnum):
+    pending = "pending"
+    verified = "verified"
+    paused = "paused"
+    revoked = "revoked"
+    expired = "expired"
+
+
 class ScopedIdentity(BaseModel):
     account_id: str
     user_id: str
@@ -272,6 +280,83 @@ class SecurityInspectionRequest(BaseModel):
 class SecurityInspectionResponse(BaseModel):
     sanitized: SanitizedContent
     firewall: FirewallDecision
+
+
+class TelegramSetupRequest(BaseModel):
+    scope: ScopedIdentity = Field(
+        default_factory=lambda: ScopedIdentity(
+            account_id="acct_demo", user_id="user_demo", space_id="space_demo"
+        )
+    )
+    bot_token: str = Field(min_length=8)
+    expires_in_seconds: int = Field(default=600, ge=0, le=3600)
+
+
+class TelegramSetupResponse(BaseModel):
+    binding_id: UUID
+    status: TelegramBindingStatus
+    bot_secret_ref: str
+    token_preview: str
+    binding_code: str
+    binding_command: str
+    expires_at: datetime
+    correlation_id: str
+    audit_correlation_id: str
+
+
+class TelegramBindingRecord(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
+    binding_id: UUID = Field(default_factory=uuid4)
+    scope: ScopedIdentity
+    status: TelegramBindingStatus = TelegramBindingStatus.pending
+    bot_secret_ref: str
+    binding_code_hash: str
+    binding_code_expires_at: datetime
+    telegram_chat_id_hash: str | None = None
+    telegram_user_id_hash: str | None = None
+    telegram_chat_secret_ref: str | None = None
+    verified_at: datetime | None = None
+    revoked_at: datetime | None = None
+    last_update_id: str | None = None
+    correlation_id: str = Field(default_factory=lambda: str(uuid4()))
+    audit_correlation_id: str = Field(default_factory=lambda: str(uuid4()))
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class TelegramBindingStatusResponse(BaseModel):
+    binding_id: UUID
+    status: TelegramBindingStatus
+    account_id: str
+    user_id: str
+    space_id: str
+    verified_at: datetime | None = None
+    paused: bool = False
+    correlation_id: str
+    audit_correlation_id: str
+
+
+class TelegramProvenanceEvent(BaseModel):
+    event_ref: str
+    binding_id: UUID
+    event_type: str
+    source_update_ref: str
+    sanitized_summary: str
+    scope: ScopedIdentity
+    provider_metadata: dict[str, str] = Field(default_factory=dict)
+    correlation_id: str
+    audit_correlation_id: str
+    occurred_at: datetime = Field(default_factory=utc_now)
+
+
+class TelegramWebhookResponse(BaseModel):
+    status: str
+    detail: str
+    command: str | None = None
+    binding_id: UUID | None = None
+    event_ref: str | None = None
+    correlation_id: str = Field(default_factory=lambda: str(uuid4()))
 
 
 JsonObject = dict[str, Any]

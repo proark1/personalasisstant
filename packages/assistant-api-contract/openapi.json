@@ -626,6 +626,211 @@
         "title": "SecurityInspectionResponse",
         "type": "object"
       },
+      "TelegramBindingStatus": {
+        "enum": [
+          "pending",
+          "verified",
+          "paused",
+          "revoked",
+          "expired"
+        ],
+        "title": "TelegramBindingStatus",
+        "type": "string"
+      },
+      "TelegramBindingStatusResponse": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "audit_correlation_id": {
+            "title": "Audit Correlation Id",
+            "type": "string"
+          },
+          "binding_id": {
+            "format": "uuid",
+            "title": "Binding Id",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "paused": {
+            "default": false,
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "space_id": {
+            "title": "Space Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TelegramBindingStatus"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "binding_id",
+          "status",
+          "account_id",
+          "user_id",
+          "space_id",
+          "correlation_id",
+          "audit_correlation_id"
+        ],
+        "title": "TelegramBindingStatusResponse",
+        "type": "object"
+      },
+      "TelegramSetupRequest": {
+        "properties": {
+          "bot_token": {
+            "minLength": 8,
+            "title": "Bot Token",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "default": 600,
+            "maximum": 3600.0,
+            "minimum": 0.0,
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ScopedIdentity"
+          }
+        },
+        "required": [
+          "bot_token"
+        ],
+        "title": "TelegramSetupRequest",
+        "type": "object"
+      },
+      "TelegramSetupResponse": {
+        "properties": {
+          "audit_correlation_id": {
+            "title": "Audit Correlation Id",
+            "type": "string"
+          },
+          "binding_code": {
+            "title": "Binding Code",
+            "type": "string"
+          },
+          "binding_command": {
+            "title": "Binding Command",
+            "type": "string"
+          },
+          "binding_id": {
+            "format": "uuid",
+            "title": "Binding Id",
+            "type": "string"
+          },
+          "bot_secret_ref": {
+            "title": "Bot Secret Ref",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TelegramBindingStatus"
+          },
+          "token_preview": {
+            "title": "Token Preview",
+            "type": "string"
+          }
+        },
+        "required": [
+          "binding_id",
+          "status",
+          "bot_secret_ref",
+          "token_preview",
+          "binding_code",
+          "binding_command",
+          "expires_at",
+          "correlation_id",
+          "audit_correlation_id"
+        ],
+        "title": "TelegramSetupResponse",
+        "type": "object"
+      },
+      "TelegramWebhookResponse": {
+        "properties": {
+          "binding_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding Id"
+          },
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "event_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Ref"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "detail"
+        ],
+        "title": "TelegramWebhookResponse",
+        "type": "object"
+      },
       "TodayBriefItem": {
         "properties": {
           "detail": {
@@ -998,9 +1203,105 @@
         "summary": "Inspect Untrusted Content"
       }
     },
+    "/v1/telegram/bindings/{binding_id}": {
+      "get": {
+        "operationId": "telegram_binding_status_v1_telegram_bindings__binding_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "binding_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Binding Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramBindingStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Telegram Binding Status"
+      }
+    },
+    "/v1/telegram/setup": {
+      "post": {
+        "operationId": "telegram_setup_v1_telegram_setup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramSetupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramSetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Telegram Setup"
+      }
+    },
     "/v1/telegram/webhook": {
       "post": {
         "operationId": "telegram_webhook_v1_telegram_webhook_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Telegram-Bot-Api-Secret-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Bot-Api-Secret-Token"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1018,11 +1319,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Telegram Webhook V1 Telegram Webhook Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TelegramWebhookResponse"
                 }
               }
             },

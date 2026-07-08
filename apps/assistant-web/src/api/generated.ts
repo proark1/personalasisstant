@@ -106,6 +106,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/telegram/bindings/{binding_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Telegram Binding Status */
+        get: operations["telegram_binding_status_v1_telegram_bindings__binding_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/telegram/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Telegram Setup */
+        post: operations["telegram_setup_v1_telegram_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/telegram/webhook": {
         parameters: {
             query?: never;
@@ -414,6 +448,89 @@ export interface components {
             firewall: components["schemas"]["FirewallDecision"];
             sanitized: components["schemas"]["SanitizedContent"];
         };
+        /**
+         * TelegramBindingStatus
+         * @enum {string}
+         */
+        TelegramBindingStatus: "pending" | "verified" | "paused" | "revoked" | "expired";
+        /** TelegramBindingStatusResponse */
+        TelegramBindingStatusResponse: {
+            /** Account Id */
+            account_id: string;
+            /** Audit Correlation Id */
+            audit_correlation_id: string;
+            /**
+             * Binding Id
+             * Format: uuid
+             */
+            binding_id: string;
+            /** Correlation Id */
+            correlation_id: string;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+            /** Space Id */
+            space_id: string;
+            status: components["schemas"]["TelegramBindingStatus"];
+            /** User Id */
+            user_id: string;
+            /** Verified At */
+            verified_at?: string | null;
+        };
+        /** TelegramSetupRequest */
+        TelegramSetupRequest: {
+            /** Bot Token */
+            bot_token: string;
+            /**
+             * Expires In Seconds
+             * @default 600
+             */
+            expires_in_seconds: number;
+            scope?: components["schemas"]["ScopedIdentity"];
+        };
+        /** TelegramSetupResponse */
+        TelegramSetupResponse: {
+            /** Audit Correlation Id */
+            audit_correlation_id: string;
+            /** Binding Code */
+            binding_code: string;
+            /** Binding Command */
+            binding_command: string;
+            /**
+             * Binding Id
+             * Format: uuid
+             */
+            binding_id: string;
+            /** Bot Secret Ref */
+            bot_secret_ref: string;
+            /** Correlation Id */
+            correlation_id: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            status: components["schemas"]["TelegramBindingStatus"];
+            /** Token Preview */
+            token_preview: string;
+        };
+        /** TelegramWebhookResponse */
+        TelegramWebhookResponse: {
+            /** Binding Id */
+            binding_id?: string | null;
+            /** Command */
+            command?: string | null;
+            /** Correlation Id */
+            correlation_id?: string;
+            /** Detail */
+            detail: string;
+            /** Event Ref */
+            event_ref?: string | null;
+            /** Status */
+            status: string;
+        };
         /** TodayBriefItem */
         TodayBriefItem: {
             /** Detail */
@@ -648,10 +765,76 @@ export interface operations {
             };
         };
     };
-    telegram_webhook_v1_telegram_webhook_post: {
+    telegram_binding_status_v1_telegram_bindings__binding_id__get: {
         parameters: {
             query?: never;
             header?: never;
+            path: {
+                binding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramBindingStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    telegram_setup_v1_telegram_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramSetupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramSetupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    telegram_webhook_v1_telegram_webhook_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Telegram-Bot-Api-Secret-Token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -669,9 +852,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["TelegramWebhookResponse"];
                 };
             };
             /** @description Validation Error */
