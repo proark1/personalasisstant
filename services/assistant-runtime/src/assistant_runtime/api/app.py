@@ -10,12 +10,10 @@ from assistant_runtime import __version__
 from assistant_runtime.channels.telegram import (
     TelegramBindingNotFound,
     TelegramBindingNotReady,
-    TelegramChannel,
     constant_time_secret_matches,
 )
 from assistant_runtime.config import Settings, get_settings
-from assistant_runtime.domain.action_store import InMemoryActionStore, InvalidActionTransition
-from assistant_runtime.domain.outbox import InMemoryOutboxStore
+from assistant_runtime.domain.action_store import InvalidActionTransition
 from assistant_runtime.domain.queue import InMemoryQueueProvider, InMemorySchedulerProvider
 from assistant_runtime.logging import configure_logging
 from assistant_runtime.observability import (
@@ -25,6 +23,7 @@ from assistant_runtime.observability import (
     metrics_response,
 )
 from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
+from assistant_runtime.runtime_stores import build_operational_stores
 from assistant_runtime.schemas import (
     ActionApprovalRequest,
     ActionCreateRequest,
@@ -47,7 +46,6 @@ from assistant_runtime.schemas import (
     TodayBriefItem,
     TodayResponse,
 )
-from assistant_runtime.secrets.provider import EnvelopeSecretProvider
 from assistant_runtime.security.content_sanitizer import HtmlContentSanitizer
 from assistant_runtime.security.instruction_firewall import BasicInstructionFirewall
 
@@ -55,15 +53,16 @@ from assistant_runtime.security.instruction_firewall import BasicInstructionFire
 class RuntimeContainer:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.actions = InMemoryActionStore()
-        self.outbox = InMemoryOutboxStore()
+        operational = build_operational_stores(settings)
+        self.actions = operational.actions
+        self.outbox = operational.outbox
+        self.secrets = operational.secrets
+        self.telegram = operational.telegram
         self.queue = InMemoryQueueProvider()
         self.scheduler = InMemorySchedulerProvider(self.queue)
         self.policy = AssistantActionPolicyEngine()
-        self.secrets = EnvelopeSecretProvider(settings.secret_master_key)
         self.sanitizer = HtmlContentSanitizer()
         self.firewall = BasicInstructionFirewall()
-        self.telegram = TelegramChannel(self.secrets)
         self.observability = InMemoryObservabilityProvider()
 
 
@@ -153,21 +152,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not decision.allowed:
             raise HTTPException(status_code=409, detail=decision.model_dump(mode="json"))
 
+        payload_ref = f"onebrain://action/{action.action_id}/approved-snapshot"
+        approve_with_outbox = getattr(container.actions, "approve_with_outbox", None)
         try:
-            approved = container.actions.approve(
-                action.action_id,
-                actor=request.actor,
-                channel=channel,
-                reason=decision.reason,
-            )
+            if action.external_side_effect and approve_with_outbox is not None:
+                approved, _ = approve_with_outbox(
+                    action.action_id,
+                    request.actor,
+                    channel,
+                    decision.reason,
+                    "action.execution.requested",
+                    payload_ref,
+                )
+            else:
+                approved = container.actions.approve(
+                    action.action_id,
+                    actor=request.actor,
+                    channel=channel,
+                    reason=decision.reason,
+                )
         except InvalidActionTransition as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-        if approved.external_side_effect:
+        if approved.external_side_effect and approve_with_outbox is None:
             container.outbox.create_for_action(
                 approved,
                 effect_type="action.execution.requested",
-                payload_ref=f"onebrain://action/{approved.action_id}/approved-snapshot",
+                payload_ref=payload_ref,
             )
         container.observability.increment(
             "action_approved",

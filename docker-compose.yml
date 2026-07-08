@@ -9,7 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./services/assistant-runtime/migrations/0001_operational_foundation.sql:/docker-entrypoint-initdb.d/0001_operational_foundation.sql:ro
+      - ./services/assistant-runtime/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -39,6 +39,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       ONEBRAIN_API_URL: ${ONEBRAIN_API_URL:-http://onebrain:8080}
       ONEBRAIN_AVAILABLE: ${ONEBRAIN_AVAILABLE:-true}
+      OPERATIONAL_STORE: ${OPERATIONAL_STORE:-postgres}
       SECRET_MASTER_KEY: ${SECRET_MASTER_KEY:-local-dev-change-before-shipping}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     ports:
@@ -67,6 +68,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       ONEBRAIN_API_URL: ${ONEBRAIN_API_URL:-http://onebrain:8080}
       ONEBRAIN_AVAILABLE: ${ONEBRAIN_AVAILABLE:-true}
+      OPERATIONAL_STORE: ${OPERATIONAL_STORE:-postgres}
       SECRET_MASTER_KEY: ${SECRET_MASTER_KEY:-local-dev-change-before-shipping}
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
     depends_on:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 
+from assistant_runtime.channels.telegram import TelegramChannel, safe_telegram_delivery_error
 from assistant_runtime.domain.action_store import InMemoryActionStore
 from assistant_runtime.domain.outbox import InMemoryOutboxStore
 from assistant_runtime.domain.queue import InMemoryQueueProvider
@@ -27,6 +29,7 @@ class AssistantWorker:
         outbox: InMemoryOutboxStore,
         queue: InMemoryQueueProvider,
         policy: AssistantActionPolicyEngine,
+        telegram: TelegramChannel | None = None,
         onebrain_available: bool = True,
     ) -> None:
         self.worker_id = worker_id
@@ -34,6 +37,7 @@ class AssistantWorker:
         self.outbox = outbox
         self.queue = queue
         self.policy = policy
+        self.telegram = telegram
         self.onebrain_available = onebrain_available
 
     def run_once(self) -> WorkerResult:
@@ -49,6 +53,9 @@ class AssistantWorker:
         row = self.outbox.lease_next(self.worker_id)
         if row is None:
             return 0
+        if row.effect_type == "telegram.message.send":
+            return self._relay_telegram_outbox(row)
+
         action = self.actions.get(row.action_id) if row.action_id is not None else None
         if action is not None:
             decision = self.policy.evaluate(
@@ -65,6 +72,21 @@ class AssistantWorker:
                 self.actions.begin_execution(action.action_id, self.worker_id)
                 self.actions.mark_executed(action.action_id, self.worker_id)
         self.outbox.mark_delivered(row.outbox_id, provider_response_ref=_provider_response_ref(row))
+        return 1
+
+    def _relay_telegram_outbox(self, row: OutboxRow) -> int:
+        if self.telegram is None:
+            self.outbox.mark_retry_or_dead_letter(row.outbox_id, "Telegram channel unavailable.")
+            return 0
+        try:
+            provider_response_ref = asyncio.run(self.telegram.deliver_outbox_row(row))
+        except Exception as exc:
+            self.outbox.mark_retry_or_dead_letter(
+                row.outbox_id,
+                safe_telegram_delivery_error(exc),
+            )
+            return 0
+        self.outbox.mark_delivered(row.outbox_id, provider_response_ref=provider_response_ref)
         return 1
 
 

@@ -326,14 +326,14 @@ class TelegramChannel:
             outbox.mark_retry_or_dead_letter(row.outbox_id, "Unsupported Telegram delivery effect.")
             return 0
         try:
-            provider_response_ref = await self._deliver_outbox_row(row)
+            provider_response_ref = await self.deliver_outbox_row(row)
         except Exception as exc:
-            outbox.mark_retry_or_dead_letter(row.outbox_id, _safe_delivery_error(exc))
+            outbox.mark_retry_or_dead_letter(row.outbox_id, safe_telegram_delivery_error(exc))
             return 0
         outbox.mark_delivered(row.outbox_id, provider_response_ref=provider_response_ref)
         return 1
 
-    async def _deliver_outbox_row(self, row: OutboxRow) -> str:
+    async def deliver_outbox_row(self, row: OutboxRow) -> str:
         delivery = self.bindings.get_delivery(row.payload_ref)
         if delivery is None:
             raise TelegramDeliveryNotFound(row.payload_ref)
@@ -643,7 +643,7 @@ def constant_time_secret_matches(provided: str | None, expected: str) -> bool:
     return hmac.compare_digest(provided, expected)
 
 
-def _safe_delivery_error(exc: Exception) -> str:
+def safe_telegram_delivery_error(exc: Exception) -> str:
     if isinstance(exc, TelegramDeliveryError):
         return str(exc)
     return exc.__class__.__name__

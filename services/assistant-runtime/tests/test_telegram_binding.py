@@ -8,7 +8,10 @@ from fastapi.testclient import TestClient
 
 from assistant_runtime.api.app import create_app
 from assistant_runtime.config import Settings
+from assistant_runtime.domain.queue import InMemoryQueueProvider
+from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
 from assistant_runtime.schemas import OutboxState
+from assistant_runtime.worker.runner import AssistantWorker
 
 WEBHOOK_SECRET = "telegram-test-webhook-secret"
 
@@ -289,6 +292,66 @@ def test_relay_redacts_transport_error_details() -> None:
     row = app.state.container.outbox.all()[0]
 
     assert processed == 0
+    assert OutboxState(row.state) == OutboxState.retry_wait
+    assert row.last_error == "RuntimeError"
+    assert "delivery-secret-token" not in row.last_error
+    assert "111" not in row.last_error
+
+
+def test_worker_relay_sends_queued_test_message_and_marks_outbox_delivered() -> None:
+    app = create_app(Settings(TELEGRAM_WEBHOOK_SECRET=WEBHOOK_SECRET))
+    transport = RecordingTelegramTransport()
+    app.state.container.telegram.transport = transport
+    client = TestClient(app)
+    setup = _setup(client, token="123456:delivery-secret-token")
+    _post_webhook(client, _private_message(119, 111, 222, setup["binding_command"]))
+    client.post(
+        f"/v1/telegram/bindings/{setup['binding_id']}/test-message",
+        json={"message": "Worker setup test message"},
+    )
+    worker = AssistantWorker(
+        worker_id="worker-telegram-test",
+        actions=app.state.container.actions,
+        outbox=app.state.container.outbox,
+        queue=InMemoryQueueProvider(),
+        policy=AssistantActionPolicyEngine(),
+        telegram=app.state.container.telegram,
+    )
+
+    result = worker.run_once()
+    row = app.state.container.outbox.all()[0]
+
+    assert result.outbox_processed == 1
+    assert transport.sent == [
+        ("123456:delivery-secret-token", "111", "Worker setup test message")
+    ]
+    assert OutboxState(row.state) == OutboxState.delivered
+    assert row.payload_ref.startswith("telegram://message/111/")
+
+
+def test_worker_relay_redacts_telegram_transport_error_details() -> None:
+    app = create_app(Settings(TELEGRAM_WEBHOOK_SECRET=WEBHOOK_SECRET))
+    app.state.container.telegram.transport = LeakyFailingTelegramTransport()
+    client = TestClient(app)
+    setup = _setup(client, token="123456:delivery-secret-token")
+    _post_webhook(client, _private_message(120, 111, 222, setup["binding_command"]))
+    client.post(
+        f"/v1/telegram/bindings/{setup['binding_id']}/test-message",
+        json={"message": "Worker setup test message"},
+    )
+    worker = AssistantWorker(
+        worker_id="worker-telegram-test",
+        actions=app.state.container.actions,
+        outbox=app.state.container.outbox,
+        queue=InMemoryQueueProvider(),
+        policy=AssistantActionPolicyEngine(),
+        telegram=app.state.container.telegram,
+    )
+
+    result = worker.run_once()
+    row = app.state.container.outbox.all()[0]
+
+    assert result.outbox_processed == 0
     assert OutboxState(row.state) == OutboxState.retry_wait
     assert row.last_error == "RuntimeError"
     assert "delivery-secret-token" not in row.last_error

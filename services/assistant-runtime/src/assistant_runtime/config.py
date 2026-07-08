@@ -21,6 +21,7 @@ class Settings(BaseSettings):
         validation_alias="DATABASE_URL",
     )
     redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
+    operational_store: str = Field(default="auto", validation_alias="OPERATIONAL_STORE")
 
     secret_master_key: str = Field(
         default="local-dev-change-before-shipping", validation_alias="SECRET_MASTER_KEY"
@@ -38,6 +39,14 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def use_postgres_operational_store(self) -> bool:
+        if self.operational_store == "postgres":
+            return True
+        if self.operational_store == "memory":
+            return False
+        return self.environment.lower() in {"production", "staging"}
 
 
 @lru_cache(maxsize=1)
