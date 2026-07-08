@@ -8,7 +8,9 @@ from assistant_runtime.channels.telegram import TelegramChannel, safe_telegram_d
 from assistant_runtime.domain.action_store import InMemoryActionStore
 from assistant_runtime.domain.outbox import InMemoryOutboxStore
 from assistant_runtime.domain.queue import InMemoryQueueProvider
+from assistant_runtime.interfaces import BrainClient
 from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
+from assistant_runtime.providers.onebrain_events import record_telegram_event
 from assistant_runtime.schemas import ActionState, OutboxRow
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,7 @@ class AssistantWorker:
         queue: InMemoryQueueProvider,
         policy: AssistantActionPolicyEngine,
         telegram: TelegramChannel | None = None,
+        brain: BrainClient | None = None,
         onebrain_available: bool = True,
     ) -> None:
         self.worker_id = worker_id
@@ -38,6 +41,7 @@ class AssistantWorker:
         self.queue = queue
         self.policy = policy
         self.telegram = telegram
+        self.brain = brain
         self.onebrain_available = onebrain_available
 
     def run_once(self) -> WorkerResult:
@@ -61,7 +65,7 @@ class AssistantWorker:
             decision = self.policy.evaluate(
                 action,
                 channel="worker",
-                onebrain_available=self.onebrain_available,
+                onebrain_available=self._onebrain_available(),
             )
             if not decision.allowed:
                 self.outbox.mark_retry_or_dead_letter(
@@ -86,9 +90,39 @@ class AssistantWorker:
                 safe_telegram_delivery_error(exc),
             )
             return 0
+        self._record_telegram_delivery_provenance(row)
         self.outbox.mark_delivered(row.outbox_id, provider_response_ref=provider_response_ref)
         return 1
+
+    def _onebrain_available(self) -> bool:
+        if self.brain is None:
+            return self.onebrain_available
+        return _safe_check_onebrain_available(self.brain)
+
+    def _record_telegram_delivery_provenance(self, row: OutboxRow) -> None:
+        if self.brain is None or self.telegram is None:
+            return
+        event = self.telegram.get_event_by_source_update(
+            f"telegram://update/{row.outbox_id}",
+            "telegram.message.delivered",
+        )
+        if event is None:
+            return
+        try:
+            asyncio.run(record_telegram_event(self.brain, event))
+        except Exception as exc:
+            logger.warning(
+                "onebrain telegram delivery provenance write failed",
+                extra={"extra": {"error_class": exc.__class__.__name__}},
+            )
 
 
 def _provider_response_ref(row: OutboxRow) -> str:
     return f"onebrain://provider-response/{row.outbox_id}"
+
+
+def _safe_check_onebrain_available(brain: BrainClient) -> bool:
+    try:
+        return asyncio.run(brain.check_available())
+    except Exception:
+        return False

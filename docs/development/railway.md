@@ -15,9 +15,36 @@ Required variables:
 
 - `DATABASE_URL`
 - `REDIS_URL`
-- `ONEBRAIN_API_URL`
+- `OPERATIONAL_STORE`
+- `ONEBRAIN_API_BASE_URL`
+- `ONEBRAIN_AVAILABLE`
+- `ONEBRAIN_CLIENT_MODE`
+- `ONEBRAIN_SERVICE_KEY`
+- `ONEBRAIN_ACCOUNT_ID`
+- `ONEBRAIN_SPACE_ID`
+- `ONEBRAIN_TIMEOUT_SECONDS`
 - `SECRET_MASTER_KEY`
+- `TELEGRAM_WEBHOOK_SECRET`
+- `CORS_ORIGINS`
 - `NEXT_PUBLIC_ASSISTANT_API_URL`
+
+Current known values:
+
+- `ONEBRAIN_API_BASE_URL`: `https://onebrain-production-0a16.up.railway.app`
+- `NEXT_PUBLIC_ASSISTANT_API_URL`: `https://assistant-api-production-5210.up.railway.app`
+- `CORS_ORIGINS`: `https://personalasisstant-production.up.railway.app`
+
+OneBrain service variables belong on `assistant-api` and `assistant-worker`
+only. The browser-facing web service receives only `NEXT_PUBLIC_ASSISTANT_API_URL`.
+
+Secrets still need to be set in Railway, not committed:
+
+- `ONEBRAIN_SERVICE_KEY`: scoped assistant service key minted in OneBrain.
+- `ONEBRAIN_ACCOUNT_ID`: canonical OneBrain account id for this assistant service.
+- `ONEBRAIN_SPACE_ID`: canonical OneBrain space id for this assistant service.
+- `SECRET_MASTER_KEY`: strong random value shared by API and worker.
+- `TELEGRAM_WEBHOOK_SECRET`: strong random value shared by API and Telegram webhook config.
+- `GEMINI_API_KEY`: only needed once model/voice calls are enabled.
 
 ## Config Files
 

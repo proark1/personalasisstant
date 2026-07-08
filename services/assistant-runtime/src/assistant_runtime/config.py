@@ -11,10 +11,18 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
     service_name: str = Field(default="assistant-api", validation_alias="SERVICE_NAME")
 
-    onebrain_api_url: str = Field(
-        default="http://localhost:8080", validation_alias="ONEBRAIN_API_URL"
+    onebrain_api_base_url: str = Field(
+        default="http://localhost:8080", validation_alias="ONEBRAIN_API_BASE_URL"
     )
+    onebrain_service_key: str = Field(default="", validation_alias="ONEBRAIN_SERVICE_KEY")
+    onebrain_account_id: str = Field(default="acct_demo", validation_alias="ONEBRAIN_ACCOUNT_ID")
+    onebrain_space_id: str = Field(default="space_demo", validation_alias="ONEBRAIN_SPACE_ID")
     onebrain_available: bool = Field(default=True, validation_alias="ONEBRAIN_AVAILABLE")
+    onebrain_client_mode: str = Field(default="auto", validation_alias="ONEBRAIN_CLIENT_MODE")
+    onebrain_timeout_seconds: float = Field(
+        default=10.0,
+        validation_alias="ONEBRAIN_TIMEOUT_SECONDS",
+    )
 
     database_url: str = Field(
         default="postgresql://assistant:assistant_dev_password@localhost:5432/assistant",

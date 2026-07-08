@@ -1,6 +1,6 @@
 # Operational Migrations
 
-Apply `0001_operational_foundation.sql` to the assistant Postgres database before
+Apply the migrations in filename order to the assistant Postgres database before
 running the API or worker against a persistent store.
 
 The schema is intentionally operational:
@@ -10,6 +10,7 @@ The schema is intentionally operational:
 - jobs, locks, sync cursors, provider subscriptions, and policy rows
 - encrypted secret references
 - operational audit correlation
+- Telegram binding, delivery, and webhook replay state
 
 Business memory, durable message/event contents, retrieval, retention,
 permissions, and audit-of-record belong in OneBrain.

@@ -9,8 +9,9 @@ from assistant_runtime.schemas import JobRecord, JobState, ScopedIdentity, utc_n
 
 
 class InMemoryQueueProvider:
-    def __init__(self, lease_seconds: int = 60) -> None:
+    def __init__(self, lease_seconds: int = 60, max_retries: int = 3) -> None:
         self.lease_seconds = lease_seconds
+        self.max_retries = max_retries
         self._lock = RLock()
         self._jobs: dict[UUID, JobRecord] = {}
         self._idempotency_index: dict[str, UUID] = {}
@@ -46,6 +47,21 @@ class InMemoryQueueProvider:
             job.state = JobState.succeeded
             job.lease_owner = None
             job.lease_expires_at = None
+            job.updated_at = utc_now()
+            return job
+
+    def mark_retry_or_dead_letter(self, job_id: UUID, reason: str) -> JobRecord:
+        with self._lock:
+            job = self._jobs[job_id]
+            job.retry_count += 1
+            job.last_error = reason
+            job.lease_owner = None
+            job.lease_expires_at = None
+            if job.retry_count >= self.max_retries:
+                job.state = JobState.dead_lettered
+            else:
+                job.state = JobState.retry_wait
+                job.run_at = utc_now() + timedelta(seconds=2**job.retry_count)
             job.updated_at = utc_now()
             return job
 

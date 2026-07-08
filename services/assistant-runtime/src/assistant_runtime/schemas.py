@@ -5,7 +5,15 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from assistant_runtime.contracts import (
+    ASSISTANT_PURPOSES,
+    contains_secret_reference,
+    copy_metadata,
+    default_assistant_intent,
+    validate_assistant_contract_names,
+)
 
 
 def utc_now() -> datetime:
@@ -280,6 +288,85 @@ class SecurityInspectionRequest(BaseModel):
 class SecurityInspectionResponse(BaseModel):
     sanitized: SanitizedContent
     firewall: FirewallDecision
+
+
+class BrainRecordCreateRequest(BaseModel):
+    scope: ScopedIdentity = Field(
+        default_factory=lambda: ScopedIdentity(
+            account_id="acct_demo", user_id="user_demo", space_id="space_demo"
+        )
+    )
+    content: str = Field(min_length=1, max_length=20000)
+    record_type: str = Field(min_length=1, max_length=80)
+    purpose: str = Field(default="assistant_context", max_length=80)
+    title: str = Field(default="", max_length=200)
+    intent: str = Field(default="", max_length=80)
+    source: str = Field(default="assistant", max_length=80)
+    source_ref: str = Field(default="", max_length=200)
+    metadata: JsonObject = Field(default_factory=dict)
+    provenance: JsonObject = Field(default_factory=dict)
+    retention: JsonObject = Field(default_factory=dict)
+
+    @field_validator("record_type", "purpose", "intent", "source", "source_ref", mode="before")
+    @classmethod
+    def _strip_contract_text(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_assistant_contract(self) -> BrainRecordCreateRequest:
+        if not self.intent:
+            self.intent = default_assistant_intent(self.record_type)
+        validate_assistant_contract_names(
+            record_type=self.record_type,
+            purpose=self.purpose,
+            intent=self.intent,
+        )
+        self.metadata = copy_metadata(self.metadata, "metadata")
+        self.provenance = copy_metadata(self.provenance, "provenance")
+        self.retention = copy_metadata(self.retention, "retention")
+        if self.record_type == "secret_reference" and not contains_secret_reference(self.metadata):
+            raise ValueError("secret_reference records must identify a secret_ref.")
+        return self
+
+
+class BrainRecordResponse(BaseModel):
+    record: JsonObject
+
+
+class BrainRecordListResponse(BaseModel):
+    records: list[JsonObject] = Field(default_factory=list)
+
+
+class BrainAuditEventRequest(BaseModel):
+    scope: ScopedIdentity = Field(
+        default_factory=lambda: ScopedIdentity(
+            account_id="acct_demo", user_id="user_demo", space_id="space_demo"
+        )
+    )
+    action: str = Field(min_length=1, max_length=120)
+    target_type: str = Field(min_length=1, max_length=80)
+    target_id: str = Field(min_length=1, max_length=200)
+    purpose: str = Field(default="assistant_action", max_length=80)
+    decision: str = Field(default="recorded", max_length=80)
+    metadata: JsonObject = Field(default_factory=dict)
+
+    @field_validator("action", "target_type", "target_id", "purpose", "decision", mode="before")
+    @classmethod
+    def _strip_audit_text(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_assistant_audit_contract(self) -> BrainAuditEventRequest:
+        if not self.action.startswith("assistant."):
+            raise ValueError("Assistant audit actions must use the assistant.* namespace.")
+        if self.purpose not in ASSISTANT_PURPOSES:
+            raise ValueError(f"Unknown assistant purpose: {self.purpose}")
+        self.metadata = copy_metadata(self.metadata, "metadata")
+        return self
+
+
+class BrainAuditEventResponse(BaseModel):
+    event: JsonObject
 
 
 class TelegramSetupRequest(BaseModel):

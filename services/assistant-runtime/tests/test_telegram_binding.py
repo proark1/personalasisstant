@@ -94,7 +94,8 @@ def test_telegram_webhook_rejects_missing_or_invalid_secret() -> None:
 
 
 def test_start_command_verifies_private_chat_binding() -> None:
-    client = _client()
+    app = create_app(Settings(TELEGRAM_WEBHOOK_SECRET=WEBHOOK_SECRET))
+    client = TestClient(app)
     setup = _setup(client)
 
     body = _post_webhook(
@@ -102,6 +103,7 @@ def test_start_command_verifies_private_chat_binding() -> None:
         _private_message(101, 111, 222, setup["binding_command"]),
     )
     status = client.get(f"/v1/telegram/bindings/{setup['binding_id']}").json()
+    records = list(app.state.container.brain.records.values())
 
     assert body["status"] == "bound"
     assert body["command"] == "/start"
@@ -109,6 +111,8 @@ def test_start_command_verifies_private_chat_binding() -> None:
     assert body["event_ref"].startswith("onebrain://telegram-event/")
     assert status["status"] == "verified"
     assert status["paused"] is False
+    assert any(record["record_type"] == "telegram_binding" for record in records)
+    assert records[-1]["metadata"]["event_type"] == "telegram.binding.verified"
 
 
 def test_start_command_is_idempotent_for_duplicate_update_and_same_chat() -> None:
@@ -184,6 +188,7 @@ def test_unknown_text_is_recorded_as_untrusted_without_creating_action() -> None
     _post_webhook(client, _private_message(111, 111, 222, setup["binding_command"]))
 
     body = _post_webhook(client, _private_message(112, 111, 222, "hello assistant"))
+    records = list(app.state.container.brain.records.values())
 
     assert body["status"] == "received"
     assert body["command"] == "unknown_text"
@@ -193,6 +198,9 @@ def test_unknown_text_is_recorded_as_untrusted_without_creating_action() -> None
         "hello assistant" not in event.sanitized_summary
         for event in app.state.container.telegram.events
     )
+    assert records[-1]["record_type"] == "message"
+    assert records[-1]["metadata"]["content_trust"] == "untrusted"
+    assert "hello assistant" not in records[-1]["content"]
 
 
 def test_test_message_requires_verified_unpaused_binding() -> None:
@@ -219,6 +227,7 @@ def test_verified_binding_queues_test_message_without_sending_inline() -> None:
     response = client.post(f"/v1/telegram/bindings/{setup['binding_id']}/test-message", json={})
     body = response.json()
     rows = app.state.container.outbox.all()
+    records = list(app.state.container.brain.records.values())
 
     assert response.status_code == 202
     assert body["status"] == "queued"
@@ -229,6 +238,8 @@ def test_verified_binding_queues_test_message_without_sending_inline() -> None:
     assert rows[0].effect_type == "telegram.message.send"
     assert OutboxState(rows[0].state) == OutboxState.pending
     assert transport.sent == []
+    assert records[-1]["record_type"] == "notification_event"
+    assert records[-1]["metadata"]["event_type"] == "telegram.test_message.queued"
 
 
 def test_relay_sends_queued_test_message_and_marks_outbox_delivered() -> None:
@@ -316,10 +327,12 @@ def test_worker_relay_sends_queued_test_message_and_marks_outbox_delivered() -> 
         queue=InMemoryQueueProvider(),
         policy=AssistantActionPolicyEngine(),
         telegram=app.state.container.telegram,
+        brain=app.state.container.brain,
     )
 
     result = worker.run_once()
     row = app.state.container.outbox.all()[0]
+    records = list(app.state.container.brain.records.values())
 
     assert result.outbox_processed == 1
     assert transport.sent == [
@@ -327,6 +340,8 @@ def test_worker_relay_sends_queued_test_message_and_marks_outbox_delivered() -> 
     ]
     assert OutboxState(row.state) == OutboxState.delivered
     assert row.payload_ref.startswith("telegram://message/111/")
+    assert records[-1]["record_type"] == "notification_event"
+    assert records[-1]["metadata"]["event_type"] == "telegram.message.delivered"
 
 
 def test_worker_relay_redacts_telegram_transport_error_details() -> None:

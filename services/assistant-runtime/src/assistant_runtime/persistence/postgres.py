@@ -21,6 +21,8 @@ from assistant_runtime.schemas import (
     ActionRecord,
     ActionState,
     ApprovalChannel,
+    JobRecord,
+    JobState,
     OutboxRow,
     OutboxState,
     ScopedIdentity,
@@ -478,6 +480,137 @@ class PostgresOutboxStore(InMemoryOutboxStore):
         with _connect(self.database_url) as conn:
             rows = conn.execute("SELECT * FROM assistant_outbox ORDER BY created_at").fetchall()
         return [_outbox_from_row(row) for row in rows]
+
+
+class PostgresJobStore:
+    """Postgres-backed durable job queue with the in-memory queue interface."""
+
+    def __init__(self, database_url: str, lease_seconds: int = 60, max_retries: int = 3) -> None:
+        self.database_url = database_url
+        self.lease_seconds = lease_seconds
+        self.max_retries = max_retries
+
+    def enqueue(self, job: JobRecord) -> JobRecord:
+        with _connect(self.database_url) as conn:
+            inserted = conn.execute(
+                """
+                INSERT INTO assistant_jobs (
+                  job_id, account_id, user_id, space_id, purpose, state, job_type,
+                  payload_ref, idempotency_key, correlation_id, audit_correlation_id,
+                  timezone, run_at, created_at, updated_at
+                ) VALUES (
+                  %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+                ON CONFLICT (idempotency_key) DO NOTHING
+                RETURNING *
+                """,
+                (
+                    job.job_id,
+                    job.scope.account_id,
+                    job.scope.user_id,
+                    job.scope.space_id,
+                    job.scope.purpose,
+                    job.state,
+                    job.job_type,
+                    job.payload_ref,
+                    job.idempotency_key,
+                    job.correlation_id,
+                    job.audit_correlation_id,
+                    job.timezone,
+                    job.run_at,
+                    job.created_at,
+                    job.updated_at,
+                ),
+            ).fetchone()
+            selected = inserted or conn.execute(
+                "SELECT * FROM assistant_jobs WHERE idempotency_key = %s",
+                (job.idempotency_key,),
+            ).fetchone()
+        return _job_from_row(selected)
+
+    def lease_next(self, worker_id: str, now=None) -> JobRecord | None:
+        now = now or utc_now()
+        lease_expires_at = now + timedelta(seconds=self.lease_seconds)
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                WITH candidate AS (
+                  SELECT job_id
+                  FROM assistant_jobs
+                  WHERE (
+                    state IN ('queued', 'retry_wait') AND run_at <= %s
+                  ) OR (
+                    state IN ('leased', 'running')
+                    AND lease_expires_at IS NOT NULL
+                    AND lease_expires_at <= %s
+                  )
+                  ORDER BY run_at
+                  FOR UPDATE SKIP LOCKED
+                  LIMIT 1
+                )
+                UPDATE assistant_jobs
+                SET state = 'leased',
+                    lease_owner = %s,
+                    lease_expires_at = %s,
+                    updated_at = %s
+                WHERE job_id IN (SELECT job_id FROM candidate)
+                RETURNING *
+                """,
+                (now, now, worker_id, lease_expires_at, now),
+            ).fetchone()
+        return _job_from_row(row) if row else None
+
+    def mark_succeeded(self, job_id: UUID) -> JobRecord:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                UPDATE assistant_jobs
+                SET state = 'succeeded',
+                    lease_owner = NULL,
+                    lease_expires_at = NULL,
+                    updated_at = %s
+                WHERE job_id = %s
+                RETURNING *
+                """,
+                (utc_now(), job_id),
+            ).fetchone()
+        return _job_from_row(row)
+
+    def mark_retry_or_dead_letter(self, job_id: UUID, reason: str) -> JobRecord:
+        now = utc_now()
+        with _connect(self.database_url) as conn:
+            current = conn.execute(
+                "SELECT retry_count FROM assistant_jobs WHERE job_id = %s",
+                (job_id,),
+            ).fetchone()
+            retry_count = int(current["retry_count"]) + 1
+            if retry_count >= self.max_retries:
+                state = JobState.dead_lettered
+                run_at = now
+            else:
+                state = JobState.retry_wait
+                run_at = now + timedelta(seconds=2**retry_count)
+            row = conn.execute(
+                """
+                UPDATE assistant_jobs
+                SET state = %s,
+                    retry_count = %s,
+                    last_error = %s,
+                    lease_owner = NULL,
+                    lease_expires_at = NULL,
+                    run_at = %s,
+                    updated_at = %s
+                WHERE job_id = %s
+                RETURNING *
+                """,
+                (state, retry_count, reason, run_at, now, job_id),
+            ).fetchone()
+        return _job_from_row(row)
+
+    def all(self) -> list[JobRecord]:
+        with _connect(self.database_url) as conn:
+            rows = conn.execute("SELECT * FROM assistant_jobs ORDER BY run_at").fetchall()
+        return [_job_from_row(row) for row in rows]
 
 
 class PostgresTelegramBindingStore(InMemoryTelegramBindingStore):
@@ -942,6 +1075,27 @@ def _outbox_from_row(row: dict[str, Any]) -> OutboxRow:
         lease_expires_at=row["lease_expires_at"],
         retry_count=row["retry_count"],
         next_run_at=row["next_run_at"],
+        last_error=row["last_error"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def _job_from_row(row: dict[str, Any]) -> JobRecord:
+    return JobRecord(
+        job_id=row["job_id"],
+        scope=_scope_from_row(row),
+        state=row["state"],
+        job_type=row["job_type"],
+        payload_ref=row["payload_ref"],
+        idempotency_key=row["idempotency_key"],
+        correlation_id=row["correlation_id"],
+        audit_correlation_id=row["audit_correlation_id"],
+        timezone=row["timezone"],
+        run_at=row["run_at"],
+        lease_owner=row["lease_owner"],
+        lease_expires_at=row["lease_expires_at"],
+        retry_count=row["retry_count"],
         last_error=row["last_error"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],

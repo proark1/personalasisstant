@@ -582,6 +582,25 @@ class TelegramChannel:
     def events(self) -> list[TelegramProvenanceEvent]:
         return self.bindings.events()
 
+    def get_event(self, event_ref: str) -> TelegramProvenanceEvent | None:
+        for event in self.events:
+            if event.event_ref == event_ref:
+                return event
+        return None
+
+    def get_event_by_source_update(
+        self,
+        source_update_ref: str,
+        event_type: str | None = None,
+    ) -> TelegramProvenanceEvent | None:
+        for event in reversed(self.events):
+            if event.source_update_ref != source_update_ref:
+                continue
+            if event_type is not None and event.event_type != event_type:
+                continue
+            return event
+        return None
+
 
 def _status_response(record: TelegramBindingRecord) -> TelegramBindingStatusResponse:
     status = TelegramBindingStatus(record.status)

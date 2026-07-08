@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-assistant}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assistant_dev_password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./services/assistant-runtime/migrations:/docker-entrypoint-initdb.d:ro
@@ -19,7 +19,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -37,13 +37,18 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: ${DATABASE_URL:-postgresql://assistant:assistant_dev_password@postgres:5432/assistant}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      ONEBRAIN_API_URL: ${ONEBRAIN_API_URL:-http://onebrain:8080}
+      ONEBRAIN_API_BASE_URL: ${ONEBRAIN_API_BASE_URL:-http://onebrain:8080}
       ONEBRAIN_AVAILABLE: ${ONEBRAIN_AVAILABLE:-true}
+      ONEBRAIN_CLIENT_MODE: ${ONEBRAIN_CLIENT_MODE:-auto}
+      ONEBRAIN_SERVICE_KEY: ${ONEBRAIN_SERVICE_KEY:-}
+      ONEBRAIN_ACCOUNT_ID: ${ONEBRAIN_ACCOUNT_ID:-acct_demo}
+      ONEBRAIN_SPACE_ID: ${ONEBRAIN_SPACE_ID:-space_demo}
+      ONEBRAIN_TIMEOUT_SECONDS: ${ONEBRAIN_TIMEOUT_SECONDS:-10}
       OPERATIONAL_STORE: ${OPERATIONAL_STORE:-postgres}
       SECRET_MASTER_KEY: ${SECRET_MASTER_KEY:-local-dev-change-before-shipping}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     ports:
-      - "8000:8000"
+      - "${ASSISTANT_API_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,8 +71,13 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: ${DATABASE_URL:-postgresql://assistant:assistant_dev_password@postgres:5432/assistant}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      ONEBRAIN_API_URL: ${ONEBRAIN_API_URL:-http://onebrain:8080}
+      ONEBRAIN_API_BASE_URL: ${ONEBRAIN_API_BASE_URL:-http://onebrain:8080}
       ONEBRAIN_AVAILABLE: ${ONEBRAIN_AVAILABLE:-true}
+      ONEBRAIN_CLIENT_MODE: ${ONEBRAIN_CLIENT_MODE:-auto}
+      ONEBRAIN_SERVICE_KEY: ${ONEBRAIN_SERVICE_KEY:-}
+      ONEBRAIN_ACCOUNT_ID: ${ONEBRAIN_ACCOUNT_ID:-acct_demo}
+      ONEBRAIN_SPACE_ID: ${ONEBRAIN_SPACE_ID:-space_demo}
+      ONEBRAIN_TIMEOUT_SECONDS: ${ONEBRAIN_TIMEOUT_SECONDS:-10}
       OPERATIONAL_STORE: ${OPERATIONAL_STORE:-postgres}
       SECRET_MASTER_KEY: ${SECRET_MASTER_KEY:-local-dev-change-before-shipping}
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
@@ -91,7 +101,7 @@ services:
     environment:
       NEXT_PUBLIC_ASSISTANT_API_URL: ${NEXT_PUBLIC_ASSISTANT_API_URL:-http://localhost:8000}
     ports:
-      - "3000:3000"
+      - "${ASSISTANT_WEB_PORT:-3000}:3000"
     depends_on:
       assistant-api:
         condition: service_healthy

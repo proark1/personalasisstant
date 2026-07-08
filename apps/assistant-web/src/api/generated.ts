@@ -89,6 +89,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/brain/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Brain Audit Event */
+        post: operations["create_brain_audit_event_v1_brain_audit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/brain/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Brain Records */
+        get: operations["list_brain_records_v1_brain_records_get"];
+        put?: never;
+        /** Create Brain Record */
+        post: operations["create_brain_record_v1_brain_records_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/brain/records/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Brain Record */
+        get: operations["get_brain_record_v1_brain_records__record_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/security/inspect": {
         parameters: {
             query?: never;
@@ -346,6 +398,96 @@ export interface components {
          * @enum {string}
          */
         ApprovalChannel: "web" | "telegram" | "voice" | "worker" | "fresh_auth";
+        /** BrainAuditEventRequest */
+        BrainAuditEventRequest: {
+            /** Action */
+            action: string;
+            /**
+             * Decision
+             * @default recorded
+             */
+            decision: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Purpose
+             * @default assistant_action
+             */
+            purpose: string;
+            scope?: components["schemas"]["ScopedIdentity"];
+            /** Target Id */
+            target_id: string;
+            /** Target Type */
+            target_type: string;
+        };
+        /** BrainAuditEventResponse */
+        BrainAuditEventResponse: {
+            /** Event */
+            event: {
+                [key: string]: unknown;
+            };
+        };
+        /** BrainRecordCreateRequest */
+        BrainRecordCreateRequest: {
+            /** Content */
+            content: string;
+            /**
+             * Intent
+             * @default
+             */
+            intent: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Provenance */
+            provenance?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Purpose
+             * @default assistant_context
+             */
+            purpose: string;
+            /** Record Type */
+            record_type: string;
+            /** Retention */
+            retention?: {
+                [key: string]: unknown;
+            };
+            scope?: components["schemas"]["ScopedIdentity"];
+            /**
+             * Source
+             * @default assistant
+             */
+            source: string;
+            /**
+             * Source Ref
+             * @default
+             */
+            source_ref: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+        };
+        /** BrainRecordListResponse */
+        BrainRecordListResponse: {
+            /** Records */
+            records?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** BrainRecordResponse */
+        BrainRecordResponse: {
+            /** Record */
+            record: {
+                [key: string]: unknown;
+            };
+        };
         /** DegradedModeState */
         DegradedModeState: {
             /** Active */
@@ -771,6 +913,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActionRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_brain_audit_event_v1_brain_audit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrainAuditEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrainAuditEventResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_brain_records_v1_brain_records_get: {
+        parameters: {
+            query: {
+                account_id: string;
+                space_id: string;
+                purpose: string;
+                record_type?: string;
+                intent?: string;
+                status?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrainRecordListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_brain_record_v1_brain_records_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrainRecordCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrainRecordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_brain_record_v1_brain_records__record_id__get: {
+        parameters: {
+            query: {
+                account_id: string;
+                space_id: string;
+                purpose: string;
+            };
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrainRecordResponse"];
                 };
             };
             /** @description Validation Error */

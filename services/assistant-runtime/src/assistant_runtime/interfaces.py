@@ -8,6 +8,7 @@ from assistant_runtime.schemas import (
     ActionRecord,
     FirewallDecision,
     JobRecord,
+    JsonObject,
     OutboxRow,
     PolicyDecision,
     SanitizedContent,
@@ -17,6 +18,57 @@ from assistant_runtime.schemas import (
 
 class BrainClient(Protocol):
     async def check_available(self) -> bool: ...
+
+    async def create_assistant_record(
+        self,
+        *,
+        content: str,
+        record_type: str,
+        purpose: str,
+        account_id: str,
+        space_id: str,
+        title: str = "",
+        intent: str = "",
+        source: str = "assistant",
+        source_ref: str = "",
+        metadata: JsonObject | None = None,
+        provenance: JsonObject | None = None,
+        retention: JsonObject | None = None,
+    ) -> JsonObject: ...
+
+    async def get_assistant_record(
+        self,
+        record_id: str,
+        *,
+        account_id: str = "",
+        space_id: str = "",
+        purpose: str = "",
+    ) -> JsonObject: ...
+
+    async def list_assistant_records(
+        self,
+        *,
+        account_id: str = "",
+        space_id: str = "",
+        record_type: str = "",
+        intent: str = "",
+        purpose: str = "",
+        status: str = "",
+        limit: int = 50,
+    ) -> list[JsonObject]: ...
+
+    async def record_audit_event(
+        self,
+        *,
+        action: str,
+        target_type: str,
+        target_id: str,
+        account_id: str,
+        space_id: str,
+        purpose: str = "assistant_action",
+        decision: str = "recorded",
+        metadata: JsonObject | None = None,
+    ) -> JsonObject: ...
 
     async def record_action_audit(self, action: ActionRecord, decision: PolicyDecision) -> None: ...
 

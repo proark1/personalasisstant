@@ -201,7 +201,7 @@ function HealthSection({ today }: { today: TodayResponse }) {
             <div>
               <strong>{provider.provider}</strong>
               <p>
-                {provider.status} · {provider.detail}
+                {provider.status} - {provider.detail}
               </p>
             </div>
           </article>
