@@ -330,6 +330,16 @@ a {
   gap: 8px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .icon-button,
 .text-button {
   display: inline-flex;
@@ -343,6 +353,12 @@ a {
   color: var(--ink);
   padding: 0 11px;
   cursor: pointer;
+}
+
+.icon-button:disabled,
+.text-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .text-button[data-variant="primary"] {
@@ -373,6 +389,168 @@ a {
 
 .degraded-band strong {
   color: var(--critical);
+}
+
+.telegram-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.telegram-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.telegram-steps span {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.telegram-steps span[data-active="true"] {
+  border-color: color-mix(in srgb, var(--slate) 45%, var(--hairline));
+  color: var(--ink);
+  box-shadow: var(--shadow-low);
+}
+
+.telegram-form,
+.telegram-test {
+  display: grid;
+  gap: 8px;
+}
+
+.field-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.token-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 8px;
+}
+
+.text-field,
+.text-area {
+  width: 100%;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-low);
+}
+
+.text-field {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.text-area {
+  min-height: 92px;
+  resize: vertical;
+  padding: 10px 12px;
+}
+
+.telegram-link,
+.telegram-actions,
+.telegram-result,
+.telegram-error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.telegram-link {
+  width: fit-content;
+  color: var(--slate);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.telegram-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: 10px;
+  box-shadow: var(--shadow-low);
+}
+
+.telegram-command span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.telegram-command code {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.telegram-actions {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.telegram-state {
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 3px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.telegram-state[data-state="verified"] {
+  border-color: color-mix(in srgb, var(--success) 35%, var(--hairline));
+  color: var(--success);
+}
+
+.telegram-state[data-state="expired"],
+.telegram-state[data-state="revoked"] {
+  border-color: color-mix(in srgb, var(--critical) 40%, var(--hairline));
+  color: var(--critical);
+}
+
+.telegram-result,
+.telegram-error {
+  border-radius: var(--radius-card);
+  padding: 10px;
+  font-size: 13px;
+}
+
+.telegram-result {
+  background: color-mix(in srgb, var(--success) 9%, white);
+  color: var(--success);
+}
+
+.telegram-error {
+  background: color-mix(in srgb, var(--critical) 8%, white);
+  color: var(--critical);
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
 }
 
 .mobile-nav {
@@ -411,6 +589,10 @@ a {
     grid-template-columns: 92px minmax(0, 1fr);
   }
 
+  .telegram-steps {
+    grid-template-columns: 1fr;
+  }
+
   .mobile-nav {
     position: fixed;
     right: 0;
@@ -442,10 +624,18 @@ a {
 @media (prefers-reduced-motion: no-preference) {
   .nav-item,
   .text-button,
-  .icon-button {
+  .icon-button,
+  .telegram-link,
+  .telegram-steps span {
     transition:
       background 160ms ease,
       border-color 160ms ease,
       color 160ms ease;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }

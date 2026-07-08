@@ -15,6 +15,7 @@ import {
   Sparkles
 } from "lucide-react";
 import type { TodayResponse } from "../api/client";
+import { TelegramSetupPanel } from "./telegram-setup-panel";
 
 const iconMap = {
   today: Sparkles,
@@ -72,6 +73,7 @@ export function TodayShell({ today }: { today: TodayResponse }) {
           </div>
 
           <div className="stack">
+            <TelegramSetupPanel />
             <ApprovalSection today={today} />
           </div>
         </div>

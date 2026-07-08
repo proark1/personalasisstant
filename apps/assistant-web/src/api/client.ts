@@ -1,6 +1,11 @@
 import type { components } from "./generated";
 
 export type TodayResponse = components["schemas"]["TodayResponse"];
+export type TelegramBindingStatusResponse =
+  components["schemas"]["TelegramBindingStatusResponse"];
+export type TelegramSetupResponse = components["schemas"]["TelegramSetupResponse"];
+export type TelegramTestMessageResponse =
+  components["schemas"]["TelegramTestMessageResponse"];
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_ASSISTANT_API_URL ?? "http://localhost:8000";
 
@@ -17,6 +22,49 @@ export async function getToday(): Promise<TodayResponse> {
   } catch {
     return fallbackToday();
   }
+}
+
+export async function createTelegramSetup(botToken: string): Promise<TelegramSetupResponse> {
+  return requestJson<TelegramSetupResponse>("/v1/telegram/setup", {
+    method: "POST",
+    body: JSON.stringify({ bot_token: botToken })
+  });
+}
+
+export async function getTelegramBindingStatus(
+  bindingId: string
+): Promise<TelegramBindingStatusResponse> {
+  return requestJson<TelegramBindingStatusResponse>(`/v1/telegram/bindings/${bindingId}`, {
+    method: "GET"
+  });
+}
+
+export async function sendTelegramTestMessage(
+  bindingId: string,
+  message: string
+): Promise<TelegramTestMessageResponse> {
+  return requestJson<TelegramTestMessageResponse>(
+    `/v1/telegram/bindings/${bindingId}/test-message`,
+    {
+      method: "POST",
+      body: JSON.stringify({ message })
+    }
+  );
+}
+
+async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      ...init.headers
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`Assistant API returned ${response.status}`);
+  }
+  return (await response.json()) as T;
 }
 
 function fallbackToday(): TodayResponse {
