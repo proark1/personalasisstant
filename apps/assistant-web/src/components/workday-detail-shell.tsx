@@ -192,7 +192,7 @@ export function CalendarPlanShell({
   );
 }
 
-function WorkdayFrame({
+export function WorkdayFrame({
   today,
   activeKey,
   title,
