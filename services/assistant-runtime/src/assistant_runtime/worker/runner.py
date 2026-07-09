@@ -9,9 +9,10 @@ from assistant_runtime.domain.action_store import InMemoryActionStore
 from assistant_runtime.domain.outbox import InMemoryOutboxStore
 from assistant_runtime.domain.providers import InMemoryProviderStore
 from assistant_runtime.domain.queue import InMemoryQueueProvider
-from assistant_runtime.interfaces import BrainClient
+from assistant_runtime.interfaces import BrainClient, SecretProvider
 from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
 from assistant_runtime.providers.onebrain_events import record_telegram_event
+from assistant_runtime.providers.read_adapters import ProviderReadClient
 from assistant_runtime.providers.sync import ProviderSyncProcessor
 from assistant_runtime.providers.workday import WorkdayJobProcessor
 from assistant_runtime.schemas import ActionState, OutboxRow
@@ -36,7 +37,9 @@ class AssistantWorker:
         policy: AssistantActionPolicyEngine,
         telegram: TelegramChannel | None = None,
         providers: InMemoryProviderStore | None = None,
+        secrets: SecretProvider | None = None,
         brain: BrainClient | None = None,
+        provider_reader: ProviderReadClient | None = None,
         onebrain_available: bool = True,
     ) -> None:
         self.worker_id = worker_id
@@ -46,10 +49,19 @@ class AssistantWorker:
         self.policy = policy
         self.telegram = telegram
         self.providers = providers
+        self.secrets = secrets
         self.brain = brain
+        self.provider_reader = provider_reader or ProviderReadClient()
         self.onebrain_available = onebrain_available
         self.provider_sync = (
-            ProviderSyncProcessor(providers, brain=brain) if providers is not None else None
+            ProviderSyncProcessor(
+                providers,
+                brain=brain,
+                secrets=secrets,
+                reader=self.provider_reader,
+            )
+            if providers is not None
+            else None
         )
         self.workday_jobs = WorkdayJobProcessor(brain=brain, providers=providers)
 

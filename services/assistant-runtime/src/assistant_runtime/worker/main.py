@@ -30,6 +30,7 @@ def run() -> None:
         policy=AssistantActionPolicyEngine(),
         telegram=operational.telegram,
         providers=operational.providers,
+        secrets=operational.secrets,
         brain=brain,
         onebrain_available=asyncio.run(brain.check_available()),
     )
