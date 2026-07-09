@@ -20,6 +20,9 @@ ENV NEXT_PUBLIC_ASSISTANT_API_URL=$NEXT_PUBLIC_ASSISTANT_API_URL
 
 RUN npm --workspace apps/assistant-web run generate:api
 RUN npm --workspace apps/assistant-web run build
+RUN mkdir -p apps/assistant-web/.next/standalone/apps/assistant-web/.next/static \
+  && cp -R apps/assistant-web/.next/static/. apps/assistant-web/.next/standalone/apps/assistant-web/.next/static/ \
+  && if [ -d apps/assistant-web/public ]; then cp -R apps/assistant-web/public apps/assistant-web/.next/standalone/apps/assistant-web/public; fi
 
 FROM node:22-alpine AS runner
 
