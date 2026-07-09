@@ -11,6 +11,7 @@ The schema is intentionally operational:
 - encrypted secret references
 - operational audit correlation
 - Telegram binding, delivery, and webhook replay state
+- assistant session references (auth enforcement; bearer-token hashes only)
 
 Business memory, durable message/event contents, retrieval, retention,
 permissions, and audit-of-record belong in OneBrain.

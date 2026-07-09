@@ -3,12 +3,14 @@ from __future__ import annotations
 import json
 from uuid import UUID
 
-from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from assistant_runtime import __version__
+from assistant_runtime.api.auth import require_principal, require_scope_match
+from assistant_runtime.auth.identity import IdentityAuthorityUnavailable, build_identity_provider
 from assistant_runtime.channels.telegram import (
     TelegramBindingNotFound,
     TelegramBindingNotReady,
@@ -17,6 +19,7 @@ from assistant_runtime.channels.telegram import (
 from assistant_runtime.config import Settings, get_settings
 from assistant_runtime.domain.action_store import InvalidActionTransition
 from assistant_runtime.domain.providers import summarize_provider_account
+from assistant_runtime.domain.sessions import mint_session
 from assistant_runtime.domain.workday import (
     WorkdayLoopProcessor,
     workday_snapshot_to_today_response,
@@ -57,12 +60,16 @@ from assistant_runtime.schemas import (
     ActionRecord,
     ApprovalCard,
     ApprovalChannel,
+    AuthPrincipal,
     BrainAuditEventRequest,
     BrainAuditEventResponse,
     BrainRecordCreateRequest,
     BrainRecordListResponse,
     BrainRecordResponse,
     HealthResponse,
+    LoginRequest,
+    LoginResponse,
+    LogoutResponse,
     OAuthConnectionAttemptRecord,
     OAuthConnectionStatus,
     OAuthScopeTier,
@@ -82,6 +89,7 @@ from assistant_runtime.schemas import (
     ScopedIdentity,
     SecurityInspectionRequest,
     SecurityInspectionResponse,
+    SessionResponse,
     TelegramBindingStatusResponse,
     TelegramProvenanceEvent,
     TelegramSetupRequest,
@@ -113,6 +121,8 @@ class RuntimeContainer:
         self.providers = operational.providers
         self.queue = operational.queue
         self.scheduler = operational.scheduler
+        self.sessions = operational.sessions
+        self.identity = build_identity_provider(settings)
         self.brain = build_brain_client(settings)
         self.oauth = ProviderOAuthClient(settings)
         self.policy = AssistantActionPolicyEngine()
@@ -199,33 +209,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return metrics_response()
 
     @app.get("/v1/today", response_model=TodayResponse)
-    async def today() -> TodayResponse:
-        snapshot = await build_workday_snapshot(container)
+    async def today(
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> TodayResponse:
+        snapshot = await build_workday_snapshot(container, scope=principal.scope)
         return workday_snapshot_to_today_response(snapshot)
 
     @app.get("/v1/workday/today", response_model=WorkdaySnapshot)
     async def workday_today(
-        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
-        user_id: str = Query(default="user_demo", min_length=1),
-        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        principal: AuthPrincipal = Depends(require_principal),
         local_date: str | None = Query(default=None),
     ) -> WorkdaySnapshot:
         return await build_workday_snapshot(
             container,
-            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            scope=principal.scope,
             local_date=local_date,
         )
 
     @app.get("/v1/workday/brief", response_model=WorkdayBriefResponse)
     async def workday_brief(
-        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
-        user_id: str = Query(default="user_demo", min_length=1),
-        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        principal: AuthPrincipal = Depends(require_principal),
         local_date: str | None = Query(default=None),
     ) -> WorkdayBriefResponse:
         snapshot = await build_workday_snapshot(
             container,
-            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            scope=principal.scope,
             local_date=local_date,
         )
         return WorkdayBriefResponse(
@@ -235,14 +243,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/v1/workday/inbox", response_model=WorkdayInboxResponse)
     async def workday_inbox(
-        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
-        user_id: str = Query(default="user_demo", min_length=1),
-        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        principal: AuthPrincipal = Depends(require_principal),
         local_date: str | None = Query(default=None),
     ) -> WorkdayInboxResponse:
         snapshot = await build_workday_snapshot(
             container,
-            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            scope=principal.scope,
             local_date=local_date,
         )
         return WorkdayInboxResponse(
@@ -252,14 +258,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/v1/workday/follow-ups", response_model=WorkdayFollowUpsResponse)
     async def workday_follow_ups(
-        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
-        user_id: str = Query(default="user_demo", min_length=1),
-        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        principal: AuthPrincipal = Depends(require_principal),
         local_date: str | None = Query(default=None),
     ) -> WorkdayFollowUpsResponse:
         snapshot = await build_workday_snapshot(
             container,
-            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            scope=principal.scope,
             local_date=local_date,
         )
         return WorkdayFollowUpsResponse(
@@ -269,14 +273,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/v1/workday/calendar", response_model=WorkdayCalendarResponse)
     async def workday_calendar(
-        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
-        user_id: str = Query(default="user_demo", min_length=1),
-        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        principal: AuthPrincipal = Depends(require_principal),
         local_date: str | None = Query(default=None),
     ) -> WorkdayCalendarResponse:
         snapshot = await build_workday_snapshot(
             container,
-            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            scope=principal.scope,
             local_date=local_date,
         )
         return WorkdayCalendarResponse(
@@ -287,10 +289,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/v1/workday/regenerate", response_model=WorkdayRegenerateResponse)
     async def workday_regenerate(
         request: WorkdayRegenerateRequest,
+        principal: AuthPrincipal = Depends(require_principal),
     ) -> WorkdayRegenerateResponse:
         snapshot = await build_workday_snapshot(
             container,
-            scope=request.scope,
+            scope=principal.scope,
             local_date=request.local_date,
         )
         return WorkdayRegenerateResponse(
@@ -304,8 +307,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     @app.post("/v1/actions", response_model=ActionRecord, status_code=201)
-    async def create_action(request: ActionCreateRequest) -> ActionRecord:
-        action = container.actions.create(request)
+    async def create_action(
+        request: ActionCreateRequest,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> ActionRecord:
+        action = container.actions.create(request.model_copy(update={"scope": principal.scope}))
         container.observability.increment(
             "action_proposed",
             {"risk_tier": str(action.risk_tier), "action_type": action.action_type},
@@ -313,10 +319,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return action
 
     @app.post("/v1/actions/{action_id}/approve", response_model=ActionRecord)
-    async def approve_action(action_id: UUID, request: ActionApprovalRequest) -> ActionRecord:
+    async def approve_action(
+        action_id: UUID,
+        request: ActionApprovalRequest,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> ActionRecord:
         action = container.actions.get(action_id)
         if action is None:
             raise HTTPException(status_code=404, detail="Action not found")
+        require_scope_match(principal, action.scope)
+        actor = principal.scope.user_id
 
         channel = ApprovalChannel.fresh_auth if request.fresh_auth else request.channel
         decision = container.policy.evaluate(
@@ -334,7 +346,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if action.external_side_effect and approve_with_outbox is not None:
                 approved, _ = approve_with_outbox(
                     action.action_id,
-                    request.actor,
+                    actor,
                     channel,
                     decision.reason,
                     "action.execution.requested",
@@ -343,7 +355,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             else:
                 approved = container.actions.approve(
                     action.action_id,
-                    actor=request.actor,
+                    actor=actor,
                     channel=channel,
                     reason=decision.reason,
                 )
@@ -364,7 +376,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return approved
 
     @app.post("/v1/brain/records", response_model=BrainRecordResponse, status_code=201)
-    async def create_brain_record(request: BrainRecordCreateRequest) -> BrainRecordResponse:
+    async def create_brain_record(
+        request: BrainRecordCreateRequest,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> BrainRecordResponse:
         try:
             record = await container.brain.create_assistant_record(
                 content=request.content,
@@ -374,8 +389,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 source=request.source,
                 source_ref=request.source_ref,
                 purpose=request.purpose,
-                account_id=request.scope.account_id,
-                space_id=request.scope.space_id,
+                account_id=principal.scope.account_id,
+                space_id=principal.scope.space_id,
                 metadata=request.metadata,
                 provenance=request.provenance,
                 retention=request.retention,
@@ -390,8 +405,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/v1/brain/records", response_model=BrainRecordListResponse)
     async def list_brain_records(
-        account_id: str = Query(..., min_length=1),
-        space_id: str = Query(..., min_length=1),
+        principal: AuthPrincipal = Depends(require_principal),
         purpose: str = Query(..., min_length=1),
         record_type: str = "",
         intent: str = "",
@@ -400,8 +414,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> BrainRecordListResponse:
         try:
             records = await container.brain.list_assistant_records(
-                account_id=account_id,
-                space_id=space_id,
+                account_id=principal.scope.account_id,
+                space_id=principal.scope.space_id,
                 record_type=record_type,
                 intent=intent,
                 purpose=purpose,
@@ -415,15 +429,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/v1/brain/records/{record_id}", response_model=BrainRecordResponse)
     async def get_brain_record(
         record_id: str,
-        account_id: str = Query(..., min_length=1),
-        space_id: str = Query(..., min_length=1),
+        principal: AuthPrincipal = Depends(require_principal),
         purpose: str = Query(..., min_length=1),
     ) -> BrainRecordResponse:
         try:
             record = await container.brain.get_assistant_record(
                 record_id,
-                account_id=account_id,
-                space_id=space_id,
+                account_id=principal.scope.account_id,
+                space_id=principal.scope.space_id,
                 purpose=purpose,
             )
         except OneBrainClientError as exc:
@@ -433,14 +446,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/v1/brain/audit", response_model=BrainAuditEventResponse, status_code=201)
     async def create_brain_audit_event(
         request: BrainAuditEventRequest,
+        principal: AuthPrincipal = Depends(require_principal),
     ) -> BrainAuditEventResponse:
         try:
             event = await container.brain.record_audit_event(
                 action=request.action,
                 target_type=request.target_type,
                 target_id=request.target_id,
-                account_id=request.scope.account_id,
-                space_id=request.scope.space_id,
+                account_id=principal.scope.account_id,
+                space_id=principal.scope.space_id,
                 purpose=request.purpose,
                 decision=request.decision,
                 metadata=request.metadata,
@@ -451,7 +465,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return BrainAuditEventResponse(event=event)
 
     @app.get("/v1/providers", response_model=ProviderStatusResponse)
-    async def provider_status() -> ProviderStatusResponse:
+    async def provider_status(
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> ProviderStatusResponse:
         return ProviderStatusResponse(
             providers=container.oauth.provider_statuses(),
             accounts=[
@@ -461,7 +477,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     @app.get("/v1/providers/accounts", response_model=ProviderAccountsResponse)
-    async def provider_accounts() -> ProviderAccountsResponse:
+    async def provider_accounts(
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> ProviderAccountsResponse:
         return ProviderAccountsResponse(
             accounts=[
                 summarize_provider_account(account)
@@ -476,6 +494,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def provider_oauth_start(
         provider: ProviderKind,
         request: ProviderOAuthStartRequest,
+        principal: AuthPrincipal = Depends(require_principal),
     ) -> ProviderOAuthStartResponse:
         config = container.oauth.configuration(provider)
         requested_scopes = scopes_for(
@@ -492,7 +511,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
 
         state = new_oauth_state()
-        attempt_scope = _provider_request_scope(request.scope, settings)
+        attempt_scope = principal.scope
         attempt = OAuthConnectionAttemptRecord(
             scope=attempt_scope,
             provider=provider,
@@ -609,10 +628,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         "/v1/providers/accounts/{account_id}/disconnect",
         response_model=ProviderDisconnectResponse,
     )
-    async def provider_disconnect(account_id: UUID) -> ProviderDisconnectResponse:
+    async def provider_disconnect(
+        account_id: UUID,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> ProviderDisconnectResponse:
         account = container.providers.get_account(account_id)
         if account is None:
             raise HTTPException(status_code=404, detail="Provider account not found.")
+        require_scope_match(principal, account.scope)
         try:
             container.secrets.revoke_secret(account.refresh_token_secret_ref)
         except Exception:
@@ -636,10 +659,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response_model=ProviderSyncResponse,
         status_code=202,
     )
-    async def provider_sync(account_id: UUID, request: ProviderSyncRequest) -> ProviderSyncResponse:
+    async def provider_sync(
+        account_id: UUID,
+        request: ProviderSyncRequest,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> ProviderSyncResponse:
         account = container.providers.get_account(account_id)
         if account is None:
             raise HTTPException(status_code=404, detail="Provider account not found.")
+        require_scope_match(principal, account.scope)
         if str(account.status) == "disconnected":
             raise HTTPException(status_code=409, detail="Provider account is disconnected.")
         job = container.providers.enqueue_sync_job(container.queue, account, request.sync_kind)
@@ -653,10 +681,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         "/v1/providers/accounts/{account_id}/health",
         response_model=ProviderAccountHealthResponse,
     )
-    async def provider_account_health(account_id: UUID) -> ProviderAccountHealthResponse:
+    async def provider_account_health(
+        account_id: UUID,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> ProviderAccountHealthResponse:
         account = container.providers.get_account(account_id)
         if account is None:
             raise HTTPException(status_code=404, detail="Provider account not found.")
+        require_scope_match(principal, account.scope)
         detail = account.last_sync_error or "Provider account is ready for read-only sync."
         return ProviderAccountHealthResponse(
             provider_account_id=account.provider_account_id,
@@ -698,14 +730,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/v1/security/inspect", response_model=SecurityInspectionResponse)
     async def inspect_untrusted_content(
         request: SecurityInspectionRequest,
+        principal: AuthPrincipal = Depends(require_principal),
     ) -> SecurityInspectionResponse:
         sanitized = container.sanitizer.sanitize_html(request.html)
         firewall = container.firewall.inspect(sanitized, request.source_ref)
         return SecurityInspectionResponse(sanitized=sanitized, firewall=firewall)
 
     @app.post("/v1/telegram/setup", response_model=TelegramSetupResponse, status_code=201)
-    async def telegram_setup(request: TelegramSetupRequest) -> TelegramSetupResponse:
-        setup = container.telegram.create_setup(request)
+    async def telegram_setup(
+        request: TelegramSetupRequest,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> TelegramSetupResponse:
+        setup = container.telegram.create_setup(
+            request.model_copy(update={"scope": principal.scope})
+        )
         container.observability.increment("telegram_setup", {"status": str(setup.status)})
         return setup
 
@@ -713,7 +751,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         "/v1/telegram/bindings/{binding_id}",
         response_model=TelegramBindingStatusResponse,
     )
-    async def telegram_binding_status(binding_id: UUID) -> TelegramBindingStatusResponse:
+    async def telegram_binding_status(
+        binding_id: UUID,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> TelegramBindingStatusResponse:
         try:
             return container.telegram.binding_status(binding_id)
         except TelegramBindingNotFound as exc:
@@ -725,7 +766,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         status_code=202,
     )
     async def telegram_test_message(
-        binding_id: UUID, request: TelegramTestMessageRequest
+        binding_id: UUID,
+        request: TelegramTestMessageRequest,
+        principal: AuthPrincipal = Depends(require_principal),
     ) -> TelegramTestMessageResponse:
         try:
             queued = container.telegram.queue_test_message(binding_id, request, container.outbox)
@@ -753,38 +796,71 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await _record_telegram_event_by_ref(container, result.event_ref)
         return result
 
+    @app.post("/v1/auth/login", response_model=LoginResponse)
+    async def login(request: LoginRequest) -> LoginResponse:
+        # Minting is delegated to the identity authority (OneBrain). Until it is
+        # reachable, the OneBrain provider raises and login fails closed with 503.
+        try:
+            resolved = await container.identity.resolve_login(request)
+        except IdentityAuthorityUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        if resolved is None:
+            container.observability.increment("auth_login", {"status": "rejected"})
+            raise HTTPException(status_code=401, detail="Login failed.")
+        token, record = mint_session(
+            container.sessions,
+            scope=resolved.to_scope(),
+            identity_source=resolved.identity_source,
+            ttl_seconds=settings.auth_session_ttl_seconds,
+        )
+        container.observability.increment(
+            "auth_login",
+            {"status": "ok", "identity_source": resolved.identity_source},
+        )
+        return LoginResponse(
+            access_token=token,
+            session_id=record.session_id,
+            scope=record.scope,
+            identity_source=record.identity_source,
+            expires_at=record.expires_at,
+        )
+
+    @app.post("/v1/auth/logout", response_model=LogoutResponse)
+    async def logout(
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> LogoutResponse:
+        container.sessions.revoke_session(principal.session_id)
+        container.observability.increment("auth_logout", {"status": "ok"})
+        return LogoutResponse()
+
+    @app.get("/v1/auth/session", response_model=SessionResponse)
+    async def session_info(
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> SessionResponse:
+        return SessionResponse(
+            session_id=principal.session_id,
+            scope=principal.scope,
+            identity_source=principal.identity_source,
+            expires_at=principal.expires_at,
+            last_used_at=principal.last_used_at,
+        )
+
     return app
 
 
 async def build_workday_snapshot(
     container: RuntimeContainer,
     *,
-    scope: ScopedIdentity | None = None,
+    scope: ScopedIdentity,
     local_date: str | None = None,
 ) -> WorkdaySnapshot:
     onebrain_available = await container.brain.check_available()
-    scope = scope or ScopedIdentity(
-        account_id=container.settings.onebrain_account_id,
-        user_id="user_demo",
-        space_id=container.settings.onebrain_space_id,
-    )
     return await container.workday.generate_snapshot(
         scope=scope,
         local_date=local_date,
         provider_health=_provider_health(container, onebrain_available),
         approvals=_approval_cards(container),
     )
-
-
-def _provider_request_scope(scope: ScopedIdentity, settings: Settings) -> ScopedIdentity:
-    if scope.account_id == "acct_demo" and scope.space_id == "space_demo":
-        return ScopedIdentity(
-            account_id=settings.onebrain_account_id,
-            user_id=scope.user_id,
-            space_id=settings.onebrain_space_id,
-            purpose=scope.purpose,
-        )
-    return scope
 
 
 def _provider_health(container: RuntimeContainer, onebrain_available: bool) -> list[ProviderHealth]:

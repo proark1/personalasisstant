@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+from conftest import authed_client
 
 from assistant_runtime.api.app import create_app
 from assistant_runtime.config import Settings
@@ -20,7 +20,7 @@ def _settings(**overrides):
 
 def test_workday_today_generates_durable_onebrain_artifacts() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
 
     response = client.get("/v1/workday/today", params={"local_date": "2026-07-09"})
 
@@ -46,7 +46,7 @@ def test_workday_today_generates_durable_onebrain_artifacts() -> None:
 
 def test_workday_today_is_ephemeral_when_onebrain_is_unavailable() -> None:
     app = create_app(_settings(ONEBRAIN_AVAILABLE=False))
-    client = TestClient(app)
+    client = authed_client(app)
 
     response = client.get("/v1/workday/today", params={"local_date": "2026-07-09"})
 
@@ -59,7 +59,7 @@ def test_workday_today_is_ephemeral_when_onebrain_is_unavailable() -> None:
 
 def test_today_endpoint_uses_phase4a_workday_snapshot() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
 
     response = client.get("/v1/today")
 
@@ -78,7 +78,7 @@ def test_workday_prefers_onebrain_provider_source_records() -> None:
             GOOGLE_OAUTH_CLIENT_SECRET="google-secret",
         )
     )
-    client = TestClient(app)
+    client = authed_client(app)
     started = client.post("/v1/providers/oauth/google/start", json={}).json()
     state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
     callback = client.get(
@@ -110,7 +110,7 @@ def test_workday_reports_fallback_when_connected_provider_has_no_source_records(
             MICROSOFT_OAUTH_CLIENT_SECRET="microsoft-secret",
         )
     )
-    client = TestClient(app)
+    client = authed_client(app)
     started = client.post("/v1/providers/oauth/microsoft/start", json={}).json()
     state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
     callback = client.get(
@@ -133,7 +133,7 @@ def test_workday_reports_fallback_when_connected_provider_has_no_source_records(
 
 def test_workday_detail_endpoints_return_typed_sections() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
 
     brief = client.get("/v1/workday/brief", params={"local_date": "2026-07-09"})
     inbox = client.get("/v1/workday/inbox", params={"local_date": "2026-07-09"})
@@ -152,7 +152,7 @@ def test_workday_detail_endpoints_return_typed_sections() -> None:
 
 def test_workday_regenerate_returns_stored_snapshot_when_onebrain_available() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
 
     response = client.post(
         "/v1/workday/regenerate",

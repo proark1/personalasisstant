@@ -38,6 +38,7 @@ from assistant_runtime.schemas import (
     ProviderSyncState,
     ScopedIdentity,
     SecretEnvelope,
+    SessionRecord,
     SyncCursorRecord,
     TelegramBindingRecord,
     TelegramBindingStatus,
@@ -146,6 +147,95 @@ class PostgresSecretProvider:
             rotated_at=row["rotated_at"],
             revoked_at=row["revoked_at"],
         )
+
+
+def _session_from_row(row: Any) -> SessionRecord:
+    return SessionRecord(
+        session_id=row["session_id"],
+        scope=ScopedIdentity(
+            account_id=row["account_id"],
+            user_id=row["user_id"],
+            space_id=row["space_id"],
+            purpose=row["purpose"],
+        ),
+        token_hash=row["token_hash"],
+        identity_source=row["identity_source"],
+        created_at=row["created_at"],
+        expires_at=row["expires_at"],
+        last_used_at=row["last_used_at"],
+        revoked_at=row["revoked_at"],
+    )
+
+
+class PostgresSessionStore:
+    """Postgres-backed assistant session store. Persists only token hashes."""
+
+    _COLUMNS = (
+        "session_id, account_id, user_id, space_id, purpose, token_hash, "
+        "identity_source, created_at, expires_at, last_used_at, revoked_at"
+    )
+
+    def __init__(self, database_url: str) -> None:
+        self.database_url = database_url
+
+    def create_session(self, record: SessionRecord) -> SessionRecord:
+        with _connect(self.database_url) as conn:
+            conn.execute(
+                f"""
+                INSERT INTO assistant_sessions ({self._COLUMNS})
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    record.session_id,
+                    record.scope.account_id,
+                    record.scope.user_id,
+                    record.scope.space_id,
+                    record.scope.purpose,
+                    record.token_hash,
+                    record.identity_source,
+                    record.created_at,
+                    record.expires_at,
+                    record.last_used_at,
+                    record.revoked_at,
+                ),
+            )
+        return record
+
+    def get_active_session_by_token_hash(self, token_hash: str) -> SessionRecord | None:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                f"""
+                SELECT {self._COLUMNS}
+                FROM assistant_sessions
+                WHERE token_hash = %s AND revoked_at IS NULL AND expires_at > %s
+                """,
+                (token_hash, utc_now()),
+            ).fetchone()
+        if row is None:
+            return None
+        return _session_from_row(row)
+
+    def revoke_session(self, session_id: UUID) -> SessionRecord | None:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                f"""
+                UPDATE assistant_sessions
+                SET revoked_at = COALESCE(revoked_at, %s)
+                WHERE session_id = %s
+                RETURNING {self._COLUMNS}
+                """,
+                (utc_now(), session_id),
+            ).fetchone()
+        if row is None:
+            return None
+        return _session_from_row(row)
+
+    def touch(self, session_id: UUID) -> None:
+        with _connect(self.database_url) as conn:
+            conn.execute(
+                "UPDATE assistant_sessions SET last_used_at = %s WHERE session_id = %s",
+                (utc_now(), session_id),
+            )
 
 
 class PostgresActionStore(InMemoryActionStore):

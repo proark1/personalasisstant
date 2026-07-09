@@ -141,6 +141,86 @@ class ScopedIdentity(BaseModel):
     purpose: str = "assistant_operations"
 
 
+# --- Auth & session -------------------------------------------------------
+# Assistant-side session references only. OneBrain remains the identity authority;
+# minting a session is delegated to an IdentityProvider (see auth/identity.py).
+
+
+class ResolvedIdentity(BaseModel):
+    """Identity resolved by an IdentityProvider at login time."""
+
+    account_id: str
+    user_id: str
+    space_id: str
+    identity_source: str = "stub"
+
+    def to_scope(self, purpose: str = "assistant_operations") -> ScopedIdentity:
+        return ScopedIdentity(
+            account_id=self.account_id,
+            user_id=self.user_id,
+            space_id=self.space_id,
+            purpose=purpose,
+        )
+
+
+class SessionRecord(BaseModel):
+    """A durable-by-reference assistant session. Stores only a token hash."""
+
+    session_id: UUID = Field(default_factory=uuid4)
+    scope: ScopedIdentity
+    token_hash: str
+    identity_source: str = "stub"
+    created_at: datetime = Field(default_factory=utc_now)
+    expires_at: datetime
+    last_used_at: datetime | None = None
+    revoked_at: datetime | None = None
+
+    def is_active(self, now: datetime | None = None) -> bool:
+        moment = now or utc_now()
+        return self.revoked_at is None and self.expires_at > moment
+
+
+class AuthPrincipal(BaseModel):
+    """Verified caller identity yielded by the auth guard."""
+
+    session_id: UUID
+    scope: ScopedIdentity
+    identity_source: str
+    expires_at: datetime
+    last_used_at: datetime | None = None
+
+
+class LoginRequest(BaseModel):
+    # OneBrain mode carries a OneBrain handoff credential/token here.
+    credential: str | None = None
+    # Stub/dev mode only: optional scope overrides (ignored by the OneBrain provider).
+    account_id: str | None = None
+    user_id: str | None = None
+    space_id: str | None = None
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    session_id: UUID
+    scope: ScopedIdentity
+    identity_source: str
+    expires_at: datetime
+
+
+class SessionResponse(BaseModel):
+    session_id: UUID
+    scope: ScopedIdentity
+    identity_source: str
+    expires_at: datetime
+    last_used_at: datetime | None = None
+
+
+class LogoutResponse(BaseModel):
+    status: str = "revoked"
+    detail: str = "Session revoked."
+
+
 class TransitionRecord(BaseModel):
     from_state: ActionState | None
     to_state: ActionState

@@ -9,12 +9,15 @@ from assistant_runtime.schemas import (
     FirewallDecision,
     JobRecord,
     JsonObject,
+    LoginRequest,
     OutboxRow,
     PolicyDecision,
     ProviderAccountRecord,
     ProviderKind,
+    ResolvedIdentity,
     SanitizedContent,
     ScopedIdentity,
+    SessionRecord,
 )
 
 
@@ -153,6 +156,29 @@ class SecretProvider(Protocol):
     def retrieve_secret(self, secret_ref: str) -> str: ...
 
     def revoke_secret(self, secret_ref: str) -> None: ...
+
+
+class IdentityProvider(Protocol):
+    """Resolves a login into a OneBrain-scoped identity.
+
+    OneBrain is the identity authority; the concrete provider either delegates to it
+    (deferred) or, in dev/test, stubs the resolution.
+    """
+
+    @property
+    def mode(self) -> str: ...
+
+    async def resolve_login(self, request: LoginRequest) -> ResolvedIdentity | None: ...
+
+
+class SessionStore(Protocol):
+    def create_session(self, record: SessionRecord) -> SessionRecord: ...
+
+    def get_active_session_by_token_hash(self, token_hash: str) -> SessionRecord | None: ...
+
+    def revoke_session(self, session_id: UUID) -> SessionRecord | None: ...
+
+    def touch(self, session_id: UUID) -> None: ...
 
 
 class ContentSanitizer(Protocol):

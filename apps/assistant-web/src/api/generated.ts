@@ -89,6 +89,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login */
+        post: operations["login_v1_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: operations["logout_v1_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Session Info */
+        get: operations["session_info_v1_auth_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/brain/audit": {
         parameters: {
             query?: never;
@@ -956,6 +1007,53 @@ export interface components {
          * @enum {string}
          */
         JobState: "queued" | "leased" | "running" | "succeeded" | "retry_wait" | "failed" | "dead_lettered" | "cancelled";
+        /** LoginRequest */
+        LoginRequest: {
+            /** Account Id */
+            account_id?: string | null;
+            /** Credential */
+            credential?: string | null;
+            /** Space Id */
+            space_id?: string | null;
+            /** User Id */
+            user_id?: string | null;
+        };
+        /** LoginResponse */
+        LoginResponse: {
+            /** Access Token */
+            access_token: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Identity Source */
+            identity_source: string;
+            scope: components["schemas"]["ScopedIdentity"];
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+            /**
+             * Token Type
+             * @default bearer
+             */
+            token_type: string;
+        };
+        /** LogoutResponse */
+        LogoutResponse: {
+            /**
+             * Detail
+             * @default Session revoked.
+             */
+            detail: string;
+            /**
+             * Status
+             * @default revoked
+             */
+            status: string;
+        };
         /** NavigationItem */
         NavigationItem: {
             /** Count */
@@ -1280,6 +1378,24 @@ export interface components {
         SecurityInspectionResponse: {
             firewall: components["schemas"]["FirewallDecision"];
             sanitized: components["schemas"]["SanitizedContent"];
+        };
+        /** SessionResponse */
+        SessionResponse: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Identity Source */
+            identity_source: string;
+            /** Last Used At */
+            last_used_at?: string | null;
+            scope: components["schemas"]["ScopedIdentity"];
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
         };
         /**
          * TelegramBindingStatus
@@ -1757,6 +1873,79 @@ export interface operations {
             };
         };
     };
+    login_v1_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_v1_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogoutResponse"];
+                };
+            };
+        };
+    };
+    session_info_v1_auth_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+        };
+    };
     create_brain_audit_event_v1_brain_audit_post: {
         parameters: {
             query?: never;
@@ -1793,8 +1982,6 @@ export interface operations {
     list_brain_records_v1_brain_records_get: {
         parameters: {
             query: {
-                account_id: string;
-                space_id: string;
                 purpose: string;
                 record_type?: string;
                 intent?: string;
@@ -1863,8 +2050,6 @@ export interface operations {
     get_brain_record_v1_brain_records__record_id__get: {
         parameters: {
             query: {
-                account_id: string;
-                space_id: string;
                 purpose: string;
             };
             header?: never;
@@ -2367,9 +2552,6 @@ export interface operations {
     workday_brief_v1_workday_brief_get: {
         parameters: {
             query?: {
-                account_id?: string;
-                user_id?: string;
-                space_id?: string;
                 local_date?: string | null;
             };
             header?: never;
@@ -2401,9 +2583,6 @@ export interface operations {
     workday_calendar_v1_workday_calendar_get: {
         parameters: {
             query?: {
-                account_id?: string;
-                user_id?: string;
-                space_id?: string;
                 local_date?: string | null;
             };
             header?: never;
@@ -2435,9 +2614,6 @@ export interface operations {
     workday_follow_ups_v1_workday_follow_ups_get: {
         parameters: {
             query?: {
-                account_id?: string;
-                user_id?: string;
-                space_id?: string;
                 local_date?: string | null;
             };
             header?: never;
@@ -2469,9 +2645,6 @@ export interface operations {
     workday_inbox_v1_workday_inbox_get: {
         parameters: {
             query?: {
-                account_id?: string;
-                user_id?: string;
-                space_id?: string;
                 local_date?: string | null;
             };
             header?: never;
@@ -2536,9 +2709,6 @@ export interface operations {
     workday_today_v1_workday_today_get: {
         parameters: {
             query?: {
-                account_id?: string;
-                user_id?: string;
-                space_id?: string;
                 local_date?: string | null;
             };
             header?: never;

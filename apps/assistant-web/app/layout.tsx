@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { LogoutButton } from "../src/components/logout-button";
 
 export const metadata: Metadata = {
   title: "OneBrain Assistant",
@@ -19,7 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <LogoutButton />
+        {children}
+      </body>
     </html>
   );
 }

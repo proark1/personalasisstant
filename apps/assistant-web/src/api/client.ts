@@ -13,10 +13,27 @@ export type TelegramTestMessageResponse =
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_ASSISTANT_API_URL ?? "http://localhost:8000";
 
-export async function getToday(): Promise<TodayResponse> {
+export const SESSION_COOKIE = "assistant_session";
+
+function browserSessionToken(): string | undefined {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+  const match = document.cookie.match(/(?:^|;\s*)assistant_session=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+// Server components pass the token read from the session cookie; browser callers
+// fall back to the cookie value readable on the client.
+function authHeaders(token?: string): Record<string, string> {
+  const resolved = token ?? browserSessionToken();
+  return resolved ? { authorization: `Bearer ${resolved}` } : {};
+}
+
+export async function getToday(token?: string): Promise<TodayResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/v1/today`, {
-      headers: { accept: "application/json" },
+      headers: { accept: "application/json", ...authHeaders(token) },
       cache: "no-store"
     });
     if (!response.ok) {
@@ -28,17 +45,17 @@ export async function getToday(): Promise<TodayResponse> {
   }
 }
 
-export async function getProviderStatus(): Promise<ProviderStatusResponse> {
+export async function getProviderStatus(token?: string): Promise<ProviderStatusResponse> {
   try {
-    return await requestJson<ProviderStatusResponse>("/v1/providers", { method: "GET" });
+    return await requestJson<ProviderStatusResponse>("/v1/providers", { method: "GET" }, token);
   } catch {
     return { providers: [], accounts: [] };
   }
 }
 
-export async function getWorkdayInbox(): Promise<WorkdayInboxResponse> {
+export async function getWorkdayInbox(token?: string): Promise<WorkdayInboxResponse> {
   try {
-    return await requestJson<WorkdayInboxResponse>("/v1/workday/inbox", { method: "GET" });
+    return await requestJson<WorkdayInboxResponse>("/v1/workday/inbox", { method: "GET" }, token);
   } catch {
     return {
       items: [],
@@ -47,11 +64,13 @@ export async function getWorkdayInbox(): Promise<WorkdayInboxResponse> {
   }
 }
 
-export async function getWorkdayFollowUps(): Promise<WorkdayFollowUpsResponse> {
+export async function getWorkdayFollowUps(token?: string): Promise<WorkdayFollowUpsResponse> {
   try {
-    return await requestJson<WorkdayFollowUpsResponse>("/v1/workday/follow-ups", {
-      method: "GET"
-    });
+    return await requestJson<WorkdayFollowUpsResponse>(
+      "/v1/workday/follow-ups",
+      { method: "GET" },
+      token
+    );
   } catch {
     return {
       risks: [],
@@ -60,11 +79,13 @@ export async function getWorkdayFollowUps(): Promise<WorkdayFollowUpsResponse> {
   }
 }
 
-export async function getWorkdayCalendar(): Promise<WorkdayCalendarResponse> {
+export async function getWorkdayCalendar(token?: string): Promise<WorkdayCalendarResponse> {
   try {
-    return await requestJson<WorkdayCalendarResponse>("/v1/workday/calendar", {
-      method: "GET"
-    });
+    return await requestJson<WorkdayCalendarResponse>(
+      "/v1/workday/calendar",
+      { method: "GET" },
+      token
+    );
   } catch {
     return {
       insights: [],
@@ -131,12 +152,13 @@ export async function sendTelegramTestMessage(
   );
 }
 
-async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
+async function requestJson<T>(path: string, init: RequestInit, token?: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       accept: "application/json",
       "content-type": "application/json",
+      ...authHeaders(token),
       ...init.headers
     }
   });

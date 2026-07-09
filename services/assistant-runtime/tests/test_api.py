@@ -1,3 +1,4 @@
+from conftest import authed_client
 from fastapi.testclient import TestClient
 
 from assistant_runtime.api.app import create_app
@@ -6,7 +7,7 @@ from assistant_runtime.config import Settings
 
 def test_health_and_today_contracts() -> None:
     app = create_app(Settings(ONEBRAIN_AVAILABLE=True))
-    client = TestClient(app)
+    client = authed_client(app)
 
     health = client.get("/health/ready")
     today = client.get("/v1/today")
@@ -19,7 +20,7 @@ def test_health_and_today_contracts() -> None:
 
 def test_degraded_mode_is_visible_when_onebrain_is_unavailable() -> None:
     app = create_app(Settings(ONEBRAIN_AVAILABLE=False))
-    client = TestClient(app)
+    client = authed_client(app)
 
     health = client.get("/health/ready").json()
     today = client.get("/v1/today").json()
@@ -50,7 +51,7 @@ def test_readiness_reports_dependency_errors_for_persistent_store() -> None:
 
 def test_security_inspection_endpoint() -> None:
     app = create_app(Settings())
-    client = TestClient(app)
+    client = authed_client(app)
 
     response = client.post(
         "/v1/security/inspect",
@@ -65,7 +66,7 @@ def test_security_inspection_endpoint() -> None:
 
 def test_brain_record_roundtrip_uses_onebrain_client() -> None:
     app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
-    client = TestClient(app)
+    client = authed_client(app)
 
     created = client.post(
         "/v1/brain/records",
@@ -107,7 +108,7 @@ def test_brain_record_roundtrip_uses_onebrain_client() -> None:
 
 def test_phase1_onebrain_contract_smoke_covers_required_record_families() -> None:
     app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
-    client = TestClient(app)
+    client = authed_client(app)
     cases = [
         ("brief", "assistant_briefing", "Morning brief is ready."),
         ("follow_up", "assistant_followup", "Follow up with client about the proposal."),
@@ -159,7 +160,7 @@ def test_phase1_onebrain_contract_smoke_covers_required_record_families() -> Non
 
 def test_brain_contract_rejects_raw_secret_fields() -> None:
     app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
-    client = TestClient(app)
+    client = authed_client(app)
 
     response = client.post(
         "/v1/brain/records",
@@ -177,7 +178,7 @@ def test_brain_contract_rejects_raw_secret_fields() -> None:
 
 def test_brain_contract_rejects_unknown_record_type() -> None:
     app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
-    client = TestClient(app)
+    client = authed_client(app)
 
     response = client.post(
         "/v1/brain/records",
@@ -193,7 +194,7 @@ def test_brain_contract_rejects_unknown_record_type() -> None:
 
 def test_brain_audit_endpoint_records_event() -> None:
     app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
-    client = TestClient(app)
+    client = authed_client(app)
 
     response = client.post(
         "/v1/brain/audit",
@@ -216,7 +217,7 @@ def test_brain_audit_endpoint_records_event() -> None:
 
 def test_brain_record_reads_require_explicit_scope() -> None:
     app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
-    client = TestClient(app)
+    client = authed_client(app)
 
     assert client.get("/v1/brain/records").status_code == 422
     assert client.get("/v1/brain/records/rec_1").status_code == 422
@@ -224,7 +225,7 @@ def test_brain_record_reads_require_explicit_scope() -> None:
 
 def test_brain_audit_rejects_non_assistant_action_namespace() -> None:
     app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
-    client = TestClient(app)
+    client = authed_client(app)
 
     response = client.post(
         "/v1/brain/audit",
@@ -240,7 +241,7 @@ def test_brain_audit_rejects_non_assistant_action_namespace() -> None:
 
 def test_action_approval_records_onebrain_audit() -> None:
     app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
-    client = TestClient(app)
+    client = authed_client(app)
 
     action = client.post(
         "/v1/actions",

@@ -969,6 +969,111 @@
         "title": "JobState",
         "type": "string"
       },
+      "LoginRequest": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "credential": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential"
+          },
+          "space_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space Id"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "LoginResponse": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "identity_source": {
+            "title": "Identity Source",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ScopedIdentity"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "session_id",
+          "scope",
+          "identity_source",
+          "expires_at"
+        ],
+        "title": "LoginResponse",
+        "type": "object"
+      },
+      "LogoutResponse": {
+        "properties": {
+          "detail": {
+            "default": "Session revoked.",
+            "title": "Detail",
+            "type": "string"
+          },
+          "status": {
+            "default": "revoked",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "LogoutResponse",
+        "type": "object"
+      },
       "NavigationItem": {
         "properties": {
           "count": {
@@ -1870,6 +1975,47 @@
         "title": "SecurityInspectionResponse",
         "type": "object"
       },
+      "SessionResponse": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "identity_source": {
+            "title": "Identity Source",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ScopedIdentity"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "scope",
+          "identity_source",
+          "expires_at"
+        ],
+        "title": "SessionResponse",
+        "type": "object"
+      },
       "TelegramBindingStatus": {
         "enum": [
           "pending",
@@ -2701,6 +2847,13 @@
         "title": "WorkdaySnapshot",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "description": "Assistant session bearer token",
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -2797,6 +2950,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Action"
       }
     },
@@ -2847,7 +3005,96 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Approve Action"
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "operationId": "login_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login"
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "logout_v1_auth_logout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Logout"
+      }
+    },
+    "/v1/auth/session": {
+      "get": {
+        "operationId": "session_info_v1_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Session Info"
       }
     },
     "/v1/brain/audit": {
@@ -2885,6 +3132,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Brain Audit Event"
       }
     },
@@ -2892,26 +3144,6 @@
       "get": {
         "operationId": "list_brain_records_v1_brain_records_get",
         "parameters": [
-          {
-            "in": "query",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "minLength": 1,
-              "title": "Account Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "space_id",
-            "required": true,
-            "schema": {
-              "minLength": 1,
-              "title": "Space Id",
-              "type": "string"
-            }
-          },
           {
             "in": "query",
             "name": "purpose",
@@ -2985,6 +3217,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Brain Records"
       },
       "post": {
@@ -3021,6 +3258,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Brain Record"
       }
     },
@@ -3034,26 +3276,6 @@
             "required": true,
             "schema": {
               "title": "Record Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "minLength": 1,
-              "title": "Account Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "space_id",
-            "required": true,
-            "schema": {
-              "minLength": 1,
-              "title": "Space Id",
               "type": "string"
             }
           },
@@ -3090,6 +3312,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Brain Record"
       }
     },
@@ -3108,6 +3335,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Provider Status"
       }
     },
@@ -3126,6 +3358,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Provider Accounts"
       }
     },
@@ -3166,6 +3403,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Provider Disconnect"
       }
     },
@@ -3206,6 +3448,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Provider Account Health"
       }
     },
@@ -3256,6 +3503,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Provider Sync"
       }
     },
@@ -3382,6 +3634,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Provider Oauth Start"
       }
     },
@@ -3516,6 +3773,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Inspect Untrusted Content"
       }
     },
@@ -3556,6 +3818,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Telegram Binding Status"
       }
     },
@@ -3606,6 +3873,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Telegram Test Message"
       }
     },
@@ -3644,6 +3916,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Telegram Setup"
       }
     },
@@ -3720,6 +3997,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Today"
       }
     },
@@ -3727,39 +4009,6 @@
       "get": {
         "operationId": "workday_brief_v1_workday_brief_get",
         "parameters": [
-          {
-            "in": "query",
-            "name": "account_id",
-            "required": false,
-            "schema": {
-              "default": "nft_gym",
-              "minLength": 1,
-              "title": "Account Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "user_id",
-            "required": false,
-            "schema": {
-              "default": "user_demo",
-              "minLength": 1,
-              "title": "User Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "space_id",
-            "required": false,
-            "schema": {
-              "default": "sp_nft_gym_assistant",
-              "minLength": 1,
-              "title": "Space Id",
-              "type": "string"
-            }
-          },
           {
             "in": "query",
             "name": "local_date",
@@ -3799,6 +4048,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Workday Brief"
       }
     },
@@ -3806,39 +4060,6 @@
       "get": {
         "operationId": "workday_calendar_v1_workday_calendar_get",
         "parameters": [
-          {
-            "in": "query",
-            "name": "account_id",
-            "required": false,
-            "schema": {
-              "default": "nft_gym",
-              "minLength": 1,
-              "title": "Account Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "user_id",
-            "required": false,
-            "schema": {
-              "default": "user_demo",
-              "minLength": 1,
-              "title": "User Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "space_id",
-            "required": false,
-            "schema": {
-              "default": "sp_nft_gym_assistant",
-              "minLength": 1,
-              "title": "Space Id",
-              "type": "string"
-            }
-          },
           {
             "in": "query",
             "name": "local_date",
@@ -3878,6 +4099,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Workday Calendar"
       }
     },
@@ -3885,39 +4111,6 @@
       "get": {
         "operationId": "workday_follow_ups_v1_workday_follow_ups_get",
         "parameters": [
-          {
-            "in": "query",
-            "name": "account_id",
-            "required": false,
-            "schema": {
-              "default": "nft_gym",
-              "minLength": 1,
-              "title": "Account Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "user_id",
-            "required": false,
-            "schema": {
-              "default": "user_demo",
-              "minLength": 1,
-              "title": "User Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "space_id",
-            "required": false,
-            "schema": {
-              "default": "sp_nft_gym_assistant",
-              "minLength": 1,
-              "title": "Space Id",
-              "type": "string"
-            }
-          },
           {
             "in": "query",
             "name": "local_date",
@@ -3957,6 +4150,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Workday Follow Ups"
       }
     },
@@ -3964,39 +4162,6 @@
       "get": {
         "operationId": "workday_inbox_v1_workday_inbox_get",
         "parameters": [
-          {
-            "in": "query",
-            "name": "account_id",
-            "required": false,
-            "schema": {
-              "default": "nft_gym",
-              "minLength": 1,
-              "title": "Account Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "user_id",
-            "required": false,
-            "schema": {
-              "default": "user_demo",
-              "minLength": 1,
-              "title": "User Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "space_id",
-            "required": false,
-            "schema": {
-              "default": "sp_nft_gym_assistant",
-              "minLength": 1,
-              "title": "Space Id",
-              "type": "string"
-            }
-          },
           {
             "in": "query",
             "name": "local_date",
@@ -4036,6 +4201,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Workday Inbox"
       }
     },
@@ -4074,6 +4244,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Workday Regenerate"
       }
     },
@@ -4081,39 +4256,6 @@
       "get": {
         "operationId": "workday_today_v1_workday_today_get",
         "parameters": [
-          {
-            "in": "query",
-            "name": "account_id",
-            "required": false,
-            "schema": {
-              "default": "nft_gym",
-              "minLength": 1,
-              "title": "Account Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "user_id",
-            "required": false,
-            "schema": {
-              "default": "user_demo",
-              "minLength": 1,
-              "title": "User Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "space_id",
-            "required": false,
-            "schema": {
-              "default": "sp_nft_gym_assistant",
-              "minLength": 1,
-              "title": "Space Id",
-              "type": "string"
-            }
-          },
           {
             "in": "query",
             "name": "local_date",
@@ -4153,6 +4295,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Workday Today"
       }
     }

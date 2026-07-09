@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from conftest import authed_client
 from fastapi.testclient import TestClient
 
 from assistant_runtime.api.app import create_app
@@ -41,7 +42,7 @@ def _settings(**overrides) -> Settings:
 
 
 def _client() -> TestClient:
-    return TestClient(create_app(_settings()))
+    return authed_client(create_app(_settings()))
 
 
 def _setup(client: TestClient, token: str = "123456:secret-token-value") -> dict:
@@ -75,7 +76,7 @@ def _post_webhook(client: TestClient, payload: dict) -> dict:
 def test_telegram_setup_stores_bot_token_without_returning_raw_value() -> None:
     raw_token = "123456:secret-token-value"
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
 
     body = _setup(client, raw_token)
 
@@ -105,7 +106,7 @@ def test_telegram_webhook_rejects_missing_or_invalid_secret() -> None:
 
 def test_start_command_verifies_private_chat_binding() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
     setup = _setup(client)
 
     body = _post_webhook(
@@ -127,7 +128,7 @@ def test_start_command_verifies_private_chat_binding() -> None:
 
 def test_start_command_is_idempotent_for_duplicate_update_and_same_chat() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
     setup = _setup(client)
     payload = _private_message(102, 111, 222, setup["binding_command"])
 
@@ -193,7 +194,7 @@ def test_pause_resume_and_status_commands_are_deterministic() -> None:
 
 def test_unknown_text_is_recorded_as_untrusted_without_creating_action() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
     setup = _setup(client)
     _post_webhook(client, _private_message(111, 111, 222, setup["binding_command"]))
 
@@ -230,7 +231,7 @@ def test_verified_binding_queues_test_message_without_sending_inline() -> None:
     app = create_app(_settings())
     transport = RecordingTelegramTransport()
     app.state.container.telegram.transport = transport
-    client = TestClient(app)
+    client = authed_client(app)
     setup = _setup(client, token="123456:delivery-secret-token")
     _post_webhook(client, _private_message(115, 111, 222, setup["binding_command"]))
 
@@ -256,7 +257,7 @@ def test_relay_sends_queued_test_message_and_marks_outbox_delivered() -> None:
     app = create_app(_settings())
     transport = RecordingTelegramTransport()
     app.state.container.telegram.transport = transport
-    client = TestClient(app)
+    client = authed_client(app)
     setup = _setup(client, token="123456:delivery-secret-token")
     _post_webhook(client, _private_message(116, 111, 222, setup["binding_command"]))
     client.post(
@@ -278,7 +279,7 @@ def test_relay_sends_queued_test_message_and_marks_outbox_delivered() -> None:
 def test_relay_retries_when_secret_lookup_fails() -> None:
     app = create_app(_settings())
     app.state.container.telegram.transport = RecordingTelegramTransport()
-    client = TestClient(app)
+    client = authed_client(app)
     setup = _setup(client, token="123456:delivery-secret-token")
     _post_webhook(client, _private_message(117, 111, 222, setup["binding_command"]))
     binding = app.state.container.telegram.bindings.get(UUID(setup["binding_id"]))
@@ -299,7 +300,7 @@ def test_relay_retries_when_secret_lookup_fails() -> None:
 def test_relay_redacts_transport_error_details() -> None:
     app = create_app(_settings())
     app.state.container.telegram.transport = LeakyFailingTelegramTransport()
-    client = TestClient(app)
+    client = authed_client(app)
     setup = _setup(client, token="123456:delivery-secret-token")
     _post_webhook(client, _private_message(118, 111, 222, setup["binding_command"]))
     client.post(
@@ -323,7 +324,7 @@ def test_worker_relay_sends_queued_test_message_and_marks_outbox_delivered() -> 
     app = create_app(_settings())
     transport = RecordingTelegramTransport()
     app.state.container.telegram.transport = transport
-    client = TestClient(app)
+    client = authed_client(app)
     setup = _setup(client, token="123456:delivery-secret-token")
     _post_webhook(client, _private_message(119, 111, 222, setup["binding_command"]))
     client.post(
@@ -357,7 +358,7 @@ def test_worker_relay_sends_queued_test_message_and_marks_outbox_delivered() -> 
 def test_worker_relay_redacts_telegram_transport_error_details() -> None:
     app = create_app(_settings())
     app.state.container.telegram.transport = LeakyFailingTelegramTransport()
-    client = TestClient(app)
+    client = authed_client(app)
     setup = _setup(client, token="123456:delivery-secret-token")
     _post_webhook(client, _private_message(120, 111, 222, setup["binding_command"]))
     client.post(

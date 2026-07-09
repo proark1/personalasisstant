@@ -70,6 +70,11 @@ class Settings(BaseSettings):
         validation_alias="CORS_ORIGINS",
     )
 
+    auth_identity_mode: str = Field(default="auto", validation_alias="AUTH_IDENTITY_MODE")
+    auth_session_ttl_seconds: int = Field(
+        default=43200, validation_alias="AUTH_SESSION_TTL_SECONDS"
+    )
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
@@ -83,6 +88,19 @@ class Settings(BaseSettings):
         if self.operational_store == "memory":
             return False
         return self.environment.lower() in {"production", "staging"}
+
+    @property
+    def resolved_auth_identity_mode(self) -> str:
+        """Which IdentityProvider mints sessions.
+
+        ``stub`` mints sessions locally for dev/tests; ``onebrain`` delegates to the
+        (deferred) OneBrain identity authority so login fails closed until it ships.
+        ``auto`` selects ``onebrain`` in production/staging and ``stub`` elsewhere.
+        """
+        mode = self.auth_identity_mode.lower()
+        if mode != "auto":
+            return mode
+        return "onebrain" if self.environment.lower() in {"production", "staging"} else "stub"
 
     @property
     def google_oauth_configured(self) -> bool:

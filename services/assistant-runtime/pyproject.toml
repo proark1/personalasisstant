@@ -44,3 +44,13 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency-injection in argument defaults (Depends/Query/Header) is the
+# idiomatic pattern; treat these as immutable so B008 does not flag them.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Header",
+    "fastapi.Security",
+]

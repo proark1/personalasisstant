@@ -6,6 +6,7 @@ from datetime import timedelta
 from uuid import UUID
 
 import httpx
+from conftest import authed_client
 from fastapi.testclient import TestClient
 
 from assistant_runtime.api.app import create_app
@@ -51,21 +52,20 @@ def _settings(**overrides):
 
 
 def _client(**overrides) -> TestClient:
-    return TestClient(create_app(_settings(**overrides)))
+    return authed_client(create_app(_settings(**overrides)))
 
 
 def test_provider_status_reports_missing_configuration_without_breaking_local_dev() -> None:
-    client = TestClient(
-        create_app(
-            Settings(
-                ONEBRAIN_CLIENT_MODE="memory",
-                GOOGLE_OAUTH_CLIENT_ID="",
-                GOOGLE_OAUTH_CLIENT_SECRET="",
-                MICROSOFT_OAUTH_CLIENT_ID="",
-                MICROSOFT_OAUTH_CLIENT_SECRET="",
-            )
+    app = create_app(
+        Settings(
+            ONEBRAIN_CLIENT_MODE="memory",
+            GOOGLE_OAUTH_CLIENT_ID="",
+            GOOGLE_OAUTH_CLIENT_SECRET="",
+            MICROSOFT_OAUTH_CLIENT_ID="",
+            MICROSOFT_OAUTH_CLIENT_SECRET="",
         )
     )
+    client = authed_client(app)
 
     response = client.get("/v1/providers")
 
@@ -107,7 +107,7 @@ def test_microsoft_oauth_start_builds_read_only_authorization_url() -> None:
 
 def test_oauth_callback_stores_token_by_secret_ref_and_queues_provider_jobs() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
     started = client.post("/v1/providers/oauth/google/start", json={}).json()
     state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
 
@@ -141,7 +141,7 @@ def test_oauth_callback_stores_token_by_secret_ref_and_queues_provider_jobs() ->
 
 def test_oauth_callback_pauses_sync_when_onebrain_provenance_is_unavailable() -> None:
     app = create_app(_settings(ONEBRAIN_AVAILABLE=False))
-    client = TestClient(app)
+    client = authed_client(app)
     started = client.post("/v1/providers/oauth/google/start", json={}).json()
     state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
 
@@ -179,7 +179,7 @@ def test_oauth_callback_rejects_state_replay_and_mismatch() -> None:
 
 def test_provider_webhook_deduplicates_and_enqueues_reconciliation() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
     started = client.post("/v1/providers/oauth/google/start", json={}).json()
     state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
     client.get(
@@ -625,7 +625,7 @@ def test_worker_sync_degrades_on_live_read_failure_without_token_leakage() -> No
 
 def test_worker_processes_provider_sync_and_subscription_jobs() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
     started = client.post("/v1/providers/oauth/microsoft/start", json={}).json()
     state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
     callback = client.get(
@@ -687,7 +687,7 @@ def test_worker_processes_provider_sync_and_subscription_jobs() -> None:
 
 def test_worker_pauses_provider_sync_when_onebrain_becomes_unavailable() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
     started = client.post("/v1/providers/oauth/google/start", json={}).json()
     state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
     callback = client.get(
@@ -729,7 +729,7 @@ def test_worker_pauses_provider_sync_when_onebrain_becomes_unavailable() -> None
 
 def test_manual_sync_and_disconnect_endpoints() -> None:
     app = create_app(_settings())
-    client = TestClient(app)
+    client = authed_client(app)
     started = client.post("/v1/providers/oauth/google/start", json={}).json()
     state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
     callback = client.get(
