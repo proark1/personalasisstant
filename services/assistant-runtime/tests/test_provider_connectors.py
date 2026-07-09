@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import timedelta
 from uuid import UUID
 
 import httpx
@@ -20,6 +21,7 @@ from assistant_runtime.providers.oauth import (
 )
 from assistant_runtime.providers.onebrain import DisabledBrainClient
 from assistant_runtime.providers.read_adapters import ProviderReadClient
+from assistant_runtime.providers.token_refresh import ProviderTokenRefresher
 from assistant_runtime.schemas import (
     JobState,
     OAuthScopeTier,
@@ -27,6 +29,7 @@ from assistant_runtime.schemas import (
     ProviderKind,
     ProviderService,
     ScopedIdentity,
+    utc_now,
 )
 from assistant_runtime.worker.runner import AssistantWorker
 
@@ -254,6 +257,145 @@ def test_microsoft_read_adapter_maps_graph_payloads() -> None:
     assert result.calendar_events[0].has_meeting_link is True
 
 
+def test_google_token_refresher_rotates_expiring_token_payload() -> None:
+    app = create_app(_settings())
+    account = _store_provider_account(
+        app,
+        ProviderKind.google,
+        "old-google-token",
+        refresh_token="google-refresh-token",
+        token_expires_at=utc_now() - timedelta(minutes=1),
+    )
+    old_secret_ref = account.refresh_token_secret_ref
+    refresher = ProviderTokenRefresher(
+        _settings(),
+        app.state.container.secrets,
+        app.state.container.providers,
+        transport=httpx.MockTransport(_google_refresh_handler),
+    )
+
+    result = asyncio.run(refresher.token_for_read(account))
+
+    updated = app.state.container.providers.get_account(account.provider_account_id)
+    assert result.refreshed is True
+    assert result.token_payload["access_token"] == "rotated-google-token"
+    assert result.token_payload["refresh_token"] == "rotated-google-refresh-token"
+    assert updated is not None
+    assert updated.refresh_token_secret_ref != old_secret_ref
+    assert "rotated-google-token" in app.state.container.secrets.retrieve_secret(
+        updated.refresh_token_secret_ref
+    )
+
+
+def test_microsoft_token_refresher_preserves_refresh_token_when_omitted() -> None:
+    app = create_app(_settings(MICROSOFT_TENANT_ID="organizations"))
+    account = _store_provider_account(
+        app,
+        ProviderKind.microsoft,
+        "old-microsoft-token",
+        refresh_token="microsoft-refresh-token",
+        token_expires_at=utc_now() - timedelta(minutes=1),
+    )
+    refresher = ProviderTokenRefresher(
+        _settings(MICROSOFT_TENANT_ID="organizations"),
+        app.state.container.secrets,
+        app.state.container.providers,
+        transport=httpx.MockTransport(_microsoft_refresh_handler_without_refresh_token),
+    )
+
+    result = asyncio.run(refresher.token_for_read(account))
+
+    assert result.refreshed is True
+    assert result.token_payload["access_token"] == "rotated-microsoft-token"
+    assert result.token_payload["refresh_token"] == "microsoft-refresh-token"
+
+
+def test_local_token_payloads_skip_refresh_even_when_expiring() -> None:
+    app = create_app(_settings())
+    account = _store_provider_account(
+        app,
+        ProviderKind.google,
+        "local-access-token",
+        refresh_token="local-refresh-token",
+        token_expires_at=utc_now() - timedelta(minutes=1),
+    )
+
+    def _fail_on_refresh(request: httpx.Request) -> httpx.Response:
+        raise AssertionError(f"unexpected refresh call to {request.url}")
+
+    refresher = ProviderTokenRefresher(
+        _settings(),
+        app.state.container.secrets,
+        app.state.container.providers,
+        transport=httpx.MockTransport(_fail_on_refresh),
+    )
+
+    result = asyncio.run(refresher.token_for_read(account))
+
+    assert result.refreshed is False
+    assert result.token_payload["access_token"] == "local-access-token"
+
+
+def test_google_read_adapter_uses_gmail_history_cursor() -> None:
+    account = _provider_account(ProviderKind.google)
+    reader = ProviderReadClient(transport=httpx.MockTransport(_google_history_handler))
+
+    result = asyncio.run(
+        reader.fetch_sources(
+            account,
+            {"access_token": "live-google-token"},
+            local_date="2026-07-09",
+            cursors={"gmail_history": "123"},
+        )
+    )
+
+    assert result.used_incremental is True
+    assert result.messages[0].subject == "History client reply"
+    assert result.cursor_updates["gmail_history"] == "456"
+    assert "google_calendar_sync_token" in result.cursor_updates
+
+
+def test_google_read_adapter_falls_back_when_gmail_history_expires() -> None:
+    account = _provider_account(ProviderKind.google)
+    reader = ProviderReadClient(
+        transport=httpx.MockTransport(_google_history_expired_handler)
+    )
+
+    result = asyncio.run(
+        reader.fetch_sources(
+            account,
+            {"access_token": "live-google-token"},
+            local_date="2026-07-09",
+            cursors={"gmail_history": "expired-history"},
+        )
+    )
+
+    assert result.messages[0].subject == "Fallback client reply"
+    assert result.cursor_updates["gmail_history"] == "789"
+    assert result.fallback_reason is not None
+    assert "expired" in result.fallback_reason
+
+
+def test_microsoft_read_adapter_uses_delta_links() -> None:
+    account = _provider_account(ProviderKind.microsoft)
+    reader = ProviderReadClient(transport=httpx.MockTransport(_microsoft_delta_handler))
+
+    result = asyncio.run(
+        reader.fetch_sources(
+            account,
+            {"access_token": "live-microsoft-token"},
+            local_date="2026-07-09",
+            cursors={},
+        )
+    )
+
+    assert result.used_incremental is True
+    assert result.messages[0].subject == "Delta client reply"
+    assert result.calendar_events[0].title == "Delta board sync"
+    assert result.cursor_updates["microsoft_mail_delta_link"].endswith("mail-delta")
+    assert result.cursor_updates["microsoft_calendar_delta_link"].endswith("calendar-next")
+
+
 def test_worker_sync_writes_live_adapter_source_records_without_secret_leakage() -> None:
     app = create_app(_settings())
     account = _store_provider_account(app, ProviderKind.google, "live-google-token")
@@ -288,6 +430,63 @@ def test_worker_sync_writes_live_adapter_source_records_without_secret_leakage()
     assert all("live-google-token" not in str(record) for record in source_records)
     assert all("stored-refresh-token" not in str(record) for record in source_records)
     assert all("secret://" not in str(record) for record in source_records)
+
+
+def test_worker_refreshes_token_before_sync_without_onebrain_token_leakage() -> None:
+    app = create_app(_settings())
+    account = _store_provider_account(
+        app,
+        ProviderKind.google,
+        "old-google-token",
+        refresh_token="google-refresh-token",
+        token_expires_at=utc_now() - timedelta(minutes=1),
+    )
+    old_secret_ref = account.refresh_token_secret_ref
+    app.state.container.providers.enqueue_sync_job(app.state.container.queue, account, "initial")
+    transport = httpx.MockTransport(_rotated_google_sync_handler)
+    worker = AssistantWorker(
+        worker_id="provider-refresh-worker-test",
+        actions=app.state.container.actions,
+        outbox=app.state.container.outbox,
+        queue=app.state.container.queue,
+        policy=AssistantActionPolicyEngine(),
+        telegram=app.state.container.telegram,
+        providers=app.state.container.providers,
+        secrets=app.state.container.secrets,
+        brain=app.state.container.brain,
+        provider_reader=ProviderReadClient(transport=transport),
+        token_refresher=ProviderTokenRefresher(
+            _settings(),
+            app.state.container.secrets,
+            app.state.container.providers,
+            transport=transport,
+        ),
+    )
+
+    result = worker.run_once()
+
+    updated = app.state.container.providers.get_account(account.provider_account_id)
+    source_records = [
+        record
+        for record in app.state.container.brain.records.values()
+        if record["record_type"] in {"provider_message", "provider_calendar_event"}
+    ]
+    assert result.jobs_processed == 1
+    assert updated is not None
+    assert updated.refresh_token_secret_ref != old_secret_ref
+    assert {record["title"] for record in source_records} == {
+        "Rotated client reply",
+        "Rotated board sync",
+    }
+    leaked_values = [
+        "old-google-token",
+        "rotated-google-token",
+        "google-refresh-token",
+        "rotated-google-refresh-token",
+        old_secret_ref,
+        updated.refresh_token_secret_ref,
+    ]
+    assert all(leaked not in str(source_records) for leaked in leaked_values)
 
 
 def test_worker_sync_degrades_on_live_read_failure_without_token_leakage() -> None:
@@ -494,12 +693,19 @@ def _provider_account(provider: ProviderKind):
     )
 
 
-def _store_provider_account(app, provider: ProviderKind, access_token: str):
+def _store_provider_account(
+    app,
+    provider: ProviderKind,
+    access_token: str,
+    *,
+    refresh_token: str = "stored-refresh-token",
+    token_expires_at=None,
+):
     secret_ref = app.state.container.secrets.store_secret(
         json.dumps(
             {
                 "access_token": access_token,
-                "refresh_token": "stored-refresh-token",
+                "refresh_token": refresh_token,
                 "scope": " ".join(scopes_for(provider, OAuthScopeTier.read_only)),
             }
         ),
@@ -522,7 +728,201 @@ def _store_provider_account(app, provider: ProviderKind, access_token: str):
         ),
         scope_tier=OAuthScopeTier.read_only,
         refresh_token_secret_ref=secret_ref,
+        token_expires_at=token_expires_at,
     )
+
+
+def _google_refresh_handler(request: httpx.Request) -> httpx.Response:
+    assert request.url.path == "/token"
+    assert b"refresh_token=google-refresh-token" in request.content
+    return httpx.Response(
+        200,
+        json={
+            "access_token": "rotated-google-token",
+            "refresh_token": "rotated-google-refresh-token",
+            "expires_in": 3600,
+            "scope": " ".join(scopes_for(ProviderKind.google, OAuthScopeTier.read_only)),
+        },
+    )
+
+
+def _microsoft_refresh_handler_without_refresh_token(
+    request: httpx.Request,
+) -> httpx.Response:
+    assert request.url.path == "/organizations/oauth2/v2.0/token"
+    assert b"refresh_token=microsoft-refresh-token" in request.content
+    return httpx.Response(
+        200,
+        json={
+            "access_token": "rotated-microsoft-token",
+            "expires_in": 3600,
+            "scope": " ".join(scopes_for(ProviderKind.microsoft, OAuthScopeTier.read_only)),
+        },
+    )
+
+
+def _google_history_handler(request: httpx.Request) -> httpx.Response:
+    assert request.headers["authorization"] == "Bearer live-google-token"
+    if request.url.path == "/gmail/v1/users/me/history":
+        assert request.url.params["startHistoryId"] == "123"
+        return httpx.Response(
+            200,
+            json={
+                "historyId": "456",
+                "history": [{"messagesAdded": [{"message": {"id": "msg-history-1"}}]}],
+            },
+        )
+    if request.url.path == "/gmail/v1/users/me/messages/msg-history-1":
+        return httpx.Response(
+            200,
+            json=_google_message_payload(
+                "msg-history-1",
+                "History client reply",
+                "History client needs a response.",
+                history_id="455",
+            ),
+        )
+    if request.url.path == "/calendar/v3/calendars/primary/events":
+        return httpx.Response(200, json={"items": []})
+    return httpx.Response(404, json={"error": "unexpected path"})
+
+
+def _google_history_expired_handler(request: httpx.Request) -> httpx.Response:
+    assert request.headers["authorization"] == "Bearer live-google-token"
+    if request.url.path == "/gmail/v1/users/me/history":
+        return httpx.Response(404, json={"error": "history expired"})
+    if request.url.path == "/gmail/v1/users/me/messages":
+        return httpx.Response(200, json={"messages": [{"id": "msg-fallback-1"}]})
+    if request.url.path == "/gmail/v1/users/me/messages/msg-fallback-1":
+        return httpx.Response(
+            200,
+            json=_google_message_payload(
+                "msg-fallback-1",
+                "Fallback client reply",
+                "Fallback full read found a message.",
+                history_id="789",
+            ),
+        )
+    if request.url.path == "/calendar/v3/calendars/primary/events":
+        return httpx.Response(200, json={"items": []})
+    return httpx.Response(404, json={"error": "unexpected path"})
+
+
+def _microsoft_delta_handler(request: httpx.Request) -> httpx.Response:
+    assert request.headers["authorization"] == "Bearer live-microsoft-token"
+    if request.url.path == "/v1.0/me/mailFolders/inbox/messages/delta":
+        return httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "id": "delta-msg-1",
+                        "subject": "Delta client reply",
+                        "from": {"emailAddress": {"address": "client@example.com"}},
+                        "toRecipients": [
+                            {"emailAddress": {"address": "assistant@example.com"}}
+                        ],
+                        "receivedDateTime": "2026-07-09T08:35:00Z",
+                        "isRead": False,
+                        "importance": "normal",
+                        "bodyPreview": "Delta mail body.",
+                        "hasAttachments": False,
+                        "categories": [],
+                    }
+                ],
+                "@odata.deltaLink": (
+                    "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages/"
+                    "delta?$deltatoken=mail-delta"
+                ),
+            },
+        )
+    if request.url.path == "/v1.0/me/calendarView/delta":
+        return httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "id": "delta-event-1",
+                        "subject": "Delta board sync",
+                        "bodyPreview": "Delta calendar body.",
+                        "start": {"dateTime": "2026-07-09T14:00:00", "timeZone": "UTC"},
+                        "end": {"dateTime": "2026-07-09T15:00:00", "timeZone": "UTC"},
+                        "organizer": {"emailAddress": {"address": "organizer@example.com"}},
+                        "attendees": [{"emailAddress": {"address": "person@example.com"}}],
+                        "location": {"displayName": "Teams"},
+                        "isOnlineMeeting": True,
+                        "showAs": "busy",
+                    }
+                ],
+                "@odata.nextLink": (
+                    "https://graph.microsoft.com/v1.0/me/calendarView/"
+                    "delta?$deltatoken=calendar-next"
+                ),
+            },
+        )
+    return httpx.Response(404, json={"error": "unexpected path"})
+
+
+def _rotated_google_sync_handler(request: httpx.Request) -> httpx.Response:
+    if request.url.path == "/token":
+        return _google_refresh_handler(request)
+    assert request.headers["authorization"] == "Bearer rotated-google-token"
+    if request.url.path == "/gmail/v1/users/me/messages":
+        return httpx.Response(200, json={"messages": [{"id": "msg-rotated-1"}]})
+    if request.url.path == "/gmail/v1/users/me/messages/msg-rotated-1":
+        return httpx.Response(
+            200,
+            json=_google_message_payload(
+                "msg-rotated-1",
+                "Rotated client reply",
+                "Rotated token read found a message.",
+                history_id="901",
+            ),
+        )
+    if request.url.path == "/calendar/v3/calendars/primary/events":
+        return httpx.Response(
+            200,
+            json={
+                "items": [
+                    {
+                        "id": "evt-rotated-1",
+                        "summary": "Rotated board sync",
+                        "description": "Prep the rotated live board update.",
+                        "start": {"dateTime": "2026-07-09T14:00:00Z"},
+                        "end": {"dateTime": "2026-07-09T15:00:00Z"},
+                        "organizer": {"email": "organizer@example.com"},
+                        "attendees": [{"email": "person@example.com"}],
+                        "hangoutLink": "https://meet.google.com/rotated",
+                    }
+                ]
+            },
+        )
+    return httpx.Response(404, json={"error": "unexpected path"})
+
+
+def _google_message_payload(
+    message_id: str,
+    subject: str,
+    snippet: str,
+    *,
+    history_id: str,
+) -> dict[str, object]:
+    return {
+        "id": message_id,
+        "threadId": f"thread-{message_id}",
+        "historyId": history_id,
+        "labelIds": ["UNREAD", "IMPORTANT"],
+        "internalDate": "1783528500000",
+        "snippet": snippet,
+        "payload": {
+            "headers": [
+                {"name": "Subject", "value": subject},
+                {"name": "From", "value": "Client <client@example.com>"},
+                {"name": "To", "value": "assistant@example.com"},
+                {"name": "Date", "value": "Thu, 09 Jul 2026 08:35:00 +0000"},
+            ]
+        },
+    }
 
 
 def _google_read_handler(request: httpx.Request) -> httpx.Response:

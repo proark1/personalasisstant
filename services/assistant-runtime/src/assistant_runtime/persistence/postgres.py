@@ -790,6 +790,34 @@ class PostgresProviderStore:
             ).fetchone()
         return _provider_account_from_row(row) if row else None
 
+    def update_account_token(
+        self,
+        provider_account_id: UUID,
+        *,
+        refresh_token_secret_ref: str,
+        token_expires_at=None,
+    ) -> ProviderAccountRecord:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                UPDATE assistant_connected_provider_accounts
+                SET refresh_token_secret_ref = %s,
+                    token_expires_at = %s,
+                    updated_at = %s
+                WHERE provider_account_id = %s
+                RETURNING *
+                """,
+                (
+                    refresh_token_secret_ref,
+                    token_expires_at,
+                    utc_now(),
+                    provider_account_id,
+                ),
+            ).fetchone()
+        if row is None:
+            raise KeyError(provider_account_id)
+        return _provider_account_from_row(row)
+
     def list_accounts(self) -> list[ProviderAccountRecord]:
         with _connect(self.database_url) as conn:
             rows = conn.execute(

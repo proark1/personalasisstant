@@ -19,10 +19,15 @@ from assistant_runtime.providers.onebrain_events import (
     record_sync_subscription_event,
 )
 from assistant_runtime.providers.read_adapters import (
+    ProviderCursorContext,
     ProviderFetchResult,
     ProviderReadClient,
     ProviderReadError,
     local_provider_fetch_result,
+)
+from assistant_runtime.providers.token_refresh import (
+    ProviderTokenRefresher,
+    ProviderTokenRefreshError,
 )
 from assistant_runtime.schemas import JobRecord, ProviderAccountRecord, ProviderKind
 
@@ -52,11 +57,13 @@ class ProviderSyncProcessor:
         brain: BrainClient | None = None,
         secrets: SecretProvider | None = None,
         reader: ProviderReadClient | None = None,
+        token_refresher: ProviderTokenRefresher | None = None,
     ) -> None:
         self.providers = providers
         self.brain = brain
         self.secrets = secrets
         self.reader = reader
+        self.token_refresher = token_refresher
 
     def can_process(self, job: JobRecord) -> bool:
         return job.job_type.startswith("provider.sync.") or job.job_type.startswith(
@@ -82,7 +89,15 @@ class ProviderSyncProcessor:
             return
 
         self.providers.mark_syncing(account.provider_account_id)
-        source_count, source_error = self._record_workday_sources(account)
+        source_count, source_error, cursor_updates = self._record_workday_sources(account)
+        if cursor_updates:
+            cursors = self._upsert_cursor_updates(account, cursor_updates)
+        elif source_error:
+            cursors = []
+        else:
+            cursors = self._advance_cursors(account)
+        for cursor in cursors:
+            self._safe_record_cursor(cursor)
         if source_error:
             degraded = self.providers.mark_sync_degraded(
                 account.provider_account_id,
@@ -90,9 +105,6 @@ class ProviderSyncProcessor:
             )
             self._safe_record_health(degraded, source_error)
             return
-        cursors = self._advance_cursors(account)
-        for cursor in cursors:
-            self._safe_record_cursor(cursor)
         healthy = self.providers.mark_sync_healthy(account.provider_account_id)
         self._safe_record_health(
             healthy,
@@ -109,6 +121,21 @@ class ProviderSyncProcessor:
                 cursor_value=f"{cursor_kind}:{now_value}",
             )
             for cursor_kind in cursor_kinds
+        ]
+
+    def _upsert_cursor_updates(
+        self,
+        account: ProviderAccountRecord,
+        cursor_updates: dict[str, str],
+    ):
+        return [
+            self.providers.upsert_cursor(
+                account=account,
+                cursor_kind=cursor_kind,
+                cursor_value=cursor_value,
+            )
+            for cursor_kind, cursor_value in cursor_updates.items()
+            if cursor_value
         ]
 
     def _setup_subscriptions(self, account: ProviderAccountRecord, job: JobRecord):
@@ -149,9 +176,12 @@ class ProviderSyncProcessor:
         except Exception:
             return
 
-    def _record_workday_sources(self, account: ProviderAccountRecord) -> tuple[int, str | None]:
+    def _record_workday_sources(
+        self,
+        account: ProviderAccountRecord,
+    ) -> tuple[int, str | None, dict[str, str]]:
         if self.brain is None:
-            return 0, None
+            return 0, None, {}
         local_date = datetime.now(UTC).date().isoformat()
         try:
             fetch_result, source_error = self._fetch_provider_sources(account, local_date)
@@ -174,9 +204,13 @@ class ProviderSyncProcessor:
                     )
                 )
                 count += 1
-            return count, source_error
+            return count, source_error, dict(fetch_result.cursor_updates)
         except Exception:
-            return 0, "Provider source normalization failed; workday source records are stale."
+            return (
+                0,
+                "Provider source normalization failed; workday source records are stale.",
+                {},
+            )
 
     def _fetch_provider_sources(
         self,
@@ -189,26 +223,42 @@ class ProviderSyncProcessor:
                 None,
             )
         try:
-            raw_token_payload = self.secrets.retrieve_secret(account.refresh_token_secret_ref)
-            token_payload = json.loads(raw_token_payload)
-            if not isinstance(token_payload, dict):
-                raise ValueError("Provider token payload must be an object.")
+            if self.token_refresher is not None:
+                refresh_result = asyncio.run(self.token_refresher.token_for_read(account))
+                read_account = refresh_result.account
+                token_payload = refresh_result.token_payload
+            else:
+                read_account = account
+                raw_token_payload = self.secrets.retrieve_secret(account.refresh_token_secret_ref)
+                token_payload = json.loads(raw_token_payload)
+                if not isinstance(token_payload, dict):
+                    raise ValueError("Provider token payload must be an object.")
+        except ProviderTokenRefreshError as exc:
+            return (
+                local_provider_fetch_result(account, local_date, reason="token_refresh_failed"),
+                f"Provider token refresh failed; {exc.detail}",
+            )
         except Exception:
             return (
                 local_provider_fetch_result(account, local_date, reason="token_unavailable"),
                 "Provider token secret is unavailable; workday source records used local fallback.",
             )
+        cursor_context = ProviderCursorContext(
+            {
+                cursor.cursor_kind: cursor.cursor_value
+                for cursor in self.providers.list_cursors(account.provider_account_id)
+            }
+        )
         try:
-            return (
-                asyncio.run(
-                    self.reader.fetch_sources(
-                        account,
-                        token_payload,
-                        local_date=local_date,
-                    )
-                ),
-                None,
+            fetch_result = asyncio.run(
+                self.reader.fetch_sources(
+                    read_account,
+                    token_payload,
+                    local_date=local_date,
+                    cursors=cursor_context,
+                )
             )
+            return fetch_result, _source_error_from_fetch_result(fetch_result)
         except ProviderReadError as exc:
             return (
                 local_provider_fetch_result(account, local_date, reason="live_read_failed"),
@@ -243,6 +293,12 @@ def _cursor_kinds(account: ProviderAccountRecord) -> list[str]:
     if account.calendar_enabled:
         kinds.append("microsoft_calendar_delta_link")
     return kinds
+
+
+def _source_error_from_fetch_result(fetch_result: ProviderFetchResult) -> str | None:
+    if fetch_result.live and fetch_result.fallback_reason:
+        return f"Provider live read degraded; {fetch_result.fallback_reason}"
+    return None
 
 
 def _subscription_resources(account: ProviderAccountRecord) -> list[tuple[str, str]]:

@@ -10,6 +10,7 @@ from assistant_runtime.health import assert_worker_dependencies
 from assistant_runtime.logging import configure_logging
 from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
 from assistant_runtime.providers.onebrain import build_brain_client
+from assistant_runtime.providers.token_refresh import ProviderTokenRefresher
 from assistant_runtime.runtime_stores import build_operational_stores
 from assistant_runtime.worker.runner import AssistantWorker
 
@@ -32,6 +33,11 @@ def run() -> None:
         providers=operational.providers,
         secrets=operational.secrets,
         brain=brain,
+        token_refresher=ProviderTokenRefresher(
+            settings,
+            operational.secrets,
+            operational.providers,
+        ),
         onebrain_available=asyncio.run(brain.check_available()),
     )
     if os.getenv("RUN_ONCE", "false").lower() == "true":

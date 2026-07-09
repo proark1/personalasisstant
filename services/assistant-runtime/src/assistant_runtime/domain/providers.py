@@ -144,6 +144,20 @@ class InMemoryProviderStore:
         with self._lock:
             return self._accounts.get(provider_account_id)
 
+    def update_account_token(
+        self,
+        provider_account_id: UUID,
+        *,
+        refresh_token_secret_ref: str,
+        token_expires_at=None,
+    ) -> ProviderAccountRecord:
+        with self._lock:
+            account = self._require_account(provider_account_id)
+            account.refresh_token_secret_ref = refresh_token_secret_ref
+            account.token_expires_at = token_expires_at
+            account.updated_at = utc_now()
+            return account
+
     def list_accounts(self) -> list[ProviderAccountRecord]:
         with self._lock:
             return sorted(self._accounts.values(), key=lambda account: account.created_at)

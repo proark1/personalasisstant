@@ -14,6 +14,7 @@ from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
 from assistant_runtime.providers.onebrain_events import record_telegram_event
 from assistant_runtime.providers.read_adapters import ProviderReadClient
 from assistant_runtime.providers.sync import ProviderSyncProcessor
+from assistant_runtime.providers.token_refresh import ProviderTokenRefresher
 from assistant_runtime.providers.workday import WorkdayJobProcessor
 from assistant_runtime.schemas import ActionState, OutboxRow
 
@@ -40,6 +41,7 @@ class AssistantWorker:
         secrets: SecretProvider | None = None,
         brain: BrainClient | None = None,
         provider_reader: ProviderReadClient | None = None,
+        token_refresher: ProviderTokenRefresher | None = None,
         onebrain_available: bool = True,
     ) -> None:
         self.worker_id = worker_id
@@ -52,6 +54,7 @@ class AssistantWorker:
         self.secrets = secrets
         self.brain = brain
         self.provider_reader = provider_reader or ProviderReadClient()
+        self.token_refresher = token_refresher
         self.onebrain_available = onebrain_available
         self.provider_sync = (
             ProviderSyncProcessor(
@@ -59,6 +62,7 @@ class AssistantWorker:
                 brain=brain,
                 secrets=secrets,
                 reader=self.provider_reader,
+                token_refresher=token_refresher,
             )
             if providers is not None
             else None

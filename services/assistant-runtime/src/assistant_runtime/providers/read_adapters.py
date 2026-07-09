@@ -10,17 +10,25 @@ import httpx
 from assistant_runtime.schemas import ProviderAccountRecord, ProviderKind, utc_now
 
 GOOGLE_GMAIL_MESSAGES_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
+GOOGLE_GMAIL_HISTORY_URL = "https://gmail.googleapis.com/gmail/v1/users/me/history"
 GOOGLE_CALENDAR_EVENTS_URL = (
     "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 )
 MICROSOFT_MESSAGES_URL = "https://graph.microsoft.com/v1.0/me/messages"
+MICROSOFT_MESSAGES_DELTA_URL = (
+    "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages/delta"
+)
 MICROSOFT_CALENDAR_VIEW_URL = "https://graph.microsoft.com/v1.0/me/calendarView"
+MICROSOFT_CALENDAR_VIEW_DELTA_URL = (
+    "https://graph.microsoft.com/v1.0/me/calendarView/delta"
+)
 
 
 class ProviderReadError(RuntimeError):
-    def __init__(self, detail: str) -> None:
+    def __init__(self, detail: str, *, status_code: int | None = None) -> None:
         super().__init__(detail)
         self.detail = detail
+        self.status_code = status_code
 
 
 @dataclass(frozen=True)
@@ -88,11 +96,22 @@ class FetchedProviderCalendarEvent:
 
 
 @dataclass(frozen=True)
+class ProviderCursorContext:
+    cursor_values: dict[str, str] = field(default_factory=dict)
+
+    def get(self, cursor_kind: str) -> str | None:
+        value = self.cursor_values.get(cursor_kind)
+        return value if value else None
+
+
+@dataclass(frozen=True)
 class ProviderFetchResult:
     messages: list[FetchedProviderMessage] = field(default_factory=list)
     calendar_events: list[FetchedProviderCalendarEvent] = field(default_factory=list)
     live: bool = True
     fallback_reason: str | None = None
+    cursor_updates: dict[str, str] = field(default_factory=dict)
+    used_incremental: bool = False
 
 
 class ProviderReadClient:
@@ -111,6 +130,7 @@ class ProviderReadClient:
         token_payload: dict[str, Any],
         *,
         local_date: str,
+        cursors: ProviderCursorContext | dict[str, str] | None = None,
     ) -> ProviderFetchResult:
         access_token = str(token_payload.get("access_token") or "")
         if not access_token:
@@ -122,24 +142,70 @@ class ProviderReadClient:
                 reason="local_test_token",
             )
         provider = ProviderKind(account.provider)
+        cursor_context = _normalize_cursor_context(cursors)
         if provider == ProviderKind.google:
-            return await self._fetch_google(account, access_token, local_date)
-        return await self._fetch_microsoft(account, access_token, local_date)
+            return await self._fetch_google(
+                account,
+                access_token,
+                local_date,
+                cursor_context=cursor_context,
+            )
+        return await self._fetch_microsoft(
+            account,
+            access_token,
+            local_date,
+            cursor_context=cursor_context,
+            use_delta=cursors is not None,
+        )
 
     async def _fetch_google(
         self,
         account: ProviderAccountRecord,
         access_token: str,
         local_date: str,
+        *,
+        cursor_context: ProviderCursorContext,
     ) -> ProviderFetchResult:
         headers = _auth_headers(access_token)
+        cursor_updates: dict[str, str] = {}
+        fallback_reason: str | None = None
+        used_incremental = False
         async with httpx.AsyncClient(
             timeout=self.timeout_seconds,
             transport=self.transport,
         ) as client:
             messages: list[FetchedProviderMessage] = []
             if account.mail_enabled:
-                messages = await _fetch_google_messages(client, account, local_date, headers)
+                gmail_cursor = cursor_context.get("gmail_history")
+                if gmail_cursor:
+                    try:
+                        messages, next_cursor = await _fetch_google_history_messages(
+                            client,
+                            account,
+                            local_date,
+                            headers,
+                            gmail_cursor,
+                        )
+                        used_incremental = True
+                    except ProviderReadError as exc:
+                        if exc.status_code != 404:
+                            raise
+                        messages, next_cursor = await _fetch_google_messages(
+                            client,
+                            account,
+                            local_date,
+                            headers,
+                        )
+                        fallback_reason = "Gmail history cursor expired; full read fallback used."
+                else:
+                    messages, next_cursor = await _fetch_google_messages(
+                        client,
+                        account,
+                        local_date,
+                        headers,
+                    )
+                if next_cursor:
+                    cursor_updates["gmail_history"] = next_cursor
             events: list[FetchedProviderCalendarEvent] = []
             if account.calendar_enabled:
                 events = await _fetch_google_calendar_events(
@@ -148,34 +214,107 @@ class ProviderReadClient:
                     local_date,
                     headers,
                 )
-        return ProviderFetchResult(messages=messages, calendar_events=events)
+                cursor_updates["google_calendar_sync_token"] = _window_cursor(
+                    "google_calendar",
+                    local_date,
+                )
+        return ProviderFetchResult(
+            messages=messages,
+            calendar_events=events,
+            fallback_reason=fallback_reason,
+            cursor_updates=cursor_updates,
+            used_incremental=used_incremental,
+        )
 
     async def _fetch_microsoft(
         self,
         account: ProviderAccountRecord,
         access_token: str,
         local_date: str,
+        *,
+        cursor_context: ProviderCursorContext,
+        use_delta: bool,
     ) -> ProviderFetchResult:
         headers = {
             **_auth_headers(access_token),
             "Prefer": 'outlook.body-content-type="text"',
         }
+        cursor_updates: dict[str, str] = {}
+        fallback_reasons: list[str] = []
+        used_incremental = False
         async with httpx.AsyncClient(
             timeout=self.timeout_seconds,
             transport=self.transport,
         ) as client:
             messages: list[FetchedProviderMessage] = []
             if account.mail_enabled:
-                messages = await _fetch_microsoft_messages(client, account, local_date, headers)
+                if use_delta:
+                    try:
+                        messages, next_cursor = await _fetch_microsoft_messages_delta(
+                            client,
+                            account,
+                            local_date,
+                            headers,
+                            cursor_context.get("microsoft_mail_delta_link"),
+                        )
+                        used_incremental = True
+                        if next_cursor:
+                            cursor_updates["microsoft_mail_delta_link"] = next_cursor
+                    except ProviderReadError:
+                        fallback_reasons.append(
+                            "Microsoft mail delta failed; full read fallback used."
+                        )
+                        messages = await _fetch_microsoft_messages(
+                            client,
+                            account,
+                            local_date,
+                            headers,
+                        )
+                else:
+                    messages = await _fetch_microsoft_messages(
+                        client,
+                        account,
+                        local_date,
+                        headers,
+                    )
             events: list[FetchedProviderCalendarEvent] = []
             if account.calendar_enabled:
-                events = await _fetch_microsoft_calendar_events(
-                    client,
-                    account,
-                    local_date,
-                    headers,
-                )
-        return ProviderFetchResult(messages=messages, calendar_events=events)
+                if use_delta:
+                    try:
+                        events, next_cursor = await _fetch_microsoft_calendar_events_delta(
+                            client,
+                            account,
+                            local_date,
+                            headers,
+                            cursor_context.get("microsoft_calendar_delta_link"),
+                        )
+                        used_incremental = True
+                        if next_cursor:
+                            cursor_updates["microsoft_calendar_delta_link"] = next_cursor
+                    except ProviderReadError:
+                        fallback_reasons.append(
+                            "Microsoft calendar delta failed; full read fallback used."
+                        )
+                        events = await _fetch_microsoft_calendar_events(
+                            client,
+                            account,
+                            local_date,
+                            headers,
+                        )
+                else:
+                    events = await _fetch_microsoft_calendar_events(
+                        client,
+                        account,
+                        local_date,
+                        headers,
+                    )
+        return ProviderFetchResult(
+            messages=messages,
+            calendar_events=events,
+            fallback_reason=" ".join(fallback_reasons) or None,
+            cursor_updates=cursor_updates,
+            used_incremental=used_incremental,
+        )
 
 
 async def _fetch_google_messages(
@@ -183,7 +322,7 @@ async def _fetch_google_messages(
     account: ProviderAccountRecord,
     local_date: str,
     headers: dict[str, str],
-) -> list[FetchedProviderMessage]:
+) -> tuple[list[FetchedProviderMessage], str | None]:
     try:
         list_response = await client.get(
             GOOGLE_GMAIL_MESSAGES_URL,
@@ -196,35 +335,88 @@ async def _fetch_google_messages(
         )
         list_response.raise_for_status()
         message_refs = list_response.json().get("messages") or []
-        messages: list[FetchedProviderMessage] = []
+        payloads: list[dict[str, Any]] = []
         for message_ref in message_refs[:10]:
             message_id = str(message_ref.get("id") or "")
             if not message_id:
                 continue
-            metadata_response = await client.get(
-                f"{GOOGLE_GMAIL_MESSAGES_URL}/{message_id}",
-                headers=headers,
-                params=[
-                    ("format", "metadata"),
-                    ("metadataHeaders", "Subject"),
-                    ("metadataHeaders", "From"),
-                    ("metadataHeaders", "To"),
-                    ("metadataHeaders", "Date"),
-                    ("metadataHeaders", "Message-ID"),
-                    ("metadataHeaders", "List-Unsubscribe"),
-                ],
-            )
-            metadata_response.raise_for_status()
-            messages.append(
-                _google_message_to_source(account, local_date, metadata_response.json())
-            )
-        return messages
+            payloads.append(await _fetch_google_message_metadata(client, message_id, headers))
+        return (
+            [_google_message_to_source(account, local_date, payload) for payload in payloads],
+            _latest_google_history_id(payloads),
+        )
     except httpx.HTTPStatusError as exc:
         raise ProviderReadError(
-            f"Google Gmail read failed with HTTP {exc.response.status_code}."
+            f"Google Gmail read failed with HTTP {exc.response.status_code}.",
+            status_code=exc.response.status_code,
         ) from exc
     except httpx.HTTPError as exc:
         raise ProviderReadError(f"Google Gmail read failed: {exc.__class__.__name__}.") from exc
+
+
+async def _fetch_google_history_messages(
+    client: httpx.AsyncClient,
+    account: ProviderAccountRecord,
+    local_date: str,
+    headers: dict[str, str],
+    start_history_id: str,
+) -> tuple[list[FetchedProviderMessage], str | None]:
+    try:
+        response = await client.get(
+            GOOGLE_GMAIL_HISTORY_URL,
+            headers=headers,
+            params={
+                "startHistoryId": start_history_id,
+                "historyTypes": "messageAdded",
+                "maxResults": "10",
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        message_ids = _google_history_message_ids(payload)
+        message_payloads = [
+            await _fetch_google_message_metadata(client, message_id, headers)
+            for message_id in message_ids[:10]
+        ]
+        return (
+            [
+                _google_message_to_source(account, local_date, message_payload)
+                for message_payload in message_payloads
+            ],
+            str(payload.get("historyId") or "") or _latest_google_history_id(message_payloads),
+        )
+    except httpx.HTTPStatusError as exc:
+        raise ProviderReadError(
+            f"Google Gmail history read failed with HTTP {exc.response.status_code}.",
+            status_code=exc.response.status_code,
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise ProviderReadError(
+            f"Google Gmail history read failed: {exc.__class__.__name__}."
+        ) from exc
+
+
+async def _fetch_google_message_metadata(
+    client: httpx.AsyncClient,
+    message_id: str,
+    headers: dict[str, str],
+) -> dict[str, Any]:
+    metadata_response = await client.get(
+        f"{GOOGLE_GMAIL_MESSAGES_URL}/{message_id}",
+        headers=headers,
+        params=[
+            ("format", "metadata"),
+            ("metadataHeaders", "Subject"),
+            ("metadataHeaders", "From"),
+            ("metadataHeaders", "To"),
+            ("metadataHeaders", "Date"),
+            ("metadataHeaders", "Message-ID"),
+            ("metadataHeaders", "List-Unsubscribe"),
+        ],
+    )
+    metadata_response.raise_for_status()
+    payload = metadata_response.json()
+    return payload if isinstance(payload, dict) else {}
 
 
 async def _fetch_google_calendar_events(
@@ -294,6 +486,49 @@ async def _fetch_microsoft_messages(
         raise ProviderReadError(f"Microsoft mail read failed: {exc.__class__.__name__}.") from exc
 
 
+async def _fetch_microsoft_messages_delta(
+    client: httpx.AsyncClient,
+    account: ProviderAccountRecord,
+    local_date: str,
+    headers: dict[str, str],
+    delta_link: str | None,
+) -> tuple[list[FetchedProviderMessage], str | None]:
+    try:
+        if delta_link:
+            response = await client.get(delta_link, headers=headers)
+        else:
+            response = await client.get(
+                MICROSOFT_MESSAGES_DELTA_URL,
+                headers=headers,
+                params={
+                    "$top": "10",
+                    "$select": (
+                        "id,subject,from,toRecipients,receivedDateTime,isRead,importance,"
+                        "bodyPreview,hasAttachments,categories"
+                    ),
+                },
+            )
+        response.raise_for_status()
+        payload = response.json()
+        return (
+            [
+                _microsoft_message_to_source(account, local_date, message)
+                for message in payload.get("value") or []
+                if not _is_graph_removed_item(message)
+            ],
+            _graph_delta_cursor(payload),
+        )
+    except httpx.HTTPStatusError as exc:
+        raise ProviderReadError(
+            f"Microsoft mail delta failed with HTTP {exc.response.status_code}.",
+            status_code=exc.response.status_code,
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise ProviderReadError(
+            f"Microsoft mail delta failed: {exc.__class__.__name__}."
+        ) from exc
+
+
 async def _fetch_microsoft_calendar_events(
     client: httpx.AsyncClient,
     account: ProviderAccountRecord,
@@ -324,6 +559,48 @@ async def _fetch_microsoft_calendar_events(
     except httpx.HTTPError as exc:
         raise ProviderReadError(
             f"Microsoft calendar read failed: {exc.__class__.__name__}."
+        ) from exc
+
+
+async def _fetch_microsoft_calendar_events_delta(
+    client: httpx.AsyncClient,
+    account: ProviderAccountRecord,
+    local_date: str,
+    headers: dict[str, str],
+    delta_link: str | None,
+) -> tuple[list[FetchedProviderCalendarEvent], str | None]:
+    start, end = _day_window(local_date)
+    try:
+        if delta_link:
+            response = await client.get(delta_link, headers=headers)
+        else:
+            response = await client.get(
+                MICROSOFT_CALENDAR_VIEW_DELTA_URL,
+                headers=headers,
+                params={
+                    "startDateTime": start.isoformat(),
+                    "endDateTime": end.isoformat(),
+                    "$top": "10",
+                },
+            )
+        response.raise_for_status()
+        payload = response.json()
+        return (
+            [
+                _microsoft_event_to_source(account, local_date, event)
+                for event in payload.get("value") or []
+                if not _is_graph_removed_item(event) and not bool(event.get("isCancelled"))
+            ],
+            _graph_delta_cursor(payload),
+        )
+    except httpx.HTTPStatusError as exc:
+        raise ProviderReadError(
+            f"Microsoft calendar delta failed with HTTP {exc.response.status_code}.",
+            status_code=exc.response.status_code,
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise ProviderReadError(
+            f"Microsoft calendar delta failed: {exc.__class__.__name__}."
         ) from exc
 
 
@@ -589,6 +866,83 @@ def _google_headers(payload: dict[str, Any]) -> dict[str, str]:
         if name:
             result[name] = value
     return result
+
+
+def _normalize_cursor_context(
+    cursors: ProviderCursorContext | dict[str, str] | None,
+) -> ProviderCursorContext:
+    if isinstance(cursors, ProviderCursorContext):
+        return cursors
+    if isinstance(cursors, dict):
+        return ProviderCursorContext(
+            {
+                str(cursor_kind): str(cursor_value)
+                for cursor_kind, cursor_value in cursors.items()
+                if cursor_value
+            }
+        )
+    return ProviderCursorContext()
+
+
+def _google_history_message_ids(payload: dict[str, Any]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for history_item in payload.get("history") or []:
+        if not isinstance(history_item, dict):
+            continue
+        for message_id in _history_item_message_ids(history_item):
+            if message_id in seen:
+                continue
+            seen.add(message_id)
+            result.append(message_id)
+    return result
+
+
+def _history_item_message_ids(history_item: dict[str, Any]) -> list[str]:
+    ids: list[str] = []
+    for collection_name in ("messagesAdded", "messages"):
+        for item in history_item.get(collection_name) or []:
+            message = item.get("message") if isinstance(item, dict) else None
+            if message is None and isinstance(item, dict):
+                message = item
+            if not isinstance(message, dict):
+                continue
+            message_id = str(message.get("id") or "")
+            if message_id:
+                ids.append(message_id)
+    return ids
+
+
+def _latest_google_history_id(payloads: list[dict[str, Any]]) -> str | None:
+    history_ids: list[int] = []
+    for payload in payloads:
+        raw = payload.get("historyId")
+        if raw is None:
+            continue
+        try:
+            history_ids.append(int(str(raw)))
+        except ValueError:
+            continue
+    if not history_ids:
+        return None
+    return str(max(history_ids))
+
+
+def _graph_delta_cursor(payload: dict[str, Any]) -> str | None:
+    for key in ("@odata.deltaLink", "@odata.nextLink"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _is_graph_removed_item(payload: object) -> bool:
+    return isinstance(payload, dict) and isinstance(payload.get("@removed"), dict)
+
+
+def _window_cursor(prefix: str, local_date: str) -> str:
+    now_value = utc_now().replace(microsecond=0).isoformat()
+    return f"{prefix}:{local_date}:{now_value}"
 
 
 def _split_recipients(value: str) -> list[str]:
