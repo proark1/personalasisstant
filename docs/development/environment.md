@@ -72,6 +72,16 @@ SECRET_MASTER_KEY=<strong random secret>
 TELEGRAM_WEBHOOK_SECRET=<strong random webhook secret>
 CORS_ORIGINS=https://personalasisstant-production.up.railway.app
 GEMINI_API_KEY=<Gemini API key when voice/model calls are enabled>
+GOOGLE_OAUTH_CLIENT_ID=<Google OAuth client id when provider sync is enabled>
+GOOGLE_OAUTH_CLIENT_SECRET=<Google OAuth client secret when provider sync is enabled>
+GOOGLE_OAUTH_REDIRECT_URI=https://assistant-api-production-5210.up.railway.app/v1/providers/oauth/google/callback
+GOOGLE_PUBSUB_TOPIC=<Google Pub/Sub topic for Gmail watch when enabled>
+GOOGLE_WEBHOOK_VERIFICATION_TOKEN=<strong random Google webhook token>
+MICROSOFT_OAUTH_CLIENT_ID=<Microsoft Entra app client id when provider sync is enabled>
+MICROSOFT_OAUTH_CLIENT_SECRET=<Microsoft Entra client secret when provider sync is enabled>
+MICROSOFT_OAUTH_REDIRECT_URI=https://assistant-api-production-5210.up.railway.app/v1/providers/oauth/microsoft/callback
+MICROSOFT_TENANT_ID=common
+MICROSOFT_WEBHOOK_CLIENT_STATE=<strong random Microsoft webhook client state>
 ```
 
 Set these on `assistant-worker`:
@@ -95,6 +105,16 @@ TELEGRAM_WEBHOOK_SECRET=<same webhook secret as assistant-api>
 WORKER_ID=assistant-worker-railway
 WORKER_POLL_SECONDS=5
 GEMINI_API_KEY=<Gemini API key when voice/model calls are enabled>
+GOOGLE_OAUTH_CLIENT_ID=<same Google OAuth client id>
+GOOGLE_OAUTH_CLIENT_SECRET=<same Google OAuth client secret>
+GOOGLE_OAUTH_REDIRECT_URI=https://assistant-api-production-5210.up.railway.app/v1/providers/oauth/google/callback
+GOOGLE_PUBSUB_TOPIC=<Google Pub/Sub topic for Gmail watch when enabled>
+GOOGLE_WEBHOOK_VERIFICATION_TOKEN=<same Google webhook token>
+MICROSOFT_OAUTH_CLIENT_ID=<same Microsoft Entra app client id>
+MICROSOFT_OAUTH_CLIENT_SECRET=<same Microsoft Entra client secret>
+MICROSOFT_OAUTH_REDIRECT_URI=https://assistant-api-production-5210.up.railway.app/v1/providers/oauth/microsoft/callback
+MICROSOFT_TENANT_ID=common
+MICROSOFT_WEBHOOK_CLIENT_STATE=<same Microsoft webhook client state>
 ```
 
 Set this on `assistant-web`:
@@ -116,5 +136,13 @@ These must be created outside the repo:
   scope for service health checks and worker-originated calls.
 - `GEMINI_API_KEY`: create in Google AI Studio or the selected Gemini provider
   account when model/voice features are enabled.
+- `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`: create in a Google
+  Cloud OAuth app with the assistant callback URL.
+- `GOOGLE_PUBSUB_TOPIC`: create when enabling Gmail push watch; local Phase 3
+  can use polling/reconciliation without it.
+- `MICROSOFT_OAUTH_CLIENT_ID` and `MICROSOFT_OAUTH_CLIENT_SECRET`: create in an
+  Entra app registration with delegated Graph permissions.
+- `MICROSOFT_WEBHOOK_CLIENT_STATE`: use as the shared client-state secret for
+  Graph change notifications.
 - Telegram bot token: entered by the user in the web onboarding flow and stored
   through `SecretProvider`; it is not a global environment variable.

@@ -73,6 +73,49 @@ class TelegramBindingStatus(StrEnum):
     expired = "expired"
 
 
+class ProviderKind(StrEnum):
+    google = "google"
+    microsoft = "microsoft"
+
+
+class ProviderService(StrEnum):
+    mail = "mail"
+    calendar = "calendar"
+
+
+class ProviderAccountStatus(StrEnum):
+    not_configured = "not_configured"
+    connecting = "connecting"
+    connected = "connected"
+    degraded = "degraded"
+    disconnected = "disconnected"
+    revoked = "revoked"
+
+
+class ProviderSyncState(StrEnum):
+    idle = "idle"
+    queued = "queued"
+    syncing = "syncing"
+    healthy = "healthy"
+    degraded = "degraded"
+    failed = "failed"
+
+
+class OAuthConnectionStatus(StrEnum):
+    pending = "pending"
+    completed = "completed"
+    cancelled = "cancelled"
+    failed = "failed"
+    expired = "expired"
+
+
+class OAuthScopeTier(StrEnum):
+    read_only = "read_only"
+    draft_write = "draft_write"
+    send = "send"
+    calendar_write = "calendar_write"
+
+
 class ScopedIdentity(BaseModel):
     account_id: str
     user_id: str
@@ -215,6 +258,211 @@ class ProviderHealth(BaseModel):
     status: str
     detail: str
     checked_at: datetime = Field(default_factory=utc_now)
+
+
+class ProviderConfigurationStatus(BaseModel):
+    provider: ProviderKind
+    display_name: str
+    configured: bool
+    missing_config: list[str] = Field(default_factory=list)
+    read_scopes: list[str] = Field(default_factory=list)
+    upgrade_scopes: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class ProviderCapabilityStatus(BaseModel):
+    key: str
+    label: str
+    service: ProviderService
+    granted: bool
+    required_scopes: list[str] = Field(default_factory=list)
+    upgrade_tier: OAuthScopeTier = OAuthScopeTier.read_only
+
+
+class OAuthConnectionAttemptRecord(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
+    connection_id: UUID = Field(default_factory=uuid4)
+    scope: ScopedIdentity
+    provider: ProviderKind
+    state_hash: str
+    requested_scope_tier: OAuthScopeTier = OAuthScopeTier.read_only
+    requested_scopes: list[str] = Field(default_factory=list)
+    requested_services: list[ProviderService] = Field(
+        default_factory=lambda: [ProviderService.mail, ProviderService.calendar]
+    )
+    redirect_uri: str
+    status: OAuthConnectionStatus = OAuthConnectionStatus.pending
+    expires_at: datetime
+    error_detail: str | None = None
+    correlation_id: str = Field(default_factory=lambda: str(uuid4()))
+    audit_correlation_id: str = Field(default_factory=lambda: str(uuid4()))
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ProviderOAuthStartRequest(BaseModel):
+    scope: ScopedIdentity = Field(
+        default_factory=lambda: ScopedIdentity(
+            account_id="acct_demo", user_id="user_demo", space_id="space_demo"
+        )
+    )
+    requested_scope_tier: OAuthScopeTier = OAuthScopeTier.read_only
+    requested_services: list[ProviderService] = Field(
+        default_factory=lambda: [ProviderService.mail, ProviderService.calendar]
+    )
+    redirect_path: str = Field(default="/settings/providers", max_length=200)
+
+    @field_validator("redirect_path")
+    @classmethod
+    def _local_redirect_path_only(cls, value: str) -> str:
+        if not value.startswith("/"):
+            raise ValueError("redirect_path must be an app-local path.")
+        return value
+
+
+class ProviderOAuthStartResponse(BaseModel):
+    provider: ProviderKind
+    connection_id: UUID | None = None
+    authorization_url: str | None = None
+    configured: bool
+    requested_scopes: list[str] = Field(default_factory=list)
+    expires_at: datetime | None = None
+    detail: str
+
+
+class ProviderOAuthCallbackResponse(BaseModel):
+    provider: ProviderKind
+    status: OAuthConnectionStatus
+    provider_account_id: UUID | None = None
+    detail: str
+    redirect_to: str
+
+
+class ProviderAccountRecord(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
+    provider_account_id: UUID = Field(default_factory=uuid4)
+    scope: ScopedIdentity
+    provider: ProviderKind
+    provider_account_ref: str
+    provider_subject: str
+    email: str = ""
+    display_name: str = ""
+    status: ProviderAccountStatus = ProviderAccountStatus.connected
+    sync_state: ProviderSyncState = ProviderSyncState.idle
+    granted_scopes: list[str] = Field(default_factory=list)
+    scope_tier: OAuthScopeTier = OAuthScopeTier.read_only
+    mail_enabled: bool = True
+    calendar_enabled: bool = True
+    refresh_token_secret_ref: str
+    token_expires_at: datetime | None = None
+    last_sync_at: datetime | None = None
+    last_sync_error: str | None = None
+    correlation_id: str = Field(default_factory=lambda: str(uuid4()))
+    audit_correlation_id: str = Field(default_factory=lambda: str(uuid4()))
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ProviderAccountSummary(BaseModel):
+    provider_account_id: UUID
+    provider: ProviderKind
+    provider_account_ref: str
+    email: str
+    display_name: str
+    status: ProviderAccountStatus
+    sync_state: ProviderSyncState
+    granted_scopes: list[str]
+    missing_scopes: list[str]
+    scope_tier: OAuthScopeTier
+    capabilities: list[ProviderCapabilityStatus]
+    mail_enabled: bool
+    calendar_enabled: bool
+    last_sync_at: datetime | None = None
+    last_sync_error: str | None = None
+    checked_at: datetime = Field(default_factory=utc_now)
+
+
+class ProviderAccountsResponse(BaseModel):
+    accounts: list[ProviderAccountSummary] = Field(default_factory=list)
+
+
+class ProviderStatusResponse(BaseModel):
+    providers: list[ProviderConfigurationStatus] = Field(default_factory=list)
+    accounts: list[ProviderAccountSummary] = Field(default_factory=list)
+
+
+class ProviderSyncRequest(BaseModel):
+    sync_kind: str = Field(default="reconcile", pattern="^(initial|reconcile|manual)$")
+
+
+class ProviderSyncResponse(BaseModel):
+    status: str
+    detail: str
+    job: JobRecord | None = None
+
+
+class ProviderAccountHealthResponse(BaseModel):
+    provider_account_id: UUID
+    provider: ProviderKind
+    status: ProviderAccountStatus
+    sync_state: ProviderSyncState
+    detail: str
+    last_sync_at: datetime | None = None
+    last_sync_error: str | None = None
+
+
+class ProviderDisconnectResponse(BaseModel):
+    status: ProviderAccountStatus
+    detail: str
+
+
+class ProviderWebhookResponse(BaseModel):
+    provider: ProviderKind
+    status: str
+    detail: str
+    deduplicated: bool = False
+    job: JobRecord | None = None
+    correlation_id: str = Field(default_factory=lambda: str(uuid4()))
+
+
+class SyncCursorRecord(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
+    cursor_id: UUID = Field(default_factory=uuid4)
+    scope: ScopedIdentity
+    provider: ProviderKind
+    provider_account_id: UUID
+    provider_account_ref: str
+    cursor_kind: str
+    cursor_value: str
+    cursor_ref: str
+    reconciliation_state: str = "current"
+    last_success_at: datetime | None = None
+    last_error: str | None = None
+    correlation_id: str = Field(default_factory=lambda: str(uuid4()))
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ProviderSubscriptionRecord(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
+    subscription_id: UUID = Field(default_factory=uuid4)
+    scope: ScopedIdentity
+    provider: ProviderKind
+    provider_account_id: UUID
+    provider_account_ref: str
+    subscription_kind: str
+    subscription_ref: str
+    resource_ref: str
+    state: str = "active"
+    expires_at: datetime | None = None
+    renewal_job_id: UUID | None = None
+    secret_ref: str | None = None
+    correlation_id: str = Field(default_factory=lambda: str(uuid4()))
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class NavigationItem(BaseModel):

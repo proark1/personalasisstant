@@ -27,6 +27,16 @@ Required variables:
 - `TELEGRAM_WEBHOOK_SECRET`
 - `CORS_ORIGINS`
 - `NEXT_PUBLIC_ASSISTANT_API_URL`
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `GOOGLE_OAUTH_CLIENT_SECRET`
+- `GOOGLE_OAUTH_REDIRECT_URI`
+- `GOOGLE_PUBSUB_TOPIC`
+- `GOOGLE_WEBHOOK_VERIFICATION_TOKEN`
+- `MICROSOFT_OAUTH_CLIENT_ID`
+- `MICROSOFT_OAUTH_CLIENT_SECRET`
+- `MICROSOFT_OAUTH_REDIRECT_URI`
+- `MICROSOFT_TENANT_ID`
+- `MICROSOFT_WEBHOOK_CLIENT_STATE`
 
 Current known values:
 
@@ -45,6 +55,20 @@ Secrets still need to be set in Railway, not committed:
 - `SECRET_MASTER_KEY`: strong random value shared by API and worker.
 - `TELEGRAM_WEBHOOK_SECRET`: strong random value shared by API and Telegram webhook config.
 - `GEMINI_API_KEY`: only needed once model/voice calls are enabled.
+- `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`: Google Cloud OAuth
+  app credentials for Gmail/Calendar read-only sync.
+- `GOOGLE_OAUTH_REDIRECT_URI`:
+  `https://assistant-api-production-5210.up.railway.app/v1/providers/oauth/google/callback`
+- `GOOGLE_PUBSUB_TOPIC`: optional until Gmail push watch is enabled.
+- `GOOGLE_WEBHOOK_VERIFICATION_TOKEN`: strong random value for Google webhook
+  channel validation.
+- `MICROSOFT_OAUTH_CLIENT_ID` and `MICROSOFT_OAUTH_CLIENT_SECRET`: Entra app
+  registration credentials for Microsoft Graph.
+- `MICROSOFT_OAUTH_REDIRECT_URI`:
+  `https://assistant-api-production-5210.up.railway.app/v1/providers/oauth/microsoft/callback`
+- `MICROSOFT_TENANT_ID`: `common`, `organizations`, or a tenant id.
+- `MICROSOFT_WEBHOOK_CLIENT_STATE`: strong random value for Graph change
+  notification client-state validation.
 
 ## Config Files
 

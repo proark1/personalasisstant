@@ -59,6 +59,22 @@ Concrete local and Railway variables are listed in
 Phase 0-2 completion status and the remaining service-key gate are documented in
 `docs/development/phase-0-2-completion.md`.
 
+## Phase 3 Provider Connectors
+
+The assistant now includes provider-ready Google and Microsoft email/calendar
+connector foundations:
+
+- OAuth start/callback routes for Google and Microsoft.
+- Server-side encrypted token storage through `SecretProvider`.
+- Connected account, scope, cursor, subscription, webhook-dedupe, and provider
+  health operational state.
+- Worker processing for read-only sync and subscription setup jobs.
+- Web provider status controls for connect, manual sync, and disconnect.
+
+Provider credentials are optional in local development. If Google/Microsoft
+OAuth variables are empty, the UI and API show a clear `not_configured` state
+instead of failing startup.
+
 ## Local Commands
 
 ```powershell
@@ -84,6 +100,17 @@ The assistant API exposes a narrow smoke-test surface for this connection:
 
 These endpoints use OneBrain assistant contracts and are intended for early
 integration checks, not as a general-purpose database proxy.
+
+Provider connector endpoints:
+
+- `GET /v1/providers`
+- `GET /v1/providers/accounts`
+- `POST /v1/providers/oauth/{provider}/start`
+- `GET /v1/providers/oauth/{provider}/callback`
+- `POST /v1/providers/accounts/{account_id}/sync`
+- `POST /v1/providers/accounts/{account_id}/disconnect`
+- `POST /v1/providers/webhooks/google`
+- `POST /v1/providers/webhooks/microsoft`
 
 Run the full stack with Docker Compose:
 

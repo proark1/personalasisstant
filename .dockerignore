@@ -1,0 +1,9 @@
+.git
+.logs
+.ruff_cache
+node_modules
+**/node_modules
+**/.next
+**/.pytest_cache
+**/__pycache__
+**/*.pyc

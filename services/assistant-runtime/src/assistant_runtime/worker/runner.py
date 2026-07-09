@@ -7,10 +7,12 @@ from dataclasses import dataclass
 from assistant_runtime.channels.telegram import TelegramChannel, safe_telegram_delivery_error
 from assistant_runtime.domain.action_store import InMemoryActionStore
 from assistant_runtime.domain.outbox import InMemoryOutboxStore
+from assistant_runtime.domain.providers import InMemoryProviderStore
 from assistant_runtime.domain.queue import InMemoryQueueProvider
 from assistant_runtime.interfaces import BrainClient
 from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
 from assistant_runtime.providers.onebrain_events import record_telegram_event
+from assistant_runtime.providers.sync import ProviderSyncProcessor
 from assistant_runtime.schemas import ActionState, OutboxRow
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,7 @@ class AssistantWorker:
         queue: InMemoryQueueProvider,
         policy: AssistantActionPolicyEngine,
         telegram: TelegramChannel | None = None,
+        providers: InMemoryProviderStore | None = None,
         brain: BrainClient | None = None,
         onebrain_available: bool = True,
     ) -> None:
@@ -41,16 +44,26 @@ class AssistantWorker:
         self.queue = queue
         self.policy = policy
         self.telegram = telegram
+        self.providers = providers
         self.brain = brain
         self.onebrain_available = onebrain_available
+        self.provider_sync = (
+            ProviderSyncProcessor(providers, brain=brain) if providers is not None else None
+        )
 
     def run_once(self) -> WorkerResult:
         result = WorkerResult()
         result.outbox_processed += self._relay_one_outbox()
         job = self.queue.lease_next(self.worker_id)
         if job is not None:
-            self.queue.mark_succeeded(job.job_id)
-            result.jobs_processed += 1
+            try:
+                if self.provider_sync is not None and self.provider_sync.can_process(job):
+                    self.provider_sync.process(job)
+                self.queue.mark_succeeded(job.job_id)
+                result.jobs_processed += 1
+            except Exception as exc:
+                self.queue.mark_retry_or_dead_letter(job.job_id, exc.__class__.__name__)
+                result.blocked += 1
         return result
 
     def _relay_one_outbox(self) -> int:

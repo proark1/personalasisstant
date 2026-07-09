@@ -11,7 +11,7 @@ audit-of-record, it lives in OneBrain.
 |---|---|---|
 | User/account/space identity | Local cached IDs only when needed for job execution | Source of truth for user, account, space, permissions, and purpose scope |
 | OAuth refresh tokens and Telegram bot tokens | Encrypted values or secret references, rotation state, revocation state | Secret references, granted scopes, ownership, purpose, and audit metadata |
-| Provider account metadata | Operational provider account IDs, webhook/subscription state, sync health | Durable connected-account facts, user-visible provenance, scope grants |
+| Provider account metadata | Operational provider account IDs, cached display labels needed for job/UI recovery, webhook/subscription state, sync health, reconnect/disconnect state | Durable connected-account facts, user-visible provenance, scope grants, provider account history |
 | Sync cursors, history IDs, delta tokens | Operational cursor values, lease state, retry/reconciliation state | Cursor references, reconciliation summaries, provider-health facts |
 | Email/calendar content | Short-lived processing cache where needed, never a memory source of truth | Durable captured messages/events, summaries, extracted facts, provenance, permissions, retention |
 | Telegram inbound/outbound messages | Delivery state, callback state, retries, deduplication | Durable channel provenance, conversation memory, notification facts |

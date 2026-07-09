@@ -6,6 +6,7 @@ from assistant_runtime.channels.telegram import TelegramChannel
 from assistant_runtime.config import Settings
 from assistant_runtime.domain.action_store import InMemoryActionStore
 from assistant_runtime.domain.outbox import InMemoryOutboxStore
+from assistant_runtime.domain.providers import InMemoryProviderStore
 from assistant_runtime.domain.queue import InMemoryQueueProvider, InMemorySchedulerProvider
 from assistant_runtime.interfaces import SecretProvider
 from assistant_runtime.secrets.provider import EnvelopeSecretProvider
@@ -19,6 +20,7 @@ class OperationalStores:
     scheduler: InMemorySchedulerProvider
     secrets: SecretProvider
     telegram: TelegramChannel
+    providers: InMemoryProviderStore
 
 
 def build_operational_stores(settings: Settings) -> OperationalStores:
@@ -27,6 +29,7 @@ def build_operational_stores(settings: Settings) -> OperationalStores:
             PostgresActionStore,
             PostgresJobStore,
             PostgresOutboxStore,
+            PostgresProviderStore,
             PostgresSecretProvider,
             PostgresTelegramBindingStore,
         )
@@ -41,6 +44,7 @@ def build_operational_stores(settings: Settings) -> OperationalStores:
             scheduler=InMemorySchedulerProvider(queue),
             secrets=secrets,
             telegram=TelegramChannel(secrets, binding_store=telegram_bindings),
+            providers=PostgresProviderStore(settings.database_url),
         )
 
     secrets = EnvelopeSecretProvider(settings.secret_master_key)
@@ -52,4 +56,5 @@ def build_operational_stores(settings: Settings) -> OperationalStores:
         scheduler=InMemorySchedulerProvider(queue),
         secrets=secrets,
         telegram=TelegramChannel(secrets),
+        providers=InMemoryProviderStore(),
     )

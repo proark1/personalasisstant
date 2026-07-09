@@ -627,6 +627,124 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "JobRecord": {
+        "properties": {
+          "audit_correlation_id": {
+            "title": "Audit Correlation Id",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "job_type": {
+            "title": "Job Type",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "lease_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lease Expires At"
+          },
+          "lease_owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lease Owner"
+          },
+          "payload_ref": {
+            "title": "Payload Ref",
+            "type": "string"
+          },
+          "retry_count": {
+            "default": 0,
+            "title": "Retry Count",
+            "type": "integer"
+          },
+          "run_at": {
+            "format": "date-time",
+            "title": "Run At",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ScopedIdentity"
+          },
+          "state": {
+            "$ref": "#/components/schemas/JobState",
+            "default": "queued"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "job_type",
+          "payload_ref",
+          "idempotency_key",
+          "timezone",
+          "run_at"
+        ],
+        "title": "JobRecord",
+        "type": "object"
+      },
+      "JobState": {
+        "enum": [
+          "queued",
+          "leased",
+          "running",
+          "succeeded",
+          "retry_wait",
+          "failed",
+          "dead_lettered",
+          "cancelled"
+        ],
+        "title": "JobState",
+        "type": "string"
+      },
       "NavigationItem": {
         "properties": {
           "count": {
@@ -661,6 +779,314 @@
         "title": "NavigationItem",
         "type": "object"
       },
+      "OAuthConnectionStatus": {
+        "enum": [
+          "pending",
+          "completed",
+          "cancelled",
+          "failed",
+          "expired"
+        ],
+        "title": "OAuthConnectionStatus",
+        "type": "string"
+      },
+      "OAuthScopeTier": {
+        "enum": [
+          "read_only",
+          "draft_write",
+          "send",
+          "calendar_write"
+        ],
+        "title": "OAuthScopeTier",
+        "type": "string"
+      },
+      "ProviderAccountHealthResponse": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "last_sync_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync Error"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "provider_account_id": {
+            "format": "uuid",
+            "title": "Provider Account Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProviderAccountStatus"
+          },
+          "sync_state": {
+            "$ref": "#/components/schemas/ProviderSyncState"
+          }
+        },
+        "required": [
+          "provider_account_id",
+          "provider",
+          "status",
+          "sync_state",
+          "detail"
+        ],
+        "title": "ProviderAccountHealthResponse",
+        "type": "object"
+      },
+      "ProviderAccountStatus": {
+        "enum": [
+          "not_configured",
+          "connecting",
+          "connected",
+          "degraded",
+          "disconnected",
+          "revoked"
+        ],
+        "title": "ProviderAccountStatus",
+        "type": "string"
+      },
+      "ProviderAccountSummary": {
+        "properties": {
+          "calendar_enabled": {
+            "title": "Calendar Enabled",
+            "type": "boolean"
+          },
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderCapabilityStatus"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "granted_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Granted Scopes",
+            "type": "array"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "last_sync_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync Error"
+          },
+          "mail_enabled": {
+            "title": "Mail Enabled",
+            "type": "boolean"
+          },
+          "missing_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Scopes",
+            "type": "array"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "provider_account_id": {
+            "format": "uuid",
+            "title": "Provider Account Id",
+            "type": "string"
+          },
+          "provider_account_ref": {
+            "title": "Provider Account Ref",
+            "type": "string"
+          },
+          "scope_tier": {
+            "$ref": "#/components/schemas/OAuthScopeTier"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProviderAccountStatus"
+          },
+          "sync_state": {
+            "$ref": "#/components/schemas/ProviderSyncState"
+          }
+        },
+        "required": [
+          "provider_account_id",
+          "provider",
+          "provider_account_ref",
+          "email",
+          "display_name",
+          "status",
+          "sync_state",
+          "granted_scopes",
+          "missing_scopes",
+          "scope_tier",
+          "capabilities",
+          "mail_enabled",
+          "calendar_enabled"
+        ],
+        "title": "ProviderAccountSummary",
+        "type": "object"
+      },
+      "ProviderAccountsResponse": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderAccountSummary"
+            },
+            "title": "Accounts",
+            "type": "array"
+          }
+        },
+        "title": "ProviderAccountsResponse",
+        "type": "object"
+      },
+      "ProviderCapabilityStatus": {
+        "properties": {
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "required_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Scopes",
+            "type": "array"
+          },
+          "service": {
+            "$ref": "#/components/schemas/ProviderService"
+          },
+          "upgrade_tier": {
+            "$ref": "#/components/schemas/OAuthScopeTier",
+            "default": "read_only"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "service",
+          "granted"
+        ],
+        "title": "ProviderCapabilityStatus",
+        "type": "object"
+      },
+      "ProviderConfigurationStatus": {
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "missing_config": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Config",
+            "type": "array"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "read_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Read Scopes",
+            "type": "array"
+          },
+          "upgrade_scopes": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Upgrade Scopes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "provider",
+          "display_name",
+          "configured"
+        ],
+        "title": "ProviderConfigurationStatus",
+        "type": "object"
+      },
+      "ProviderDisconnectResponse": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProviderAccountStatus"
+          }
+        },
+        "required": [
+          "status",
+          "detail"
+        ],
+        "title": "ProviderDisconnectResponse",
+        "type": "object"
+      },
       "ProviderHealth": {
         "properties": {
           "checked_at": {
@@ -687,6 +1113,263 @@
           "detail"
         ],
         "title": "ProviderHealth",
+        "type": "object"
+      },
+      "ProviderKind": {
+        "enum": [
+          "google",
+          "microsoft"
+        ],
+        "title": "ProviderKind",
+        "type": "string"
+      },
+      "ProviderOAuthCallbackResponse": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "provider_account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Account Id"
+          },
+          "redirect_to": {
+            "title": "Redirect To",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OAuthConnectionStatus"
+          }
+        },
+        "required": [
+          "provider",
+          "status",
+          "detail",
+          "redirect_to"
+        ],
+        "title": "ProviderOAuthCallbackResponse",
+        "type": "object"
+      },
+      "ProviderOAuthStartRequest": {
+        "properties": {
+          "redirect_path": {
+            "default": "/settings/providers",
+            "maxLength": 200,
+            "title": "Redirect Path",
+            "type": "string"
+          },
+          "requested_scope_tier": {
+            "$ref": "#/components/schemas/OAuthScopeTier",
+            "default": "read_only"
+          },
+          "requested_services": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderService"
+            },
+            "title": "Requested Services",
+            "type": "array"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ScopedIdentity"
+          }
+        },
+        "title": "ProviderOAuthStartRequest",
+        "type": "object"
+      },
+      "ProviderOAuthStartResponse": {
+        "properties": {
+          "authorization_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorization Url"
+          },
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "connection_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Id"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "requested_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Requested Scopes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "provider",
+          "configured",
+          "detail"
+        ],
+        "title": "ProviderOAuthStartResponse",
+        "type": "object"
+      },
+      "ProviderService": {
+        "enum": [
+          "mail",
+          "calendar"
+        ],
+        "title": "ProviderService",
+        "type": "string"
+      },
+      "ProviderStatusResponse": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderAccountSummary"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderConfigurationStatus"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "title": "ProviderStatusResponse",
+        "type": "object"
+      },
+      "ProviderSyncRequest": {
+        "properties": {
+          "sync_kind": {
+            "default": "reconcile",
+            "pattern": "^(initial|reconcile|manual)$",
+            "title": "Sync Kind",
+            "type": "string"
+          }
+        },
+        "title": "ProviderSyncRequest",
+        "type": "object"
+      },
+      "ProviderSyncResponse": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "detail"
+        ],
+        "title": "ProviderSyncResponse",
+        "type": "object"
+      },
+      "ProviderSyncState": {
+        "enum": [
+          "idle",
+          "queued",
+          "syncing",
+          "healthy",
+          "degraded",
+          "failed"
+        ],
+        "title": "ProviderSyncState",
+        "type": "string"
+      },
+      "ProviderWebhookResponse": {
+        "properties": {
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "deduplicated": {
+            "default": false,
+            "title": "Deduplicated",
+            "type": "boolean"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "status",
+          "detail"
+        ],
+        "title": "ProviderWebhookResponse",
         "type": "object"
       },
       "RiskTier": {
@@ -1641,6 +2324,394 @@
           }
         },
         "summary": "Get Brain Record"
+      }
+    },
+    "/v1/providers": {
+      "get": {
+        "operationId": "provider_status_v1_providers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Provider Status"
+      }
+    },
+    "/v1/providers/accounts": {
+      "get": {
+        "operationId": "provider_accounts_v1_providers_accounts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderAccountsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Provider Accounts"
+      }
+    },
+    "/v1/providers/accounts/{account_id}/disconnect": {
+      "post": {
+        "operationId": "provider_disconnect_v1_providers_accounts__account_id__disconnect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderDisconnectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Provider Disconnect"
+      }
+    },
+    "/v1/providers/accounts/{account_id}/health": {
+      "get": {
+        "operationId": "provider_account_health_v1_providers_accounts__account_id__health_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderAccountHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Provider Account Health"
+      }
+    },
+    "/v1/providers/accounts/{account_id}/sync": {
+      "post": {
+        "operationId": "provider_sync_v1_providers_accounts__account_id__sync_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Provider Sync"
+      }
+    },
+    "/v1/providers/oauth/{provider}/callback": {
+      "get": {
+        "operationId": "provider_oauth_callback_v1_providers_oauth__provider__callback_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProviderKind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Error",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error_description",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Error Description",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderOAuthCallbackResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Provider Oauth Callback"
+      }
+    },
+    "/v1/providers/oauth/{provider}/start": {
+      "post": {
+        "operationId": "provider_oauth_start_v1_providers_oauth__provider__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProviderKind"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderOAuthStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderOAuthStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Provider Oauth Start"
+      }
+    },
+    "/v1/providers/webhooks/google": {
+      "post": {
+        "operationId": "google_provider_webhook_v1_providers_webhooks_google_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Payload",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderWebhookResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Provider Webhook"
+      }
+    },
+    "/v1/providers/webhooks/microsoft": {
+      "post": {
+        "operationId": "microsoft_provider_webhook_v1_providers_webhooks_microsoft_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "validationToken",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Validationtoken",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Microsoft Provider Webhook"
       }
     },
     "/v1/security/inspect": {

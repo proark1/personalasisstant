@@ -37,6 +37,34 @@ class Settings(BaseSettings):
     telegram_webhook_secret: str = Field(
         default="local-telegram-webhook-secret", validation_alias="TELEGRAM_WEBHOOK_SECRET"
     )
+    google_oauth_client_id: str = Field(default="", validation_alias="GOOGLE_OAUTH_CLIENT_ID")
+    google_oauth_client_secret: str = Field(
+        default="", validation_alias="GOOGLE_OAUTH_CLIENT_SECRET"
+    )
+    google_oauth_redirect_uri: str = Field(
+        default="http://localhost:8000/v1/providers/oauth/google/callback",
+        validation_alias="GOOGLE_OAUTH_REDIRECT_URI",
+    )
+    google_pubsub_topic: str = Field(default="", validation_alias="GOOGLE_PUBSUB_TOPIC")
+    google_webhook_verification_token: str = Field(
+        default="local-google-webhook-token",
+        validation_alias="GOOGLE_WEBHOOK_VERIFICATION_TOKEN",
+    )
+    microsoft_oauth_client_id: str = Field(
+        default="", validation_alias="MICROSOFT_OAUTH_CLIENT_ID"
+    )
+    microsoft_oauth_client_secret: str = Field(
+        default="", validation_alias="MICROSOFT_OAUTH_CLIENT_SECRET"
+    )
+    microsoft_oauth_redirect_uri: str = Field(
+        default="http://localhost:8000/v1/providers/oauth/microsoft/callback",
+        validation_alias="MICROSOFT_OAUTH_REDIRECT_URI",
+    )
+    microsoft_tenant_id: str = Field(default="common", validation_alias="MICROSOFT_TENANT_ID")
+    microsoft_webhook_client_state: str = Field(
+        default="local-microsoft-webhook-state",
+        validation_alias="MICROSOFT_WEBHOOK_CLIENT_STATE",
+    )
     cors_origins: str = Field(
         default="http://localhost:3000,http://127.0.0.1:3000",
         validation_alias="CORS_ORIGINS",
@@ -55,6 +83,14 @@ class Settings(BaseSettings):
         if self.operational_store == "memory":
             return False
         return self.environment.lower() in {"production", "staging"}
+
+    @property
+    def google_oauth_configured(self) -> bool:
+        return bool(self.google_oauth_client_id and self.google_oauth_client_secret)
+
+    @property
+    def microsoft_oauth_configured(self) -> bool:
+        return bool(self.microsoft_oauth_client_id and self.microsoft_oauth_client_secret)
 
 
 @lru_cache(maxsize=1)

@@ -1,6 +1,7 @@
 import type { components } from "./generated";
 
 export type TodayResponse = components["schemas"]["TodayResponse"];
+export type ProviderStatusResponse = components["schemas"]["ProviderStatusResponse"];
 export type TelegramBindingStatusResponse =
   components["schemas"]["TelegramBindingStatusResponse"];
 export type TelegramSetupResponse = components["schemas"]["TelegramSetupResponse"];
@@ -22,6 +23,44 @@ export async function getToday(): Promise<TodayResponse> {
   } catch {
     return fallbackToday();
   }
+}
+
+export async function getProviderStatus(): Promise<ProviderStatusResponse> {
+  try {
+    return await requestJson<ProviderStatusResponse>("/v1/providers", { method: "GET" });
+  } catch {
+    return { providers: [], accounts: [] };
+  }
+}
+
+export async function startProviderOAuth(provider: "google" | "microsoft") {
+  return requestJson<components["schemas"]["ProviderOAuthStartResponse"]>(
+    `/v1/providers/oauth/${provider}/start`,
+    {
+      method: "POST",
+      body: JSON.stringify({})
+    }
+  );
+}
+
+export async function requestProviderSync(accountId: string) {
+  return requestJson<components["schemas"]["ProviderSyncResponse"]>(
+    `/v1/providers/accounts/${accountId}/sync`,
+    {
+      method: "POST",
+      body: JSON.stringify({ sync_kind: "manual" })
+    }
+  );
+}
+
+export async function disconnectProviderAccount(accountId: string) {
+  return requestJson<components["schemas"]["ProviderDisconnectResponse"]>(
+    `/v1/providers/accounts/${accountId}/disconnect`,
+    {
+      method: "POST",
+      body: JSON.stringify({})
+    }
+  );
 }
 
 export async function createTelegramSetup(botToken: string): Promise<TelegramSetupResponse> {

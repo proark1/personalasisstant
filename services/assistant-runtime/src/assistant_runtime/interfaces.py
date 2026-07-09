@@ -11,6 +11,8 @@ from assistant_runtime.schemas import (
     JsonObject,
     OutboxRow,
     PolicyDecision,
+    ProviderAccountRecord,
+    ProviderKind,
     SanitizedContent,
     ScopedIdentity,
 )
@@ -131,6 +133,18 @@ class SyncProvider(Protocol):
     async def renew_subscription(self, provider_account_ref: str) -> str: ...
 
     async def reconcile(self, provider_account_ref: str, cursor_ref: str | None) -> str: ...
+
+
+class OAuthProvider(Protocol):
+    def authorization_url(self, provider: ProviderKind, state: str, scopes: list[str]) -> str: ...
+
+    async def exchange_code(
+        self, provider: ProviderKind, code: str, redirect_uri: str
+    ) -> dict[str, object]: ...
+
+
+class ProviderAccountStore(Protocol):
+    def list_accounts(self) -> list[ProviderAccountRecord]: ...
 
 
 class SecretProvider(Protocol):

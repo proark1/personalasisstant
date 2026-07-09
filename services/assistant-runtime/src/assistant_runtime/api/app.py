@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from assistant_runtime import __version__
 from assistant_runtime.channels.telegram import (
@@ -16,6 +17,7 @@ from assistant_runtime.channels.telegram import (
 )
 from assistant_runtime.config import Settings, get_settings
 from assistant_runtime.domain.action_store import InvalidActionTransition
+from assistant_runtime.domain.providers import summarize_provider_account
 from assistant_runtime.health import dependency_checks
 from assistant_runtime.logging import configure_logging
 from assistant_runtime.observability import (
@@ -25,8 +27,26 @@ from assistant_runtime.observability import (
     metrics_response,
 )
 from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
+from assistant_runtime.providers.oauth import (
+    OAuthExchangeError,
+    ProviderOAuthClient,
+    hash_oauth_state,
+    new_oauth_state,
+    oauth_attempt_expiry,
+    scopes_for,
+    token_display_name,
+    token_email,
+    token_expires_at,
+    token_scopes,
+    token_subject,
+)
 from assistant_runtime.providers.onebrain import OneBrainClientError, build_brain_client
-from assistant_runtime.providers.onebrain_events import record_telegram_event
+from assistant_runtime.providers.onebrain_events import (
+    record_provider_account_connected,
+    record_provider_health_event,
+    record_provider_scope_grant,
+    record_telegram_event,
+)
 from assistant_runtime.runtime_stores import build_operational_stores
 from assistant_runtime.schemas import (
     ActionApprovalRequest,
@@ -42,7 +62,21 @@ from assistant_runtime.schemas import (
     DegradedModeState,
     HealthResponse,
     NavigationItem,
+    OAuthConnectionAttemptRecord,
+    OAuthConnectionStatus,
+    OAuthScopeTier,
+    ProviderAccountHealthResponse,
+    ProviderAccountsResponse,
+    ProviderDisconnectResponse,
     ProviderHealth,
+    ProviderKind,
+    ProviderOAuthCallbackResponse,
+    ProviderOAuthStartRequest,
+    ProviderOAuthStartResponse,
+    ProviderStatusResponse,
+    ProviderSyncRequest,
+    ProviderSyncResponse,
+    ProviderWebhookResponse,
     RiskTier,
     SecurityInspectionRequest,
     SecurityInspectionResponse,
@@ -68,9 +102,11 @@ class RuntimeContainer:
         self.outbox = operational.outbox
         self.secrets = operational.secrets
         self.telegram = operational.telegram
+        self.providers = operational.providers
         self.queue = operational.queue
         self.scheduler = operational.scheduler
         self.brain = build_brain_client(settings)
+        self.oauth = ProviderOAuthClient(settings)
         self.policy = AssistantActionPolicyEngine()
         self.sanitizer = HtmlContentSanitizer()
         self.firewall = BasicInstructionFirewall()
@@ -304,6 +340,245 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         container.observability.increment("onebrain_audit_recorded", {"action": request.action})
         return BrainAuditEventResponse(event=event)
 
+    @app.get("/v1/providers", response_model=ProviderStatusResponse)
+    async def provider_status() -> ProviderStatusResponse:
+        return ProviderStatusResponse(
+            providers=container.oauth.provider_statuses(),
+            accounts=[
+                summarize_provider_account(account)
+                for account in container.providers.list_accounts()
+            ],
+        )
+
+    @app.get("/v1/providers/accounts", response_model=ProviderAccountsResponse)
+    async def provider_accounts() -> ProviderAccountsResponse:
+        return ProviderAccountsResponse(
+            accounts=[
+                summarize_provider_account(account)
+                for account in container.providers.list_accounts()
+            ]
+        )
+
+    @app.post(
+        "/v1/providers/oauth/{provider}/start",
+        response_model=ProviderOAuthStartResponse,
+    )
+    async def provider_oauth_start(
+        provider: ProviderKind,
+        request: ProviderOAuthStartRequest,
+    ) -> ProviderOAuthStartResponse:
+        config = container.oauth.configuration(provider)
+        requested_scopes = scopes_for(
+            provider,
+            request.requested_scope_tier,
+            request.requested_services,
+        )
+        if not config.configured:
+            return ProviderOAuthStartResponse(
+                provider=provider,
+                configured=False,
+                requested_scopes=requested_scopes,
+                detail=f"{provider} OAuth credentials are not configured.",
+            )
+
+        state = new_oauth_state()
+        attempt = OAuthConnectionAttemptRecord(
+            scope=request.scope,
+            provider=provider,
+            state_hash=hash_oauth_state(state),
+            requested_scope_tier=request.requested_scope_tier,
+            requested_scopes=requested_scopes,
+            requested_services=request.requested_services,
+            redirect_uri=config.redirect_uri,
+            expires_at=oauth_attempt_expiry(),
+        )
+        container.providers.create_oauth_attempt(attempt)
+        authorization_url = container.oauth.authorization_url(provider, state, requested_scopes)
+        container.observability.increment("provider_oauth_started", {"provider": str(provider)})
+        return ProviderOAuthStartResponse(
+            provider=provider,
+            connection_id=attempt.connection_id,
+            authorization_url=authorization_url,
+            configured=True,
+            requested_scopes=requested_scopes,
+            expires_at=attempt.expires_at,
+            detail="OAuth connection started.",
+        )
+
+    @app.get(
+        "/v1/providers/oauth/{provider}/callback",
+        response_model=ProviderOAuthCallbackResponse,
+    )
+    async def provider_oauth_callback(
+        provider: ProviderKind,
+        code: str = Query(default=""),
+        state: str = Query(default=""),
+        error: str = Query(default=""),
+        error_description: str = Query(default=""),
+    ) -> ProviderOAuthCallbackResponse:
+        attempt = container.providers.get_oauth_attempt_by_state(hash_oauth_state(state))
+        if attempt is None or ProviderKind(attempt.provider) != provider:
+            raise HTTPException(status_code=400, detail="Invalid OAuth state.")
+        if OAuthConnectionStatus(attempt.status) == OAuthConnectionStatus.expired:
+            raise HTTPException(status_code=400, detail="OAuth state expired.")
+        if error:
+            container.providers.update_oauth_attempt(
+                attempt.connection_id,
+                OAuthConnectionStatus.cancelled,
+                error_description or error,
+            )
+            return ProviderOAuthCallbackResponse(
+                provider=provider,
+                status=OAuthConnectionStatus.cancelled,
+                detail="OAuth connection cancelled by provider.",
+                redirect_to="/settings/providers",
+            )
+        if not code:
+            container.providers.update_oauth_attempt(
+                attempt.connection_id,
+                OAuthConnectionStatus.failed,
+                "Missing authorization code.",
+            )
+            raise HTTPException(status_code=400, detail="Missing authorization code.")
+
+        try:
+            token_payload = await container.oauth.exchange_code(provider, code)
+        except OAuthExchangeError as exc:
+            container.providers.update_oauth_attempt(
+                attempt.connection_id,
+                OAuthConnectionStatus.failed,
+                str(exc),
+            )
+            raise HTTPException(status_code=502, detail="Provider token exchange failed.") from exc
+
+        token_secret_ref = container.secrets.store_secret(
+            json.dumps(token_payload),
+            f"{provider}-oauth-token",
+        )
+        granted_scopes = token_scopes(provider, token_payload)
+        account = container.providers.upsert_account(
+            scope=attempt.scope,
+            provider=provider,
+            provider_subject=token_subject(provider, token_payload),
+            email=token_email(provider, token_payload),
+            display_name=token_display_name(provider, token_payload),
+            granted_scopes=granted_scopes,
+            scope_tier=OAuthScopeTier(attempt.requested_scope_tier),
+            refresh_token_secret_ref=token_secret_ref,
+            token_expires_at=token_expires_at(token_payload),
+        )
+        container.providers.update_oauth_attempt(
+            attempt.connection_id,
+            OAuthConnectionStatus.completed,
+        )
+        onebrain_recorded = await _record_provider_connected(container, account)
+        if onebrain_recorded:
+            sync_job = container.providers.enqueue_sync_job(container.queue, account, "initial")
+            container.providers.enqueue_subscription_job(container.queue, account, "setup")
+            detail = f"Connected {account.display_name}; initial sync queued as {sync_job.job_id}."
+        else:
+            account = container.providers.mark_sync_degraded(
+                account.provider_account_id,
+                "OneBrain provenance is unavailable; provider sync is paused.",
+            )
+            detail = (
+                "Provider token stored, but sync is paused until OneBrain provenance "
+                "is available."
+            )
+        container.observability.increment("provider_oauth_completed", {"provider": str(provider)})
+        return ProviderOAuthCallbackResponse(
+            provider=provider,
+            status=OAuthConnectionStatus.completed,
+            provider_account_id=account.provider_account_id,
+            detail=detail,
+            redirect_to="/settings/providers",
+        )
+
+    @app.post(
+        "/v1/providers/accounts/{account_id}/disconnect",
+        response_model=ProviderDisconnectResponse,
+    )
+    async def provider_disconnect(account_id: UUID) -> ProviderDisconnectResponse:
+        account = container.providers.get_account(account_id)
+        if account is None:
+            raise HTTPException(status_code=404, detail="Provider account not found.")
+        try:
+            container.secrets.revoke_secret(account.refresh_token_secret_ref)
+        except Exception:
+            container.observability.increment(
+                "provider_secret_revoke_failed",
+                {"provider": str(account.provider)},
+            )
+        disconnected = container.providers.disconnect_account(account_id)
+        await _record_provider_health(
+            container,
+            disconnected,
+            "Provider account disconnected; sync jobs are paused.",
+        )
+        return ProviderDisconnectResponse(
+            status=disconnected.status,
+            detail="Provider account disconnected.",
+        )
+
+    @app.post(
+        "/v1/providers/accounts/{account_id}/sync",
+        response_model=ProviderSyncResponse,
+        status_code=202,
+    )
+    async def provider_sync(account_id: UUID, request: ProviderSyncRequest) -> ProviderSyncResponse:
+        account = container.providers.get_account(account_id)
+        if account is None:
+            raise HTTPException(status_code=404, detail="Provider account not found.")
+        if str(account.status) == "disconnected":
+            raise HTTPException(status_code=409, detail="Provider account is disconnected.")
+        job = container.providers.enqueue_sync_job(container.queue, account, request.sync_kind)
+        return ProviderSyncResponse(
+            status="queued",
+            detail="Read-only provider sync queued.",
+            job=job,
+        )
+
+    @app.get(
+        "/v1/providers/accounts/{account_id}/health",
+        response_model=ProviderAccountHealthResponse,
+    )
+    async def provider_account_health(account_id: UUID) -> ProviderAccountHealthResponse:
+        account = container.providers.get_account(account_id)
+        if account is None:
+            raise HTTPException(status_code=404, detail="Provider account not found.")
+        detail = account.last_sync_error or "Provider account is ready for read-only sync."
+        return ProviderAccountHealthResponse(
+            provider_account_id=account.provider_account_id,
+            provider=account.provider,
+            status=account.status,
+            sync_state=account.sync_state,
+            detail=detail,
+            last_sync_at=account.last_sync_at,
+            last_sync_error=account.last_sync_error,
+        )
+
+    @app.post("/v1/providers/webhooks/google", response_model=ProviderWebhookResponse)
+    async def google_provider_webhook(
+        request: Request,
+        payload: dict[str, object],
+    ) -> ProviderWebhookResponse:
+        return await _handle_provider_webhook(container, ProviderKind.google, request, payload)
+
+    @app.post("/v1/providers/webhooks/microsoft")
+    async def microsoft_provider_webhook(
+        request: Request,
+        payload: dict[str, object] | None = None,
+        validationToken: str = Query(default=""),
+    ):
+        if validationToken:
+            return PlainTextResponse(validationToken)
+        return await _handle_provider_webhook(
+            container,
+            ProviderKind.microsoft,
+            request,
+            payload or {},
+        )
+
     @app.post("/v1/security/inspect", response_model=SecurityInspectionResponse)
     async def inspect_untrusted_content(
         request: SecurityInspectionRequest,
@@ -445,6 +720,16 @@ def build_today_response(container: RuntimeContainer, onebrain_available: bool) 
                 status="binding-ready",
                 detail="NotificationChannel setup and webhook binding boundary",
             ),
+            ProviderHealth(
+                provider="Google",
+                status="configured" if settings.google_oauth_configured else "not-configured",
+                detail="Gmail and Google Calendar OAuth",
+            ),
+            ProviderHealth(
+                provider="Microsoft",
+                status="configured" if settings.microsoft_oauth_configured else "not-configured",
+                detail="Outlook and Microsoft Calendar OAuth",
+            ),
         ],
         degraded_mode=DegradedModeState(
             active=degraded,
@@ -468,6 +753,100 @@ def build_today_response(container: RuntimeContainer, onebrain_available: bool) 
             ],
         ),
     )
+
+
+async def _record_provider_connected(
+    container: RuntimeContainer,
+    account,
+) -> bool:
+    try:
+        await record_provider_account_connected(container.brain, account)
+        await record_provider_scope_grant(container.brain, account)
+        await record_provider_health_event(
+            container.brain,
+            account,
+            "Provider account connected; initial read-only sync queued.",
+        )
+        return True
+    except OneBrainClientError:
+        container.observability.increment(
+            "onebrain_provider_connection_failed",
+            {"provider": str(account.provider)},
+        )
+        return False
+
+
+async def _record_provider_health(container: RuntimeContainer, account, detail: str) -> None:
+    try:
+        await record_provider_health_event(container.brain, account, detail)
+    except OneBrainClientError:
+        container.observability.increment(
+            "onebrain_provider_health_failed",
+            {"provider": str(account.provider)},
+        )
+
+
+async def _handle_provider_webhook(
+    container: RuntimeContainer,
+    provider: ProviderKind,
+    request: Request,
+    payload: dict[str, object],
+) -> ProviderWebhookResponse:
+    dedupe_key = _provider_webhook_dedupe_key(provider, request, payload)
+    first_seen = container.providers.remember_webhook_event(provider, dedupe_key)
+    if not first_seen:
+        return ProviderWebhookResponse(
+            provider=provider,
+            status="duplicate",
+            detail="Provider webhook already processed.",
+            deduplicated=True,
+        )
+
+    jobs = []
+    for account in container.providers.list_accounts():
+        if ProviderKind(account.provider) != provider or str(account.status) == "disconnected":
+            continue
+        jobs.append(container.providers.enqueue_sync_job(container.queue, account, "reconcile"))
+    container.observability.increment(
+        "provider_webhook_received",
+        {"provider": str(provider), "jobs": str(len(jobs))},
+    )
+    return ProviderWebhookResponse(
+        provider=provider,
+        status="queued" if jobs else "accepted",
+        detail=(
+            "Provider webhook accepted and reconciliation queued."
+            if jobs
+            else "Provider webhook accepted; no connected account matched."
+        ),
+        job=jobs[0] if jobs else None,
+    )
+
+
+def _provider_webhook_dedupe_key(
+    provider: ProviderKind,
+    request: Request,
+    payload: dict[str, object],
+) -> str:
+    if provider == ProviderKind.google:
+        header_key = request.headers.get("x-goog-message-number") or request.headers.get(
+            "x-goog-channel-id"
+        )
+        if header_key:
+            return header_key
+        message = payload.get("message")
+        if isinstance(message, dict) and message.get("messageId"):
+            return str(message["messageId"])
+    else:
+        values = payload.get("value")
+        if isinstance(values, list) and values:
+            first = values[0]
+            if isinstance(first, dict):
+                return ":".join(
+                    str(first.get(key, ""))
+                    for key in ("subscriptionId", "resource", "changeType")
+                )
+    return f"{provider}:{current_request_id()}"
 
 
 async def _record_action_audit(

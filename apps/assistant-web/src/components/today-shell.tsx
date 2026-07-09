@@ -14,7 +14,8 @@ import {
   ShieldAlert,
   Sparkles
 } from "lucide-react";
-import type { TodayResponse } from "../api/client";
+import type { ProviderStatusResponse, TodayResponse } from "../api/client";
+import { ProviderAccountsPanel } from "./provider-accounts-panel";
 import { TelegramSetupPanel } from "./telegram-setup-panel";
 
 const iconMap = {
@@ -26,7 +27,13 @@ const iconMap = {
   settings: Settings
 } as const;
 
-export function TodayShell({ today }: { today: TodayResponse }) {
+export function TodayShell({
+  today,
+  providerStatus
+}: {
+  today: TodayResponse;
+  providerStatus: ProviderStatusResponse;
+}) {
   const activeKey = "today";
   return (
     <div className="app-shell">
@@ -73,6 +80,7 @@ export function TodayShell({ today }: { today: TodayResponse }) {
           </div>
 
           <div className="stack">
+            <ProviderAccountsPanel status={providerStatus} />
             <TelegramSetupPanel />
             <ApprovalSection today={today} />
           </div>

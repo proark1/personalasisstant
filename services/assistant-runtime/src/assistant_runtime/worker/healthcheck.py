@@ -18,6 +18,7 @@ def main() -> None:
         queue=operational.queue,
         policy=AssistantActionPolicyEngine(),
         telegram=operational.telegram,
+        providers=operational.providers,
         onebrain_available=settings.onebrain_available,
     )
 

@@ -141,6 +141,159 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Provider Status */
+        get: operations["provider_status_v1_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Provider Accounts */
+        get: operations["provider_accounts_v1_providers_accounts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/accounts/{account_id}/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Provider Disconnect */
+        post: operations["provider_disconnect_v1_providers_accounts__account_id__disconnect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/accounts/{account_id}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Provider Account Health */
+        get: operations["provider_account_health_v1_providers_accounts__account_id__health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/accounts/{account_id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Provider Sync */
+        post: operations["provider_sync_v1_providers_accounts__account_id__sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/oauth/{provider}/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Provider Oauth Callback */
+        get: operations["provider_oauth_callback_v1_providers_oauth__provider__callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/oauth/{provider}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Provider Oauth Start */
+        post: operations["provider_oauth_start_v1_providers_oauth__provider__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/webhooks/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Google Provider Webhook */
+        post: operations["google_provider_webhook_v1_providers_webhooks_google_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/webhooks/microsoft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Microsoft Provider Webhook */
+        post: operations["microsoft_provider_webhook_v1_providers_webhooks_microsoft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/security/inspect": {
         parameters: {
             query?: never;
@@ -539,6 +692,60 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** JobRecord */
+        JobRecord: {
+            /** Audit Correlation Id */
+            audit_correlation_id?: string;
+            /** Correlation Id */
+            correlation_id?: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id?: string;
+            /** Job Type */
+            job_type: string;
+            /** Last Error */
+            last_error?: string | null;
+            /** Lease Expires At */
+            lease_expires_at?: string | null;
+            /** Lease Owner */
+            lease_owner?: string | null;
+            /** Payload Ref */
+            payload_ref: string;
+            /**
+             * Retry Count
+             * @default 0
+             */
+            retry_count: number;
+            /**
+             * Run At
+             * Format: date-time
+             */
+            run_at: string;
+            scope: components["schemas"]["ScopedIdentity"];
+            /** @default queued */
+            state: components["schemas"]["JobState"];
+            /** Timezone */
+            timezone: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at?: string;
+        };
+        /**
+         * JobState
+         * @enum {string}
+         */
+        JobState: "queued" | "leased" | "running" | "succeeded" | "retry_wait" | "failed" | "dead_lettered" | "cancelled";
         /** NavigationItem */
         NavigationItem: {
             /** Count */
@@ -549,6 +756,116 @@ export interface components {
             key: string;
             /** Label */
             label: string;
+        };
+        /**
+         * OAuthConnectionStatus
+         * @enum {string}
+         */
+        OAuthConnectionStatus: "pending" | "completed" | "cancelled" | "failed" | "expired";
+        /**
+         * OAuthScopeTier
+         * @enum {string}
+         */
+        OAuthScopeTier: "read_only" | "draft_write" | "send" | "calendar_write";
+        /** ProviderAccountHealthResponse */
+        ProviderAccountHealthResponse: {
+            /** Detail */
+            detail: string;
+            /** Last Sync At */
+            last_sync_at?: string | null;
+            /** Last Sync Error */
+            last_sync_error?: string | null;
+            provider: components["schemas"]["ProviderKind"];
+            /**
+             * Provider Account Id
+             * Format: uuid
+             */
+            provider_account_id: string;
+            status: components["schemas"]["ProviderAccountStatus"];
+            sync_state: components["schemas"]["ProviderSyncState"];
+        };
+        /**
+         * ProviderAccountStatus
+         * @enum {string}
+         */
+        ProviderAccountStatus: "not_configured" | "connecting" | "connected" | "degraded" | "disconnected" | "revoked";
+        /** ProviderAccountSummary */
+        ProviderAccountSummary: {
+            /** Calendar Enabled */
+            calendar_enabled: boolean;
+            /** Capabilities */
+            capabilities: components["schemas"]["ProviderCapabilityStatus"][];
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at?: string;
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Granted Scopes */
+            granted_scopes: string[];
+            /** Last Sync At */
+            last_sync_at?: string | null;
+            /** Last Sync Error */
+            last_sync_error?: string | null;
+            /** Mail Enabled */
+            mail_enabled: boolean;
+            /** Missing Scopes */
+            missing_scopes: string[];
+            provider: components["schemas"]["ProviderKind"];
+            /**
+             * Provider Account Id
+             * Format: uuid
+             */
+            provider_account_id: string;
+            /** Provider Account Ref */
+            provider_account_ref: string;
+            scope_tier: components["schemas"]["OAuthScopeTier"];
+            status: components["schemas"]["ProviderAccountStatus"];
+            sync_state: components["schemas"]["ProviderSyncState"];
+        };
+        /** ProviderAccountsResponse */
+        ProviderAccountsResponse: {
+            /** Accounts */
+            accounts?: components["schemas"]["ProviderAccountSummary"][];
+        };
+        /** ProviderCapabilityStatus */
+        ProviderCapabilityStatus: {
+            /** Granted */
+            granted: boolean;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Required Scopes */
+            required_scopes?: string[];
+            service: components["schemas"]["ProviderService"];
+            /** @default read_only */
+            upgrade_tier: components["schemas"]["OAuthScopeTier"];
+        };
+        /** ProviderConfigurationStatus */
+        ProviderConfigurationStatus: {
+            /** Configured */
+            configured: boolean;
+            /** Display Name */
+            display_name: string;
+            /** Missing Config */
+            missing_config?: string[];
+            provider: components["schemas"]["ProviderKind"];
+            /** Read Scopes */
+            read_scopes?: string[];
+            /** Upgrade Scopes */
+            upgrade_scopes?: {
+                [key: string]: string[];
+            };
+        };
+        /** ProviderDisconnectResponse */
+        ProviderDisconnectResponse: {
+            /** Detail */
+            detail: string;
+            status: components["schemas"]["ProviderAccountStatus"];
         };
         /** ProviderHealth */
         ProviderHealth: {
@@ -561,6 +878,100 @@ export interface components {
             detail: string;
             /** Provider */
             provider: string;
+            /** Status */
+            status: string;
+        };
+        /**
+         * ProviderKind
+         * @enum {string}
+         */
+        ProviderKind: "google" | "microsoft";
+        /** ProviderOAuthCallbackResponse */
+        ProviderOAuthCallbackResponse: {
+            /** Detail */
+            detail: string;
+            provider: components["schemas"]["ProviderKind"];
+            /** Provider Account Id */
+            provider_account_id?: string | null;
+            /** Redirect To */
+            redirect_to: string;
+            status: components["schemas"]["OAuthConnectionStatus"];
+        };
+        /** ProviderOAuthStartRequest */
+        ProviderOAuthStartRequest: {
+            /**
+             * Redirect Path
+             * @default /settings/providers
+             */
+            redirect_path: string;
+            /** @default read_only */
+            requested_scope_tier: components["schemas"]["OAuthScopeTier"];
+            /** Requested Services */
+            requested_services?: components["schemas"]["ProviderService"][];
+            scope?: components["schemas"]["ScopedIdentity"];
+        };
+        /** ProviderOAuthStartResponse */
+        ProviderOAuthStartResponse: {
+            /** Authorization Url */
+            authorization_url?: string | null;
+            /** Configured */
+            configured: boolean;
+            /** Connection Id */
+            connection_id?: string | null;
+            /** Detail */
+            detail: string;
+            /** Expires At */
+            expires_at?: string | null;
+            provider: components["schemas"]["ProviderKind"];
+            /** Requested Scopes */
+            requested_scopes?: string[];
+        };
+        /**
+         * ProviderService
+         * @enum {string}
+         */
+        ProviderService: "mail" | "calendar";
+        /** ProviderStatusResponse */
+        ProviderStatusResponse: {
+            /** Accounts */
+            accounts?: components["schemas"]["ProviderAccountSummary"][];
+            /** Providers */
+            providers?: components["schemas"]["ProviderConfigurationStatus"][];
+        };
+        /** ProviderSyncRequest */
+        ProviderSyncRequest: {
+            /**
+             * Sync Kind
+             * @default reconcile
+             */
+            sync_kind: string;
+        };
+        /** ProviderSyncResponse */
+        ProviderSyncResponse: {
+            /** Detail */
+            detail: string;
+            job?: components["schemas"]["JobRecord"] | null;
+            /** Status */
+            status: string;
+        };
+        /**
+         * ProviderSyncState
+         * @enum {string}
+         */
+        ProviderSyncState: "idle" | "queued" | "syncing" | "healthy" | "degraded" | "failed";
+        /** ProviderWebhookResponse */
+        ProviderWebhookResponse: {
+            /** Correlation Id */
+            correlation_id?: string;
+            /**
+             * Deduplicated
+             * @default false
+             */
+            deduplicated: boolean;
+            /** Detail */
+            detail: string;
+            job?: components["schemas"]["JobRecord"] | null;
+            provider: components["schemas"]["ProviderKind"];
             /** Status */
             status: string;
         };
@@ -1051,6 +1462,286 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BrainRecordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    provider_status_v1_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderStatusResponse"];
+                };
+            };
+        };
+    };
+    provider_accounts_v1_providers_accounts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderAccountsResponse"];
+                };
+            };
+        };
+    };
+    provider_disconnect_v1_providers_accounts__account_id__disconnect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderDisconnectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    provider_account_health_v1_providers_accounts__account_id__health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderAccountHealthResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    provider_sync_v1_providers_accounts__account_id__sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderSyncRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderSyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    provider_oauth_callback_v1_providers_oauth__provider__callback_get: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+                error_description?: string;
+            };
+            header?: never;
+            path: {
+                provider: components["schemas"]["ProviderKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderOAuthCallbackResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    provider_oauth_start_v1_providers_oauth__provider__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: components["schemas"]["ProviderKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderOAuthStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderOAuthStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    google_provider_webhook_v1_providers_webhooks_google_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderWebhookResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    microsoft_provider_webhook_v1_providers_webhooks_microsoft_post: {
+        parameters: {
+            query?: {
+                validationToken?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                } | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

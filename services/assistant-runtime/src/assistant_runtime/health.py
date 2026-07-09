@@ -15,6 +15,10 @@ def dependency_checks(settings: Settings) -> dict[str, str]:
         checks["postgres_schema"] = "memory"
         checks["redis"] = "not_required"
     checks["onebrain"] = "configured" if settings.onebrain_available else "unavailable"
+    checks["google_oauth"] = "configured" if settings.google_oauth_configured else "not_configured"
+    checks["microsoft_oauth"] = (
+        "configured" if settings.microsoft_oauth_configured else "not_configured"
+    )
     return checks
 
 
@@ -41,10 +45,17 @@ def _check_postgres_schema(database_url: str) -> str:
         import psycopg
 
         with psycopg.connect(database_url, connect_timeout=2) as conn:
-            exists = conn.execute("SELECT to_regclass('assistant_actions')").fetchone()[0]
+            rows = conn.execute(
+                """
+                SELECT to_regclass('assistant_actions') AS actions,
+                       to_regclass('assistant_connected_provider_accounts') AS providers
+                """
+            ).fetchone()
     except Exception as exc:
         return f"error:{exc.__class__.__name__}"
-    return "ok" if exists == "assistant_actions" else "error:schema_missing"
+    if rows[0] != "assistant_actions" or rows[1] != "assistant_connected_provider_accounts":
+        return "error:schema_missing"
+    return "ok"
 
 
 def _check_redis(redis_url: str) -> str:

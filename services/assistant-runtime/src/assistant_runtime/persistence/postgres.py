@@ -16,6 +16,7 @@ from assistant_runtime.domain.action_store import (
     InvalidActionTransition,
 )
 from assistant_runtime.domain.outbox import InMemoryOutboxStore
+from assistant_runtime.providers.oauth import scopes_for
 from assistant_runtime.schemas import (
     ActionCreateRequest,
     ActionRecord,
@@ -23,10 +24,19 @@ from assistant_runtime.schemas import (
     ApprovalChannel,
     JobRecord,
     JobState,
+    OAuthConnectionAttemptRecord,
+    OAuthConnectionStatus,
+    OAuthScopeTier,
     OutboxRow,
     OutboxState,
+    ProviderAccountRecord,
+    ProviderAccountStatus,
+    ProviderKind,
+    ProviderSubscriptionRecord,
+    ProviderSyncState,
     ScopedIdentity,
     SecretEnvelope,
+    SyncCursorRecord,
     TelegramBindingRecord,
     TelegramBindingStatus,
     TelegramDeliveryRecord,
@@ -613,6 +623,442 @@ class PostgresJobStore:
         return [_job_from_row(row) for row in rows]
 
 
+class PostgresProviderStore:
+    """Postgres-backed provider OAuth/account/sync state."""
+
+    def __init__(self, database_url: str) -> None:
+        self.database_url = database_url
+
+    def create_oauth_attempt(
+        self, attempt: OAuthConnectionAttemptRecord
+    ) -> OAuthConnectionAttemptRecord:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                INSERT INTO assistant_provider_oauth_attempts (
+                  connection_id, account_id, user_id, space_id, purpose, provider,
+                  state_hash, requested_scope_tier, requested_scopes, requested_services,
+                  redirect_uri, status, expires_at, correlation_id, audit_correlation_id,
+                  created_at, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING *
+                """,
+                (
+                    attempt.connection_id,
+                    attempt.scope.account_id,
+                    attempt.scope.user_id,
+                    attempt.scope.space_id,
+                    attempt.scope.purpose,
+                    attempt.provider,
+                    attempt.state_hash,
+                    attempt.requested_scope_tier,
+                    _json(attempt.requested_scopes),
+                    _json(attempt.requested_services),
+                    attempt.redirect_uri,
+                    attempt.status,
+                    attempt.expires_at,
+                    attempt.correlation_id,
+                    attempt.audit_correlation_id,
+                    attempt.created_at,
+                    attempt.updated_at,
+                ),
+            ).fetchone()
+        return _oauth_attempt_from_row(row)
+
+    def get_oauth_attempt_by_state(
+        self, state_hash: str, now=None
+    ) -> OAuthConnectionAttemptRecord | None:
+        now = now or utc_now()
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                "SELECT * FROM assistant_provider_oauth_attempts WHERE state_hash = %s",
+                (state_hash,),
+            ).fetchone()
+            if row is None:
+                return None
+            if row["status"] == OAuthConnectionStatus.pending and row["expires_at"] <= now:
+                row = conn.execute(
+                    """
+                    UPDATE assistant_provider_oauth_attempts
+                    SET status = 'expired', updated_at = %s
+                    WHERE connection_id = %s
+                    RETURNING *
+                    """,
+                    (now, row["connection_id"]),
+                ).fetchone()
+        return _oauth_attempt_from_row(row)
+
+    def update_oauth_attempt(
+        self,
+        connection_id: UUID,
+        status: OAuthConnectionStatus,
+        error_detail: str | None = None,
+    ) -> OAuthConnectionAttemptRecord:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                UPDATE assistant_provider_oauth_attempts
+                SET status = %s, error_detail = %s, updated_at = %s
+                WHERE connection_id = %s
+                RETURNING *
+                """,
+                (status, error_detail, utc_now(), connection_id),
+            ).fetchone()
+        return _oauth_attempt_from_row(row)
+
+    def upsert_account(
+        self,
+        *,
+        scope: ScopedIdentity,
+        provider: ProviderKind,
+        provider_subject: str,
+        email: str,
+        display_name: str,
+        granted_scopes: list[str],
+        scope_tier: OAuthScopeTier,
+        refresh_token_secret_ref: str,
+        token_expires_at=None,
+    ) -> ProviderAccountRecord:
+        provider = ProviderKind(provider)
+        mail_enabled = _has_mail_read_scope(provider, granted_scopes)
+        calendar_enabled = _has_calendar_read_scope(provider, granted_scopes)
+        now = utc_now()
+        with _connect(self.database_url) as conn:
+            inserted = conn.execute(
+                """
+                INSERT INTO assistant_connected_provider_accounts (
+                  provider_account_id, account_id, user_id, space_id, purpose, provider,
+                  provider_account_ref, provider_subject, email, display_name, status,
+                  sync_state, granted_scopes, scope_tier, mail_enabled, calendar_enabled,
+                  refresh_token_secret_ref, token_expires_at, correlation_id,
+                  audit_correlation_id, created_at, updated_at
+                ) VALUES (
+                  gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s, 'connected',
+                  'idle', %s, %s, %s, %s, %s, %s, gen_random_uuid()::text,
+                  gen_random_uuid()::text, %s, %s
+                )
+                ON CONFLICT (provider, provider_subject) DO UPDATE SET
+                  account_id = EXCLUDED.account_id,
+                  user_id = EXCLUDED.user_id,
+                  space_id = EXCLUDED.space_id,
+                  purpose = EXCLUDED.purpose,
+                  email = EXCLUDED.email,
+                  display_name = EXCLUDED.display_name,
+                  status = 'connected',
+                  sync_state = 'idle',
+                  granted_scopes = EXCLUDED.granted_scopes,
+                  scope_tier = EXCLUDED.scope_tier,
+                  mail_enabled = EXCLUDED.mail_enabled,
+                  calendar_enabled = EXCLUDED.calendar_enabled,
+                  refresh_token_secret_ref = EXCLUDED.refresh_token_secret_ref,
+                  token_expires_at = EXCLUDED.token_expires_at,
+                  last_sync_error = NULL,
+                  updated_at = EXCLUDED.updated_at
+                RETURNING *
+                """,
+                (
+                    scope.account_id,
+                    scope.user_id,
+                    scope.space_id,
+                    scope.purpose,
+                    provider,
+                    f"onebrain://provider-account/{provider}/{provider_subject}",
+                    provider_subject,
+                    email,
+                    display_name,
+                    _json(granted_scopes),
+                    scope_tier,
+                    mail_enabled,
+                    calendar_enabled,
+                    refresh_token_secret_ref,
+                    token_expires_at,
+                    now,
+                    now,
+                ),
+            ).fetchone()
+        return _provider_account_from_row(inserted)
+
+    def get_account(self, provider_account_id: UUID) -> ProviderAccountRecord | None:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                SELECT *
+                FROM assistant_connected_provider_accounts
+                WHERE provider_account_id = %s
+                """,
+                (provider_account_id,),
+            ).fetchone()
+        return _provider_account_from_row(row) if row else None
+
+    def list_accounts(self) -> list[ProviderAccountRecord]:
+        with _connect(self.database_url) as conn:
+            rows = conn.execute(
+                "SELECT * FROM assistant_connected_provider_accounts ORDER BY created_at"
+            ).fetchall()
+        return [_provider_account_from_row(row) for row in rows]
+
+    def disconnect_account(self, provider_account_id: UUID) -> ProviderAccountRecord:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                UPDATE assistant_connected_provider_accounts
+                SET status = 'disconnected', sync_state = 'idle', updated_at = %s
+                WHERE provider_account_id = %s
+                RETURNING *
+                """,
+                (utc_now(), provider_account_id),
+            ).fetchone()
+        if row is None:
+            raise KeyError(provider_account_id)
+        return _provider_account_from_row(row)
+
+    def mark_sync_queued(self, provider_account_id: UUID) -> ProviderAccountRecord:
+        return self._set_sync_state(provider_account_id, ProviderSyncState.queued)
+
+    def mark_syncing(self, provider_account_id: UUID) -> ProviderAccountRecord:
+        return self._set_sync_state(provider_account_id, ProviderSyncState.syncing)
+
+    def mark_sync_healthy(self, provider_account_id: UUID) -> ProviderAccountRecord:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                UPDATE assistant_connected_provider_accounts
+                SET status = 'connected',
+                    sync_state = 'healthy',
+                    last_sync_at = %s,
+                    last_sync_error = NULL,
+                    updated_at = %s
+                WHERE provider_account_id = %s
+                RETURNING *
+                """,
+                (utc_now(), utc_now(), provider_account_id),
+            ).fetchone()
+        return _provider_account_from_row(row)
+
+    def mark_sync_degraded(self, provider_account_id: UUID, reason: str) -> ProviderAccountRecord:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                UPDATE assistant_connected_provider_accounts
+                SET status = 'degraded',
+                    sync_state = 'degraded',
+                    last_sync_error = %s,
+                    updated_at = %s
+                WHERE provider_account_id = %s
+                RETURNING *
+                """,
+                (reason, utc_now(), provider_account_id),
+            ).fetchone()
+        return _provider_account_from_row(row)
+
+    def upsert_cursor(
+        self,
+        *,
+        account: ProviderAccountRecord,
+        cursor_kind: str,
+        cursor_value: str,
+    ) -> SyncCursorRecord:
+        now = utc_now()
+        cursor_ref = f"onebrain://sync-cursor/{account.provider_account_id}/{cursor_kind}"
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                INSERT INTO assistant_sync_cursors (
+                  cursor_id, account_id, user_id, space_id, provider, provider_account_id,
+                  provider_account_ref, cursor_kind, encrypted_cursor_value, cursor_ref,
+                  reconciliation_state, last_success_at, correlation_id, created_at, updated_at
+                ) VALUES (
+                  gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                  'current', %s, %s, %s, %s
+                )
+                ON CONFLICT (provider, provider_account_ref, cursor_kind) DO UPDATE SET
+                  provider_account_id = EXCLUDED.provider_account_id,
+                  encrypted_cursor_value = EXCLUDED.encrypted_cursor_value,
+                  cursor_ref = EXCLUDED.cursor_ref,
+                  reconciliation_state = 'current',
+                  last_success_at = EXCLUDED.last_success_at,
+                  last_error = NULL,
+                  updated_at = EXCLUDED.updated_at
+                RETURNING *
+                """,
+                (
+                    account.scope.account_id,
+                    account.scope.user_id,
+                    account.scope.space_id,
+                    account.provider,
+                    account.provider_account_id,
+                    account.provider_account_ref,
+                    cursor_kind,
+                    cursor_value,
+                    cursor_ref,
+                    now,
+                    account.correlation_id,
+                    now,
+                    now,
+                ),
+            ).fetchone()
+        return _sync_cursor_from_row(row)
+
+    def get_cursor(
+        self, provider_account_id: UUID, cursor_kind: str
+    ) -> SyncCursorRecord | None:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                SELECT *
+                FROM assistant_sync_cursors
+                WHERE provider_account_id = %s AND cursor_kind = %s
+                """,
+                (provider_account_id, cursor_kind),
+            ).fetchone()
+        return _sync_cursor_from_row(row) if row else None
+
+    def list_cursors(self, provider_account_id: UUID | None = None) -> list[SyncCursorRecord]:
+        with _connect(self.database_url) as conn:
+            if provider_account_id is None:
+                rows = conn.execute("SELECT * FROM assistant_sync_cursors").fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM assistant_sync_cursors WHERE provider_account_id = %s",
+                    (provider_account_id,),
+                ).fetchall()
+        return [_sync_cursor_from_row(row) for row in rows]
+
+    def upsert_subscription(
+        self,
+        *,
+        account: ProviderAccountRecord,
+        subscription_kind: str,
+        resource_ref: str,
+        expires_at=None,
+        renewal_job_id: UUID | None = None,
+        secret_ref: str | None = None,
+    ) -> ProviderSubscriptionRecord:
+        subscription_ref = f"provider://subscription/{account.provider_account_id}/{subscription_kind}"
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                INSERT INTO assistant_provider_subscriptions (
+                  subscription_id, account_id, user_id, space_id, provider, provider_account_id,
+                  provider_account_ref, subscription_kind, subscription_ref, resource_ref,
+                  secret_ref, state, expires_at, renewal_job_id, correlation_id,
+                  created_at, updated_at
+                ) VALUES (
+                  gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                  %s, 'active', %s, %s, %s, %s, %s
+                )
+                ON CONFLICT (provider, provider_account_ref, subscription_ref) DO UPDATE SET
+                  provider_account_id = EXCLUDED.provider_account_id,
+                  subscription_kind = EXCLUDED.subscription_kind,
+                  resource_ref = EXCLUDED.resource_ref,
+                  secret_ref = EXCLUDED.secret_ref,
+                  state = 'active',
+                  expires_at = EXCLUDED.expires_at,
+                  renewal_job_id = EXCLUDED.renewal_job_id,
+                  updated_at = EXCLUDED.updated_at
+                RETURNING *
+                """,
+                (
+                    account.scope.account_id,
+                    account.scope.user_id,
+                    account.scope.space_id,
+                    account.provider,
+                    account.provider_account_id,
+                    account.provider_account_ref,
+                    subscription_kind,
+                    subscription_ref,
+                    resource_ref,
+                    secret_ref,
+                    expires_at,
+                    renewal_job_id,
+                    account.correlation_id,
+                    utc_now(),
+                    utc_now(),
+                ),
+            ).fetchone()
+        return _provider_subscription_from_row(row)
+
+    def list_subscriptions(
+        self, provider_account_id: UUID | None = None
+    ) -> list[ProviderSubscriptionRecord]:
+        with _connect(self.database_url) as conn:
+            if provider_account_id is None:
+                rows = conn.execute("SELECT * FROM assistant_provider_subscriptions").fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT *
+                    FROM assistant_provider_subscriptions
+                    WHERE provider_account_id = %s
+                    """,
+                    (provider_account_id,),
+                ).fetchall()
+        return [_provider_subscription_from_row(row) for row in rows]
+
+    def remember_webhook_event(self, provider: ProviderKind, dedupe_key: str) -> bool:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                INSERT INTO assistant_provider_webhook_events (provider, dedupe_key)
+                VALUES (%s, %s)
+                ON CONFLICT (provider, dedupe_key) DO NOTHING
+                RETURNING provider
+                """,
+                (provider, dedupe_key),
+            ).fetchone()
+        return row is not None
+
+    def enqueue_sync_job(self, queue, account: ProviderAccountRecord, sync_kind: str) -> JobRecord:
+        self.mark_sync_queued(account.provider_account_id)
+        job = JobRecord(
+            scope=account.scope,
+            job_type=f"provider.sync.{sync_kind}",
+            payload_ref=f"provider-account://{account.provider_account_id}",
+            idempotency_key=(
+                f"{account.scope.account_id}:{account.provider_account_id}:"
+                f"provider.sync:{sync_kind}:{uuid4()}"
+            ),
+            timezone="UTC",
+            run_at=utc_now(),
+            correlation_id=account.correlation_id,
+            audit_correlation_id=account.audit_correlation_id,
+        )
+        return queue.enqueue(job)
+
+    def enqueue_subscription_job(
+        self, queue, account: ProviderAccountRecord, job_kind: str = "setup"
+    ) -> JobRecord:
+        job = JobRecord(
+            scope=account.scope,
+            job_type=f"provider.subscription.{job_kind}",
+            payload_ref=f"provider-account://{account.provider_account_id}",
+            idempotency_key=(
+                f"{account.scope.account_id}:{account.provider_account_id}:"
+                f"provider.subscription:{job_kind}:{uuid4()}"
+            ),
+            timezone="UTC",
+            run_at=utc_now(),
+            correlation_id=account.correlation_id,
+            audit_correlation_id=account.audit_correlation_id,
+        )
+        return queue.enqueue(job)
+
+    def _set_sync_state(
+        self, provider_account_id: UUID, sync_state: ProviderSyncState
+    ) -> ProviderAccountRecord:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                UPDATE assistant_connected_provider_accounts
+                SET sync_state = %s, updated_at = %s
+                WHERE provider_account_id = %s
+                RETURNING *
+                """,
+                (sync_state, utc_now(), provider_account_id),
+            ).fetchone()
+        return _provider_account_from_row(row)
+
+
 class PostgresTelegramBindingStore(InMemoryTelegramBindingStore):
     """Postgres-backed Telegram binding and delivery store."""
 
@@ -1100,6 +1546,111 @@ def _job_from_row(row: dict[str, Any]) -> JobRecord:
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
+
+
+def _oauth_attempt_from_row(row: dict[str, Any]) -> OAuthConnectionAttemptRecord:
+    return OAuthConnectionAttemptRecord(
+        connection_id=row["connection_id"],
+        scope=_scope_from_row(row),
+        provider=ProviderKind(row["provider"]),
+        state_hash=row["state_hash"],
+        requested_scope_tier=OAuthScopeTier(row["requested_scope_tier"]),
+        requested_scopes=row["requested_scopes"] or [],
+        requested_services=row["requested_services"] or [],
+        redirect_uri=row["redirect_uri"],
+        status=OAuthConnectionStatus(row["status"]),
+        expires_at=row["expires_at"],
+        error_detail=row["error_detail"],
+        correlation_id=row["correlation_id"],
+        audit_correlation_id=row["audit_correlation_id"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def _provider_account_from_row(row: dict[str, Any]) -> ProviderAccountRecord:
+    return ProviderAccountRecord(
+        provider_account_id=row["provider_account_id"],
+        scope=_scope_from_row(row),
+        provider=ProviderKind(row["provider"]),
+        provider_account_ref=row["provider_account_ref"],
+        provider_subject=row["provider_subject"],
+        email=row["email"] or "",
+        display_name=row["display_name"] or "",
+        status=ProviderAccountStatus(row["status"]),
+        sync_state=ProviderSyncState(row["sync_state"]),
+        granted_scopes=row["granted_scopes"] or [],
+        scope_tier=OAuthScopeTier(row["scope_tier"]),
+        mail_enabled=row["mail_enabled"],
+        calendar_enabled=row["calendar_enabled"],
+        refresh_token_secret_ref=row["refresh_token_secret_ref"],
+        token_expires_at=row["token_expires_at"],
+        last_sync_at=row["last_sync_at"],
+        last_sync_error=row["last_sync_error"],
+        correlation_id=row["correlation_id"],
+        audit_correlation_id=row["audit_correlation_id"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def _sync_cursor_from_row(row: dict[str, Any]) -> SyncCursorRecord:
+    return SyncCursorRecord(
+        cursor_id=row["cursor_id"],
+        scope=_scope_from_row(row),
+        provider=ProviderKind(row["provider"]),
+        provider_account_id=row["provider_account_id"],
+        provider_account_ref=row["provider_account_ref"],
+        cursor_kind=row["cursor_kind"],
+        cursor_value=row["encrypted_cursor_value"] or "",
+        cursor_ref=row["cursor_ref"] or "",
+        reconciliation_state=row["reconciliation_state"],
+        last_success_at=row["last_success_at"],
+        last_error=row["last_error"],
+        correlation_id=row["correlation_id"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def _provider_subscription_from_row(row: dict[str, Any]) -> ProviderSubscriptionRecord:
+    return ProviderSubscriptionRecord(
+        subscription_id=row["subscription_id"],
+        scope=_scope_from_row(row),
+        provider=ProviderKind(row["provider"]),
+        provider_account_id=row["provider_account_id"],
+        provider_account_ref=row["provider_account_ref"],
+        subscription_kind=row["subscription_kind"],
+        subscription_ref=row["subscription_ref"],
+        resource_ref=row["resource_ref"],
+        state=row["state"],
+        expires_at=row["expires_at"],
+        renewal_job_id=row["renewal_job_id"],
+        secret_ref=row["secret_ref"],
+        correlation_id=row["correlation_id"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def _has_mail_read_scope(provider: ProviderKind, granted_scopes: list[str]) -> bool:
+    if ProviderKind(provider) == ProviderKind.google:
+        needed = [
+            scope for scope in scopes_for(provider, OAuthScopeTier.read_only) if "gmail" in scope
+        ]
+    elif ProviderKind(provider) == ProviderKind.microsoft:
+        needed = ["Mail.Read"]
+    return all(scope in set(granted_scopes) for scope in needed)
+
+
+def _has_calendar_read_scope(provider: ProviderKind, granted_scopes: list[str]) -> bool:
+    if ProviderKind(provider) == ProviderKind.google:
+        needed = [
+            scope for scope in scopes_for(provider, OAuthScopeTier.read_only) if "calendar" in scope
+        ]
+    else:
+        needed = ["Calendars.Read"]
+    return all(scope in set(granted_scopes) for scope in needed)
 
 
 def _binding_from_row(row: dict[str, Any]) -> TelegramBindingRecord:
