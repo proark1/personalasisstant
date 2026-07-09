@@ -20,10 +20,12 @@ from assistant_runtime.schemas import (
     DegradedModeState,
     FollowUpRisk,
     InboxTriageItem,
+    JsonObject,
     NavigationItem,
     PriorityItem,
     ProviderAccountStatus,
     ProviderHealth,
+    ProviderKind,
     ScopedIdentity,
     TodayBriefItem,
     TodayResponse,
@@ -48,10 +50,15 @@ class WorkdaySourceItem:
 
 
 class WorkdaySourceCollector:
-    def __init__(self, providers: InMemoryProviderStore | None = None) -> None:
+    def __init__(
+        self,
+        providers: InMemoryProviderStore | None = None,
+        brain: BrainClient | None = None,
+    ) -> None:
         self.providers = providers
+        self.brain = brain
 
-    def collect(
+    async def collect(
         self,
         scope: ScopedIdentity,
         local_date: str,
@@ -68,19 +75,33 @@ class WorkdaySourceCollector:
             reasons=[],
             missing_sources=[],
             stale_sources=[],
-            generated_from="rules",
+            generated_from="deterministic_fallback",
             onebrain_available=True,
             provider_accounts_seen=len(active_accounts),
         )
+        self._annotate_provider_freshness(partial, active_accounts)
+        provider_items = await self._collect_onebrain_provider_items(
+            scope,
+            local_date,
+            active_accounts,
+            partial,
+        )
+        if provider_items:
+            partial.generated_from = "onebrain_provider_records"
+            return provider_items, partial
+
         if not active_accounts:
             partial.missing_sources.append("live_email_calendar")
             partial.reasons.append(
                 "Using deterministic local workday source items until provider sync has "
                 "live records."
             )
-        for account in active_accounts:
-            if account.last_sync_error:
-                partial.stale_sources.append(account.provider_account_ref)
+        else:
+            partial.missing_sources.append("onebrain_provider_records")
+            partial.reasons.append(
+                "Using deterministic fallback because no OneBrain provider source records "
+                "were available for today."
+            )
 
         account_ref = (
             active_accounts[0].provider_account_ref
@@ -138,6 +159,77 @@ class WorkdaySourceCollector:
                 flags=("move_candidate", "low_priority"),
             ),
         ], partial
+
+    async def _collect_onebrain_provider_items(
+        self,
+        scope: ScopedIdentity,
+        local_date: str,
+        active_accounts: list,
+        partial: WorkdayPartialState,
+    ) -> list[WorkdaySourceItem]:
+        if self.brain is None or not active_accounts:
+            return []
+        account_refs = {account.provider_account_ref for account in active_accounts}
+        try:
+            message_records = await self.brain.list_assistant_records(
+                account_id=scope.account_id,
+                space_id=scope.space_id,
+                purpose="assistant_workday",
+                record_type="provider_message",
+                status="approved",
+                limit=100,
+            )
+            calendar_records = await self.brain.list_assistant_records(
+                account_id=scope.account_id,
+                space_id=scope.space_id,
+                purpose="assistant_workday",
+                record_type="provider_calendar_event",
+                status="approved",
+                limit=100,
+            )
+        except Exception:
+            partial.stale_sources.append("onebrain_provider_records")
+            partial.reasons.append("Could not read OneBrain provider source records.")
+            return []
+
+        items: list[WorkdaySourceItem] = []
+        seen_refs: set[str] = set()
+        for record in message_records:
+            item = _message_record_to_source_item(record, local_date, account_refs)
+            if item is not None and item.source_ref not in seen_refs:
+                items.append(item)
+                seen_refs.add(item.source_ref)
+        for record in calendar_records:
+            item = _calendar_record_to_source_item(record, local_date, account_refs)
+            if item is not None and item.source_ref not in seen_refs:
+                items.append(item)
+                seen_refs.add(item.source_ref)
+        return items
+
+    def _annotate_provider_freshness(
+        self,
+        partial: WorkdayPartialState,
+        active_accounts: list,
+    ) -> None:
+        if self.providers is None:
+            return
+        stale_cutoff = utc_now() - timedelta(hours=26)
+        for account in active_accounts:
+            if account.last_sync_error:
+                partial.stale_sources.append(f"{account.provider_account_ref}:sync_error")
+            cursors = self.providers.list_cursors(account.provider_account_id)
+            cursors_by_kind = {cursor.cursor_kind: cursor for cursor in cursors}
+            for cursor_kind in _expected_cursor_kinds(account):
+                cursor = cursors_by_kind.get(cursor_kind)
+                if cursor is None:
+                    partial.stale_sources.append(
+                        f"{account.provider_account_ref}:{cursor_kind}:missing"
+                    )
+                    continue
+                if cursor.last_success_at is not None and cursor.last_success_at < stale_cutoff:
+                    partial.stale_sources.append(
+                        f"{account.provider_account_ref}:{cursor_kind}:stale"
+                    )
 
 
 class InboxTriageEngine:
@@ -293,7 +385,7 @@ class WorkdayLoopProcessor:
         providers: InMemoryProviderStore | None = None,
     ) -> None:
         self.brain = brain
-        self.collector = WorkdaySourceCollector(providers)
+        self.collector = WorkdaySourceCollector(providers, brain)
         self.inbox = InboxTriageEngine()
         self.followups = FollowUpExtractor()
         self.calendar = CalendarInsightPlanner()
@@ -309,7 +401,7 @@ class WorkdayLoopProcessor:
         require_durable: bool = False,
     ) -> WorkdaySnapshot:
         local_date = local_date or utc_now().date().isoformat()
-        source_items, partial = self.collector.collect(scope, local_date)
+        source_items, partial = await self.collector.collect(scope, local_date)
         partial.onebrain_available = await self._onebrain_available()
         if not partial.onebrain_available:
             partial.degraded = True
@@ -491,6 +583,94 @@ def _proactive_suggestion(
     if calendar:
         return "Protect the best focus window before taking lower-priority meetings."
     return "Review the inbox triage and mark anything that should be ignored tomorrow."
+
+
+def _message_record_to_source_item(
+    record: JsonObject,
+    local_date: str,
+    account_refs: set[str],
+) -> WorkdaySourceItem | None:
+    metadata = _record_metadata(record)
+    if metadata.get("local_date") != local_date:
+        return None
+    account_ref = str(metadata.get("provider_account_ref") or "")
+    if account_ref not in account_refs:
+        return None
+    source_ref = str(record.get("source_ref") or record.get("id") or "")
+    if not source_ref:
+        return None
+    return WorkdaySourceItem(
+        source_ref=source_ref,
+        kind="mail",
+        title=str(record.get("title") or metadata.get("subject") or "Provider message"),
+        detail=str(record.get("content") or ""),
+        sender=str(metadata.get("sender") or ""),
+        account_ref=account_ref,
+        flags=_string_tuple(metadata.get("flags")),
+    )
+
+
+def _calendar_record_to_source_item(
+    record: JsonObject,
+    local_date: str,
+    account_refs: set[str],
+) -> WorkdaySourceItem | None:
+    metadata = _record_metadata(record)
+    if metadata.get("local_date") != local_date:
+        return None
+    account_ref = str(metadata.get("provider_account_ref") or "")
+    if account_ref not in account_refs:
+        return None
+    source_ref = str(record.get("source_ref") or record.get("id") or "")
+    if not source_ref:
+        return None
+    return WorkdaySourceItem(
+        source_ref=source_ref,
+        kind="calendar",
+        title=str(record.get("title") or metadata.get("title") or "Provider calendar event"),
+        detail=str(record.get("content") or ""),
+        account_ref=account_ref,
+        starts_at=_parse_record_datetime(metadata.get("starts_at")),
+        ends_at=_parse_record_datetime(metadata.get("ends_at")),
+        flags=_string_tuple(metadata.get("flags")),
+    )
+
+
+def _record_metadata(record: JsonObject) -> dict:
+    metadata = record.get("metadata")
+    return dict(metadata) if isinstance(metadata, dict) else {}
+
+
+def _string_tuple(value: object) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple(str(item) for item in value if str(item))
+
+
+def _parse_record_datetime(value: object) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _expected_cursor_kinds(account) -> list[str]:
+    provider = ProviderKind(account.provider)
+    if provider == ProviderKind.google:
+        kinds: list[str] = []
+        if account.mail_enabled:
+            kinds.append("gmail_history")
+        if account.calendar_enabled:
+            kinds.append("google_calendar_sync_token")
+        return kinds
+    kinds = []
+    if account.mail_enabled:
+        kinds.append("microsoft_mail_delta_link")
+    if account.calendar_enabled:
+        kinds.append("microsoft_calendar_delta_link")
+    return kinds
 
 
 def _stable_id(prefix: str, value: str) -> str:

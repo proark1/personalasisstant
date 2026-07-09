@@ -27,6 +27,8 @@ def test_workday_today_generates_durable_onebrain_artifacts() -> None:
     assert response.status_code == 200
     snapshot = response.json()
     assert snapshot["partial_state"]["durable"] is True
+    assert snapshot["partial_state"]["generated_from"] == "deterministic_fallback"
+    assert "live_email_calendar" in snapshot["partial_state"]["missing_sources"]
     assert len(snapshot["priorities"]) == 3
     assert len(snapshot["inbox"]) == 3
     assert len(snapshot["follow_ups"]) == 1
@@ -67,6 +69,66 @@ def test_today_endpoint_uses_phase4a_workday_snapshot() -> None:
     assert body["priorities"][0]["title"] == "Client proposal reply"
     assert body["proactive_suggestion"].startswith("Start with Client proposal reply")
     assert all(item["title"] != "Important relationship" for item in body["brief"])
+
+
+def test_workday_prefers_onebrain_provider_source_records() -> None:
+    app = create_app(
+        _settings(
+            GOOGLE_OAUTH_CLIENT_ID="google-client",
+            GOOGLE_OAUTH_CLIENT_SECRET="google-secret",
+        )
+    )
+    client = TestClient(app)
+    started = client.post("/v1/providers/oauth/google/start", json={}).json()
+    state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
+    callback = client.get(
+        "/v1/providers/oauth/google/callback",
+        params={"state": state, "code": "test_google_workday_sources"},
+    )
+    worker = _worker(app)
+
+    result = worker.run_once()
+    response = client.get(
+        "/v1/workday/today",
+        params={"local_date": utc_now().date().isoformat()},
+    )
+
+    assert callback.status_code == 200
+    assert result.jobs_processed == 1
+    assert response.status_code == 200
+    snapshot = response.json()
+    assert snapshot["partial_state"]["generated_from"] == "onebrain_provider_records"
+    assert "onebrain_provider_records" not in snapshot["partial_state"]["missing_sources"]
+    assert snapshot["inbox"][0]["source_ref"].startswith("onebrain://provider-source/")
+    assert snapshot["inbox"][0]["sender"] == "client@example.com"
+
+
+def test_workday_reports_fallback_when_connected_provider_has_no_source_records() -> None:
+    app = create_app(
+        _settings(
+            MICROSOFT_OAUTH_CLIENT_ID="microsoft-client",
+            MICROSOFT_OAUTH_CLIENT_SECRET="microsoft-secret",
+        )
+    )
+    client = TestClient(app)
+    started = client.post("/v1/providers/oauth/microsoft/start", json={}).json()
+    state = started["authorization_url"].split("state=", 1)[1].split("&", 1)[0]
+    callback = client.get(
+        "/v1/providers/oauth/microsoft/callback",
+        params={"state": state, "code": "test_microsoft_unsynced_workday"},
+    )
+
+    response = client.get(
+        "/v1/workday/today",
+        params={"local_date": utc_now().date().isoformat()},
+    )
+
+    assert callback.status_code == 200
+    assert response.status_code == 200
+    snapshot = response.json()
+    assert snapshot["partial_state"]["generated_from"] == "deterministic_fallback"
+    assert "onebrain_provider_records" in snapshot["partial_state"]["missing_sources"]
+    assert any(":missing" in source for source in snapshot["partial_state"]["stale_sources"])
 
 
 def test_workday_detail_endpoints_return_typed_sections() -> None:

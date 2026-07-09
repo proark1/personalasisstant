@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from assistant_runtime.contracts import (
     default_assistant_intent,
     purpose_for_record_type,
@@ -228,6 +230,125 @@ async def record_sync_subscription_event(
     )
 
 
+async def record_provider_message_source(
+    brain: BrainClient,
+    account: ProviderAccountRecord,
+    *,
+    local_date: str,
+    source_ref: str,
+    subject: str,
+    snippet: str,
+    sender: str = "",
+    recipients: list[str] | None = None,
+    received_at: datetime | None = None,
+    flags: list[str] | tuple[str, ...] = (),
+    unread: bool = False,
+    importance: str = "normal",
+    attachment_count: int = 0,
+    category_hints: list[str] | None = None,
+) -> JsonObject:
+    safe_subject = _safe_provider_text(subject, fallback="Provider message", limit=180)
+    safe_snippet = _safe_provider_text(snippet, fallback=safe_subject, limit=1200)
+    metadata: JsonObject = {
+        "source_record_kind": "provider_message",
+        "provider": str(account.provider),
+        "provider_account_ref": account.provider_account_ref,
+        "provider_subject_ref": account.provider_subject,
+        "local_date": local_date,
+        "subject": safe_subject,
+        "sender": _safe_provider_text(sender, fallback="", limit=240),
+        "recipients": [
+            _safe_provider_text(recipient, fallback="", limit=240)
+            for recipient in (recipients or [])
+        ],
+        "received_at": received_at.isoformat() if received_at is not None else None,
+        "flags": list(flags),
+        "unread": unread,
+        "importance": importance,
+        "attachment_count": max(0, attachment_count),
+        "category_hints": list(category_hints or []),
+        "content_trust": "untrusted_normalized",
+        "correlation_id": account.correlation_id,
+        "audit_correlation_id": account.audit_correlation_id,
+    }
+    return await brain.create_assistant_record(
+        content=safe_snippet,
+        title=safe_subject,
+        record_type="provider_message",
+        purpose="assistant_workday",
+        intent=default_assistant_intent("provider_message"),
+        account_id=account.scope.account_id,
+        space_id=account.scope.space_id,
+        source="assistant-provider-sync",
+        source_ref=source_ref,
+        metadata=metadata,
+        provenance={
+            "provider": str(account.provider),
+            "derived_from": [account.provider_account_ref, source_ref],
+            "normalizer": "provider-source.rules.v1",
+        },
+        retention={"policy": "assistant_workday_source_default"},
+    )
+
+
+async def record_provider_calendar_event_source(
+    brain: BrainClient,
+    account: ProviderAccountRecord,
+    *,
+    local_date: str,
+    source_ref: str,
+    title: str,
+    detail: str,
+    starts_at: datetime | None = None,
+    ends_at: datetime | None = None,
+    organizer: str = "",
+    attendee_count: int = 0,
+    has_location: bool = False,
+    has_meeting_link: bool = False,
+    busy_status: str = "busy",
+    flags: list[str] | tuple[str, ...] = (),
+) -> JsonObject:
+    safe_title = _safe_provider_text(title, fallback="Provider calendar event", limit=180)
+    safe_detail = _safe_provider_text(detail, fallback=safe_title, limit=1200)
+    metadata: JsonObject = {
+        "source_record_kind": "provider_calendar_event",
+        "provider": str(account.provider),
+        "provider_account_ref": account.provider_account_ref,
+        "provider_subject_ref": account.provider_subject,
+        "local_date": local_date,
+        "title": safe_title,
+        "starts_at": starts_at.isoformat() if starts_at is not None else None,
+        "ends_at": ends_at.isoformat() if ends_at is not None else None,
+        "organizer": _safe_provider_text(organizer, fallback="", limit=240),
+        "attendee_count": max(0, attendee_count),
+        "has_location": has_location,
+        "has_meeting_link": has_meeting_link,
+        "busy_status": busy_status,
+        "flags": list(flags),
+        "content_trust": "untrusted_normalized",
+        "correlation_id": account.correlation_id,
+        "audit_correlation_id": account.audit_correlation_id,
+    }
+    return await brain.create_assistant_record(
+        content=safe_detail,
+        title=safe_title,
+        record_type="provider_calendar_event",
+        purpose="assistant_workday",
+        intent=default_assistant_intent("provider_calendar_event"),
+        account_id=account.scope.account_id,
+        space_id=account.scope.space_id,
+        source="assistant-provider-sync",
+        source_ref=source_ref,
+        metadata=metadata,
+        provenance={
+            "provider": str(account.provider),
+            "derived_from": [account.provider_account_ref, source_ref],
+            "normalizer": "provider-source.rules.v1",
+        },
+        retention={"policy": "assistant_workday_source_default"},
+    )
+
+
 async def record_workday_brief(
     brain: BrainClient,
     scope: ScopedIdentity,
@@ -257,6 +378,13 @@ async def record_workday_brief(
         },
         retention={"policy": "assistant_workday_default"},
     )
+
+
+def _safe_provider_text(value: str, *, fallback: str, limit: int) -> str:
+    normalized = " ".join(str(value or "").replace("<", " ").replace(">", " ").split())
+    if not normalized:
+        normalized = fallback
+    return normalized[:limit]
 
 
 async def record_priority_item(
