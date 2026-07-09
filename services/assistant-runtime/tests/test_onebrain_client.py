@@ -161,6 +161,27 @@ def test_http_onebrain_client_uses_assistant_contract_routes() -> None:
     assert [method for method, _, _, _ in seen] == ["GET", "POST", "GET", "GET", "POST"]
 
 
+def test_http_onebrain_client_rejects_wrong_capability_scope() -> None:
+    client = HttpOneBrainClient(
+        base_url="https://onebrain.test",
+        service_key="svc_test",
+        account_id="acme",
+        space_id="sp_business",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "account_id": "acme",
+                    "app_id": "communication",
+                    "space_ids": ["sp_business"],
+                },
+            )
+        ),
+    )
+
+    assert asyncio.run(client.check_available()) is False
+
+
 def test_http_onebrain_client_rejects_missing_service_purpose() -> None:
     client = HttpOneBrainClient(
         base_url="https://onebrain.test",

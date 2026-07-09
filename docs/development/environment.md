@@ -46,6 +46,15 @@ ONEBRAIN_ACCOUNT_ID=<account id>
 ONEBRAIN_SPACE_ID=<space id>
 ```
 
+Verify the connection with:
+
+```bash
+npm run smoke:onebrain
+```
+
+The smoke writes a synthetic assistant record, lists it, reads it back, and
+records an assistant audit event through OneBrain.
+
 Leave `OPERATIONAL_STORE` unset in local `.env` unless you explicitly want the
 API to require Postgres outside Docker. Docker Compose and Railway set or default
 the operational store to Postgres themselves.

@@ -231,8 +231,15 @@ class HttpOneBrainClient:
                     purpose="assistant_provider_health",
                 )
             )
-            await self._request("GET", f"api/service/capabilities?{query}")
+            capabilities = await self._request("GET", f"api/service/capabilities?{query}")
         except OneBrainClientError:
+            return False
+        if capabilities.get("app_id") and capabilities.get("app_id") != ASSISTANT_APP_ID:
+            return False
+        if capabilities.get("account_id") and capabilities.get("account_id") != self.account_id:
+            return False
+        space_ids = capabilities.get("space_ids") or []
+        if isinstance(space_ids, list) and space_ids and self.space_id not in space_ids:
             return False
         return True
 

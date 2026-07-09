@@ -11,6 +11,7 @@
     "build:web": "npm --workspace apps/assistant-web run build",
     "lint:web": "npm --workspace apps/assistant-web run lint",
     "lint:backend": "python -m ruff check services/assistant-runtime/src services/assistant-runtime/tests",
+    "smoke:onebrain": "python scripts/smoke_onebrain.py",
     "typecheck:web": "npm --workspace apps/assistant-web run typecheck",
     "test:backend": "python -m pytest services/assistant-runtime/tests",
     "openapi": "python services/assistant-runtime/scripts/export_openapi.py --output packages/assistant-api-contract/openapi.json",
