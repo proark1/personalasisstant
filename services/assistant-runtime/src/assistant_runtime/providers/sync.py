@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from assistant_runtime.domain.providers import (
     InMemoryProviderStore,
@@ -25,11 +25,19 @@ from assistant_runtime.providers.read_adapters import (
     ProviderReadError,
     local_provider_fetch_result,
 )
+from assistant_runtime.providers.reliability import sync_status_for_failure
 from assistant_runtime.providers.token_refresh import (
     ProviderTokenRefresher,
     ProviderTokenRefreshError,
 )
-from assistant_runtime.schemas import JobRecord, ProviderAccountRecord, ProviderKind
+from assistant_runtime.schemas import (
+    JobRecord,
+    ProviderAccountRecord,
+    ProviderFailureClass,
+    ProviderKind,
+    ProviderOperationalSyncStatus,
+    utc_now,
+)
 
 
 @dataclass(frozen=True)
@@ -39,6 +47,14 @@ class SyncSubscription:
     subscription_ref: str
     cursor_ref: str | None
     renewal_job_ref: str
+
+
+@dataclass(frozen=True)
+class SyncFailure:
+    detail: str
+    failure_class: ProviderFailureClass | None = None
+    retry_after: datetime | None = None
+    retryable: bool = False
 
 
 class SyncProviderSkeleton:
@@ -76,8 +92,17 @@ class ProviderSyncProcessor:
         if account is None:
             raise ValueError("Provider account not found for sync job.")
         if not self._brain_available():
-            self.providers.mark_sync_degraded(
+            degraded = self.providers.mark_sync_degraded(
                 account.provider_account_id,
+                "OneBrain provenance is unavailable; provider sync is paused.",
+            )
+            degraded = self.providers.update_account_sync_status(
+                degraded.provider_account_id,
+                last_sync_status=ProviderOperationalSyncStatus.paused,
+                last_status_detail="OneBrain provenance is unavailable; provider sync is paused.",
+            )
+            self._safe_record_health(
+                degraded,
                 "OneBrain provenance is unavailable; provider sync is paused.",
             )
             raise RuntimeError("OneBrainUnavailable")
@@ -88,8 +113,26 @@ class ProviderSyncProcessor:
                 self._safe_record_subscription(subscription)
             return
 
+        if self._retry_after_pending(account):
+            detail = (
+                "Provider sync is waiting for retry-after until "
+                f"{account.retry_after.isoformat()}."
+            )
+            waiting = self.providers.update_account_sync_status(
+                account.provider_account_id,
+                last_sync_status=account.last_sync_status,
+                last_status_detail=detail,
+                last_sync_error_class=account.last_sync_error_class,
+                retry_after=account.retry_after,
+                stale_since=account.stale_since,
+            )
+            self._safe_record_health(waiting, detail)
+            return
+
         self.providers.mark_syncing(account.provider_account_id)
-        source_count, source_error, cursor_updates = self._record_workday_sources(account)
+        source_count, source_error, cursor_updates, sync_failure = self._record_workday_sources(
+            account
+        )
         if cursor_updates:
             cursors = self._upsert_cursor_updates(account, cursor_updates)
         elif source_error:
@@ -99,10 +142,7 @@ class ProviderSyncProcessor:
         for cursor in cursors:
             self._safe_record_cursor(cursor)
         if source_error:
-            degraded = self.providers.mark_sync_degraded(
-                account.provider_account_id,
-                source_error,
-            )
+            degraded = self._mark_sync_degraded(account, source_error, sync_failure)
             self._safe_record_health(degraded, source_error)
             return
         healthy = self.providers.mark_sync_healthy(account.provider_account_id)
@@ -179,12 +219,15 @@ class ProviderSyncProcessor:
     def _record_workday_sources(
         self,
         account: ProviderAccountRecord,
-    ) -> tuple[int, str | None, dict[str, str]]:
+    ) -> tuple[int, str | None, dict[str, str], SyncFailure | None]:
         if self.brain is None:
-            return 0, None, {}
+            return 0, None, {}, None
         local_date = datetime.now(UTC).date().isoformat()
         try:
-            fetch_result, source_error = self._fetch_provider_sources(account, local_date)
+            fetch_result, source_error, sync_failure = self._fetch_provider_sources(
+                account,
+                local_date,
+            )
             count = 0
             for message in fetch_result.messages:
                 asyncio.run(
@@ -204,22 +247,27 @@ class ProviderSyncProcessor:
                     )
                 )
                 count += 1
-            return count, source_error, dict(fetch_result.cursor_updates)
+            return count, source_error, dict(fetch_result.cursor_updates), sync_failure
         except Exception:
             return (
                 0,
                 "Provider source normalization failed; workday source records are stale.",
                 {},
+                SyncFailure(
+                    "Provider source normalization failed; workday source records are stale.",
+                    failure_class=ProviderFailureClass.permanent,
+                ),
             )
 
     def _fetch_provider_sources(
         self,
         account: ProviderAccountRecord,
         local_date: str,
-    ) -> tuple[ProviderFetchResult, str | None]:
+    ) -> tuple[ProviderFetchResult, str | None, SyncFailure | None]:
         if self.reader is None or self.secrets is None:
             return (
                 local_provider_fetch_result(account, local_date, reason="local_sync_adapter"),
+                None,
                 None,
             )
         try:
@@ -234,14 +282,29 @@ class ProviderSyncProcessor:
                 if not isinstance(token_payload, dict):
                     raise ValueError("Provider token payload must be an object.")
         except ProviderTokenRefreshError as exc:
+            detail = f"Provider token refresh failed; {exc.detail}"
             return (
                 local_provider_fetch_result(account, local_date, reason="token_refresh_failed"),
-                f"Provider token refresh failed; {exc.detail}",
+                detail,
+                SyncFailure(
+                    detail,
+                    failure_class=exc.failure_class,
+                    retry_after=exc.retry_after,
+                    retryable=exc.retryable,
+                ),
             )
         except Exception:
+            detail = (
+                "Provider token secret is unavailable; workday source records used local "
+                "fallback."
+            )
             return (
                 local_provider_fetch_result(account, local_date, reason="token_unavailable"),
-                "Provider token secret is unavailable; workday source records used local fallback.",
+                detail,
+                SyncFailure(
+                    detail,
+                    failure_class=ProviderFailureClass.auth,
+                ),
             )
         cursor_context = ProviderCursorContext(
             {
@@ -258,16 +321,31 @@ class ProviderSyncProcessor:
                     cursors=cursor_context,
                 )
             )
-            return fetch_result, _source_error_from_fetch_result(fetch_result)
+            source_error = _source_error_from_fetch_result(fetch_result)
+            sync_failure = _failure_from_fetch_result(fetch_result, source_error)
+            return fetch_result, source_error, sync_failure
         except ProviderReadError as exc:
+            detail = f"Provider live read failed; {exc.detail}"
             return (
                 local_provider_fetch_result(account, local_date, reason="live_read_failed"),
-                f"Provider live read failed; {exc.detail}",
+                detail,
+                SyncFailure(
+                    detail,
+                    failure_class=exc.failure_class,
+                    retry_after=exc.retry_after,
+                    retryable=exc.retryable,
+                ),
             )
         except Exception as exc:
+            detail = f"Provider live read failed; {exc.__class__.__name__}."
             return (
                 local_provider_fetch_result(account, local_date, reason="live_read_failed"),
-                f"Provider live read failed; {exc.__class__.__name__}.",
+                detail,
+                SyncFailure(
+                    detail,
+                    failure_class=ProviderFailureClass.transient,
+                    retryable=True,
+                ),
             )
 
     def _brain_available(self) -> bool:
@@ -277,6 +355,30 @@ class ProviderSyncProcessor:
             return asyncio.run(self.brain.check_available())
         except Exception:
             return False
+
+    def _retry_after_pending(self, account: ProviderAccountRecord) -> bool:
+        return account.retry_after is not None and account.retry_after > utc_now()
+
+    def _mark_sync_degraded(
+        self,
+        account: ProviderAccountRecord,
+        detail: str,
+        sync_failure: SyncFailure | None,
+    ) -> ProviderAccountRecord:
+        degraded = self.providers.mark_sync_degraded(account.provider_account_id, detail)
+        if sync_failure is None or sync_failure.failure_class is None:
+            return degraded
+        retry_after = sync_failure.retry_after
+        if retry_after is None and sync_failure.retryable:
+            retry_after = utc_now() + timedelta(minutes=5)
+        return self.providers.update_account_sync_status(
+            degraded.provider_account_id,
+            last_sync_status=sync_status_for_failure(sync_failure.failure_class),
+            last_status_detail=detail,
+            last_sync_error_class=sync_failure.failure_class,
+            retry_after=retry_after,
+            stale_since=degraded.stale_since or utc_now(),
+        )
 
 
 def _cursor_kinds(account: ProviderAccountRecord) -> list[str]:
@@ -299,6 +401,20 @@ def _source_error_from_fetch_result(fetch_result: ProviderFetchResult) -> str | 
     if fetch_result.live and fetch_result.fallback_reason:
         return f"Provider live read degraded; {fetch_result.fallback_reason}"
     return None
+
+
+def _failure_from_fetch_result(
+    fetch_result: ProviderFetchResult,
+    source_error: str | None,
+) -> SyncFailure | None:
+    if source_error is None:
+        return None
+    return SyncFailure(
+        source_error,
+        failure_class=fetch_result.failure_class or ProviderFailureClass.permanent,
+        retry_after=fetch_result.retry_after,
+        retryable=False,
+    )
 
 
 def _subscription_resources(account: ProviderAccountRecord) -> list[tuple[str, str]]:

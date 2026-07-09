@@ -7,6 +7,13 @@ from typing import Any
 
 import httpx
 
+from assistant_runtime.providers.reliability import (
+    ProviderFailureClass,
+    ProviderRequestError,
+    ProviderRetryPolicy,
+    provider_request,
+    sanitized_failure_detail,
+)
 from assistant_runtime.schemas import ProviderAccountRecord, ProviderKind, utc_now
 
 GOOGLE_GMAIL_MESSAGES_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
@@ -25,10 +32,21 @@ MICROSOFT_CALENDAR_VIEW_DELTA_URL = (
 
 
 class ProviderReadError(RuntimeError):
-    def __init__(self, detail: str, *, status_code: int | None = None) -> None:
+    def __init__(
+        self,
+        detail: str,
+        *,
+        status_code: int | None = None,
+        failure_class: ProviderFailureClass | None = None,
+        retry_after: datetime | None = None,
+        retryable: bool = False,
+    ) -> None:
         super().__init__(detail)
         self.detail = detail
         self.status_code = status_code
+        self.failure_class = failure_class
+        self.retry_after = retry_after
+        self.retryable = retryable
 
 
 @dataclass(frozen=True)
@@ -112,6 +130,8 @@ class ProviderFetchResult:
     fallback_reason: str | None = None
     cursor_updates: dict[str, str] = field(default_factory=dict)
     used_incremental: bool = False
+    failure_class: ProviderFailureClass | None = None
+    retry_after: datetime | None = None
 
 
 class ProviderReadClient:
@@ -120,9 +140,11 @@ class ProviderReadClient:
         *,
         timeout_seconds: float = 10.0,
         transport: httpx.AsyncBaseTransport | None = None,
+        retry_policy: ProviderRetryPolicy | None = None,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.transport = transport
+        self.retry_policy = retry_policy
 
     async def fetch_sources(
         self,
@@ -169,6 +191,7 @@ class ProviderReadClient:
         headers = _auth_headers(access_token)
         cursor_updates: dict[str, str] = {}
         fallback_reason: str | None = None
+        failure_class: ProviderFailureClass | None = None
         used_incremental = False
         async with httpx.AsyncClient(
             timeout=self.timeout_seconds,
@@ -185,6 +208,7 @@ class ProviderReadClient:
                             local_date,
                             headers,
                             gmail_cursor,
+                            self.retry_policy,
                         )
                         used_incremental = True
                     except ProviderReadError as exc:
@@ -195,14 +219,17 @@ class ProviderReadClient:
                             account,
                             local_date,
                             headers,
+                            self.retry_policy,
                         )
                         fallback_reason = "Gmail history cursor expired; full read fallback used."
+                        failure_class = ProviderFailureClass.cursor_expired
                 else:
                     messages, next_cursor = await _fetch_google_messages(
                         client,
                         account,
                         local_date,
                         headers,
+                        self.retry_policy,
                     )
                 if next_cursor:
                     cursor_updates["gmail_history"] = next_cursor
@@ -213,6 +240,7 @@ class ProviderReadClient:
                     account,
                     local_date,
                     headers,
+                    self.retry_policy,
                 )
                 cursor_updates["google_calendar_sync_token"] = _window_cursor(
                     "google_calendar",
@@ -224,6 +252,7 @@ class ProviderReadClient:
             fallback_reason=fallback_reason,
             cursor_updates=cursor_updates,
             used_incremental=used_incremental,
+            failure_class=failure_class,
         )
 
     async def _fetch_microsoft(
@@ -241,6 +270,7 @@ class ProviderReadClient:
         }
         cursor_updates: dict[str, str] = {}
         fallback_reasons: list[str] = []
+        failure_class: ProviderFailureClass | None = None
         used_incremental = False
         async with httpx.AsyncClient(
             timeout=self.timeout_seconds,
@@ -256,19 +286,31 @@ class ProviderReadClient:
                             local_date,
                             headers,
                             cursor_context.get("microsoft_mail_delta_link"),
+                            self.retry_policy,
                         )
                         used_incremental = True
                         if next_cursor:
                             cursor_updates["microsoft_mail_delta_link"] = next_cursor
-                    except ProviderReadError:
+                    except ProviderReadError as exc:
+                        if exc.failure_class in {
+                            ProviderFailureClass.throttled,
+                            ProviderFailureClass.transient,
+                            ProviderFailureClass.provider_unavailable,
+                            ProviderFailureClass.auth,
+                        }:
+                            raise
                         fallback_reasons.append(
                             "Microsoft mail delta failed; full read fallback used."
+                        )
+                        failure_class = failure_class or (
+                            exc.failure_class or ProviderFailureClass.cursor_expired
                         )
                         messages = await _fetch_microsoft_messages(
                             client,
                             account,
                             local_date,
                             headers,
+                            self.retry_policy,
                         )
                 else:
                     messages = await _fetch_microsoft_messages(
@@ -276,6 +318,7 @@ class ProviderReadClient:
                         account,
                         local_date,
                         headers,
+                        self.retry_policy,
                     )
             events: list[FetchedProviderCalendarEvent] = []
             if account.calendar_enabled:
@@ -287,19 +330,31 @@ class ProviderReadClient:
                             local_date,
                             headers,
                             cursor_context.get("microsoft_calendar_delta_link"),
+                            self.retry_policy,
                         )
                         used_incremental = True
                         if next_cursor:
                             cursor_updates["microsoft_calendar_delta_link"] = next_cursor
-                    except ProviderReadError:
+                    except ProviderReadError as exc:
+                        if exc.failure_class in {
+                            ProviderFailureClass.throttled,
+                            ProviderFailureClass.transient,
+                            ProviderFailureClass.provider_unavailable,
+                            ProviderFailureClass.auth,
+                        }:
+                            raise
                         fallback_reasons.append(
                             "Microsoft calendar delta failed; full read fallback used."
+                        )
+                        failure_class = failure_class or (
+                            exc.failure_class or ProviderFailureClass.cursor_expired
                         )
                         events = await _fetch_microsoft_calendar_events(
                             client,
                             account,
                             local_date,
                             headers,
+                            self.retry_policy,
                         )
                 else:
                     events = await _fetch_microsoft_calendar_events(
@@ -307,6 +362,7 @@ class ProviderReadClient:
                         account,
                         local_date,
                         headers,
+                        self.retry_policy,
                     )
         return ProviderFetchResult(
             messages=messages,
@@ -314,6 +370,7 @@ class ProviderReadClient:
             fallback_reason=" ".join(fallback_reasons) or None,
             cursor_updates=cursor_updates,
             used_incremental=used_incremental,
+            failure_class=failure_class,
         )
 
 
@@ -322,10 +379,16 @@ async def _fetch_google_messages(
     account: ProviderAccountRecord,
     local_date: str,
     headers: dict[str, str],
+    retry_policy: ProviderRetryPolicy | None,
 ) -> tuple[list[FetchedProviderMessage], str | None]:
     try:
-        list_response = await client.get(
+        list_response = await provider_request(
+            client,
+            "GET",
             GOOGLE_GMAIL_MESSAGES_URL,
+            provider=ProviderKind.google,
+            service="gmail_messages",
+            retry_policy=retry_policy,
             headers=headers,
             params={
                 "maxResults": "10",
@@ -340,7 +403,14 @@ async def _fetch_google_messages(
             message_id = str(message_ref.get("id") or "")
             if not message_id:
                 continue
-            payloads.append(await _fetch_google_message_metadata(client, message_id, headers))
+            payloads.append(
+                await _fetch_google_message_metadata(
+                    client,
+                    message_id,
+                    headers,
+                    retry_policy,
+                )
+            )
         return (
             [_google_message_to_source(account, local_date, payload) for payload in payloads],
             _latest_google_history_id(payloads),
@@ -350,6 +420,8 @@ async def _fetch_google_messages(
             f"Google Gmail read failed with HTTP {exc.response.status_code}.",
             status_code=exc.response.status_code,
         ) from exc
+    except ProviderRequestError as exc:
+        raise _read_error(exc) from exc
     except httpx.HTTPError as exc:
         raise ProviderReadError(f"Google Gmail read failed: {exc.__class__.__name__}.") from exc
 
@@ -360,10 +432,16 @@ async def _fetch_google_history_messages(
     local_date: str,
     headers: dict[str, str],
     start_history_id: str,
+    retry_policy: ProviderRetryPolicy | None,
 ) -> tuple[list[FetchedProviderMessage], str | None]:
     try:
-        response = await client.get(
+        response = await provider_request(
+            client,
+            "GET",
             GOOGLE_GMAIL_HISTORY_URL,
+            provider=ProviderKind.google,
+            service="gmail_history",
+            retry_policy=retry_policy,
             headers=headers,
             params={
                 "startHistoryId": start_history_id,
@@ -375,7 +453,12 @@ async def _fetch_google_history_messages(
         payload = response.json()
         message_ids = _google_history_message_ids(payload)
         message_payloads = [
-            await _fetch_google_message_metadata(client, message_id, headers)
+            await _fetch_google_message_metadata(
+                client,
+                message_id,
+                headers,
+                retry_policy,
+            )
             for message_id in message_ids[:10]
         ]
         return (
@@ -390,6 +473,8 @@ async def _fetch_google_history_messages(
             f"Google Gmail history read failed with HTTP {exc.response.status_code}.",
             status_code=exc.response.status_code,
         ) from exc
+    except ProviderRequestError as exc:
+        raise _read_error(exc) from exc
     except httpx.HTTPError as exc:
         raise ProviderReadError(
             f"Google Gmail history read failed: {exc.__class__.__name__}."
@@ -400,21 +485,29 @@ async def _fetch_google_message_metadata(
     client: httpx.AsyncClient,
     message_id: str,
     headers: dict[str, str],
+    retry_policy: ProviderRetryPolicy | None,
 ) -> dict[str, Any]:
-    metadata_response = await client.get(
-        f"{GOOGLE_GMAIL_MESSAGES_URL}/{message_id}",
-        headers=headers,
-        params=[
-            ("format", "metadata"),
-            ("metadataHeaders", "Subject"),
-            ("metadataHeaders", "From"),
-            ("metadataHeaders", "To"),
-            ("metadataHeaders", "Date"),
-            ("metadataHeaders", "Message-ID"),
-            ("metadataHeaders", "List-Unsubscribe"),
-        ],
-    )
-    metadata_response.raise_for_status()
+    try:
+        metadata_response = await provider_request(
+            client,
+            "GET",
+            f"{GOOGLE_GMAIL_MESSAGES_URL}/{message_id}",
+            provider=ProviderKind.google,
+            service="gmail_metadata",
+            retry_policy=retry_policy,
+            headers=headers,
+            params=[
+                ("format", "metadata"),
+                ("metadataHeaders", "Subject"),
+                ("metadataHeaders", "From"),
+                ("metadataHeaders", "To"),
+                ("metadataHeaders", "Date"),
+                ("metadataHeaders", "Message-ID"),
+                ("metadataHeaders", "List-Unsubscribe"),
+            ],
+        )
+    except ProviderRequestError as exc:
+        raise _read_error(exc) from exc
     payload = metadata_response.json()
     return payload if isinstance(payload, dict) else {}
 
@@ -424,11 +517,17 @@ async def _fetch_google_calendar_events(
     account: ProviderAccountRecord,
     local_date: str,
     headers: dict[str, str],
+    retry_policy: ProviderRetryPolicy | None,
 ) -> list[FetchedProviderCalendarEvent]:
     start, end = _day_window(local_date)
     try:
-        response = await client.get(
+        response = await provider_request(
+            client,
+            "GET",
             GOOGLE_CALENDAR_EVENTS_URL,
+            provider=ProviderKind.google,
+            service="google_calendar_events",
+            retry_policy=retry_policy,
             headers=headers,
             params={
                 "timeMin": _rfc3339(start),
@@ -448,6 +547,8 @@ async def _fetch_google_calendar_events(
         raise ProviderReadError(
             f"Google Calendar read failed with HTTP {exc.response.status_code}."
         ) from exc
+    except ProviderRequestError as exc:
+        raise _read_error(exc) from exc
     except httpx.HTTPError as exc:
         raise ProviderReadError(
             f"Google Calendar read failed: {exc.__class__.__name__}."
@@ -459,10 +560,16 @@ async def _fetch_microsoft_messages(
     account: ProviderAccountRecord,
     local_date: str,
     headers: dict[str, str],
+    retry_policy: ProviderRetryPolicy | None,
 ) -> list[FetchedProviderMessage]:
     try:
-        response = await client.get(
+        response = await provider_request(
+            client,
+            "GET",
             MICROSOFT_MESSAGES_URL,
+            provider=ProviderKind.microsoft,
+            service="microsoft_messages",
+            retry_policy=retry_policy,
             headers=headers,
             params={
                 "$top": "10",
@@ -482,6 +589,8 @@ async def _fetch_microsoft_messages(
         raise ProviderReadError(
             f"Microsoft mail read failed with HTTP {exc.response.status_code}."
         ) from exc
+    except ProviderRequestError as exc:
+        raise _read_error(exc) from exc
     except httpx.HTTPError as exc:
         raise ProviderReadError(f"Microsoft mail read failed: {exc.__class__.__name__}.") from exc
 
@@ -492,13 +601,27 @@ async def _fetch_microsoft_messages_delta(
     local_date: str,
     headers: dict[str, str],
     delta_link: str | None,
+    retry_policy: ProviderRetryPolicy | None,
 ) -> tuple[list[FetchedProviderMessage], str | None]:
     try:
         if delta_link:
-            response = await client.get(delta_link, headers=headers)
+            response = await provider_request(
+                client,
+                "GET",
+                delta_link,
+                provider=ProviderKind.microsoft,
+                service="microsoft_mail_delta",
+                retry_policy=retry_policy,
+                headers=headers,
+            )
         else:
-            response = await client.get(
+            response = await provider_request(
+                client,
+                "GET",
                 MICROSOFT_MESSAGES_DELTA_URL,
+                provider=ProviderKind.microsoft,
+                service="microsoft_mail_delta",
+                retry_policy=retry_policy,
                 headers=headers,
                 params={
                     "$top": "10",
@@ -523,6 +646,8 @@ async def _fetch_microsoft_messages_delta(
             f"Microsoft mail delta failed with HTTP {exc.response.status_code}.",
             status_code=exc.response.status_code,
         ) from exc
+    except ProviderRequestError as exc:
+        raise _read_error(exc) from exc
     except httpx.HTTPError as exc:
         raise ProviderReadError(
             f"Microsoft mail delta failed: {exc.__class__.__name__}."
@@ -534,11 +659,17 @@ async def _fetch_microsoft_calendar_events(
     account: ProviderAccountRecord,
     local_date: str,
     headers: dict[str, str],
+    retry_policy: ProviderRetryPolicy | None,
 ) -> list[FetchedProviderCalendarEvent]:
     start, end = _day_window(local_date)
     try:
-        response = await client.get(
+        response = await provider_request(
+            client,
+            "GET",
             MICROSOFT_CALENDAR_VIEW_URL,
+            provider=ProviderKind.microsoft,
+            service="microsoft_calendar_events",
+            retry_policy=retry_policy,
             headers=headers,
             params={
                 "startDateTime": start.isoformat(),
@@ -556,6 +687,8 @@ async def _fetch_microsoft_calendar_events(
         raise ProviderReadError(
             f"Microsoft calendar read failed with HTTP {exc.response.status_code}."
         ) from exc
+    except ProviderRequestError as exc:
+        raise _read_error(exc) from exc
     except httpx.HTTPError as exc:
         raise ProviderReadError(
             f"Microsoft calendar read failed: {exc.__class__.__name__}."
@@ -568,14 +701,28 @@ async def _fetch_microsoft_calendar_events_delta(
     local_date: str,
     headers: dict[str, str],
     delta_link: str | None,
+    retry_policy: ProviderRetryPolicy | None,
 ) -> tuple[list[FetchedProviderCalendarEvent], str | None]:
     start, end = _day_window(local_date)
     try:
         if delta_link:
-            response = await client.get(delta_link, headers=headers)
+            response = await provider_request(
+                client,
+                "GET",
+                delta_link,
+                provider=ProviderKind.microsoft,
+                service="microsoft_calendar_delta",
+                retry_policy=retry_policy,
+                headers=headers,
+            )
         else:
-            response = await client.get(
+            response = await provider_request(
+                client,
+                "GET",
                 MICROSOFT_CALENDAR_VIEW_DELTA_URL,
+                provider=ProviderKind.microsoft,
+                service="microsoft_calendar_delta",
+                retry_policy=retry_policy,
                 headers=headers,
                 params={
                     "startDateTime": start.isoformat(),
@@ -598,6 +745,8 @@ async def _fetch_microsoft_calendar_events_delta(
             f"Microsoft calendar delta failed with HTTP {exc.response.status_code}.",
             status_code=exc.response.status_code,
         ) from exc
+    except ProviderRequestError as exc:
+        raise _read_error(exc) from exc
     except httpx.HTTPError as exc:
         raise ProviderReadError(
             f"Microsoft calendar delta failed: {exc.__class__.__name__}."
@@ -882,6 +1031,16 @@ def _normalize_cursor_context(
             }
         )
     return ProviderCursorContext()
+
+
+def _read_error(error: ProviderRequestError) -> ProviderReadError:
+    return ProviderReadError(
+        sanitized_failure_detail(error),
+        status_code=error.status_code,
+        failure_class=error.failure_class,
+        retry_after=error.retry_after,
+        retryable=error.retryable,
+    )
 
 
 def _google_history_message_ids(payload: dict[str, Any]) -> list[str]:

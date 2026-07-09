@@ -101,6 +101,24 @@ class ProviderSyncState(StrEnum):
     failed = "failed"
 
 
+class ProviderFailureClass(StrEnum):
+    throttled = "throttled"
+    transient = "transient"
+    provider_unavailable = "provider_unavailable"
+    auth = "auth"
+    cursor_expired = "cursor_expired"
+    permanent = "permanent"
+
+
+class ProviderOperationalSyncStatus(StrEnum):
+    healthy = "healthy"
+    degraded = "degraded"
+    throttled = "throttled"
+    auth_required = "auth_required"
+    stale = "stale"
+    paused = "paused"
+
+
 class OAuthConnectionStatus(StrEnum):
     pending = "pending"
     completed = "completed"
@@ -358,6 +376,11 @@ class ProviderAccountRecord(BaseModel):
     token_expires_at: datetime | None = None
     last_sync_at: datetime | None = None
     last_sync_error: str | None = None
+    last_sync_status: ProviderOperationalSyncStatus = ProviderOperationalSyncStatus.healthy
+    last_sync_error_class: ProviderFailureClass | None = None
+    retry_after: datetime | None = None
+    stale_since: datetime | None = None
+    last_status_detail: str | None = None
     correlation_id: str = Field(default_factory=lambda: str(uuid4()))
     audit_correlation_id: str = Field(default_factory=lambda: str(uuid4()))
     created_at: datetime = Field(default_factory=utc_now)
@@ -380,6 +403,11 @@ class ProviderAccountSummary(BaseModel):
     calendar_enabled: bool
     last_sync_at: datetime | None = None
     last_sync_error: str | None = None
+    last_sync_status: ProviderOperationalSyncStatus = ProviderOperationalSyncStatus.healthy
+    last_sync_error_class: ProviderFailureClass | None = None
+    retry_after: datetime | None = None
+    stale_since: datetime | None = None
+    last_status_detail: str | None = None
     checked_at: datetime = Field(default_factory=utc_now)
 
 
@@ -410,6 +438,11 @@ class ProviderAccountHealthResponse(BaseModel):
     detail: str
     last_sync_at: datetime | None = None
     last_sync_error: str | None = None
+    last_sync_status: ProviderOperationalSyncStatus = ProviderOperationalSyncStatus.healthy
+    last_sync_error_class: ProviderFailureClass | None = None
+    retry_after: datetime | None = None
+    stale_since: datetime | None = None
+    last_status_detail: str | None = None
 
 
 class ProviderDisconnectResponse(BaseModel):

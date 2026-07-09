@@ -1084,6 +1084,17 @@
             "title": "Detail",
             "type": "string"
           },
+          "last_status_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Status Detail"
+          },
           "last_sync_at": {
             "anyOf": [
               {
@@ -1107,6 +1118,20 @@
             ],
             "title": "Last Sync Error"
           },
+          "last_sync_error_class": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderFailureClass"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_sync_status": {
+            "$ref": "#/components/schemas/ProviderOperationalSyncStatus",
+            "default": "healthy"
+          },
           "provider": {
             "$ref": "#/components/schemas/ProviderKind"
           },
@@ -1114,6 +1139,30 @@
             "format": "uuid",
             "title": "Provider Account Id",
             "type": "string"
+          },
+          "retry_after": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry After"
+          },
+          "stale_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stale Since"
           },
           "status": {
             "$ref": "#/components/schemas/ProviderAccountStatus"
@@ -1177,6 +1226,17 @@
             "title": "Granted Scopes",
             "type": "array"
           },
+          "last_status_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Status Detail"
+          },
           "last_sync_at": {
             "anyOf": [
               {
@@ -1199,6 +1259,20 @@
               }
             ],
             "title": "Last Sync Error"
+          },
+          "last_sync_error_class": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderFailureClass"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_sync_status": {
+            "$ref": "#/components/schemas/ProviderOperationalSyncStatus",
+            "default": "healthy"
           },
           "mail_enabled": {
             "title": "Mail Enabled",
@@ -1223,8 +1297,32 @@
             "title": "Provider Account Ref",
             "type": "string"
           },
+          "retry_after": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry After"
+          },
           "scope_tier": {
             "$ref": "#/components/schemas/OAuthScopeTier"
+          },
+          "stale_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stale Since"
           },
           "status": {
             "$ref": "#/components/schemas/ProviderAccountStatus"
@@ -1364,6 +1462,18 @@
         ],
         "title": "ProviderDisconnectResponse",
         "type": "object"
+      },
+      "ProviderFailureClass": {
+        "enum": [
+          "throttled",
+          "transient",
+          "provider_unavailable",
+          "auth",
+          "cursor_expired",
+          "permanent"
+        ],
+        "title": "ProviderFailureClass",
+        "type": "string"
       },
       "ProviderHealth": {
         "properties": {
@@ -1528,6 +1638,18 @@
         ],
         "title": "ProviderOAuthStartResponse",
         "type": "object"
+      },
+      "ProviderOperationalSyncStatus": {
+        "enum": [
+          "healthy",
+          "degraded",
+          "throttled",
+          "auth_required",
+          "stale",
+          "paused"
+        ],
+        "title": "ProviderOperationalSyncStatus",
+        "type": "string"
       },
       "ProviderService": {
         "enum": [

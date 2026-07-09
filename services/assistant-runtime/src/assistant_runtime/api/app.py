@@ -666,6 +666,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             detail=detail,
             last_sync_at=account.last_sync_at,
             last_sync_error=account.last_sync_error,
+            last_sync_status=account.last_sync_status,
+            last_sync_error_class=account.last_sync_error_class,
+            retry_after=account.retry_after,
+            stale_since=account.stale_since,
+            last_status_detail=account.last_status_detail,
         )
 
     @app.post("/v1/providers/webhooks/google", response_model=ProviderWebhookResponse)

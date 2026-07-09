@@ -1006,16 +1006,25 @@ export interface components {
         ProviderAccountHealthResponse: {
             /** Detail */
             detail: string;
+            /** Last Status Detail */
+            last_status_detail?: string | null;
             /** Last Sync At */
             last_sync_at?: string | null;
             /** Last Sync Error */
             last_sync_error?: string | null;
+            last_sync_error_class?: components["schemas"]["ProviderFailureClass"] | null;
+            /** @default healthy */
+            last_sync_status: components["schemas"]["ProviderOperationalSyncStatus"];
             provider: components["schemas"]["ProviderKind"];
             /**
              * Provider Account Id
              * Format: uuid
              */
             provider_account_id: string;
+            /** Retry After */
+            retry_after?: string | null;
+            /** Stale Since */
+            stale_since?: string | null;
             status: components["schemas"]["ProviderAccountStatus"];
             sync_state: components["schemas"]["ProviderSyncState"];
         };
@@ -1041,10 +1050,15 @@ export interface components {
             email: string;
             /** Granted Scopes */
             granted_scopes: string[];
+            /** Last Status Detail */
+            last_status_detail?: string | null;
             /** Last Sync At */
             last_sync_at?: string | null;
             /** Last Sync Error */
             last_sync_error?: string | null;
+            last_sync_error_class?: components["schemas"]["ProviderFailureClass"] | null;
+            /** @default healthy */
+            last_sync_status: components["schemas"]["ProviderOperationalSyncStatus"];
             /** Mail Enabled */
             mail_enabled: boolean;
             /** Missing Scopes */
@@ -1057,7 +1071,11 @@ export interface components {
             provider_account_id: string;
             /** Provider Account Ref */
             provider_account_ref: string;
+            /** Retry After */
+            retry_after?: string | null;
             scope_tier: components["schemas"]["OAuthScopeTier"];
+            /** Stale Since */
+            stale_since?: string | null;
             status: components["schemas"]["ProviderAccountStatus"];
             sync_state: components["schemas"]["ProviderSyncState"];
         };
@@ -1102,6 +1120,11 @@ export interface components {
             detail: string;
             status: components["schemas"]["ProviderAccountStatus"];
         };
+        /**
+         * ProviderFailureClass
+         * @enum {string}
+         */
+        ProviderFailureClass: "throttled" | "transient" | "provider_unavailable" | "auth" | "cursor_expired" | "permanent";
         /** ProviderHealth */
         ProviderHealth: {
             /**
@@ -1161,6 +1184,11 @@ export interface components {
             /** Requested Scopes */
             requested_scopes?: string[];
         };
+        /**
+         * ProviderOperationalSyncStatus
+         * @enum {string}
+         */
+        ProviderOperationalSyncStatus: "healthy" | "degraded" | "throttled" | "auth_required" | "stale" | "paused";
         /**
          * ProviderService
          * @enum {string}

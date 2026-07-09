@@ -21,7 +21,10 @@ from assistant_runtime.providers.oauth import (
 )
 from assistant_runtime.providers.onebrain import DisabledBrainClient
 from assistant_runtime.providers.read_adapters import ProviderReadClient
-from assistant_runtime.providers.token_refresh import ProviderTokenRefresher
+from assistant_runtime.providers.token_refresh import (
+    ProviderTokenRefresher,
+    ProviderTokenRefreshError,
+)
 from assistant_runtime.schemas import (
     JobState,
     OAuthScopeTier,
@@ -336,6 +339,32 @@ def test_local_token_payloads_skip_refresh_even_when_expiring() -> None:
     assert result.token_payload["access_token"] == "local-access-token"
 
 
+def test_token_refresher_classifies_invalid_grant_as_auth_failure() -> None:
+    app = create_app(_settings())
+    account = _store_provider_account(
+        app,
+        ProviderKind.google,
+        "old-google-token",
+        refresh_token="revoked-google-refresh-token",
+        token_expires_at=utc_now() - timedelta(minutes=1),
+    )
+    refresher = ProviderTokenRefresher(
+        _settings(),
+        app.state.container.secrets,
+        app.state.container.providers,
+        transport=httpx.MockTransport(_google_invalid_grant_handler),
+    )
+
+    try:
+        asyncio.run(refresher.token_for_read(account))
+    except ProviderTokenRefreshError as exc:
+        assert exc.failure_class == "auth"
+        assert exc.retryable is False
+        assert "revoked-google-refresh-token" not in exc.detail
+        return
+    raise AssertionError("expected refresh failure")
+
+
 def test_google_read_adapter_uses_gmail_history_cursor() -> None:
     account = _provider_account(ProviderKind.google)
     reader = ProviderReadClient(transport=httpx.MockTransport(_google_history_handler))
@@ -487,6 +516,81 @@ def test_worker_refreshes_token_before_sync_without_onebrain_token_leakage() -> 
         updated.refresh_token_secret_ref,
     ]
     assert all(leaked not in str(source_records) for leaked in leaked_values)
+
+
+def test_worker_sync_marks_throttled_retry_after_status_without_token_leakage() -> None:
+    app = create_app(_settings())
+    account = _store_provider_account(app, ProviderKind.microsoft, "live-throttled-token")
+    app.state.container.providers.enqueue_sync_job(app.state.container.queue, account, "manual")
+    worker = AssistantWorker(
+        worker_id="provider-throttled-worker-test",
+        actions=app.state.container.actions,
+        outbox=app.state.container.outbox,
+        queue=app.state.container.queue,
+        policy=AssistantActionPolicyEngine(),
+        telegram=app.state.container.telegram,
+        providers=app.state.container.providers,
+        secrets=app.state.container.secrets,
+        brain=app.state.container.brain,
+        provider_reader=ProviderReadClient(
+            transport=httpx.MockTransport(_microsoft_retry_after_handler)
+        ),
+    )
+
+    result = worker.run_once()
+
+    updated = app.state.container.providers.get_account(account.provider_account_id)
+    summary = summarize_provider_account(updated)
+    records = list(app.state.container.brain.records.values())
+    assert result.jobs_processed == 1
+    assert updated is not None
+    assert updated.sync_state == "degraded"
+    assert updated.last_sync_status == "throttled"
+    assert updated.last_sync_error_class == "throttled"
+    assert updated.retry_after is not None
+    assert summary.last_sync_status == "throttled"
+    assert summary.retry_after == updated.retry_after
+    assert all("live-throttled-token" not in str(record) for record in records)
+    assert all("stored-refresh-token" not in str(record) for record in records)
+
+
+def test_worker_sync_skips_when_retry_after_is_pending() -> None:
+    app = create_app(_settings())
+    account = _store_provider_account(app, ProviderKind.google, "live-google-token")
+    account = app.state.container.providers.update_account_sync_status(
+        account.provider_account_id,
+        last_sync_status="throttled",
+        last_status_detail="Provider sync is throttled.",
+        last_sync_error_class="throttled",
+        retry_after=utc_now() + timedelta(minutes=10),
+        stale_since=utc_now(),
+    )
+    app.state.container.providers.enqueue_sync_job(app.state.container.queue, account, "manual")
+
+    def _fail_on_read(request: httpx.Request) -> httpx.Response:
+        raise AssertionError(f"unexpected provider read: {request.url}")
+
+    worker = AssistantWorker(
+        worker_id="provider-retry-after-worker-test",
+        actions=app.state.container.actions,
+        outbox=app.state.container.outbox,
+        queue=app.state.container.queue,
+        policy=AssistantActionPolicyEngine(),
+        telegram=app.state.container.telegram,
+        providers=app.state.container.providers,
+        secrets=app.state.container.secrets,
+        brain=app.state.container.brain,
+        provider_reader=ProviderReadClient(transport=httpx.MockTransport(_fail_on_read)),
+    )
+
+    result = worker.run_once()
+
+    updated = app.state.container.providers.get_account(account.provider_account_id)
+    assert result.jobs_processed == 1
+    assert updated is not None
+    assert updated.last_sync_status == "throttled"
+    assert updated.retry_after is not None
+    assert "waiting for retry-after" in (updated.last_status_detail or "")
 
 
 def test_worker_sync_degrades_on_live_read_failure_without_token_leakage() -> None:
@@ -761,6 +865,15 @@ def _microsoft_refresh_handler_without_refresh_token(
     )
 
 
+def _google_invalid_grant_handler(request: httpx.Request) -> httpx.Response:
+    assert request.url.path == "/token"
+    assert b"refresh_token=revoked-google-refresh-token" in request.content
+    return httpx.Response(
+        400,
+        json={"error": "invalid_grant", "error_description": "Token revoked."},
+    )
+
+
 def _google_history_handler(request: httpx.Request) -> httpx.Response:
     assert request.headers["authorization"] == "Bearer live-google-token"
     if request.url.path == "/gmail/v1/users/me/history":
@@ -861,6 +974,15 @@ def _microsoft_delta_handler(request: httpx.Request) -> httpx.Response:
             },
         )
     return httpx.Response(404, json={"error": "unexpected path"})
+
+
+def _microsoft_retry_after_handler(request: httpx.Request) -> httpx.Response:
+    assert request.headers["authorization"] == "Bearer live-throttled-token"
+    return httpx.Response(
+        429,
+        headers={"Retry-After": "120"},
+        json={"error": {"code": "TooManyRequests", "message": "retry later"}},
+    )
 
 
 def _rotated_google_sync_handler(request: httpx.Request) -> httpx.Response:

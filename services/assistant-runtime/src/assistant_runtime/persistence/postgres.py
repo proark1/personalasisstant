@@ -31,7 +31,9 @@ from assistant_runtime.schemas import (
     OutboxState,
     ProviderAccountRecord,
     ProviderAccountStatus,
+    ProviderFailureClass,
     ProviderKind,
+    ProviderOperationalSyncStatus,
     ProviderSubscriptionRecord,
     ProviderSyncState,
     ScopedIdentity,
@@ -753,6 +755,11 @@ class PostgresProviderStore:
                   refresh_token_secret_ref = EXCLUDED.refresh_token_secret_ref,
                   token_expires_at = EXCLUDED.token_expires_at,
                   last_sync_error = NULL,
+                  last_sync_status = 'healthy',
+                  last_sync_error_class = NULL,
+                  retry_after = NULL,
+                  stale_since = NULL,
+                  last_status_detail = NULL,
                   updated_at = EXCLUDED.updated_at
                 RETURNING *
                 """,
@@ -825,12 +832,55 @@ class PostgresProviderStore:
             ).fetchall()
         return [_provider_account_from_row(row) for row in rows]
 
+    def update_account_sync_status(
+        self,
+        provider_account_id: UUID,
+        *,
+        last_sync_status: ProviderOperationalSyncStatus,
+        last_status_detail: str | None = None,
+        last_sync_error_class: ProviderFailureClass | None = None,
+        retry_after=None,
+        stale_since=None,
+    ) -> ProviderAccountRecord:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                UPDATE assistant_connected_provider_accounts
+                SET last_sync_status = %s,
+                    last_status_detail = %s,
+                    last_sync_error_class = %s,
+                    retry_after = %s,
+                    stale_since = %s,
+                    updated_at = %s
+                WHERE provider_account_id = %s
+                RETURNING *
+                """,
+                (
+                    ProviderOperationalSyncStatus(last_sync_status),
+                    last_status_detail,
+                    ProviderFailureClass(last_sync_error_class)
+                    if last_sync_error_class is not None
+                    else None,
+                    retry_after,
+                    stale_since,
+                    utc_now(),
+                    provider_account_id,
+                ),
+            ).fetchone()
+        if row is None:
+            raise KeyError(provider_account_id)
+        return _provider_account_from_row(row)
+
     def disconnect_account(self, provider_account_id: UUID) -> ProviderAccountRecord:
         with _connect(self.database_url) as conn:
             row = conn.execute(
                 """
                 UPDATE assistant_connected_provider_accounts
-                SET status = 'disconnected', sync_state = 'idle', updated_at = %s
+                SET status = 'disconnected',
+                    sync_state = 'idle',
+                    last_sync_status = 'paused',
+                    last_status_detail = 'Provider account disconnected; sync is paused.',
+                    updated_at = %s
                 WHERE provider_account_id = %s
                 RETURNING *
                 """,
@@ -855,6 +905,11 @@ class PostgresProviderStore:
                     sync_state = 'healthy',
                     last_sync_at = %s,
                     last_sync_error = NULL,
+                    last_sync_status = 'healthy',
+                    last_sync_error_class = NULL,
+                    retry_after = NULL,
+                    stale_since = NULL,
+                    last_status_detail = 'Provider read-only sync completed.',
                     updated_at = %s
                 WHERE provider_account_id = %s
                 RETURNING *
@@ -871,11 +926,14 @@ class PostgresProviderStore:
                 SET status = 'degraded',
                     sync_state = 'degraded',
                     last_sync_error = %s,
+                    last_sync_status = 'degraded',
+                    last_status_detail = %s,
+                    stale_since = COALESCE(stale_since, %s),
                     updated_at = %s
                 WHERE provider_account_id = %s
                 RETURNING *
                 """,
-                (reason, utc_now(), provider_account_id),
+                (reason, reason, utc_now(), utc_now(), provider_account_id),
             ).fetchone()
         return _provider_account_from_row(row)
 
@@ -1615,6 +1673,15 @@ def _provider_account_from_row(row: dict[str, Any]) -> ProviderAccountRecord:
         token_expires_at=row["token_expires_at"],
         last_sync_at=row["last_sync_at"],
         last_sync_error=row["last_sync_error"],
+        last_sync_status=ProviderOperationalSyncStatus(
+            row.get("last_sync_status") or ProviderOperationalSyncStatus.healthy
+        ),
+        last_sync_error_class=ProviderFailureClass(row["last_sync_error_class"])
+        if row.get("last_sync_error_class")
+        else None,
+        retry_after=row.get("retry_after"),
+        stale_since=row.get("stale_since"),
+        last_status_detail=row.get("last_status_detail"),
         correlation_id=row["correlation_id"],
         audit_correlation_id=row["audit_correlation_id"],
         created_at=row["created_at"],

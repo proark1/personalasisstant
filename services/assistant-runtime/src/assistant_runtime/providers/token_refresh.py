@@ -16,13 +16,30 @@ from assistant_runtime.providers.oauth import (
     ProviderOAuthClient,
     token_expires_at,
 )
+from assistant_runtime.providers.reliability import (
+    ProviderFailureClass,
+    ProviderRequestError,
+    ProviderRetryPolicy,
+    provider_request,
+    sanitized_failure_detail,
+)
 from assistant_runtime.schemas import ProviderAccountRecord, ProviderKind, utc_now
 
 
 class ProviderTokenRefreshError(RuntimeError):
-    def __init__(self, detail: str) -> None:
+    def __init__(
+        self,
+        detail: str,
+        *,
+        failure_class: ProviderFailureClass | None = None,
+        retry_after=None,
+        retryable: bool = False,
+    ) -> None:
         super().__init__(detail)
         self.detail = detail
+        self.failure_class = failure_class
+        self.retry_after = retry_after
+        self.retryable = retryable
 
 
 @dataclass(frozen=True)
@@ -42,6 +59,7 @@ class ProviderTokenRefresher:
         timeout_seconds: float = 10.0,
         transport: httpx.AsyncBaseTransport | None = None,
         refresh_margin: timedelta = timedelta(minutes=5),
+        retry_policy: ProviderRetryPolicy | None = None,
     ) -> None:
         self.settings = settings
         self.secrets = secrets
@@ -50,6 +68,7 @@ class ProviderTokenRefresher:
         self.transport = transport
         self.refresh_margin = refresh_margin
         self.oauth = ProviderOAuthClient(settings)
+        self.retry_policy = retry_policy
 
     async def token_for_read(
         self,
@@ -61,12 +80,18 @@ class ProviderTokenRefresher:
 
         refresh_token = str(token_payload.get("refresh_token") or "")
         if not refresh_token:
-            raise ProviderTokenRefreshError("Provider refresh token is unavailable.")
+            raise ProviderTokenRefreshError(
+                "Provider refresh token is unavailable.",
+                failure_class=ProviderFailureClass.auth,
+            )
 
         provider = ProviderKind(account.provider)
         config = self.oauth.configuration(provider)
         if not config.configured:
-            raise ProviderTokenRefreshError("Provider OAuth refresh is not configured.")
+            raise ProviderTokenRefreshError(
+                "Provider OAuth refresh is not configured.",
+                failure_class=ProviderFailureClass.permanent,
+            )
 
         form = {
             "client_id": config.client_id,
@@ -84,10 +109,22 @@ class ProviderTokenRefresher:
                 timeout=self.timeout_seconds,
                 transport=self.transport,
             ) as client:
-                response = await client.post(_token_url(provider, config.tenant_id), data=form)
-                response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise ProviderTokenRefreshError("Provider token refresh failed.") from exc
+                response = await provider_request(
+                    client,
+                    "POST",
+                    _token_url(provider, config.tenant_id),
+                    provider=provider,
+                    service="token_refresh",
+                    retry_policy=self.retry_policy,
+                    data=form,
+                )
+        except ProviderRequestError as exc:
+            raise ProviderTokenRefreshError(
+                sanitized_failure_detail(exc),
+                failure_class=exc.failure_class,
+                retry_after=exc.retry_after,
+                retryable=exc.retryable,
+            ) from exc
 
         rotated_payload = _merge_token_payload(token_payload, response.json())
         old_secret_ref = account.refresh_token_secret_ref
@@ -112,9 +149,15 @@ class ProviderTokenRefresher:
         try:
             payload = json.loads(self.secrets.retrieve_secret(secret_ref))
         except Exception as exc:
-            raise ProviderTokenRefreshError("Provider token secret is unavailable.") from exc
+            raise ProviderTokenRefreshError(
+                "Provider token secret is unavailable.",
+                failure_class=ProviderFailureClass.auth,
+            ) from exc
         if not isinstance(payload, dict):
-            raise ProviderTokenRefreshError("Provider token secret is malformed.")
+            raise ProviderTokenRefreshError(
+                "Provider token secret is malformed.",
+                failure_class=ProviderFailureClass.permanent,
+            )
         return payload
 
     def _should_refresh(self, account: ProviderAccountRecord) -> bool:

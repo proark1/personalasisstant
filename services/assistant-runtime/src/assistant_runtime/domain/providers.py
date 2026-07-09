@@ -15,7 +15,9 @@ from assistant_runtime.schemas import (
     ProviderAccountStatus,
     ProviderAccountSummary,
     ProviderCapabilityStatus,
+    ProviderFailureClass,
     ProviderKind,
+    ProviderOperationalSyncStatus,
     ProviderService,
     ProviderSubscriptionRecord,
     ProviderSyncState,
@@ -117,6 +119,11 @@ class InMemoryProviderStore:
                 account.refresh_token_secret_ref = refresh_token_secret_ref
                 account.token_expires_at = token_expires_at
                 account.last_sync_error = None
+                account.last_sync_status = ProviderOperationalSyncStatus.healthy
+                account.last_sync_error_class = None
+                account.retry_after = None
+                account.stale_since = None
+                account.last_status_detail = None
                 account.updated_at = utc_now()
                 return account
 
@@ -162,6 +169,30 @@ class InMemoryProviderStore:
         with self._lock:
             return sorted(self._accounts.values(), key=lambda account: account.created_at)
 
+    def update_account_sync_status(
+        self,
+        provider_account_id: UUID,
+        *,
+        last_sync_status: ProviderOperationalSyncStatus,
+        last_status_detail: str | None = None,
+        last_sync_error_class: ProviderFailureClass | None = None,
+        retry_after=None,
+        stale_since=None,
+    ) -> ProviderAccountRecord:
+        with self._lock:
+            account = self._require_account(provider_account_id)
+            account.last_sync_status = ProviderOperationalSyncStatus(last_sync_status)
+            account.last_status_detail = last_status_detail
+            account.last_sync_error_class = (
+                ProviderFailureClass(last_sync_error_class)
+                if last_sync_error_class is not None
+                else None
+            )
+            account.retry_after = retry_after
+            account.stale_since = stale_since
+            account.updated_at = utc_now()
+            return account
+
     def disconnect_account(self, provider_account_id: UUID) -> ProviderAccountRecord:
         with self._lock:
             account = self._accounts.get(provider_account_id)
@@ -169,6 +200,8 @@ class InMemoryProviderStore:
                 raise ProviderAccountNotFound(str(provider_account_id))
             account.status = ProviderAccountStatus.disconnected
             account.sync_state = ProviderSyncState.idle
+            account.last_sync_status = ProviderOperationalSyncStatus.paused
+            account.last_status_detail = "Provider account disconnected; sync is paused."
             account.updated_at = utc_now()
             return account
 
@@ -185,6 +218,11 @@ class InMemoryProviderStore:
             account.sync_state = ProviderSyncState.healthy
             account.last_sync_at = utc_now()
             account.last_sync_error = None
+            account.last_sync_status = ProviderOperationalSyncStatus.healthy
+            account.last_sync_error_class = None
+            account.retry_after = None
+            account.stale_since = None
+            account.last_status_detail = "Provider read-only sync completed."
             account.updated_at = account.last_sync_at
             return account
 
@@ -194,6 +232,9 @@ class InMemoryProviderStore:
             account.status = ProviderAccountStatus.degraded
             account.sync_state = ProviderSyncState.degraded
             account.last_sync_error = reason
+            account.last_sync_status = ProviderOperationalSyncStatus.degraded
+            account.last_status_detail = reason
+            account.stale_since = account.stale_since or utc_now()
             account.updated_at = utc_now()
             return account
 
@@ -375,6 +416,11 @@ def summarize_provider_account(account: ProviderAccountRecord) -> ProviderAccoun
         calendar_enabled=account.calendar_enabled,
         last_sync_at=account.last_sync_at,
         last_sync_error=account.last_sync_error,
+        last_sync_status=account.last_sync_status,
+        last_sync_error_class=account.last_sync_error_class,
+        retry_after=account.retry_after,
+        stale_since=account.stale_since,
+        last_status_detail=account.last_status_detail,
     )
 
 
