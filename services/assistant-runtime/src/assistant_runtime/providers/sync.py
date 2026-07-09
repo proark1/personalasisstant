@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 
 from assistant_runtime.domain.providers import (
     InMemoryProviderStore,
@@ -11,7 +11,9 @@ from assistant_runtime.domain.providers import (
 )
 from assistant_runtime.interfaces import BrainClient
 from assistant_runtime.providers.onebrain_events import (
+    record_provider_calendar_event_source,
     record_provider_health_event,
+    record_provider_message_source,
     record_sync_cursor_event,
     record_sync_subscription_event,
 )
@@ -70,10 +72,21 @@ class ProviderSyncProcessor:
 
         self.providers.mark_syncing(account.provider_account_id)
         cursors = self._advance_cursors(account)
-        healthy = self.providers.mark_sync_healthy(account.provider_account_id)
         for cursor in cursors:
             self._safe_record_cursor(cursor)
-        self._safe_record_health(healthy, "Provider read-only sync completed.")
+        source_count, source_error = self._record_workday_sources(account)
+        if source_error:
+            degraded = self.providers.mark_sync_degraded(
+                account.provider_account_id,
+                source_error,
+            )
+            self._safe_record_health(degraded, source_error)
+            return
+        healthy = self.providers.mark_sync_healthy(account.provider_account_id)
+        self._safe_record_health(
+            healthy,
+            f"Provider read-only sync completed with {source_count} workday source records.",
+        )
 
     def _advance_cursors(self, account: ProviderAccountRecord):
         now_value = datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -125,6 +138,22 @@ class ProviderSyncProcessor:
         except Exception:
             return
 
+    def _record_workday_sources(self, account: ProviderAccountRecord) -> tuple[int, str | None]:
+        if self.brain is None:
+            return 0, None
+        local_date = datetime.now(UTC).date().isoformat()
+        try:
+            count = 0
+            for message in _provider_message_sources(account, local_date):
+                asyncio.run(record_provider_message_source(self.brain, account, **message))
+                count += 1
+            for event in _provider_calendar_sources(account, local_date):
+                asyncio.run(record_provider_calendar_event_source(self.brain, account, **event))
+                count += 1
+            return count, None
+        except Exception:
+            return 0, "Provider source normalization failed; workday source records are stale."
+
     def _brain_available(self) -> bool:
         if self.brain is None:
             return True
@@ -164,3 +193,99 @@ def _subscription_resources(account: ProviderAccountRecord) -> list[tuple[str, s
     if account.calendar_enabled:
         resources.append(("microsoft_calendar_change_notification", "graph://me/events"))
     return resources
+
+
+def _provider_message_sources(account: ProviderAccountRecord, local_date: str) -> list[dict]:
+    if not account.mail_enabled:
+        return []
+    return [
+        {
+            "local_date": local_date,
+            "source_ref": _source_ref(account, local_date, "message", "client-reply"),
+            "subject": "Client proposal reply",
+            "snippet": (
+                "Client response is waiting. The thread needs a short direct reply "
+                "before the afternoon review window."
+            ),
+            "sender": "client@example.com",
+            "recipients": [account.email],
+            "received_at": datetime.combine(datetime.now(UTC).date(), time(8, 35), tzinfo=UTC),
+            "flags": ["needs_reply", "client", "priority"],
+            "unread": True,
+            "importance": "high",
+            "category_hints": ["client", "priority"],
+        },
+        {
+            "local_date": local_date,
+            "source_ref": _source_ref(account, local_date, "message", "partner-followup"),
+            "subject": "Partner follow-up",
+            "snippet": "Partner asked for confirmation yesterday and is waiting on your answer.",
+            "sender": "partner@example.com",
+            "recipients": [account.email],
+            "received_at": datetime.combine(datetime.now(UTC).date(), time(10, 5), tzinfo=UTC),
+            "flags": ["waiting_on_you", "follow_up"],
+            "unread": True,
+            "importance": "normal",
+            "category_hints": ["follow_up"],
+        },
+        {
+            "local_date": local_date,
+            "source_ref": _source_ref(account, local_date, "message", "newsletter"),
+            "subject": "Industry newsletter",
+            "snippet": "Weekly newsletter can be batched or skipped today.",
+            "sender": "newsletter@example.com",
+            "recipients": [account.email],
+            "received_at": datetime.combine(datetime.now(UTC).date(), time(11, 25), tzinfo=UTC),
+            "flags": ["newsletter", "low_priority"],
+            "unread": False,
+            "importance": "low",
+            "category_hints": ["newsletter"],
+        },
+    ]
+
+
+def _provider_calendar_sources(account: ProviderAccountRecord, local_date: str) -> list[dict]:
+    if not account.calendar_enabled:
+        return []
+    day = datetime.now(UTC).date()
+    return [
+        {
+            "local_date": local_date,
+            "source_ref": _source_ref(account, local_date, "calendar", "board-sync"),
+            "title": "Board sync",
+            "detail": "High-context meeting needs a preparation buffer.",
+            "starts_at": datetime.combine(day, time(14, 0), tzinfo=UTC),
+            "ends_at": datetime.combine(day, time(15, 0), tzinfo=UTC),
+            "organizer": account.email,
+            "attendee_count": 5,
+            "has_meeting_link": True,
+            "busy_status": "busy",
+            "flags": ["meeting", "prep_needed"],
+        },
+        {
+            "local_date": local_date,
+            "source_ref": _source_ref(account, local_date, "calendar", "admin-block"),
+            "title": "Admin block",
+            "detail": "Low-priority admin work can move if focus time is tight.",
+            "starts_at": datetime.combine(day, time(16, 0), tzinfo=UTC),
+            "ends_at": datetime.combine(day, time(16, 45), tzinfo=UTC),
+            "organizer": account.email,
+            "attendee_count": 1,
+            "has_location": False,
+            "has_meeting_link": False,
+            "busy_status": "busy",
+            "flags": ["move_candidate", "low_priority"],
+        },
+    ]
+
+
+def _source_ref(
+    account: ProviderAccountRecord,
+    local_date: str,
+    source_kind: str,
+    slug: str,
+) -> str:
+    return (
+        f"onebrain://provider-source/{account.provider}/"
+        f"{account.provider_account_id}/{local_date}/{source_kind}/{slug}"
+    )

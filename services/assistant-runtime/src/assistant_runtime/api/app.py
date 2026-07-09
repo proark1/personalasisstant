@@ -492,8 +492,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
 
         state = new_oauth_state()
+        attempt_scope = _provider_request_scope(request.scope, settings)
         attempt = OAuthConnectionAttemptRecord(
-            scope=request.scope,
+            scope=attempt_scope,
             provider=provider,
             state_hash=hash_oauth_state(state),
             requested_scope_tier=request.requested_scope_tier,
@@ -768,6 +769,17 @@ async def build_workday_snapshot(
         provider_health=_provider_health(container, onebrain_available),
         approvals=_approval_cards(container),
     )
+
+
+def _provider_request_scope(scope: ScopedIdentity, settings: Settings) -> ScopedIdentity:
+    if scope.account_id == "acct_demo" and scope.space_id == "space_demo":
+        return ScopedIdentity(
+            account_id=settings.onebrain_account_id,
+            user_id=scope.user_id,
+            space_id=settings.onebrain_space_id,
+            purpose=scope.purpose,
+        )
+    return scope
 
 
 def _provider_health(container: RuntimeContainer, onebrain_available: bool) -> list[ProviderHealth]:

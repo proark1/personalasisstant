@@ -252,6 +252,22 @@ def test_worker_processes_provider_sync_and_subscription_jobs() -> None:
     }
     assert any(record["record_type"] == "sync_cursor" for record in records)
     assert any(record["record_type"] == "sync_subscription" for record in records)
+    source_records = [
+        record
+        for record in records
+        if record["record_type"] in {"provider_message", "provider_calendar_event"}
+    ]
+    assert {record["record_type"] for record in source_records} == {
+        "provider_message",
+        "provider_calendar_event",
+    }
+    assert all(record["purpose"] == "assistant_workday" for record in source_records)
+    assert all(
+        record["metadata"]["content_trust"] == "untrusted_normalized"
+        for record in source_records
+    )
+    assert all("local-refresh" not in str(record) for record in source_records)
+    assert all("secret://" not in str(record) for record in source_records)
 
 
 def test_worker_pauses_provider_sync_when_onebrain_becomes_unavailable() -> None:
