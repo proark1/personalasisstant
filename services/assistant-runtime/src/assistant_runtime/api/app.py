@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
@@ -18,6 +17,10 @@ from assistant_runtime.channels.telegram import (
 from assistant_runtime.config import Settings, get_settings
 from assistant_runtime.domain.action_store import InvalidActionTransition
 from assistant_runtime.domain.providers import summarize_provider_account
+from assistant_runtime.domain.workday import (
+    WorkdayLoopProcessor,
+    workday_snapshot_to_today_response,
+)
 from assistant_runtime.health import dependency_checks
 from assistant_runtime.logging import configure_logging
 from assistant_runtime.observability import (
@@ -59,9 +62,7 @@ from assistant_runtime.schemas import (
     BrainRecordCreateRequest,
     BrainRecordListResponse,
     BrainRecordResponse,
-    DegradedModeState,
     HealthResponse,
-    NavigationItem,
     OAuthConnectionAttemptRecord,
     OAuthConnectionStatus,
     OAuthScopeTier,
@@ -78,6 +79,7 @@ from assistant_runtime.schemas import (
     ProviderSyncResponse,
     ProviderWebhookResponse,
     RiskTier,
+    ScopedIdentity,
     SecurityInspectionRequest,
     SecurityInspectionResponse,
     TelegramBindingStatusResponse,
@@ -87,8 +89,14 @@ from assistant_runtime.schemas import (
     TelegramTestMessageRequest,
     TelegramTestMessageResponse,
     TelegramWebhookResponse,
-    TodayBriefItem,
     TodayResponse,
+    WorkdayBriefResponse,
+    WorkdayCalendarResponse,
+    WorkdayFollowUpsResponse,
+    WorkdayInboxResponse,
+    WorkdayRegenerateRequest,
+    WorkdayRegenerateResponse,
+    WorkdaySnapshot,
 )
 from assistant_runtime.security.content_sanitizer import HtmlContentSanitizer
 from assistant_runtime.security.instruction_firewall import BasicInstructionFirewall
@@ -111,6 +119,7 @@ class RuntimeContainer:
         self.sanitizer = HtmlContentSanitizer()
         self.firewall = BasicInstructionFirewall()
         self.observability = InMemoryObservabilityProvider()
+        self.workday = WorkdayLoopProcessor(brain=self.brain, providers=self.providers)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -191,7 +200,108 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/v1/today", response_model=TodayResponse)
     async def today() -> TodayResponse:
-        return build_today_response(container, await container.brain.check_available())
+        snapshot = await build_workday_snapshot(container)
+        return workday_snapshot_to_today_response(snapshot)
+
+    @app.get("/v1/workday/today", response_model=WorkdaySnapshot)
+    async def workday_today(
+        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
+        user_id: str = Query(default="user_demo", min_length=1),
+        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        local_date: str | None = Query(default=None),
+    ) -> WorkdaySnapshot:
+        return await build_workday_snapshot(
+            container,
+            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            local_date=local_date,
+        )
+
+    @app.get("/v1/workday/brief", response_model=WorkdayBriefResponse)
+    async def workday_brief(
+        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
+        user_id: str = Query(default="user_demo", min_length=1),
+        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        local_date: str | None = Query(default=None),
+    ) -> WorkdayBriefResponse:
+        snapshot = await build_workday_snapshot(
+            container,
+            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            local_date=local_date,
+        )
+        return WorkdayBriefResponse(
+            brief=snapshot.brief,
+            partial_state=snapshot.partial_state,
+        )
+
+    @app.get("/v1/workday/inbox", response_model=WorkdayInboxResponse)
+    async def workday_inbox(
+        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
+        user_id: str = Query(default="user_demo", min_length=1),
+        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        local_date: str | None = Query(default=None),
+    ) -> WorkdayInboxResponse:
+        snapshot = await build_workday_snapshot(
+            container,
+            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            local_date=local_date,
+        )
+        return WorkdayInboxResponse(
+            items=snapshot.inbox,
+            partial_state=snapshot.partial_state,
+        )
+
+    @app.get("/v1/workday/follow-ups", response_model=WorkdayFollowUpsResponse)
+    async def workday_follow_ups(
+        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
+        user_id: str = Query(default="user_demo", min_length=1),
+        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        local_date: str | None = Query(default=None),
+    ) -> WorkdayFollowUpsResponse:
+        snapshot = await build_workday_snapshot(
+            container,
+            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            local_date=local_date,
+        )
+        return WorkdayFollowUpsResponse(
+            risks=snapshot.follow_ups,
+            partial_state=snapshot.partial_state,
+        )
+
+    @app.get("/v1/workday/calendar", response_model=WorkdayCalendarResponse)
+    async def workday_calendar(
+        account_id: str = Query(default=settings.onebrain_account_id, min_length=1),
+        user_id: str = Query(default="user_demo", min_length=1),
+        space_id: str = Query(default=settings.onebrain_space_id, min_length=1),
+        local_date: str | None = Query(default=None),
+    ) -> WorkdayCalendarResponse:
+        snapshot = await build_workday_snapshot(
+            container,
+            scope=ScopedIdentity(account_id=account_id, user_id=user_id, space_id=space_id),
+            local_date=local_date,
+        )
+        return WorkdayCalendarResponse(
+            insights=snapshot.calendar,
+            partial_state=snapshot.partial_state,
+        )
+
+    @app.post("/v1/workday/regenerate", response_model=WorkdayRegenerateResponse)
+    async def workday_regenerate(
+        request: WorkdayRegenerateRequest,
+    ) -> WorkdayRegenerateResponse:
+        snapshot = await build_workday_snapshot(
+            container,
+            scope=request.scope,
+            local_date=request.local_date,
+        )
+        return WorkdayRegenerateResponse(
+            status="generated" if snapshot.partial_state.durable else "degraded",
+            detail=(
+                "Workday snapshot generated and stored in OneBrain."
+                if snapshot.partial_state.durable
+                else "Workday snapshot generated as degraded ephemeral output."
+            ),
+            snapshot=snapshot,
+        )
 
     @app.post("/v1/actions", response_model=ActionRecord, status_code=201)
     async def create_action(request: ActionCreateRequest) -> ActionRecord:
@@ -640,119 +750,83 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return app
 
 
-def build_today_response(container: RuntimeContainer, onebrain_available: bool) -> TodayResponse:
+async def build_workday_snapshot(
+    container: RuntimeContainer,
+    *,
+    scope: ScopedIdentity | None = None,
+    local_date: str | None = None,
+) -> WorkdaySnapshot:
+    onebrain_available = await container.brain.check_available()
+    scope = scope or ScopedIdentity(
+        account_id=container.settings.onebrain_account_id,
+        user_id="user_demo",
+        space_id=container.settings.onebrain_space_id,
+    )
+    return await container.workday.generate_snapshot(
+        scope=scope,
+        local_date=local_date,
+        provider_health=_provider_health(container, onebrain_available),
+        approvals=_approval_cards(container),
+    )
+
+
+def _provider_health(container: RuntimeContainer, onebrain_available: bool) -> list[ProviderHealth]:
     settings = container.settings
     checks = dependency_checks(settings)
-    dependency_errors = {
-        name: status for name, status in checks.items() if status.startswith("error")
-    }
-    degraded = not onebrain_available or bool(dependency_errors)
-    action = _ensure_sample_action(container)
-    return TodayResponse(
-        account_id=action.scope.account_id,
-        user_id=action.scope.user_id,
-        space_id=action.scope.space_id,
-        local_date=datetime.now(UTC).date().isoformat(),
-        navigation=[
-            NavigationItem(key="today", label="Today", href="/"),
-            NavigationItem(key="inbox", label="Inbox Review", href="/inbox", count=3),
-            NavigationItem(key="followups", label="Follow-Ups", href="/follow-ups", count=2),
-            NavigationItem(key="calendar", label="Calendar Plan", href="/calendar"),
-            NavigationItem(key="assistant", label="Assistant", href="/assistant"),
-            NavigationItem(key="settings", label="Settings", href="/settings"),
-        ],
-        brief=[
-            TodayBriefItem(
-                title="Morning brief",
-                detail="Three priority threads, two follow-ups, one protected focus block.",
-                source_ref="onebrain://brief/today",
-            ),
-            TodayBriefItem(
-                title="Calendar pressure",
-                detail="The afternoon is full; move low-priority admin work before 11:00.",
-                source_ref="onebrain://calendar/workload/today",
-                status="watch",
-            ),
-            TodayBriefItem(
-                title="Important relationship",
-                detail="Client response is waiting; tone profile suggests a short direct reply.",
-                source_ref="onebrain://relationship/client-demo",
-            ),
-        ],
-        approvals=[
-            ApprovalCard(
-                action_id=str(action.action_id),
-                action_type=action.action_type,
-                risk_tier=RiskTier(action.risk_tier),
-                summary=action.summary,
-                sending_account=action.sending_account_ref or "onebrain://connected-account/demo",
-                recipient_refs=action.recipient_refs,
-                source_ref=action.source_refs[0]
-                if action.source_refs
-                else "onebrain://source/demo",
-                changed_fields=action.changed_fields,
-                sensitive_flags=action.sensitive_flags,
-                approval_reason=action.approval_reason,
-                reversible=action.reversible,
-                primary_channel="web"
-                if RiskTier(action.risk_tier) == RiskTier.high
-                else "web_or_telegram",
-            )
-        ],
-        provider_health=[
-            ProviderHealth(
-                provider="OneBrain",
-                status="ok" if onebrain_available else "degraded",
-                detail=settings.onebrain_api_base_url,
-            ),
-            ProviderHealth(
-                provider="Postgres",
-                status=_provider_status(checks["postgres_schema"]),
-                detail="Operational store",
-            ),
-            ProviderHealth(
-                provider="Redis",
-                status=_provider_status(checks["redis"]),
-                detail="Queue wakeups and scheduler",
-            ),
-            ProviderHealth(
-                provider="Telegram",
-                status="binding-ready",
-                detail="NotificationChannel setup and webhook binding boundary",
-            ),
-            ProviderHealth(
-                provider="Google",
-                status="configured" if settings.google_oauth_configured else "not-configured",
-                detail="Gmail and Google Calendar OAuth",
-            ),
-            ProviderHealth(
-                provider="Microsoft",
-                status="configured" if settings.microsoft_oauth_configured else "not-configured",
-                detail="Outlook and Microsoft Calendar OAuth",
-            ),
-        ],
-        degraded_mode=DegradedModeState(
-            active=degraded,
-            reason=_degraded_reason(onebrain_available, dependency_errors)
-            if degraded
-            else None,
-            blocked_actions=[
-                "external sends",
-                "email forwards",
-                "deletes",
-                "external calendar writes",
-                "sensitive exports",
-            ]
-            if degraded
-            else [],
-            allowed_actions=[
-                "cached read-only UI",
-                "safe reconciliation jobs",
-                "operational retries",
-                "provider health checks",
-            ],
+    return [
+        ProviderHealth(
+            provider="OneBrain",
+            status="ok" if onebrain_available else "degraded",
+            detail=settings.onebrain_api_base_url,
         ),
-    )
+        ProviderHealth(
+            provider="Postgres",
+            status=_provider_status(checks["postgres_schema"]),
+            detail="Operational store",
+        ),
+        ProviderHealth(
+            provider="Redis",
+            status=_provider_status(checks["redis"]),
+            detail="Queue wakeups and scheduler",
+        ),
+        ProviderHealth(
+            provider="Telegram",
+            status="binding-ready",
+            detail="NotificationChannel setup and webhook binding boundary",
+        ),
+        ProviderHealth(
+            provider="Google",
+            status="configured" if settings.google_oauth_configured else "not-configured",
+            detail="Gmail and Google Calendar OAuth",
+        ),
+        ProviderHealth(
+            provider="Microsoft",
+            status="configured" if settings.microsoft_oauth_configured else "not-configured",
+            detail="Outlook and Microsoft Calendar OAuth",
+        ),
+    ]
+
+
+def _approval_cards(container: RuntimeContainer) -> list[ApprovalCard]:
+    action = _ensure_sample_action(container)
+    return [
+        ApprovalCard(
+            action_id=str(action.action_id),
+            action_type=action.action_type,
+            risk_tier=RiskTier(action.risk_tier),
+            summary=action.summary,
+            sending_account=action.sending_account_ref or "onebrain://connected-account/demo",
+            recipient_refs=action.recipient_refs,
+            source_ref=action.source_refs[0] if action.source_refs else "onebrain://source/demo",
+            changed_fields=action.changed_fields,
+            sensitive_flags=action.sensitive_flags,
+            approval_reason=action.approval_reason,
+            reversible=action.reversible,
+            primary_channel="web"
+            if RiskTier(action.risk_tier) == RiskTier.high
+            else "web_or_telegram",
+        )
+    ]
 
 
 async def _record_provider_connected(

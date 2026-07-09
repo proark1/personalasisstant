@@ -23,6 +23,7 @@ ASSISTANT_PURPOSES = frozenset(
         "assistant_settings",
         "assistant_sync",
         "assistant_voice",
+        "assistant_workday",
     }
 )
 
@@ -36,11 +37,14 @@ ASSISTANT_RECORD_TYPES = frozenset(
         "calendar_focus_plan",
         "feedback",
         "follow_up",
+        "follow_up_risk",
+        "inbox_triage",
         "message",
         "model_usage",
         "notification_event",
         "notification_preference",
         "policy_decision",
+        "priority_item",
         "provider_account",
         "provider_health",
         "scope_grant",
@@ -49,9 +53,12 @@ ASSISTANT_RECORD_TYPES = frozenset(
         "sync_cursor",
         "sync_subscription",
         "task",
+        "teaching_signal",
         "telegram_binding",
         "transcript",
         "voice_transcript",
+        "workday_brief",
+        "calendar_insight",
     }
 )
 
@@ -60,19 +67,23 @@ ASSISTANT_INTENTS = frozenset(
         "action_proposal",
         "approval",
         "briefing",
+        "calendar_insight",
         "calendar_focus",
         "connected_account",
         "execution",
         "feedback",
         "follow_up",
+        "inbox_triage",
         "model_usage",
         "notification",
         "provider_health",
+        "priority",
         "security_decision",
         "settings_update",
         "sync_state",
         "telegram_binding",
         "voice_turn",
+        "workday",
     }
 )
 
@@ -85,11 +96,14 @@ DEFAULT_INTENTS = {
     "calendar_focus_plan": "calendar_focus",
     "feedback": "feedback",
     "follow_up": "follow_up",
+    "follow_up_risk": "follow_up",
+    "inbox_triage": "inbox_triage",
     "message": "notification",
     "model_usage": "model_usage",
     "notification_event": "notification",
     "notification_preference": "notification",
     "policy_decision": "security_decision",
+    "priority_item": "priority",
     "provider_account": "connected_account",
     "provider_health": "provider_health",
     "scope_grant": "connected_account",
@@ -98,9 +112,12 @@ DEFAULT_INTENTS = {
     "sync_cursor": "sync_state",
     "sync_subscription": "sync_state",
     "task": "follow_up",
+    "teaching_signal": "feedback",
     "telegram_binding": "telegram_binding",
     "transcript": "voice_turn",
     "voice_transcript": "voice_turn",
+    "workday_brief": "workday",
+    "calendar_insight": "calendar_insight",
 }
 
 PURPOSE_BY_RECORD_TYPE = {
@@ -112,11 +129,14 @@ PURPOSE_BY_RECORD_TYPE = {
     "calendar_focus_plan": "assistant_calendar_planning",
     "feedback": "assistant_feedback",
     "follow_up": "assistant_followup",
+    "follow_up_risk": "assistant_workday",
+    "inbox_triage": "assistant_workday",
     "message": "assistant_notification",
     "model_usage": "assistant_model_usage",
     "notification_event": "assistant_notification",
     "notification_preference": "assistant_notification",
     "policy_decision": "assistant_action",
+    "priority_item": "assistant_workday",
     "provider_account": "assistant_connected_account",
     "provider_health": "assistant_provider_health",
     "scope_grant": "assistant_connected_account",
@@ -125,9 +145,12 @@ PURPOSE_BY_RECORD_TYPE = {
     "sync_cursor": "assistant_sync",
     "sync_subscription": "assistant_sync",
     "task": "assistant_followup",
+    "teaching_signal": "assistant_feedback",
     "telegram_binding": "assistant_notification",
     "transcript": "assistant_voice",
     "voice_transcript": "assistant_voice",
+    "workday_brief": "assistant_workday",
+    "calendar_insight": "assistant_workday",
 }
 
 RAW_SECRET_KEYS = frozenset(

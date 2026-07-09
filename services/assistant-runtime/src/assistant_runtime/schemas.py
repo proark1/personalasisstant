@@ -501,6 +501,149 @@ class DegradedModeState(BaseModel):
     allowed_actions: list[str] = Field(default_factory=list)
 
 
+class WorkdayPartialState(BaseModel):
+    durable: bool = False
+    degraded: bool = False
+    reasons: list[str] = Field(default_factory=list)
+    missing_sources: list[str] = Field(default_factory=list)
+    stale_sources: list[str] = Field(default_factory=list)
+    generated_from: str = "rules"
+    onebrain_available: bool = True
+    provider_accounts_seen: int = 0
+
+
+class PriorityItem(BaseModel):
+    priority_id: str
+    title: str
+    detail: str
+    score: int = Field(ge=0, le=100)
+    reason: str
+    status: str = "ready"
+    source_refs: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.75, ge=0, le=1)
+
+
+class InboxTriageItem(BaseModel):
+    item_id: str
+    subject: str
+    sender: str
+    category: str
+    reason: str
+    source_ref: str
+    account_ref: str = ""
+    received_at: datetime = Field(default_factory=utc_now)
+    priority_score: int = Field(default=50, ge=0, le=100)
+    confidence: float = Field(default=0.7, ge=0, le=1)
+    flags: list[str] = Field(default_factory=list)
+
+
+class FollowUpRisk(BaseModel):
+    risk_id: str
+    title: str
+    detail: str
+    owner: str
+    status: str = "watch"
+    reason: str
+    source_refs: list[str] = Field(default_factory=list)
+    due_at: datetime | None = None
+    confidence: float = Field(default=0.7, ge=0, le=1)
+
+
+class CalendarFocusWindow(BaseModel):
+    window_id: str
+    start_at: datetime
+    end_at: datetime
+    quality: str
+    reason: str
+
+
+class CalendarInsight(BaseModel):
+    insight_id: str
+    title: str
+    detail: str
+    severity: str = "info"
+    source_refs: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.7, ge=0, le=1)
+    focus_windows: list[CalendarFocusWindow] = Field(default_factory=list)
+    move_candidates: list[str] = Field(default_factory=list)
+
+
+class TeachingSignal(BaseModel):
+    signal_id: str
+    target_ref: str
+    signal_type: str
+    label: str
+    source_ref: str
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class WorkdayBrief(BaseModel):
+    brief_id: str
+    title: str
+    summary: str
+    items: list[TodayBriefItem] = Field(default_factory=list)
+    generated_at: datetime = Field(default_factory=utc_now)
+    local_date: str
+    source_refs: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.75, ge=0, le=1)
+    partial_state: WorkdayPartialState = Field(default_factory=WorkdayPartialState)
+
+
+class WorkdaySnapshot(BaseModel):
+    account_id: str
+    user_id: str
+    space_id: str
+    local_date: str
+    generated_at: datetime = Field(default_factory=utc_now)
+    brief: WorkdayBrief
+    priorities: list[PriorityItem] = Field(default_factory=list)
+    inbox: list[InboxTriageItem] = Field(default_factory=list)
+    follow_ups: list[FollowUpRisk] = Field(default_factory=list)
+    calendar: list[CalendarInsight] = Field(default_factory=list)
+    provider_health: list[ProviderHealth] = Field(default_factory=list)
+    approvals: list[ApprovalCard] = Field(default_factory=list)
+    navigation: list[NavigationItem] = Field(default_factory=list)
+    partial_state: WorkdayPartialState = Field(default_factory=WorkdayPartialState)
+    proactive_suggestion: str = ""
+
+
+class WorkdayBriefResponse(BaseModel):
+    brief: WorkdayBrief
+    partial_state: WorkdayPartialState
+
+
+class WorkdayInboxResponse(BaseModel):
+    items: list[InboxTriageItem] = Field(default_factory=list)
+    partial_state: WorkdayPartialState
+
+
+class WorkdayFollowUpsResponse(BaseModel):
+    risks: list[FollowUpRisk] = Field(default_factory=list)
+    partial_state: WorkdayPartialState
+
+
+class WorkdayCalendarResponse(BaseModel):
+    insights: list[CalendarInsight] = Field(default_factory=list)
+    partial_state: WorkdayPartialState
+
+
+class WorkdayRegenerateRequest(BaseModel):
+    scope: ScopedIdentity = Field(
+        default_factory=lambda: ScopedIdentity(
+            account_id="acct_demo", user_id="user_demo", space_id="space_demo"
+        )
+    )
+    local_date: str | None = None
+    timezone: str = "UTC"
+
+
+class WorkdayRegenerateResponse(BaseModel):
+    status: str
+    detail: str
+    snapshot: WorkdaySnapshot
+    job: JobRecord | None = None
+
+
 class TodayResponse(BaseModel):
     account_id: str
     user_id: str
@@ -511,6 +654,12 @@ class TodayResponse(BaseModel):
     approvals: list[ApprovalCard]
     provider_health: list[ProviderHealth]
     degraded_mode: DegradedModeState
+    priorities: list[PriorityItem] = Field(default_factory=list)
+    follow_ups: list[FollowUpRisk] = Field(default_factory=list)
+    calendar: list[CalendarInsight] = Field(default_factory=list)
+    inbox_count: int = 0
+    proactive_suggestion: str = ""
+    partial_state: WorkdayPartialState = Field(default_factory=WorkdayPartialState)
 
 
 class SanitizedContent(BaseModel):

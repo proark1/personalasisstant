@@ -13,6 +13,7 @@ from assistant_runtime.interfaces import BrainClient
 from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
 from assistant_runtime.providers.onebrain_events import record_telegram_event
 from assistant_runtime.providers.sync import ProviderSyncProcessor
+from assistant_runtime.providers.workday import WorkdayJobProcessor
 from assistant_runtime.schemas import ActionState, OutboxRow
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ class AssistantWorker:
         self.provider_sync = (
             ProviderSyncProcessor(providers, brain=brain) if providers is not None else None
         )
+        self.workday_jobs = WorkdayJobProcessor(brain=brain, providers=providers)
 
     def run_once(self) -> WorkerResult:
         result = WorkerResult()
@@ -59,6 +61,8 @@ class AssistantWorker:
             try:
                 if self.provider_sync is not None and self.provider_sync.can_process(job):
                     self.provider_sync.process(job)
+                elif self.workday_jobs.can_process(job):
+                    self.workday_jobs.process(job)
                 self.queue.mark_succeeded(job.job_id)
                 result.jobs_processed += 1
             except Exception as exc:

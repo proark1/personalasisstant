@@ -7,11 +7,17 @@ from assistant_runtime.contracts import (
 )
 from assistant_runtime.interfaces import BrainClient
 from assistant_runtime.schemas import (
+    CalendarInsight,
+    FollowUpRisk,
+    InboxTriageItem,
     JsonObject,
+    PriorityItem,
     ProviderAccountRecord,
     ProviderSubscriptionRecord,
+    ScopedIdentity,
     SyncCursorRecord,
     TelegramProvenanceEvent,
+    WorkdayBrief,
 )
 
 
@@ -219,4 +225,147 @@ async def record_sync_subscription_event(
         },
         provenance={"provider": str(subscription.provider)},
         retention={"policy": "assistant_sync_default"},
+    )
+
+
+async def record_workday_brief(
+    brain: BrainClient,
+    scope: ScopedIdentity,
+    brief: WorkdayBrief,
+) -> JsonObject:
+    return await brain.create_assistant_record(
+        content=brief.summary,
+        title=brief.title,
+        record_type="workday_brief",
+        purpose="assistant_workday",
+        intent=default_assistant_intent("workday_brief"),
+        account_id=scope.account_id,
+        space_id=scope.space_id,
+        source="assistant-workday-loop",
+        source_ref=f"onebrain://workday/{scope.account_id}/{brief.local_date}/brief",
+        metadata={
+            "brief_id": brief.brief_id,
+            "local_date": brief.local_date,
+            "items": [item.model_dump(mode="json") for item in brief.items],
+            "confidence": brief.confidence,
+            "partial_state": brief.partial_state.model_dump(mode="json"),
+            "source_refs": list(brief.source_refs),
+        },
+        provenance={
+            "derived_from": list(brief.source_refs),
+            "generator": "workday.rules.v1",
+        },
+        retention={"policy": "assistant_workday_default"},
+    )
+
+
+async def record_priority_item(
+    brain: BrainClient,
+    scope: ScopedIdentity,
+    local_date: str,
+    priority: PriorityItem,
+) -> JsonObject:
+    return await brain.create_assistant_record(
+        content=f"{priority.title}: {priority.detail}",
+        title=priority.title,
+        record_type="priority_item",
+        purpose="assistant_workday",
+        intent=default_assistant_intent("priority_item"),
+        account_id=scope.account_id,
+        space_id=scope.space_id,
+        source="assistant-workday-loop",
+        source_ref=f"onebrain://workday/{scope.account_id}/{local_date}/priority/{priority.priority_id}",
+        metadata={
+            "local_date": local_date,
+            **priority.model_dump(mode="json"),
+        },
+        provenance={
+            "derived_from": list(priority.source_refs),
+            "generator": "priority.rules.v1",
+        },
+        retention={"policy": "assistant_workday_default"},
+    )
+
+
+async def record_inbox_triage_item(
+    brain: BrainClient,
+    scope: ScopedIdentity,
+    local_date: str,
+    item: InboxTriageItem,
+) -> JsonObject:
+    return await brain.create_assistant_record(
+        content=f"{item.category}: {item.subject}. {item.reason}",
+        title=item.subject,
+        record_type="inbox_triage",
+        purpose="assistant_workday",
+        intent=default_assistant_intent("inbox_triage"),
+        account_id=scope.account_id,
+        space_id=scope.space_id,
+        source="assistant-workday-loop",
+        source_ref=item.source_ref,
+        metadata={
+            "local_date": local_date,
+            **item.model_dump(mode="json"),
+        },
+        provenance={
+            "derived_from": [item.source_ref],
+            "generator": "inbox-triage.rules.v1",
+        },
+        retention={"policy": "assistant_workday_default"},
+    )
+
+
+async def record_follow_up_risk(
+    brain: BrainClient,
+    scope: ScopedIdentity,
+    local_date: str,
+    risk: FollowUpRisk,
+) -> JsonObject:
+    return await brain.create_assistant_record(
+        content=f"{risk.title}: {risk.detail}",
+        title=risk.title,
+        record_type="follow_up_risk",
+        purpose="assistant_workday",
+        intent=default_assistant_intent("follow_up_risk"),
+        account_id=scope.account_id,
+        space_id=scope.space_id,
+        source="assistant-workday-loop",
+        source_ref=risk.source_refs[0] if risk.source_refs else risk.risk_id,
+        metadata={
+            "local_date": local_date,
+            **risk.model_dump(mode="json"),
+        },
+        provenance={
+            "derived_from": list(risk.source_refs),
+            "generator": "followup.rules.v1",
+        },
+        retention={"policy": "assistant_workday_default"},
+    )
+
+
+async def record_calendar_insight(
+    brain: BrainClient,
+    scope: ScopedIdentity,
+    local_date: str,
+    insight: CalendarInsight,
+) -> JsonObject:
+    return await brain.create_assistant_record(
+        content=f"{insight.title}: {insight.detail}",
+        title=insight.title,
+        record_type="calendar_insight",
+        purpose="assistant_workday",
+        intent=default_assistant_intent("calendar_insight"),
+        account_id=scope.account_id,
+        space_id=scope.space_id,
+        source="assistant-workday-loop",
+        source_ref=f"onebrain://workday/{scope.account_id}/{local_date}/calendar/{insight.insight_id}",
+        metadata={
+            "local_date": local_date,
+            **insight.model_dump(mode="json"),
+        },
+        provenance={
+            "derived_from": list(insight.source_refs),
+            "generator": "calendar-planning.rules.v1",
+        },
+        retention={"policy": "assistant_workday_default"},
     )

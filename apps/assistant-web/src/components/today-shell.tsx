@@ -6,13 +6,15 @@ import {
   ChevronRight,
   Clock3,
   Inbox,
+  Lightbulb,
   ListChecks,
   MessageSquareText,
   RadioTower,
   Search,
   Settings,
   ShieldAlert,
-  Sparkles
+  Sparkles,
+  Target
 } from "lucide-react";
 import type { ProviderStatusResponse, TodayResponse } from "../api/client";
 import { ProviderAccountsPanel } from "./provider-accounts-panel";
@@ -75,6 +77,8 @@ export function TodayShell({
         <div className="work-grid">
           <div className="stack">
             {today.degraded_mode.active ? <DegradedBand today={today} /> : null}
+            <PrioritySection today={today} />
+            {today.proactive_suggestion ? <SuggestionSection today={today} /> : null}
             <BriefSection today={today} />
             <HealthSection today={today} />
           </div>
@@ -98,6 +102,60 @@ export function TodayShell({
         })}
       </nav>
     </div>
+  );
+}
+
+function PrioritySection({ today }: { today: TodayResponse }) {
+  const priorities = today.priorities ?? [];
+  return (
+    <section aria-labelledby="priority-heading">
+      <div className="section-header">
+        <h2 id="priority-heading" className="section-title">
+          Now
+        </h2>
+        <span className="section-meta">{priorities.length}</span>
+      </div>
+      <div className="priority-list">
+        {priorities.length > 0 ? (
+          priorities.map((priority) => (
+            <article className="priority-row" key={priority.priority_id}>
+              <div className="score-ring" aria-label={`Priority score ${priority.score}`}>
+                {priority.score}
+              </div>
+              <div>
+                <strong>{priority.title}</strong>
+                <p>{priority.detail}</p>
+                <span>{priority.reason}</span>
+              </div>
+            </article>
+          ))
+        ) : (
+          <article className="brief-row">
+            <div className="row-icon" aria-hidden="true">
+              <Target size={17} />
+            </div>
+            <div>
+              <strong>No priority stack</strong>
+              <p>Regenerate the workday brief when provider data is ready.</p>
+            </div>
+          </article>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SuggestionSection({ today }: { today: TodayResponse }) {
+  return (
+    <section className="suggestion-band" aria-labelledby="suggestion-heading">
+      <div className="row-icon" aria-hidden="true">
+        <Lightbulb size={17} />
+      </div>
+      <div>
+        <strong id="suggestion-heading">Next move</strong>
+        <p>{today.proactive_suggestion}</p>
+      </div>
+    </section>
   );
 }
 

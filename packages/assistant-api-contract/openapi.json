@@ -485,6 +485,97 @@
         "title": "BrainRecordResponse",
         "type": "object"
       },
+      "CalendarFocusWindow": {
+        "properties": {
+          "end_at": {
+            "format": "date-time",
+            "title": "End At",
+            "type": "string"
+          },
+          "quality": {
+            "title": "Quality",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "start_at": {
+            "format": "date-time",
+            "title": "Start At",
+            "type": "string"
+          },
+          "window_id": {
+            "title": "Window Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "window_id",
+          "start_at",
+          "end_at",
+          "quality",
+          "reason"
+        ],
+        "title": "CalendarFocusWindow",
+        "type": "object"
+      },
+      "CalendarInsight": {
+        "properties": {
+          "confidence": {
+            "default": 0.7,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "focus_windows": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarFocusWindow"
+            },
+            "title": "Focus Windows",
+            "type": "array"
+          },
+          "insight_id": {
+            "title": "Insight Id",
+            "type": "string"
+          },
+          "move_candidates": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Move Candidates",
+            "type": "array"
+          },
+          "severity": {
+            "default": "info",
+            "title": "Severity",
+            "type": "string"
+          },
+          "source_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "insight_id",
+          "title",
+          "detail"
+        ],
+        "title": "CalendarInsight",
+        "type": "object"
+      },
       "DegradedModeState": {
         "properties": {
           "active": {
@@ -573,6 +664,70 @@
         "title": "FirewallDecision",
         "type": "object"
       },
+      "FollowUpRisk": {
+        "properties": {
+          "confidence": {
+            "default": 0.7,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "risk_id": {
+            "title": "Risk Id",
+            "type": "string"
+          },
+          "source_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "status": {
+            "default": "watch",
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "risk_id",
+          "title",
+          "detail",
+          "owner",
+          "reason"
+        ],
+        "title": "FollowUpRisk",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -625,6 +780,75 @@
           "correlation_id"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "InboxTriageItem": {
+        "properties": {
+          "account_ref": {
+            "default": "",
+            "title": "Account Ref",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "confidence": {
+            "default": 0.7,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "priority_score": {
+            "default": 50,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Priority Score",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "sender": {
+            "title": "Sender",
+            "type": "string"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "subject",
+          "sender",
+          "category",
+          "reason",
+          "source_ref"
+        ],
+        "title": "InboxTriageItem",
         "type": "object"
       },
       "JobRecord": {
@@ -799,6 +1023,60 @@
         ],
         "title": "OAuthScopeTier",
         "type": "string"
+      },
+      "PriorityItem": {
+        "properties": {
+          "confidence": {
+            "default": 0.75,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "priority_id": {
+            "title": "Priority Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "score": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "integer"
+          },
+          "source_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "status": {
+            "default": "ready",
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "priority_id",
+          "title",
+          "detail",
+          "score",
+          "reason"
+        ],
+        "title": "PriorityItem",
+        "type": "object"
       },
       "ProviderAccountHealthResponse": {
         "properties": {
@@ -1797,8 +2075,27 @@
             "title": "Brief",
             "type": "array"
           },
+          "calendar": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarInsight"
+            },
+            "title": "Calendar",
+            "type": "array"
+          },
           "degraded_mode": {
             "$ref": "#/components/schemas/DegradedModeState"
+          },
+          "follow_ups": {
+            "items": {
+              "$ref": "#/components/schemas/FollowUpRisk"
+            },
+            "title": "Follow Ups",
+            "type": "array"
+          },
+          "inbox_count": {
+            "default": 0,
+            "title": "Inbox Count",
+            "type": "integer"
           },
           "local_date": {
             "title": "Local Date",
@@ -1810,6 +2107,21 @@
             },
             "title": "Navigation",
             "type": "array"
+          },
+          "partial_state": {
+            "$ref": "#/components/schemas/WorkdayPartialState"
+          },
+          "priorities": {
+            "items": {
+              "$ref": "#/components/schemas/PriorityItem"
+            },
+            "title": "Priorities",
+            "type": "array"
+          },
+          "proactive_suggestion": {
+            "default": "",
+            "title": "Proactive Suggestion",
+            "type": "string"
           },
           "provider_health": {
             "items": {
@@ -1932,6 +2244,339 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkdayBrief": {
+        "properties": {
+          "brief_id": {
+            "title": "Brief Id",
+            "type": "string"
+          },
+          "confidence": {
+            "default": 0.75,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TodayBriefItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "local_date": {
+            "title": "Local Date",
+            "type": "string"
+          },
+          "partial_state": {
+            "$ref": "#/components/schemas/WorkdayPartialState"
+          },
+          "source_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "brief_id",
+          "title",
+          "summary",
+          "local_date"
+        ],
+        "title": "WorkdayBrief",
+        "type": "object"
+      },
+      "WorkdayBriefResponse": {
+        "properties": {
+          "brief": {
+            "$ref": "#/components/schemas/WorkdayBrief"
+          },
+          "partial_state": {
+            "$ref": "#/components/schemas/WorkdayPartialState"
+          }
+        },
+        "required": [
+          "brief",
+          "partial_state"
+        ],
+        "title": "WorkdayBriefResponse",
+        "type": "object"
+      },
+      "WorkdayCalendarResponse": {
+        "properties": {
+          "insights": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarInsight"
+            },
+            "title": "Insights",
+            "type": "array"
+          },
+          "partial_state": {
+            "$ref": "#/components/schemas/WorkdayPartialState"
+          }
+        },
+        "required": [
+          "partial_state"
+        ],
+        "title": "WorkdayCalendarResponse",
+        "type": "object"
+      },
+      "WorkdayFollowUpsResponse": {
+        "properties": {
+          "partial_state": {
+            "$ref": "#/components/schemas/WorkdayPartialState"
+          },
+          "risks": {
+            "items": {
+              "$ref": "#/components/schemas/FollowUpRisk"
+            },
+            "title": "Risks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "partial_state"
+        ],
+        "title": "WorkdayFollowUpsResponse",
+        "type": "object"
+      },
+      "WorkdayInboxResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxTriageItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "partial_state": {
+            "$ref": "#/components/schemas/WorkdayPartialState"
+          }
+        },
+        "required": [
+          "partial_state"
+        ],
+        "title": "WorkdayInboxResponse",
+        "type": "object"
+      },
+      "WorkdayPartialState": {
+        "properties": {
+          "degraded": {
+            "default": false,
+            "title": "Degraded",
+            "type": "boolean"
+          },
+          "durable": {
+            "default": false,
+            "title": "Durable",
+            "type": "boolean"
+          },
+          "generated_from": {
+            "default": "rules",
+            "title": "Generated From",
+            "type": "string"
+          },
+          "missing_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Sources",
+            "type": "array"
+          },
+          "onebrain_available": {
+            "default": true,
+            "title": "Onebrain Available",
+            "type": "boolean"
+          },
+          "provider_accounts_seen": {
+            "default": 0,
+            "title": "Provider Accounts Seen",
+            "type": "integer"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "stale_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stale Sources",
+            "type": "array"
+          }
+        },
+        "title": "WorkdayPartialState",
+        "type": "object"
+      },
+      "WorkdayRegenerateRequest": {
+        "properties": {
+          "local_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Date"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ScopedIdentity"
+          },
+          "timezone": {
+            "default": "UTC",
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "title": "WorkdayRegenerateRequest",
+        "type": "object"
+      },
+      "WorkdayRegenerateResponse": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/WorkdaySnapshot"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "detail",
+          "snapshot"
+        ],
+        "title": "WorkdayRegenerateResponse",
+        "type": "object"
+      },
+      "WorkdaySnapshot": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "approvals": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalCard"
+            },
+            "title": "Approvals",
+            "type": "array"
+          },
+          "brief": {
+            "$ref": "#/components/schemas/WorkdayBrief"
+          },
+          "calendar": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarInsight"
+            },
+            "title": "Calendar",
+            "type": "array"
+          },
+          "follow_ups": {
+            "items": {
+              "$ref": "#/components/schemas/FollowUpRisk"
+            },
+            "title": "Follow Ups",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "inbox": {
+            "items": {
+              "$ref": "#/components/schemas/InboxTriageItem"
+            },
+            "title": "Inbox",
+            "type": "array"
+          },
+          "local_date": {
+            "title": "Local Date",
+            "type": "string"
+          },
+          "navigation": {
+            "items": {
+              "$ref": "#/components/schemas/NavigationItem"
+            },
+            "title": "Navigation",
+            "type": "array"
+          },
+          "partial_state": {
+            "$ref": "#/components/schemas/WorkdayPartialState"
+          },
+          "priorities": {
+            "items": {
+              "$ref": "#/components/schemas/PriorityItem"
+            },
+            "title": "Priorities",
+            "type": "array"
+          },
+          "proactive_suggestion": {
+            "default": "",
+            "title": "Proactive Suggestion",
+            "type": "string"
+          },
+          "provider_health": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderHealth"
+            },
+            "title": "Provider Health",
+            "type": "array"
+          },
+          "space_id": {
+            "title": "Space Id",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "user_id",
+          "space_id",
+          "local_date",
+          "brief"
+        ],
+        "title": "WorkdaySnapshot",
         "type": "object"
       }
     }
@@ -2954,6 +3599,439 @@
           }
         },
         "summary": "Today"
+      }
+    },
+    "/v1/workday/brief": {
+      "get": {
+        "operationId": "workday_brief_v1_workday_brief_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "default": "nft_gym",
+              "minLength": 1,
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "default": "user_demo",
+              "minLength": 1,
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "space_id",
+            "required": false,
+            "schema": {
+              "default": "sp_nft_gym_assistant",
+              "minLength": 1,
+              "title": "Space Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "local_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Local Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkdayBriefResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Workday Brief"
+      }
+    },
+    "/v1/workday/calendar": {
+      "get": {
+        "operationId": "workday_calendar_v1_workday_calendar_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "default": "nft_gym",
+              "minLength": 1,
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "default": "user_demo",
+              "minLength": 1,
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "space_id",
+            "required": false,
+            "schema": {
+              "default": "sp_nft_gym_assistant",
+              "minLength": 1,
+              "title": "Space Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "local_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Local Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkdayCalendarResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Workday Calendar"
+      }
+    },
+    "/v1/workday/follow-ups": {
+      "get": {
+        "operationId": "workday_follow_ups_v1_workday_follow_ups_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "default": "nft_gym",
+              "minLength": 1,
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "default": "user_demo",
+              "minLength": 1,
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "space_id",
+            "required": false,
+            "schema": {
+              "default": "sp_nft_gym_assistant",
+              "minLength": 1,
+              "title": "Space Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "local_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Local Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkdayFollowUpsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Workday Follow Ups"
+      }
+    },
+    "/v1/workday/inbox": {
+      "get": {
+        "operationId": "workday_inbox_v1_workday_inbox_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "default": "nft_gym",
+              "minLength": 1,
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "default": "user_demo",
+              "minLength": 1,
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "space_id",
+            "required": false,
+            "schema": {
+              "default": "sp_nft_gym_assistant",
+              "minLength": 1,
+              "title": "Space Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "local_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Local Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkdayInboxResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Workday Inbox"
+      }
+    },
+    "/v1/workday/regenerate": {
+      "post": {
+        "operationId": "workday_regenerate_v1_workday_regenerate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkdayRegenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkdayRegenerateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Workday Regenerate"
+      }
+    },
+    "/v1/workday/today": {
+      "get": {
+        "operationId": "workday_today_v1_workday_today_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "default": "nft_gym",
+              "minLength": 1,
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "default": "user_demo",
+              "minLength": 1,
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "space_id",
+            "required": false,
+            "schema": {
+              "default": "sp_nft_gym_assistant",
+              "minLength": 1,
+              "title": "Space Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "local_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Local Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkdaySnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Workday Today"
       }
     }
   }

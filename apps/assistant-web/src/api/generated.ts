@@ -396,6 +396,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workday/brief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workday Brief */
+        get: operations["workday_brief_v1_workday_brief_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workday/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workday Calendar */
+        get: operations["workday_calendar_v1_workday_calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workday/follow-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workday Follow Ups */
+        get: operations["workday_follow_ups_v1_workday_follow_ups_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workday/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workday Inbox */
+        get: operations["workday_inbox_v1_workday_inbox_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workday/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Workday Regenerate */
+        post: operations["workday_regenerate_v1_workday_regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workday/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workday Today */
+        get: operations["workday_today_v1_workday_today_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -641,6 +743,50 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** CalendarFocusWindow */
+        CalendarFocusWindow: {
+            /**
+             * End At
+             * Format: date-time
+             */
+            end_at: string;
+            /** Quality */
+            quality: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Start At
+             * Format: date-time
+             */
+            start_at: string;
+            /** Window Id */
+            window_id: string;
+        };
+        /** CalendarInsight */
+        CalendarInsight: {
+            /**
+             * Confidence
+             * @default 0.7
+             */
+            confidence: number;
+            /** Detail */
+            detail: string;
+            /** Focus Windows */
+            focus_windows?: components["schemas"]["CalendarFocusWindow"][];
+            /** Insight Id */
+            insight_id: string;
+            /** Move Candidates */
+            move_candidates?: string[];
+            /**
+             * Severity
+             * @default info
+             */
+            severity: string;
+            /** Source Refs */
+            source_refs?: string[];
+            /** Title */
+            title: string;
+        };
         /** DegradedModeState */
         DegradedModeState: {
             /** Active */
@@ -670,6 +816,33 @@ export interface components {
             /** Safe For Model Context */
             safe_for_model_context: boolean;
         };
+        /** FollowUpRisk */
+        FollowUpRisk: {
+            /**
+             * Confidence
+             * @default 0.7
+             */
+            confidence: number;
+            /** Detail */
+            detail: string;
+            /** Due At */
+            due_at?: string | null;
+            /** Owner */
+            owner: string;
+            /** Reason */
+            reason: string;
+            /** Risk Id */
+            risk_id: string;
+            /** Source Refs */
+            source_refs?: string[];
+            /**
+             * Status
+             * @default watch
+             */
+            status: string;
+            /** Title */
+            title: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -691,6 +864,43 @@ export interface components {
             status: string;
             /** Version */
             version: string;
+        };
+        /** InboxTriageItem */
+        InboxTriageItem: {
+            /**
+             * Account Ref
+             * @default
+             */
+            account_ref: string;
+            /** Category */
+            category: string;
+            /**
+             * Confidence
+             * @default 0.7
+             */
+            confidence: number;
+            /** Flags */
+            flags?: string[];
+            /** Item Id */
+            item_id: string;
+            /**
+             * Priority Score
+             * @default 50
+             */
+            priority_score: number;
+            /** Reason */
+            reason: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at?: string;
+            /** Sender */
+            sender: string;
+            /** Source Ref */
+            source_ref: string;
+            /** Subject */
+            subject: string;
         };
         /** JobRecord */
         JobRecord: {
@@ -767,6 +977,31 @@ export interface components {
          * @enum {string}
          */
         OAuthScopeTier: "read_only" | "draft_write" | "send" | "calendar_write";
+        /** PriorityItem */
+        PriorityItem: {
+            /**
+             * Confidence
+             * @default 0.75
+             */
+            confidence: number;
+            /** Detail */
+            detail: string;
+            /** Priority Id */
+            priority_id: string;
+            /** Reason */
+            reason: string;
+            /** Score */
+            score: number;
+            /** Source Refs */
+            source_refs?: string[];
+            /**
+             * Status
+             * @default ready
+             */
+            status: string;
+            /** Title */
+            title: string;
+        };
         /** ProviderAccountHealthResponse */
         ProviderAccountHealthResponse: {
             /** Detail */
@@ -1158,11 +1393,28 @@ export interface components {
             approvals: components["schemas"]["ApprovalCard"][];
             /** Brief */
             brief: components["schemas"]["TodayBriefItem"][];
+            /** Calendar */
+            calendar?: components["schemas"]["CalendarInsight"][];
             degraded_mode: components["schemas"]["DegradedModeState"];
+            /** Follow Ups */
+            follow_ups?: components["schemas"]["FollowUpRisk"][];
+            /**
+             * Inbox Count
+             * @default 0
+             */
+            inbox_count: number;
             /** Local Date */
             local_date: string;
             /** Navigation */
             navigation: components["schemas"]["NavigationItem"][];
+            partial_state?: components["schemas"]["WorkdayPartialState"];
+            /** Priorities */
+            priorities?: components["schemas"]["PriorityItem"][];
+            /**
+             * Proactive Suggestion
+             * @default
+             */
+            proactive_suggestion: string;
             /** Provider Health */
             provider_health: components["schemas"]["ProviderHealth"][];
             /** Space Id */
@@ -1199,6 +1451,146 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** WorkdayBrief */
+        WorkdayBrief: {
+            /** Brief Id */
+            brief_id: string;
+            /**
+             * Confidence
+             * @default 0.75
+             */
+            confidence: number;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at?: string;
+            /** Items */
+            items?: components["schemas"]["TodayBriefItem"][];
+            /** Local Date */
+            local_date: string;
+            partial_state?: components["schemas"]["WorkdayPartialState"];
+            /** Source Refs */
+            source_refs?: string[];
+            /** Summary */
+            summary: string;
+            /** Title */
+            title: string;
+        };
+        /** WorkdayBriefResponse */
+        WorkdayBriefResponse: {
+            brief: components["schemas"]["WorkdayBrief"];
+            partial_state: components["schemas"]["WorkdayPartialState"];
+        };
+        /** WorkdayCalendarResponse */
+        WorkdayCalendarResponse: {
+            /** Insights */
+            insights?: components["schemas"]["CalendarInsight"][];
+            partial_state: components["schemas"]["WorkdayPartialState"];
+        };
+        /** WorkdayFollowUpsResponse */
+        WorkdayFollowUpsResponse: {
+            partial_state: components["schemas"]["WorkdayPartialState"];
+            /** Risks */
+            risks?: components["schemas"]["FollowUpRisk"][];
+        };
+        /** WorkdayInboxResponse */
+        WorkdayInboxResponse: {
+            /** Items */
+            items?: components["schemas"]["InboxTriageItem"][];
+            partial_state: components["schemas"]["WorkdayPartialState"];
+        };
+        /** WorkdayPartialState */
+        WorkdayPartialState: {
+            /**
+             * Degraded
+             * @default false
+             */
+            degraded: boolean;
+            /**
+             * Durable
+             * @default false
+             */
+            durable: boolean;
+            /**
+             * Generated From
+             * @default rules
+             */
+            generated_from: string;
+            /** Missing Sources */
+            missing_sources?: string[];
+            /**
+             * Onebrain Available
+             * @default true
+             */
+            onebrain_available: boolean;
+            /**
+             * Provider Accounts Seen
+             * @default 0
+             */
+            provider_accounts_seen: number;
+            /** Reasons */
+            reasons?: string[];
+            /** Stale Sources */
+            stale_sources?: string[];
+        };
+        /** WorkdayRegenerateRequest */
+        WorkdayRegenerateRequest: {
+            /** Local Date */
+            local_date?: string | null;
+            scope?: components["schemas"]["ScopedIdentity"];
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
+        };
+        /** WorkdayRegenerateResponse */
+        WorkdayRegenerateResponse: {
+            /** Detail */
+            detail: string;
+            job?: components["schemas"]["JobRecord"] | null;
+            snapshot: components["schemas"]["WorkdaySnapshot"];
+            /** Status */
+            status: string;
+        };
+        /** WorkdaySnapshot */
+        WorkdaySnapshot: {
+            /** Account Id */
+            account_id: string;
+            /** Approvals */
+            approvals?: components["schemas"]["ApprovalCard"][];
+            brief: components["schemas"]["WorkdayBrief"];
+            /** Calendar */
+            calendar?: components["schemas"]["CalendarInsight"][];
+            /** Follow Ups */
+            follow_ups?: components["schemas"]["FollowUpRisk"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at?: string;
+            /** Inbox */
+            inbox?: components["schemas"]["InboxTriageItem"][];
+            /** Local Date */
+            local_date: string;
+            /** Navigation */
+            navigation?: components["schemas"]["NavigationItem"][];
+            partial_state?: components["schemas"]["WorkdayPartialState"];
+            /** Priorities */
+            priorities?: components["schemas"]["PriorityItem"][];
+            /**
+             * Proactive Suggestion
+             * @default
+             */
+            proactive_suggestion: string;
+            /** Provider Health */
+            provider_health?: components["schemas"]["ProviderHealth"][];
+            /** Space Id */
+            space_id: string;
+            /** User Id */
+            user_id: string;
         };
     };
     responses: never;
@@ -1940,6 +2332,209 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TodayResponse"];
+                };
+            };
+        };
+    };
+    workday_brief_v1_workday_brief_get: {
+        parameters: {
+            query?: {
+                account_id?: string;
+                user_id?: string;
+                space_id?: string;
+                local_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkdayBriefResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workday_calendar_v1_workday_calendar_get: {
+        parameters: {
+            query?: {
+                account_id?: string;
+                user_id?: string;
+                space_id?: string;
+                local_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkdayCalendarResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workday_follow_ups_v1_workday_follow_ups_get: {
+        parameters: {
+            query?: {
+                account_id?: string;
+                user_id?: string;
+                space_id?: string;
+                local_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkdayFollowUpsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workday_inbox_v1_workday_inbox_get: {
+        parameters: {
+            query?: {
+                account_id?: string;
+                user_id?: string;
+                space_id?: string;
+                local_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkdayInboxResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workday_regenerate_v1_workday_regenerate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkdayRegenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkdayRegenerateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workday_today_v1_workday_today_get: {
+        parameters: {
+            query?: {
+                account_id?: string;
+                user_id?: string;
+                space_id?: string;
+                local_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkdaySnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

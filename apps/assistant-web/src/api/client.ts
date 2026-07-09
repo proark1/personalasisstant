@@ -2,6 +2,9 @@ import type { components } from "./generated";
 
 export type TodayResponse = components["schemas"]["TodayResponse"];
 export type ProviderStatusResponse = components["schemas"]["ProviderStatusResponse"];
+export type WorkdayInboxResponse = components["schemas"]["WorkdayInboxResponse"];
+export type WorkdayFollowUpsResponse = components["schemas"]["WorkdayFollowUpsResponse"];
+export type WorkdayCalendarResponse = components["schemas"]["WorkdayCalendarResponse"];
 export type TelegramBindingStatusResponse =
   components["schemas"]["TelegramBindingStatusResponse"];
 export type TelegramSetupResponse = components["schemas"]["TelegramSetupResponse"];
@@ -30,6 +33,43 @@ export async function getProviderStatus(): Promise<ProviderStatusResponse> {
     return await requestJson<ProviderStatusResponse>("/v1/providers", { method: "GET" });
   } catch {
     return { providers: [], accounts: [] };
+  }
+}
+
+export async function getWorkdayInbox(): Promise<WorkdayInboxResponse> {
+  try {
+    return await requestJson<WorkdayInboxResponse>("/v1/workday/inbox", { method: "GET" });
+  } catch {
+    return {
+      items: [],
+      partial_state: fallbackPartialState("Assistant API unavailable")
+    };
+  }
+}
+
+export async function getWorkdayFollowUps(): Promise<WorkdayFollowUpsResponse> {
+  try {
+    return await requestJson<WorkdayFollowUpsResponse>("/v1/workday/follow-ups", {
+      method: "GET"
+    });
+  } catch {
+    return {
+      risks: [],
+      partial_state: fallbackPartialState("Assistant API unavailable")
+    };
+  }
+}
+
+export async function getWorkdayCalendar(): Promise<WorkdayCalendarResponse> {
+  try {
+    return await requestJson<WorkdayCalendarResponse>("/v1/workday/calendar", {
+      method: "GET"
+    });
+  } catch {
+    return {
+      insights: [],
+      partial_state: fallbackPartialState("Assistant API unavailable")
+    };
   }
 }
 
@@ -143,6 +183,25 @@ function fallbackToday(): TodayResponse {
       reason: "Assistant API unavailable",
       blocked_actions: ["external sends", "calendar writes", "sensitive exports"],
       allowed_actions: ["cached read-only UI"]
-    }
+    },
+    priorities: [],
+    follow_ups: [],
+    calendar: [],
+    inbox_count: 0,
+    proactive_suggestion: "",
+    partial_state: fallbackPartialState("Assistant API unavailable")
+  };
+}
+
+function fallbackPartialState(reason: string) {
+  return {
+    durable: false,
+    degraded: true,
+    reasons: [reason],
+    missing_sources: ["assistant_api"],
+    stale_sources: [],
+    generated_from: "fallback",
+    onebrain_available: false,
+    provider_accounts_seen: 0
   };
 }

@@ -225,6 +225,15 @@ a {
   margin-top: 10px;
 }
 
+.priority-list,
+.triage-list,
+.detail-list,
+.focus-window-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .brief-row,
 .health-row {
   display: grid;
@@ -260,6 +269,122 @@ a {
   margin: 0;
   color: var(--ink-secondary);
   font-size: 13px;
+}
+
+.priority-row,
+.triage-row,
+.insight-card,
+.suggestion-band {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-low);
+}
+
+.priority-row,
+.triage-row,
+.suggestion-band {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+}
+
+.priority-row strong,
+.triage-row strong,
+.suggestion-band strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+.priority-row p,
+.triage-row p,
+.suggestion-band p {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: 13px;
+}
+
+.priority-row span,
+.triage-row .source-line,
+.source-line {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.score-ring {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--slate) 35%, var(--hairline));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--slate) 8%, white);
+  color: var(--slate);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.suggestion-band {
+  background: color-mix(in srgb, var(--copper) 7%, white);
+}
+
+.workday-detail-grid {
+  display: grid;
+  max-width: 920px;
+  gap: 22px;
+}
+
+.triage-topline,
+.insight-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.source-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.source-line span {
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: var(--surface-secondary);
+}
+
+.insight-card {
+  display: grid;
+  gap: 11px;
+  padding: 14px;
+}
+
+.focus-window {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  padding: 10px;
+}
+
+.focus-window strong {
+  color: var(--slate);
+  font-size: 13px;
+  text-transform: capitalize;
+}
+
+.focus-window span,
+.focus-window p {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: 12px;
 }
 
 .approval-card {
