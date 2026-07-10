@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/actions/{action_id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Edit Draft */
+        post: operations["edit_draft_v1_actions__action_id__draft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/assistant/ask": {
         parameters: {
             query?: never;
@@ -203,6 +220,23 @@ export interface paths {
         get: operations["get_brain_record_v1_brain_records__record_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose Draft */
+        post: operations["propose_draft_v1_drafts_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -596,6 +630,8 @@ export interface components {
             actor: string;
             /** @default web */
             channel: components["schemas"]["ApprovalChannel"];
+            /** Content Hash */
+            content_hash?: string | null;
             /**
              * Fresh Auth
              * @default false
@@ -611,6 +647,16 @@ export interface components {
             action_type: string;
             /** Changed Fields */
             changed_fields?: string[];
+            /**
+             * Draft Body
+             * @default
+             */
+            draft_body: string;
+            /**
+             * Draft Subject
+             * @default
+             */
+            draft_subject: string;
             /**
              * External Side Effect
              * @default true
@@ -661,6 +707,11 @@ export interface components {
             audit_correlation_id?: string;
             /** Changed Fields */
             changed_fields?: string[];
+            /**
+             * Content Hash
+             * @default
+             */
+            content_hash: string;
             /** Correlation Id */
             correlation_id?: string;
             /**
@@ -668,6 +719,16 @@ export interface components {
              * Format: date-time
              */
             created_at?: string;
+            /**
+             * Draft Body
+             * @default
+             */
+            draft_body: string;
+            /**
+             * Draft Subject
+             * @default
+             */
+            draft_subject: string;
             /**
              * External Side Effect
              * @default true
@@ -717,6 +778,21 @@ export interface components {
             approval_reason: string;
             /** Changed Fields */
             changed_fields: string[];
+            /**
+             * Content Hash
+             * @default
+             */
+            content_hash: string;
+            /**
+             * Draft Body
+             * @default
+             */
+            draft_body: string;
+            /**
+             * Draft Subject
+             * @default
+             */
+            draft_subject: string;
             /** Primary Channel */
             primary_channel: string;
             /** Recipient Refs */
@@ -900,6 +976,37 @@ export interface components {
             blocked_actions?: string[];
             /** Reason */
             reason?: string | null;
+        };
+        /** DraftProposalRequest */
+        DraftProposalRequest: {
+            /** Recipient Ref */
+            recipient_ref: string;
+            /** @default medium */
+            risk_tier: components["schemas"]["RiskTier"];
+            /** Sending Account Ref */
+            sending_account_ref?: string | null;
+            /** Source Ref */
+            source_ref: string;
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+        };
+        /** DraftUpdateRequest */
+        DraftUpdateRequest: {
+            /**
+             * Body
+             * @default
+             */
+            body: string;
+            /** Recipient Refs */
+            recipient_refs?: string[];
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
         };
         /** FirewallDecision */
         FirewallDecision: {
@@ -1959,6 +2066,41 @@ export interface operations {
             };
         };
     };
+    edit_draft_v1_actions__action_id__draft_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                action_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     assistant_ask_v1_assistant_ask_post: {
         parameters: {
             query?: never;
@@ -2186,6 +2328,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BrainRecordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_draft_v1_drafts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftProposalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionRecord"];
                 };
             };
             /** @description Validation Error */

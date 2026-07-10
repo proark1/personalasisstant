@@ -116,7 +116,26 @@ export async function getWorkdayCalendar(token?: string): Promise<WorkdayCalenda
   }
 }
 
-export async function approveAction(actionId: string): Promise<ApproveActionResult> {
+export async function proposeDraft(
+  sourceRef: string,
+  recipientRef: string,
+  subject: string
+): Promise<boolean> {
+  try {
+    await requestJson("/v1/drafts", {
+      method: "POST",
+      body: JSON.stringify({ source_ref: sourceRef, recipient_ref: recipientRef, subject })
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function approveAction(
+  actionId: string,
+  contentHash?: string
+): Promise<ApproveActionResult> {
   try {
     const { url, headers } = requestTarget(`/v1/actions/${actionId}/approve`);
     const response = await fetch(url, {
@@ -126,7 +145,8 @@ export async function approveAction(actionId: string): Promise<ApproveActionResu
         "content-type": "application/json",
         ...headers
       },
-      body: JSON.stringify({})
+      // Bind the approval to the exact snapshot the user saw, when known.
+      body: JSON.stringify(contentHash ? { content_hash: contentHash } : {})
     });
     if (response.ok) {
       return { ok: true, status: response.status };

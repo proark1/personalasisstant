@@ -1035,6 +1035,19 @@ a {
   white-space: pre-line;
 }
 
+.triage-actions {
+  margin-top: 10px;
+}
+
+.draft-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--success);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .auth-error {
   margin: 0;
   border-radius: var(--radius-card);

@@ -18,6 +18,7 @@ import type {
   WorkdayFollowUpsResponse,
   WorkdayInboxResponse
 } from "../api/client";
+import { DraftReplyButton } from "./draft-reply-button";
 
 const iconMap = {
   today: Sparkles,
@@ -64,6 +65,13 @@ export function InboxReviewShell({
                     {(item.flags ?? []).map((flag) => (
                       <span key={flag}>{flag.replaceAll("_", " ")}</span>
                     ))}
+                  </div>
+                  <div className="triage-actions">
+                    <DraftReplyButton
+                      sourceRef={item.source_ref}
+                      recipientRef={item.sender}
+                      subject={item.subject}
+                    />
                   </div>
                 </div>
               </article>

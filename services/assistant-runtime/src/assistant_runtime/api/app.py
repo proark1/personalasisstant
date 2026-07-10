@@ -24,6 +24,7 @@ from assistant_runtime.domain.brief import (
     compose_followups_message,
     compose_help_message,
 )
+from assistant_runtime.domain.drafts import DRAFT_ACTION_TYPE, propose_reply_draft
 from assistant_runtime.domain.providers import summarize_provider_account
 from assistant_runtime.domain.sessions import mint_session
 from assistant_runtime.domain.workday import (
@@ -79,6 +80,8 @@ from assistant_runtime.schemas import (
     BrainRecordCreateRequest,
     BrainRecordListResponse,
     BrainRecordResponse,
+    DraftProposalRequest,
+    DraftUpdateRequest,
     HealthResponse,
     LoginRequest,
     LoginResponse,
@@ -375,6 +378,57 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             sources=answer.sources,
         )
 
+    @app.post("/v1/drafts", response_model=ActionRecord, status_code=201)
+    async def propose_draft(
+        request: DraftProposalRequest,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> ActionRecord:
+        subject, body = propose_reply_draft(
+            source_ref=request.source_ref,
+            recipient_ref=request.recipient_ref,
+            subject=request.subject,
+        )
+        action = container.actions.create(
+            ActionCreateRequest(
+                scope=principal.scope,
+                action_type=DRAFT_ACTION_TYPE,
+                risk_tier=request.risk_tier,
+                summary=f"Draft reply to {request.recipient_ref}",
+                sending_account_ref=request.sending_account_ref,
+                recipient_refs=[request.recipient_ref],
+                source_refs=[request.source_ref],
+                changed_fields=["subject", "body"],
+                reversible=True,
+                external_side_effect=True,
+                draft_subject=subject,
+                draft_body=body,
+            )
+        )
+        container.observability.increment("draft_proposed", {"risk_tier": str(action.risk_tier)})
+        return action
+
+    @app.post("/v1/actions/{action_id}/draft", response_model=ActionRecord)
+    async def edit_draft(
+        action_id: UUID,
+        request: DraftUpdateRequest,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> ActionRecord:
+        action = container.actions.get(action_id)
+        if action is None:
+            raise HTTPException(status_code=404, detail="Action not found")
+        require_scope_match(principal, action.scope)
+        try:
+            updated = container.actions.update_draft(
+                action_id,
+                subject=request.subject,
+                body=request.body,
+                recipient_refs=request.recipient_refs or None,
+            )
+        except InvalidActionTransition as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        container.observability.increment("draft_edited", {"state": str(updated.state)})
+        return updated
+
     @app.post("/v1/actions", response_model=ActionRecord, status_code=201)
     async def create_action(
         request: ActionCreateRequest,
@@ -398,6 +452,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Action not found")
         require_scope_match(principal, action.scope)
         actor = principal.scope.user_id
+
+        # Exact-approval snapshot: the client approves a specific content hash. If the
+        # draft changed since it was shown, reject rather than approve blind.
+        if request.content_hash is not None and request.content_hash != action.content_hash:
+            raise HTTPException(
+                status_code=409,
+                detail="Draft content changed since it was shown; re-review before approving.",
+            )
+        # Honest execution gate: a draft send needs a connected mailbox with draft-write
+        # scope. Everything is read-only today, so approving-to-send is refused clearly.
+        if action.action_type == DRAFT_ACTION_TYPE and not _has_draft_write_account(
+            container, action.scope
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This draft needs a connected mailbox with draft-write access. The "
+                    "connected account is read-only — upgrade the provider scope to send."
+                ),
+            )
 
         channel = ApprovalChannel.fresh_auth if request.fresh_auth else request.channel
         decision = container.policy.evaluate(
@@ -938,6 +1012,22 @@ async def build_workday_snapshot(
     )
 
 
+_DRAFT_WRITE_TIERS = frozenset({"draft_write", "send"})
+
+
+def _has_draft_write_account(container: RuntimeContainer, scope: ScopedIdentity) -> bool:
+    """Whether the scope has a connected mailbox with draft-write (or higher) scope."""
+    for account in container.providers.list_accounts():
+        if (
+            account.scope.account_id == scope.account_id
+            and account.scope.space_id == scope.space_id
+            and str(account.scope_tier) in _DRAFT_WRITE_TIERS
+            and str(account.status) not in {"disconnected", "revoked"}
+        ):
+            return True
+    return False
+
+
 def _require_binding_scope(
     container: RuntimeContainer,
     binding_id: UUID,
@@ -1025,6 +1115,9 @@ def _approval_card_from_action(action: ActionRecord) -> ApprovalCard:
         primary_channel="web"
         if RiskTier(action.risk_tier) == RiskTier.high
         else "web_or_telegram",
+        content_hash=action.content_hash,
+        draft_subject=action.draft_subject,
+        draft_body=action.draft_body,
     )
 
 

@@ -14,6 +14,7 @@ from assistant_runtime.domain.action_store import (
     ALLOWED_TRANSITIONS,
     InMemoryActionStore,
     InvalidActionTransition,
+    _content_hash_for,
 )
 from assistant_runtime.domain.outbox import InMemoryOutboxStore
 from assistant_runtime.providers.oauth import scopes_for
@@ -270,6 +271,8 @@ class PostgresActionStore(InMemoryActionStore):
                 sensitive_flags=request.sensitive_flags,
                 reversible=request.reversible,
                 external_side_effect=request.external_side_effect,
+                draft_subject=request.draft_subject,
+                draft_body=request.draft_body,
                 transitions=[
                     TransitionRecord(
                         from_state=None,
@@ -280,6 +283,7 @@ class PostgresActionStore(InMemoryActionStore):
                     )
                 ],
             )
+            action.content_hash = _content_hash_for(action)
             row = conn.execute(
                 """
                 INSERT INTO assistant_actions (
@@ -287,10 +291,10 @@ class PostgresActionStore(InMemoryActionStore):
                   risk_tier, summary, idempotency_key, correlation_id, audit_correlation_id,
                   sending_account_ref, recipient_refs, source_refs, changed_fields,
                   sensitive_flags, approval_reason, reversible, external_side_effect,
-                  created_at, updated_at
+                  draft_subject, draft_body, content_hash, created_at, updated_at
                 ) VALUES (
                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                  %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                  %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
                 RETURNING *
                 """,
@@ -315,12 +319,67 @@ class PostgresActionStore(InMemoryActionStore):
                     action.approval_reason,
                     action.reversible,
                     action.external_side_effect,
+                    action.draft_subject,
+                    action.draft_body,
+                    action.content_hash,
                     action.created_at,
                     action.updated_at,
                 ),
             ).fetchone()
             _insert_transition(conn, action.action_id, action.transitions[0])
             return _action_from_row(row, _load_transitions(conn, action.action_id))
+
+    def update_draft(
+        self,
+        action_id: UUID,
+        *,
+        subject: str,
+        body: str,
+        recipient_refs: list[str] | None = None,
+    ) -> ActionRecord:
+        with _connect(self.database_url, autocommit=False) as conn:
+            existing = conn.execute(
+                "SELECT * FROM assistant_actions WHERE action_id = %s",
+                (action_id,),
+            ).fetchone()
+            if existing is None:
+                raise KeyError(action_id)
+            action = _action_from_row(existing, _load_transitions(conn, action_id))
+            if ActionState(action.state) in {
+                ActionState.executing,
+                ActionState.executed,
+                ActionState.cancelled,
+            }:
+                raise InvalidActionTransition(f"Cannot edit a draft in state {action.state}.")
+            action.draft_subject = subject
+            action.draft_body = body
+            if recipient_refs is not None:
+                action.recipient_refs = recipient_refs
+            content_hash = _content_hash_for(action)
+            conn.execute(
+                """
+                UPDATE assistant_actions
+                SET draft_subject = %s, draft_body = %s, recipient_refs = %s,
+                    content_hash = %s, updated_at = %s
+                WHERE action_id = %s
+                """,
+                (
+                    subject,
+                    body,
+                    _json(action.recipient_refs),
+                    content_hash,
+                    utc_now(),
+                    action_id,
+                ),
+            )
+        if ActionState(action.state) == ActionState.approved:
+            self.transition(
+                action_id,
+                ActionState.needs_review,
+                actor="assistant-api",
+                reason="Draft content changed after approval; re-review required.",
+            )
+        return self.get(action_id)
 
     def get(self, action_id: UUID) -> ActionRecord | None:
         with _connect(self.database_url) as conn:
@@ -1589,6 +1648,9 @@ def _action_from_row(
         approval_reason=row["approval_reason"],
         reversible=row["reversible"],
         external_side_effect=row["external_side_effect"],
+        draft_subject=row.get("draft_subject") or "",
+        draft_body=row.get("draft_body") or "",
+        content_hash=row.get("content_hash") or "",
         created_at=row["created_at"],
         updated_at=row["updated_at"],
         transitions=transitions or [],

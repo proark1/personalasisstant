@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from threading import RLock
 from uuid import UUID
 
+from assistant_runtime.domain.drafts import compute_content_hash
 from assistant_runtime.schemas import (
     ActionCreateRequest,
     ActionRecord,
@@ -13,10 +14,27 @@ from assistant_runtime.schemas import (
     utc_now,
 )
 
+
+def _content_hash_for(action: ActionRecord) -> str:
+    return compute_content_hash(
+        action_type=action.action_type,
+        subject=action.draft_subject,
+        body=action.draft_body,
+        recipient_refs=action.recipient_refs,
+        sending_account_ref=action.sending_account_ref,
+        changed_fields=action.changed_fields,
+    )
+
 ALLOWED_TRANSITIONS: dict[ActionState, set[ActionState]] = {
     ActionState.proposed: {ActionState.needs_review, ActionState.approved, ActionState.cancelled},
     ActionState.needs_review: {ActionState.approved, ActionState.cancelled},
-    ActionState.approved: {ActionState.executing, ActionState.cancelled},
+    # approved -> needs_review is the exact-approval-snapshot reset: editing an approved
+    # draft's content invalidates the approval and requires re-review before it can send.
+    ActionState.approved: {
+        ActionState.executing,
+        ActionState.needs_review,
+        ActionState.cancelled,
+    },
     ActionState.executing: {ActionState.executed, ActionState.failed},
     ActionState.failed: {ActionState.approved, ActionState.cancelled},
     ActionState.executed: set(),
@@ -59,6 +77,8 @@ class InMemoryActionStore:
                 sensitive_flags=request.sensitive_flags,
                 reversible=request.reversible,
                 external_side_effect=request.external_side_effect,
+                draft_subject=request.draft_subject,
+                draft_body=request.draft_body,
                 transitions=[
                     TransitionRecord(
                         from_state=None,
@@ -69,9 +89,48 @@ class InMemoryActionStore:
                     )
                 ],
             )
+            action.content_hash = _content_hash_for(action)
             self._actions[action.action_id] = action
             self._idempotency_index[idempotency_key] = action.action_id
             return action
+
+    def update_draft(
+        self,
+        action_id: UUID,
+        *,
+        subject: str,
+        body: str,
+        recipient_refs: list[str] | None = None,
+    ) -> ActionRecord:
+        """Edit a draft's content, recompute its hash, and reset any prior approval.
+
+        Once approved content changes, the approval no longer applies — the action
+        returns to needs_review so nothing is sent that the user didn't re-approve.
+        """
+        with self._lock:
+            action = self._actions[action_id]
+            if ActionState(action.state) in {
+                ActionState.executing,
+                ActionState.executed,
+                ActionState.cancelled,
+            }:
+                raise InvalidActionTransition(
+                    f"Cannot edit a draft in state {action.state}."
+                )
+            action.draft_subject = subject
+            action.draft_body = body
+            if recipient_refs is not None:
+                action.recipient_refs = recipient_refs
+            action.content_hash = _content_hash_for(action)
+            action.updated_at = utc_now()
+            if ActionState(action.state) == ActionState.approved:
+                self.transition(
+                    action_id,
+                    ActionState.needs_review,
+                    actor="assistant-api",
+                    reason="Draft content changed after approval; re-review required.",
+                )
+            return self._actions[action_id]
 
     def get(self, action_id: UUID) -> ActionRecord | None:
         with self._lock:

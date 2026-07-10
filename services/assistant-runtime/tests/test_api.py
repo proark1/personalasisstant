@@ -245,7 +245,11 @@ def test_action_approval_records_onebrain_audit() -> None:
 
     action = client.post(
         "/v1/actions",
-        json={"risk_tier": "medium", "idempotency_key": "audit-roundtrip"},
+        json={
+            "risk_tier": "medium",
+            "idempotency_key": "audit-roundtrip",
+            "action_type": "create_calendar_event",
+        },
     ).json()
     approved = client.post(f"/v1/actions/{action['action_id']}/approve", json={})
 
@@ -309,7 +313,10 @@ def test_today_surfaces_real_pending_approvals_not_a_sample_card() -> None:
     assert client.get("/v1/today").json()["approvals"] == []
 
     # A real proposed action surfaces as an approval card...
-    action = client.post("/v1/actions", json={"idempotency_key": "real-approval"}).json()
+    action = client.post(
+        "/v1/actions",
+        json={"idempotency_key": "real-approval", "action_type": "create_calendar_event"},
+    ).json()
     approvals = client.get("/v1/today").json()["approvals"]
     assert [card["action_id"] for card in approvals] == [action["action_id"]]
 

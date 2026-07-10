@@ -19,7 +19,7 @@ export function ApprovalCard({ approval }: { approval: ApprovalCardData }) {
   async function approve() {
     setState("approving");
     setMessage(null);
-    const result = await approveAction(approval.action_id);
+    const result = await approveAction(approval.action_id, approval.content_hash || undefined);
     if (result.ok) {
       setState("approved");
       return;

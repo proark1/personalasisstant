@@ -253,6 +253,11 @@ class ActionRecord(BaseModel):
     approval_reason: str = "User approval required by action policy."
     reversible: bool = False
     external_side_effect: bool = True
+    # Draft content for email-draft actions; the content_hash binds an approval to the
+    # exact subject/body/recipients/sending-account the user saw.
+    draft_subject: str = ""
+    draft_body: str = ""
+    content_hash: str = ""
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     transitions: list[TransitionRecord] = Field(default_factory=list)
@@ -275,12 +280,31 @@ class ActionCreateRequest(BaseModel):
     reversible: bool = True
     external_side_effect: bool = True
     idempotency_key: str | None = None
+    draft_subject: str = ""
+    draft_body: str = ""
 
 
 class ActionApprovalRequest(BaseModel):
     channel: ApprovalChannel = ApprovalChannel.web
     actor: str = "user_demo"
     fresh_auth: bool = False
+    # If provided, the approval is bound to this exact content snapshot; a mismatch
+    # (the draft changed since it was shown) is rejected so nothing is approved blind.
+    content_hash: str | None = None
+
+
+class DraftProposalRequest(BaseModel):
+    source_ref: str = Field(min_length=1)
+    recipient_ref: str = Field(min_length=1)
+    subject: str = ""
+    sending_account_ref: str | None = None
+    risk_tier: RiskTier = RiskTier.medium
+
+
+class DraftUpdateRequest(BaseModel):
+    subject: str = ""
+    body: str = ""
+    recipient_refs: list[str] = Field(default_factory=list)
 
 
 class PolicyDecision(BaseModel):
@@ -607,6 +631,9 @@ class ApprovalCard(BaseModel):
     approval_reason: str
     reversible: bool
     primary_channel: str
+    content_hash: str = ""
+    draft_subject: str = ""
+    draft_body: str = ""
 
 
 class DegradedModeState(BaseModel):

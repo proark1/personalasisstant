@@ -12,6 +12,17 @@
             "$ref": "#/components/schemas/ApprovalChannel",
             "default": "web"
           },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
           "fresh_auth": {
             "default": false,
             "title": "Fresh Auth",
@@ -34,6 +45,16 @@
             },
             "title": "Changed Fields",
             "type": "array"
+          },
+          "draft_body": {
+            "default": "",
+            "title": "Draft Body",
+            "type": "string"
+          },
+          "draft_subject": {
+            "default": "",
+            "title": "Draft Subject",
+            "type": "string"
           },
           "external_side_effect": {
             "default": true,
@@ -132,6 +153,11 @@
             "title": "Changed Fields",
             "type": "array"
           },
+          "content_hash": {
+            "default": "",
+            "title": "Content Hash",
+            "type": "string"
+          },
           "correlation_id": {
             "title": "Correlation Id",
             "type": "string"
@@ -139,6 +165,16 @@
           "created_at": {
             "format": "date-time",
             "title": "Created At",
+            "type": "string"
+          },
+          "draft_body": {
+            "default": "",
+            "title": "Draft Body",
+            "type": "string"
+          },
+          "draft_subject": {
+            "default": "",
+            "title": "Draft Subject",
             "type": "string"
           },
           "external_side_effect": {
@@ -257,6 +293,21 @@
             },
             "title": "Changed Fields",
             "type": "array"
+          },
+          "content_hash": {
+            "default": "",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "draft_body": {
+            "default": "",
+            "title": "Draft Body",
+            "type": "string"
+          },
+          "draft_subject": {
+            "default": "",
+            "title": "Draft Subject",
+            "type": "string"
           },
           "primary_channel": {
             "title": "Primary Channel",
@@ -668,6 +719,69 @@
           "active"
         ],
         "title": "DegradedModeState",
+        "type": "object"
+      },
+      "DraftProposalRequest": {
+        "properties": {
+          "recipient_ref": {
+            "minLength": 1,
+            "title": "Recipient Ref",
+            "type": "string"
+          },
+          "risk_tier": {
+            "$ref": "#/components/schemas/RiskTier",
+            "default": "medium"
+          },
+          "sending_account_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sending Account Ref"
+          },
+          "source_ref": {
+            "minLength": 1,
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "subject": {
+            "default": "",
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_ref",
+          "recipient_ref"
+        ],
+        "title": "DraftProposalRequest",
+        "type": "object"
+      },
+      "DraftUpdateRequest": {
+        "properties": {
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          },
+          "recipient_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recipient Refs",
+            "type": "array"
+          },
+          "subject": {
+            "default": "",
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "title": "DraftUpdateRequest",
         "type": "object"
       },
       "FirewallDecision": {
@@ -3131,6 +3245,61 @@
         "summary": "Approve Action"
       }
     },
+    "/v1/actions/{action_id}/draft": {
+      "post": {
+        "operationId": "edit_draft_v1_actions__action_id__draft_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Action Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Edit Draft"
+      }
+    },
     "/v1/assistant/ask": {
       "post": {
         "operationId": "assistant_ask_v1_assistant_ask_post",
@@ -3479,6 +3648,49 @@
           }
         ],
         "summary": "Get Brain Record"
+      }
+    },
+    "/v1/drafts": {
+      "post": {
+        "operationId": "propose_draft_v1_drafts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftProposalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Propose Draft"
       }
     },
     "/v1/providers": {
