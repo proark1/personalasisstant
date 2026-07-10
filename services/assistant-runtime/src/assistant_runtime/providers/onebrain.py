@@ -12,6 +12,8 @@ from assistant_runtime.config import Settings
 from assistant_runtime.contracts import (
     ASSISTANT_APP_ID,
     ASSISTANT_CONTRACT_VERSION,
+    ASSISTANT_PURPOSES,
+    ASSISTANT_RECORD_TYPES,
     contains_secret_reference,
     copy_metadata,
     default_assistant_intent,
@@ -33,6 +35,9 @@ class OneBrainClientError(RuntimeError):
 class DisabledBrainClient:
     async def check_available(self) -> bool:
         return False
+
+    async def capabilities(self) -> JsonObject:
+        return {}
 
     async def create_assistant_record(self, **_: Any) -> JsonObject:
         raise OneBrainClientError(503, "OneBrain client is disabled.")
@@ -64,6 +69,14 @@ class InMemoryBrainClient:
 
     async def check_available(self) -> bool:
         return True
+
+    async def capabilities(self) -> JsonObject:
+        return {
+            "app_id": ASSISTANT_APP_ID,
+            "contract_version": ASSISTANT_CONTRACT_VERSION,
+            "purposes": sorted(ASSISTANT_PURPOSES),
+            "record_types": sorted(ASSISTANT_RECORD_TYPES),
+        }
 
     async def create_assistant_record(
         self,
@@ -220,9 +233,9 @@ class HttpOneBrainClient:
         self.timeout_seconds = timeout_seconds
         self.transport = transport
 
-    async def check_available(self) -> bool:
+    async def capabilities(self) -> JsonObject:
         if not self.service_key:
-            return False
+            return {}
         try:
             query = urlencode(
                 self._service_scope(
@@ -231,8 +244,13 @@ class HttpOneBrainClient:
                     purpose="assistant_provider_health",
                 )
             )
-            capabilities = await self._request("GET", f"api/service/capabilities?{query}")
+            return await self._request("GET", f"api/service/capabilities?{query}")
         except OneBrainClientError:
+            return {}
+
+    async def check_available(self) -> bool:
+        capabilities = await self.capabilities()
+        if not capabilities:
             return False
         if capabilities.get("app_id") and capabilities.get("app_id") != ASSISTANT_APP_ID:
             return False
@@ -482,6 +500,34 @@ def _validated_audit_metadata(metadata: JsonObject | None) -> JsonObject:
     return clean_metadata
 
 
+def write_contract_status(capabilities: JsonObject) -> str:
+    """Compare the assistant's write vocabulary against OneBrain capabilities.
+
+    Returns a readiness check value: ``ok`` when every purpose the service key may
+    use and every record type the deployment accepts covers the assistant contract;
+    ``error:...`` (which degrades readiness) when drift would reject writes; and
+    ``unknown`` when OneBrain predates contract advertisement, so drift can only be
+    discovered at write time.
+    """
+    if not capabilities:
+        return "error:capabilities_unavailable"
+    advertised_record_types = capabilities.get("record_types")
+    advertised_purposes = capabilities.get("purposes")
+    if not isinstance(advertised_record_types, list) or not advertised_record_types:
+        return "unknown"
+    problems: list[str] = []
+    missing_types = sorted(ASSISTANT_RECORD_TYPES - set(advertised_record_types))
+    if missing_types:
+        problems.append("record_types=" + ",".join(missing_types))
+    if isinstance(advertised_purposes, list) and advertised_purposes:
+        missing_purposes = sorted(ASSISTANT_PURPOSES - set(advertised_purposes))
+        if missing_purposes:
+            problems.append("purposes=" + ",".join(missing_purposes))
+    if problems:
+        return "error:contract_drift:" + ";".join(problems)
+    return "ok"
+
+
 def _safe_error_detail(response: httpx.Response) -> str:
     try:
         body = response.json()
@@ -490,6 +536,16 @@ def _safe_error_detail(response: httpx.Response) -> str:
     detail = body.get("detail", response.reason_phrase)
     if isinstance(detail, str):
         return detail
+    if isinstance(detail, list):
+        # FastAPI validation errors: summarize field paths without echoing values.
+        locations = []
+        for error in detail[:5]:
+            if isinstance(error, dict):
+                loc = ".".join(str(part) for part in error.get("loc", []))
+                message = str(error.get("msg", "invalid"))
+                locations.append(f"{loc}: {message}" if loc else message)
+        if locations:
+            return "validation failed: " + "; ".join(locations)
     return response.reason_phrase
 
 

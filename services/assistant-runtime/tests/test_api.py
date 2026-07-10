@@ -251,3 +251,68 @@ def test_action_approval_records_onebrain_audit() -> None:
 
     assert approved.status_code == 200
     assert app.state.container.brain.audit_events[-1]["target_id"] == action["action_id"]
+
+
+def test_readiness_verifies_onebrain_write_contract() -> None:
+    app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
+    client = TestClient(app)
+
+    health = client.get("/health/ready").json()
+
+    assert health["checks"]["onebrain_contract"] == "ok"
+    assert health["degraded"] is False
+
+
+def test_readiness_degrades_on_onebrain_contract_drift() -> None:
+    app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
+    brain = app.state.container.brain
+
+    async def drifted_capabilities():
+        full = await type(brain).capabilities(brain)
+        record_types = [t for t in full["record_types"] if t != "workday_brief"]
+        purposes = [p for p in full["purposes"] if p != "assistant_workday"]
+        return {**full, "record_types": record_types, "purposes": purposes}
+
+    brain.capabilities = drifted_capabilities
+    client = TestClient(app)
+
+    health = client.get("/health/ready").json()
+
+    assert health["checks"]["onebrain_contract"].startswith("error:contract_drift:")
+    assert "workday_brief" in health["checks"]["onebrain_contract"]
+    assert "assistant_workday" in health["checks"]["onebrain_contract"]
+    assert health["degraded"] is True
+
+
+def test_readiness_reports_unknown_contract_for_older_onebrain() -> None:
+    app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
+    brain = app.state.container.brain
+
+    async def legacy_capabilities():
+        return {"app_id": "assistant", "purposes": ["assistant_briefing"]}
+
+    brain.capabilities = legacy_capabilities
+    client = TestClient(app)
+
+    health = client.get("/health/ready").json()
+
+    # Pre-advertisement OneBrain cannot be verified up front; visible but not a failure.
+    assert health["checks"]["onebrain_contract"] == "unknown"
+    assert health["degraded"] is False
+
+
+def test_today_surfaces_real_pending_approvals_not_a_sample_card() -> None:
+    app = create_app(Settings(ONEBRAIN_CLIENT_MODE="memory", ONEBRAIN_AVAILABLE=True))
+    client = authed_client(app)
+
+    # No fabricated sample approval card by default.
+    assert client.get("/v1/today").json()["approvals"] == []
+
+    # A real proposed action surfaces as an approval card...
+    action = client.post("/v1/actions", json={"idempotency_key": "real-approval"}).json()
+    approvals = client.get("/v1/today").json()["approvals"]
+    assert [card["action_id"] for card in approvals] == [action["action_id"]]
+
+    # ...and clears once it is approved.
+    client.post(f"/v1/actions/{action['action_id']}/approve", json={})
+    assert client.get("/v1/today").json()["approvals"] == []

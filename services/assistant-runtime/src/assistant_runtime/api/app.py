@@ -46,7 +46,11 @@ from assistant_runtime.providers.oauth import (
     token_scopes,
     token_subject,
 )
-from assistant_runtime.providers.onebrain import OneBrainClientError, build_brain_client
+from assistant_runtime.providers.onebrain import (
+    OneBrainClientError,
+    build_brain_client,
+    write_contract_status,
+)
 from assistant_runtime.providers.onebrain_events import (
     record_provider_account_connected,
     record_provider_health_event,
@@ -58,6 +62,7 @@ from assistant_runtime.schemas import (
     ActionApprovalRequest,
     ActionCreateRequest,
     ActionRecord,
+    ActionState,
     ApprovalCard,
     ApprovalChannel,
     AuthPrincipal,
@@ -192,6 +197,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         checks = dependency_checks(settings)
         brain_available = await container.brain.check_available()
         checks["onebrain"] = "ok" if brain_available else "unavailable"
+        # Ready must mean writes will actually land: verify the assistant's write
+        # vocabulary against what OneBrain advertises, so contract drift degrades
+        # readiness instead of surfacing later as 422s on every workday write.
+        checks["onebrain_contract"] = (
+            write_contract_status(await container.brain.capabilities())
+            if brain_available
+            else "unavailable"
+        )
         degraded = not brain_available or any(
             status.startswith("error") for status in checks.values()
         )
@@ -859,7 +872,7 @@ async def build_workday_snapshot(
         scope=scope,
         local_date=local_date,
         provider_health=_provider_health(container, onebrain_available),
-        approvals=_approval_cards(container),
+        approvals=_approval_cards(container, scope),
     )
 
 
@@ -900,26 +913,45 @@ def _provider_health(container: RuntimeContainer, onebrain_available: bool) -> l
     ]
 
 
-def _approval_cards(container: RuntimeContainer) -> list[ApprovalCard]:
-    action = _ensure_sample_action(container)
-    return [
-        ApprovalCard(
-            action_id=str(action.action_id),
-            action_type=action.action_type,
-            risk_tier=RiskTier(action.risk_tier),
-            summary=action.summary,
-            sending_account=action.sending_account_ref or "onebrain://connected-account/demo",
-            recipient_refs=action.recipient_refs,
-            source_ref=action.source_refs[0] if action.source_refs else "onebrain://source/demo",
-            changed_fields=action.changed_fields,
-            sensitive_flags=action.sensitive_flags,
-            approval_reason=action.approval_reason,
-            reversible=action.reversible,
-            primary_channel="web"
-            if RiskTier(action.risk_tier) == RiskTier.high
-            else "web_or_telegram",
-        )
-    ]
+_APPROVAL_PENDING_STATES = frozenset({ActionState.proposed, ActionState.needs_review})
+
+
+def _approval_cards(container: RuntimeContainer, scope: ScopedIdentity) -> list[ApprovalCard]:
+    """Surface real actions awaiting approval for this scope.
+
+    No fabricated cards: an empty list means nothing is pending. Filtering happens in
+    Python for the current single-operator volume; a scoped store query is the scale path.
+    """
+    cards: list[ApprovalCard] = []
+    for action in container.actions.all():
+        if ActionState(action.state) not in _APPROVAL_PENDING_STATES:
+            continue
+        if (
+            action.scope.account_id != scope.account_id
+            or action.scope.space_id != scope.space_id
+        ):
+            continue
+        cards.append(_approval_card_from_action(action))
+    return cards
+
+
+def _approval_card_from_action(action: ActionRecord) -> ApprovalCard:
+    return ApprovalCard(
+        action_id=str(action.action_id),
+        action_type=action.action_type,
+        risk_tier=RiskTier(action.risk_tier),
+        summary=action.summary,
+        sending_account=action.sending_account_ref or "",
+        recipient_refs=action.recipient_refs,
+        source_ref=action.source_refs[0] if action.source_refs else "",
+        changed_fields=action.changed_fields,
+        sensitive_flags=action.sensitive_flags,
+        approval_reason=action.approval_reason,
+        reversible=action.reversible,
+        primary_channel="web"
+        if RiskTier(action.risk_tier) == RiskTier.high
+        else "web_or_telegram",
+    )
 
 
 async def _record_provider_connected(
@@ -953,12 +985,50 @@ async def _record_provider_health(container: RuntimeContainer, account, detail: 
         )
 
 
+def _verify_provider_webhook(
+    provider: ProviderKind,
+    request: Request,
+    payload: dict[str, object],
+    settings: Settings,
+) -> bool:
+    """Verify a provider push actually came from the provider we subscribed with.
+
+    Google echoes the channel token we set at watch-creation time in the
+    X-Goog-Channel-Token header; Microsoft echoes our clientState in every
+    notification. Both are compared constant-time and fail closed, so an
+    unauthenticated caller can no longer trigger reconcile sync storms.
+
+    NOTE: real watch/subscription creation must set these tokens
+    (settings.google_webhook_verification_token / microsoft_webhook_client_state);
+    the current provider layer is a skeleton, so no live webhooks exist yet.
+    """
+    if provider == ProviderKind.google:
+        return constant_time_secret_matches(
+            request.headers.get("x-goog-channel-token"),
+            settings.google_webhook_verification_token,
+        )
+    values = payload.get("value")
+    if not isinstance(values, list) or not values:
+        return False
+    return all(
+        isinstance(item, dict)
+        and constant_time_secret_matches(
+            item.get("clientState") if isinstance(item.get("clientState"), str) else None,
+            settings.microsoft_webhook_client_state,
+        )
+        for item in values
+    )
+
+
 async def _handle_provider_webhook(
     container: RuntimeContainer,
     provider: ProviderKind,
     request: Request,
     payload: dict[str, object],
 ) -> ProviderWebhookResponse:
+    if not _verify_provider_webhook(provider, request, payload, container.settings):
+        container.observability.increment("provider_webhook_rejected", {"provider": str(provider)})
+        raise HTTPException(status_code=401, detail="Invalid provider webhook verification.")
     dedupe_key = _provider_webhook_dedupe_key(provider, request, payload)
     first_seen = container.providers.remember_webhook_event(provider, dedupe_key)
     if not first_seen:
@@ -1082,16 +1152,3 @@ def _degraded_reason(onebrain_available: bool, dependency_errors: dict[str, str]
     if not onebrain_available:
         return "OneBrain unavailable"
     return "Operational dependency unavailable: " + ", ".join(sorted(dependency_errors))
-
-
-def _ensure_sample_action(container: RuntimeContainer) -> ActionRecord:
-    request = ActionCreateRequest(
-        action_type="create_email_draft",
-        risk_tier=RiskTier.medium,
-        summary="Draft a concise reply for review.",
-        changed_fields=["subject", "body"],
-        reversible=True,
-        external_side_effect=True,
-        idempotency_key="phase0-sample-action",
-    )
-    return container.actions.create(request)

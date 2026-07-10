@@ -24,6 +24,8 @@ from assistant_runtime.schemas import (
 class BrainClient(Protocol):
     async def check_available(self) -> bool: ...
 
+    async def capabilities(self) -> JsonObject: ...
+
     async def create_assistant_record(
         self,
         *,

@@ -190,12 +190,18 @@ def test_provider_webhook_deduplicates_and_enqueues_reconciliation() -> None:
     first = client.post(
         "/v1/providers/webhooks/google",
         json={"message": {"messageId": "msg-1"}},
-        headers={"X-Goog-Message-Number": "message-1"},
+        headers={
+            "X-Goog-Message-Number": "message-1",
+            "X-Goog-Channel-Token": "local-google-webhook-token",
+        },
     )
     duplicate = client.post(
         "/v1/providers/webhooks/google",
         json={"message": {"messageId": "msg-1"}},
-        headers={"X-Goog-Message-Number": "message-1"},
+        headers={
+            "X-Goog-Message-Number": "message-1",
+            "X-Goog-Channel-Token": "local-google-webhook-token",
+        },
     )
 
     assert first.status_code == 200
@@ -203,6 +209,45 @@ def test_provider_webhook_deduplicates_and_enqueues_reconciliation() -> None:
     assert duplicate.status_code == 200
     assert duplicate.json()["deduplicated"] is True
     assert duplicate.json()["status"] == "duplicate"
+
+
+def test_provider_webhook_rejects_unverified_google() -> None:
+    # No channel token, and a wrong channel token, are both refused (fail closed),
+    # so an unauthenticated caller cannot trigger reconcile sync storms.
+    client = _client()
+
+    missing = client.post(
+        "/v1/providers/webhooks/google",
+        json={"message": {"messageId": "msg-x"}},
+    )
+    wrong = client.post(
+        "/v1/providers/webhooks/google",
+        json={"message": {"messageId": "msg-x"}},
+        headers={"X-Goog-Channel-Token": "attacker-token"},
+    )
+
+    assert missing.status_code == 401
+    assert wrong.status_code == 401
+
+
+def test_microsoft_webhook_verifies_client_state() -> None:
+    client = _client()
+
+    accepted = client.post(
+        "/v1/providers/webhooks/microsoft",
+        json={
+            "value": [
+                {"subscriptionId": "sub-1", "clientState": "local-microsoft-webhook-state"}
+            ]
+        },
+    )
+    rejected = client.post(
+        "/v1/providers/webhooks/microsoft",
+        json={"value": [{"subscriptionId": "sub-1", "clientState": "wrong-state"}]},
+    )
+
+    assert accepted.status_code == 200
+    assert rejected.status_code == 401
 
 
 def test_microsoft_validation_token_returns_plain_text() -> None:
