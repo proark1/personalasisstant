@@ -971,6 +971,11 @@ a {
   font-size: 13px;
 }
 
+.auth-form {
+  display: grid;
+  gap: 8px;
+}
+
 .auth-error {
   margin: 0;
   border-radius: var(--radius-card);

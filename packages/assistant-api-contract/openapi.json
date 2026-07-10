@@ -982,7 +982,7 @@
             ],
             "title": "Account Id"
           },
-          "credential": {
+          "email": {
             "anyOf": [
               {
                 "type": "string"
@@ -991,7 +991,18 @@
                 "type": "null"
               }
             ],
-            "title": "Credential"
+            "title": "Email"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
           },
           "space_id": {
             "anyOf": [

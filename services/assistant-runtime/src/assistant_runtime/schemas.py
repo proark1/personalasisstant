@@ -191,8 +191,10 @@ class AuthPrincipal(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    # OneBrain mode carries a OneBrain handoff credential/token here.
-    credential: str | None = None
+    # OneBrain identity handoff: the user's OneBrain credentials, verified by the
+    # OneBrain identity endpoint. Never stored by the assistant.
+    email: str | None = None
+    password: str | None = None
     # Stub/dev mode only: optional scope overrides (ignored by the OneBrain provider).
     account_id: str | None = None
     user_id: str | None = None

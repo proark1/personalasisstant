@@ -768,6 +768,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         binding_id: UUID,
         principal: AuthPrincipal = Depends(require_principal),
     ) -> TelegramBindingStatusResponse:
+        _require_binding_scope(container, binding_id, principal)
         try:
             return container.telegram.binding_status(binding_id)
         except TelegramBindingNotFound as exc:
@@ -783,6 +784,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request: TelegramTestMessageRequest,
         principal: AuthPrincipal = Depends(require_principal),
     ) -> TelegramTestMessageResponse:
+        _require_binding_scope(container, binding_id, principal)
         try:
             queued = container.telegram.queue_test_message(binding_id, request, container.outbox)
         except TelegramBindingNotFound as exc:
@@ -874,6 +876,18 @@ async def build_workday_snapshot(
         provider_health=_provider_health(container, onebrain_available),
         approvals=_approval_cards(container, scope),
     )
+
+
+def _require_binding_scope(
+    container: RuntimeContainer,
+    binding_id: UUID,
+    principal: AuthPrincipal,
+) -> None:
+    """Telegram bindings are account-scoped; do not leak other accounts' bindings."""
+    record = container.telegram.bindings.get(binding_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Telegram binding not found")
+    require_scope_match(principal, record.scope)
 
 
 def _provider_health(container: RuntimeContainer, onebrain_available: bool) -> list[ProviderHealth]:

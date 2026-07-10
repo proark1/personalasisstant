@@ -244,7 +244,12 @@ def test_verified_binding_queues_test_message_without_sending_inline() -> None:
     assert body["status"] == "queued"
     assert body["delivery_ref"].startswith("onebrain://telegram-delivery/")
     assert "delivery-secret-token" not in str(body)
-    assert "111" not in str(body)
+    # The chat id must not appear as any field value (random UUIDs in the body may
+    # legitimately contain the substring "111", so compare exact JSON tokens).
+    import json as _json
+
+    assert '"111"' not in _json.dumps(body)
+    assert ": 111" not in _json.dumps(body)
     assert len(rows) == 1
     assert rows[0].effect_type == "telegram.message.send"
     assert OutboxState(rows[0].state) == OutboxState.pending

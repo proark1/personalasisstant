@@ -1011,8 +1011,10 @@ export interface components {
         LoginRequest: {
             /** Account Id */
             account_id?: string | null;
-            /** Credential */
-            credential?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Password */
+            password?: string | null;
             /** Space Id */
             space_id?: string | null;
             /** User Id */
