@@ -10,6 +10,13 @@ export type TelegramBindingStatusResponse =
 export type TelegramSetupResponse = components["schemas"]["TelegramSetupResponse"];
 export type TelegramTestMessageResponse =
   components["schemas"]["TelegramTestMessageResponse"];
+export type ApprovalCardData = TodayResponse["approvals"][number];
+
+export type ApproveActionResult = {
+  ok: boolean;
+  status: number;
+  reason?: string;
+};
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_ASSISTANT_API_URL ?? "http://localhost:8000";
 
@@ -91,6 +98,35 @@ export async function getWorkdayCalendar(token?: string): Promise<WorkdayCalenda
       insights: [],
       partial_state: fallbackPartialState("Assistant API unavailable")
     };
+  }
+}
+
+export async function approveAction(actionId: string): Promise<ApproveActionResult> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/v1/actions/${actionId}/approve`, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        ...authHeaders()
+      },
+      body: JSON.stringify({})
+    });
+    if (response.ok) {
+      return { ok: true, status: response.status };
+    }
+    // The policy engine returns 409 with a decision (e.g. high-risk needs fresh auth);
+    // transition conflicts return 409 with a string detail.
+    let reason: string | undefined;
+    try {
+      const detail = (await response.json())?.detail;
+      reason = typeof detail === "string" ? detail : detail?.reason;
+    } catch {
+      reason = undefined;
+    }
+    return { ok: false, status: response.status, reason };
+  } catch {
+    return { ok: false, status: 0 };
   }
 }
 

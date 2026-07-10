@@ -1,5 +1,4 @@
 import {
-  Bell,
   Bot,
   CalendarDays,
   CheckCircle2,
@@ -8,7 +7,6 @@ import {
   Inbox,
   Lightbulb,
   ListChecks,
-  MessageSquareText,
   RadioTower,
   Search,
   Settings,
@@ -17,6 +15,7 @@ import {
   Target
 } from "lucide-react";
 import type { ProviderStatusResponse, TodayResponse } from "../api/client";
+import { ApprovalCard } from "./approval-card";
 import { ProviderAccountsPanel } from "./provider-accounts-panel";
 import { TelegramSetupPanel } from "./telegram-setup-panel";
 
@@ -197,41 +196,7 @@ function ApprovalSection({ today }: { today: TodayResponse }) {
       <div className="brief-list">
         {today.approvals.length > 0 ? (
           today.approvals.map((approval) => (
-            <article className="approval-card" data-risk={approval.risk_tier} key={approval.action_id}>
-              <div className="approval-topline">
-                <span className="risk-badge" data-risk={approval.risk_tier}>
-                  {approval.risk_tier}
-                </span>
-                <Bell size={17} aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="approval-title">{approval.summary}</h2>
-                <p className="approval-detail">{approval.approval_reason}</p>
-              </div>
-              <div className="approval-facts">
-                <Fact label="Account" value={approval.sending_account} />
-                <Fact label="Recipients" value={approval.recipient_refs.join(", ") || "None"} />
-                <Fact label="Source" value={approval.source_ref} />
-                <Fact label="Changed" value={approval.changed_fields.join(", ") || "None"} />
-                <Fact label="Sensitive" value={approval.sensitive_flags.join(", ") || "None"} />
-                <Fact label="Reversible" value={approval.reversible ? "Yes" : "No"} />
-              </div>
-              <div className="approval-actions">
-                <div className="button-row">
-                  <button className="text-button" data-variant="primary" type="button">
-                    <CheckCircle2 size={16} aria-hidden="true" />
-                    Approve
-                  </button>
-                  <button className="text-button" type="button">
-                    <MessageSquareText size={16} aria-hidden="true" />
-                    Edit on web
-                  </button>
-                  <button className="text-button" data-variant="quiet" type="button">
-                    Later
-                  </button>
-                </div>
-              </div>
-            </article>
+            <ApprovalCard approval={approval} key={approval.action_id} />
           ))
         ) : (
           <article className="brief-row">
@@ -286,14 +251,5 @@ function DegradedBand({ today }: { today: TodayResponse }) {
       <span>Blocked: {(today.degraded_mode.blocked_actions ?? []).join(", ")}</span>
       <span>Allowed: {(today.degraded_mode.allowed_actions ?? []).join(", ")}</span>
     </section>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="fact-row">
-      <span>{label}</span>
-      <span>{value}</span>
-    </div>
   );
 }
