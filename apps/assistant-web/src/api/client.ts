@@ -19,31 +19,45 @@ export type ApproveActionResult = {
 };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_ASSISTANT_API_URL ?? "http://localhost:8000";
+const BROWSER_PROXY_BASE = "/api/assistant";
 
 export const SESSION_COOKIE = "assistant_session";
 
-function browserSessionToken(): string | undefined {
-  if (typeof document === "undefined") {
-    return undefined;
+// Server components call the assistant API directly with the bearer read from the
+// session cookie. Browser callers go through the same-origin BFF proxy, which reads
+// the httpOnly session cookie and attaches the bearer server-side — the token is
+// never exposed to client JavaScript.
+function requestTarget(
+  path: string,
+  token?: string
+): { url: string; headers: Record<string, string> } {
+  if (typeof window === "undefined") {
+    return {
+      url: `${API_BASE_URL}${path}`,
+      headers: token ? { authorization: `Bearer ${token}` } : {}
+    };
   }
-  const match = document.cookie.match(/(?:^|;\s*)assistant_session=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : undefined;
+  return { url: `${BROWSER_PROXY_BASE}${path}`, headers: {} };
 }
 
-// Server components pass the token read from the session cookie; browser callers
-// fall back to the cookie value readable on the client.
-function authHeaders(token?: string): Record<string, string> {
-  const resolved = token ?? browserSessionToken();
-  return resolved ? { authorization: `Bearer ${resolved}` } : {};
+// An expired/revoked session surfaces as 401 on a browser call; bounce to login
+// rather than silently showing degraded fallback data.
+function redirectToLoginIfUnauthorized(status: number): void {
+  if (typeof window !== "undefined" && status === 401) {
+    const here = window.location.pathname + window.location.search;
+    window.location.href = `/login?next=${encodeURIComponent(here)}`;
+  }
 }
 
 export async function getToday(token?: string): Promise<TodayResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/v1/today`, {
-      headers: { accept: "application/json", ...authHeaders(token) },
+    const { url, headers } = requestTarget("/v1/today", token);
+    const response = await fetch(url, {
+      headers: { accept: "application/json", ...headers },
       cache: "no-store"
     });
     if (!response.ok) {
+      redirectToLoginIfUnauthorized(response.status);
       throw new Error(`Assistant API returned ${response.status}`);
     }
     return (await response.json()) as TodayResponse;
@@ -103,18 +117,20 @@ export async function getWorkdayCalendar(token?: string): Promise<WorkdayCalenda
 
 export async function approveAction(actionId: string): Promise<ApproveActionResult> {
   try {
-    const response = await fetch(`${API_BASE_URL}/v1/actions/${actionId}/approve`, {
+    const { url, headers } = requestTarget(`/v1/actions/${actionId}/approve`);
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         accept: "application/json",
         "content-type": "application/json",
-        ...authHeaders()
+        ...headers
       },
       body: JSON.stringify({})
     });
     if (response.ok) {
       return { ok: true, status: response.status };
     }
+    redirectToLoginIfUnauthorized(response.status);
     // The policy engine returns 409 with a decision (e.g. high-risk needs fresh auth);
     // transition conflicts return 409 with a string detail.
     let reason: string | undefined;
@@ -189,16 +205,18 @@ export async function sendTelegramTestMessage(
 }
 
 async function requestJson<T>(path: string, init: RequestInit, token?: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const { url, headers } = requestTarget(path, token);
+  const response = await fetch(url, {
     ...init,
     headers: {
       accept: "application/json",
       "content-type": "application/json",
-      ...authHeaders(token),
+      ...headers,
       ...init.headers
     }
   });
   if (!response.ok) {
+    redirectToLoginIfUnauthorized(response.status);
     throw new Error(`Assistant API returned ${response.status}`);
   }
   return (await response.json()) as T;

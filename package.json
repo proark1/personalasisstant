@@ -13,6 +13,7 @@
     "lint:backend": "python -m ruff check services/assistant-runtime/src services/assistant-runtime/tests",
     "smoke:onebrain": "python scripts/smoke_onebrain.py",
     "typecheck:web": "npm --workspace apps/assistant-web run typecheck",
+    "e2e:smoke": "node apps/assistant-web/scripts/e2e-smoke.mjs",
     "test:backend": "python -m pytest services/assistant-runtime/tests",
     "openapi": "python services/assistant-runtime/scripts/export_openapi.py --output packages/assistant-api-contract/openapi.json",
     "generate:api": "npm run openapi && npm --workspace apps/assistant-web run generate:api",

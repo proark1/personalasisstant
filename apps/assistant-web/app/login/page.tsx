@@ -4,10 +4,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { FormEvent } from "react";
 
-import { SESSION_COOKIE } from "../../src/api/client";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_ASSISTANT_API_URL ?? "http://localhost:8000";
-
 function nextDestination(): string {
   if (typeof window === "undefined") {
     return "/";
@@ -28,7 +24,9 @@ export default function LoginPage() {
     setWorking(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/auth/login`, {
+      // The BFF route sets the session in an httpOnly cookie; the token never
+      // touches client JavaScript.
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(email || password ? { email, password } : {})
@@ -48,10 +46,6 @@ export default function LoginPage() {
         setWorking(false);
         return;
       }
-      const body = (await response.json()) as { access_token: string };
-      const secure = window.location.protocol === "https:" ? "; Secure" : "";
-      document.cookie =
-        `${SESSION_COOKIE}=${encodeURIComponent(body.access_token)}; path=/; SameSite=Lax` + secure;
       router.replace(nextDestination());
       router.refresh();
     } catch {
