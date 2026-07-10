@@ -1,23 +1,24 @@
 import { Bot, ListChecks, Mic, MessageSquare } from "lucide-react";
 
 import type { TodayResponse } from "../api/client";
+import { VoiceConsole } from "./voice-console";
 import { WorkdayFrame } from "./workday-detail-shell";
 
 const UPCOMING = [
   {
     icon: MessageSquare,
-    title: "Ask about your day",
-    detail: '"What am I waiting on?", "Do I have time for X?" — answered from your real workday.'
-  },
-  {
-    icon: Mic,
-    title: "Voice push-to-talk",
-    detail: "Hands-free briefings and questions while you drive."
+    title: "Draft replies in your voice",
+    detail: "Proposed email replies you approve against an exact snapshot."
   },
   {
     icon: ListChecks,
     title: "Follow-up tracker",
     detail: "Waiting on me, waiting on them, delegated, overdue."
+  },
+  {
+    icon: Mic,
+    title: "Meeting prep & notes",
+    detail: "Briefed before calls; action items captured after."
   }
 ];
 
@@ -37,11 +38,13 @@ export function AssistantShell({ today }: { today: TodayResponse }) {
           </article>
         ) : null}
 
+        <VoiceConsole />
+
         <article className="insight-card">
-          <h2 className="approval-title">Conversational assistant — being wired up</h2>
+          <h2 className="approval-title">More conversation coming</h2>
           <p className="approval-detail">
-            Chat and voice aren&rsquo;t connected yet. This screen is intentionally honest: no
-            fake conversation until it works against your real inbox and calendar.
+            Voice and text answer from your real workday today. These deeper capabilities are
+            next:
           </p>
           <div className="detail-list">
             {UPCOMING.map((item) => {

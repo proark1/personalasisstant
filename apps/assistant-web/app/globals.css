@@ -976,6 +976,65 @@ a {
   gap: 8px;
 }
 
+.voice-console {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: 14px;
+  box-shadow: var(--shadow-low);
+}
+
+.voice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.voice-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 8px;
+  flex: 1 1 220px;
+}
+
+.voice-status {
+  margin: 0;
+  color: var(--slate);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.voice-transcript {
+  display: grid;
+  gap: 8px;
+}
+
+.voice-turn {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  padding: 10px;
+}
+
+.voice-question {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.voice-answer {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  white-space: pre-line;
+}
+
 .auth-error {
   margin: 0;
   border-radius: var(--radius-card);

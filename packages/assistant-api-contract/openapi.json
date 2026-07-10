@@ -324,6 +324,62 @@
         "title": "ApprovalChannel",
         "type": "string"
       },
+      "AssistantAskRequest": {
+        "properties": {
+          "local_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Date"
+          },
+          "question": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "AssistantAskRequest",
+        "type": "object"
+      },
+      "AssistantAskResponse": {
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "intent": {
+            "title": "Intent",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "spoken": {
+            "title": "Spoken",
+            "type": "string"
+          }
+        },
+        "required": [
+          "intent",
+          "answer",
+          "spoken"
+        ],
+        "title": "AssistantAskResponse",
+        "type": "object"
+      },
       "BrainAuditEventRequest": {
         "properties": {
           "action": {
@@ -3073,6 +3129,49 @@
           }
         ],
         "summary": "Approve Action"
+      }
+    },
+    "/v1/assistant/ask": {
+      "post": {
+        "operationId": "assistant_ask_v1_assistant_ask_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantAskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantAskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assistant Ask"
       }
     },
     "/v1/auth/login": {

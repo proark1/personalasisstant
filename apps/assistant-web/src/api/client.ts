@@ -11,6 +11,7 @@ export type TelegramSetupResponse = components["schemas"]["TelegramSetupResponse
 export type TelegramTestMessageResponse =
   components["schemas"]["TelegramTestMessageResponse"];
 export type ApprovalCardData = TodayResponse["approvals"][number];
+export type AssistantAskResponse = components["schemas"]["AssistantAskResponse"];
 
 export type ApproveActionResult = {
   ok: boolean;
@@ -144,6 +145,13 @@ export async function approveAction(actionId: string): Promise<ApproveActionResu
   } catch {
     return { ok: false, status: 0 };
   }
+}
+
+export async function askAssistant(question: string): Promise<AssistantAskResponse> {
+  return requestJson<AssistantAskResponse>("/v1/assistant/ask", {
+    method: "POST",
+    body: JSON.stringify({ question })
+  });
 }
 
 export async function startProviderOAuth(provider: "google" | "microsoft") {

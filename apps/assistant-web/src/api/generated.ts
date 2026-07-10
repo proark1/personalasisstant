@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/assistant/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assistant Ask */
+        post: operations["assistant_ask_v1_assistant_ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/login": {
         parameters: {
             query?: never;
@@ -721,6 +738,24 @@ export interface components {
          * @enum {string}
          */
         ApprovalChannel: "web" | "telegram" | "voice" | "worker" | "fresh_auth";
+        /** AssistantAskRequest */
+        AssistantAskRequest: {
+            /** Local Date */
+            local_date?: string | null;
+            /** Question */
+            question: string;
+        };
+        /** AssistantAskResponse */
+        AssistantAskResponse: {
+            /** Answer */
+            answer: string;
+            /** Intent */
+            intent: string;
+            /** Sources */
+            sources?: string[];
+            /** Spoken */
+            spoken: string;
+        };
         /** BrainAuditEventRequest */
         BrainAuditEventRequest: {
             /** Action */
@@ -1911,6 +1946,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActionRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assistant_ask_v1_assistant_ask_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistantAskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantAskResponse"];
                 };
             };
             /** @description Validation Error */
