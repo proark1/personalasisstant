@@ -1085,6 +1085,57 @@
         "title": "LogoutResponse",
         "type": "object"
       },
+      "MorningBriefScheduleRequest": {
+        "properties": {
+          "local_time": {
+            "default": "07:30",
+            "title": "Local Time",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "UTC",
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "title": "MorningBriefScheduleRequest",
+        "type": "object"
+      },
+      "MorningBriefScheduleResponse": {
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "local_time": {
+            "title": "Local Time",
+            "type": "string"
+          },
+          "run_at": {
+            "format": "date-time",
+            "title": "Run At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "job_id",
+          "run_at",
+          "local_time",
+          "timezone"
+        ],
+        "title": "MorningBriefScheduleResponse",
+        "type": "object"
+      },
       "NavigationItem": {
         "properties": {
           "count": {
@@ -4065,6 +4116,49 @@
           }
         ],
         "summary": "Workday Brief"
+      }
+    },
+    "/v1/workday/brief/schedule": {
+      "post": {
+        "operationId": "schedule_morning_brief_v1_workday_brief_schedule_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MorningBriefScheduleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MorningBriefScheduleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Schedule Morning Brief"
       }
     },
     "/v1/workday/calendar": {

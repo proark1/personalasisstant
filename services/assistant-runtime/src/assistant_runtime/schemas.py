@@ -727,6 +727,41 @@ class WorkdayBriefResponse(BaseModel):
     partial_state: WorkdayPartialState
 
 
+class MorningBriefScheduleRequest(BaseModel):
+    local_time: str = "07:30"
+    timezone: str = "UTC"
+
+    @field_validator("local_time")
+    @classmethod
+    def _valid_local_time(cls, value: str) -> str:
+        parts = value.split(":")
+        if len(parts) != 2 or not (parts[0].isdigit() and parts[1].isdigit()):
+            raise ValueError("local_time must be HH:MM")
+        hour, minute = int(parts[0]), int(parts[1])
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            raise ValueError("local_time must be a valid 24-hour time")
+        return f"{hour:02d}:{minute:02d}"
+
+    @field_validator("timezone")
+    @classmethod
+    def _valid_timezone(cls, value: str) -> str:
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError, KeyError) as exc:
+            raise ValueError("timezone must be a valid IANA name") from exc
+        return value
+
+
+class MorningBriefScheduleResponse(BaseModel):
+    status: str
+    job_id: UUID
+    run_at: datetime
+    local_time: str
+    timezone: str
+
+
 class WorkdayInboxResponse(BaseModel):
     items: list[InboxTriageItem] = Field(default_factory=list)
     partial_state: WorkdayPartialState

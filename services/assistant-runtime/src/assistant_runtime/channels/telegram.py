@@ -112,6 +112,10 @@ class InMemoryTelegramBindingStore:
                 return None
             return self._bindings[binding_id]
 
+    def list_bindings(self) -> list[TelegramBindingRecord]:
+        with self._lock:
+            return list(self._bindings.values())
+
     def verify_pending(
         self,
         binding_id: UUID,
@@ -291,21 +295,13 @@ class TelegramChannel:
             raise TelegramBindingNotReady("Telegram chat secret reference is missing.")
 
         idempotency_key = request.idempotency_key or f"telegram-test-message:{binding_id}"
-        delivery = self.bindings.create_delivery(record, request.message, idempotency_key)
-        row = outbox.create(
-            scope=record.scope,
-            effect_type="telegram.message.send",
-            payload_ref=delivery.delivery_ref,
-            idempotency_key=delivery.idempotency_key,
-            correlation_id=record.correlation_id,
-            audit_correlation_id=record.audit_correlation_id,
-        )
-        event = self.bindings.record_event(
+        delivery, row, event = self.queue_binding_message(
             record,
+            request.message,
+            idempotency_key=idempotency_key,
+            outbox=outbox,
             event_type="telegram.test_message.queued",
-            update_id=str(row.outbox_id),
-            sanitized_summary="Safe Telegram setup test message queued.",
-            provider_metadata={"delivery_ref": delivery.delivery_ref},
+            summary="Safe Telegram setup test message queued.",
         )
         return TelegramTestMessageResponse(
             status="queued",
@@ -317,6 +313,56 @@ class TelegramChannel:
             correlation_id=record.correlation_id,
             audit_correlation_id=record.audit_correlation_id,
         )
+
+    def verified_binding_for_scope(
+        self, scope: ScopedIdentity
+    ) -> TelegramBindingRecord | None:
+        """The verified (not paused) binding for this exact account/space/user, if any."""
+        for binding in self.bindings.list_bindings():
+            if TelegramBindingStatus(binding.status) != TelegramBindingStatus.verified:
+                continue
+            if binding.telegram_chat_secret_ref is None:
+                continue
+            if (
+                binding.scope.account_id == scope.account_id
+                and binding.scope.space_id == scope.space_id
+                and binding.scope.user_id == scope.user_id
+            ):
+                return binding
+        return None
+
+    def queue_binding_message(
+        self,
+        binding: TelegramBindingRecord,
+        message: str,
+        *,
+        idempotency_key: str,
+        outbox: InMemoryOutboxStore,
+        event_type: str,
+        summary: str,
+    ):
+        """Queue an outbound Telegram message through the transactional outbox.
+
+        Shared by test messages, morning briefs, and command replies — the worker
+        relays it via ``deliver_outbox_row`` so no message is ever sent inline.
+        """
+        delivery = self.bindings.create_delivery(binding, message, idempotency_key)
+        row = outbox.create(
+            scope=binding.scope,
+            effect_type="telegram.message.send",
+            payload_ref=delivery.delivery_ref,
+            idempotency_key=delivery.idempotency_key,
+            correlation_id=binding.correlation_id,
+            audit_correlation_id=binding.audit_correlation_id,
+        )
+        event = self.bindings.record_event(
+            binding,
+            event_type=event_type,
+            update_id=str(row.outbox_id),
+            sanitized_summary=summary,
+            provider_metadata={"delivery_ref": delivery.delivery_ref},
+        )
+        return delivery, row, event
 
     async def relay_next_delivery(self, outbox: InMemoryOutboxStore, worker_id: str) -> int:
         row = outbox.lease_next(worker_id)

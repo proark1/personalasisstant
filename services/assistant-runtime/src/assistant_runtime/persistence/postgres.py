@@ -1306,6 +1306,11 @@ class PostgresTelegramBindingStore(InMemoryTelegramBindingStore):
             ).fetchone()
         return _binding_from_row(row) if row else None
 
+    def list_bindings(self) -> list[TelegramBindingRecord]:
+        with _connect(self.database_url) as conn:
+            rows = conn.execute("SELECT * FROM assistant_telegram_bindings").fetchall()
+        return [_binding_from_row(row) for row in rows]
+
     def verify_pending(
         self,
         binding_id: UUID,

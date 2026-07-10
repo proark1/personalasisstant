@@ -81,6 +81,7 @@ class InMemorySchedulerProvider:
         local_time: str,
         timezone_name: str,
         now: datetime | None = None,
+        payload_ref: str | None = None,
     ) -> JobRecord:
         now = now or utc_now()
         hour, minute = [int(part) for part in local_time.split(":", 1)]
@@ -93,7 +94,7 @@ class InMemorySchedulerProvider:
         job = JobRecord(
             scope=scope,
             job_type=job_type,
-            payload_ref=f"onebrain://scheduled-job/{job_type}",
+            payload_ref=payload_ref or f"onebrain://scheduled-job/{job_type}",
             idempotency_key=f"{scope.account_id}:{scope.user_id}:{job_type}:{run_local.date()}",
             timezone=timezone_name,
             run_at=run_at,

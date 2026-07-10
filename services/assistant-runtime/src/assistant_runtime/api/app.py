@@ -75,6 +75,8 @@ from assistant_runtime.schemas import (
     LoginRequest,
     LoginResponse,
     LogoutResponse,
+    MorningBriefScheduleRequest,
+    MorningBriefScheduleResponse,
     OAuthConnectionAttemptRecord,
     OAuthConnectionStatus,
     OAuthScopeTier,
@@ -317,6 +319,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 else "Workday snapshot generated as degraded ephemeral output."
             ),
             snapshot=snapshot,
+        )
+
+    @app.post("/v1/workday/brief/schedule", response_model=MorningBriefScheduleResponse)
+    async def schedule_morning_brief(
+        request: MorningBriefScheduleRequest,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> MorningBriefScheduleResponse:
+        job = container.scheduler.schedule_local_time(
+            principal.scope,
+            "workday.brief.telegram",
+            request.local_time,
+            request.timezone,
+            payload_ref=f"workday-brief://{request.local_time}",
+        )
+        container.observability.increment(
+            "morning_brief_scheduled",
+            {"timezone": request.timezone},
+        )
+        return MorningBriefScheduleResponse(
+            status="scheduled",
+            job_id=job.job_id,
+            run_at=job.run_at,
+            local_time=request.local_time,
+            timezone=request.timezone,
         )
 
     @app.post("/v1/actions", response_model=ActionRecord, status_code=201)

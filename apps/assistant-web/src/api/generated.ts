@@ -464,6 +464,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workday/brief/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Schedule Morning Brief */
+        post: operations["schedule_morning_brief_v1_workday_brief_schedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workday/calendar": {
         parameters: {
             query?: never;
@@ -1055,6 +1072,38 @@ export interface components {
              * @default revoked
              */
             status: string;
+        };
+        /** MorningBriefScheduleRequest */
+        MorningBriefScheduleRequest: {
+            /**
+             * Local Time
+             * @default 07:30
+             */
+            local_time: string;
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
+        };
+        /** MorningBriefScheduleResponse */
+        MorningBriefScheduleResponse: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Local Time */
+            local_time: string;
+            /**
+             * Run At
+             * Format: date-time
+             */
+            run_at: string;
+            /** Status */
+            status: string;
+            /** Timezone */
+            timezone: string;
         };
         /** NavigationItem */
         NavigationItem: {
@@ -2569,6 +2618,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkdayBriefResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_morning_brief_v1_workday_brief_schedule_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MorningBriefScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MorningBriefScheduleResponse"];
                 };
             };
             /** @description Validation Error */

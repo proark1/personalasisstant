@@ -11,6 +11,7 @@ from assistant_runtime.domain.providers import InMemoryProviderStore
 from assistant_runtime.domain.queue import InMemoryQueueProvider
 from assistant_runtime.interfaces import BrainClient, SecretProvider
 from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
+from assistant_runtime.providers.morning_brief import MorningBriefProcessor
 from assistant_runtime.providers.onebrain_events import record_telegram_event
 from assistant_runtime.providers.read_adapters import ProviderReadClient
 from assistant_runtime.providers.sync import ProviderSyncProcessor
@@ -68,6 +69,17 @@ class AssistantWorker:
             else None
         )
         self.workday_jobs = WorkdayJobProcessor(brain=brain, providers=providers)
+        self.morning_brief = (
+            MorningBriefProcessor(
+                brain=brain,
+                providers=providers,
+                telegram=telegram,
+                outbox=outbox,
+                queue=queue,
+            )
+            if telegram is not None
+            else None
+        )
 
     def run_once(self) -> WorkerResult:
         result = WorkerResult()
@@ -77,6 +89,8 @@ class AssistantWorker:
             try:
                 if self.provider_sync is not None and self.provider_sync.can_process(job):
                     self.provider_sync.process(job)
+                elif self.morning_brief is not None and self.morning_brief.can_process(job):
+                    self.morning_brief.process(job)
                 elif self.workday_jobs.can_process(job):
                     self.workday_jobs.process(job)
                 self.queue.mark_succeeded(job.job_id)
