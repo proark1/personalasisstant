@@ -35,3 +35,29 @@ def compose_brief_message(snapshot: WorkdaySnapshot) -> str:
         lines.append("Some sources are degraded — open the app for the full picture.")
 
     return "\n".join(lines)
+
+
+def compose_followups_message(snapshot: WorkdaySnapshot) -> str:
+    """A concise 'what's waiting on you' reply for a Telegram /followups command."""
+    if not snapshot.follow_ups:
+        return f"Follow-ups — {snapshot.local_date}\n\nNothing is waiting on you right now."
+    lines = [
+        f"Follow-ups — {snapshot.local_date}",
+        "",
+        f"Waiting on you: {len(snapshot.follow_ups)}",
+    ]
+    for risk in snapshot.follow_ups[:5]:
+        lines.append(f"- {risk.title} ({risk.status})")
+    return "\n".join(lines)
+
+
+def compose_help_message() -> str:
+    """Safe canned pointer to available commands — never triggers an action."""
+    return (
+        "I can help with your workday:\n"
+        "/brief — your morning brief\n"
+        "/today — today's priorities\n"
+        "/followups — what's waiting on you\n"
+        "/status — connection status\n"
+        "/pause and /resume — notifications"
+    )

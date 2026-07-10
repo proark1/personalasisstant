@@ -64,6 +64,9 @@ class TelegramBotApiTransport:
         return f"telegram://message/{chat_id}/{message_id}"
 
 
+_ASSISTANT_COMMANDS = frozenset({"/brief", "/today", "/followups", "/follow-ups", "/help"})
+
+
 class InMemoryTelegramBindingStore:
     """Operational Telegram binding state with migration-ready fields."""
 
@@ -451,7 +454,47 @@ class TelegramChannel:
             return self._handle_resume(chat_hash, user_hash, chat_type, update_id)
         if command == "/status":
             return self._handle_status(chat_hash, user_hash, chat_type, update_id)
+        if command in _ASSISTANT_COMMANDS:
+            return self._handle_assistant_command(
+                command, chat_hash, user_hash, chat_type, update_id
+            )
         return self._handle_unknown_text(chat_hash, user_hash, chat_type, update_id)
+
+    def _handle_assistant_command(
+        self,
+        command: str,
+        chat_hash: str,
+        user_hash: str,
+        chat_type: str,
+        update_id: str,
+    ) -> TelegramWebhookResponse:
+        record = self.bindings.get_by_chat_hash(chat_hash)
+        if record is None:
+            return _webhook_response("rejected", "Telegram chat is not bound.", command=command)
+        if TelegramBindingStatus(record.status) not in {
+            TelegramBindingStatus.verified,
+            TelegramBindingStatus.paused,
+        }:
+            return _webhook_response(
+                "rejected", "Telegram chat is not verified.", command=command
+            )
+        normalized = "/followups" if command == "/follow-ups" else command
+        event = self._record_command_event(
+            record,
+            f"telegram.command.{normalized.lstrip('/')}",
+            update_id,
+            user_hash,
+            chat_type,
+        )
+        # status="command" signals the API layer to compose and queue a reply from
+        # the workday snapshot; the channel stays free of workday orchestration.
+        return _webhook_response(
+            "command",
+            f"Answering {normalized}.",
+            command=normalized,
+            binding=record,
+            event=event,
+        )
 
     def _handle_start(
         self,

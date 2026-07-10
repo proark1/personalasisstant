@@ -18,6 +18,11 @@ from assistant_runtime.channels.telegram import (
 )
 from assistant_runtime.config import Settings, get_settings
 from assistant_runtime.domain.action_store import InvalidActionTransition
+from assistant_runtime.domain.brief import (
+    compose_brief_message,
+    compose_followups_message,
+    compose_help_message,
+)
 from assistant_runtime.domain.providers import summarize_provider_account
 from assistant_runtime.domain.sessions import mint_session
 from assistant_runtime.domain.workday import (
@@ -835,6 +840,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         container.observability.increment("telegram_inbound", {"status": result.status})
         if result.status != "duplicate" and result.event_ref:
             await _record_telegram_event_by_ref(container, result.event_ref)
+        if result.status != "duplicate":
+            await _answer_telegram_command(
+                container, result, str(payload.get("update_id", ""))
+            )
         return result
 
     @app.post("/v1/auth/login", response_model=LoginResponse)
@@ -1138,6 +1147,46 @@ async def _record_action_audit(
             "onebrain_action_audit_failed",
             {"action_type": action.action_type, "risk_tier": str(action.risk_tier)},
         )
+
+
+_TELEGRAM_ANSWERABLE = frozenset({"/brief", "/today", "/followups", "/help", "unknown_text"})
+
+
+async def _answer_telegram_command(
+    container: RuntimeContainer,
+    result: TelegramWebhookResponse,
+    update_id: str,
+) -> None:
+    """Compose and queue a reply for a recognized Telegram command.
+
+    Answers come only from the workday snapshot or canned help text — free-form
+    text is answered with a safe command pointer and never triggers an action.
+    """
+    if result.command not in _TELEGRAM_ANSWERABLE or result.binding_id is None:
+        return
+    binding = container.telegram.bindings.get(result.binding_id)
+    if binding is None or binding.telegram_chat_secret_ref is None:
+        return
+
+    command = result.command
+    if command in {"/help", "unknown_text"}:
+        reply = compose_help_message()
+    else:
+        snapshot = await build_workday_snapshot(container, scope=binding.scope)
+        if command == "/followups":
+            reply = compose_followups_message(snapshot)
+        else:
+            reply = compose_brief_message(snapshot)
+
+    container.telegram.queue_binding_message(
+        binding,
+        reply,
+        idempotency_key=f"telegram-cmd:{command}:{update_id}",
+        outbox=container.outbox,
+        event_type="telegram.command.answered",
+        summary=f"Answered Telegram command {command}.",
+    )
+    container.observability.increment("telegram_command_answered", {"command": command})
 
 
 async def _record_telegram_event_by_ref(container: RuntimeContainer, event_ref: str) -> None:
