@@ -18,6 +18,7 @@ from assistant_runtime.channels.telegram import (
 )
 from assistant_runtime.config import Settings, get_settings
 from assistant_runtime.domain.action_store import InvalidActionTransition
+from assistant_runtime.domain.ask import answer_question
 from assistant_runtime.domain.brief import (
     compose_brief_message,
     compose_followups_message,
@@ -70,6 +71,8 @@ from assistant_runtime.schemas import (
     ActionState,
     ApprovalCard,
     ApprovalChannel,
+    AssistantAskRequest,
+    AssistantAskResponse,
     AuthPrincipal,
     BrainAuditEventRequest,
     BrainAuditEventResponse,
@@ -348,6 +351,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             run_at=job.run_at,
             local_time=request.local_time,
             timezone=request.timezone,
+        )
+
+    @app.post("/v1/assistant/ask", response_model=AssistantAskResponse)
+    async def assistant_ask(
+        request: AssistantAskRequest,
+        principal: AuthPrincipal = Depends(require_principal),
+    ) -> AssistantAskResponse:
+        snapshot = await build_workday_snapshot(
+            container,
+            scope=principal.scope,
+            local_date=request.local_date,
+        )
+        answer = answer_question(request.question, snapshot)
+        await _record_voice_transcript(
+            container, principal.scope, request.question, answer.intent
+        )
+        container.observability.increment("assistant_ask", {"intent": answer.intent})
+        return AssistantAskResponse(
+            intent=answer.intent,
+            answer=answer.answer,
+            spoken=answer.answer,
+            sources=answer.sources,
         )
 
     @app.post("/v1/actions", response_model=ActionRecord, status_code=201)
@@ -1147,6 +1172,28 @@ async def _record_action_audit(
             "onebrain_action_audit_failed",
             {"action_type": action.action_type, "risk_tier": str(action.risk_tier)},
         )
+
+
+async def _record_voice_transcript(
+    container: RuntimeContainer,
+    scope: ScopedIdentity,
+    question: str,
+    intent: str,
+) -> None:
+    """Best-effort provenance record of a voice/text question (trusted user input)."""
+    try:
+        await container.brain.create_assistant_record(
+            content=question,
+            record_type="voice_transcript",
+            purpose="assistant_voice",
+            intent="voice_turn",
+            source="voice",
+            account_id=scope.account_id,
+            space_id=scope.space_id,
+            metadata={"resolved_intent": intent},
+        )
+    except OneBrainClientError:
+        container.observability.increment("voice_transcript_record_failed", {})
 
 
 _TELEGRAM_ANSWERABLE = frozenset({"/brief", "/today", "/followups", "/help", "unknown_text"})

@@ -762,6 +762,18 @@ class MorningBriefScheduleResponse(BaseModel):
     timezone: str
 
 
+class AssistantAskRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+    local_date: str | None = None
+
+
+class AssistantAskResponse(BaseModel):
+    intent: str
+    answer: str
+    spoken: str
+    sources: list[str] = Field(default_factory=list)
+
+
 class WorkdayInboxResponse(BaseModel):
     items: list[InboxTriageItem] = Field(default_factory=list)
     partial_state: WorkdayPartialState
