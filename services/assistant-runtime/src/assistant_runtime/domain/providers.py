@@ -45,6 +45,56 @@ class InMemoryProviderStore:
         self._cursors: dict[tuple[UUID, str], SyncCursorRecord] = {}
         self._subscriptions: dict[tuple[UUID, str], ProviderSubscriptionRecord] = {}
         self._webhook_events: dict[str, str] = {}
+        self._tombstone_cursors: dict[str, int] = {}
+
+    def get_onebrain_tombstone_cursor(self, account_id: str) -> int:
+        with self._lock:
+            return self._tombstone_cursors.get(account_id, 0)
+
+    def set_onebrain_tombstone_cursor(self, account_id: str, seq: int) -> None:
+        with self._lock:
+            current = self._tombstone_cursors.get(account_id, 0)
+            self._tombstone_cursors[account_id] = max(current, seq)
+
+    def purge_scope(self, account_id: str, space_id: str = "") -> list[str]:
+        """Erase provider state for a tombstoned scope. Empty space = whole account.
+
+        Returns the secret refs the purged rows pointed at, so the caller can revoke
+        them through the secret provider (secret envelopes are not scope-addressed).
+        """
+        secret_refs: list[str] = []
+
+        def _in_scope(scope: ScopedIdentity) -> bool:
+            return scope.account_id == account_id and (
+                not space_id or scope.space_id == space_id
+            )
+
+        with self._lock:
+            for account_key in [
+                key for key, account in self._accounts.items() if _in_scope(account.scope)
+            ]:
+                account = self._accounts.pop(account_key)
+                self._account_identity_index.pop(
+                    (ProviderKind(account.provider), account.provider_subject), None
+                )
+                if account.refresh_token_secret_ref:
+                    secret_refs.append(account.refresh_token_secret_ref)
+                for cursor_key in [
+                    key for key in self._cursors if key[0] == account_key
+                ]:
+                    del self._cursors[cursor_key]
+                for sub_key in [
+                    key for key in self._subscriptions if key[0] == account_key
+                ]:
+                    subscription = self._subscriptions.pop(sub_key)
+                    if subscription.secret_ref:
+                        secret_refs.append(subscription.secret_ref)
+            for attempt_id in [
+                key for key, attempt in self._attempts.items() if _in_scope(attempt.scope)
+            ]:
+                attempt = self._attempts.pop(attempt_id)
+                self._attempt_state_index.pop(attempt.state_hash, None)
+        return secret_refs
 
     def create_oauth_attempt(
         self, attempt: OAuthConnectionAttemptRecord

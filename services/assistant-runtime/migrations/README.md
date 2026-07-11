@@ -13,6 +13,7 @@ The schema is intentionally operational:
 - Telegram binding, delivery, and webhook replay state
 - assistant session references (auth enforcement; bearer-token hashes only)
 - draft-reply content and exact-approval snapshot hash on actions
+- OneBrain deletion tombstone feed cursor (the assistant is a required consumer)
 
 Business memory, durable message/event contents, retrieval, retention,
 permissions, and audit-of-record belong in OneBrain.

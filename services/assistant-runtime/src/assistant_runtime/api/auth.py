@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from assistant_runtime.domain.sessions import hash_session_token
+from assistant_runtime.persistence.scope import current_account_scope
 from assistant_runtime.schemas import AuthPrincipal, ScopedIdentity
 
 if TYPE_CHECKING:
@@ -46,6 +47,9 @@ async def require_principal(
         raise _UNAUTHENTICATED
 
     container.sessions.touch(session.session_id)
+    # Narrow the Postgres RLS scope for the rest of this request: application SQL
+    # in this request can only see and write this account's rows (migration 0008).
+    current_account_scope.set(session.scope.account_id)
     return AuthPrincipal(
         session_id=session.session_id,
         scope=session.scope,

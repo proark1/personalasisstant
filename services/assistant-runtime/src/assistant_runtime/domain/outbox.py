@@ -21,6 +21,20 @@ class InMemoryOutboxStore:
         self._rows: dict[UUID, OutboxRow] = {}
         self._idempotency_index: dict[str, UUID] = {}
 
+    def purge_scope(self, account_id: str, space_id: str = "") -> int:
+        """Erase all outbox rows for a tombstoned scope. Empty space = whole account."""
+        with self._lock:
+            doomed = [
+                outbox_id
+                for outbox_id, row in self._rows.items()
+                if row.scope.account_id == account_id
+                and (not space_id or row.scope.space_id == space_id)
+            ]
+            for outbox_id in doomed:
+                row = self._rows.pop(outbox_id)
+                self._idempotency_index.pop(row.idempotency_key, None)
+            return len(doomed)
+
     def create_for_action(
         self, action: ActionRecord, effect_type: str, payload_ref: str
     ) -> OutboxRow:

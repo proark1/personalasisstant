@@ -69,6 +69,30 @@ class InMemoryQueueProvider:
         with self._lock:
             return list(self._jobs.values())
 
+    def purge_scope(
+        self,
+        account_id: str,
+        space_id: str = "",
+        keep_job_types: set[str] | frozenset[str] = frozenset(),
+    ) -> int:
+        """Erase jobs for a tombstoned scope. Empty space = whole account.
+
+        ``keep_job_types`` preserves platform maintenance chains (e.g. the OneBrain
+        tombstone poller) that must outlive the scope they clean up after.
+        """
+        with self._lock:
+            doomed = [
+                job_id
+                for job_id, job in self._jobs.items()
+                if job.scope.account_id == account_id
+                and (not space_id or job.scope.space_id == space_id)
+                and job.job_type not in keep_job_types
+            ]
+            for job_id in doomed:
+                job = self._jobs.pop(job_id)
+                self._idempotency_index.pop(job.idempotency_key, None)
+            return len(doomed)
+
 
 class InMemorySchedulerProvider:
     def __init__(self, queue: InMemoryQueueProvider) -> None:

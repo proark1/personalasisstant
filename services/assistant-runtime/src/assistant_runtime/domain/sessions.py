@@ -80,3 +80,21 @@ class InMemorySessionStore:
             record = self._by_id.get(session_id)
             if record is not None:
                 record.last_used_at = utc_now()
+
+    def purge_scope(self, account_id: str, space_id: str = "") -> int:
+        """Erase sessions for a tombstoned scope. Empty space = whole account.
+
+        Deletion (not just revocation): the rows themselves are the operational copy
+        a OneBrain erasure tombstone requires this module to remove.
+        """
+        with self._lock:
+            doomed = [
+                session_id
+                for session_id, record in self._by_id.items()
+                if record.scope.account_id == account_id
+                and (not space_id or record.scope.space_id == space_id)
+            ]
+            for session_id in doomed:
+                record = self._by_id.pop(session_id)
+                self._id_by_hash.pop(record.token_hash, None)
+            return len(doomed)

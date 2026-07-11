@@ -54,6 +54,20 @@ class InMemoryActionStore:
         self._actions: dict[UUID, ActionRecord] = {}
         self._idempotency_index: dict[str, UUID] = {}
 
+    def purge_scope(self, account_id: str, space_id: str = "") -> int:
+        """Erase all action state for a tombstoned scope. Empty space = whole account."""
+        with self._lock:
+            doomed = [
+                action_id
+                for action_id, action in self._actions.items()
+                if action.scope.account_id == account_id
+                and (not space_id or action.scope.space_id == space_id)
+            ]
+            for action_id in doomed:
+                action = self._actions.pop(action_id)
+                self._idempotency_index.pop(action.idempotency_key, None)
+            return len(doomed)
+
     def create(self, request: ActionCreateRequest) -> ActionRecord:
         idempotency_key = request.idempotency_key or (
             f"{request.scope.account_id}:{request.scope.user_id}:{request.action_type}:"

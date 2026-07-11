@@ -9,13 +9,14 @@ from assistant_runtime.domain.action_store import InMemoryActionStore
 from assistant_runtime.domain.outbox import InMemoryOutboxStore
 from assistant_runtime.domain.providers import InMemoryProviderStore
 from assistant_runtime.domain.queue import InMemoryQueueProvider
-from assistant_runtime.interfaces import BrainClient, SecretProvider
+from assistant_runtime.interfaces import BrainClient, SecretProvider, SessionStore
 from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
 from assistant_runtime.providers.morning_brief import MorningBriefProcessor
 from assistant_runtime.providers.onebrain_events import record_telegram_event
 from assistant_runtime.providers.read_adapters import ProviderReadClient
 from assistant_runtime.providers.sync import ProviderSyncProcessor
 from assistant_runtime.providers.token_refresh import ProviderTokenRefresher
+from assistant_runtime.providers.tombstones import TombstoneConsumer
 from assistant_runtime.providers.workday import WorkdayJobProcessor
 from assistant_runtime.schemas import ActionState, OutboxRow
 
@@ -43,6 +44,8 @@ class AssistantWorker:
         brain: BrainClient | None = None,
         provider_reader: ProviderReadClient | None = None,
         token_refresher: ProviderTokenRefresher | None = None,
+        sessions: SessionStore | None = None,
+        tombstone_poll_seconds: int = 300,
         onebrain_available: bool = True,
     ) -> None:
         self.worker_id = worker_id
@@ -56,7 +59,19 @@ class AssistantWorker:
         self.brain = brain
         self.provider_reader = provider_reader or ProviderReadClient()
         self.token_refresher = token_refresher
+        self.sessions = sessions
         self.onebrain_available = onebrain_available
+        self.tombstones = TombstoneConsumer(
+            brain=brain,
+            actions=actions,
+            outbox=outbox,
+            queue=queue,
+            providers=providers,
+            sessions=sessions,
+            secrets=secrets,
+            telegram=telegram,
+            poll_seconds=tombstone_poll_seconds,
+        )
         self.provider_sync = (
             ProviderSyncProcessor(
                 providers,
@@ -91,6 +106,8 @@ class AssistantWorker:
                     self.provider_sync.process(job)
                 elif self.morning_brief is not None and self.morning_brief.can_process(job):
                     self.morning_brief.process(job)
+                elif self.tombstones.can_process(job):
+                    self.tombstones.process(job)
                 elif self.workday_jobs.can_process(job):
                     self.workday_jobs.process(job)
                 self.queue.mark_succeeded(job.job_id)

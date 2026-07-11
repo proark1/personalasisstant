@@ -63,6 +63,13 @@ class OneBrainIdentityProvider:
 
         if response.status_code == 401:
             return None
+        if response.status_code == 403:
+            # OneBrain rejects the *service key* (pinned to a different app), not the
+            # user's credentials. Surface it as misconfiguration, not a bad login.
+            raise IdentityAuthorityUnavailable(
+                "OneBrain rejected the assistant service key for identity login; "
+                "the key is pinned to a different app. Check ONEBRAIN_SERVICE_KEY."
+            )
         if response.status_code == 429:
             raise IdentityAuthorityUnavailable(
                 "OneBrain identity authority is throttling login attempts; try again shortly."

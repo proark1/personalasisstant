@@ -79,6 +79,18 @@ class BrainClient(Protocol):
 
     async def record_action_audit(self, action: ActionRecord, decision: PolicyDecision) -> None: ...
 
+    async def list_tombstones(self, *, since: int = 0, limit: int = 100) -> JsonObject: ...
+
+    async def ack_tombstone(self, tombstone_id: str) -> JsonObject: ...
+
+    async def delete_record(
+        self,
+        *,
+        source_ref: str,
+        account_id: str = "",
+        space_id: str = "",
+    ) -> JsonObject: ...
+
 
 class LLMProvider(Protocol):
     async def classify(self, task: str, context_ref: str) -> str: ...
@@ -181,6 +193,8 @@ class SessionStore(Protocol):
     def revoke_session(self, session_id: UUID) -> SessionRecord | None: ...
 
     def touch(self, session_id: UUID) -> None: ...
+
+    def purge_scope(self, account_id: str, space_id: str = "") -> int: ...
 
 
 class ContentSanitizer(Protocol):

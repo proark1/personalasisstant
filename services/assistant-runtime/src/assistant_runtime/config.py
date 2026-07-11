@@ -23,6 +23,18 @@ class Settings(BaseSettings):
         default=10.0,
         validation_alias="ONEBRAIN_TIMEOUT_SECONDS",
     )
+    onebrain_tombstone_poll_seconds: int = Field(
+        default=300,
+        validation_alias="ONEBRAIN_TOMBSTONE_POLL_SECONDS",
+    )
+    # Two-tier personal spaces (target-architecture v2 §9). Leave both empty until
+    # OneBrain provisions the tier spaces; routing then activates on its own.
+    onebrain_work_correspondence_space_id: str = Field(
+        default="", validation_alias="ONEBRAIN_WORK_CORRESPONDENCE_SPACE_ID"
+    )
+    onebrain_assistant_private_space_id: str = Field(
+        default="", validation_alias="ONEBRAIN_ASSISTANT_PRIVATE_SPACE_ID"
+    )
 
     database_url: str = Field(
         default="postgresql://assistant:assistant_dev_password@localhost:5432/assistant",
@@ -71,8 +83,11 @@ class Settings(BaseSettings):
     )
 
     auth_identity_mode: str = Field(default="auto", validation_alias="AUTH_IDENTITY_MODE")
+    # Assistant sessions never re-validate against OneBrain after login, so this TTL
+    # is the worst-case window an offboarded/revoked OneBrain user keeps assistant
+    # access. Keep it short until OneBrain entitlement tokens replace the login shim.
     auth_session_ttl_seconds: int = Field(
-        default=43200, validation_alias="AUTH_SESSION_TTL_SECONDS"
+        default=14400, validation_alias="AUTH_SESSION_TTL_SECONDS"
     )
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

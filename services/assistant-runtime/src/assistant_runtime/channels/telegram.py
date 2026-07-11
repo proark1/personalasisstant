@@ -119,6 +119,36 @@ class InMemoryTelegramBindingStore:
         with self._lock:
             return list(self._bindings.values())
 
+    def purge_scope(self, account_id: str, space_id: str = "") -> list[str]:
+        """Erase Telegram binding state for a tombstoned scope.
+
+        Returns the bot/chat secret refs the purged bindings pointed at so the
+        caller can revoke them through the secret provider.
+        """
+        secret_refs: list[str] = []
+        with self._lock:
+            doomed = [
+                binding_id
+                for binding_id, record in self._bindings.items()
+                if record.scope.account_id == account_id
+                and (not space_id or record.scope.space_id == space_id)
+            ]
+            for binding_id in doomed:
+                record = self._bindings.pop(binding_id)
+                self._code_index.pop(record.binding_code_hash, None)
+                if record.telegram_chat_id_hash:
+                    self._chat_index.pop(record.telegram_chat_id_hash, None)
+                if record.bot_secret_ref:
+                    secret_refs.append(record.bot_secret_ref)
+                if record.telegram_chat_secret_ref:
+                    secret_refs.append(record.telegram_chat_secret_ref)
+            self._deliveries = {
+                ref: delivery
+                for ref, delivery in self._deliveries.items()
+                if delivery.binding_id not in set(doomed)
+            }
+        return secret_refs
+
     def verify_pending(
         self,
         binding_id: UUID,

@@ -61,11 +61,29 @@ class DisabledBrainClient:
     async def record_action_audit(self, action: ActionRecord, decision: PolicyDecision) -> None:
         raise OneBrainClientError(503, "OneBrain client is disabled.")
 
+    async def list_tombstones(self, *, since: int = 0, limit: int = 100) -> JsonObject:
+        raise OneBrainClientError(503, "OneBrain client is disabled.")
+
+    async def ack_tombstone(self, tombstone_id: str) -> JsonObject:
+        raise OneBrainClientError(503, "OneBrain client is disabled.")
+
+    async def delete_record(
+        self,
+        *,
+        source_ref: str,
+        account_id: str = "",
+        space_id: str = "",
+    ) -> JsonObject:
+        raise OneBrainClientError(503, "OneBrain client is disabled.")
+
 
 class InMemoryBrainClient:
     def __init__(self) -> None:
         self.records: dict[str, JsonObject] = {}
         self.audit_events: list[JsonObject] = []
+        self.tombstones: list[JsonObject] = []
+        self.tombstone_acks: list[str] = []
+        self.held_scopes: set[tuple[str, str]] = set()
 
     async def check_available(self) -> bool:
         return True
@@ -213,6 +231,66 @@ class InMemoryBrainClient:
             decision="allowed" if decision.allowed else "blocked",
             metadata=action_audit_metadata(action, decision),
         )
+
+    def add_tombstone(
+        self,
+        *,
+        account_id: str,
+        target_type: str,
+        space_id: str = "",
+        target_ref: str = "",
+        reason: str = "erasure",
+    ) -> JsonObject:
+        """Test helper mirroring OneBrain emitting a tombstone for this account."""
+        tombstone = {
+            "id": f"tomb_{uuid4().hex}",
+            "seq": len(self.tombstones) + 1,
+            "account_id": account_id,
+            "space_id": space_id,
+            "target_type": target_type,
+            "target_ref": target_ref,
+            "reason": reason,
+            "created_at": _now_iso(),
+        }
+        self.tombstones.append(tombstone)
+        return tombstone
+
+    async def list_tombstones(self, *, since: int = 0, limit: int = 100) -> JsonObject:
+        rows = [row for row in self.tombstones if int(row["seq"]) > since][: max(1, limit)]
+        cursor = max((int(row["seq"]) for row in rows), default=max(0, since))
+        return {"tombstones": rows, "cursor": cursor}
+
+    async def ack_tombstone(self, tombstone_id: str) -> JsonObject:
+        if not any(row["id"] == tombstone_id for row in self.tombstones):
+            raise OneBrainClientError(404, "No such tombstone for this account.")
+        self.tombstone_acks.append(tombstone_id)
+        return {
+            "tombstone_id": tombstone_id,
+            "app_id": ASSISTANT_APP_ID,
+            "acked_at": _now_iso(),
+        }
+
+    async def delete_record(
+        self,
+        *,
+        source_ref: str,
+        account_id: str = "",
+        space_id: str = "",
+    ) -> JsonObject:
+        if (account_id, space_id) in self.held_scopes or (account_id, "") in self.held_scopes:
+            raise OneBrainClientError(
+                409, "This scope is under an active legal hold; the record cannot be erased."
+            )
+        matched = [
+            record_id
+            for record_id, record in self.records.items()
+            if record.get("source_ref") == source_ref
+            and (not account_id or record.get("account_id") == account_id)
+            and (not space_id or record.get("space_id") == space_id)
+        ]
+        for record_id in matched:
+            del self.records[record_id]
+        return {"source_ref": source_ref, "deleted": len(matched), "audit_event_id": ""}
 
 
 class HttpOneBrainClient:
@@ -366,6 +444,31 @@ class HttpOneBrainClient:
             metadata=action_audit_metadata(action, decision),
         )
 
+    async def list_tombstones(self, *, since: int = 0, limit: int = 100) -> JsonObject:
+        query = urlencode({"since": str(max(0, since)), "limit": str(max(1, limit))})
+        response = await self._request("GET", f"api/service/tombstones?{query}")
+        return {
+            "tombstones": list(response.get("tombstones") or []),
+            "cursor": int(response.get("cursor") or max(0, since)),
+        }
+
+    async def ack_tombstone(self, tombstone_id: str) -> JsonObject:
+        return await self._request("POST", f"api/service/tombstones/{tombstone_id}/ack", {})
+
+    async def delete_record(
+        self,
+        *,
+        source_ref: str,
+        account_id: str = "",
+        space_id: str = "",
+    ) -> JsonObject:
+        payload: JsonObject = {
+            "source_ref": source_ref,
+            "account_id": account_id.strip() or self.account_id,
+            "space_id": space_id.strip(),
+        }
+        return await self._request("POST", "api/service/records/delete", payload)
+
     async def _request(
         self,
         method: str,
@@ -412,6 +515,10 @@ class HttpOneBrainClient:
 
 
 def build_brain_client(settings: Settings) -> BrainClient:
+    return _with_space_routing(_build_inner_brain_client(settings), settings)
+
+
+def _build_inner_brain_client(settings: Settings) -> BrainClient:
     mode = settings.onebrain_client_mode.lower().strip()
     if not settings.onebrain_available or mode == "disabled":
         return DisabledBrainClient()
@@ -436,6 +543,20 @@ def build_brain_client(settings: Settings) -> BrainClient:
     if settings.environment.lower() == "local":
         return InMemoryBrainClient()
     return DisabledBrainClient()
+
+
+def _with_space_routing(client: BrainClient, settings: Settings) -> BrainClient:
+    work_space = settings.onebrain_work_correspondence_space_id.strip()
+    private_space = settings.onebrain_assistant_private_space_id.strip()
+    if not work_space and not private_space:
+        return client
+    from assistant_runtime.providers.space_routing import SpaceRoutingBrainClient
+
+    return SpaceRoutingBrainClient(
+        client,
+        work_correspondence_space_id=work_space,
+        assistant_private_space_id=private_space,
+    )
 
 
 def action_audit_metadata(action: ActionRecord, decision: PolicyDecision) -> JsonObject:

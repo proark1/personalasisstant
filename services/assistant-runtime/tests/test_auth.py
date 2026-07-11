@@ -141,6 +141,24 @@ def test_onebrain_identity_fails_closed_when_endpoint_is_missing() -> None:
     assert client.get("/v1/today").status_code == 401
 
 
+def test_onebrain_identity_surfaces_wrong_app_service_key_as_misconfiguration() -> None:
+    import httpx
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            403, json={"detail": "This service key is pinned to a different app."}
+        )
+
+    client = _onebrain_identity_app(handler)
+
+    response = client.post(
+        "/v1/auth/login", json={"email": "owner@acme.test", "password": "pw"}
+    )
+    # A key pinned to another app is an authority/config failure (503), never a
+    # credentials failure (401) — the user cannot fix it by retyping a password.
+    assert response.status_code == 503
+
+
 def test_invalid_and_malformed_tokens_are_rejected() -> None:
     client = TestClient(_app())
 

@@ -56,7 +56,17 @@ def _connect(database_url: str, autocommit: bool = True):
     import psycopg
     from psycopg.rows import dict_row
 
-    return psycopg.connect(database_url, autocommit=autocommit, row_factory=dict_row)
+    from assistant_runtime.persistence.scope import current_account_scope
+
+    conn = psycopg.connect(database_url, autocommit=autocommit, row_factory=dict_row)
+    # Pin the RLS account scope for this connection (migration 0008). API request
+    # paths narrow the context var to the principal's account; worker paths keep
+    # the cross-account sentinel.
+    conn.execute(
+        "SELECT set_config('assistant.account_scope', %s, false)",
+        (current_account_scope.get(),),
+    )
+    return conn
 
 
 def _json(value: Any):
@@ -237,6 +247,17 @@ class PostgresSessionStore:
                 "UPDATE assistant_sessions SET last_used_at = %s WHERE session_id = %s",
                 (utc_now(), session_id),
             )
+
+    def purge_scope(self, account_id: str, space_id: str = "") -> int:
+        with _connect(self.database_url) as conn:
+            result = conn.execute(
+                """
+                DELETE FROM assistant_sessions
+                WHERE account_id = %s AND (%s = '' OR space_id = %s)
+                """,
+                (account_id, space_id, space_id),
+            )
+        return result.rowcount or 0
 
 
 class PostgresActionStore(InMemoryActionStore):
@@ -494,6 +515,26 @@ class PostgresActionStore(InMemoryActionStore):
                 _action_from_row(row, _load_transitions(conn, row["action_id"])) for row in rows
             ]
 
+    def purge_scope(self, account_id: str, space_id: str = "") -> int:
+        # Transitions cascade with their action; scoped idempotency keys are erased
+        # alongside so a purged scope leaves no operational residue behind.
+        with _connect(self.database_url, autocommit=False) as conn:
+            result = conn.execute(
+                """
+                DELETE FROM assistant_actions
+                WHERE account_id = %s AND (%s = '' OR space_id = %s)
+                """,
+                (account_id, space_id, space_id),
+            )
+            conn.execute(
+                """
+                DELETE FROM assistant_idempotency_keys
+                WHERE account_id = %s AND (%s = '' OR space_id = %s)
+                """,
+                (account_id, space_id, space_id),
+            )
+        return result.rowcount or 0
+
 
 class PostgresOutboxStore(InMemoryOutboxStore):
     """Postgres-backed transactional outbox with the in-memory store interface."""
@@ -642,6 +683,17 @@ class PostgresOutboxStore(InMemoryOutboxStore):
             rows = conn.execute("SELECT * FROM assistant_outbox ORDER BY created_at").fetchall()
         return [_outbox_from_row(row) for row in rows]
 
+    def purge_scope(self, account_id: str, space_id: str = "") -> int:
+        with _connect(self.database_url) as conn:
+            result = conn.execute(
+                """
+                DELETE FROM assistant_outbox
+                WHERE account_id = %s AND (%s = '' OR space_id = %s)
+                """,
+                (account_id, space_id, space_id),
+            )
+        return result.rowcount or 0
+
 
 class PostgresJobStore:
     """Postgres-backed durable job queue with the in-memory queue interface."""
@@ -772,6 +824,24 @@ class PostgresJobStore:
         with _connect(self.database_url) as conn:
             rows = conn.execute("SELECT * FROM assistant_jobs ORDER BY run_at").fetchall()
         return [_job_from_row(row) for row in rows]
+
+    def purge_scope(
+        self,
+        account_id: str,
+        space_id: str = "",
+        keep_job_types: set[str] | frozenset[str] = frozenset(),
+    ) -> int:
+        with _connect(self.database_url) as conn:
+            result = conn.execute(
+                """
+                DELETE FROM assistant_jobs
+                WHERE account_id = %s
+                  AND (%s = '' OR space_id = %s)
+                  AND NOT (job_type = ANY(%s))
+                """,
+                (account_id, space_id, space_id, list(keep_job_types)),
+            )
+        return result.rowcount or 0
 
 
 class PostgresProviderStore:
@@ -1293,6 +1363,64 @@ class PostgresProviderStore:
             ).fetchone()
         return _provider_account_from_row(row)
 
+    def get_onebrain_tombstone_cursor(self, account_id: str) -> int:
+        with _connect(self.database_url) as conn:
+            row = conn.execute(
+                """
+                SELECT cursor_seq FROM assistant_onebrain_tombstone_state
+                WHERE account_id = %s
+                """,
+                (account_id,),
+            ).fetchone()
+        return int(row["cursor_seq"]) if row else 0
+
+    def set_onebrain_tombstone_cursor(self, account_id: str, seq: int) -> None:
+        with _connect(self.database_url) as conn:
+            conn.execute(
+                """
+                INSERT INTO assistant_onebrain_tombstone_state (account_id, cursor_seq, updated_at)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (account_id) DO UPDATE
+                SET cursor_seq = GREATEST(
+                      assistant_onebrain_tombstone_state.cursor_seq, EXCLUDED.cursor_seq
+                    ),
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (account_id, seq, utc_now()),
+            )
+
+    def purge_scope(self, account_id: str, space_id: str = "") -> list[str]:
+        with _connect(self.database_url, autocommit=False) as conn:
+            account_refs = conn.execute(
+                """
+                SELECT refresh_token_secret_ref
+                FROM assistant_connected_provider_accounts
+                WHERE account_id = %s AND (%s = '' OR space_id = %s)
+                """,
+                (account_id, space_id, space_id),
+            ).fetchall()
+            subscription_refs = conn.execute(
+                """
+                SELECT secret_ref
+                FROM assistant_provider_subscriptions
+                WHERE account_id = %s AND (%s = '' OR space_id = %s) AND secret_ref IS NOT NULL
+                """,
+                (account_id, space_id, space_id),
+            ).fetchall()
+            for table in (
+                "assistant_sync_cursors",
+                "assistant_provider_subscriptions",
+                "assistant_connected_provider_accounts",
+                "assistant_provider_oauth_attempts",
+            ):
+                conn.execute(
+                    f"DELETE FROM {table} WHERE account_id = %s AND (%s = '' OR space_id = %s)",
+                    (account_id, space_id, space_id),
+                )
+        refs = [row["refresh_token_secret_ref"] for row in account_refs]
+        refs.extend(row["secret_ref"] for row in subscription_refs)
+        return [ref for ref in refs if ref]
+
 
 class PostgresTelegramBindingStore(InMemoryTelegramBindingStore):
     """Postgres-backed Telegram binding and delivery store."""
@@ -1369,6 +1497,30 @@ class PostgresTelegramBindingStore(InMemoryTelegramBindingStore):
         with _connect(self.database_url) as conn:
             rows = conn.execute("SELECT * FROM assistant_telegram_bindings").fetchall()
         return [_binding_from_row(row) for row in rows]
+
+    def purge_scope(self, account_id: str, space_id: str = "") -> list[str]:
+        with _connect(self.database_url, autocommit=False) as conn:
+            rows = conn.execute(
+                """
+                SELECT bot_secret_ref, telegram_chat_secret_ref
+                FROM assistant_telegram_bindings
+                WHERE account_id = %s AND (%s = '' OR space_id = %s)
+                """,
+                (account_id, space_id, space_id),
+            ).fetchall()
+            # Deliveries cascade with their binding.
+            conn.execute(
+                """
+                DELETE FROM assistant_telegram_bindings
+                WHERE account_id = %s AND (%s = '' OR space_id = %s)
+                """,
+                (account_id, space_id, space_id),
+            )
+        refs: list[str] = []
+        for row in rows:
+            refs.append(row["bot_secret_ref"])
+            refs.append(row["telegram_chat_secret_ref"])
+        return [ref for ref in refs if ref]
 
     def verify_pending(
         self,

@@ -12,6 +12,7 @@ from assistant_runtime.policy.action_policy import AssistantActionPolicyEngine
 from assistant_runtime.providers.onebrain import build_brain_client
 from assistant_runtime.providers.token_refresh import ProviderTokenRefresher
 from assistant_runtime.runtime_stores import build_operational_stores
+from assistant_runtime.schemas import ScopedIdentity
 from assistant_runtime.worker.runner import AssistantWorker
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,16 @@ def run() -> None:
             operational.secrets,
             operational.providers,
         ),
+        sessions=operational.sessions,
+        tombstone_poll_seconds=settings.onebrain_tombstone_poll_seconds,
         onebrain_available=asyncio.run(brain.check_available()),
+    )
+    worker.tombstones.ensure_scheduled(
+        ScopedIdentity(
+            account_id=settings.onebrain_account_id,
+            user_id="assistant-worker",
+            space_id=settings.onebrain_space_id,
+        )
     )
     if os.getenv("RUN_ONCE", "false").lower() == "true":
         result = worker.run_once()

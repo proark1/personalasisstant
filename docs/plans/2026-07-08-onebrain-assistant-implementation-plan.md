@@ -2,6 +2,46 @@
 
 Date: 2026-07-08
 
+## Amendment 2026-07-11: OneBrain Target-Architecture v2
+
+OneBrain approved its target-architecture v2 and shipped a deletion/tombstone
+contract on 2026-07-11. The deltas below supersede the matching sections of
+this plan; the concrete adaptation work and its status live in
+`docs/plans/2026-07-11-onebrain-v2-adaptation-plan.md`.
+
+1. **Auth And Session Design (superseded end-state).** The OneBrain identity
+   login endpoint the assistant integrates today
+   (`POST /api/service/assistant/identity/login`) is a declared transitional
+   shim slated for retirement. Target: OneBrain is the sole OIDC relying
+   party; modules verify short-lived OneBrain entitlement tokens locally and
+   never see IdP tokens or passwords. Do not deepen the shim integration.
+   Until entitlement tokens ship, assistant sessions use a short TTL and are
+   deleted when an account/space tombstone arrives, because they never
+   re-validate against OneBrain after login.
+2. **Sync Architecture (new gate).** Background provider sync must run under
+   durable, revocable, employee-bound acting-for grants — credentials, not
+   service-key-only access. OneBrain's sequencing makes grants a prerequisite
+   for shipping background sync to real customers.
+3. **OneBrain Contracts (new obligations).** The assistant is a required
+   consumer of OneBrain's deletion tombstone feed and may erase records it
+   synced via `POST /api/service/records/delete` (legal hold beats erasure,
+   erasure beats retention). Implemented 2026-07-11.
+4. **Space model (refined).** Personal data splits into
+   `personal/{employee}/work-correspondence` (company data, notice-based
+   governance) and `personal/{employee}/assistant-private` (break-glass only).
+   Record writes route by tier; routing is implemented behind configuration
+   and activates when OneBrain provisions the tier spaces.
+5. **Cost/Model Tiering And Voice Provider (constrained).** LLM/embedding
+   endpoints must be EU-region, zero-retention, named subprocessors;
+   embeddings run inside OneBrain's boundary; classification levels carry
+   inference-eligibility ceilings. "Gemini first for speed" holds only within
+   those constraints. Draft-approval workflows are security invariants the
+   model cannot disable.
+6. **Phase 8 (rescoped).** Legal holds, retention enforcement, and erasure
+   authority belong to OneBrain. The assistant's GDPR share — tombstone
+   consumption, row-level security, erasure calls, conformance fixtures — is
+   foundation work, implemented 2026-07-11, not late-phase hardening.
+
 ## Objective
 
 Build a business personal assistant product that works as a module on top of OneBrain. OneBrain is the canonical data layer for durable business data, memory, permissions, retrieval, and audit-of-record. The assistant is the work interface across web, voice, and Telegram: briefings, inbox triage, calendar planning, follow-ups, meeting prep, drafts, and approved actions.
