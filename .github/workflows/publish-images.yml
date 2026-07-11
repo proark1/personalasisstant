@@ -1,0 +1,87 @@
+name: Publish images
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-images-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build and push GHCR images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      assistant-service-digest: ${{ steps.build-service.outputs.digest }}
+      assistant-web-digest: ${{ steps.build-web.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata (assistant-service)
+        id: meta-service
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/proark1/assistant-service
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Docker metadata (assistant-web)
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/proark1/assistant-web
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Repo-root build context, matching docker-compose.yml (context: .).
+      - name: Build and push assistant-service
+        id: build-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/assistant-runtime/Dockerfile
+          push: true
+          tags: ${{ steps.meta-service.outputs.tags }}
+          labels: ${{ steps.meta-service.outputs.labels }}
+
+      # No NEXT_PUBLIC_ASSISTANT_API_URL build arg: this image is environment-portable.
+      # The Next server reads ASSISTANT_API_URL at runtime; the baked default only
+      # applies when the runtime var is unset.
+      - name: Build and push assistant-web
+        id: build-web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/assistant-web/Dockerfile
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+
+      - name: Report image digests
+        run: |
+          {
+            echo "## Published image digests"
+            echo ""
+            echo "| Image | Digest |"
+            echo "| --- | --- |"
+            echo "| ghcr.io/proark1/assistant-service | \`${{ steps.build-service.outputs.digest }}\` |"
+            echo "| ghcr.io/proark1/assistant-web | \`${{ steps.build-web.outputs.digest }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -19,7 +19,14 @@ export type ApproveActionResult = {
   reason?: string;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_ASSISTANT_API_URL ?? "http://localhost:8000";
+// Server-side calls read the plain runtime env var first so one image can be pointed
+// at any environment without a rebuild; the build-time-baked NEXT_PUBLIC_ value stays
+// as a fallback so existing deploys keep working. Browser calls never use an absolute
+// URL — they always go through the same-origin BFF proxy.
+const API_BASE_URL =
+  process.env.ASSISTANT_API_URL ??
+  process.env.NEXT_PUBLIC_ASSISTANT_API_URL ??
+  "http://localhost:8000";
 const BROWSER_PROXY_BASE = "/api/assistant";
 
 export const SESSION_COOKIE = "assistant_session";
