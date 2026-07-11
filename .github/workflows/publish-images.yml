@@ -1,9 +1,19 @@
+# Digest retrieval contract: authoritative digests are resolved from the immutable
+# tag via `docker buildx imagetools inspect ghcr.io/proark1/<image>:sha-<full-git-sha>`.
+# The job/workflow outputs below are only available within the same run (workflow_call
+# callers via needs/outputs); they are NOT retrievable cross-run through any API.
 name: Publish images
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      assistant-service-digest:
+        description: Digest of the pushed ghcr.io/proark1/assistant-service image
+        value: ${{ jobs.publish.outputs.assistant-service-digest }}
+      assistant-web-digest:
+        description: Digest of the pushed ghcr.io/proark1/assistant-web image
+        value: ${{ jobs.publish.outputs.assistant-web-digest }}
 
 concurrency:
   group: publish-images-${{ github.ref }}

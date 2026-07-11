@@ -78,3 +78,14 @@ jobs:
             --build-arg NEXT_PUBLIC_ASSISTANT_API_URL=https://assistant-api-production-5210.up.railway.app \
             -f apps/assistant-web/Dockerfile \
             .
+
+  # CI-gated GHCR publish: only runs after every check above passes on a push to main.
+  # Same-repo reusable workflow call, so the publish workflow version from this commit
+  # runs and GITHUB_TOKEN is inherited automatically.
+  publish-images:
+    needs: [web, backend, web-docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish-images.yml

@@ -285,7 +285,13 @@ function fallbackToday(): TodayResponse {
       {
         provider: "Assistant API",
         status: "degraded",
-        detail: API_BASE_URL,
+        // In the browser bundle API_BASE_URL is the build-time bake (localhost in the
+        // portable GHCR image), which would mislead debugging — report the proxy the
+        // browser actually calls instead. Server renders show the real runtime URL.
+        detail:
+          typeof window === "undefined"
+            ? API_BASE_URL
+            : `via ${BROWSER_PROXY_BASE} proxy`,
         checked_at: checkedAt
       }
     ],
